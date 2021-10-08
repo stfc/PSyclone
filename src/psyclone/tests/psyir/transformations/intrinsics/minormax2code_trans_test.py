@@ -33,17 +33,26 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''Module containing tests for the Min2Code transformation.'''
+'''Module containing tests for the MinOrMax2Code utility
+transformation. This transformation is designed to be configured to
+support either MIN or MAX transformations and should not be called
+directly. BinaryOperator tests use the MIN transformation and
+NaryOperator tests use the MAX transformation in order to test both
+cases.
 
+'''
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations import Min2CodeTrans, TransformationError
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
-    ArgumentInterface, REAL_TYPE
+
+from psyclone.configuration import Config
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
     Assignment, Literal, KernelSchedule
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.configuration import Config
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
+    ArgumentInterface, REAL_TYPE
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
+    MinOrMax2CodeTrans
 from psyclone.tests.utilities import Compile
 
 
@@ -52,20 +61,12 @@ def test_initialise():
     class is created and that the str and name methods work as expected.
 
     '''
-    trans = Min2CodeTrans()
-    assert trans._operator_name == "MIN"
+    trans = MinOrMax2CodeTrans()
     assert trans._classes == (BinaryOperation, NaryOperation)
-    assert trans._operators == (BinaryOperation.Operator.MIN,
-                                NaryOperation.Operator.MIN)
-
-
-def test_str_name():
-    '''Check that the str and name methods work as expected.'''
-
-    trans = Min2CodeTrans()
-    assert (str(trans) == "Convert the PSyIR MIN intrinsic to equivalent "
-            "PSyIR code.")
-    assert trans.name == "Min2CodeTrans"
+    assert trans._compare_operator is None
+    # from parent class
+    assert trans._operator_name is None
+    assert trans._operators is None
 
 
 def example_psyir_binary(create_expression):
@@ -99,10 +100,10 @@ def example_psyir_binary(create_expression):
 
 
 def example_psyir_nary():
-    '''Utility function that creates a PSyIR tree containing a nary MIN
+    '''Utility function that creates a PSyIR tree containing an nary MAX
     intrinsic operator and returns the operator.
 
-    :returns: PSyIR MIN operator instance.
+    :returns: PSyIR MAX operator instance.
     :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
 
     '''
@@ -122,10 +123,10 @@ def example_psyir_nary():
     var2 = Reference(arg2)
     var3 = Reference(arg3)
     var4 = Reference(arg4)
-    oper = NaryOperation.Operator.MIN
+    oper = NaryOperation.Operator.MAX
     operation = NaryOperation.create(oper, [var1, var2, var3])
     assign = Assignment.create(var4, operation)
-    _ = KernelSchedule.create("min_example", symbol_table, [assign])
+    _ = KernelSchedule.create("max_example", symbol_table, [assign])
     return operation
 
 
@@ -152,8 +153,13 @@ def test_correct_binary(func, output, tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp = MIN({0}, arg_1)\n\n"
         "end subroutine min_example\n".format(output)) in result
-    trans = Min2CodeTrans()
-    trans.apply(operation, root.symbol_table)
+    trans = MinOrMax2CodeTrans()
+    # Configure this transformation to use MIN
+    trans._operator_name = "MIN"
+    trans._operators = (BinaryOperation.Operator.MIN,
+                        NaryOperation.Operator.MIN)
+    trans._compare_operator = BinaryOperation.Operator.LT
+    trans.apply(operation)
     result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
@@ -199,8 +205,13 @@ def test_correct_expr(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp = 1.0 + MIN(arg, arg_1) + 2.0\n\n"
         "end subroutine min_example\n") in result
-    trans = Min2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
+    trans = MinOrMax2CodeTrans()
+    # Configure this transformation to use MIN
+    trans._operator_name = "MIN"
+    trans._operators = (BinaryOperation.Operator.MIN,
+                        NaryOperation.Operator.MIN)
+    trans._compare_operator = BinaryOperation.Operator.LT
+    trans.apply(operation)
     result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
@@ -247,9 +258,14 @@ def test_correct_2min(tmpdir):
         "  real :: psyir_tmp\n\n"
         "  psyir_tmp = MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
         "end subroutine min_example\n") in result
-    trans = Min2CodeTrans()
-    trans.apply(operation, root.symbol_table)
-    trans.apply(min_op, root.symbol_table)
+    trans = MinOrMax2CodeTrans()
+    # Configure this transformation to use MIN
+    trans._operator_name = "MIN"
+    trans._operators = (BinaryOperation.Operator.MIN,
+                        NaryOperation.Operator.MIN)
+    trans._compare_operator = BinaryOperation.Operator.LT
+    trans.apply(operation)
+    trans.apply(min_op)
     result = writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
@@ -278,7 +294,7 @@ def test_correct_2min(tmpdir):
 
 
 def test_correct_nary(tmpdir):
-    '''Check that a valid example with an nary MIN produces the expected
+    '''Check that a valid example with an nary MAX produces the expected
     output.
 
     '''
@@ -288,35 +304,40 @@ def test_correct_nary(tmpdir):
     writer = FortranWriter()
     result = writer(root)
     assert (
-        "subroutine min_example(arg, arg_1, arg_2)\n"
+        "subroutine max_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = MIN(arg, arg_1, arg_2)\n\n"
-        "end subroutine min_example\n") in result
-    trans = Min2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
+        "  psyir_tmp = MAX(arg, arg_1, arg_2)\n\n"
+        "end subroutine max_example\n") in result
+    trans = MinOrMax2CodeTrans()
+    # Configure this transformation to use MAX
+    trans._operator_name = "MAX"
+    trans._operators = (BinaryOperation.Operator.MAX,
+                        NaryOperation.Operator.MAX)
+    trans._compare_operator = BinaryOperation.Operator.GT
+    trans.apply(operation)
     result = writer(root)
     assert (
-        "subroutine min_example(arg, arg_1, arg_2)\n"
+        "subroutine max_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n"
-        "  real :: res_min\n"
-        "  real :: tmp_min\n\n"
-        "  res_min = arg\n"
-        "  tmp_min = arg_1\n"
-        "  if (tmp_min < res_min) then\n"
-        "    res_min = tmp_min\n"
+        "  real :: res_max\n"
+        "  real :: tmp_max\n\n"
+        "  res_max = arg\n"
+        "  tmp_max = arg_1\n"
+        "  if (tmp_max > res_max) then\n"
+        "    res_max = tmp_max\n"
         "  end if\n"
-        "  tmp_min = arg_2\n"
-        "  if (tmp_min < res_min) then\n"
-        "    res_min = tmp_min\n"
+        "  tmp_max = arg_2\n"
+        "  if (tmp_max > res_max) then\n"
+        "    res_max = tmp_max\n"
         "  end if\n"
-        "  psyir_tmp = res_min\n\n"
-        "end subroutine min_example\n") in result
+        "  psyir_tmp = res_max\n\n"
+        "end subroutine max_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
@@ -325,9 +346,14 @@ def test_correct_nary(tmpdir):
 def test_invalid():
     '''Check that the validate tests are run when the apply method is
     called.'''
-    trans = Min2CodeTrans()
+    trans = MinOrMax2CodeTrans()
+    # Configure this transformation to use MAX
+    trans._operator_name = "MAX"
+    trans._operators = (BinaryOperation.Operator.MAX,
+                        NaryOperation.Operator.MAX)
+    trans._compare_operator = BinaryOperation.Operator.GT
     with pytest.raises(TransformationError) as excinfo:
         trans.apply(None)
     assert (
-        "Error in Min2CodeTrans transformation. The supplied node argument "
-        "is not a MIN operator, found 'NoneType'." in str(excinfo.value))
+        "Error in Max2CodeTrans transformation. The supplied node argument "
+        "is not a MAX operator, found 'NoneType'." in str(excinfo.value))

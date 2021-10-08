@@ -33,27 +33,30 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module providing an abstract class that provides functionality to
-transform a PSyIR MIN or MAX operator to PSyIR code. This could be
-useful if the operator is not supported by the back-end or if the
-performance in the inline code is better than the intrinsic.
+'''Module containing a class that provides functionality to transform
+a PSyIR MIN or MAX operator to PSyIR code. This could be useful if the
+operator is not supported by the back-end or if the performance in the
+inline code is better than the intrinsic. This utility transformation
+should not be called directly by the user, rather it provides
+functionality that can be specialised by MIN and MAX-specific
+transformations.
 
 '''
 from __future__ import absolute_import
-import abc
-import six
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-        Operator2CodeTrans
+
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
         Reference, IfBlock, Routine
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
+        Operator2CodeTrans
 
 
-@six.add_metaclass(abc.ABCMeta)
 class MinOrMax2CodeTrans(Operator2CodeTrans):
-    '''Provides a transformation from a PSyIR MIN or MAX Operator node to
-    equivalent code in a PSyIR tree. Validity checks are also
-    performed (by the parent class).
+    '''Provides a utility transformation from a PSyIR MIN or MAX Operator
+    node to equivalent code in a PSyIR tree. Validity checks are also
+    performed (by the parent class). This utility transformation is
+    not design to be called directly by the user, rather it should be
+    specialised to provide MIN or MAX transformations.
 
     The transformation replaces
 
@@ -79,10 +82,10 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
         self._compare_operator = None
 
     def apply(self, node, options=None):
-        '''Apply this transformation to the specified node. This node must be
-        a MIN or MAX BinaryOperation or NaryOperation. The operation
-        is converted to equivalent inline code.  This is implemented
-        as a PSyIR transform from:
+        '''Apply this utility transformation to the specified node. This node
+        must be a MIN or MAX BinaryOperation or NaryOperation. The
+        operation is converted to equivalent inline code.  This is
+        implemented as a PSyIR transform from:
 
         .. code-block:: python
 
