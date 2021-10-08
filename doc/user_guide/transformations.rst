@@ -881,4 +881,7 @@ SIR
 It is currently not possible for PSyclone to output SIR code without
 using a script. Two examples of such scripts are given in example 4
 for the NEMO API, one of which includes transformations to remove
-PSyIR intrinsics (as the SIR does not support them).
+PSyIR intrinsics, hoist code out of a loop, translate array-index
+notation into explicit loops and translate a single access to an array
+dimension to a one-trip loop (to make the code suitable for the SIR
+backend).

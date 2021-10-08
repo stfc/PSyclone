@@ -215,6 +215,12 @@
 	ones that use the 'dynamo0.3'/'lfric' domain instead of 'dynamo0.1'.
 	This is a step towards removing the 'dynamo0.1' domain.
 
+	74) PR #1397 for #1390. Add support for unary minus in SIR backend.
+
+	75) PR #1413 towards #1134. Moves the generation of some OpenCL
+	support routines from the generation stage to the transformation
+	stage.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
