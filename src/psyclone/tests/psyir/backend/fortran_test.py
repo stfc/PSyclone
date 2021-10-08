@@ -2119,17 +2119,24 @@ def test_fw_literal_node(fortran_writer):
 
 
 def test_fw_call_node(fortran_writer):
-    '''Test the PSyIR call node is translated to the required Fortran
-    code.
-
-    '''
-    # no args
+    '''Test the PSyIR call node is translated to the required Fortran code. '''
+    # No call arguments nor node parent
     routine_symbol = RoutineSymbol("mysub")
     call = Call.create(routine_symbol, [])
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 
-    # simple args
+    # If its inside a Schedule it still show the call keyword and a line break
+    schedule = Schedule()
+    schedule.addchild(call)
+    assert fortran_writer(call) == "call mysub()\n"
+
+    # Inside an expression it will not show the call keyword and line break
+    ifblock = IfBlock.create(call.detach(), [Return()])
+    assert fortran_writer(call) == "mysub()"
+    assert fortran_writer(ifblock) == "if (mysub()) then\n  return\nend if\n"
+
+    # Call with arguments
     args = [Reference(DataSymbol("arg1", REAL_TYPE)),
             Reference(DataSymbol("arg2", REAL_TYPE))]
     call = Call.create(routine_symbol, args)

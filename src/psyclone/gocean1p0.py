@@ -1944,7 +1944,7 @@ class GOKernelArgument(KernelArgument):
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
                 return "real"
-            if self.space.lower() == "go_r_scalar":
+            if self.space.lower() == "go_i_scalar":
                 return "integer"
         return ""
 

@@ -1520,6 +1520,31 @@ def test_gokernelargument_infer_datatype():
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar' but found 'incompatible'." in str(excinfo.value))
 
+def test_gokernelargument_intrinsic_type():
+    ''' Check that the GOcean specialisation of the intrinsic_type returns the
+    expected values. '''
+
+    # Parse an invoke with a scalar float and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments.args
+    # First argument 'a_scalar' is a REAL
+    assert argument_list[0].intrinsic_type == "real"
+    # Second argument 'ssh_fld' is a derived type and doesn't have a single
+    # intrinsic type, so it returns and empty string
+    assert argument_list[1].intrinsic_type == ""
+    # Change the first argument metadata type to integer, and check the
+    # intrinsic_type value also changes
+    argument_list[0]._arg._space = "go_i_scalar"
+    assert argument_list[0].intrinsic_type == "integer"
+
 
 def test_gokernelarguments_psyir_expressions():
     ''' Check the GOcean specialisation of psyir_expressions returns the
