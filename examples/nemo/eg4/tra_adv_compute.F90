@@ -103,10 +103,7 @@ contains
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
              zbtr = 1.
-             ! SIR backend does not like "-"
-             !ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
-             !     &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
+             ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
                   &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
              mydomain(ji,jj,jk) = mydomain(ji,jj,jk) + ztra
           END DO
@@ -163,9 +160,7 @@ contains
     DO jk = 1, jpk-1
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
-             ! SIR backend does not like "-"
-             ! ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
+             ztra = -zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
              mydomain(ji,jj,jk) = ztra
           END DO
        END DO
