@@ -37,6 +37,7 @@
 adjoint_visitor.py file within the psyad directory.
 
 '''
+from __future__ import absolute_import
 import logging
 import pytest
 
@@ -79,7 +80,7 @@ def test_create_error():
     variables are provided.
 
     '''
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(ValueError) as info:
         _ = AdjointVisitor([])
     assert ("There should be at least one active variable supplied to an "
             "AdjointVisitor." in str(info.value))
@@ -172,7 +173,7 @@ def test_create_schedule_single_assignment(fortran_reader, code):
 def test_create_schedule_active_variables(fortran_reader):
     '''Test that any active variables specified by the adjoint visitor are
     found in the symbol table and stored in the _active_variables
-    list. Also test that unknown symbol names raise the expected
+    list. Also test that any unknown symbol names raise the expected
     exception.
 
     '''
@@ -188,6 +189,12 @@ def test_create_schedule_active_variables(fortran_reader):
     assert adj_visitor._active_variables[0].name == "a"
     assert adj_visitor._active_variables[1].name == "b"
     assert adj_visitor._active_variables[2].name == "c"
+
+    adj_visitor = AdjointVisitor(["non-existant"])
+    with pytest.raises(KeyError) as info:
+        _ = adj_visitor.schedule_node(tl_schedule)
+    assert ("Could not find 'non-existant' in the Symbol Table."
+            in str(info.value))
 
 
 def test_create_schedule_node_and_children(fortran_reader, fortran_writer):
@@ -243,9 +250,8 @@ def test_assignment_node_error(fortran_reader):
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor.assignment_node(assignment)
-    assert ("An assignment node should not be called without a schedule being "
-            "called beforehand as the latter sets up the active variables."
-            in str(info.value))
+    assert ("An assignment node should not be visited before a schedule, as "
+            "the latter sets up the active variables." in str(info.value))
 
 
 def test_assignment_node(fortran_reader, fortran_writer):

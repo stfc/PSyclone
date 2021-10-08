@@ -49,7 +49,7 @@ from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
-    Assignment, BinaryOperation
+    Assignment, BinaryOperation, Reference, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
     INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface
 
@@ -221,9 +221,6 @@ def test_generate_adjoint(fortran_reader):
     assert ad_fortran_str in expected_ad_fortran_str
 
 
-@pytest.mark.xfail(reason="issue #1426: only a single assignment statement is "
-                   "supported which causes the multi-routine test to give the "
-                   "wrong exception")
 def test_generate_adjoint_errors():
     ''' Check that generate_adjoint() raises the expected exceptions when
     given invalid input. '''
@@ -244,11 +241,18 @@ def test_generate_adjoint_errors():
         generate_adjoint(cont, ["dummy"])
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
-    # Only one routine is permitted
-    cont.addchild(Routine.create("my_kern1", SymbolTable(), [Return()]))
-    cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
+    # Multiple routines
+    symbol_table = cont.symbol_table
+    symbol = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    assignment = Assignment.create(
+        Reference(symbol), Literal("0.0", REAL_TYPE))
+    cont.addchild(Routine.create("my_kern1", symbol_table, [assignment]))
+    assignment = Assignment.create(
+        Reference(symbol), Literal("0.0", REAL_TYPE))
+    cont.addchild(Routine.create("my_kern2", symbol_table, [assignment]))
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint(cont, ["dummy"])
+        generate_adjoint(cont, [symbol.name])
     assert ("The supplied Fortran must contain one and only one routine but "
             "found: ['my_kern1', 'my_kern2']" in str(err.value))
 

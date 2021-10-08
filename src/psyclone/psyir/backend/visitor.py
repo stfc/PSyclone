@@ -237,8 +237,9 @@ class PSyIRVisitor(object):
                 # pylint: disable=eval-used
                 node_result = eval("self.{0}(node)".format(method_name))
 
+                # We can only proceed to add comments if the Visitor
+                # returned a string, otherwise we just return
                 if not isinstance(node_result, str):
-                    # Visitors might not return strings
                     return node_result
 
                 result = ""

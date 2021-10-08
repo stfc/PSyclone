@@ -33,9 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''The implementation of PSyAD : the PSyclone Adjoint support. A PSyIR
-visitor that supports the transformation of tangent-linear code to its
-adjoint.
+'''A PSyIR visitor for PSyAD : the PSyclone Adjoint support. Applies
+transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 
 '''
 from __future__ import print_function
@@ -47,19 +46,19 @@ from psyclone.psyir.nodes import Schedule, Assignment, Node
 
 
 class AdjointVisitor(PSyIRVisitor):
-    '''An Adjoint Visitor that translates a PSyIR tree representation of a
-    tangent linear code to its adjoint.
+    '''An Adjoint Visitor that translates the PSyIR of a tangent-linear
+    code into its adjoint form.
 
-    :param active_variables_names: a list of the active variables.
-    :type active_variables_names: list of str
+    :param active_variable_names: a list of the active variables.
+    :type active_variable_names: list of str
 
-    :raises TypeError: if no active variables are supplied.
+    :raises ValueError: if no active variables are supplied.
 
     '''
     def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
-            raise TypeError(
+            raise ValueError(
                 "There should be at least one active variable supplied to "
                 "an AdjointVisitor.")
         self._active_variable_names = active_variable_names
@@ -68,15 +67,15 @@ class AdjointVisitor(PSyIRVisitor):
 
     def container_node(self, node):
         '''This method is called if the visitor finds a Container node. A copy
-        of the container is returned, as this does not change when
-        converting from tangent linear to adjoint, which contains
-        processed siblings.
+        of the container is returned (as this does not change when
+        converting from tangent linear to adjoint) containing
+        processed descendants.
 
         :param node: a Container PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Container`
 
-        :returns: a new PSyIR tree containing the adjoint equivalent \
-            of this node and its sibling nodes.
+        :returns: a new PSyIR tree containing the adjoint of this node \
+            and its descendant nodes.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -85,23 +84,23 @@ class AdjointVisitor(PSyIRVisitor):
 
     def schedule_node(self, node):
         '''This method is called if the visitor finds a Schedule node. A copy
-        of the container is returned, as this does not change when
+        of the schedule is returned, as this does not change when
         converting from tangent linear to adjoint and its children are
         re-ordered and sorted dependending on whether they are active
         or passive nodes.
 
-        As a schedule contains variable scoping information. i.e. a
+        As a schedule contains variable scoping information, i.e. a
         symbol table, the symbols representing the active variable
-        strings supplied to the visitor are found and added to an
+        names supplied to the visitor are found and added to an
         internal list so they are available when processing any
-        siblings.
+        descendants.
 
         :param node: a Schedule PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :returns: a new PSyIR tree containing the adjoint equivalent \
-            of this node and its sibling nodes.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+            of this node and its descendants.
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
         self._logger.debug("Transforming Schedule")
@@ -122,30 +121,27 @@ class AdjointVisitor(PSyIRVisitor):
 
     def assignment_node(self, node):
         '''This method is called if the visitor finds an Assignment node. The
-        adjoint equivalent of this tangent linear assignment is
-        returned via the AssignmentTrans transformation. As a single
-        tangent linear assignment can result in multiple adjoint
-        assignments, a list of nodes is returned.
+        adjoint of this tangent-linear assignment is returned via the
+        AssignmentTrans transformation. As the adjoint of a single
+        tangent-linear assignment can consist of multiple assignments,
+        a list of nodes is returned.
 
-        :param node: a Schedule PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param node: an Assignment PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
 
         :returns: a list of PSyIR nodes containing the adjoint \
-            equivalent of this node.
+            of this node.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises VisitorError: if no active variable symbols are \
-            found. This should not be the case as these are set up in \
-            a Schedule node and an Assignment node should be a sibling \
-            of a Schedule node.
+        :raises VisitorError: if the schedule_node method has not been \
+            called previously.
 
         '''
         self._logger.debug("Transforming active assignment")
-        if not self._active_variables:
+        if self._active_variables is None:
             raise VisitorError(
-                "An assignment node should not be called without a schedule "
-                "being called beforehand as the latter sets up the active "
-                "variables.")
+                "An assignment node should not be visited before a schedule, "
+                "as the latter sets up the active variables.")
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
         # Temporary parent schedule required by the transformation.
@@ -156,16 +152,19 @@ class AdjointVisitor(PSyIRVisitor):
 
     def _copy_and_process(self, node):
         '''Utility function to return a copy the current node containing the
-        result of processing all siblings.
+        result of processing all descendants.
 
         :param node: a PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a new PSyIR tree containing a copy of this node \
-            containing the result of processing all of its sibling nodes.
+            which contains the result of processing all of its \
+            descendants.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        # We only need to copy this node. Issue #1440 will address
+        # this.
         node_copy = node.copy()
         node_copy.children = []
         for child in node.children:
