@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,48 +32,53 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-include ../../common.mk
+'''A simple test script showing the introduction of OpenMP with PSyclone.
+In order to use it you must first install PSyclone. See README.md in the
+top-level psyclone directory.
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
-ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+Once you have psyclone installed, this script may be run by doing:
 
-.PHONY: basic openmp mpi loop_fuse dag openacc opencl
+ >>> python runme_openmp.py
 
-transform: basic openmp mpi loop_fuse dag openacc opencl
+This should generate a lot of output, ending with generated
+Fortran.
+'''
 
-compile: transform
-	@echo "No compilation targets for example gocean/eg1"
+from __future__ import print_function
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory, TransInfo
 
-run: compile
-	@echo "No run targets for example gocean/eg1"
+if __name__ == "__main__":
+    from psyclone.nemo import NemoKern
+    API = "nemo"
+    _, INVOKEINFO = parse("../code/tra_adv.F90", api=API)
+    PSY = PSyFactory(API).create(INVOKEINFO)
+    print(PSY.gen)
 
-basic:
-	$(ENV) ${PYTHON} ./runme.py
+    print("Invokes found:")
+    print(PSY.invokes.names)
 
-openmp:
-	$(ENV) ${PYTHON} ./runme_openmp.py
+    SCHED = PSY.invokes.get('tra_adv').schedule
+    SCHED.view()
 
-openmp_taskloop:
-	$(ENV) ${PYTHON} ./runme_openmp_taskloop.py
+    from psyclone.transformations import OMPParallelTrans, OMPSingleTrans, OMPLoopTrans
+    singletrans = OMPSingleTrans()
+    paralleltrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans()
 
+    children = []
+    for loop in SCHED.loops():
+        kernels = loop.walk(NemoKern)
+        if kernels and loop.loop_type == "levels":
+            looptrans.apply(loop)
 
-mpi:
-	${PSYCLONE} -api gocean1.0 shallow_alg.f90
+    singletrans.apply(children)
 
-loop_fuse:
-	$(ENV) ${PYTHON} ./runme_loop_fuse.py
+    paralleltrans.apply(children)
 
-dag:
-	$(ENV) ${PYTHON} ./runme_dag.py
+    SCHED.view()
 
-openacc:
-	$(ENV) ${PYTHON} ./runme_openacc.py
-
-# The "--kernel-renaming single" parameter avoids generating duplicate
-# versions of OpenCL kernels called multiple times.
-opencl:
-	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
-		-api gocean1.0 shallow_alg.f90
+    PSY.invokes.get('tra_adv').schedule = SCHED
+    print(PSY.gen)

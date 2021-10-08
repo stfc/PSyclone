@@ -274,6 +274,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.OMPTaskwaitTrans
+    :members: apply, omp_grainsize, omp_num_tasks
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members: apply
     :noindex:
@@ -650,7 +656,8 @@ transformations currently supported allow the addition of:
 * an **OpenMP Do** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
-* an **OpenMP Taskloop** directive; and
+* an **OpenMP Taskloop** directive
+* multiple **OpenMP Taskwait** directives; and
 * an **OpenMP Parallel Do** directive.
 
 The generic versions of these transformations (i.e. ones that
