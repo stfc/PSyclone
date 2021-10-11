@@ -3237,6 +3237,7 @@ class LFRicLoopBounds(DynCollection):
         parent.add(CommentGen(parent, ""))
 
         sym_table = self._invoke.schedule.symbol_table
+        api_config = Config.get().api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
             root_name = "loop{0}_start".format(idx)
@@ -3256,6 +3257,7 @@ class LFRicLoopBounds(DynCollection):
                                               symbol_type=DataSymbol,
                                               datatype=INTEGER_TYPE)
             parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
                                entity_decls=[lbound.name, ubound.name]))
             parent.add(AssignGen(parent, lhs=lbound.name,
                                  rhs=loop._lower_bound_fortran()))
