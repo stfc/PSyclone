@@ -434,10 +434,9 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
-        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(lhs, rhs)
+        assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
@@ -520,7 +519,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(arg_refs[0], rhs)
+        assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
@@ -812,7 +811,7 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(arg_refs[0], rhs)
+        assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
@@ -1074,7 +1073,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(arg_refs[0], rhs)
+        assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
@@ -1193,7 +1192,7 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(arg_refs[0], rhs)
+        assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
