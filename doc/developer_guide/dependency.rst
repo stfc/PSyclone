@@ -226,6 +226,10 @@ accesses for the call statement. The information about all variable usage
 of a PSyIR node or a list of nodes can be gathered by creating an object of
 type `psyclone.core.access_info.VariablesAccessInfo`.
 This class uses a `Signature` object to keep track of the variables used.
+
+Signature
+---------
+
 A signature can be thought of as a tuple that consists of the variable name
 and structure members used in an access - called components. For example,
 an access like
@@ -238,8 +242,15 @@ a single component.
     :members:
     :special-members: __hash__, __eq__, __lt__
 
-To collect access information in a `VariablesAccessInfo` object, the
-function `reference_accesses()` for the code region must be called:
+
+VariablesAccessInfo
+-------------------
+
+The `VariablesAccessInfo` class is used to store information about all
+accesses in a region of code. To collect access information, the
+function `reference_accesses()` for the code region must be called.
+It will add the accesses for the PSyIR subtree to the specified instance
+of `VariablesAccessInfo`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
@@ -256,6 +267,9 @@ combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which access information is stored in a `VariablesAccessInfo`
 instance.
 
+SingleVariableAccessInfo
+------------------------
+
 For each variable used an instance of
 `psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
 all accesses for that variable using `psyclone.core.access_info.AccessInfo`
@@ -263,6 +277,9 @@ instances:
 
 .. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
     :members:
+
+For each access of a variable, an instance of `AccessInfo` is created and
+stored in the `SingleVariablesAccessInfo` instance.
 
 .. autoclass:: psyclone.core.access_info.AccessInfo
     :members:
