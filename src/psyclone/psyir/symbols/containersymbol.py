@@ -52,37 +52,57 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-    :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is passed as a routine argument or \
-        accessed in some other way). Defaults to \
-        :py:class:`psyclone.psyir.symbols.FortranModuleInterface`
-    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+    :param bool wildcard_import: if all public Symbols of the Container are \
+        imported into the current scope. Defaults to False.
+    :param kwargs: additional keyword arguments provided by \
+        :py:class:`psyclone.psyir.symbols.Symbol`.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
-        super(ContainerSymbol, self).__init__(name, visibility=visibility)
+    def __init__(self, name, wildcard_import=False, **kwargs):
+        super(ContainerSymbol, self).__init__(name)
+
+        self._reference = None
+        self._has_wildcard_import = False
+
+        self._process_arguments(wildcard_import=wildcard_import, **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the wildcard_import and a change in default
+        value for the interface.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param bool wildcard_import: if all public Symbols of the \
+                Container are imported into the current scope. Defaults to \
+                False.\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
+        :type kwargs: unwrapped dict.
+
+        :raises TypeError: if it is provided with an interface argument other \
+                then FortranModuleInterface.
+
+        '''
+        if not hasattr(self, '_reference'):
+            self._reference = None
+
+        if "wildcard_import" in kwargs:
+            self.wildcard_import = kwargs.pop("wildcard_import")
+        elif not hasattr(self, '_has_wildcard_import'):
+            self._has_wildcard_import = False
 
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers
         # which can be imported, but this is not always true.
-        if interface is None:
-            # By default it is a FortranModuleInterface
-            self.interface = FortranModuleInterface()
-        elif isinstance(interface, FortranModuleInterface):
-            self.interface = interface
-        else:
+        if "interface" not in kwargs or kwargs["interface"] is None:
+            kwargs["interface"] = FortranModuleInterface()
+        elif not isinstance(kwargs["interface"], FortranModuleInterface):
             raise TypeError("A ContainerSymbol interface must be of type '"
                             "FortranModuleInterface' but found '{0}' for "
                             "Container '{1}'."
-                            "".format(type(interface).__name__, name))
-
-        self._reference = None
-        # Whether or not there is a wildcard import of all public symbols
-        # from this container (e.g. an unqualified USE of a module in Fortran).
-        self._has_wildcard_import = False
+                            "".format(type(kwargs["interface"]).__name__,
+                                      self.name))
+        super(ContainerSymbol, self)._process_arguments(**kwargs)
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the
