@@ -197,7 +197,7 @@ def test_datasymbol_constant_value_setter():
     assert isinstance(sym.constant_value, BinaryOperation)
     assert sym.constant_value is ct_expr
 
-    # Test setting it back no non-constant
+    # Test setting it back to non-constant
     sym.constant_value = None
     assert sym.constant_value is None
 
