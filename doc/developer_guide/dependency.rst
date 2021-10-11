@@ -34,6 +34,27 @@
    Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
                J. Henrichs, Bureau of Meteorology
 
+.. testsetup::
+
+    from psyclone.core import Signature, VariablesAccessInfo
+    from psyclone.psyir.frontend.fortran import FortranReader
+    from psyclone.psyir.backend.fortran import FortranWriter
+
+    code = '''subroutine sub()
+    integer :: i, j, a
+    a(i,j) = 1
+    end subroutine sub
+    '''
+    psyir = FortranReader().psyir_from_source(code)
+    all_var_accesses = VariablesAccessInfo(psyir.children)
+    # Get all accesses to the variable 'a', i.e. a(i.j)
+    all_a_accesses = all_var_accesses[Signature("a")]
+    # Get the first access, which is the write access to 'a(i,j)'
+    access_to_a_i_j = all_a_accesses[0]
+
+    fortran_writer = FortranWriter()
+
+
 Dependency Analysis Functionality in PSyclone
 #############################################
 
@@ -319,41 +340,62 @@ will return the index used in the second dimension of the first component.
 to iterate over all indices using its `iterate()` method, which returns all
 valid 2-tuples of component index and dimension index. For example:
 
-.. code-block:: python
+.. testcode::
 
-  for indx in access_info.component_indices:
+  # access_to_a_i_J contains the access information to `a(i,j)`
+  for indx in access_to_a_i_j.component_indices.iterate():
       # indx is a 2-tuple of (component_index, dimension_index)
-      psyir_index = access_info.component_indices[indx]
-      ...
+      psyir_index = access_to_a_i_j.component_indices[indx]
+
   # Using enumerate:
-  for count, indx in enumerate(component_indices.iterate()):
+  for count, indx in enumerate(access_to_a_i_j.component_indices.iterate()):
       # fortran writer convers a PSyIR node to Fortran:
-      print("Index-id", count, fortran_writer(indx))
+      psyir_index = access_to_a_i_j.component_indices[indx]
+      print("Index-id", count, fortran_writer(psyir_index))
+
+.. testoutput::
+
+    Index-id 0 i
+    Index-id 1 j
 
 To find out details about an index expression, you can either analyse
 the tree (e.g. using `walk`), or use the variable access functionality again.
 Below is an example that shows how this is done to determine if an array
-expression contains a reference to a given variable `index_variable`. The
+expression contains a reference to a given variable specified as a
+signature in the variable `index_variable`. The
 variable `access_info` is an instance of `AccessInfo` and contains the
-information about one reference.The function `reference_accesses` is used
-to analyse the index expression.
+information about one reference. The function `reference_accesses` is used
+to analyse the index expression. Typically, this code would be
+wrapped in an outer loop over all accesses.
 
-.. code-block:: python
+.. testcode::
 
-  for indx in access_info.component_indices:
-      index_expression = component_indices[indx]
+  index_variable = Signature("i")
+  # access_to_a_i_j contains the accesses of writing to `a(i,j)`,
+  # i.e. the write access to `a` using the indices `i` and `j`.
+  # Loop over all individual index expressions ("i", then "j")
+  for indx in access_to_a_i_j.component_indices.iterate():
+      index_expression = access_to_a_i_j.component_indices[indx]
 
       # Create an access info object to collect the accesses
       # in the index expression
       accesses = VariablesAccessInfo(index_expression)
       
       # Then test if the index variable is used. Note that
-      # the key of `access` is a signature
-      if Signature(index_variable) in accesses:
+      # the key of `access` is a signature, as is the `index_variable`
+      if index_variable in accesses:
           # The index variable is used as an index
           # at the specified location.
-          return indx
+          print("Index '{0}' is used.".format(str(index_variable)))
+          break
+  else:
+      print("Index '{0}' is not used.".format(str(index_variable)))
 
+
+.. testoutput::
+    :hide:
+
+    Index 'i' is used.
 
 Access Location
 ---------------
