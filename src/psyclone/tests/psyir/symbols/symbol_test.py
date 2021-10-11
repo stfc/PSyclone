@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
                                    DataSymbol, ImportInterface, \
                                    INTEGER_SINGLE_TYPE, LocalInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolTable, UnresolvedInterface, NoType
+                                   SymbolTable, UnresolvedInterface
 from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
