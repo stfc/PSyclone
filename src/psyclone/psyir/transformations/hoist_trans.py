@@ -91,7 +91,7 @@ class HoistTrans(Transformation):
     def apply(self, node, options=None):
         '''Applies the hoist transformation to the supplied assignment node
         within a loop, moving the assignment outside of the loop if it
-        is valid to do so. Issue #1387 will also look to extend this
+        is valid to do so. Issue #1445 will also look to extend this
         transformation to other types of node.
 
         :param node: target PSyIR node.
@@ -115,7 +115,8 @@ class HoistTrans(Transformation):
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist
         transformation. At this stage only an assignment statement is
-        allowed to be hoisted, see #1387.
+        allowed to be hoisted, see #1445. It should also be tested if
+        there is a directive outside of the loop, see #1446
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
