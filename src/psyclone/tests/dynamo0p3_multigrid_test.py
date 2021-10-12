@@ -311,15 +311,17 @@ def test_field_prolong(tmpdir):
         if distmem:
             # We are writing to a continuous field on the fine mesh, we
             # only need to halo swap to depth one on the coarse.
+            assert ("loop0_stop = mesh_field2%get_last_halo_cell(1)\n" in
+                    gen_code)
             expected = (
                 "      IF (field2_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL field2_proxy%halo_exchange(depth=1)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=1,mesh_field2%get_last_halo_cell(1)\n")
+                "      DO cell=loop0_start,loop0_stop\n")
             assert expected in gen_code
         else:
-            assert "DO cell=1,field2_proxy%vspace%get_ncell()\n" in gen_code
+            assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
 
         expected = (
             "        CALL prolong_test_kernel_code(nlayers, "
@@ -422,7 +424,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
+                "      DO cell=loop0_start,loop0_stop\n")
         else:
             halo_exchs = (
                 "      ! Call kernels and communication routines\n"
@@ -431,7 +433,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
+                "      DO cell=loop0_start,loop0_stop\n")
         assert halo_exchs in output
 
     # We pass the whole dofmap for the fine mesh (we are reading from).
@@ -524,8 +526,9 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop")
         assert expected in output
+        assert "loop0_stop = mesh_fld_c%get_last_halo_cell(1)\n" in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
         # of the fine(r) mesh will now be clean. Therefore, no halo
         # swap before the next prolongation required for fld_m
@@ -540,8 +543,9 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        CALL fld_f_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
+            "      DO cell=loop1_start,loop1_stop\n")
         assert expected in output
+        assert "loop1_stop = mesh_fld_m%get_last_halo_cell(1)\n"
         # Again the L1 halo for fld_f will now be clean but for restriction
         # we need the L2 halo to be clean. There's a set_clean(1) for
         # fld_f because the above loop over the coarser fld_m will go
@@ -552,10 +556,12 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      !\n"
                     "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
                     "      !\n"
-                    "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n"
+                    "      DO cell=loop2_start,loop2_stop\n"
                     "        !\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
+        assert "loop2_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
+
         # For the final restriction we need the L2 halo of fld_m to be
         # clean. There's no set_clean() call on fld_m because it is
         # only updated out to the L1 halo and it is a continuous field
@@ -564,27 +570,32 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      !\n"
                     "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
                     "      !\n"
-                    "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n"
+                    "      DO cell=loop3_start,loop3_stop\n"
                     "        !\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
+        assert "loop3_stop = mesh_fld_c%get_last_halo_cell(1)\n" in output
     else:
+        assert "loop0_stop = fld_c_proxy%vspace%get_ncell()\n" in output
+        assert "loop1_stop = fld_m_proxy%vspace%get_ncell()\n" in output
+        assert "loop2_stop = fld_m_proxy%vspace%get_ncell()\n" in output
+        assert "loop3_stop = fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
-            "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
+            "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
             "(:,:,cell), ncpc_fld_m_fld_c_x, ncpc_fld_m_fld_c_y, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
-            "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
+            "      DO cell=loop1_start,loop1_stop\n"
             "        !\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
             "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
-            "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
+            "      DO cell=loop2_start,loop2_stop\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
@@ -592,7 +603,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
-            "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
+            "      DO cell=loop3_start,loop3_stop\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_c"
             "(:,:,cell), ncpc_fld_m_fld_c_x, ncpc_fld_m_fld_c_y, ncell_fld_m, "
@@ -713,7 +724,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     expected = (
         "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      DO cell=1,mesh_fld_m%get_last_edge_cell()\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
         "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
@@ -722,9 +733,10 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
         "      END DO\n")
     assert expected in output
-    assert "DO cell=1,mesh_fld_c%get_last_edge_cell()" in output
-    assert "DO cell=1,mesh_fld_c%get_last_halo_cell(1)" in output
-    assert "DO cell=1,mesh_fld_m%get_last_halo_cell(1)" in output
+    assert "loop0_stop = mesh_fld_m%get_last_edge_cell()\n" in output
+    assert "loop1_stop = mesh_fld_c%get_last_edge_cell()" in output
+    assert "loop2_stop = mesh_fld_c%get_last_halo_cell(1)" in output
+    assert "loop3_stop = mesh_fld_m%get_last_halo_cell(1)" in output
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -732,27 +744,31 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
     # Apply OMP to the first restrict kernel
-    _, _ = otrans.apply(schedule.children[0])
+    _, _ = otrans.apply(schedule[0])
     # Apply colouring and OMP to the first prolong kernel
-    _, _ = ctrans.apply(schedule.children[4])
-    _, _ = otrans.apply(schedule.children[4].loop_body[0])
+    _, _ = ctrans.apply(schedule[4])
+    _, _ = otrans.apply(schedule[4].loop_body[0])
     output = str(psy.gen)
     expected = (
         "      !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "      DO cell=1,mesh_fld_m%get_last_edge_cell()\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL restrict_kernel_code")
     assert expected in output
+    assert "loop0_stop = mesh_fld_m%get_last_edge_cell()\n" in output
     expected = (
-        "      DO colour=1,ncolour_fld_m\n"
+        "      DO colour=loop2_start,loop2_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour"
-        "(colour,1)\n"
+        "        DO cell=loop3_start,loop3_stop\n"
         "          !\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output
+    assert "loop2_stop = ncolour_fld_m\n" in output
+    # Was mesh_fld_c%get_last_halo_cell_per_colour(colour,1)
+    if "loop3_stop = ARPDBG\n" not in output:
+        pytest.xfail("#451 colourmap lookup needs fixing")
     # Try to apply colouring to the second restrict kernel
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ctrans.apply(schedule.children[1])

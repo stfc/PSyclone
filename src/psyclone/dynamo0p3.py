@@ -1134,30 +1134,29 @@ class DynCollection(object):
     :raises InternalError: if the supplied node is not a DynInvoke or a \
                            DynKern.
     '''
-    def __init__(self, schedule):
-        from psyclone.psyir.nodes import KernelSchedule
-        if isinstance(schedule, DynInvokeSchedule):
+    def __init__(self, node):
+        if isinstance(node, DynInvokeSchedule):
             # We are handling declarations/initialisations for an Invoke
-            self._invoke = schedule.invoke
-            self._schedule = schedule
+            self._invoke = node.invoke
+            self._schedule = node
             self._kernel = None
-            self._symbol_table = schedule.symbol_table
+            self._symbol_table = self._schedule.symbol_table
             # The list of kernel calls we are responsible for
-            self._calls = schedule.kernels()
-        elif isinstance(schedule, KernelSchedule):
+            self._calls = self._schedule.kernels()
+        elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
-            self._kernel = schedule.parent
-            self._schedule = schedule
+            self._kernel = node
+            self._schedule = None
             # TODO 719 The symbol table is not connected to other parts of
             # the Stub generation.
             self._symbol_table = SymbolTable()
             # We only have a single kernel call in this case
             self._calls = [self._kernel]
         else:
-            raise InternalError("DynCollection takes only a DynInvoke "
+            raise InternalError("DynCollection takes only a DynInvokeSchedule "
                                 "or a DynKern but got: {0}".format(
-                                    type(schedule)))
+                                    type(node)))
 
         # Whether or not the associated Invoke contains only kernels that
         # operate on dofs.
@@ -1165,7 +1164,7 @@ class DynCollection(object):
             # TODO move operates_on_dofs_only into Schedule class?
             #self._dofs_only = self._invoke.operates_on_dofs_only
             self._dofs_only = all(call.iterates_over.lower() == "dof" for
-                                  call in schedule.kernels())
+                                  call in self._schedule.kernels())
         else:
             self._dofs_only = False
 
@@ -3805,7 +3804,7 @@ class DynMeshes(object):
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
                 "not inter-grid kernels.".format(
                     ", ".join([call.name for call in non_intergrid_kernels]),
-                    self._schedule.parent.name))
+                    self._schedule.invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
@@ -5238,7 +5237,12 @@ class DynInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, invoke, DynKernCallFactory,
                                 LFRicBuiltInCallFactory, arg, reserved_names,
                                 parent=parent)
-
+        # Since we are in the constructor of the DynInvokeSchedule here, the
+        # associated DynInvoke is also in the process of being constructed.
+        # As such, it does not yet contain a reference to this Schedule
+        # and therefore we use the Schedule to initialise the various
+        # Collection classes (since it is possible to go back up to the
+        # Invoke from it).
         self.scalar_args = LFRicScalarArgs(self)
 
         # initialise our invoke stencil information
@@ -5342,68 +5346,70 @@ class DynInvokeSchedule(InvokeSchedule):
         '''
         self._swap_out_symbol_table()
 
-        # Declare all quantities required by this PSy routine (invoke)
-        for entities in [self.scalar_args, self.fields, self.lma_ops,
-                         self.stencil, self.meshes,
-                         self.function_spaces, self.dofmaps, self.cma_ops,
-                         self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators,
-                         self.reference_element_properties,
-                         self.mesh_properties,
-                         self.run_time_checks]:
-            entities.declarations(parent)
+        try:
+            # Declare all quantities required by this PSy routine (invoke)
+            for entities in [self.scalar_args, self.fields, self.lma_ops,
+                             self.stencil, self.meshes,
+                             self.function_spaces, self.dofmaps, self.cma_ops,
+                             self.boundary_conditions, self.evaluators,
+                             self.proxies, self.cell_iterators,
+                             self.reference_element_properties,
+                             self.mesh_properties,
+                             self.run_time_checks]:
+                entities.declarations(parent)
 
-        # Initialise all quantities required by this PSy routine (invoke)
+            # Initialise all quantities required by this PSy routine (invoke)
 
-        if self.reductions(reprod=True):
-            # We have at least one reproducible reduction so we need
-            # to know the number of OpenMP threads
-            omp_function_name = "omp_get_max_threads"
-            tag = "omp_num_threads"
-            nthreads_name = \
-                self.symbol_table.lookup_with_tag(tag).name
-            parent.add(UseGen(parent, name="omp_lib", only=True,
-                              funcnames=[omp_function_name]))
-            # Note: There is no assigned kind for integer nthreads as this
-            # would imply assigning kind to th_idx and other elements of
-            # the OMPParallelDirective
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[nthreads_name]))
+            if self.reductions(reprod=True):
+                # We have at least one reproducible reduction so we need
+                # to know the number of OpenMP threads
+                omp_function_name = "omp_get_max_threads"
+                tag = "omp_num_threads"
+                nthreads_name = \
+                    self.symbol_table.lookup_with_tag(tag).name
+                parent.add(UseGen(parent, name="omp_lib", only=True,
+                                  funcnames=[omp_function_name]))
+                # Note: There is no assigned kind for integer nthreads as this
+                # would imply assigning kind to th_idx and other elements of
+                # the OMPParallelDirective
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[nthreads_name]))
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent,
+                                      " Determine the number of OpenMP threads"))
+                parent.add(CommentGen(parent, ""))
+                parent.add(AssignGen(parent, lhs=nthreads_name,
+                                     rhs=omp_function_name+"()"))
+
+            for entities in [self.proxies, self.run_time_checks,
+                             self.cell_iterators, self.meshes,
+                             self.stencil, self.dofmaps,
+                             self.cma_ops, self.boundary_conditions,
+                             self.function_spaces, self.evaluators,
+                             self.reference_element_properties,
+                             self.mesh_properties, self.loop_bounds]:
+                entities.initialise(parent)
+
+            # Now that everything is initialised and checked, we can call
+            # our kernels
+
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Determine the number of OpenMP threads"))
+            if Config.get().distributed_memory:
+                parent.add(CommentGen(parent, " Call kernels and "
+                                      "communication routines"))
+            else:
+                parent.add(CommentGen(parent, " Call our kernels"))
             parent.add(CommentGen(parent, ""))
-            parent.add(AssignGen(parent, lhs=nthreads_name,
-                                 rhs=omp_function_name+"()"))
 
-        for entities in [self.proxies, self.run_time_checks,
-                         self.cell_iterators, self.meshes,
-                         self.stencil, self.dofmaps,
-                         self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds]:
-            entities.initialise(parent)
+            super(DynInvokeSchedule, self).gen_code(parent)
 
-        # Now that everything is initialised and checked, we can call
-        # our kernels
+            # Deallocate any basis arrays
+            self.evaluators.deallocate(parent)
 
-        parent.add(CommentGen(parent, ""))
-        if Config.get().distributed_memory:
-            parent.add(CommentGen(parent, " Call kernels and "
-                                  "communication routines"))
-        else:
-            parent.add(CommentGen(parent, " Call our kernels"))
-        parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, ""))
 
-        super(DynInvokeSchedule, self).gen_code(parent)
-
-        # Deallocate any basis arrays
-        self.evaluators.deallocate(parent)
-
-        parent.add(CommentGen(parent, ""))
-
-        self._swap_in_symbol_table()
+        finally:
+            self._swap_in_symbol_table()
 
 
 class DynGlobalSum(GlobalSum):
@@ -7676,12 +7682,12 @@ class DynKern(CodedKern):
             raise InternalError("Kernel '{0}' is not inside a coloured "
                                 "loop.".format(self.name))
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
-            if self.name not in invoke.meshes.intergrid_kernels:
+            sched = self.ancestor(InvokeSchedule).invoke.schedule
+            if self.name not in sched.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
+            cmap = sched.meshes.intergrid_kernels[self.name].colourmap
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
         return cmap
@@ -7701,12 +7707,12 @@ class DynKern(CodedKern):
             raise InternalError("Kernel '{0}' is not inside a coloured "
                                 "loop.".format(self.name))
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
-            if self.name not in invoke.meshes.intergrid_kernels:
+            sched = self.ancestor(InvokeSchedule).invoke.schedule
+            if self.name not in sched.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
+            ncols = sched.meshes.intergrid_kernels[self.name].ncolours_var
         else:
             ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols

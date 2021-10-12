@@ -3171,7 +3171,7 @@ def test_dyncollection_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+    assert ("DynCollection takes only a DynInvokeSchedule or a DynKern but"
             in str(err.value))
 
 
@@ -3679,7 +3679,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
         "ield 'f3' is on a read-only function space but is modified by kernel"
         " 'x_plus_y'.\", LOG_LEVEL_ERROR)\n"        "      END IF\n"
         "      !\n"
-        "      ! Call kernels and communication routines\n")
+        "      ! Set-up all of the loop bounds\n")
     assert expected_code2 in generated_code
 
 
