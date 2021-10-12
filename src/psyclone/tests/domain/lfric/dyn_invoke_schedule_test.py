@@ -48,6 +48,21 @@ BASE_PATH = os.path.join(
 TEST_API = "dynamo0.3"
 
 
+class FakeInvoke(object):
+    ''' Fake Invoke class with the bare minimum of properties so that
+    we can create InvokeSchedules for testing. '''
+    def __init__(self):
+        self._name = "fake"
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+
 def test_dyninvsched_parent():
     ''' Check the setting of the parent of a DynInvokeSchedule. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -55,9 +70,9 @@ def test_dyninvsched_parent():
                            api=TEST_API)
     kcalls = invoke_info.calls[0].kcalls
     # With no parent specified
-    dsched = DynInvokeSchedule("my_sched", kcalls)
+    dsched = DynInvokeSchedule(FakeInvoke(), kcalls)
     assert dsched.parent is None
     # With a parent
     fake_parent = Container("my_mod")
-    dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
+    dsched2 = DynInvokeSchedule(FakeInvoke(), kcalls, parent=fake_parent)
     assert dsched2.parent is fake_parent
