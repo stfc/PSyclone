@@ -156,13 +156,14 @@ class HoistTrans(Transformation):
             current = current.parent
 
         # Check dependency issues that might prevent hoisting:
-        self.validate_dependencies(node, parent_loop)
+        self._validate_dependencies(node, parent_loop)
 
-    def validate_dependencies(self, statement, parent_loop):
-        '''Checks if the variable usage allows to host the specified statement
-        out of the loop, i.e. no dependency on loop variable (directly or
-        indirectly) etc. This validation does not assume that the statement
-        is an assignment, it should work with other types of nodes, too.
+    def _validate_dependencies(self, statement, parent_loop):
+        '''Checks if the variable usage allows the specified statement to be
+        hoisted out of the loop, i.e. no dependency on loop variable (directly
+        or indirectly). This validation does not assume that the statement
+        is an assignment, it works with other types of nodes, too. See
+        #1445 for fully supporting other and multiple statements.
 
         :param statement: the statement that is to be hoisted out of \
             the loop.
@@ -176,8 +177,8 @@ class HoistTrans(Transformation):
             and written in the statement (e.g. reduction: a=a+1).
         :raises TransformationError: if any variable that is written in the \
             statement is accessed previously.
-        :raises TransformationError: if any variable that is written is \
-            written more than once in the loop.
+        :raises TransformationError: if any variable that is written in the \
+            statement is written more than once in the loop.
         :raises TransformationError: if the left- or right-hand-side of \
             the statement depends directly or indirectly on the loop \
             variable or loop iteration.
@@ -190,35 +191,38 @@ class HoistTrans(Transformation):
         # Collect all variables used in the statement that will be hoisted.
         all_statement_vars = VariablesAccessInfo(statement)
 
-        # Determine the variables which are written and which are read-only:
-        read_sigs = []
+        # Determine the variables which are written (and potentially read)
+        # and which are read-only:
+        read_only_sigs = []
         write_sigs = []
         for sig in all_statement_vars.all_signatures:
             if all_statement_vars[sig].is_written():
                 write_sigs.append(sig)
             else:
-                read_sigs.append(sig)
+                read_only_sigs.append(sig)
 
         for written_sig in write_sigs:
-            statement_accesses = all_statement_vars[written_sig]
+            accesses_in_statement = all_statement_vars[written_sig]
             # If this written variable is also read in the statement to be
             # hoisted, we can't hoist (likely a # reduction statement: a=a+1)
-            if statement_accesses.is_read():
-                raise TransformationError("The variable '{0}' is read "
-                                          "and written in the statement that "
-                                          "is hoisted."
+            if accesses_in_statement.is_read():
+                raise TransformationError("The statement can't be hoisted as "
+                                          "it contains a variable ('{0}') "
+                                          "that is both read and written."
                                           .format(str(written_sig)))
 
             # Check if the variable is written or read before the first
             # access in the statement to be hoisted:
-            written_node = statement_accesses[0].node
+            written_node = accesses_in_statement[0].node
             # Get all access to that variable in the whole loop before the
             # first write access that is to be hoisted:
-            loop_accesses = all_loop_vars[written_sig]
-            if loop_accesses.is_accessed_before(written_node):
-                raise TransformationError("The variable '{0}' is accessed "
-                                          "before the statement that is "
-                                          "hoisted.".format(str(written_sig)))
+            accesses_in_loop = all_loop_vars[written_sig]
+            if accesses_in_loop.is_accessed_before(written_node):
+                code = self._writer(statement).strip()
+                raise TransformationError("The statement '{0}' can't be "
+                                          "hoisted as variable '{1}' is "
+                                          "accessed earlier within the loop."
+                                          .format(code, str(written_sig)))
 
             # Make sure that there is no additional write statement to a
             # written variable in the loop outside of the statement to be
@@ -228,13 +232,15 @@ class HoistTrans(Transformation):
             # This is done by counting the write accesses to the variable
             # in the loop and in the statement.
             writes_in_loop = sum(access.access_type == AccessType.WRITE
-                                 for access in loop_accesses)
+                                 for access in accesses_in_loop)
             writes_in_statement = sum(access.access_type == AccessType.WRITE
-                                      for access in statement_accesses)
+                                      for access in accesses_in_statement)
             if writes_in_loop > writes_in_statement:
                 raise TransformationError("There is at least one additional "
                                           "write to the variable '{0}' in "
-                                          "the loop.".format(str(written_sig)))
+                                          "the loop, outside of the supplied "
+                                          "statement."
+                                          .format(str(written_sig)))
 
         # Now check if any variable read in the statement to be hoisted is
         # being written to somewhere in the loop. This especially includes
@@ -242,14 +248,15 @@ class HoistTrans(Transformation):
         # statement). This will create a direct (loop variable) or indirect
         # dependency (to a value in the loop), which prohibits hoisting.
 
-        for read_sig in read_sigs:
+        for read_sig in read_only_sigs:
             # Get all access to this variable in the whole loop
-            loop_accesses = all_loop_vars[read_sig]
-            if loop_accesses.is_written():
+            accesses_in_loop = all_loop_vars[read_sig]
+            if accesses_in_loop.is_written():
                 code = self._writer(statement).strip()
-                raise TransformationError("The supplied statement node '{0}' "
-                                          "depends on the variable '{1}' "
-                                          "which is is written in the loop."
+                raise TransformationError("The statement '{0}' can't be "
+                                          "hoisted as it reads variable "
+                                          "'{1}' which is written somewhere "
+                                          "else in the loop."
                                           .format(code, str(read_sig)))
 
     def __str__(self):

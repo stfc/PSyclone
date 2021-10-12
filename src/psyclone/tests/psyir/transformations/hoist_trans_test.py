@@ -141,7 +141,7 @@ def test_validate_direct_loop():
             "within a loop but found 'if (.true.) then\n  a = 1.0\nend if\n'."
             in str(info.value))
 
-# validate_dependencies
+# _validate_dependencies
 
 
 @pytest.mark.parametrize("assignment_str", ["a = a + 1",
@@ -163,8 +163,8 @@ def test_validate_error_read_and_write(fortran_reader, assignment_str):
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The variable 'a' is read and written in the statement that "
-            "is hoisted." in str(info.value))
+    assert ("The statement can't be hoisted as it contains a variable ('a') "
+            "that is both read and written." in str(info.value))
 
 
 @pytest.mark.parametrize("assignment_str", ["a = 1",
@@ -209,9 +209,9 @@ def test_validate_direct_dependency_errors(fortran_reader, assignment_str):
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The supplied statement node '{0}' depends on the variable 'i' "
-            "which is is written in the loop.".format(assignment_str)
-            in str(info.value))
+    assert ("The statement '{0}' can't be hoisted as it reads variable 'i' "
+            "which is written somewhere else in the loop."
+            .format(assignment_str) in str(info.value))
 
 
 @pytest.mark.parametrize("statement_var", [("a(j) = 1", "j"),
@@ -244,8 +244,8 @@ def test_validate_indirect_dependency_errors(fortran_reader, statement_var):
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The supplied statement node '{0}' depends on the variable '{1}' "
-            "which is is written in the loop."
+    assert ("The statement '{0}' can't be hoisted as it reads variable '{1}' "
+            "which is written somewhere else in the loop."
             .format(statement_var[0], statement_var[1]) in str(info.value))
 
 
@@ -269,7 +269,7 @@ def test_validate_dependencies_multi_write(fortran_reader):
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
     assert ("There is at least one additional write to the variable 'a' in "
-            "the loop." in str(info.value))
+            "the loop, outside of the supplied statement." in str(info.value))
 
 
 @pytest.mark.parametrize("assignment_str", ["a = 2", "b(i) = a"])
@@ -296,8 +296,8 @@ def test_validate_dependencies_read_or_write_before(assignment_str,
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The variable 'a' is accessed before the statement that is "
-            "hoisted." in str(info.value))
+    assert ("The statement 'a = 3' can't be hoisted as variable 'a' is "
+            "accessed earlier within the loop." in str(info.value))
 
 
 def test_validate_dependencies_if_statement(fortran_reader):
@@ -324,7 +324,7 @@ def test_validate_dependencies_if_statement(fortran_reader):
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     hoist_trans = HoistTrans()
-    hoist_trans.validate_dependencies(ifblock, loop)
+    hoist_trans._validate_dependencies(ifblock, loop)
 
     # Test if there is more than one variable written:
     # ------------------------------------------------
@@ -344,7 +344,7 @@ def test_validate_dependencies_if_statement(fortran_reader):
     ifblock = loop.loop_body.children[0]
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
-    hoist_trans.validate_dependencies(ifblock, loop)
+    hoist_trans._validate_dependencies(ifblock, loop)
 
     # Now one part of the if statement contains a read-write:
     psyir = fortran_reader.psyir_from_source(
@@ -364,9 +364,9 @@ def test_validate_dependencies_if_statement(fortran_reader):
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     with pytest.raises(TransformationError) as err:
-        hoist_trans.validate_dependencies(ifblock, loop)
-    assert ("The variable 'a' is read and written in the statement that "
-            "is hoisted." in str(err.value))
+        hoist_trans._validate_dependencies(ifblock, loop)
+    assert ("The statement can't be hoisted as it contains a variable ('a') "
+            "that is both read and written." in str(err.value))
 
     # The second written variable is written again in the loop:
     psyir = fortran_reader.psyir_from_source(
@@ -387,9 +387,9 @@ def test_validate_dependencies_if_statement(fortran_reader):
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     with pytest.raises(TransformationError) as err:
-        hoist_trans.validate_dependencies(ifblock, loop)
+        hoist_trans._validate_dependencies(ifblock, loop)
     assert ("There is at least one additional write to the variable 'b' in "
-            "the loop." in str(err.value))
+            "the loop, outside of the supplied statement." in str(err.value))
 
 
 # str
