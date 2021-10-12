@@ -595,7 +595,8 @@ def test_getkernel_isliteral(content, datatype):
     ("- 1.0", ("real", None)), ("- 1", ("integer", None)),
     ("1.0 * 1.0", ("real", None)),
     ("(1_i_def * 1_i_def)", ("integer", "i_def")),
-    ("(1.0_r_solver * 1.0_r_solver)", ("real", "r_solver"))])
+    ("(1.0_r_solver * 1.0_r_solver)", ("real", "r_solver")),
+    ("(1.0_r_def + 2.0_r_def) * 2.0_r_def", ("real", "r_def"))])
 def test_getkernel_isliteral_expr(content, datatype):
     '''Test that the get_kernel function recognises the possible forms of
     literal expression and returns them correctly.
@@ -684,6 +685,39 @@ def test_getkernel_proc_component(content):
         kernel, "dummy.f90", {"a_b": ("info"), "b": ("info")})
     arg = args[0]
     assert arg._datatype == ("info")
+
+
+def test_getkernel_proc_component_data_ref():
+    '''Test that the get_kernel function recognises a complex datatype
+    that could potentially be a collection (but is not).
+
+    '''
+    tree = Call_Stmt("call x(y(self%vec_type(1)%vector(1)))")
+    kernel = tree.children[1].children[0]
+    kern_name, args = get_kernel(kernel, "dummy.f90", {})
+    assert kern_name == "y"
+    assert len(args) == 1
+    assert isinstance(args[0], Arg)
+    assert args[0].form == "variable"
+    assert args[0].is_literal() is False
+    assert args[0].text == "self % vec_type(1) % vector(1)"
+    assert args[0].varname == "self_vec_type_vector"
+
+
+def test_getkernel_proc_component_collection():
+    '''Test that the get_kernel function recognises a collection and
+    returns it in the expected way.
+
+    '''
+    parser = Parser(api="dynamo0.3")
+    _, info = parser.parse(os.path.join(
+        LFRIC_BASE_PATH, "1.6.2_single_invoke_1_int_from_derived_type.f90"))
+    collection_arg = info.calls[0].kcalls[0].args[1]
+    assert isinstance(collection_arg, Arg)
+    assert collection_arg.form == "collection"
+    assert collection_arg.is_literal() is False
+    assert collection_arg.text == "my_obj % iflag"
+    assert collection_arg.varname == "my_obj_iflag"
 
 
 def test_getkernel_proccomponent_error():

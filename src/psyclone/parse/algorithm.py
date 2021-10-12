@@ -69,7 +69,6 @@ from psyclone.parse.utils import check_api, check_line_length, ParseError, \
 # Section 1: parse the algorithm file
 
 
-# pylint: disable=too-many-arguments
 def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
           line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
@@ -252,7 +251,7 @@ class Parser(object):
         # Dict holding a 2-tuple consisting of type and precision
         # information for each variable declared in the algorithm
         # file, indexed by variable name.
-        self._arg_type_defns = dict()
+        self._arg_type_defns = {}
         invoke_calls = []
 
         # Find all invoke calls and capture information about
@@ -786,13 +785,9 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                         precision = str(precision)
                     if isinstance(literal, Real_Literal_Constant):
                         datatype = ("real", precision)
-                    elif isinstance(literal, Int_Literal_Constant):
+                    else:  # it's an Int_Literal_Constant
                         datatype = ("integer", precision)
-                    else:
-                        raise NotImplementedError(
-                            "Found a literal passed into the invoke from the "
-                            "the algorithm layer with an unsupported "
-                            "datatype '{0}'.".format(literal))
+
                     if not candidate_datatype:
                         # This is the first candidate
                         candidate_datatype = datatype
