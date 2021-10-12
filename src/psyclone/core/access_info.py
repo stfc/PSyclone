@@ -334,65 +334,70 @@ class SingleVariableAccessInfo(object):
         # The index variable is not used in any index in any access:
         return False
 
-    def is_written_before(self, node):
-        '''Returns if this variable is written before the specified node.
+    def is_written_before(self, reference):
+        '''Returns True if this variable is written before the specified
+        reference,and False if not.
 
-        :param node: the node at which to stop for access checks.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param reference: the reference at which to stop for access checks.
+        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: True if this variable is written before the specified node.
+        :returns: True if this variable is written before the specified \
+            reference, and False if not.
         :rtype: bool
 
-        :raises ValueError: if the specified node is not in the list of \
+        :raises ValueError: if the specified reference is not in the list of \
             all accesses.
 
         '''
         result = False
 
         for access in self._accesses:
-            if access.node == node:
+            if access.node == reference:
                 return result
             if access.access_type == AccessType.WRITE:
                 result = True
-        raise ValueError("Node not found in 'is_written_before' for "
+        raise ValueError("Reference not found in 'is_written_before' for "
                          "variable '{0}'.".format(self.var_name))
 
-    def is_read_before(self, node, mode=None):
-        '''Returns if this variable is read before the specified node.
+    def is_read_before(self, reference):
+        '''Returns True if this variable is read before the specified
+        reference, and False if not.
 
-        :param node: the node at which to stop for access checks.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param reference: the reference at which to stop for access checks.
+        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: True if this variable is read before the specified node.
+        :returns: True if this variable is read before the specified \
+            reference, and False if not.
         :rtype: bool
 
-        :raises ValueError: if the specified node is not in the list of \
+        :raises ValueError: if the specified reference is not in the list of \
             all accesses.
 
         '''
         result = False
 
         for access in self._accesses:
-            if access.node == node:
+            if access.node == reference:
                 return result
             if access.access_type == AccessType.READ:
                 result = True
-        raise ValueError("Node not found in 'is_read_before' for "
+        raise ValueError("Reference not found in 'is_read_before' for "
                          "variable '{0}'.".format(self.var_name))
 
-    def is_accessed_before(self, node):
-        '''Returns if this variable is accessed before the specified node.
-        This is equivalent to testing that 'node' is the very first access,
-        but this function will also verify that 'node' is indeed in the list
-        of accesses.
+    def is_accessed_before(self, reference):
+        '''Returns True if this variable is accessed before the specified
+        reference, and False if not. This is equivalent to testing that
+        'reference'is the very first access, but this function will also
+        verify that 'reference' is indeed in the list of accesses.
 
-        :param node: the node at which to stop for access checks.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param reference: the reference at which to stop for access checks.
+        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: True if this variable is read before the specified node.
+        :returns: True if this variable is read before the specified \
+            reference, and False if not.
         :rtype: bool
 
-        :raises ValueError: if the specified node is not in the list of \
+        :raises ValueError: if the specified reference is not in the list of \
             all accesses.
 
         '''
@@ -400,10 +405,10 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == node:
+            if access.node == reference:
                 return result
             result = True
-        raise ValueError("Node not found in 'is_accessed_before' for "
+        raise ValueError("Reference not found in 'is_accessed_before' for "
                          "variable '{0}'.".format(self.var_name))
 
 

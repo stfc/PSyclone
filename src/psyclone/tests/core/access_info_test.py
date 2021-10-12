@@ -223,12 +223,13 @@ def test_is_written_before():
     var_accesses.add_access(var_sig, AccessType.WRITE, node3)
 
     accesses = var_accesses[var_sig]
+    assert accesses.is_written_before(node1) is False
     assert accesses.is_written_before(node2) is False
     assert accesses.is_written_before(node3) is True
 
     with pytest.raises(ValueError) as err:
         accesses.is_written_before(Node())
-    assert ("Node not found in 'is_written_before' for variable "
+    assert ("Reference not found in 'is_written_before' for variable "
             "'a'" in str(err.value))
 
 
@@ -247,12 +248,13 @@ def test_is_read_before():
     var_accesses.add_access(var_sig, AccessType.WRITE, node3)
 
     accesses = var_accesses[var_sig]
+    assert accesses.is_read_before(node1) is False
     assert accesses.is_read_before(node2) is False
     assert accesses.is_read_before(node3) is True
 
     with pytest.raises(ValueError) as err:
         accesses.is_read_before(Node())
-    assert ("Node not found in 'is_read_before' for variable 'a'."
+    assert ("Reference not found in 'is_read_before' for variable 'a'."
             in str(err.value))
 
 
@@ -285,7 +287,7 @@ def test_is_accessed_before():
 
     with pytest.raises(ValueError) as err:
         accesses.is_accessed_before(Node())
-    assert ("Node not found in 'is_accessed_before' for variable 'a'."
+    assert ("Reference not found in 'is_accessed_before' for variable 'a'."
             in str(err.value))
 
 
