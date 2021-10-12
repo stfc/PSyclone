@@ -159,7 +159,7 @@ def test_validate_error_read_and_write(fortran_reader, assignment_str):
                   {0}
               enddo
               end subroutine test'''.format(assignment_str))
-    assignment = psyir.children[0].children[0].loop_body.children[0]
+    assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
@@ -181,7 +181,7 @@ def test_validate_read_and_write(fortran_reader, assignment_str):
                   {0}
               enddo
               end subroutine test'''.format(assignment_str))
-    assignment = psyir.children[0].children[0].loop_body.children[0]
+    assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     hoist_trans.validate(assignment)
 
@@ -205,7 +205,7 @@ def test_validate_direct_dependency_errors(fortran_reader, assignment_str):
                   {0}
               enddo
               end subroutine test'''.format(assignment_str))
-    assignment = psyir.children[0].children[0].loop_body.children[0]
+    assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
@@ -240,7 +240,7 @@ def test_validate_indirect_dependency_errors(fortran_reader, statement_var):
                   k = j + 1
               enddo
               end subroutine test'''.format(statement_var[0]))
-    assignment = psyir.children[0].children[0].loop_body.children[1]
+    assignment = psyir.children[0][0].loop_body[1]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
@@ -264,7 +264,7 @@ def test_validate_dependencies_multi_write(fortran_reader):
                   j = a
               enddo
               end subroutine test''')
-    assignment = psyir.children[0].children[0].loop_body.children[0]
+    assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
@@ -288,7 +288,7 @@ def test_validate_dependencies_read_or_write_before(assignment_str,
                   j = a
               enddo
               end subroutine test'''.format(assignment_str))
-    assignment = psyir.children[0].children[0].loop_body.children[1]
+    assignment = psyir.children[0][0].loop_body[1]
     # Make sure we are trying to hoist the right assignment:
     assert isinstance(assignment.rhs, Literal)
     assert assignment.rhs.value == "3"
@@ -302,7 +302,8 @@ def test_validate_dependencies_read_or_write_before(assignment_str,
 
 def test_validate_dependencies_if_statement(fortran_reader):
     '''Test if various if-statements pass the dependency validation to
-    be allowed to be hoisted.
+    be allowed to be hoisted. While this is not currently supported
+    in the hoist transformation, this will be added in TODO #1445.
 
     '''
     # A simple constant test:
@@ -319,8 +320,8 @@ def test_validate_dependencies_if_statement(fortran_reader):
                   b(i) = a
               enddo
               end subroutine test''')
-    loop = psyir.children[0].children[0]
-    ifblock = loop.loop_body.children[0]
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     hoist_trans = HoistTrans()
@@ -340,8 +341,8 @@ def test_validate_dependencies_if_statement(fortran_reader):
                   c(i) = a+b
               enddo
               end subroutine test''')
-    loop = psyir.children[0].children[0]
-    ifblock = loop.loop_body.children[0]
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     hoist_trans._validate_dependencies(ifblock, loop)
@@ -359,8 +360,8 @@ def test_validate_dependencies_if_statement(fortran_reader):
                   c(i) = a+b
               enddo
               end subroutine test''')
-    loop = psyir.children[0].children[0]
-    ifblock = loop.loop_body.children[0]
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     with pytest.raises(TransformationError) as err:
@@ -382,8 +383,8 @@ def test_validate_dependencies_if_statement(fortran_reader):
                   b = 2
               enddo
               end subroutine test''')
-    loop = psyir.children[0].children[0]
-    ifblock = loop.loop_body.children[0]
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
     # Make sure we are trying to hoist the right statement:
     assert isinstance(ifblock, IfBlock)
     with pytest.raises(TransformationError) as err:
