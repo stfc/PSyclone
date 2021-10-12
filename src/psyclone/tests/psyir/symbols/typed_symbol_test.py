@@ -119,6 +119,22 @@ def test_typed_symbol_init_errors():
             "DataType or a DataTypeSymbol but got:" in str(error.value))
 
 
+def test_typedsymbol_specialise_and_process_arguments():
+    ''' Tests that a TypedSymbol created from a specialisation instead of
+    the constructor deals with the arguments as expected.'''
+
+    # Try to make a TSymbol without a datatype
+    sym1 = Symbol("symbol1")
+    with pytest.raises(AttributeError) as error:
+        sym1.specialise(TSymbol)
+    assert "Missing mandatory 'datatype' attribute" in str(error.value)
+
+    # Include a datatype
+    sym2 = Symbol("symbol2")
+    sym2.specialise(TSymbol, datatype=REAL_SINGLE_TYPE)
+    assert sym2.datatype is REAL_SINGLE_TYPE
+
+
 def test_typed_symbol_scalar_array():
     '''Test that the TypedSymbol property is_scalar returns True if the
     TypedSymbol is a scalar and False if not and that the TypedSymbol property

@@ -296,8 +296,6 @@ def test_empty_routine():
     assert len(psy.invokes.invoke_list) == 1
     # We should just have an empty schedule
     assert not psy.invokes.invoke_list[0].schedule.children
-    # Calling update() on this Invoke should do nothing
-    psy.invokes.invoke_list[0].update()
 
 
 def test_invoke_function():

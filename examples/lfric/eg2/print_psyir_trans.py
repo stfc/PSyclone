@@ -31,29 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
+
+''' Simple transformation script that prints out the names of the 'invoke'(s)
+    in the supplied PSy object and the PSyIR for each. '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
-api = "dynamo0.1"
-ast, invokeInfo = parse("dynamo_algorithm_mod.F90", api=api)
-psy = PSyFactory(api).create(invokeInfo)
-print(psy.gen)
 
-print(psy.invokes.names)
 
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which only prints
+    information about the object with which it has been supplied.
 
-t = TransInfo()
-print(t.list)
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-lf = t.get_trans_name('LoopFuseTrans')
+    :returns: the supplied PSy object unmodified.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-schedule.view()
-lf.apply(schedule.children[0], schedule.children[1])
-schedule.view()
+    '''
+    print("Supplied code has Invokes: ", psy.invokes.names)
 
-print(psy.gen)
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
+
+    schedule = psy.invokes.get('invoke_1').schedule
+    schedule.view()
+
+    return psy
