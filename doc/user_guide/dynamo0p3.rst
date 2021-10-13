@@ -2501,6 +2501,36 @@ where:
 
 * ``type(field_type), intent(in) ::`` **field1**, *field2*
 
+a_minus_X
+^^^^^^^^^
+
+**a_minus_X** (*field2*, *rscalar*, *field1*)
+
+Subtracts all elements of a field from a ``real`` scalar value and
+stores the result in another field (``Y = a - X``)::
+
+  field2(:) = rscalar - field1(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
+
+inc_a_minus_X
+^^^^^^^^^^^^^
+
+**inc_a_minus_X** (*rscalar*, *field*)
+
+Subtracts all elements of a field from a ``real`` scalar value and
+returns the field (``X = a - X``)::
+
+  field(:) = rscalar - field(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field**
+
 aX_minus_Y
 ^^^^^^^^^^
 
@@ -3003,6 +3033,36 @@ Subtracts the second field from the first and returns it (``X = X - Y``)::
 where:
 
 * ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+int_a_minus_X
+^^^^^^^^^^^^^
+
+**int_a_minus_X** (*ifield2*, *iscalar*, *ifield1*)
+
+Subtracts all elements of a field from an ``integer`` scalar value and
+stores the result in another field (``Y = a - X``)::
+
+  ifield2(:) = iscalar - ifield1(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+int_inc_a_minus_X
+^^^^^^^^^^^^^^^^^
+
+**int_inc_a_minus_X** (*iscalar*, *ifield*)
+
+Subtracts all elements of a field from an ``integer`` scalar value and
+returns the field (``X = a - X``)::
+
+  ifield(:) = iscalar - ifield(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield**
 
 Multiplication
 ##############
