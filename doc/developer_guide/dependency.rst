@@ -41,7 +41,7 @@
     from psyclone.psyir.backend.fortran import FortranWriter
 
     code = '''subroutine sub()
-    integer :: i, j, a
+    integer :: i, j, a(10, 10)
     a(i,j) = 1
     end subroutine sub
     '''
@@ -50,7 +50,7 @@
     # Get all accesses to the variable 'a', i.e. a(i.j)
     all_a_accesses = all_var_accesses[Signature("a")]
     # Get the first access, which is the write access to 'a(i,j)'
-    access_to_a_i_j = all_a_accesses[0]
+    access_info = all_a_accesses[0]
 
     fortran_writer = FortranWriter()
 
@@ -342,18 +342,20 @@ valid 2-tuples of component index and dimension index. For example:
 
 .. testcode::
 
-  # access_to_a_i_J contains the access information to `a(i,j)`
-  for indx in access_to_a_i_j.component_indices.iterate():
+  # access_info is an AccessInfo instance and contains one access, e.g.
+  # to `a(i+2*j)%b%c(k, l)`
+  for indx in access_info.component_indices.iterate():
       # indx is a 2-tuple of (component_index, dimension_index)
-      psyir_index = access_to_a_i_j.component_indices[indx]
+      psyir_index = access_info.component_indices[indx]
 
   # Using enumerate:
-  for count, indx in enumerate(access_to_a_i_j.component_indices.iterate()):
-      # fortran writer convers a PSyIR node to Fortran:
-      psyir_index = access_to_a_i_j.component_indices[indx]
+  for count, indx in enumerate(access_info.component_indices.iterate()):
+      psyir_index = access_info.component_indices[indx]
+      # fortran writer converts a PSyIR node to Fortran:
       print("Index-id", count, fortran_writer(psyir_index))
 
 .. testoutput::
+    :hide:
 
     Index-id 0 i
     Index-id 1 j
@@ -371,11 +373,12 @@ wrapped in an outer loop over all accesses.
 .. testcode::
 
   index_variable = Signature("i")
-  # access_to_a_i_j contains the accesses of writing to `a(i,j)`,
-  # i.e. the write access to `a` using the indices `i` and `j`.
-  # Loop over all individual index expressions ("i", then "j")
-  for indx in access_to_a_i_j.component_indices.iterate():
-      index_expression = access_to_a_i_j.component_indices[indx]
+  # access_info contains the access information for a single
+  # reference, e.g. `a(i+2*j)%b%c(k, l)`. Loop over all
+  # individual index expressions ("i+2*j", then "k" and "l"
+  # in the example above).
+  for indx in access_info.component_indices.iterate():
+      index_expression = access_info.component_indices[indx]
 
       # Create an access info object to collect the accesses
       # in the index expression
