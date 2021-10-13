@@ -51,17 +51,40 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import Compile, get_invoke
-from psyclone.transformations import TransformationError
-
-# PSyclone API under test
-API = "gocean1.0"
+from psyclone.transformations import TransformationError, \
+    KernelImportsToArguments
 
 
 @pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
+    '''Make sure that all tests here use the GOcean API and include the
+    gocean test_files directory (as some modules are imported from there
+    in the examples) and that we clean up the config file at the end of
+    the tests.'''
+
     Config._instance = None
+    # Each os.path.dirname() move up in the folder hierarchy
+    filepath = os.path.join(
+                   os.path.join(
+                       os.path.dirname(
+                           os.path.dirname(
+                               os.path.dirname(
+                                   os.path.dirname(
+                                       os.path.abspath(__file__))))),
+                       "test_files"),
+                   "gocean1p0")
+
     Config.get().api = "gocean1.0"
+    Config.get()._include_paths = [filepath]
+    yield()
+    # At the end of every tests make sure that we wipe the Config object
+    # so we get a fresh/default one for any further test (and not a
+    # left-over one from a test here).
+    Config._instance = None
+
+
+# PSyclone API under test
+API = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------
@@ -73,11 +96,11 @@ def test_opencl_compiler_works(kernel_outputdir):
     '''
     Compile.skip_if_opencl_compilation_disabled()
     example_ocl_code = '''
-program hello
-  USE fortcl
-  write (*,*) "Hello"
-end program hello
-'''
+    program hello
+      USE fortcl
+      write (*,*) "Hello"
+    end program hello
+    '''
     old_pwd = kernel_outputdir.chdir()
     try:
         with open("hello_world_opencl.f90", "w") as ffile:
@@ -95,7 +118,7 @@ def test_transformation_name():
     assert trans.name == "GOOpenCLTrans"
 
 
-def test_unsupported_api():
+def test_validate_unsupported_api():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
     InvokeSchedule raises the expected error. '''
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
@@ -181,7 +204,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t) p_fld_cl_mem
       integer(kind=c_intptr_t) cu_fld_cl_mem
       integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
-      logical, save :: first_time=.true.
+      logical, save :: first_time = .true.
       integer ierr
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
@@ -214,7 +237,7 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
       integer(kind=c_intptr_t) p_fld_cl_mem
       integer(kind=c_intptr_t) cu_fld_cl_mem
       integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
-      logical, save :: first_time=.true.
+      logical, save :: first_time = .true.
       integer ierr
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues'''
@@ -232,7 +255,6 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
     expected = '''\
       if (first_time) then
         first_time = .false.
-        ! ensure opencl run-time is initialised for this psy-layer module
         call psy_init
         num_cmd_queues = get_num_cmd_queues()
         cmd_queues => get_cmd_queues()
@@ -240,18 +262,18 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
         call initialise_device_buffer(cu_fld)
         call initialise_device_buffer(p_fld)
         call initialise_device_buffer(u_fld)
-        xstart = cu_fld%internal%xstart
-        xstop = cu_fld%internal%xstop
-        ystart = cu_fld%internal%ystart
-        ystop = cu_fld%internal%ystop
-      cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
+        xstart = cu_fld % internal % xstart
+        xstop = cu_fld % internal % xstop
+        ystart = cu_fld % internal % ystart
+        ystop = cu_fld % internal % ystop
+        cu_fld_cl_mem = transfer(cu_fld % device_ptr, cu_fld_cl_mem)
+        p_fld_cl_mem = transfer(p_fld % device_ptr, p_fld_cl_mem)
+        u_fld_cl_mem = transfer(u_fld % device_ptr, u_fld_cl_mem)
         call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
-        call cu_fld%write_to_device()
-        call p_fld%write_to_device()
-        call u_fld%write_to_device()
+        call cu_fld % write_to_device
+        call p_fld % write_to_device
+        call u_fld % write_to_device
       end if'''
 
     assert expected in generated_code
@@ -338,7 +360,6 @@ c_sizeof(field%grid%area_t(1,1))'''
     expected = '''
       if (first_time) then
         first_time = .false.
-        ! ensure opencl run-time is initialised for this psy-layer module
         call psy_init
         num_cmd_queues = get_num_cmd_queues()
         cmd_queues => get_cmd_queues()
@@ -348,22 +369,24 @@ c_sizeof(field%grid%area_t(1,1))'''
         call initialise_device_buffer(in_fld)
         call initialise_device_buffer(dx)
         call initialise_grid_device_buffers(in_fld)
-        xstart = out_fld%internal%xstart
-        xstop = out_fld%internal%xstop
-        ystart = out_fld%internal%ystart
-        ystop = out_fld%internal%ystop
-      out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
-      in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
-      in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
-      dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
-      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
+        xstart = out_fld % internal % xstart
+        xstop = out_fld % internal % xstop
+        ystart = out_fld % internal % ystart
+        ystop = out_fld % internal % ystop
+        out_fld_cl_mem = transfer(out_fld % device_ptr, out_fld_cl_mem)
+        in_out_fld_cl_mem = \
+transfer(in_out_fld % device_ptr, in_out_fld_cl_mem)
+        in_fld_cl_mem = transfer(in_fld % device_ptr, in_fld_cl_mem)
+        dx_cl_mem = transfer(dx % device_ptr, dx_cl_mem)
+        gphiu_cl_mem = transfer(in_fld % grid % gphiu_device, gphiu_cl_mem)
         call compute_kernel_code_set_args(kernel_compute_kernel_code, \
-out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, in_fld%grid%dx, \
-gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
-        call out_fld%write_to_device()
-        call in_out_fld%write_to_device()
-        call in_fld%write_to_device()
-        call dx%write_to_device()
+out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
+in_fld % grid % dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
+ystop - 1)
+        call out_fld % write_to_device
+        call in_out_fld % write_to_device
+        call in_fld % write_to_device
+        call dx % write_to_device
         call write_grid_buffers(in_fld)
       end if'''
     assert expected in generated_code
@@ -505,7 +528,7 @@ field%device_ptr)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init(kernel_outputdir, monkeypatch):
+def test_psy_init_defaults(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
@@ -519,78 +542,99 @@ def test_psy_init(kernel_outputdir, monkeypatch):
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    expected = (
-        "    SUBROUTINE psy_init()\n"
-        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
-        "      CHARACTER(LEN=30) kernel_names(1)\n"
-        "      INTEGER :: ocl_device_num=1\n"
-        "      LOGICAL, save :: initialised=.False.\n"
-        "      ! Check to make sure we only execute this routine once\n"
-        "      IF (.not. initialised) THEN\n"
-        "        initialised = .True.\n"
-        "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init(1, ocl_device_num, .False., .False.)\n"
-        "        ! The kernels this PSy layer module requires\n"
-        "        kernel_names(1) = \"compute_cu_code\"\n"
-        "        ! Create the OpenCL kernel objects. Expects to find all of "
-        "the compiled\n"
-        "        ! kernels in FORTCL_KERNELS_FILE.\n"
-        "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF\n"
-        "    END SUBROUTINE psy_init\n")
+    expected = '''
+    SUBROUTINE psy_init()
+      USE fortcl, ONLY: add_kernels, ocl_env_init
+      CHARACTER(LEN=30) kernel_names(1)
+      INTEGER :: ocl_device_num = 1
+      LOGICAL, SAVE :: initialised = .FALSE.
+
+      IF (.NOT.initialised) THEN
+        initialised = .true.
+        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        kernel_names(1) = 'compute_cu_code'
+        CALL add_kernels(1, kernel_names)
+      END IF
+
+    END SUBROUTINE psy_init'''
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
-    # Test with a non-default number of OpenCL queues
-    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
+
+def test_psy_init_multiple_kernels(kernel_outputdir):
+    ''' Check that we create a psy_init() routine that sets-up the
+    kernel_names correctly when there are multiple kernels, some of
+    them repeated. '''
+    # This example has 2 unique kernels, one of them repeated twice
+    psy, _ = get_invoke("single_invoke_three_kernels_with_use.f90",
+                        API, idx=0, dist_mem=True)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel and removing
+    # kernel imports are prerequisites for this test.
+    trans1 = GOMoveIterationBoundariesInsideKernelTrans()
+    trans2 = KernelImportsToArguments()
+    for kernel in sched.coded_kernels():
+        trans1.apply(kernel)
+        trans2.apply(kernel)
+
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
-    expected = (
-        "    SUBROUTINE psy_init()\n"
-        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
-        "      CHARACTER(LEN=30) kernel_names(1)\n"
-        "      INTEGER :: ocl_device_num=1\n"
-        "      LOGICAL, save :: initialised=.False.\n"
-        "      ! Check to make sure we only execute this routine once\n"
-        "      IF (.not. initialised) THEN\n"
-        "        initialised = .True.\n"
-        "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
-        "        ! The kernels this PSy layer module requires\n"
-        "        kernel_names(1) = \"compute_cu_code\"\n"
-        "        ! Create the OpenCL kernel objects. Expects to find all of "
-        "the compiled\n"
-        "        ! kernels in FORTCL_KERNELS_FILE.\n"
-        "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF\n"
-        "    END SUBROUTINE psy_init\n")
-    assert expected in generated_code
+
+    # Check that the kernel_names has enough space for all kernels
+    assert "CHARACTER(LEN=30) kernel_names(2)" in generated_code
+
+    # The order doesn't matter as far as the two kernels are loaded
+    assert ("kernel_names(1) = 'kernel_with_use_code'" in generated_code or
+            "kernel_names(2) = 'kernel_with_use_code'" in generated_code)
+
+    assert ("kernel_names(1) = 'kernel_with_use2_code'" in generated_code or
+            "kernel_names(2) = 'kernel_with_use2_code'" in generated_code)
+    assert "kernel_names(3)" not in generated_code
+
+    # Check that add_kernels is provided with the total number of kernels
+    assert "CALL add_kernels(2, kernel_names)" in generated_code
+
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
+    ''' Test that we create the appropriate subroutine to initialise an
+    hybrid MPI-OpenCL environment with multiple devices per node. '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
 
     # Test with a different configuration value for OCL_DEVICES_PER_NODE
-    # that needs a mod() and a get_rank() expression.
+    # that needs a mod() and a get_rank() expression, and a kernel with
+    # a higher queue number.
     monkeypatch.setattr(Config.get(), "_ocl_devices_per_node", 2)
+
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
-    expected = (
-        "    SUBROUTINE psy_init()\n"
-        "      USE parallel_mod, ONLY: get_rank\n"
-        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
-        "      CHARACTER(LEN=30) kernel_names(1)\n"
-        "      INTEGER :: ocl_device_num=1\n"
-        "      LOGICAL, save :: initialised=.False.\n"
-        "      ! Check to make sure we only execute this routine once\n"
-        "      IF (.not. initialised) THEN\n"
-        "        initialised = .True.\n"
-        "        ! Initialise the OpenCL environment/device\n"
-        "        ocl_device_num = mod(get_rank() - 1, 2) + 1\n"
-        "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
-        "        ! The kernels this PSy layer module requires\n"
-        "        kernel_names(1) = \"compute_cu_code\"\n"
-        "        ! Create the OpenCL kernel objects. Expects to find all of "
-        "the compiled\n"
-        "        ! kernels in FORTCL_KERNELS_FILE.\n"
-        "        CALL add_kernels(1, kernel_names)\n"
-        "      END IF\n"
-        "    END SUBROUTINE psy_init\n")
+
+    expected = '''
+    SUBROUTINE psy_init()
+      USE parallel_mod, ONLY: get_rank
+      USE fortcl, ONLY: add_kernels, ocl_env_init
+      CHARACTER(LEN=30) kernel_names(1)
+      INTEGER :: ocl_device_num = 1
+      LOGICAL, SAVE :: initialised = .FALSE.
+
+      IF (.NOT.initialised) THEN
+        initialised = .true.
+        ocl_device_num = MOD(get_rank() - 1, 2) + 1
+        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        kernel_names(1) = 'compute_cu_code'
+        CALL add_kernels(1, kernel_names)
+      END IF
+
+    END SUBROUTINE psy_init'''
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -606,12 +650,13 @@ def test_psy_init_with_options(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
+    # Use non-default kernel and transformation options
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
     otrans = GOOpenCLTrans()
-    otrans.apply(sched, options={"end_barrier": True,
-                                 "enable_profiling": True,
+    otrans.apply(sched, options={"enable_profiling": True,
                                  "out_of_order": True})
     generated_code = str(psy.gen)
-    assert "CALL ocl_env_init(1, ocl_device_num, .True., .True.)\n" \
+    assert "CALL ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
         in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -636,16 +681,16 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Set the boundaries for this kernel
     expected = '''
-        xstart = cu_fld%internal%xstart
-        xstop = cu_fld%internal%xstop
-        ystart = cu_fld%internal%ystart
-        ystop = cu_fld%internal%ystop'''
+      xstart = cu_fld % internal % xstart
+      xstop = cu_fld % internal % xstop
+      ystart = cu_fld % internal % ystart
+      ystop = cu_fld % internal % ystop'''
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
-      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
+      cu_fld_cl_mem = TRANSFER(cu_fld % device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld % device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld % device_ptr, u_fld_cl_mem)'''
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
@@ -657,16 +702,16 @@ ystart - 1, ystop - 1)'''
 
     # Set up globalsize and localsize values
     expected += '''
-      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
+      globalsize = (/p_fld % grid % nx, p_fld % grid % ny/)
       localsize = (/64, 1/)'''
 
     if debug_mode:
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-      IF (mod(p_fld%grid%nx, 64) .ne. 0) THEN
+      IF (MOD(p_fld % grid % nx, 64) .NE. 0) THEN
         CALL check_status("Global size is not a multiple of local size \
-(mandatory in OpenCL < 2.0).", -1)
+(mandatory in OpenCL < 2.0).", - 1)
       END IF'''
 
     if debug_mode:
@@ -677,11 +722,9 @@ ystart - 1, ystop - 1)'''
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
 
     expected += '''
-      ! Launch the kernel
       ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
-C_NULL_PTR)
-      !'''
+C_NULL_PTR)'''
 
     if debug_mode:
         # Check that there are no errors during the kernel launch or during
@@ -773,13 +816,12 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
 
     otrans = GOOpenCLTrans()
     otrans.apply(invoke1_schedule, options={option_to_check: False})
-    otrans.apply(invoke2_schedule, options={option_to_check: True})
-    with pytest.raises(NotImplementedError) as err:
-        _ = str(psy.gen)
-    assert ("The current implementation creates a single OpenCL context for "
-            "all the invokes which needs certain OpenCL options to match "
-            "between invokes. Found '{0}' with unmatching values between "
-            "invokes.".format(option_to_check) in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(invoke2_schedule, options={option_to_check: True})
+    assert ("Can't generate an OpenCL Invoke with {0}='True' since a previous "
+            "transformation used a different value, and their OpenCL "
+            "environments must match.".format(option_to_check)
+            in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -789,6 +831,7 @@ def test_opencl_options_effects():
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
@@ -797,38 +840,62 @@ def test_opencl_options_effects():
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    generated_code = str(psy.gen)
 
     # By default there is 1 queue, with an end barrier and local_size is 64
+    generated_code = str(psy.gen)
     assert "localsize = (/64, 1/)" in generated_code
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
-    assert "! Block until all kernels have finished\n" \
-        "      ierr = clFinish(cmd_queues(1))" in generated_code
+    assert "ierr = clFinish(cmd_queues(1))" in generated_code
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+
+    # Reparse the example as changes are not possible after a psy.gen
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
 
     # Change kernel local_size to 4
     sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
     generated_code = str(psy.gen)
     assert "localsize = (/4, 1/)" in generated_code
 
-    # Change kernel queue to 2 (the barrier should then also go up to 2)
+    # Reparse the example as changes are not possible after a psy.gen
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
+
+    # Change kernel queue number to 2 (the barrier should then also go up to 2)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
-    assert "! Block until all kernels have finished\n" \
-        "      ierr = clFinish(cmd_queues(1))\n" \
-        "      ierr = clFinish(cmd_queues(2))\n" in generated_code
+    assert "      ierr = clFinish(cmd_queues(1))\n" \
+           "      ierr = clFinish(cmd_queues(2))\n" in generated_code
     assert "ierr = clFinish(cmd_queues(3))" not in generated_code
+
+    # Reparse the example as changes are not possible after a psy.gen
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+    otrans = GOOpenCLTrans()
 
     # Remove barrier at the end of the Invoke
     otrans.apply(sched, options={'end_barrier': False})
     generated_code = str(psy.gen)
     assert "! Block until all kernels have finished" not in generated_code
-    assert "ierr = clFinish(cmd_queues(2))" not in generated_code
+    assert "ierr = clFinish(cmd_queues(1))" not in generated_code
 
 
 @pytest.mark.parametrize("dist_mem", [True, False])
@@ -860,11 +927,11 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      ! Launch the kernel'''
+      ierr = clEnqueueNDRangeKernel'''
 
     haloexbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      CALL cu_fld%halo_exchange(depth=1)'''
+      CALL cu_fld % halo_exchange(depth = 1)'''
 
     if dist_mem:
         # In distributed memory the command_queue synchronisation happens
@@ -900,13 +967,12 @@ def test_set_kern_args(kernel_outputdir):
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), intent(in), target :: cu_fld, p_fld, u_fld
-      INTEGER, intent(in), target :: xstart, xstop, ystart, ystop
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld, p_fld, u_fld
+      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: kernel_obj'''
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj'''
     assert expected in generated_code
     expected = '''\
-      ! Set the arguments for the compute_cu_code OpenCL Kernel
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
       CALL check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
@@ -959,10 +1025,10 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), intent(in), target :: out_fld, in_out_fld, \
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld, in_out_fld, \
 in_fld, dx, gphiu
-      REAL(KIND=go_wp), intent(in), target :: dx_1
-      INTEGER, intent(in), target :: xstart, xstop, ystart, ystop'''
+      REAL(KIND=go_wp), INTENT(IN), TARGET :: dx_1
+      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop'''
     assert expected in generated_code
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
@@ -991,16 +1057,15 @@ tmask, xstart, xstop_1, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), intent(in), target :: ssh_fld, tmask
-      INTEGER, intent(in), target :: xstop
-      REAL(KIND=go_wp), intent(in), target :: a_scalar
-      INTEGER, intent(in), target :: xstart, xstop_1, ystart, ystop
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld, tmask
+      INTEGER, INTENT(IN), TARGET :: xstop
+      REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
+      INTEGER, INTENT(IN), TARGET :: xstart, xstop_1, ystart, ystop
       INTEGER ierr
-      INTEGER(KIND=c_intptr_t), target :: kernel_obj
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
 '''
     assert expected in generated_code
     expected = '''\
-      ! Set the arguments for the bc_ssh_code OpenCL Kernel
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
       CALL check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
@@ -1035,10 +1100,11 @@ def test_set_arg_const_scalar():
                         API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = GOOpenCLTrans()
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
-    assert ("Cannot generate OpenCL for Invokes that contain kernels with "
-            "arguments passed by value" in str(err.value))
+    assert ("Cannot generate OpenCL for Invokes that contain kernel arguments"
+            " which are a literal, but found the literal '0' used as an "
+            "argument in invoke 'invoke_0_bc_ssh'." in str(err.value))
 
 
 @pytest.mark.usefixtures("kernel_outputdir")

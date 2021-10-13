@@ -37,9 +37,10 @@
    subsequent doctest snippets.
 .. testsetup::
 
-        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
-	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
-	from psyclone.psyir.nodes import Reference
+    from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
+        ScalarType, ArrayType, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
+        BOOLEAN_TYPE
+    from psyclone.psyir.nodes import Reference
 
 PSyIR Types, Symbols and Data dependencies
 ##########################################
@@ -204,25 +205,46 @@ the current implementation so that either a) references went in both
 directions or b) references were replaced with names and lookups. Each
 of these solutions has their benefits and disadvantages.
 
+A third solution would be to have a single, non-hierarchical Symbol class
+that has only a name and a symbol-type attribute. Then we could replace the
+symbol_type attribute when we discover more information without modifying
+the thinner Symbol class and therefore not affecting the references to it.
+
 What is currently done is to specialise the symbol in place (so that
 any references to it do not need to change). This is implemented by the
 `specialise` method in the `Symbol` class. It takes a subclass of a
 `Symbol` as an argument and modifies the instance so that it becomes
 the subclass. For example:
 
-.. code-block:: python
+.. doctest::
 
-    sym = Symbol("a")
-    # sym is an instance of the Symbol class
-    sym.specialise(RoutineSymbol)
-    # sym is now an instance of the RoutineSymbol class
+    >>> sym = Symbol("a")
+    >>> # sym is an instance of the Symbol class
+    >>> sym.specialise(RoutineSymbol)
+    >>> # sym is now an instance of the RoutineSymbol class
 
-In the current implementation, any additional properties (associated
-with a `RoutineSymbol` in the above example) that are not in the
-original class would need to be set explicitly after
-specialisation. It may be possible to structure `Symbol` (and subclasses
-of `Symbol`) constructors so that the `specialise` method could take
-additional arguments to initialise properties.
+Sometimes providing additional properties of the new sub-class is desirable,
+and sometimes even mandatory (e.g. a `DataSymbol` must always have a datatype
+and optionally a constant_value parameter). For this reason the specialise
+method implementation provides the same interface as the constructor
+of the symbol type in order to provide the same behaviour and default values
+as the constructor. For instance, in the `DataSymbol` case the following
+specialisations are possible:
+
+.. doctest::
+
+    >>> sym = Symbol("a")
+    >>> # The following statement would fail because it doesn't have a datatype
+    >>> # sym.specialise(DataSymbol)
+    >>> # The following statement is valid and constant_value is set to None
+    >>> sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
+
+    >>> sym2 = Symbol("b")
+    >>> # The following statement would fail because the constant_value doesn't
+    >>> # match the datatype of the symbol
+    >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3.14)
+    >>> # The following statement is valid and constant_value is set to 3
+    >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3)
 
 
 Dependence Analysis
