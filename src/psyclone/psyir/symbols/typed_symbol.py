@@ -55,23 +55,37 @@ class TypedSymbol(Symbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is passed as a routine argument or \
-        accessed in some other way). Defaults to \
-        :py:class:`psyclone.psyir.symbols.LocalInterface`
-    :type interface: :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.Symbol`
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
-
-        super(TypedSymbol, self).__init__(name, visibility=visibility,
-                                          interface=interface)
-        # The following attribute has a setter method (with error checking)
+    def __init__(self, name, datatype, **kwargs):
         self._datatype = None
-        self.datatype = datatype
+        super(TypedSymbol, self).__init__(name)
+        self._process_arguments(datatype=datatype, **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the datatype argument.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param datatype: data type of the symbol.\n
+            :type datatype: :py:class:`psyclone.psyir.symbols.DataType`\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
+        :type kwargs: unwrapped dict.
+
+        :raises AttributeError: if the datatype argument is not given \
+            and it isn't already a property of this symbol.
+
+        '''
+        if "datatype" in kwargs:
+            self.datatype = kwargs.pop("datatype")
+        elif not hasattr(self, '_datatype'):
+            raise AttributeError("Missing mandatory 'datatype' attribute for "
+                                 "symbol '{0}'.".format(self.name))
+
+        super(TypedSymbol, self)._process_arguments(**kwargs)
 
     @abc.abstractmethod
     def __str__(self):
