@@ -366,6 +366,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                 "      call testkern_domain_code(nlayers, ncell_2d, b, "
                 "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
+        assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += ("      !\n"
                      "      ! set halos dirty/clean for fields modified in "
                      "the above kernel\n"
@@ -385,10 +386,10 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      end if\n"
                      "      !\n"
                      "      call f1_proxy%halo_exchange(depth=1)\n"
-                     "      !\n"
-                     "      do cell=1,mesh%get_last_halo_cell(1)\n")
+                     "      !\n")
     else:
-        expected += "      do cell=1,f2_proxy%vspace%get_ncell()\n"
+        assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
+    expected += "      do cell=loop1_start,loop1_stop\n"
     assert expected in gen_code
 
     expected = (

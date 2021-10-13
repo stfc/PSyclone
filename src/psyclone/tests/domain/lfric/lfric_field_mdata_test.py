@@ -506,7 +506,8 @@ def test_lfricfields_call_err():
     fld_arg = kernel.arguments.args[0]
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
-        LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+        LFRicFields(invoke.schedule)._invoke_declarations(
+            ModuleGen(name="my_mod"))
     test_str = str(err.value)
     if six.PY2:
         test_str = test_str.replace("u'", "'")
