@@ -60,7 +60,7 @@ class CreateNemoLoopTrans(Transformation):
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loops = psyir.walk(Loop)
     >>> trans = CreateNemoLoopTrans()
-    >>> trans.apply(loops[0])
+    >>> _ = trans.apply(loops[0])
     >>> psyir.view()
     FileContainer[None]
         Routine[name:'sub']
