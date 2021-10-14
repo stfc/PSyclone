@@ -35,8 +35,8 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (Y = a + X, DoF-wise addition
-  ! of a real scalar value) specified in an invoke call.
+  ! Description: single point-wise operation (Y = a - X, DoF-wise subtraction
+  ! of a field from a real scalar value) specified in an invoke call.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 
@@ -45,8 +45,8 @@ program single_invoke
   type(field_type) :: f1, f2
   real(r_def)      :: a
 
-  a = 0.5
+  a = 1.5
 
-  call invoke( a_plus_X(f2, a, f1) )
+  call invoke( a_minus_X(f2, a, f1) )
 
 end program single_invoke
