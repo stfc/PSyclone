@@ -65,20 +65,21 @@ class CreateNemoPSyTrans(Transformation):
     >>> trans = CreateNemoPSyTrans()
     >>> sched, _ = trans.apply(psyir)
     >>> sched.view()
-    NemoInvokeSchedule[invoke='sub']
-        0: Loop[type='lon', field_space='None', it_space='None']
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: InlinedKern[]
-                    Schedule[]
-                        0: Assignment[]
-                            ArrayReference[name:'tmp']
-                                Reference[name:'ji']
-                            BinaryOperation[operator:'MUL']
-                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
-                                Reference[name:'ji']
+    FileContainer[None]
+        NemoInvokeSchedule[invoke='sub']
+            0: Loop[type='lon', field_space='None', it_space='None']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Schedule[]
+                    0: InlinedKern[]
+                        Schedule[]
+                            0: Assignment[]
+                                ArrayReference[name:'tmp']
+                                    Reference[name:'ji']
+                                BinaryOperation[operator:'MUL']
+                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                                    Reference[name:'ji']
 
     The result of this transformation is that the root `Routine` has
     been converted into a `NemoInvokeSchedule`, the `Loop` is now a
