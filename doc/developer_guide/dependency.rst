@@ -43,11 +43,11 @@
     from psyclone.transformations import OMPParallelTrans
 
     code = '''subroutine sub()
-    integer :: i, j, a(10, 10)
+    integer :: i, j, k, a(10, 10)
     a(i,j) = 1
     do i=1, 10
        j = 3
-       a(i,i) = j
+       a(i,i) = j + k
     enddo
     end subroutine sub
     '''
@@ -64,10 +64,17 @@
     # One example uses code from an OMP directive to determine
     # private variables. But since all this example does is calling
     # `reference_accesses`, we can just pass in the PSyIR node of
-    # the loop, which results in two private variables
+    # the loop, which results in two private variables (to avoid
+    # creating an OMP Parallel etc)
     omp_directive = psyir.children[0][1]
     symbol_table = psyir.children[0].symbol_table
 
+    # The next example needs a function 'can_be_parallelised',
+    # and a list of statements:
+    def can_be_parallelised(access_info):
+        return True
+
+    statements = psyir.children[0][1].loop_body
     fortran_writer = FortranWriter()
 
 
@@ -356,6 +363,10 @@ will return the index used in the second dimension of the first component.
 to iterate over all indices using its `iterate()` method, which returns all
 valid 2-tuples of component index and dimension index. For example:
 
+..
+    The testsetup provides the access information for 'a(i,j)=1',
+    so it should report the accesses to 'i' and 'j'.
+
 .. testcode::
 
   # access_info is an AccessInfo instance and contains one access, e.g.
@@ -385,6 +396,10 @@ variable `access_info` is an instance of `AccessInfo` and contains the
 information about one reference. The function `reference_accesses` is used
 to analyse the index expression. Typically, this code would be
 wrapped in an outer loop over all accesses.
+
+..
+    The testsetup provides the access information for 'a(i,j)=1',
+    so the code should output that the index 'i' is used.
 
 .. testcode::
 
@@ -470,6 +485,15 @@ Below we show a simple example of how to use this API. This is from the
 determine a list of all the scalar variables that must be declared as
 thread-private:
 
+..
+    The testsetup provides the access information to
+        do i=1, 10
+           j = 3
+           a(i,i) = j + k
+        enddo
+    It should therefore report that 'i' and 'j' should be private
+    variables, 'k' is not initialised and therefore assumed to be public.
+
 .. testcode::
 
   result = set()
@@ -507,16 +531,24 @@ thread-private:
 
 
 The next, hypothetical example shows how the `VariablesAccessInfo` class
-can be used iteratively. Assume that you have a function that determines
+can be used iteratively. Assume that you have a function
+`can_be_parallelised` that determines
 if the given variable accesses can be parallelised, and the aim is to
 determine the largest consecutive block of statements that can be
 executed in parallel. The accesses of one statement at a time are added
-until we find accesses that would prevent parallelisation::
+until we find accesses that would prevent parallelisation:
+
+..
+    The testsetup provides two statements, and a dummy function
+    'can_be_parallelised', which always returns True. It should
+    therefore report 2 parallelisable statements.
+
+.. testcode::
 
    # Create an empty instance to store accesses
    accesses = VariablesAccessInfo()
    list_of_parallelisable_statements = []
-   while next_statement is not None:
+   for next_statement in statements:
        # Add the variable accesses of the next statement to
        # the existing accesses:
        next_statement.reference_accesses(accesses)
@@ -525,8 +557,14 @@ until we find accesses that would prevent parallelisation::
        if not can_be_parallelised(accesses):
            break
        list_of_parallelisable_statements.append(next_statement)
-       # Assume there is a function that gives you the next statement:
-       next_statement = next_statement.next()
+
+   print("The first {0} statements can be parallelised."
+         .format(len(list_of_parallelisable_statements)))
+
+.. testoutput::
+    :hide:
+
+    The first 2 statements can be parallelised.
 
 
 .. note:: There is a certain overlap in the dependency analysis code
