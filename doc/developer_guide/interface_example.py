@@ -37,6 +37,6 @@ def some_function(filename, kernel_path, node=None):
 
     >>> from psyclone.generator import generate
     >>> alg, psy = generate("algspec.f90")
-    >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
+    >>> alg, psy = generate("algspec.f90", kernel_paths="src/kernels")
 
     '''
