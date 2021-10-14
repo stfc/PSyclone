@@ -37,6 +37,11 @@
 
 .. _psy_data:
 
+.. testsetup::
+
+    # This disables output in included code snippets from source files.
+    DEBUG = False
+
 PSyData API
 ===========
 PSyclone provides transformations that will insert callbacks to

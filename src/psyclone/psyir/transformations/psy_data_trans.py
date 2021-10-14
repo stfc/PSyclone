@@ -58,23 +58,25 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invoke_info = parse(filename, api=api, invoke_name="invoke")
+    >>> filename = ("../../src/psyclone/tests/test_files/" +
+    ...   "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    >>> ast, invoke_info = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>>
     >>> from psyclone.psyir.transformations import PSyDataTrans
     >>> data_trans = PSyDataTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...     schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
-    >>> data_trans.apply(schedule.children)
-    >>> schedule.view()
-    >>> # Or to use a class-prefix string and different region name:
-    >>> data_trans.apply(schedule.children,
-    ...                  {"prefix": "my_prefix",
-    ...                   "region_name": ("module","region")})
+    >>> _ = data_trans.apply(schedule.children)
+    >>> if DEBUG:
+    ...     schedule.view()
+    >>> # Or to use custom region name:
+    >>> _ = data_trans.apply(schedule.children,
+    ...                      {"region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
