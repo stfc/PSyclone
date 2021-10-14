@@ -36,13 +36,19 @@
 
 .. testsetup::
 
-    from psyclone.core import Signature, VariablesAccessInfo
+    from psyclone.core import AccessType, Signature, VariablesAccessInfo
     from psyclone.psyir.frontend.fortran import FortranReader
     from psyclone.psyir.backend.fortran import FortranWriter
+    from psyclone.psyir.nodes import OMPParallelDirective
+    from psyclone.transformations import OMPParallelTrans
 
     code = '''subroutine sub()
     integer :: i, j, a(10, 10)
     a(i,j) = 1
+    do i=1, 10
+       j = 3
+       a(i,i) = j
+    enddo
     end subroutine sub
     '''
     psyir = FortranReader().psyir_from_source(code)
@@ -51,6 +57,16 @@
     all_a_accesses = all_var_accesses[Signature("a")]
     # Get the first access, which is the write access to 'a(i,j)'
     access_info = all_a_accesses[0]
+
+    omp_parallel = OMPParallelTrans()
+
+    self = psyir.children[0][1]
+    # One example uses code from an OMP directive to determine
+    # private variables. But since all this example does is calling
+    # `reference_accesses`, we can just pass in the PSyIR node of
+    # the loop, which results in two private variables
+    omp_directive = psyir.children[0][1]
+    symbol_table = psyir.children[0].symbol_table
 
     fortran_writer = FortranWriter()
 
@@ -450,37 +466,45 @@ Access Examples
 ---------------
 
 Below we show a simple example of how to use this API. This is from the
-`psyclone.psyir.nodes.OMPParallelDirective` (so `self` is an instance of this
-node), and this code is used to determine a list of all the scalar
-variables that must be declared as thread-private::
+`psyclone.psyir.nodes.OMPParallelDirective`, and it is used to
+determine a list of all the scalar variables that must be declared as
+thread-private:
 
+.. testcode::
+
+  result = set()
   var_accesses = VariablesAccessInfo()
-  self.reference_accesses(var_accesses)
+  omp_directive.reference_accesses(var_accesses)
   for signature in var_accesses.all_signatures:
       var_name = str(signature)
-      access_info = var_accesses[signature]
       symbol = symbol_table.lookup(var_name)
-
       # Ignore variables that are arrays, we only look at scalar ones.
-      # The `is_used_as_array` function will take information from
+      # The `is_array_access` function will take information from
       # the access information as well as from the symbol table
       # into account.
-      is_array = symbol.is_used_as_array(access_info=acess_info)
-
-      if is_array:
+      access_info = var_accesses[signature]
+      if symbol.is_array_access(access_info=access_info):
           # It's not a scalar variable, so it will not be private
           continue
 
       # If a scalar variable is only accessed once, it is either a coding
       # error or a shared variable - anyway it is not private
-      accesses = var_accesses[signature].all_accesses
+      accesses = access_info.all_accesses
       if len(accesses) == 1:
           continue
 
       # We have at least two accesses. If the first one is a write,
       # assume the variable should be private:
       if accesses[0].access_type == AccessType.WRITE:
+          print("Private variable", var_name)
           result.add(var_name.lower())
+
+.. testoutput::
+    :hide:
+
+    Private variable i
+    Private variable j
+
 
 The next, hypothetical example shows how the `VariablesAccessInfo` class
 can be used iteratively. Assume that you have a function that determines
