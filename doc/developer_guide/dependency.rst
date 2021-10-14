@@ -39,8 +39,9 @@
     from psyclone.core import AccessType, Signature, VariablesAccessInfo
     from psyclone.psyir.frontend.fortran import FortranReader
     from psyclone.psyir.backend.fortran import FortranWriter
-    from psyclone.psyir.nodes import OMPParallelDirective
-    from psyclone.transformations import OMPParallelTrans
+    from psyclone.psyir.nodes import Loop
+    from psyclone.psyir.tools import DependencyTools
+    from psyclone.transformations import OMPLoopTrans
 
     code = '''subroutine sub()
     integer :: i, j, k, a(10, 10)
@@ -58,15 +59,16 @@
     # Get the first access, which is the write access to 'a(i,j)'
     access_info = all_a_accesses[0]
 
-    omp_parallel = OMPParallelTrans()
-
-    self = psyir.children[0][1]
+    # Take the loop node:
+    loop = psyir.children[0][1]
+    loop_statements = [loop]
     # One example uses code from an OMP directive to determine
     # private variables. But since all this example does is calling
     # `reference_accesses`, we can just pass in the PSyIR node of
     # the loop, which results in two private variables (to avoid
     # creating an OMP Parallel etc)
-    omp_directive = psyir.children[0][1]
+    omp_directive = loop
+
     symbol_table = psyir.children[0].symbol_table
 
     # The next example needs a function 'can_be_parallelised',
@@ -74,7 +76,7 @@
     def can_be_parallelised(access_info):
         return True
 
-    statements = psyir.children[0][1].loop_body
+    statements = loop.loop_body
     fortran_writer = FortranWriter()
 
 
@@ -594,27 +596,39 @@ was not possible.
 
 An example of how to use this class is shown below. It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
-can be parallelised::
+can be parallelised:
 
-  parallel_loop = OMPLoopTrans()
-  # The loops in the Fortran functions that must be parallelised
-  # are over the 'grid' domain. Note that the psyclone config
-  # file specifies the mapping of loop variable to type, e.g.:
-  #
-  #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
-  #
-  # This means any loop using the variable 'np' is considered a
-  # loop of type 'grid'
-  dt = DependencyTools(["grid"])
+..
+    The setup passes a single (not-nested) loop as `loop_statements`.
+    This loop triggers the message that it is not a nested loop and
+    is therefore not be parallelised by default.
 
-  for statement in statements:
-      if isinstance(statement, NemoLoop):
-          # Check if there is a variable dependency that might 
-          # prevent this loop from being parallelised:
-          if dt.can_loop_be_parallelised(statement):
-              parallel_loop.apply(statement)
-          else:
-              # Print all messages from the dependency analysis
-              # as feedback for the user:
-              for message in dt.get_all_messages():
-                  print(message)
+.. testcode::
+
+   parallel_loop = OMPLoopTrans()
+   # The loops in the Fortran functions that must be parallelised
+   # are over the 'grid' domain. Note that the psyclone config
+   # file specifies the mapping of loop variable to type, e.g.:
+   #
+   #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+   #
+   # This means any loop using the variable 'np' is considered a
+   # loop of type 'grid'
+   dt = DependencyTools(["grid"])
+
+   for statement in loop_statements:
+       if isinstance(statement, Loop):
+           # Check if there is a variable dependency that might
+           # prevent this loop from being parallelised:
+           if dt.can_loop_be_parallelised(statement):
+               parallel_loop.apply(statement)
+           else:
+               # Print all messages from the dependency analysis
+               # as feedback for the user:
+               for message in dt.get_all_messages():
+                   print(message)
+
+.. testoutput::
+    :hide:
+
+    Info: Not a nested loop.
