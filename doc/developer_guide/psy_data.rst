@@ -39,6 +39,8 @@
 
 .. testsetup::
 
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
     # This disables output in included code snippets from source files.
     DEBUG = False
 

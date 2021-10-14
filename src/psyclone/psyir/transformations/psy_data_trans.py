@@ -58,8 +58,7 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = ("../../src/psyclone/tests/test_files/" +
-    ...   "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    >>> filename = SOURCE_FILE
     >>> ast, invoke_info = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>>
