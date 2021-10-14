@@ -59,8 +59,8 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> ast, invoke_info = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invoke_info)
     >>>
     >>> from psyclone.psyir.transformations import PSyDataTrans
     >>> data_trans = PSyDataTrans()
@@ -73,8 +73,8 @@ class PSyDataTrans(RegionTrans):
     >>> schedule.view()
     >>> # Or to use a class-prefix string and different region name:
     >>> data_trans.apply(schedule.children,
-    >>>                  {"prefix": "my_prefix",
-    >>>                   "region_name": ("module","region")})
+    ...                  {"prefix": "my_prefix",
+    ...                   "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
