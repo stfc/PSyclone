@@ -315,11 +315,24 @@ class LFRicConstants(object):
                          "kind": "r_def"},
             # 'real'-valued columnwise operator with data of kind 'r_def'
             "columnwise_operator": {
-                "module": "operator_mod",
+                "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
-                "kind": "r_def"}}
+                "kind": "r_def"},
+            # 'real'-valued operator with data of kind 'r_solver'
+            "r_solver_operator": {"module": "r_solver_operator_mod",
+                         "type": "r_solver_operator_type",
+                         "proxy_type": "r_solver_operator_proxy_type",
+                         "intrinsic": "real",
+                         "kind": "r_solver"},
+            # 'real'-valued columnwise operator with data of kind 'r_solver'
+            "r_solver_columnwise_operator": {
+                "module": "r_solver_columnwise_operator_mod",
+                "type": "r_solver_columnwise_operator_type",
+                "proxy_type": "r_solver_columnwise_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_solver"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

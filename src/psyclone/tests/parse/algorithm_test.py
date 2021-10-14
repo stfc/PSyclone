@@ -242,6 +242,24 @@ def test_parser_invokeinfo_datatypes():
     assert args[3]._datatype == ("quadrature_xyoz_type", None)
 
 
+def test_parser_invokeinfo_operator_mixed():
+    '''Test that the invoke_info method in the Parser class captures the
+    required datatype information for mixed precision operators.
+
+    '''
+    alg_filename = os.path.join(
+        LFRIC_BASE_PATH, "26.7_mixed_precision_operators.f90")
+    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    alg_parse_tree = parse_fp2(alg_filename)
+    info = parser.invoke_info(alg_parse_tree)
+    args = info.calls[0].kcalls[0].args
+    assert args[0].form == "variable"
+    assert args[0]._datatype == ("operator_type", None)
+    args = info.calls[0].kcalls[1].args
+    assert args[0].form == "variable"
+    assert args[0]._datatype == ("r_solver_operator_type", None)
+
+
 def test_parser_invokeinfo_datatypes_mixed():
     '''Test that the invoke_info method in the Parser class captures the
     required datatype information with mixed-precision fields, and

@@ -41,10 +41,10 @@ from psyclone.domain.lfric import LFRicConstants
 def test_quadrature_type_map():
     '''Check that QUADRATURE_TYPE_MAP contains the expected structure.'''
 
-    quadrature_types = ["gh_quadrature_xyoz", "gh_quadrature_face",
-                        "gh_quadrature_edge"]
-    quadrature_properties = ["module", "type", "proxy_type", "intrinsic",
-                             "kind"]
+    quadrature_types = [
+        "gh_quadrature_xyoz", "gh_quadrature_face", "gh_quadrature_edge"]
+    quadrature_properties = [
+        "module", "type", "proxy_type", "intrinsic", "kind"]
 
     assert len(LFRicConstants.QUADRATURE_TYPE_MAP) == len(quadrature_types)
     for quadrature_type in quadrature_types:
@@ -53,3 +53,22 @@ def test_quadrature_type_map():
         assert len(info) == len(quadrature_properties)
         for item in info:
             assert item in quadrature_properties
+
+
+def test_data_type_map():
+    '''Check that DATA_TYPE_MAP contains the expected structure.'''
+
+    data_types = [
+        "reduction", "field", "r_solver_field", "integer_field", "operator",
+        "columnwise_operator", "r_solver_operator",
+        "r_solver_columnwise_operator"]
+    data_type_properties = [
+        "module", "type", "proxy_type", "intrinsic", "kind"]
+
+    assert len(LFRicConstants.DATA_TYPE_MAP) == len(data_types)
+    for data_type in data_types:
+        assert data_type in LFRicConstants.DATA_TYPE_MAP
+        info = LFRicConstants.DATA_TYPE_MAP[data_type]
+        assert len(info) == len(data_type_properties)
+        for item in info:
+            assert item in data_type_properties
