@@ -33,6 +33,15 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
+.. testsetup::
+
+    import psyclone.psyir.nodes.node
+    def new_colored(text, _):
+        return text
+
+    psyclone.psyir.nodes.node.colored = new_colored
+
+
 Transformations
 ###############
 
