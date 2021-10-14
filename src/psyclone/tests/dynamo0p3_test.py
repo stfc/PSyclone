@@ -4182,3 +4182,17 @@ def test_read_only_fields_hex(tmpdir):
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")
     assert expected in generated_code
+
+    
+def test_dummy():
+    '''temporary test to see where mixed precision operator code is not
+    working
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "26.7_mixed_precision_operators.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    print (generated_code)
+    exit(1)
