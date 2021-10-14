@@ -40,7 +40,6 @@
 
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
@@ -50,6 +49,7 @@ from psyclone.f2pygen import DoGen, DeclGen
 
 
 class Loop(Statement):
+    # pylint: disable=too-many-instance-attributes
     '''Node representing a loop within the PSyIR. It has 4 mandatory children:
     the first one represents the loop lower bound, the second one represents
     the loop upper bound, the third one represents the step value and the
@@ -342,7 +342,7 @@ class Loop(Statement):
         :rtype: str
         '''
         return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
-                format(colored("Loop", self._colour),
+                format(self.coloured_name(self._colour),
                        self._loop_type, self._field_space,
                        self.iteration_space))
 
