@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     CodeBlock, FileContainer, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, REAL_DOUBLE_TYPE
+    INTEGER_TYPE, REAL_TYPE
 
 
 #: The tolerance applied to the comparison of the inner product values in
@@ -58,7 +58,7 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
 INNER_PRODUCT_TOLERANCE = "1.0e-10"
 #: The type (and precision) of the variable used to accumulate the inner
 #: product in the generated test-harness code.
-INNER_PRODUCT_DATATYPE = REAL_DOUBLE_TYPE
+INNER_PRODUCT_DATATYPE = REAL_TYPE
 #: The suffix we will prepend to a routine and container name when generating
 #: its adjoint.
 ADJOINT_NAME_SUFFIX = "_adj"
@@ -224,7 +224,8 @@ def generate_adjoint(tl_psyir, active_variables):
     return ad_psyir
 
 
-def generate_adjoint_test(tl_psyir, ad_psyir):
+def generate_adjoint_test(tl_psyir, ad_psyir,
+                          datatype=INNER_PRODUCT_DATATYPE):
     '''
     Creates the PSyIR of a test harness for the supplied TL and adjoint
     kernels.
@@ -313,12 +314,12 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
-                                     datatype=INNER_PRODUCT_DATATYPE)
+                                     datatype=datatype)
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
-                                     datatype=INNER_PRODUCT_DATATYPE)
+                                     datatype=datatype)
     # Create symbol for result of the diff of the inner products
     diff_sym = symbol_table.new_symbol("abs_diff", symbol_type=DataSymbol,
-                                       datatype=INNER_PRODUCT_DATATYPE)
+                                       datatype=datatype)
 
     # Identify any arguments to the kernel that are used to dimension other
     # arguments.
@@ -455,32 +456,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                                         zip(inputs, input_copies))
 
     # Compare the inner products.
-    tol_zero = Literal(INNER_PRODUCT_TOLERANCE, INNER_PRODUCT_DATATYPE)
-
-    diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                  Reference(inner1), Reference(inner2))
-    abs_diff = UnaryOperation.create(UnaryOperation.Operator.ABS, diff)
-    statements.append(Assignment.create(Reference(diff_sym), abs_diff))
-
-    # If the test fails then the harness will print a message and return early.
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' failed: diff = ', {1}".format(
-            tl_kernel.name, diff_sym.name))
-
-    statements.append(
-        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GT,
-                                              Reference(diff_sym),
-                                              tol_zero.copy()),
-                       [CodeBlock([ptree], CodeBlock.Structure.STATEMENT),
-                        Return()]))
-
-    # Otherwise the harness prints a message reporting that all is well.
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' passed: diff = ', {1}".format(
-            tl_kernel.name, diff_sym.name))
-    statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+    statements += _create_real_comparison(symbol_table, tl_kernel, inner1,
+                                          inner2)
 
     # Finally, create the driver program from the list of statements.
     routine = Routine.create(
@@ -617,6 +594,104 @@ def _create_array_inner_product(result, array1, array2):
         Reference(result),
         BinaryOperation.create(BinaryOperation.Operator.ADD,
                                Reference(result), inner))
+
+
+def _create_real_comparison(sym_table, kernel, var1, var2):
+    '''
+    Creates PSyIR that checks the values held by Symbols var1 and var2 for
+    equality.
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1:
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2:
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: the PSyIR nodes that perform the check.
+    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    statements = []
+    mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
+                                datatype=var1.datatype)
+    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
+                                    datatype=var1.datatype)
+    overall_tol = sym_table.new_symbol("overall_tolerance",
+                                       symbol_type=DataSymbol,
+                                       datatype=var1.datatype,
+                                       constant_value=1500.0)
+    # TODO the precision of `diff_result` should also depend on the precision
+    # of the supplied values.
+    result = sym_table.new_symbol("diff_result", symbol_type=DataSymbol,
+                                  datatype=INTEGER_TYPE)
+    huge_result = sym_table.new_symbol("huge_result", symbol_type=DataSymbol,
+                                       datatype=result.datatype)
+    # TODO #1161 - the PSyIR does not support `SPACING`
+    ptree = Fortran2003.Assignment_Stmt(
+        "MachineTol = SPACING ( MAX( ABS({0}), ABS({1}) ) )".format(var1.name,
+                                                                    var2.name))
+    statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+
+    sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                    Reference(var1), Reference(var2))
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
+    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                    abs_op, Reference(mtol))
+    statements.append(Assignment.create(Reference(rel_diff), div_op))
+
+    else_body = []
+    # TODO #1161 - the PSyIR does not support `HUGE`
+    ptree = Fortran2003.Intrinsic_Function_Reference("HUGE({0})".format(
+        result.name))
+    else_body.append(Assignment.create(
+        Reference(huge_result),
+        CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)))
+    prod_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     Reference(huge_result),
+                                     Reference(overall_tol))
+    # Integer division will round to zero if test is successful
+    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                    Reference(rel_diff),
+                                    Reference(overall_tol))
+
+    else_body.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GE,
+                                              Reference(rel_diff),
+                                              prod_op),
+                       [Assignment.create(Reference(result),
+                                          Reference(huge_result))],
+                       [Assignment.create(Reference(result), div_op)]))
+    # TODO #1345 make this code language agnostic.
+    ptree1 = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' passed: ', {1}, {2}".format(
+            kernel.name, var1.name, var2.name))
+    ptree2 = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' failed: ', {1}, {2}".format(
+            kernel.name, var1.name, var2.name))
+
+    else_body.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.EQ,
+                                              Reference(result),
+                                              Literal("0", INTEGER_TYPE)),
+                       [CodeBlock([ptree1], CodeBlock.Structure.STATEMENT)],
+                       [CodeBlock([ptree2], CodeBlock.Structure.STATEMENT)]))
+
+    # TODO #1345 make this code language agnostic.
+    ptree = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' passed - exact agreement.'".
+        format(kernel.name))
+
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GE,
+                                              Literal("0.0", REAL_TYPE),
+                                              Reference(rel_diff)),
+                       [CodeBlock([ptree], CodeBlock.Structure.STATEMENT)],
+                       else_body))
+
+    return statements
 
 
 # =============================================================================

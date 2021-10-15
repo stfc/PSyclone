@@ -111,9 +111,9 @@ def test_generate_adjoint_str_generate_harness():
   use my_mod, only : kern
   use my_mod_adj, only : kern_adj
   integer, parameter :: array_extent = 20
-  double precision :: inner1
-  double precision :: inner2
-  double precision :: abs_diff
+  real :: inner1
+  real :: inner2
+  real :: abs_diff
   real :: field
   real :: field_input
 
@@ -126,7 +126,7 @@ def test_generate_adjoint_str_generate_harness():
   inner2 = 0.0
   inner2 = inner2 + field * field_input
   abs_diff = ABS(inner1 - inner2)
-  if (abs_diff > 1.0d-10) then
+  if (abs_diff > 1.0e-10) then
     WRITE(*, *) 'Test of adjoint of ''kern'' failed: diff = ', abs_diff
     return
   end if
