@@ -140,8 +140,10 @@ class AdjointVisitor(PSyIRVisitor):
             result = self._visit(child)
             if isinstance(result, list):
                 node_copy.children.extend(result)
-            else:
-                node_copy.children.append(result)
+            # The else clause below can not be exercised until nodes in a
+            # schedule other than assignment are support, see issue #1457
+            # else:
+            #     node_copy.children.append(result)
 
         return node_copy
 
