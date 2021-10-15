@@ -35,9 +35,6 @@
 
 module operators
 
-  use constants_mod,                    only: r_solver
-  use field_mod,                        only: field_type
-
   use operator_mod,                     only: operator_type
   use r_solver_operator_mod,            only: r_solver_operator_type
   use columnwise_operator_mod,          only: columnwise_operator_type
