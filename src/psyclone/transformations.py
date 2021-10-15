@@ -2790,8 +2790,7 @@ class ACCEnterDataTrans(Transformation):
     ...    schedule.view()
     >>>
     >>> # Add an enter-data directive
-    >>> #doctest:+ELLIPSIS
-    >>> dtrans.apply(schedule)
+    >>> _ = dtrans.apply(schedule)
     >>> if DEBUG:
     ...    schedule.view()
 
