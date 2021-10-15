@@ -205,6 +205,10 @@ def test_create_schedule_logger(caplog, fortran_reader):
     with caplog.at_level(logging.DEBUG):
         _ = adj_visitor._visit(tl_schedule)
     assert "Transforming Schedule" in caplog.text
+    assert "Adding passive code into new schedule" in caplog.text
+    assert "Reversing order of active code" in caplog.text
+    assert ("Processing active code and adding results into new schedule"
+            in caplog.text)
 
 
 def test_create_schedule_active_variables(fortran_reader):
@@ -234,7 +238,7 @@ def test_create_schedule_active_variables(fortran_reader):
             in str(info.value))
 
 
-def test_schedule_active(tmpdir):
+def test_schedule_active_assign(tmpdir):
     '''Test the validate schedule_node method works when there are
     multiple active assignments in the schedule.
     '''
@@ -263,7 +267,7 @@ def test_schedule_active(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_schedule_inactive(tmpdir):
+def test_schedule_inactive_assign(tmpdir):
     '''Test the visitor schedule_node method works when there are multiple
     inactive assignments in the schedule.
     '''
@@ -320,7 +324,8 @@ def test_schedule_mixed(tmpdir):
 
 
 @pytest.mark.xfail(reason="Incorrect code is output if the variable in an "
-                   "inactive assignment is read by an earlier statement.")
+                   "inactive assignment is read by an earlier statement, "
+                   "issue #1458.")
 def test_schedule_dependent_active(tmpdir):
     '''Test the validate schedule_node method works when there is a
    mixture of active and inactive assignments in the schedule, the
@@ -344,14 +349,6 @@ def test_schedule_dependent_active(tmpdir):
         "  y = 2\n"
         "  b = b + y * a\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
-
-#    '''Test that a copy of the schedule is returned and that the children
-#    of the schedule are also processed by the visitor. These tests are
-#    not performed separately as it is not possible to create a
-#    schedule without creating a child as this causes an exception to
-#    be raised.
-#
-#    '''
 
 
 # AdjointVisitor.assignment_node()
