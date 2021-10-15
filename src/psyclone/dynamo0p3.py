@@ -1026,13 +1026,14 @@ class DynamoPSy(PSy):
         # the "use" statements in modules that contain PSy-layer routines.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
-                       const.DATA_TYPE_MAP["r_solver_field"]["module"],
-                       const.DATA_TYPE_MAP["integer_field"]["module"],
-                       const.DATA_TYPE_MAP["operator"]["module"],
-                       const.DATA_TYPE_MAP["columnwise_operator"]["module"],
-                       const.DATA_TYPE_MAP["r_solver_operator"]["module"],
-                       const.DATA_TYPE_MAP["r_solver_columnwise_operator"]["module"]]
+        infmod_list = [
+            const_mod, const.DATA_TYPE_MAP["field"]["module"],
+            const.DATA_TYPE_MAP["r_solver_field"]["module"],
+            const.DATA_TYPE_MAP["integer_field"]["module"],
+            const.DATA_TYPE_MAP["operator"]["module"],
+            const.DATA_TYPE_MAP["columnwise_operator"]["module"],
+            const.DATA_TYPE_MAP["r_solver_operator"]["module"],
+            const.DATA_TYPE_MAP["r_solver_columnwise_operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -3102,42 +3103,31 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
 
-        # Declarations of LMA operator proxies
+        # Declarations of LMA and CMA operator proxies
+        for operator in ["gh_operator", "gh_columnwise_operator"]:
 
-        # Find the operators
-        op_args = self._invoke.unique_declarations(
-            argument_types=["gh_operator"])
+            # Find the operators
+            op_args = self._invoke.unique_declarations(
+                argument_types=[operator])
 
-        # Sort the operators by their proxy datatype
-        operator_names = OrderedDict()
-        module_names = {}
-        for arg in op_args:
-            if arg.proxy_data_type not in operator_names:
-                operator_names[arg.proxy_data_type] = [arg.proxy_declaration_name]
-                module_names[arg.proxy_data_type] = arg.module_name
-            else:
-                operator_names[arg.proxy_data_type].append(arg.proxy_declaration_name)
+            # Sort the operators by their proxy datatype
+            operator_names = OrderedDict()
+            module_names = {}
+            for arg in op_args:
+                if arg.proxy_data_type not in operator_names:
+                    operator_names[arg.proxy_data_type] = \
+                        [arg.proxy_declaration_name]
+                    module_names[arg.proxy_data_type] = arg.module_name
+                else:
+                    operator_names[arg.proxy_data_type].append(
+                        arg.proxy_declaration_name)
 
-        # Declare the operator proxies and their datatypes
-        for op_type in operator_names:
-            parent.add(TypeDeclGen(parent, datatype=op_type,
-                                   entity_decls=operator_names[op_type]))
-            self._invoke.invokes.psy.infrastructure_modules[
-                module_names[op_type]].add(op_type)
-
-        # Declarations of CMA operator proxies
-        cma_op_args = self._invoke.unique_declarations(
-            argument_types=["gh_columnwise_operator"])
-        cma_op_proxy_decs = [arg.proxy_declaration_name for
-                             arg in cma_op_args]
-        if cma_op_proxy_decs:
-            op_type = cma_op_args[0].proxy_data_type
-            op_mod = cma_op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=cma_op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+            # Declare the operator proxies and their datatypes
+            for op_type in operator_names:
+                parent.add(TypeDeclGen(parent, datatype=op_type,
+                                       entity_decls=operator_names[op_type]))
+                self._invoke.invokes.psy.infrastructure_modules[
+                    module_names[op_type]].add(op_type)
 
     def initialise(self, parent):
         '''
@@ -3646,25 +3636,27 @@ class DynCMAOperators(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
-        # If we have no CMA operators then we do nothing
-        if not self._cma_ops:
-            return
-
-        # Add the Invoke subroutine argument declarations for column-wise
-        # operators
-        cma_op_args = self._invoke.unique_declarations(
+        # Find the operators
+        op_args = self._invoke.unique_declarations(
             argument_types=["gh_columnwise_operator"])
-        # Create a list of column-wise operator names
-        cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
-        if cma_op_arg_list:
-            op_type = cma_op_args[0].data_type
-            op_mod = cma_op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=cma_op_arg_list,
+
+        # Sort the operators by their datatype
+        operator_names = OrderedDict()
+        module_names = {}
+        for arg in op_args:
+            if arg.data_type not in operator_names:
+                operator_names[arg.data_type] = [arg.declaration_name]
+                module_names[arg.data_type] = arg.module_name
+            else:
+                operator_names[arg.data_type].append(arg.declaration_name)
+
+        # Declare the operators and their datatypes
+        for op_type in operator_names:
+            parent.add(TypeDeclGen(parent, datatype=op_type,
+                                   entity_decls=operator_names[op_type],
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+            self._invoke.invokes.psy.infrastructure_modules[
+                module_names[op_type]].add(op_type)
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
@@ -3681,7 +3673,7 @@ class DynCMAOperators(DynCollection):
                 infrastructure_modules[const_mod]
             if cma_kind not in const_mod_list:
                 const_mod_list.append(cma_kind)
-            
+
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
@@ -4428,7 +4420,7 @@ class DynBasisFunctions(DynCollection):
                                entity_decls=[basis]))
 
         const = LFRicConstants()
-        
+
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             if shape == "gh_quadrature_xyoz":
@@ -4783,8 +4775,8 @@ class DynBasisFunctions(DynCollection):
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
             const = LFRicConstants()
-            datatype = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"] \
-                ["intrinsic"]
+            datatype = \
+                const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             parent.add(
                 DeclGen(parent, datatype=datatype, kind=kind,
@@ -8918,27 +8910,37 @@ class DynKernelArgument(KernelArgument):
             # metadata specifies a supported operator type.
             if self.argument_type == "gh_operator":
                 if use_alg_info:
-                    mapping = {"operator_type": "operator", "r_solver_operator_type": "r_solver_operator"}
+                    mapping = {
+                        "operator_type": "operator",
+                        "r_solver_operator_type": "r_solver_operator"}
                     try:
                         argtype = mapping[alg_datatype]
-                    except:
+                    except KeyError:
                         raise GenerationError(
                             "The metadata for argument '{0}' in kernel '{1}' "
-                            "specifies that this is an operator, however it is "
-                            "declared as a '{2}' in the algorithm code."
-                            "".format(self.name, self._call.name, alg_datatype))
+                            "specifies that this is an operator, however it "
+                            "is declared as a '{2}' in the algorithm code."
+                            "".format(
+                                self.name, self._call.name, alg_datatype))
                 else:
-                    argtype = "operator_type"
+                    argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
-                if use_alg_info and alg_datatype and \
-                   alg_datatype != "columnwise_operator_type":
-                    raise GenerationError(
-                        "The metadata for argument '{0}' in kernel '{1}' "
-                        "specifies that this is a columnwise operator, "
-                        "however it is declared as a '{2}' in the algorithm "
-                        "code.".format(
-                            self.name, self._call.name, alg_datatype))
-                argtype = "columnwise_operator"
+                if use_alg_info:
+                    mapping = {
+                        "columnwise_operator_type": "columnwise_operator",
+                        "r_solver_columnwise_operator_type":
+                        "r_solver_columnwise_operator"}
+                    try:
+                        argtype = mapping[alg_datatype]
+                    except KeyError:
+                        raise GenerationError(
+                            "The metadata for argument '{0}' in kernel '{1}' "
+                            "specifies that this is a columnwise operator, "
+                            "however it is declared as a '{2}' in the "
+                            "algorithm code.".format(
+                                self.name, self._call.name, alg_datatype))
+                else:
+                    argtype = "columnwise_operator"
             else:
                 raise InternalError(
                     "Expected 'gh_operator' or 'gh_columnwise_operator' "
