@@ -333,8 +333,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
@@ -344,7 +343,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> tasklooptrans = OMPTaskloopTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...     schedule.view()
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
@@ -360,7 +360,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...     schedule.view()
 
     '''
     def __init__(self, grainsize=None, num_tasks=None, nogroup=False):
@@ -581,8 +582,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>> print psy.invokes.names
     >>>
@@ -592,7 +592,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> rtrans = t.get_trans_name('OMPParallelTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>> new_schedule = schedule
     >>>
     # Apply the OpenMP Loop transformation to *every* loop
@@ -758,8 +759,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -768,7 +768,8 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> rtrans = t.get_trans_name('ACCParallelTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>> new_schedule = schedule
     >>>
     # Apply the OpenACC Loop transformation to *every* loop
@@ -868,12 +869,14 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>> ast, invokeInfo = parse("dynamo.F90")
         >>> psy = PSyFactory("dynamo0.1").create(invokeInfo)
         >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> schedule.view()
+        >>> if DEBUG:
+        ...    schedule.view()
         >>>
         >>> from psyclone.transformations import OMPParallelLoopTrans
         >>> trans = OMPParallelLoopTrans()
         >>> new_schedule, memento = trans.apply(schedule.children[0])
-        >>> new_schedule.view()
+        >>> if DEBUG:
+        ...    new_schedule.view()
 
     '''
     def __str__(self):
@@ -1150,7 +1153,8 @@ class ColourTrans(LoopTrans):
     >>> for child in schedule.children:
     >>>     ctrans.apply(child)
     >>>
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     '''
     def __str__(self):
@@ -1229,7 +1233,8 @@ class KernelModuleInlineTrans(KernelTrans):
     >>> inline_trans = KernelModuleInlineTrans()
     >>>
     >>> inline_trans.apply(schedule.children[0].loop_body[0])
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     .. warning ::
         For this transformation to work correctly, the Kernel subroutine
@@ -1325,7 +1330,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> for child in schedule.children:
     >>>     otrans.apply(child.children[0])
     >>>
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     Colouring in the Dynamo 0.3 API is subject to the following rules:
 
@@ -1519,8 +1525,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
@@ -1528,7 +1533,10 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> paralleltrans = OMPParallelTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
@@ -1536,7 +1544,8 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1650,8 +1659,7 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
@@ -1659,7 +1667,8 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> paralleltrans = OMPParallelTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # MASTER region
@@ -1667,7 +1676,8 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1728,8 +1738,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -1738,7 +1747,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> rtrans = t.get_trans_name('OMPParallelTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
@@ -1748,7 +1758,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> rtrans.apply(schedule.children)
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1804,8 +1815,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -1814,13 +1824,15 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> dtrans = t.get_trans_name('ACCDataTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
     >>> ptrans.apply(schedule.children)
     >>> # Add an enter-data directive
     >>> dtrans.apply(schedule)
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
@@ -1852,14 +1864,16 @@ class MoveTrans(Transformation):
     >>> ast,invokeInfo=parse("dynamo.F90")
     >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
     >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> from psyclone.transformations import MoveTrans
     >>> trans=MoveTrans()
     >>> new_schedule, memento = trans.apply(schedule.children[0],
                                             schedule.children[2],
                                             position="after")
-    >>> new_schedule.view()
+    >>> if DEBUG:
+    ...    new_schedule.view()
 
     Nodes may only be moved to a new location with the same parent
     and must not break any dependencies otherwise an exception is
@@ -2215,12 +2229,14 @@ class GOLoopSwapTrans(LoopTrans):
      >>> ast, invokeInfo = parse("shallow_alg.f90")
      >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
      >>> schedule = psy.invokes.get('invoke_0').schedule
-     >>> schedule.view()
+     >>> if DEBUG:
+     ...    schedule.view()
      >>>
      >>> from psyclone.transformations import GOLoopSwapTrans
      >>> swap = GOLoopSwapTrans()
      >>> new_schedule, memento = swap.apply(schedule.children[0])
-     >>> new_schedule.view()
+     >>> if DEBUG:
+     ...    new_schedule.view()
 
     '''
     def __str__(self):
@@ -2336,12 +2352,14 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
     >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
     >>> new_schedule, memento = trans.apply(schedule.children[0])
-    >>> new_schedule.view()
+    >>> if DEBUG:
+    ...    new_schedule.view()
 
     '''
 
@@ -2433,7 +2451,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
@@ -2759,8 +2778,7 @@ class ACCEnterDataTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
@@ -2768,11 +2786,16 @@ class ACCEnterDataTrans(Transformation):
     >>> dtrans = t.get_trans_name('ACCEnterDataTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>>
     >>> # Add an enter-data directive
+    >>> #doctest:+ELLIPSIS
     >>> dtrans.apply(schedule)
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
+
+    ...
 
     '''
     def __str__(self):
@@ -2876,15 +2899,15 @@ class ACCRoutineTrans(KernelTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCRoutineTrans
     >>> rtrans = ACCRoutineTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...     schedule.view()
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
     >>> newkern, _ = rtrans.apply(kern)
@@ -3021,7 +3044,8 @@ class ACCKernelsTrans(RegionTrans):
     >>> ktrans = ACCKernelsTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Transform the kernel
     >>> ktrans.apply(kernels)
@@ -3143,7 +3167,8 @@ class ACCDataTrans(RegionTrans):
     >>> dtrans = ACCDataTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> if DEBUG:
+    ...    schedule.view()
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Enclose the kernels
     >>> dtrans.apply(kernels)
