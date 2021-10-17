@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified by: R. W. Ford, STFC Daresbury Lab
 
 program single_invoke
 
@@ -44,7 +45,7 @@ program single_invoke
   implicit none
 
   type(integer_field_type) :: f1
-  real(i_def)              :: a
+  integer(i_def)           :: a
 
   a = 3
 
