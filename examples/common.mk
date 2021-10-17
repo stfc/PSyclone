@@ -62,6 +62,7 @@ else
   KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
 endif
 
+PSYAD ?= psyad
 RM = rm -f
 PYTHON ?= python
 F90 ?= gfortran
@@ -69,7 +70,8 @@ F90FLAGS ?= -g -O0
 
 # How we run Jupyter notebooks. We explicitly specify which python kernel
 # to use as otherwise it is taken from the notebook meta-data and this might
-# not agree with what's currently available (particularly on Travis).
+# not agree with what's currently available (particularly in a CI
+# environment).
 JUPYTER = jupyter nbconvert --ExecutePreprocessor.kernel_name=${PYTHON} \
                  --to notebook --execute
 
@@ -79,12 +81,12 @@ GENERATED_FILES =
 
 NOTEBOOK_FILES = $(wildcard ./*ipynb)
 
-.PHONY: all compile transform notebook clean test allclean ${NOTEBOOK_FILES}
+.PHONY: compile run notebook clean transform allclean ${NOTEBOOK_FILES}
 .DEFAULT_GOAL := transform
 
 # Rule that attempts to execute all Jupyter notebooks in the current dir
 ${NOTEBOOK_FILES}:
-	${JUPYTER} $@
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${JUPYTER} $@
 
 # Standard targets that we want available for every example
 

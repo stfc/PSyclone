@@ -37,8 +37,7 @@ contains
     !   END DO
     !END DO
 
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
+    zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 1, jpj-1
@@ -49,8 +48,7 @@ contains
        END DO
     END DO
 
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0 
+    zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 2, jpj
@@ -77,8 +75,7 @@ contains
     END DO
 
     DO jk = 1, jpk-1
-       ! SIR backend only supports perfectly nested triple loops
-       ! zdt  = 1
+       zdt  = 1
        DO jj = 2, jpj-1
           DO ji = 2, jpi-1
              z0u = SIGN( 0.5d0, pun(ji,jj,jk) )
@@ -106,26 +103,20 @@ contains
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
              zbtr = 1.
-             ! SIR backend does not like "-"
-             !ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
-             !     &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
+             ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
                   &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
              mydomain(ji,jj,jk) = mydomain(ji,jj,jk) + ztra
           END DO
        END DO
     END DO
     
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
+    zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
     
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! DO jk = 2, jpk-1   
-    !     zwx(:,:,jk) = tmask(:,:,jk) * ( mydomain(:,:,jk-1) - mydomain(:,:,jk) )
-    ! END DO
+    DO jk = 2, jpk-1   
+       zwx(:,:,jk) = tmask(:,:,jk) * ( mydomain(:,:,jk-1) - mydomain(:,:,jk) )
+    END DO
 
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! zslpx(:,:,1) = 0.e0
+    zslpx(:,:,1) = 0.e0
     
     DO jk = 2, jpk-1    
        DO jj = 1, jpj
@@ -146,8 +137,7 @@ contains
        END DO
     END DO
     
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
+    zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
 
     zdt  = 1
     zbtr = 1.
@@ -170,9 +160,7 @@ contains
     DO jk = 1, jpk-1
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
-             ! SIR backend does not like "-"
-             ! ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
+             ztra = -zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
              mydomain(ji,jj,jk) = ztra
           END DO
        END DO

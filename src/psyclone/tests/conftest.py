@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,17 @@
     command-line options '''
 
 from __future__ import absolute_import
+
+import os
 import pytest
+
+from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import Compile
 
 
 # fixtures defined here are available to all tests
@@ -78,7 +87,7 @@ def have_graphviz():
     only checks for the Python bindings. The underlying library must
     also have been installed for dag generation to work correctly. '''
     try:
-        # pylint: disable=unused-variable
+        # pylint: disable=import-outside-toplevel, unused-import
         import graphviz
     except ImportError:
         return False
@@ -93,10 +102,9 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
-    import os
     config_file = Config.get_repository_config_file()
 
-    # In case that PSyclone is installed and tested (e.g. travis),
+    # In case that PSyclone is installed and tested (e.g. GitHub Actions),
     # the 'repository' config file does not exist (since it is
     # installed in a different directory). In that case the standard
     # search path of the Configuration object will find the right
@@ -114,10 +122,8 @@ def infra_compile(tmpdir_factory, request):
     infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
     (if compilation was enabled).
     '''
-    from psyclone.tests.utilities import Compile
     Compile.store_compilation_flags(request.config)
 
-    from psyclone.tests.lfric_build import LFRicBuild
     # Create a temporary directory to store the compiled files.
     # Note that this directory is unique even if compiled in
     # parallel, i.e. each process has its own copy of the
@@ -128,7 +134,6 @@ def infra_compile(tmpdir_factory, request):
     # compilation of the infrastructure files.
     LFRicBuild(tmpdir)
 
-    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
     GOcean1p0Build(tmpdir)
 
@@ -138,15 +143,12 @@ def parser():
     '''
     Creates and returns an fparser object. Since this is expensive we only
     do this once per test session (scope="session" above).
+
+    Note: If this fixture is not used to get the fparser parse tree but is
+    used as just a step in getting the PSyIR, use the fortran_reader fixture
+    below.
+
     '''
-    from fparser.two.parser import ParserFactory
-    return ParserFactory().create()
-
-
-@pytest.fixture(scope="session", name="f2008_parser")
-def fixture_f2008_parser():
-    ''' Initialise fparser2 with Fortran2008 standard. '''
-    from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
 
@@ -156,3 +158,15 @@ def kernel_outputdir(tmpdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     return tmpdir
+
+
+@pytest.fixture(scope="function", name="fortran_reader")
+def fixture_fortran_reader():
+    '''Create and return a FortranReader object with default settings.'''
+    return FortranReader()
+
+
+@pytest.fixture(scope="function", name="fortran_writer")
+def fixture_fortran_writer():
+    '''Create and return a FortranWriter object with default settings.'''
+    return FortranWriter()

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2020, Science and Technology Facilities Council.
+   Copyright (c) 2020-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,14 @@
    -----------------------------------------------------------------------------
    Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
+.. The following section imports those Python modules that are needed in
+   subsequent doctest snippets.
+.. testsetup::
+
+    from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
+        ScalarType, ArrayType, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
+        BOOLEAN_TYPE
+    from psyclone.psyir.nodes import Reference
 
 PSyIR Types, Symbols and Data dependencies
 ##########################################
@@ -40,14 +48,17 @@ PSyIR Types, Symbols and Data dependencies
 DataTypes
 =========
 
-PSyIR DataTypes currently support Scalar, Array and Structure types
-via the ``ScalarType``, ``ArrayType`` and ``StructureType`` classes,
-respectively.  The ``StructureType`` simply contains an
-``OrderedDict`` of namedtuples, each of which holds the name, type and
-visibility of a component of the type. These types are designed to be
-composable: one might have an ``ArrayType`` with elements that are of
-a ``StructureType`` or a ``StructureType`` that has components that
-are also of (some other) ``StructureType``.
+PSyIR DataTypes currently support Scalar, Array, Structure and empty
+types via the ``ScalarType``, ``ArrayType``, ``StructureType`` and
+``NoType`` classes, respectively.  The ``StructureType`` simply
+contains an ``OrderedDict`` of namedtuples, each of which holds the
+name, type and visibility of a component of the type. These types are
+designed to be composable: one might have an ``ArrayType`` with
+elements that are of a ``StructureType`` or a ``StructureType`` that
+has components that are also of (some other) ``StructureType``.
+``NoType`` is the equivalent of C's ``void`` and is currently only
+used with ``RoutineSymbols`` when the corresponding routine has no
+return type (such as Fortran subroutines).
 
 There are two other types that are used in situations where the full
 type information is not currently available: ``UnknownType`` means
@@ -60,9 +71,11 @@ is limited to ``UnknownFortranType``.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4-byte real scalar is
-defined like this::
+defined like this:
 
-   scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+.. doctest::
+
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
 
 and has the following pre-defined shortcut
 
@@ -70,9 +83,7 @@ and has the following pre-defined shortcut
 
    scalar_type = REAL4_TYPE
 
-If we were to subclass, it would have looked something like this:
-
-::
+If we were to subclass, it would have looked something like this::
 
    scalar_type = RealType(4)
 
@@ -84,27 +95,29 @@ the same functionality.
 Symbols
 =======
 
-At the moment, root nodes (e.g. `InvokeSchedules`, `KernelSchedules`
-and `Containers`) have a symbol table which contains the symbols used by their
-descendant nodes.
+At the moment, nodes that represent a scope (all `Schedules` and `Containers`)
+have a symbol table which contains the symbols used by their descendant nodes.
+Nested scopes with their associated symbol table are allowed in the PSyIR.
 
-The `new_symbol_name` method is provided to avoid name clashes when defining
-a new symbol in the symbol table.
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
+The `new_symbol` method is provided to create new symbols while avoiding name
+clashes:
+
+.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol
 
 However, if this symbol needs to be retrieved later on, one must keep track
 of the symbol or the returned name. As this is not always feasible when
 accessed from different routines, there is also the option to provide a tag to
 uniquely identify the symbol internally (the tag is not displayed in the
 generated code). Therefore, to create a new symbol and associate it with a
-tag, the following lines can be used:
+tag, the following code can be used:
 
 .. code-block:: python
 
-    variable = node.symbol_table.new_symbol_name("variable_name")
-    node.symbol_table.add(DataSymbol(variable, DataType.INTEGER),
-                          tag="variable_with_the_result_x")
+    variable = node.symbol_table.new_symbol("variable_name",
+                                            tag="variable_with_the_result_x"
+                                            symbol_type=DataSymbol,
+                                            datatype=DataType.INTEGER)
 
 There are two ways to retrieve the symbol from a symbol table. Using the
 `name` or using the `tag` as lookup keys. This is done with the two following
@@ -114,28 +127,23 @@ methods:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.lookup_with_tag
 
-Sometimes, particularly in the dynamo0p3 API, we have no way of knowing if
-a symbol has already been defined. In this case we can use a try/catch around
+Sometimes, we have no way of knowing if a symbol we need has already been
+defined. In this case we can use a try/catch around
 the `lookup_with_tag` method and if a KeyError is raised (the tag was not
 found), then proceed to declare the symbol. As this situation occurs frequently
-the Symbol Table provides the `name_from_tag` helper method that encapsulates the
-described behaviour and declares generic symbols, which have no datatype
-properties, when needed.
+the Symbol Table provides the `symbol_from_tag` helper method that encapsulates
+the described behaviour and declares symbols when needed.
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.name_from_tag
+.. automethod:: psyclone.psyir.symbols.SymbolTable.symbol_from_tag
 
-.. warning:: The `name_from_tag` method should not be used for new
-    code as the method will be deprecated in favour of a finer control
-    of when variables are defined and used.
-
-By default the `new_symbol_name`, `add`, `lookup`, `lookup_with_tag`,
-and `name_from_tag` methods in a symbol table will also take into
-account the symbols in any ancestor symbol tables. Ancestor symbol
+By default the `get_symbol`, `new_symbol`, `add`, `lookup`,
+`lookup_with_tag`, and `symbol_from_tag` methods in a symbol table will also
+take into account the symbols in any ancestor symbol tables. Ancestor symbol
 tables are symbol tables attached to nodes that are ancestors of the
-node that the current symbol table is attached to. This functionality
-is controllable via the optional `check_ancestors` argument. This
-functionality is supported by the `all_symbols` and `all_tags`
-properties.
+node that the current symbol table is attached to. These are found in order
+with the `parent_symbol_table` method. This method provides a `scope_limit`
+argument to limit the extend of the upwards recursion provided to each
+method that uses it.
 
 Sibling symbol tables are currently not checked. The argument for
 doing this is that a symbol in a sibling scope should not be visible
@@ -152,12 +160,91 @@ whether tags should be unique or not.
 All other methods act only on symbols in the local symbol table. In
 particular `__contains__`, `remove`, `get_unresolved_data_symbols`,
 `symbols`, `datasymbols`, `local_datasymbols`, `argument_datasymbols`,
-`global_symbols`, `precision_datasymbols` and `containersymbols`. It
+`imported_symbols`, `precision_datasymbols` and `containersymbols`. It
 is currently not clear whether this is the best solution and it is
 possible that these should reflect a global view. One issue is that
-the `__contains__` method has no mechanism to pass a `check_ancestors`
+the `__contains__` method has no mechanism to pass a `scope_limit`
 optional argument. This would probably require a separate `setter` and
 `getter` to specify whether to check ancestors or not.
+
+Specialising Symbols
+====================
+
+When code is translated into PSyIR there may be symbols with unknown
+types, perhaps due to symbols being declared in different files. For
+example, in the following declaration it is not possible to know the
+type of symbol `fred` without knowing the contents of the `my_module`
+module:
+
+.. code-block:: fortran
+
+    use my_module, only : fred
+
+In such cases a generic `Symbol` is created and added to the symbol
+table.
+
+Later on in the code translation it may be that `fred` is used as the
+name of a subroutine call:
+
+.. code-block:: fortran
+
+    call fred()
+
+It is now known that `fred` is a `RoutineSymbol` so the original
+`Symbol` should be replaced by a `RoutineSymbol`.
+
+A simple way to do this would be to remove the original symbol for
+`fred` from the symbol table and replace it with a new one that is a
+`RoutineSymbol`. However, the problem with this is that there may be
+separate references to this symbol from other parts of the PSyIR and
+these references would continue to reference the original symbol.
+
+One solution would be to search through all places where references
+could occur and update them accordingly. Another would be to modify
+the current implementation so that either a) references went in both
+directions or b) references were replaced with names and lookups. Each
+of these solutions has their benefits and disadvantages.
+
+A third solution would be to have a single, non-hierarchical Symbol class
+that has only a name and a symbol-type attribute. Then we could replace the
+symbol_type attribute when we discover more information without modifying
+the thinner Symbol class and therefore not affecting the references to it.
+
+What is currently done is to specialise the symbol in place (so that
+any references to it do not need to change). This is implemented by the
+`specialise` method in the `Symbol` class. It takes a subclass of a
+`Symbol` as an argument and modifies the instance so that it becomes
+the subclass. For example:
+
+.. doctest::
+
+    >>> sym = Symbol("a")
+    >>> # sym is an instance of the Symbol class
+    >>> sym.specialise(RoutineSymbol)
+    >>> # sym is now an instance of the RoutineSymbol class
+
+Sometimes providing additional properties of the new sub-class is desirable,
+and sometimes even mandatory (e.g. a `DataSymbol` must always have a datatype
+and optionally a constant_value parameter). For this reason the specialise
+method implementation provides the same interface as the constructor
+of the symbol type in order to provide the same behaviour and default values
+as the constructor. For instance, in the `DataSymbol` case the following
+specialisations are possible:
+
+.. doctest::
+
+    >>> sym = Symbol("a")
+    >>> # The following statement would fail because it doesn't have a datatype
+    >>> # sym.specialise(DataSymbol)
+    >>> # The following statement is valid and constant_value is set to None
+    >>> sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
+
+    >>> sym2 = Symbol("b")
+    >>> # The following statement would fail because the constant_value doesn't
+    >>> # match the datatype of the symbol
+    >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3.14)
+    >>> # The following statement is valid and constant_value is set to 3
+    >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3)
 
 
 Dependence Analysis
@@ -323,6 +410,8 @@ DataAccess class i.e. the `_field_write_arguments()` and
 `_field_read_arguments()` methods, both of which are found in the
 `Arguments` class.
 
+.. _variable_accesses:
+
 Variable Accesses
 =================
 
@@ -333,9 +422,23 @@ variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
 The only exception to this is if a kernel is called, in which case the
 metadata for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable usage
-of a node can be gathered by creating an object of type
-`psyclone.core.access_info.VariablesAccessInfo`, and then calling
-the function `reference_accesses()` for the node:
+of a PSyIR node or a list of nodes can be gathered by creating an object of
+type `psyclone.core.access_info.VariablesAccessInfo`.
+This class uses a `Signature` object to keep track of the variables used.
+A signature can be thought of as a tuple that consists of the variable name
+and structure members used in an access - called components. For example,
+an access like
+`a(1)%b(k)%c(i,j)` would be stored with a signature `(a, b, c)`, giving
+three components `a`, `b`, and `c`.
+A simple variable such as `a` is stored as a one-element tuple `(a, )`, having
+a single component.
+
+.. autoclass:: psyclone.core.access_info.Signature
+    :members:
+    :special-members: __hash__, __eq__, __lt__
+
+To collect access information in a `VariablesAccessInfo` object, the
+function `reference_accesses()` for the code region must be called:
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
 
@@ -353,15 +456,86 @@ keep track of which access information is stored in a `VariablesAccessInfo`
 instance.
 
 For each variable used an instance of
-`psyclone.core.access_info.VariableAccessInfo` is created, which collects
-all accesses for that variable using `psyclone.config.access_info.AccessInfo`
+`psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
+all accesses for that variable using `psyclone.core.access_info.AccessInfo`
 instances:
 
-.. autoclass:: psyclone.core.access_info.VariableAccessInfo
+.. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
     :members:
 
 .. autoclass:: psyclone.core.access_info.AccessInfo
     :members:
+
+Indices
+-------
+The `AccessInfo` class stores the original PSyIR node that contains the
+access, but it also stores the indices used in a simplified form, which
+makes it easier to analyse dependencies without having
+to analyse a PSyIR tree for details. The indices are stored in the
+ComponentIndices object that each access has, which can be accessed
+using the `component_indices` property of an `AccessInfo` object.
+
+.. autoclass:: psyclone.core.access_info.ComponentIndices
+    :members:
+    :special-members: __getitem__, __len__
+
+
+This object internally stores the indices as a list of indices for each
+component. For example, an access like `a(i)%b(j,k)%c(l)` would
+be stored as the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
+the corresponding index list will be empty, e.g. `a%b(j)%c` will
+be stored as `[ [], [j], [] ]`, and a scalar `a` will just
+return `[ [] ]`. Each member of this list of lists is the PSyIR node
+describing the array expression used.
+
+The component indices provides an array-like access to
+this data structure, you can use `len(component_indices)` to get the
+number of components for which array indices are stored.
+The information can be accessed using array subscription syntax, e.g.:
+`component_index[0]` will return the list of array indices used in the
+first component. You can also use a 2-tuple to select a component
+and a dimension at the same time, e.g. `component_indices[(0,1)]`, which
+will return the index used in the second dimension of the first component.
+
+`ComponentIndices` provides an easy way
+to iterate over all indices using its `iterate()` method, which returns all
+valid 2-tuples of component index and dimension index. For example:
+
+.. code-block:: python
+
+  for indx in access_info.component_indices:
+      # indx is a 2-tuple of (component_index, dimension_index)
+      psyir_index = access_info.component_indices[indx]
+      ...
+  # Using enumerate:
+  for count, indx in enumerate(component_indices.iterate()):
+      # fortran writer convers a PSyIR node to Fortran:
+      print("Index-id", count, fortran_writer(indx))
+
+To find out details about an index expression, you can either analyse
+the tree (e.g. using `walk`), or use the variable access functionality again.
+Below is an example that shows how this is done to determine if an array
+expression contains a reference to a given variable `index_variable`. The
+variable `access_info` is an instance of `AccessInfo` and contains the
+information about one reference.The function `reference_accesses` is used
+to analyse the index expression.
+
+.. code-block:: python
+
+  for indx in access_info.component_indices:
+      index_expression = component_indices[indx]
+
+      # Create an access info object to collect the accesses
+      # in the index expression
+      accesses = VariablesAccessInfo(index_expression)
+      
+      # Then test if the index variable is used. Note that
+      # the key of `access` is a signature
+      if Signature(index_variable) in accesses:
+          # The index variable is used as an index
+          # at the specified location.
+          return indx
+
 
 Access Location
 ---------------
@@ -413,28 +587,30 @@ Access Examples
 ---------------
 
 Below we show a simple example of how to use this API. This is from the
-`psyclone.psyGen.OMPParallelDirective` (so `self` is an instance of this
+`psyclone.psyir.nodes.OMPParallelDirective` (so `self` is an instance of this
 node), and this code is used to determine a list of all the scalar
 variables that must be declared as thread-private::
 
   var_accesses = VariablesAccessInfo()
   self.reference_accesses(var_accesses)
-  for var_name in var_accesses.all_vars:
-      accesses = var_accesses[var_name].all_accesses
-      # Ignore variables that are arrays, we only look at scalar ones.
-      # If we do have a symbol table, use the shape of the variable
-      # to determine if the variable is scalar or not
-      if symbol_table:
-          if len(symbol_table.lookup(var_name).shape) > 0:
-              continue
+  for signature in var_accesses.all_signatures:
+      var_name = str(signature)
+      access_info = var_accesses[signature]
+      symbol = symbol_table.lookup(var_name)
 
-      # If there is no symbol table, check instead if the first access of
-      # the variable has indices, and assume it is an array if it has:
-      elif accesses[0].indices is not None:
+      # Ignore variables that are arrays, we only look at scalar ones.
+      # The `is_used_as_array` function will take information from
+      # the access information as well as from the symbol table
+      # into account.
+      is_array = symbol.is_used_as_array(access_info=acess_info)
+
+      if is_array:
+          # It's not a scalar variable, so it will not be private
           continue
 
-      # If a variable is only accessed once, it is either a coding error
-      # or a shared variable - anyway it is not private
+      # If a scalar variable is only accessed once, it is either a coding
+      # error or a shared variable - anyway it is not private
+      accesses = var_accesses[signature].all_accesses
       if len(accesses) == 1:
           continue
 
@@ -442,7 +618,6 @@ variables that must be declared as thread-private::
       # assume the variable should be private:
       if accesses[0].access_type == AccessType.WRITE:
           result.add(var_name.lower())
-
 
 The next, hypothetical example shows how the `VariablesAccessInfo` class
 can be used iteratively. Assume that you have a function that determines
@@ -470,7 +645,7 @@ until we find accesses that would prevent parallelisation::
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          `reference_accesses()` for a Dynamo or GOcean kernel, the 
+          `reference_accesses()` for a Dynamo or GOcean kernel, the
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.

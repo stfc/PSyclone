@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 Transformations
 ###############
@@ -78,6 +78,39 @@ The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
+
+Raising Transformations
+=======================
+
+Whenever the PSyIR is created from existing source code using one of
+the frontends, the result is language-level PSyIR. That is, it
+contains only nodes that can be mapped directly into a language such
+as C or Fortran by one of the PSyIR backends. In order to utilise
+domain-specific knowledge, this language level PSyIR must be 'raised'
+to a domain-specific PSyIR. The resulting PSyIR will then contain
+nodes representing higher-level concepts such as kernels or halo
+exchanges. This raising is performed by means of the transformations
+listed in the sub-sections below.
+
+Raising Transformations for the NEMO API
+----------------------------------------
+
+The top-level raising transformation creates NEMO PSy layer PSyIR:
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
+
+This transformation is itself implemented using three separate transformations:
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoKernelTrans
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoLoopTrans
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
+
+Raising Transformations for the LFRic API
+-----------------------------------------
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
 
 OpenACC
 =======
@@ -126,14 +159,18 @@ OpenCL
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
-Such code may then be executed
-on devices such as GPUs and FPGAs (Field-Programmable Gate
-Arrays). Since OpenCL code is very different to that which PSyclone
+Such code may then be executed on devices such as GPUs and FPGAs
+(Field-Programmable Gate Arrays).
+
+Since OpenCL code is very different to that which PSyclone
 normally generates, its creation is handled by ``gen_ocl`` methods
-instead of the normal ``gen_code``. Which of these to use is
-determined by the value of the ``InvokeSchedule.opencl`` flag.  In turn,
-this is set at a user level by the ``transformations.OCLTrans``
-transformation.
+instead of the normal ``gen_code``. There is work in progress to
+deprecate both of these generation methods and let the
+``psyclone.domain.gocean.transformations.GOOpenCLTrans``
+transformation handle the code modification entirely in PSyIR.
+However, for the time being the transformation only modifies part of
+the schedule and sets the  ``InvokeSchedule.opencl`` flag, which
+in turn triggers the ``gen_ocl`` path at generation time.
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an
@@ -146,14 +183,18 @@ generated code is still Fortran and makes use of the FortCL library
 could of course generate the PSy layer in C instead but this would
 require further extension of PSyclone.
 
-Consider the following invoke::
+Consider the following invoke:
+
+.. code-block:: fortran
 
     call invoke( compute_cu(CU_fld, p_fld, u_fld) )
 
 When creating the OpenCL PSy layer for this invoke, PSyclone creates
 three subroutines instead of the usual one. The first, ``psy_init``
 is responsible for ensuring that a valid kernel object is created
-for each kernel called by the invoke, e.g.::
+for each kernel called by the invoke, e.g.:
+
+.. code-block:: fortran
 
     use fortcl, only: ocl_env_init, add_kernels
     ...
@@ -171,7 +212,9 @@ PSYCLONE_KERNELS_FILE environment variable. (A pre-compiled file is
 used instead of run-time kernel compilation in order to support
 execution on FPGAs.)
 
-The second routine created by PSyclone sets the kernel arguments, e.g.::
+The second routine created by PSyclone sets the kernel arguments, e.g.:
+
+.. code-block:: fortran
 
     SUBROUTINE compute_cu_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
       USE clfortran, ONLY: clSetKernelArg
@@ -189,7 +232,9 @@ The second routine created by PSyclone sets the kernel arguments, e.g.::
 The third routine generated is the ususal psy-layer routine that is
 responsible for calling all of the kernels. However, it must now also
 call ``psy_init``, create buffers on the compute device (if they are
-not already present) and copy data over::
+not already present) and copy data over:
+
+.. code-block:: fortran
 
     SUBROUTINE invoke_compute_cu(...)
       ...
@@ -208,43 +253,44 @@ not already present) and copy data over::
         ! Create buffer on device
         cu_fld%device_ptr = create_rw_buffer(size_in_bytes)
         ierr = clEnqueueWriteBuffer(cmd_queues(1), cu_fld%device_ptr,  &
-                                    CL_TRUE, 0_8, size_in_bytes,       &
-      			            C_LOC(cu_fld%data), 0, C_NULL_PTR, &
-      			            C_LOC(write_event))
+                                CL_TRUE, 0, size_in_bytes,       &
+                                C_LOC(cu_fld%data), 0, C_NULL_PTR, &
+                                C_LOC(write_event))
         cu_fld%data_on_device = .true.
-      END IF 
+      END IF
       ...
+    END SUBROUTINE
 
 Note that we use the ``data_on_device`` member of the field derived
 type (implemented in github.com/stfc/dl_esm_inf) to keep track of
 whether a given field has been copied to the compute device.  Once all
 of this setup is done, the kernel itself is launched by calling
-``clEnqueueNDRangeKernel``::
+``clEnqueueNDRangeKernel``:
+
+.. code-block:: fortran
 
     ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, &
                                   2, C_NULL_PTR, C_LOC(globalsize),      &
-				  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
+                                  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
 
 Limitations
 -----------
 
-In OpenCL, all tasks to be performed (whether copying data or kernel
-execution) are associated with a command queue. Tasks submitted to
-different command queues may then be executed concurrently,
-potentially giving greater performance. The OpenCL PSy code currently
-generated by PSyclone makes use of just one command queue but again,
-this could be extended in the future.
-
-The current implementation only supports the conversion of a whole
+The current implementation only supports the conversion of a single whole
 Invoke to use OpenCL. In the future we may refine this functionality
 so that it may be applied to just a subset of kernels within an
-Invoke.
+Invoke and/or to multiple invokes.
 
 Since PSyclone knows nothing about the I/O performed by a model, the
 task of ensuring that the correct data is written out by a model
 (including when doing halo exchanges for distributed memory) is left
 to the dl_esm_inf library since that has the information on whether
-field data is local or on a remote compute device.
+field data is local or on a remote compute device. How the data is sent or
+retrieved from the OpenCL device is provided by the dl_esm_inf
+``read_from_device_*`` and ``write_to_device_*`` function pointers.
+In the current implementation it does a just-when-is-needed synchronous data
+transfer using a single command queue which can bottleneck the OpenCL
+performance if there are many I/O operations.
 
 
 ArrayRange2LoopTrans

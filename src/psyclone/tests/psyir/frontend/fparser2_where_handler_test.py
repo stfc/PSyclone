@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,15 +42,16 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
-    Assignment, Literal, Reference, BinaryOperation, IfBlock
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
+    Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
+    Call, Routine, Container, Range
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_TYPE, INTEGER_TYPE
+    REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
 
 
-def process_where(code, fparser_cls):
+def process_where(code, fparser_cls, symbols=None):
     '''
     Utility routine to process the supplied Fortran code and return the
     PSyIR and fparser2 parse trees.
@@ -58,6 +59,9 @@ def process_where(code, fparser_cls):
     :param str code: Fortran code to process.
     :param type fparser_cls: the fparser2 class to instantiate to \
                              represent the supplied Fortran.
+    :param symbols: list of symbol names that must be added to the symbol \
+                    table before constructing the PSyIR.
+    :type symbols: list of str
 
     :returns: 2-tuple of a parent PSyIR Schedule and the created instance of \
               the requested fparser2 class.
@@ -65,6 +69,9 @@ def process_where(code, fparser_cls):
              :py:class:`fparser.two.utils.Base`)
     '''
     sched = Schedule()
+    if symbols:
+        for sym_name in symbols:
+            sched.symbol_table.new_symbol(sym_name)
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
@@ -76,20 +83,26 @@ def process_where(code, fparser_cls):
     return sched, fparser2spec
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_where_broken_tree():
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree does not have the correct structure.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
 
     '''
     fake_parent, fparser2spec = process_where(
         "WHERE (ptsu(:, :, :) /= 0._wp)\n"
         "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-        "END WHERE\n", Fortran2003.Where_Construct)
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
     processor = Fparser2Reader()
+    # Test with unexpected clause by adding an extra end-where statement
+    assert isinstance(fparser2spec.content[-1], Fortran2003.End_Where_Stmt)
+    fparser2spec.content.insert(-1, fparser2spec.content[-1])
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec])
+    assert ("Expected either Fortran2003.Masked_Elsewhere_Stmt or "
+            "Fortran2003.Elsewhere_Stmt but found 'End_Where_Stmt'" in
+            str(err.value))
+    del fparser2spec.content[-2]
     # Break the parse tree by removing the end-where statement
     del fparser2spec.content[-1]
     with pytest.raises(InternalError) as err:
@@ -102,31 +115,63 @@ def test_where_broken_tree():
     assert "Failed to find opening where construct " in str(err.value)
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
+def test_elsewhere_broken_tree():
+    ''' Check that we raise the expected exceptions if the fparser2 parse
+    tree containing an ELSEWHERE does not have the correct structure.
+
+    '''
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(:, :, :) /= 0._wp)\n"
+        "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+        "ELSE WHERE\n"
+        "  z1_st(:, :, :) = 0._wp\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
+    processor = Fparser2Reader()
+    # Insert an additional Elsewhere_Stmt
+    assert isinstance(fparser2spec.content[-3], Fortran2003.Elsewhere_Stmt)
+    fparser2spec.content.insert(-1, fparser2spec.content[-3])
+    with pytest.raises(InternalError) as err:
+        processor.process_nodes(fake_parent, [fparser2spec])
+    assert ("Elsewhere_Stmt should only be found next to last clause, but "
+            "found" in str(err.value))
+
+
+@pytest.mark.usefixtures("parser")
 def test_missing_array_notation_expr():
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax in the logical expression.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, _ = process_where("WHERE (ptsu /= 0._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct)
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("f2008_parser")
+def test_labelled_where():
+    ''' Check that we get a code block if the WHERE statement has a label.
+
+    '''
+    fake_parent, _ = process_where("100 WHERE (ptsu /= 0._wp)\n"
+                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+@pytest.mark.usefixtures("parser")
 def test_missing_array_notation_lhs():
     ''' Check that we get a code block if the WHERE does not use explicit
     array syntax on the LHS of an assignment within the body.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                    "  z1_st = 1._wp / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct)
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -137,46 +182,46 @@ def test_where_array_notation_rank():
     '''
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("my_array", array_type)
-    my_array = Array(symbol)
+    my_array = ArrayReference(symbol)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Array reference in the PSyIR must have at least one child but "
             "'my_array'" in str(err.value))
-    from psyclone.psyir.nodes import Range
     array_type = ArrayType(REAL_TYPE, [10])
-    my_array = Array.create(DataSymbol("my_array", array_type),
-                            [Range.create(Literal("1", INTEGER_TYPE),
-                                          Literal("10", INTEGER_TYPE))])
+    my_array = ArrayReference.create(
+        DataSymbol("my_array", array_type),
+        [Range.create(Literal("1", INTEGER_TYPE),
+                      Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
             "supported." in str(err.value))
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_different_ranks_error():
     ''' Check that a WHERE construct containing array references of different
     ranks results in the creation of a CodeBlock.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct)
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["dry", "z1_st", "depth", "ptsu"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_array_notation_rank():
     ''' Check that the _array_notation_rank() utility handles various examples
     of array notation.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent = Schedule()
+    fake_parent.symbol_table.new_symbol("z1_st")
+    fake_parent.symbol_table.new_symbol("ptsu")
+    fake_parent.symbol_table.new_symbol("n")
     processor = Fparser2Reader()
     reader = FortranStringReader("  z1_st(:, 2, :) = ptsu(:, :, 3)")
     fparser2spec = Fortran2003.Assignment_Stmt(reader)
@@ -196,41 +241,84 @@ def test_array_notation_rank():
             "supported." in str(err.value))
 
 
-def test_where_symbol_clash(parser):
+def test_where_symbol_clash(fortran_reader):
     ''' Check that we handle the case where the code we are processing
     already contains a symbol with the same name as one of the loop variables
     we want to introduce.
 
     '''
-    reader = FortranStringReader("SUBROUTINE widx_array()\n"
-                                 "LOGICAL :: widx1(3,3,3)\n"
-                                 "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
-                                 "WHERE (widx1(:, :, :))\n"
-                                 "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                                 "END WHERE\n"
-                                 "END SUBROUTINE widx_array\n")
-    fparser2spec = parser(reader)
-    processor = Fparser2Reader()
-    sched = processor.generate_schedule("widx_array", fparser2spec)
+    code = ("MODULE MY_MOD\n"
+            "CONTAINS\n"
+            "SUBROUTINE widx_array()\n"
+            "LOGICAL :: widx1(3,3,3)\n"
+            "REAL :: z1_st(3,3,3), ptsu(3,3,3), depth\n"
+            "WHERE (widx1(:, :, :))\n"
+            "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
+            "END WHERE\n"
+            "END SUBROUTINE widx_array\n"
+            "END MODULE MY_MOD\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    sched = psyir.walk(Routine)[0]
     var = sched.symbol_table.lookup("widx1")
     assert isinstance(var, DataSymbol)
     assert var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Check that we have a new symbol for the loop variable
     loop_var = sched.symbol_table.lookup("widx1_1")
     assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # Check that it's in the expected symbol table
+    assert loop_var.name in sched.symbol_table
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+def test_where_within_loop(fortran_reader):
+    ''' Test for correct operation when we have a WHERE within an existing
+    loop and the referenced arrays are brought in from a module. '''
+    code = ("module my_mod\n"
+            " use some_mod\n"
+            "contains\n"
+            "subroutine my_sub()\n"
+            "  integer :: jl\n"
+            "  do jl = 1, 10\n"
+            "  where (var(:) > epsi20)\n"
+            "    var2(:, jl) = 2.0\n"
+            "  end where\n"
+            "  end do\n"
+            "end subroutine my_sub\n"
+            "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # Check that we have symbols for the two arrays
+    mymod = psyir.children[0]
+    assert isinstance(mymod, Container)
+    assert "var" in mymod.symbol_table
+    assert "var2" in mymod.symbol_table
+    assert isinstance(mymod.symbol_table.lookup("var").interface,
+                      UnresolvedInterface)
+    assert isinstance(mymod.symbol_table.lookup("var2").interface,
+                      UnresolvedInterface)
+    sub = mymod.children[0]
+    assert isinstance(sub, Routine)
+    assert isinstance(sub[0], Loop)
+    assert sub[0].variable.name == "jl"
+    where_loop = sub[0].loop_body[0]
+    assert isinstance(where_loop, Loop)
+    assert where_loop.variable.name == "widx1"
+    assert len(where_loop.loop_body.children) == 1
+    assert isinstance(where_loop.loop_body[0], IfBlock)
+    assign = where_loop.loop_body[0].if_body[0]
+    assert isinstance(assign, Assignment)
+    assert [idx.name for idx in assign.lhs.indices] == ["widx1", "jl"]
+
+
+@pytest.mark.usefixtures("parser")
 def test_basic_where():
     ''' Check that a basic WHERE using a logical array as a mask is correctly
     translated into the PSyIR.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct)
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["dry", "z1_st", "depth", "ptsu"])
     # We should have a triply-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 3
@@ -252,17 +340,16 @@ def test_basic_where():
             in str(ifblock.condition))
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_where_array_subsections():
     ''' Check that we handle a WHERE construct with non-contiguous array
     subsections.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, _ = process_where("WHERE (dry(1, :, :))\n"
                                    "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct)
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["dry", "z1_st", "depth", "ptsu"])
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
@@ -280,20 +367,33 @@ def test_where_array_subsections():
     assert assign.lhs.children[2].name == "widx2"
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_elsewhere():
-    ''' Check that a WHERE construct with an ELSEWHERE clause is correctly
+    ''' Check that a WHERE construct with two ELSEWHERE clauses is correctly
     translated into a canonical form in the PSyIR.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
-    fake_parent, _ = process_where("WHERE (ptsu(:, :, :) /= 0._wp)\n"
+    fake_parent, _ = process_where("WHERE (ptsu(:, :, :) > 10._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "ELSEWHERE (ptsu(:, :, :) < 0.0_wp)\n"
+                                   "  z1_st(:, :, :) = -1._wp\n"
                                    "ELSEWHERE\n"
                                    "  z1_st(:, :, :) = 0._wp\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct)
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
+    # This should become:
+    #
+    # if ptsu(ji,jj,jk) > 10._wp)then
+    #   z1_st(ji,jj,jk) = ...
+    # else
+    #   if ptsu(ji,jj,jk) < 0.0_wp)then
+    #     z1_st(ji,jj,jk) = -1...
+    #   else
+    #     z1_st(ji,jj,jk) = 0._wp
+    # end if
     assert len(fake_parent.children) == 1
+    # We should have no CodeBlock nodes
+    assert fake_parent.walk(CodeBlock) == []
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
     assert isinstance(loop.ast, Fortran2003.Where_Construct)
@@ -303,31 +403,56 @@ def test_elsewhere():
     # Check that we have an IF block within the innermost loop
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
+    assert "was_where" in ifblock.annotations
     assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
-    assert ifblock.condition.operator == BinaryOperation.Operator.NE
+    assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert ("ArrayReference[name:'ptsu']\n"
             "Reference[name:'widx1']\n" in str(ifblock.condition.children[0]))
-    assert "Literal[value:'0." in str(ifblock.condition.children[1])
-    # Check that this IF block has an else body
+    assert "Literal[value:'10." in str(ifblock.condition.children[1])
+    # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
-    assert isinstance(ifblock.else_body[0], Assignment)
-    assert isinstance(ifblock.else_body[0].lhs, Array)
-    assert ifblock.else_body[0].lhs.name == "z1_st"
+    ifblock2 = ifblock.else_body[0]
+    assert "was_where" in ifblock2.annotations
+    assert isinstance(ifblock2, IfBlock)
+    assert isinstance(ifblock2.condition, BinaryOperation)
+    assert ifblock2.condition.operator == BinaryOperation.Operator.LT
+    assert ("ArrayReference[name:'ptsu']\n"
+            "Reference[name:'widx1']\n" in str(ifblock2.condition.children[0]))
+    # Check that this IF block too has an else body
+    assert isinstance(ifblock2.else_body[0], Assignment)
+    # Check that we have three assignments of the correct form and with the
+    # correct parents
+    assigns = ifblock.walk(Assignment)
+    assert len(assigns) == 3
+    for assign in assigns:
+        assert isinstance(assign.lhs, ArrayReference)
+        refs = assign.lhs.walk(Reference)
+        assert len(refs) == 4
+        assert refs[1:4] == assign.lhs.indices
+        assert assign.lhs.name == "z1_st"
+        assert ([idx.name for idx in assign.lhs.indices] ==
+                ["widx1", "widx2", "widx3"])
+        assert isinstance(assign.parent.parent, IfBlock)
+
+    assert isinstance(assigns[0].rhs, BinaryOperation)
+    assert assigns[0].rhs.operator == BinaryOperation.Operator.DIV
+    assert isinstance(assigns[1].rhs, UnaryOperation)
+    assert assigns[1].rhs.operator == UnaryOperation.Operator.MINUS
+    assert isinstance(assigns[2].rhs, Literal)
+    assert "0." in assigns[2].rhs.value
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_where_stmt_validity():
     ''' Check that the correct exceptions are raised when the parse tree
     for a WHERE statement has an unexpected structure.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, fparser2spec = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
         "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
-        Fortran2003.Where_Stmt)
+        Fortran2003.Where_Stmt, ["at_i", "rn_amax_2d", "a_i", "jl"])
     # Break the parse tree
     fparser2spec.items = (fparser2spec.items[0], "a string")
     processor = Fparser2Reader()
@@ -342,17 +467,15 @@ def test_where_stmt_validity():
             in str(err.value))
 
 
-@pytest.mark.usefixtures("parser", "disable_declaration_check")
+@pytest.mark.usefixtures("parser")
 def test_where_stmt():
     ''' Basic check that we handle a WHERE statement correctly.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     fake_parent, _ = process_where(
         "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
         "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
-        Fortran2003.Where_Stmt)
+        Fortran2003.Where_Stmt, ["at_i", "rn_amax_2d", "jl", "a_i"])
     assert len(fake_parent.children) == 1
     assert isinstance(fake_parent[0], Loop)
 
@@ -386,5 +509,5 @@ def test_where_ordering(parser):
     result = processor.generate_schedule("test", fparser2_tree)
     assert isinstance(result[0], Assignment)
     assert isinstance(result[1], Loop)
-    assert isinstance(result[2], CodeBlock)
+    assert isinstance(result[2], Call)
     assert isinstance(result[3], Loop)

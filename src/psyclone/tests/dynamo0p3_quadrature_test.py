@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
@@ -41,12 +42,17 @@ quadrature in the LFRic API '''
 from __future__ import absolute_import, print_function
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions, \
+    qr_basis_alloc_args
 from psyclone.errors import InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions
+from psyclone.f2pygen import ModuleGen
+from psyclone.parse.algorithm import KernelCall, parse
+from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -59,6 +65,8 @@ API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 def test_field_xyoz(tmpdir):
@@ -505,13 +513,12 @@ def test_field_qr_deref(tmpdir):
 def test_internal_qr_err(monkeypatch):
     ''' Check that internal error for unrecognised QR type is raised
     as expected '''
-    from psyclone import dynamo0p3
     # Monkeypatch the list of valid quadrature and evaluator shapes so we
     # get past some of the earlier checks
-    monkeypatch.setattr(dynamo0p3, "VALID_EVALUATOR_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_EVALUATOR_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
-    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.4_wrong_qr_shape.f90"),
@@ -534,7 +541,6 @@ def test_dynbasisfunctions(monkeypatch):
     # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
-    from psyclone.dynamo0p3 import qr_basis_alloc_args
     with pytest.raises(InternalError) as excinfo:
         _ = qr_basis_alloc_args("size1", basis_dict)
     assert ("Unrecognised shape ('gh_wrong_shape') specified "
@@ -596,7 +602,6 @@ def test_dynbasisfns_setup(monkeypatch):
 def test_dynbasisfns_initialise(monkeypatch):
     ''' Check that the DynBasisFunctions.initialise() method
     raises the expected InternalErrors. '''
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -621,7 +626,6 @@ def test_dynbasisfns_compute(monkeypatch):
     ''' Check that the DynBasisFunctions._compute_basis_fns() method
     raises the expected InternalErrors if an unrecognised type or shape of
     basis function is encountered. '''
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -647,7 +651,6 @@ def test_dynbasisfns_dealloc(monkeypatch):
     ''' Check that the DynBasisFunctions.deallocate() method
     raises the expected InternalError if an unrecognised type of
     basis function is encountered. '''
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -677,10 +680,8 @@ def test_dynkern_setup(monkeypatch):
     kern = schedule.children[4].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
     # them in the _setup() routine.
-    from psyclone.psyGen import CodedKern
     monkeypatch.setattr(CodedKern, "__init__",
                         lambda me, ktype, kcall, parent, check: None)
-    from psyclone.parse.algorithm import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
@@ -701,19 +702,22 @@ def test_dynkern_setup(monkeypatch):
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                  &
-          (/ arg_type(gh_field,    gh_inc,       w0),                 &
-             arg_type(gh_operator, gh_readwrite, w1, w1),             &
-             arg_type(gh_field,    gh_read,      w2),                 &
-             arg_type(gh_operator, gh_write,     w3, w3),             &
-             arg_type(gh_field,    gh_write,     wtheta),             &
-             arg_type(gh_operator, gh_readwrite, w2h, w2h),           &
-             arg_type(gh_field,    gh_read,      w2v),                &
-             arg_type(gh_operator, gh_readwrite, w2broken, w2broken), &
-             arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_write,     w2trace,  w2trace),  &
-             arg_type(gh_field,    gh_inc,       w2htrace),           &
-             arg_type(gh_operator, gh_read,      w2vtrace, w2vtrace)  &
+     type(arg_type), meta_args(12) =                                 &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),       &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_real, gh_read,      w2),       &
+             arg_type(gh_operator, gh_real, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_real, gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_real, gh_read,      w2v),      &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2broken,  &
+                                                          w2broken), &
+             arg_type(gh_field,    gh_real, gh_read,      wchi),     &
+             arg_type(gh_operator, gh_real, gh_write,     w2trace,   &
+                                                          w2trace),  &
+             arg_type(gh_field,    gh_real, gh_inc,       w2htrace), &
+             arg_type(gh_operator, gh_real, gh_read,      w2vtrace,  &
+                                                          w2vtrace)  &
            /)
      type(func_type), meta_funcs(12) =      &
           (/ func_type(w0, gh_basis),       &
@@ -794,7 +798,7 @@ def test_qr_basis_stub():
         ":: field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
         ":: field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
         ":: field_7_w2v\n"
@@ -807,7 +811,7 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
@@ -816,7 +820,7 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2trace,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2vtrace,"
@@ -860,7 +864,6 @@ def test_stub_basis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring basis functions
     for quadrature raises the correct errors if the kernel meta-data is
     broken '''
-    from psyclone import dynamo0p3
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -871,7 +874,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
             in str(excinfo.value))
-    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     # Add a fake QR rule for the invalid shape (so that we can get to the bit
@@ -888,7 +891,6 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
     functions for quadrature raises the correct errors if the kernel meta-data
     is broken '''
-    from psyclone import dynamo0p3
     # Change meta-data to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
@@ -902,7 +904,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
             in str(excinfo.value))
-    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     # Add a fake QR rule for the invalid shape (so that we can get to the bit

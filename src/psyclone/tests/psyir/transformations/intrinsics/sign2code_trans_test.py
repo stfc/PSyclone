@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the sign2code transformation.'''
 
@@ -69,21 +69,17 @@ def example_psyir(create_expression):
         content of the first argument of the SIGN operator.
 
     :returns: PSyIR SIGN operator instance.
-    :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
     '''
     symbol_table = SymbolTable()
-    name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg1)
-    name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg2)
-    name3 = symbol_table.new_symbol_name()
-    arg3 = DataSymbol(name3, REAL_TYPE)
-    symbol_table.add(arg3)
+    arg1 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg2 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
     var2 = Reference(arg2)
@@ -108,20 +104,21 @@ def test_correct(func, output, tmpdir):
     '''
     Config.get().api = "nemo"
     operation = example_psyir(func)
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine sign_example(arg,arg_1)\n"
+        "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=SIGN({0}, arg_1)\n\n"
+        "  psyir_tmp = SIGN({0}, arg_1)\n\n"
         "end subroutine sign_example\n".format(output)) in result
     trans = Sign2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
-        "subroutine sign_example(arg,arg_1)\n"
+        "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
@@ -129,18 +126,18 @@ def test_correct(func, output, tmpdir):
         "  real :: tmp_sign\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs={0}\n"
+        "  tmp_abs = {0}\n"
         "  if (tmp_abs > 0.0) then\n"
-        "    res_abs=tmp_abs\n"
+        "    res_abs = tmp_abs\n"
         "  else\n"
-        "    res_abs=tmp_abs * -1.0\n"
+        "    res_abs = tmp_abs * -1.0\n"
         "  end if\n"
-        "  res_sign=res_abs\n"
-        "  tmp_sign=arg_1\n"
+        "  res_sign = res_abs\n"
+        "  tmp_sign = arg_1\n"
         "  if (tmp_sign < 0.0) then\n"
-        "    res_sign=res_sign * -1.0\n"
+        "    res_sign = res_sign * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=res_sign\n\n"
+        "  psyir_tmp = res_sign\n\n"
         "end subroutine sign_example\n".format(output)) in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -157,27 +154,28 @@ def test_correct_expr(tmpdir):
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
-    op2.parent = assignment
-    assignment.children[1] = op2
+    assignment.addchild(op2)
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine sign_example(arg,arg_1)\n"
+        "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
+        "  psyir_tmp = 1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
-        "subroutine sign_example(arg,arg_1)\n"
+        "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
@@ -185,18 +183,18 @@ def test_correct_expr(tmpdir):
         "  real :: tmp_sign\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs=arg * 3.14\n"
+        "  tmp_abs = arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
-        "    res_abs=tmp_abs\n"
+        "    res_abs = tmp_abs\n"
         "  else\n"
-        "    res_abs=tmp_abs * -1.0\n"
+        "    res_abs = tmp_abs * -1.0\n"
         "  end if\n"
-        "  res_sign=res_abs\n"
-        "  tmp_sign=arg_1\n"
+        "  res_sign = res_abs\n"
+        "  tmp_sign = arg_1\n"
         "  if (tmp_sign < 0.0) then\n"
-        "    res_sign=res_sign * -1.0\n"
+        "    res_sign = res_sign * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=1.0 + res_sign + 2.0\n\n"
+        "  psyir_tmp = 1.0 + res_sign + 2.0\n\n"
         "end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -213,29 +211,30 @@ def test_correct_2sign(tmpdir):
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     sign_op = BinaryOperation.create(
         BinaryOperation.Operator.SIGN, Literal("1.0", REAL_TYPE),
         Literal("1.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  sign_op, operation)
-    op1.parent = assignment
-    assignment.children[1] = op1
+    assignment.addchild(op1)
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine sign_example(arg,arg_1)\n"
+        "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
+        "  psyir_tmp = SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    trans.apply(sign_op, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    trans.apply(sign_op, root.symbol_table)
+    result = writer(root)
     assert (
-        "subroutine sign_example(arg,arg_1)\n"
+        "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
@@ -247,29 +246,29 @@ def test_correct_2sign(tmpdir):
         "  real :: tmp_sign_1\n"
         "  real :: res_abs_1\n"
         "  real :: tmp_abs_1\n\n"
-        "  tmp_abs=arg * 3.14\n"
+        "  tmp_abs = arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
-        "    res_abs=tmp_abs\n"
+        "    res_abs = tmp_abs\n"
         "  else\n"
-        "    res_abs=tmp_abs * -1.0\n"
+        "    res_abs = tmp_abs * -1.0\n"
         "  end if\n"
-        "  res_sign=res_abs\n"
-        "  tmp_sign=arg_1\n"
+        "  res_sign = res_abs\n"
+        "  tmp_sign = arg_1\n"
         "  if (tmp_sign < 0.0) then\n"
-        "    res_sign=res_sign * -1.0\n"
+        "    res_sign = res_sign * -1.0\n"
         "  end if\n"
-        "  tmp_abs_1=1.0\n"
+        "  tmp_abs_1 = 1.0\n"
         "  if (tmp_abs_1 > 0.0) then\n"
-        "    res_abs_1=tmp_abs_1\n"
+        "    res_abs_1 = tmp_abs_1\n"
         "  else\n"
-        "    res_abs_1=tmp_abs_1 * -1.0\n"
+        "    res_abs_1 = tmp_abs_1 * -1.0\n"
         "  end if\n"
-        "  res_sign_1=res_abs_1\n"
-        "  tmp_sign_1=1.0\n"
+        "  res_sign_1 = res_abs_1\n"
+        "  tmp_sign_1 = 1.0\n"
         "  if (tmp_sign_1 < 0.0) then\n"
-        "    res_sign_1=res_sign_1 * -1.0\n"
+        "    res_sign_1 = res_sign_1 * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=res_sign_1 + res_sign\n\n"
+        "  psyir_tmp = res_sign_1 + res_sign\n\n"
         "end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance

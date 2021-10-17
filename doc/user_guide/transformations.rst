@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+.. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab.
+..             A. B. G. Chalk, STFC Daresbury Lab.
 ..             I. Kavcic, Met Office.
 
 .. _transformations:
@@ -131,7 +132,7 @@ alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
 .. note:: PSyclone currently only supports OpenCL and
-          KernelGlobalsToArguments transformations for the GOcean 1.0
+          KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
           transformation is limited to the NEMO and Dynamo0.3 APIs.
@@ -186,10 +187,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
     :members: apply
     :noindex:
-
-.. note:: The ArrayRange2LoopTrans will have no effect when using the
-          NEMO API until it is updated to use the PSyIR back-ends to
-          generate code (see #435).
   
 ####
 
@@ -205,15 +202,13 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
-    :members: apply
-    :noindex:
+.. autoclass:: psyclone.psyir.transformations.HoistTrans
+      :members: apply
+      :noindex:
 
-.. note:: This transformation modifies the PSyIR of both: the Invoke
-          Schedule where the transformed CodedKernel is located and its
-          associated Kernel Schedule.
-
-.. note:: This transformation is only supported by the GOcean 1.0 API.
+.. warning:: This transformation does not currently check that it is
+             safe to hoist an assignment out of its parent loop, see
+             issue #1387.
 
 ####
 
@@ -221,12 +216,9 @@ can be found in the API-specific sections).
     :members: apply
     :noindex:
 
-.. note:: PSyclone does not currently permit module-inlining of
-	  transformed kernels (issue #229).
-
 ####
 
-.. autoclass:: psyclone.transformations.LoopFuseTrans
+.. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
     :noindex:
 
@@ -260,7 +252,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OCLTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
 
@@ -268,6 +260,12 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members: apply, omp_schedule
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
     :noindex:
 
 ####
@@ -280,7 +278,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPParallelTrans
     :inherited-members:
-    :exclude-members: name, psyGen
+    :exclude-members: name
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
@@ -290,7 +288,41 @@ can be found in the API-specific sections).
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
           performed outside the parallel region. The
-	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
+
+####
+
+.. autoclass:: psyclone.transformations.OMPSingleTrans
+    :inherited-members:
+    :exclude-members: name
+    :noindex:
+
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP single regions.  Attempting to
+          create a single region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
+
+####
+
+.. autoclass:: psyclone.transformations.OMPMasterTrans
+    :inherited-members:
+    :exclude-members: name
+    :noindex:
+
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP master regions.  Attempting to
+          create a master region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
 ####
@@ -313,8 +345,8 @@ can be found in the API-specific sections).
 
 .. warning:: This transformation assumes that the SIGN Operator acts
              on PSyIR Real scalar data and does not check whether or not
-	     this is the case. Once issue #658 is on master then this
-	     limitation can be fixed.
+             this is the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 Kernels
 -------
@@ -423,21 +455,40 @@ forbid the ``bc_ssh_code`` kernel from accessing the ``forbidden_var``
 variable that is available to it from the enclosing module scope.
 
 .. note:: these rules *only* apply to kernels that are the target of
-	  PSyclone kernel transformations.
+      PSyclone kernel transformations.
 
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
-PSyclone currently provides just one kernel-specific transformation
-(although there are a number that can be applied to either or both the
-PSy-layer and Kernel-layer PSyIR):
+The transformations listed below have to be applied specifically to a PSyclone
+kernel. There are a number of transformations not listed here that can be
+applied to either or both the PSy-layer and Kernel-layer PSyIR.
+
+.. note:: Some of these transformations modify the PSyIR tree of both the
+          InvokeSchedule where the transformed CodedKernel is located and its
+          associated KernelSchedule.
+
+####
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:
    :members:
 
-.. note:: PSyclone does not currently permit transformed kernels to be
-	  module-inlined. (Issue #229.)
+####
+
+.. autoclass:: psyclone.psyir.transformations.FoldConditionalReturnExpressionsTrans
+   :noindex:
+   :members:
+
+####
+
+.. autoclass:: psyclone.transformations.KernelImportsToArguments
+    :members: apply
+    :noindex:
+
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
+
 
 Applying
 --------
@@ -451,68 +502,52 @@ Interactive
 +++++++++++
 
 To apply a transformation interactively we first parse and analyse the
-code. This allows us to generate a "vanilla" PSy layer. For example ...
-::
+code. This allows us to generate a "vanilla" PSy layer. For example::
 
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
 
-    # This example uses version 0.1 of the Dynamo API
-    api = "dynamo0.1"
+    # This example uses the LFRic (Dynamo 0.3) API
+    >>> api = "dynamo0.3"
 
     # Parse the file containing the algorithm specification and
     # return the Abstract Syntax Tree and invokeInfo objects
-    ast, invokeInfo = parse("dynamo.F90", api=api)
+    >>> ast, invokeInfo = parse("dynamo.F90", api=api)
 
     # Create the PSy-layer object using the invokeInfo
-    psy = PSyFactory(api).create(invokeInfo)
+    >>> psy = PSyFactory(api).create(invokeInfo)
 
     # Optionally generate the vanilla PSy layer fortran
-    print psy.gen
+    >>> print(psy.gen)
 
 We then extract the particular schedule we are interested
-in. For example ...
-::
+in. For example::
 
     # List the various invokes that the PSy layer contains
-    print psy.invokes.names
+    >>> print(psy.invokes.names)
 
     # Get the required invoke
-    invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    >>> invoke = psy.invokes.get('invoke_0_v3_kernel_type')
 
     # Get the schedule associated with the required invoke
-    schedule = invoke.schedule
-    schedule.view()
+    >>> schedule = invoke.schedule
+    >>> schedule.view()
 
 
 Now we have the schedule we can create and apply a transformation to
 it to create a new schedule and then replace the original schedule
-with the new one. For example ...
-::
+with the new one. For example::
 
-    # Get the list of possible loop transformations
-    from psyclone.psyGen import TransInfo
-    t = TransInfo()
-    print t.list
-
-    # Create an OpenMPLoop-transformation
-    ol = t.get_trans_name('OMPParallelLoopTrans')
+    # Create an OpenMPParallelLoopTrans
+    >>> from psyclone.transformations import OMPParallelLoopTrans
+    >>> ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    new_schedule,memento = ol.apply(schedule.children[0])
-    new_schedule.view()
-
-    # Replace the original loop schedule of the selected invoke
-    # with the new, transformed schedule
-    invoke.schedule=new_schedule
+    >>> new_schedule, memento = ol.apply(schedule.children[0])
+    >>> new_schedule.view()
 
     # Generate the Fortran code for the new PSy layer
-    print psy.gen
-
-More examples of use of the interactive application of transformations
-can be found in the runme*.py files within the examples/lfric/eg1 and
-examples/lfric/eg2 directories. Some simple examples of the use of
-transformations are also given in the previous section.
+    >> print(psy.gen)
 
 .. _sec_transformations_script:
 
@@ -550,7 +585,7 @@ PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
 .. autofunction:: psyclone.generator.generate
-		  :noindex:
+          :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
@@ -566,13 +601,13 @@ below does the same thing as the example in the
 ::
 
     def trans(psy):
-	from psyclone.transformations import OMPParallelLoopTrans
+        from psyclone.transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
         new_schedule, _ = ol.apply(schedule.children[0])
         invoke.schedule = new_schedule
-	return psy
+        return psy
 
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
@@ -588,12 +623,17 @@ examples/check_examples script).
 OpenMP
 ------
 
-OpenMP is added to a code by using transformations. The three
-transformations currently supported allow the addition of an
-**OpenMP Parallel** directive, an **OpenMP Do** directive and an
-**OpenMP Parallel Do** directive, respectively, to a code.
+OpenMP is added to a code by using transformations. The OpenMP
+transformations currently supported allow the addition of:
 
-The generic versions of these three transformations (i.e. ones that
+* an **OpenMP Parallel** directive
+* an **OpenMP Do** directive
+* an **OpenMP Single** directive
+* an **OpenMP Master** directive
+* an **OpenMP Taskloop** directive; and
+* an **OpenMP Parallel Do** directive.
+
+The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
@@ -652,7 +692,7 @@ transformation.
 OpenCL
 ------
 
-OpenCL is added to a code by using the ``OCLTrans`` transformation (see the
+OpenCL is added to a code by using the ``GOOpenCLTrans`` transformation (see the
 :ref:`sec_transformations_available` Section above).
 Currently this transformation is only supported for the GOcean1.0 API and
 is applied to the whole InvokeSchedule of an Invoke.
@@ -662,29 +702,33 @@ This means that all kernels in that Invoke will be executed on the OpenCL
 device.
 The PSy-layer OpenCL code generated by PSyclone is still Fortran and makes use
 of the FortCL library (https://github.com/stfc/FortCL) to access
-OpenCL functionality. It also relies upon the OpenCL support provided
-by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
+OpenCL functionality. It also relies upon the device acceleration support
+provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
 .. note:: The generated OpenCL files follow the `--kernel-renaming` argument
-    conventions, but in addition to the modulename they also include the
-    kernelname as part of the filename in the format:
-    `modulename_kernelname_index.cl`
+    conventions, but in addition to the `<modulename>` they also include the
+    `<kernelname>` as part of the filename in the format:
+    `<modulename>_<kernelname>_index.cl`
 
 
-
-The ``OCLTrans`` transformation accepts an `options` argument with a
+The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
 map of optional parameters to tune the OpenCL host code in the PSy layer.
 These options will be attached to the transformed InvokeSchedule.
 The current available options are:
 
-+--------------+----------------------------------------------+---------+
-| Option       |  Description                                 | Default |
-+==============+==============================================+=========+
-| end_barrier  | Whether a synchronization                    | True    |
-|              | barrier should be placed at the end of the   |         |
-|              | Invoke.                                      |         |
-+--------------+----------------------------------------------+---------+
++------------------+----------------------------------------------+---------+
+| Option           |  Description                                 | Default |
++==================+==============================================+=========+
+| end_barrier      | Whether a synchronization                    | True    |
+|                  | barrier should be placed at the end of the   |         |
+|                  | Invoke.                                      |         |
++------------------+----------------------------------------------+---------+
+| enable_profiling | Enables the profiling of OpenCL Kernels.     | False   |
++------------------+----------------------------------------------+---------+
+| out_of_order     | Allows the OpenCL implementation to execute  | False   |
+|                  | the enqueued kernels out-of-order.           |         |
++------------------+----------------------------------------------+---------+
 
 Additionally, each individual kernel (inside the Invoke that is going to
 be transformed) also accepts a map of options which
@@ -699,36 +743,61 @@ The current available options are:
 |              | in a work-group execution (kernel instances |         |
 |              | executed at the same time).                 |         |
 +--------------+---------------------------------------------+---------+
-| queue_number | The identifier of the OpenCL Command Queue  | 1       |
-|              | to which the kernel should be submitted.    |         |
+| queue_number | The identifier of the OpenCL command_queue  | 1       |
+|              | to which the kernel should be submitted. If |         |
+|              | the kernel has a dependency on another      |         |
+|              | kernel submitted to a different             |         |
+|              | command_queue a barrier will be added to    |         |
+|              | guarantee the execution order.              |         |
 +--------------+---------------------------------------------+---------+
 
 
-Below is an example of a PSyclone script that uses an ``OCLTrans`` with
+Below is an example of a PSyclone script that uses a ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 51-65
+    :lines: 39-79
 
 
-.. note:: The OpenCL support is still in active development and the options
-    presented above should be considered at risk of changing or being implemented
-    as transformations in the near future.
+OpenCL delays the decision of which and where kernels will execute until
+run-time, therefore it is important to use the environment variables provided
+by FortCL and DL_ESM_INF to inform how things should execute. Specifically:
+
+- ``FORTCL_KERNELS_FILE``: Point to the file containing the kernels to execute,
+  they can be compiled ahead-of-time or providing the source for JIT
+  compilation. To link more than a single kernel, one must merge all the
+  kernels generated by PSyclone in a single source file.
+- ``FORTCL_PLATFORM``: If the system has more than 1 OpenCL platform. This
+  environment variable may be used to select which platform on which to execute
+  the kernels.
+- ``DL_ESM_ALIGNMENT``: When using OpenCL <= 1.2 the local_size should be
+  exactly divisible by the total size. If this is not the case some
+  implementations fail silently. A way to solve this issue is to set the
+  `DL_ESM_ALIGNMENT` variable to be equal to the local size.
 
 
-Because OpenCL kernels are linked at run-time, it will be up to the run-time
-environment to specify which of the kernels to use. For instance, one could
-merge multiple kernels together in a single binary file and
-use the `PSYCLONE_KERNELS_FILE` provided by the FortCL library.
+.. note:: The OpenCL generation can be combined with distributed memory
+    generation. In the case where there is more than one accelerator available
+    on each node, the PSyclone configuration file parameter
+    ``OCL_DEVICES_PER_NODE`` has to be set to the appropriate value and
+    the number of MPI-ranks-per-node set by the `mpirun` command has to match
+    this value accordingly.
 
-The introduction of OpenCL code generation in PSyclone has been
-largely motivated by the need to target Field Programmable Gate Array
-(FPGA) accelerator devices. It is not currently designed to target the other
-compute devices that OpenCL supports (such as GPUs and multi-core CPUs) but
-this is a potentially fruitful area for future work.
+    For instance if there are 2 accelerators per nodes, `psyclone.cfg` should
+    have ``OCL_DEVICES_PER_NODE=2`` and the program must be executed with
+    ``mpirun -n <total_ranks> -ppn 2 ./application`` (Note: `-ppn` is an
+    Intel MPI specific parameter, use equivalent configuration parameters for
+    other MPI implementations.)
+
+
+For example, an execution of a PSyclone generated OpenCL code using all the
+mentioned run-time configuration options could look something like::
+
+    FORTCL_PLATFORM=3 FORTCL_KERNELS_FILE=allkernels.cl DL_ESM_ALIGNMENT=64 \
+    mpirun -n 2 ./application.exe
 
 OpenACC
 -------
@@ -801,4 +870,7 @@ SIR
 It is currently not possible for PSyclone to output SIR code without
 using a script. Two examples of such scripts are given in example 4
 for the NEMO API, one of which includes transformations to remove
-PSyIR intrinsics (as the SIR does not support them).
+PSyIR intrinsics, hoist code out of a loop, translate array-index
+notation into explicit loops and translate a single access to an array
+dimension to a one-trip loop (to make the code suitable for the SIR
+backend).

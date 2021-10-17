@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,24 +32,31 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
-.PHONY: vanilla openmp loopfuse
+.PHONY: vanilla inline loopfuse
 
-transform: vanilla openmp loopfuse
+transform: vanilla inline loopfuse
+
+# The '-d ../code' argument specifies that PSyclone should search the
+# '../code' directory when looking for user-supplied kernels.
+
+# The '-s my_script.py' argument specifies that PSyclone should apply
+# the transformation script 'my_script.py.'
 
 vanilla:
-	${PYTHON} ./runme.py
+	${PSYCLONE} -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
 
-openmp:
-	${PYTHON} ./runme_openmp.py
+inline:
+	${PSYCLONE} -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
 
 loopfuse:
-	${PYTHON} ./runme_loop_fuse.py
+	${PSYCLONE} -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg2"
 
-
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg2"

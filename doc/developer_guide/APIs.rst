@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 Generic Code
 ############
@@ -207,13 +208,16 @@ Cells
 -----
 
 In the LFRic API, kernels which have metadata which specifies
-``operates_on = CELL_COLUMN`` work internally on a column of cells. This
-means that PSyclone need only be concerned with iterating over cell-columns
-in the horizontal. As a result, the LFRic infrastructure presents the
-mesh information to PSyclone as if the mesh were 2-dimensional. From
-now on this 2D view will be assumed i.e. a cell will actually be a
-column of cells. The LFRic infrastracture provides a global 2D cell
-index from 1 to the number of cells.
+``operates_on = CELL_COLUMN`` work internally on a column of
+cells. This means that PSyclone need only be concerned with iterating
+over cell-columns in the horizontal. (Kernels which have ``operates_on
+= DOMAIN`` work internally on all available columns of cells and
+therefore this iteration is not required.) As a result, the LFRic
+infrastructure presents the mesh information to PSyclone as if the
+mesh were 2-dimensional. From now on this 2D view will be assumed
+i.e. a cell will actually be a column of cells. The LFRic
+infrastracture provides a global 2D cell index from 1 to the number of
+cells.
 
 For example, a simple quadrilateral element mesh with 4 cells might be
 indexed in the following way.
@@ -241,7 +245,7 @@ cells have lower indices than halo cells.
 Dofs
 ----
 
-In the LFRic infrastracture the degrees-of-freedom (dofs) are indexed
+In the LFRic infrastructure the degrees-of-freedom (dofs) are indexed
 from 1 to the total number of dofs. The infrastructure also indexes
 dofs so that the values in a column are contiguous and their values
 increase in the vertical. Thus, given the dof indices for the "bottom"
@@ -402,13 +406,13 @@ Loop iterators
 
 In the current implementation of the Dynamo0.3 API it is possible to
 iterate (loop) either over cells or dofs. At the moment all coded
-kernels are written to iterate over cells and all builtin kernels are
+kernels are written to iterate over cells and all built-in kernels are
 written to iterate over dofs, but that does not have to be the case.
 
 The loop iteration information is specified in the kernel metadata. In
-the case of builtin's there is kernel metadata but it is part of
+the case of built-ins there is kernel metadata but it is part of
 PSyclone and is specified in
-`src/psyclone/dynamo0p3_builtins_mod.f90`.
+``src/psyclone/parse/lfric_builtins_mod.f90``.
 
 For inter-grid kernels, it is the coarse mesh that provides the iteration
 space. (The kernel is passed a list of the cells in the fine mesh that are
@@ -439,17 +443,46 @@ computation.
 
 A downside of performing redundant computation in the level-1 halo is
 that any fields being read by the kernel must have their level-1 halo
-clean (up-to-date), which can result in halo exchanges. Note that this
-is not the case for the modified field, it does not need its halo to
-be clean.
+clean (up-to-date), which can result in halo exchanges.
+
+This is also the case for a modified field with ``GH_READINC`` access
+as ``readinc`` captures a kernel field whose data is read (into the
+level-1 halo) and then incremented. However, the level-1 halo does not
+need to be clean for a modified field with ``GH_INC`` access, as an
+increment does not require the halo to be clean.
+
+Whilst the level-1 halo does not need to be clean for a field with a
+``GH_INC`` access, the data in the level-1 halo will be read and
+written. The data in the level-1 halo must therefore not cause any
+exceptions, which can be the case with some compilers where the values
+in the halo have not yet been written to (i.e. there will be an access
+to uninitialised data).
+
+To avoid this problem the user guide currently recommends that all
+``setval_c`` and ``setval_x`` Built-in calls (see
+:ref:`user_guide:built-ins` for more details) compute to the level-1
+halo (by using the redundant computation transformation). This will
+guarantee that all modified halo data has been initialised with a
+value. If redundant computation transformations have been added then
+it is the outermost modified halo that will not require a halo
+exchange i.e. a loop iterating to the level-``n`` halo will result in
+a halo exchange to the level-(``n-1``) halo being added before the
+loop, so the above Built-in calls would need to compute redundantly to
+the appropriate depth. In the future it may be that we should require
+fields with halos to have all of their data initialised to a set value
+when they are created, add an option to PSyclone, default to computing
+redundantly for the above Built-ins, or generate code that sets the
+halo to a specific value locally before the loop is called.
+
 
 Cell iterators: Discontinuous
 -----------------------------
 
 When a kernel is written to iterate over cells and modify a
 discontinuous field, PSyclone only needs to compute dofs on owned
-cells. Users can apply a redundant computation transformation to
-redundantly compute into the halo but this is not done by default.
+cells. Users can apply a redundant computation transformation (see the
+:ref:`dynamo0.3-api-transformations` section) to redundantly compute
+into the halo but this is not done by default.
 
 .. _annexed_dofs:
 
@@ -976,6 +1009,42 @@ that must be used.  Due to the set-up of the mesh hierarchy (see
 race conditions when updating shared quantities on either the fine or
 coarse mesh.
 
+Lowering
+--------
+
+As described in :ref:`psy_layer_backends`, the use of a PSyIR backend to
+generate code for the LFRic PSy layer requires that each LFRic-specific
+node be lowered to 'language-level' PSyIR. Although this is work in progress
+(see e.g. https://github.com/stfc/PSyclone/issues/1010), some nodes already
+have the ``lower_to_language_level()`` method implemented. These are
+described in the sub-sections below.
+
+BuiltIns
+++++++++
+
+In the LFRic PSyIR, calls to BuiltIn kernels are represented by a
+single Node which is a subclass of `LFRicBuiltIn
+<https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html>`_.
+The ``lower_to_language_level()`` methods of these BuiltIn nodes must
+therefore replace that single Node with the
+PSyIR for the arithmetic operations required by the particular BuiltIn.
+This PSyIR forms the new body of the dof loop containing the original
+BuiltIn node.
+
+In constructing this PSyIR, suitable Symbols for the loop
+variable and the various kernel arguments must be looked up. Since the
+migration to the use of language-level PSyIR for the LFRic PSy layer
+is at an early stage, in practise this often requires that suitable
+Symbols be constructed and inserted into the symbol table of the PSy
+layer routine. A lot of this work is currently performed in the
+``DynKernelArgument.infer_datatype()`` method but ultimately (see
+https://github.com/stfc/PSyclone/issues/1258) much of this will be
+removed.
+
+To date, the following LFRic BuiltIns have had
+``lower_to_language_level()`` methods implemented: ``LFRicXPlusYKern``,
+``LFRicIncXPlusYKern``, and ``LFRicAPlusXKern``.
+
 GOcean1.0
 =========
 
@@ -1023,13 +1092,48 @@ TBD
 NEMO
 ====
 
+Usage
+-----
+
+In general, the details of how PSyclone is used when building a
+particular model (such as LFRic) are left to the build system of
+that model. However, PSyclone support for the NEMO model is still
+evolving very rapidly and is not yet a part of the official NEMO
+repository. Consequently, the PSyclone repository contains two
+example scripts that are used when building the NEMO model.
+These scripts may be found in ``examples/nemo/scripts`` and their
+use is described in the ``README.md`` file in that directory.
+
+
+PSyIR Construction
+------------------
+
+Since NEMO is an existing code, the way it is handled in PSyclone is
+slightly different from those APIs that mandate a PSyKAl separation of
+concerns (LFRic and GOcean1.0).  As with the other APIs, fparser2 is
+used to parse the supplied Fortran source file and construct a parse
+tree (in `psyclone.generator.generate`). This parse tree is then
+passed to the ``NemoPSy`` constructor which uses the `fparser2` PSyIR
+frontend to construct the equivalent PSyIR. (This PSyIR is
+'language-level' in that it does not contain any domain-specific
+constructs.) Finally, the PSyIR is passed to the ``NemoInvokes``
+constructor which applies various 'raising' transformations which
+raise the level of abstraction by introducing domain-specific
+information.
+
 Implicit Loops
 --------------
 
-When constructing the PSyIR of NEMO source code, PSyclone identifies loops
-that are implied by the use of Fortran array notation. Such use of array
-notation is encouraged in the NEMO Coding Conventions :cite:`nemo_code_conv`
-and identifying these loops can be important when introducing, e.g. OpenMP.
+When constructing the PSyIR of NEMO source code, PSyclone currently
+only considers explicit loops as candidates for being
+raised/transformed into ``NemoLoop`` instances. However, many of the
+loops in NEMO are written using Fortran array notation. Such use of
+array notation is encouraged in the NEMO Coding Conventions
+:cite:`nemo_code_conv` and identifying these loops can be important
+when introducing, e.g. OpenMP. Currently these implicit loops are not
+automatically 'raised' into ``NemoLoop`` instances but can be done
+separately using the ``NemoAllArrayRange2LoopTrans`` transformation.
+
 
 However, not all uses of Fortran array notation in NEMO imply a
 loop. For instance,

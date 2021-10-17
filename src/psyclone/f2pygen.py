@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020 and Technology Facilities Council
+# Copyright (c) 2017-2021 and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. '''
@@ -43,6 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
 from fparser.one.block_statements import SelectCase, SelectType, EndSelect
+from fparser.one.parsefortran import FortranParser
 # This alis is useful to refer to parts of fparser.one later but
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
@@ -138,7 +140,8 @@ class OMPDirective(Directive):
                          'parallel do').
     '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel do", "parallel", "do", "master"]
+        self._types = ["parallel do", "parallel", "do", "master", "single",
+                       "taskloop", "taskwait"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)
@@ -537,6 +540,46 @@ class ProgUnitGen(BaseGen):
         return end_index
 
 
+class PSyIRGen(BaseGen):
+    ''' Create a Fortran block of code that comes from a given PSyIR tree.
+
+    :param parent: node in AST to which we are adding the PSyIR block.
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param content: the PSyIR tree we are adding.
+    :type content: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+
+    def __init__(self, parent, content):
+        # Import FortranWriter here to avoid circular-dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.fortran import FortranWriter
+
+        # Use the PSyIR Fortran backend to generate Fortran code of the
+        # supplied PSyIR tree and pass the resulting code to the fparser1
+        # Fortran parser.
+        fortran_writer = FortranWriter()
+        reader = FortranStringReader(fortran_writer(content),
+                                     ignore_comments=False)
+        # Set reader as free form, strict
+        reader.set_format(FortranFormat(True, True))
+        fparser1_parser = FortranParser(reader, ignore_comments=False)
+        fparser1_parser.parse()
+
+        # If the fparser content is larger than 1, add all the nodes but
+        # the last one as siblings of self. This is done because self
+        # can only represent one node.
+        for fparser_node in fparser1_parser.block.content[:-1]:
+            f2pygen_node = BaseGen(parent, fparser_node)
+            f2pygen_node.root.parent = parent.root
+            parent.add(f2pygen_node)
+
+        # Update this f2pygen node to be equivalent to the last of the
+        # fparser nodes that represent the provided content.
+        BaseGen.__init__(self, parent, fparser1_parser.block.content[-1])
+        self.root.parent = parent.root
+
+
 class ModuleGen(ProgUnitGen):
     ''' create a fortran module '''
     def __init__(self, name="", contains=True, implicitnone=True):
@@ -608,7 +651,7 @@ class DirectiveGen(BaseGen):
 
     :raises RuntimeError: if an unrecognised directive language is specified.
     '''
-    def __init__(self, parent, language, position, directive_type, content):
+    def __init__(self, parent, language, position, directive_type, content=""):
         self._supported_languages = ["omp", "acc"]
         self._language = language
         self._directive_type = directive_type
@@ -853,26 +896,28 @@ class BaseDeclGen(BaseGen):
     Abstract base class for all types of Fortran declaration. Uses the
     abc module so it cannot be instantiated.
 
-    :param parent: node to which to add this declaration as a child
+    :param parent: node to which to add this declaration as a child.
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-    :param str datatype: the (intrinsic) type for this declaration
-    :param list entity_decls: list of variable names to declare
-    :param str intent: the INTENT attribute of this declaration
-    :param bool pointer: whether or not this is a pointer declaration
+    :param str datatype: the (intrinsic) type for this declaration.
+    :param list entity_decls: list of variable names to declare.
+    :param str intent: the INTENT attribute of this declaration.
+    :param bool pointer: whether or not this is a pointer declaration.
     :param str dimension: the DIMENSION specifier (i.e. the xx in \
-                          DIMENSION(xx))
+                          DIMENSION(xx)).
     :param bool allocatable: whether this declaration is for an \
-                             ALLOCATABLE quantity
-    :param bool save: whether this declaration has the SAVE attribute
-    :param bool target: whether this declaration has the TARGET attribute
-    :param initial_values: Initial value to give each variable.
+                             ALLOCATABLE quantity.
+    :param bool save: whether this declaration has the SAVE attribute.
+    :param bool target: whether this declaration has the TARGET attribute.
+    :param initial_values: initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
+    :param bool private: whether this declaration has the PRIVATE attribute \
+                         (default is False).
 
     :raises RuntimeError: if no variable names are specified.
     :raises RuntimeError: if the wrong number or type of initial values are \
                           supplied.
     :raises RuntimeError: if initial values are supplied for a quantity that \
-                          is allocatable or has INTENT(in)
+                          is allocatable or has INTENT(in).
     :raises NotImplementedError: if initial values are supplied for array \
                                  variables (dimension != "").
 
@@ -881,7 +926,7 @@ class BaseDeclGen(BaseGen):
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None):
+                 save=False, target=False, initial_values=None, private=False):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
@@ -940,6 +985,8 @@ class BaseDeclGen(BaseGen):
             my_attrspec.append("allocatable")
         if save:
             my_attrspec.append("save")
+        if private:
+            my_attrspec.append("private")
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
         self._decl.attrspec = my_attrspec
@@ -984,7 +1031,7 @@ class DeclGen(BaseDeclGen):
     CharDeclGen should be used.
 
     :param parent: node to which to add this declaration as a child.
-    :type parent: :py:class:`psyclone.f2pygen.BaseGen`.
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
     :param str datatype: the (intrinsic) type for this declaration.
     :param list entity_decls: list of variable names to declare.
     :param str intent: the INTENT attribute of this declaration.
@@ -996,9 +1043,11 @@ class DeclGen(BaseDeclGen):
                              ALLOCATABLE quantity.
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
-    :param initial_values: Initial value to give each variable.
+    :param initial_values: initial value to give each variable.
     :type initial_values: list of str with same no. of elements as \
-                          entity_decls.
+                          entity_decls
+    :param bool private: whether this declaration has the PRIVATE attribute \
+                         (default is False).
 
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES.
 
@@ -1008,7 +1057,7 @@ class DeclGen(BaseDeclGen):
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None):
+                 save=False, target=False, initial_values=None, private=False):
 
         dtype = datatype.lower()
         if dtype not in self.SUPPORTED_TYPES:
@@ -1052,7 +1101,8 @@ class DeclGen(BaseDeclGen):
                                       dimension=dimension,
                                       allocatable=allocatable, save=save,
                                       target=target,
-                                      initial_values=initial_values)
+                                      initial_values=initial_values,
+                                      private=private)
 
     def _check_initial_values(self, dtype, values):
         '''
@@ -1119,16 +1169,17 @@ class CharDeclGen(BaseDeclGen):
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
     :param str length: expression to use for the (len=xx) selector.
-    :param initial_values: Initial value to give each variable.
-    :type initial_values: list of str with same no. of elements as \
-                          entity_decls. Each of these can be either a \
-                          variable name or a literal, quoted string \
-                          (e.g. "'hello'").
+    :param initial_values: list of initial values, one for each variable. \
+        Each of these can be either a variable name or a literal, quoted \
+        string (e.g. "'hello'"). Default is None.
+    :type initial_values: list of str with same no. of elements as entity_decls
+    :param bool private: whether this declaration has the PRIVATE attribute.
 
     '''
     def __init__(self, parent, entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, length="", initial_values=None):
+                 save=False, target=False, length="", initial_values=None,
+                 private=False):
 
         reader = FortranStringReader(
             "character(len=vanilla_len) :: vanilla")
@@ -1146,7 +1197,8 @@ class CharDeclGen(BaseDeclGen):
                                           dimension=dimension,
                                           allocatable=allocatable, save=save,
                                           target=target,
-                                          initial_values=initial_values)
+                                          initial_values=initial_values,
+                                          private=private)
 
     def _check_initial_values(self, _, values):
         '''
@@ -1187,11 +1239,12 @@ class TypeDeclGen(BaseDeclGen):
     :param bool save: whether this declaration has the SAVE attribute.
     :param bool target: whether this declaration has the TARGET attribute.
     :param bool is_class: whether this is a class rather than type declaration.
-
+    :param bool private: whether or not this declaration has the PRIVATE \
+                         attribute. (Defaults to False.)
     '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, dimension="", allocatable=False,
-                 save=False, target=False, is_class=False):
+                 save=False, target=False, is_class=False, private=False):
         if is_class:
             reader = FortranStringReader("class(vanillatype) :: vanilla")
         else:
@@ -1210,7 +1263,7 @@ class TypeDeclGen(BaseDeclGen):
                                           intent=intent, pointer=pointer,
                                           dimension=dimension,
                                           allocatable=allocatable, save=save,
-                                          target=target)
+                                          target=target, private=private)
 
     def _check_initial_values(self, _type, _values):
         '''

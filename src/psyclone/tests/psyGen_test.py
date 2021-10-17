@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,39 +35,50 @@
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the psygen module '''
+''' Performs py.test tests on the psyGen module '''
 
 
 # internal classes requiring tests
-# PSy,Invokes,Dependencies,Invoke,Node,Schedule,
-# LoopDirective,OMPLoopDirective,Loop,Call,Inf,SetInfCall,Kern,Arguments,
-# InfArguments,Argument,KernelArgument,InfArgument
+# PSy, Invokes, Invoke, Kern, Argumen1ts, Argument, KernelArgument
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from fparser import api as fpapi
-from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule
-from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, InlinedKern, \
-    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
-    ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern
-from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
-from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
-from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.transformations import OMPParallelLoopTrans, \
-    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
-    ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
-from psyclone.generator import generate
+
+from fparser import api as fpapi, logging
+from fparser.two import Fortran2003
+
 from psyclone.configuration import Config
-from psyclone.tests.utilities import get_invoke
+from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
+    DynKernelArguments, DynGlobalSum
+from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
+from psyclone.generator import generate
+from psyclone.gocean1p0 import GOKern
+from psyclone.parse.algorithm import parse, InvokeCall
+from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
+    InlinedKern, object_index, HaloExchange, Invoke, \
+    DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
+    InvokeSchedule
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
+    Literal, Node, KernelSchedule, Call, Loop, colored
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
+    ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
+    SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.test_files import dummy_transformations
+from psyclone.tests.test_files.dummy_transformations import LocalTransformation
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
+    Dynamo0p3KernelConstTrans, Dynamo0p3OMPLoopTrans, Dynamo0p3ColourTrans, \
+    OMPParallelTrans
+
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -81,19 +92,24 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 # Tests for utilities
 
 def test_object_index():
     ''' Tests for the object_index() utility. '''
-    from psyclone.psyGen import object_index
     two = "two"
     my_list = ["one", two, "three"]
     assert object_index(my_list, two) == 1
     with pytest.raises(InternalError) as err:
         _ = object_index(my_list, None)
     assert "Cannot search for None item in list" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        _ = object_index(my_list, "four")
+    assert "Item 'four' not found in list" in str(err.value)
+
 
 # PSyFactory class unit tests
 
@@ -119,23 +135,63 @@ def test_psyfactory_valid_return_object():
 
 
 def test_psyfactory_valid_dm_flag():
-    '''test that a PSyFactory instance raises an exception if the
+    ''' Test that a PSyFactory instance raises an exception if the
     optional distributed_memory flag is set to an invalid value
-    and does not if the value is valid '''
-    with pytest.raises(GenerationError) as excinfo:
+    and does not if the value is valid. '''
+    with pytest.raises(TypeError) as excinfo:
         _ = PSyFactory(distributed_memory="ellie")
     assert "distributed_memory flag" in str(excinfo.value)
     _ = PSyFactory(distributed_memory=True)
     _ = PSyFactory(distributed_memory=False)
 
 
+def test_psyfactory_create_error():
+    ''' Test that the create() method raises the expected error for an
+    unsupported API. '''
+    psy_factory = PSyFactory()
+    # Break the internal type of the factory
+    psy_factory._type = "wrong"
+    with pytest.raises(InternalError) as err:
+        psy_factory.create(None)
+    assert ("Unsupported API type 'wrong' found. Expected one of [" in
+            str(err.value))
+
+
 # Transformation class unit tests
 
 def test_base_class_not_callable():
-    '''make sure we can not instantiate abstract Transformation class
-    directly'''
+    '''Make sure we can not instantiate abstract Transformation class
+    directly.'''
     with pytest.raises(TypeError):
         _ = Transformation()  # pylint: disable=abstract-class-instantiated
+
+
+def test_transformation_init_name():
+    '''Make sure a FortranWriter is created by default, is stored by the
+    base class, can be changed if required and an exception is raised
+    if the wrong argument type is supplied. Also test that the name()
+    method behaves in the expected way.
+
+    '''
+    class TestTrans(Transformation):
+        '''Utility transformation that subclasses Transformation to stop it
+        being abstract in order to test the non-abstract
+        transformation methods.
+
+        '''
+        def apply(self, _1, _2=None):
+            '''Dummy apply method to ensure this transformation is not
+            abstract.'''
+
+    trans = TestTrans()
+    assert trans.name == "TestTrans"
+    assert isinstance(trans._writer, FortranWriter)
+    with pytest.raises(TypeError) as info:
+        _ = TestTrans(writer=None)
+    assert ("The writer argument to a transformation should be a "
+            "PSyIRVisitor, but found 'NoneType'." in str(info.value))
+    trans = TestTrans(writer=CWriter())
+    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests
@@ -145,7 +201,6 @@ def test_new_module():
     transformations.  There should be no transformations
     available as the new module uses a different
     transformation base class'''
-    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations)
     assert trans.num_trans == 0
 
@@ -155,8 +210,6 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from .test_files.dummy_transformations import \
-        LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
 
@@ -166,7 +219,6 @@ def test_new_module_and_baseclass():
     transformations and the baseclass. There should be one
     transformation available as the module specifies one test
     transformation using the specified base class '''
-    from .test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations,
                       base_class=dummy_transformations.LocalTransformation)
     assert trans.num_trans == 1
@@ -218,7 +270,7 @@ def test_invalid_name():
 def test_valid_return_object_from_name():
     ''' check get_trans_name method return the correct object type '''
     trans = TransInfo()
-    transform = trans.get_trans_name("LoopFuse")
+    transform = trans.get_trans_name("KernelModuleInline")
     assert isinstance(transform, Transformation)
 
 
@@ -250,6 +302,25 @@ def test_invokes_can_always_be_printed():
     inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
+
+
+def test_invoke_container():
+    ''' Test the setting of the container associated with an Invoke. '''
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
+        api="dynamo0.3")
+    alg_invocation = invoke.calls[0]
+    # An isolated Invoke object has no associated Container
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
+    assert inv._schedule.parent is None
+    # Creating an Invokes object requires a PSy object but the construction of
+    # the latter also creates the former. Therefore, we just create a PSy
+    # object and check that a Container with the correct parent/child
+    # relationships is created.
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+    assert isinstance(psy.container, Container)
+    assert psy.invokes.invoke_list[0].schedule.parent is psy.container
+    assert psy.container.children == [psy.invokes.invoke_list[0].schedule]
 
 
 def test_same_name_invalid():
@@ -306,10 +377,10 @@ FAKE_KERNEL_METADATA = '''
 module dummy_mod
   use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                    &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type), meta_args(3) =                             &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
      integer :: operates_on = cell_column
    contains
@@ -327,18 +398,16 @@ end module dummy_mod
 def test_invokeschedule_node_str():
     ''' Check the node_str method of the InvokeSchedule class. We need an
     Invoke object for this which we get using the dynamo0.3 API. '''
-    from psyclone.psyGen import InvokeSchedule
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule(None, None)
+    sched = InvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
-    assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+    assert colored("InvokeSchedule", InvokeSchedule._colour) in output
 
 
 def test_sched_ocl_setter():
@@ -355,7 +424,6 @@ def test_sched_ocl_setter():
 
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
-    from psyclone.psyGen import InvokeSchedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -368,39 +436,228 @@ def test_invokeschedule_can_be_printed():
     assert "InvokeSchedule:\n" in output
 
 
+def test_invokeschedule_gen_code_with_preexisting_globals():
+    ''' Check the InvokeSchedule gen_code adds pre-existing SymbolTable global
+    variables into the generated f2pygen code. Multiple globals imported from
+    the same module will be part of a single USE statement.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # Add some globals into the SymbolTable before calling gen_code()
+    schedule = psy.invokes.invoke_list[0].schedule
+    my_mod = ContainerSymbol("my_mod")
+    schedule.symbol_table.add(my_mod)
+    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
+    schedule.symbol_table.add(global1)
+    schedule.symbol_table.add(global2)
+
+    assert "USE my_mod, ONLY: gvar1, gvar2" in str(psy.gen)
+
+
 # Kern class test
 
 def test_kern_get_kernel_schedule():
     ''' Tests the get_kernel_schedule method in the Kern class.
     '''
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    schedule = my_kern.get_kernel_schedule()
-    assert isinstance(schedule, KernelSchedule)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    kern_schedule = kern.get_kernel_schedule()
+    assert isinstance(kern_schedule, KernelSchedule)
 
 
 def test_codedkern_node_str():
-    ''' Tests the node_str method in the CodedKern class. The simplest way to
-    do this is via the dynamo0.3 subclass '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    '''Tests the node_str method in the CodedKern class. The simplest way
+    to do this is via the dynamo0.3 subclass.
+
+    '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
     expected_output = (
-        colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) +
+        colored("CodedKern", DynKern._colour) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
 
+def test_codedkern_module_inline_getter_and_setter():
+    ''' Check that the module_inline setter changes the module inline
+    attribute to all the same kernels in the invoke'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern_1 = schedule.children[0].loop_body[0]
+    coded_kern_2 = schedule.children[1].loop_body[0]
+
+    # By default they are not module-inlined
+    assert not coded_kern_1.module_inline
+    assert not coded_kern_2.module_inline
+    assert "module_inline=False" in coded_kern_1.node_str()
+    assert "module_inline=False" in coded_kern_2.node_str()
+
+    # It can be turned on (and both kernels change)
+    coded_kern_1.module_inline = True
+    assert coded_kern_1.module_inline
+    assert coded_kern_2.module_inline
+    assert "module_inline=True" in coded_kern_1.node_str()
+    assert "module_inline=True" in coded_kern_2.node_str()
+
+    # It can be turned off (and both kernels change)
+    coded_kern_2.module_inline = False
+    assert not coded_kern_1.module_inline
+    assert not coded_kern_2.module_inline
+
+
+def test_codedkern_module_inline_gen_code(tmpdir):
+    ''' Check that a CodedKern with module-inline gets copied into the
+    local module appropriately when the PSy-layer is generated'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+    gen = str(psy.gen)
+
+    # Without module-inline the subroutine is used by a module import
+    assert "USE ru_kernel_mod, ONLY: ru_code" in gen
+    assert "SUBROUTINE ru_code(" not in gen
+
+    # With module-inline the subroutine is copied locally only once
+    # even though this kernel has 2 callees.
+    coded_kern.module_inline = True
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    assert "SUBROUTINE ru_code(" in gen
+    assert gen.count("SUBROUTINE ru_code(") == 1
+    # And the generated code is valid
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check that name clashes which are not subroutines are detected
+    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not module-inline subroutine 'ru_code' because symbol"
+            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
+            "already exists and changing names of module-inlined subroutines "
+            "is not implemented yet.") in str(err.value)
+
+    # TODO # 898. Manually force removal of previous symbol as
+    # symbol_table.remove() for DataSymbols is not implemented yet.
+    schedule.symbol_table._symbols.pop("ru_code")
+
+    # Check that if a subroutine with the same name already exists and it is
+    # not identical, it fails.
+    schedule.symbol_table.add(RoutineSymbol("ru_code"))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not inline subroutine 'ru_code' because another, different, "
+            "subroutine with the same name already exists and versioning of "
+            "module-inlined subroutines is not implemented "
+            "yet.") in str(err.value)
+
+
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
+    ''' Check that a CodedKern marked as modified can still be
+    module-inlined. '''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+
+    # Set modified and module-inline at the same time
+    coded_kern.modified = True
+    coded_kern.module_inline = True
+
+    # In this case the code generation still works but ...
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    # ... since this subroutine is modified the kernel has now a new suffix
+    assert "SUBROUTINE ru_0_code(" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_codedkern_lower_to_language_level(monkeypatch):
+    ''' Check that a generic CodedKern can be lowered to a subroutine call
+    with the appropriate arguments'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+
+    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
+    # eventually be created automatically before the gen() call, for now we
+    # manually create the symbols that appear in the PSyIR tree.
+    schedule.symbol_table.add(Symbol("f1_proxy"))
+    schedule.symbol_table.add(Symbol("f2_proxy"))
+    schedule.symbol_table.add(Symbol("m1_proxy"))
+    schedule.symbol_table.add(Symbol("m2_proxy"))
+    schedule.symbol_table.add(Symbol("ndf_w1"))
+    schedule.symbol_table.add(Symbol("undf_w1"))
+    schedule.symbol_table.add(Symbol("map_w1"))
+    schedule.symbol_table.add(Symbol("ndf_w2"))
+    schedule.symbol_table.add(Symbol("undf_w2"))
+    schedule.symbol_table.add(Symbol("map_w2"))
+    schedule.symbol_table.add(Symbol("ndf_w3"))
+    schedule.symbol_table.add(Symbol("undf_w3"))
+    schedule.symbol_table.add(Symbol("map_w3"))
+
+    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
+    # yet, we monkeypatch a dummy expression for now:
+    monkeypatch.setattr(DynKernelArguments, "psyir_expressions",
+                        lambda x: [Literal("1", INTEGER_TYPE)])
+
+    # In DSL-level it is a CodedKern with no children
+    assert isinstance(kern, CodedKern)
+    assert len(kern.children) == 0
+    number_of_arguments = len(kern.arguments.psyir_expressions())
+
+    kern.lower_to_language_level()
+
+    # In language-level it is a Call with arguments as children
+    call = schedule.children[0].loop_body[0]
+    assert not isinstance(call, CodedKern)
+    assert isinstance(call, Call)
+    assert call.routine.name == 'testkern_code'
+    assert len(call.children) == number_of_arguments
+    assert isinstance(call.children[0], Literal)
+
+    # A RoutineSymbol and the ContainerSymbol from where it is imported are
+    # in the symbol table
+    rsymbol = call.scope.symbol_table.lookup('testkern_code')
+    assert isinstance(rsymbol, RoutineSymbol)
+    assert isinstance(rsymbol.interface, ImportInterface)
+    csymbol = rsymbol.interface.container_symbol
+    assert isinstance(csymbol, ContainerSymbol)
+    assert csymbol.name == "testkern_mod"
+
+
 def test_kern_coloured_text():
-    ''' Check that the coloured_name method of both CodedKern and
-    BuiltIn return what we expect. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    # Use a Dynamo example that has both a CodedKern and a BuiltIn
+    '''Check that the coloured_name method of both CodedKern and BuiltIn
+    return what we expect.
+
+    '''
+    # Use LFRic example with both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
@@ -411,22 +668,21 @@ def test_kern_coloured_text():
     ckern = schedule.children[0].loop_body[0]
     bkern = schedule.children[1].loop_body[0]
     ret_str = ckern.coloured_name(True)
-    assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
+    assert colored("CodedKern", ckern._colour) in ret_str
     ret_str = bkern.coloured_name(True)
-    assert colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"]) in ret_str
+    assert colored("BuiltIn", bkern._colour) in ret_str
 
 
 def test_kern_abstract_methods():
     ''' Check that the abstract methods of the Kern class raise the
     NotImplementedError. '''
     # We need to get a valid kernel object
-    from psyclone import dynamo0p3
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(NotImplementedError) as err:
-        super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
+        super(DynKern, my_kern).gen_arg_setter_code(None)
     assert ("gen_arg_setter_code must be implemented by sub-class"
             in str(err.value))
 
@@ -464,7 +720,6 @@ def test_inlinedkern_children_validation():
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
-    my_arguments = Arguments(None)
 
     class KernType(object):
         ''' temporary dummy class '''
@@ -478,15 +733,16 @@ def test_call_abstract_methods():
             self.module_name = "dummy_module"
             self.ktype = ktype
 
+    class DummyArguments(Arguments):
+        ''' temporary dummy class '''
+        def __init__(self, call, parent_call):
+            Arguments.__init__(self, parent_call)
+
     dummy_call = DummyClass(my_ktype)
-    my_call = Kern(None, dummy_call, "dummy", my_arguments)
+    my_call = Kern(None, dummy_call, "dummy", DummyArguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.__str__()
-    assert "Kern.__str__ should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
@@ -521,8 +777,7 @@ def test_incremented_arg():
     an argument that is incremented '''
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
-    import fparser
-    fparser.logging.disable(fparser.logging.CRITICAL)
+    logging.disable(logging.CRITICAL)
     # If we change the meta-data then we trip the check in the parser.
     # Therefore, we change the object produced by parsing the meta-data
     # instead
@@ -539,105 +794,54 @@ def test_incremented_arg():
             in str(excinfo.value))
 
 
-def test_ompdo_constructor():
-    ''' Check that we can make an OMPDoDirective with and without
-    children '''
+def test_kern_is_coloured1():
+    ''' Check that the is_coloured method behaves as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    ompdo = OMPDoDirective(parent=schedule)
-    # A Directive always has a Schedule
-    assert len(ompdo.children) == 1
-    assert isinstance(ompdo.children[0], Schedule)
-    # Check the dir_body property
-    assert isinstance(ompdo.dir_body, Schedule)
-    # Break the directive
-    del ompdo.children[0]
-    with pytest.raises(InternalError) as err:
-        # pylint: disable=pointless-statement
-        ompdo.dir_body
-    assert ("malformed or incomplete. It should have a single Schedule as a "
-            "child but found: []" in str(err.value))
-    ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
-    assert len(ompdo.dir_body.children) == 1
+    kern = schedule.walk(Kern)[0]
+    assert not kern.is_coloured()
+    # Colour the loop around the kernel
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(schedule[0])
+    assert kern.is_coloured()
+    # Test when the Kernel appears to have no parent loop
+    schedule.addchild(kern.detach())
+    assert not kern.is_coloured()
 
 
-def test_ompdo_directive_class_node_str(dist_mem):
-    ''' Tests the node_str method in the OMPDoDirective class. We create a
-    sub-class object then call this method from it. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-
-    cases = [
-        {"current_class": OMPParallelDoDirective,
-         "current_string": "[OMP parallel do]"},
-        {"current_class": OMPDoDirective, "current_string": "[OMP do]"},
-        {"current_class": OMPParallelDirective,
-         "current_string": "[OMP parallel]"},
-        {"current_class": OMPDirective, "current_string": "[OMP]"},
-        {"current_class": Directive, "current_string": ""}]
-    otrans = OMPParallelLoopTrans()
-
-    psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    if dist_mem:
-        idx = 4
-    else:
-        idx = 0
-
-    _, _ = otrans.apply(schedule.children[idx])
-    omp_parallel_loop = schedule.children[idx]
-
-    for case in cases:
-        # Call the OMPDirective node_str method
-        out = case["current_class"].node_str(omp_parallel_loop)
-
-        directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
-        expected_output = directive + case["current_string"]
-
-        assert expected_output in out
-
-
-def test_acc_dir_node_str():
-    ''' Test the node_str() method of OpenACC directives '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
-    acclt = ACCLoopTrans()
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    colour = SCHEDULE_COLOUR_MAP["Directive"]
-    schedule = invoke.schedule
-
-    # Enter-data
-    new_sched, _ = accdt.apply(schedule)
-    out = new_sched[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC enter data]")
-
-    # Parallel region around outermost loop
-    new_sched, _ = accpt.apply(new_sched[1])
-    out = new_sched[1].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC Parallel]")
-
-    # Loop directive on outermost loop
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
-    out = new_sched[1].dir_body[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, independent]")
-
-    # Loop directive with collapse
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0].dir_body[0],
-                               {"collapse": 2})
-    out = new_sched[1].dir_body[0].dir_body[0].node_str()
-    assert out.startswith(
-        colored("Directive", colour) + "[ACC Loop, collapse=2, independent]")
+def test_kern_is_coloured2():
+    ''' Check that the is_coloured() works, independent of which loop in a
+    loop nest is of type "colour". '''
+    table = SymbolTable()
+    # Create the loop variables
+    for idx in range(3):
+        table.new_symbol("cell{0}".format(idx), symbol_type=DataSymbol,
+                         datatype=INTEGER_TYPE)
+    # Create a loop nest of depth 3 containing the kernel, innermost first
+    my_kern = DynKern()
+    loops = [Loop.create(table.lookup("cell0"), Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE), [my_kern])]
+    loops.append(Loop.create(table.lookup("cell1"), Literal("1", INTEGER_TYPE),
+                             Literal("10", INTEGER_TYPE),
+                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops.append(Loop.create(table.lookup("cell2"), Literal("1", INTEGER_TYPE),
+                             Literal("10", INTEGER_TYPE),
+                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    # As we're using the generic Loop class, we have to manually set the list
+    # of valid Loop types
+    for loop in loops:
+        loop._valid_loop_types = ["colour", ""]
+    # We have no coloured loops at this point
+    assert not my_kern.is_coloured()
+    # Test that things work as expected, independent of which loop is coloured
+    for loop in loops:
+        loop.loop_type = "colour"
+        assert my_kern.is_coloured()
+        loop.loop_type = ""
+    assert not my_kern.is_coloured()
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -648,24 +852,23 @@ def test_haloexchange_unknown_halo_depth():
 
 
 def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way to do
-    this is to use a dynamo0p3 builtin example which contains a scalar and
-    then call node_str() on that.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    from psyclone import dynamo0p3
+    '''test the node_str method in the GlobalSum class. The simplest way
+    to do this is to use a dynamo0p3 builtin example which contains a
+    scalar and then call node_str() on that.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, dynamo0p3.DynGlobalSum):
+        if isinstance(child, DynGlobalSum):
             gsum = child
             break
     assert gsum
     output = gsum.node_str()
-    expected_output = (colored("GlobalSum",
-                               SCHEDULE_COLOUR_MAP["GlobalSum"]) +
+    expected_output = (colored("GlobalSum", GlobalSum._colour) +
                        "[scalar='asum']")
     assert expected_output in output
 
@@ -675,14 +878,13 @@ def test_globalsum_children_validation():
     does not accept any children.
 
     '''
-    from psyclone import dynamo0p3
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, dynamo0p3.DynGlobalSum):
+        if isinstance(child, DynGlobalSum):
             gsum = child
             break
     with pytest.raises(GenerationError) as excinfo:
@@ -704,9 +906,8 @@ def test_args_filter():
                      distributed_memory=False).create(invoke_info)
     # fuse our loops so we have more than one Kernel in a loop
     schedule = psy.invokes.invoke_list[0].schedule
-    ftrans = DynamoLoopFuseTrans()
-    schedule, _ = ftrans.apply(schedule.children[0],
-                               schedule.children[1])
+    ftrans = LFRicLoopFuseTrans()
+    ftrans.apply(schedule.children[0], schedule.children[1])
     # get our loop and call our method ...
     loop = schedule.children[0]
     args = loop.args_filter(unique=True)
@@ -748,63 +949,141 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
 
-def test_reduction_var_error():
+def test_reduction_var_error(dist_mem):
     ''' Check that we raise an exception if the zero_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.kernels()[0]
-        # args[1] is of type gh_field
-        call._reduction_arg = call.arguments.args[1]
-        with pytest.raises(GenerationError) as err:
-            call.zero_reduction_variable(None)
-        assert ("Kern.zero_reduction_variable() should be a scalar but "
-                "found 'gh_field'." in str(err.value))
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[1] is of type gh_field
+    call._reduction_arg = call.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        call.zero_reduction_variable(None)
+    assert("Kern.zero_reduction_variable() should be a scalar but "
+           "found 'gh_field'." in str(err.value))
 
 
-def test_reduction_sum_error():
+def test_reduction_var_invalid_scalar_error(dist_mem):
+    ''' Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect intrinsic type of scalar
+    argument (other than 'real' or 'integer').
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.7_single_invoke_3scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[5] is a scalar of data type gh_logical
+    call._reduction_arg = call.arguments.args[5]
+    with pytest.raises(GenerationError) as err:
+        call.zero_reduction_variable(None)
+    assert("Kern.zero_reduction_variable() should be either a 'real' "
+           "or an 'integer' scalar but found scalar of type 'logical'."
+           in str(err.value))
+
+
+def test_reduction_sum_error(dist_mem):
     ''' Check that we raise an exception if the reduction_sum_loop()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        call = schedule.kernels()[0]
-        # args[1] is of type gh_field
-        call._reduction_arg = call.arguments.args[1]
-        with pytest.raises(GenerationError) as err:
-            call.reduction_sum_loop(None)
-        assert (
-            "unsupported reduction access 'gh_inc' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']"
-            in str(err.value))
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    call = schedule.kernels()[0]
+    # args[1] is of type gh_field
+    call._reduction_arg = call.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        call.reduction_sum_loop(None)
+    assert(
+        "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+        "reduction_sum_loop(). Expected one of ['gh_sum']."
+        in str(err.value))
 
 
-def test_call_multi_reduction_error(monkeypatch):
-    '''Check that we raise an exception if we try to create a Call (a
-    Kernel or a Builtin) with more than one reduction in it. Since we have
-    a rule that only Builtins can write to scalars we need a built-in that
-    attempts to perform two reductions. '''
-    from psyclone import dynamo0p3_builtins
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+def test_call_multi_reduction_error(monkeypatch, dist_mem):
+    ''' Check that we raise an exception if we try to create a Call (a
+    Kernel or a Built-in) with more than one reduction in it. Since we have
+    a rule that only Built-ins can write to scalars we need a Built-in that
+    attempts to perform two reductions.
+
+    '''
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "multi_reduction_builtins_mod.f90"))
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3")
-        with pytest.raises(GenerationError) as err:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
-        assert (
-            "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err.value))
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+        api="dynamo0.3")
+    with pytest.raises(GenerationError) as err:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=dist_mem).create(invoke_info)
+    assert(
+        "PSyclone currently only supports a single reduction in a kernel "
+        "or builtin" in str(err.value))
+
+
+def test_reduction_no_set_precision(monkeypatch, dist_mem):
+    ''' Test that the zero_reduction_variable() method generates correct
+    code when a reduction argument does not have a defined precision (only
+    a zero summation value is generated in this case).
+
+    '''
+    # Set precision of 'real' scalar arguments in LFRic to an empty string
+    const = LFRicConstants()
+    monkeypatch.setitem(
+        const.DATA_TYPE_MAP, name="reduction",
+        value={"module": "scalar_mod", "type": "scalar_type",
+               "proxy_type": None, "intrinsic": "real", "kind": ""})
+    # Generate code for sum_X built-in with no precision for zero reduction
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    if dist_mem:
+        zero_sum_decls = (
+            "      USE scalar_mod, ONLY: scalar_type\n"
+            "      REAL, intent(out) :: asum\n"
+            "      TYPE(field_type), intent(in) :: f1\n"
+            "      TYPE(scalar_type) global_sum\n"
+            "      INTEGER df\n")
+    else:
+        zero_sum_decls = (
+            "      REAL, intent(out) :: asum\n"
+            "      TYPE(field_type), intent(in) :: f1\n"
+            "      INTEGER df\n")
+    assert zero_sum_decls in generated_code
+
+    zero_sum_output = (
+        "      ! Zero summation variables\n"
+        "      !\n"
+        "      asum = 0.0\n")
+    assert zero_sum_output in generated_code
+
+
+def test_invokes_wrong_schedule_gen_code():
+    ''' Check that the invoke.schedule reference points to an InvokeSchedule
+    when using the gen_code. Otherwise rise an error. '''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    # Set the invoke.schedule to something else other than a InvokeSchedule
+    psy.invokes.invoke_list[0].schedule = Node()
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An invoke.schedule element of the invoke_list is a 'Node', "
+            "but it should be an 'InvokeSchedule'." in str(err.value))
 
 
 def test_invoke_name():
@@ -877,20 +1156,52 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
-        OMPParallelTrans
     otrans = Dynamo0p3OMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
-    schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
+    otrans.apply(schedule.children[0], {"reprod": True})
     # Apply an OpenMP Parallel directive around the OpenMP do directive
-    schedule, _ = rtrans.apply(schedule.children[0])
-    invoke.schedule = schedule
+    rtrans.apply(schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
         "REPROD_PAD_SIZE in {0} should be a positive "
         "integer".format(Config.get().filename) in str(excinfo.value))
+
+
+def test_argument_properties():
+    ''' Check the default values for properties of a generic
+    argument instance. Also check that when the internal values
+    are changed, the related property methods return the
+    updated values (where applicable).
+
+    '''
+    # Instantiate a generic argument and check the default
+    # property values
+    arg = Argument(None, None, None)
+    assert arg.is_literal is False
+    assert arg.argument_type == "field"
+    assert arg.precision is None
+    assert arg.data_type is None
+    assert arg.module_name is None
+
+    # Change the internal values and check the properties
+    # again (note that the "argument_type" property is
+    # hard-coded to return "field")
+    arg._is_literal = True
+    arg._precision = "i_def"
+    arg._data_type = "field_type"
+    arg._module_name = "operator_mod"
+    assert arg.is_literal is True
+    assert arg.precision == "i_def"
+    assert arg.data_type == "field_type"
+    assert arg.module_name == "operator_mod"
+
+
+def test_argument_infer_datatype():
+    ''' Check that a generic argument inferred datatype is a DeferredType. '''
+    arg = Argument(None, None, None)
+    assert isinstance(arg.infer_datatype(), DeferredType)
 
 
 def test_argument_depends_on():
@@ -1248,7 +1559,7 @@ def test_haloexchange_can_be_printed():
 
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+
     # We have to use the LFRic (Dynamo0.3) API as that's currently the only
     # one that supports halo exchanges.
     _, invoke_info = parse(
@@ -1260,8 +1571,7 @@ def test_haloexchange_node_str():
     # We have to manually call the correct node_str() method as the one we want
     # to test is overridden in DynHaloExchange.
     out = HaloExchange.node_str(schedule.children[2])
-    colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
-    assert (colored("HaloExchange", colour) +
+    assert (colored("HaloExchange", HaloExchange._colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
 
 
@@ -1315,10 +1625,10 @@ def test_call_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    ftrans = DynamoLoopFuseTrans()
-    ftrans.same_space = True
+    ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1344,10 +1654,10 @@ def test_call_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    ftrans = DynamoLoopFuseTrans()
-    ftrans.same_space = True
+    ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        ftrans.apply(schedule.children[0], schedule.children[1],
+                     {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()
@@ -1358,455 +1668,6 @@ def test_call_backward_dependence():
     assert last_call_node.backward_dependence() == prev_dep_call_node
     # b) previous
     assert prev_dep_call_node.backward_dependence() == call3
-
-
-def test_omp_forward_dependence():
-    '''Test that the forward_dependence method works for Directives,
-    returning the closest dependent Node after the current Node in the
-    schedule or None if none are found. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
-    otrans = DynamoOMPParallelLoopTrans()
-    for child in schedule.children:
-        schedule, _ = otrans.apply(child)
-    read4 = schedule.children[4]
-    # 1: returns none if none found
-    # a) check many reads
-    assert not read4.forward_dependence()
-    # b) check no dependencies for the loop
-    assert not read4.children[0].forward_dependence()
-    # 2: returns first dependent kernel arg when there are many
-    # dependencies
-    # a) check first read returned
-    writer = schedule.children[3]
-    next_read = schedule.children[4]
-    assert writer.forward_dependence() == next_read
-    # b) check writer returned
-    first_omp = schedule.children[0]
-    assert first_omp.forward_dependence() == writer
-    # 3: directive and globalsum dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule, _ = otrans.apply(schedule.children[0])
-    schedule, _ = otrans.apply(schedule.children[1])
-    schedule, _ = otrans.apply(schedule.children[3])
-    prev_omp = schedule.children[0]
-    sum_omp = schedule.children[1]
-    global_sum_loop = schedule.children[2]
-    next_omp = schedule.children[3]
-    # a) prev omp depends on sum omp
-    assert prev_omp.forward_dependence() == sum_omp
-    # b) sum omp depends on global sum loop
-    assert sum_omp.forward_dependence() == global_sum_loop
-    # c) global sum loop depends on next omp
-    assert global_sum_loop.forward_dependence() == next_omp
-
-
-def test_directive_backward_dependence():
-    '''Test that the backward_dependence method works for Directives,
-    returning the closest dependent Node before the current Node in
-    the schedule or None if none are found.'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
-    otrans = DynamoOMPParallelLoopTrans()
-    for child in schedule.children:
-        schedule, _ = otrans.apply(child)
-    # 1: omp directive no backwards dependence
-    omp3 = schedule.children[2]
-    assert not omp3.backward_dependence()
-    # 2: omp to omp backward dependence
-    # a) many steps
-    last_omp_node = schedule.children[6]
-    prev_dep_omp_node = schedule.children[3]
-    assert last_omp_node.backward_dependence() == prev_dep_omp_node
-    # b) previous
-    assert prev_dep_omp_node.backward_dependence() == omp3
-    # 3: globalsum dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule, _ = otrans.apply(schedule.children[0])
-    schedule, _ = otrans.apply(schedule.children[1])
-    schedule, _ = otrans.apply(schedule.children[3])
-    omp1 = schedule.children[0]
-    omp2 = schedule.children[1]
-    global_sum = schedule.children[2]
-    omp3 = schedule.children[3]
-    # a) omp3 depends on global sum
-    assert omp3.backward_dependence() == global_sum
-    # b) global sum depends on omp2
-    assert global_sum.backward_dependence() == omp2
-    # c) omp2 (sum) depends on omp1
-    assert omp2.backward_dependence() == omp1
-
-
-def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_list() method of OMPParallelDirective.
-    Note: this test does not apply colouring so the loops must be over
-    discontinuous function spaces.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # We use Transformations to introduce the necessary directives
-    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
-        OMPParallelTrans
-    otrans = Dynamo0p3OMPLoopTrans()
-    rtrans = OMPParallelTrans()
-    # Apply an OpenMP do directive to the loop
-    schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
-    # Apply an OpenMP Parallel directive around the OpenMP do directive
-    schedule, _ = rtrans.apply(schedule.children[0])
-    directive = schedule.children[0]
-    assert isinstance(directive, OMPParallelDirective)
-    # Now check that _get_private_list returns what we expect
-    pvars = directive._get_private_list()
-    assert pvars == ['cell']
-    # Now use monkeypatch to break the Call within the loop
-    call = directive.dir_body[0].dir_body[0].loop_body[0]
-    monkeypatch.setattr(call, "local_vars", lambda: [""])
-    with pytest.raises(InternalError) as err:
-        _ = directive._get_private_list()
-    assert ("call 'testkern_w3_code' has a local variable but its name is "
-            "not set" in str(err.value))
-
-
-def test_directive_children_validation():
-    '''Test that children added to Directive are validated. Directive accepts
-    1 Schedule as child.
-
-    '''
-    directive = Directive()
-    datanode = Literal("1", INTEGER_TYPE)
-    schedule = Schedule()
-
-    # First child
-    with pytest.raises(GenerationError) as excinfo:
-        directive.children[0] = datanode
-    assert ("Item 'Literal' can't be child 0 of 'Directive'. The valid format"
-            " is: 'Schedule'." in str(excinfo.value))
-
-    # Additional children
-    with pytest.raises(GenerationError) as excinfo:
-        directive.addchild(schedule)
-    assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid format"
-            " is: 'Schedule'." in str(excinfo.value))
-
-
-def test_openmp_pdo_dag_name():
-    '''Test that we generate the correct dag name for the OpenMP parallel
-    do node'''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "15.7.2_setval_X_builtin.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
-    otrans = DynamoOMPParallelLoopTrans()
-    # Apply OpenMP parallelisation to the loop
-    schedule, _ = otrans.apply(schedule.children[0])
-    assert schedule.children[0].dag_name == "OMP_parallel_do_1"
-
-
-def test_omp_dag_names():
-    ''' Test that we generate the correct dag names for omp parallel, omp
-    do, omp directive and directive nodes.
-    Note: this test does not apply colouring so the loops must be over
-    discontinuous function spaces.
-
-    '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke_w3.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_w3_type')
-    schedule = invoke.schedule
-    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
-        OMPParallelTrans
-    olooptrans = Dynamo0p3OMPLoopTrans()
-    ptrans = OMPParallelTrans()
-    # Put an OMP PARALLEL around this loop
-    child = schedule.children[0]
-    oschedule, _ = ptrans.apply(child)
-    # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule[0].dir_body[0])
-    # Replace the original loop schedule with the transformed one
-    omp_par_node = schedule.children[0]
-    assert omp_par_node.dag_name == "OMP_parallel_1"
-    assert omp_par_node.dir_body[0].dag_name == "OMP_do_3"
-    omp_directive = super(OMPParallelDirective, omp_par_node)
-    assert omp_directive.dag_name == "OMP_directive_1"
-    directive = super(OMPDirective, omp_par_node)
-    assert directive.dag_name == "directive_1"
-
-
-def test_acc_dag_names():
-    ''' Check that we generate the correct dag names for ACC parallel,
-    ACC enter-data and ACC loop directive Nodes '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    schedule = invoke.schedule
-
-    acclt = ACCLoopTrans()
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    # Enter-data
-    new_sched, _ = accdt.apply(schedule)
-    assert schedule[0].dag_name == "ACC_data_1"
-    # Parallel region
-    new_sched, _ = accpt.apply(new_sched[1])
-    assert schedule[1].dag_name == "ACC_parallel_3"
-    # Loop directive
-    new_sched, _ = acclt.apply(new_sched[1].dir_body[0])
-    assert schedule[1].dir_body[0].dag_name == "ACC_loop_5"
-    # Base class
-    name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "ACC_directive_1"
-
-# Class ACCKernelsDirective start
-
-
-# (1/1) Method __init__
-def test_acckernelsdirective_init():
-    '''Test an ACCKernelsDirective can be created and that the optional
-    arguments are set and can be set as expected.
-
-    '''
-    directive = ACCKernelsDirective()
-    assert directive._default_present
-    assert directive.parent is None
-    assert len(directive.children) == 1
-    assert isinstance(directive.children[0], Schedule)
-    directive = ACCKernelsDirective(default_present=False)
-    assert not directive._default_present
-
-
-# (1/1) Method dag_name
-def test_acckernelsdirective_dagname():
-    '''Check that the dag_name method in the ACCKernelsDirective class
-    behaves as expected.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched)
-    assert sched.children[0].dag_name == "ACC_kernels_1"
-
-
-# (1/1) Method node_str
-def test_acckernelsdirective_node_str():
-    '''Check that the node_str method in the ACCKernelsDirective class behaves
-    as expected.
-
-    '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    dcolour = SCHEDULE_COLOUR_MAP["Directive"]
-    lcolour = SCHEDULE_COLOUR_MAP["Loop"]
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched)
-
-    out = sched[0].node_str()
-    assert out.startswith(
-        colored("Directive", dcolour)+"[ACC Kernels]")
-    assert colored("Loop", lcolour) in sched[0].dir_body[0].node_str()
-    assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
-
-
-# (1/1) Method gen_code
-@pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_gencode(default_present):
-    '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the dynamo0.3 API.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched, {"default_present": default_present})
-
-    code = str(psy.gen)
-    string = ""
-    if default_present:
-        string = " default(present)"
-    assert (
-        "      !$acc kernels{0}\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
-    assert (
-        "      END DO\n"
-        "      !$acc end kernels\n" in code)
-
-
-# (1/1) Method update
-@pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_update(parser, default_present):
-    '''Check that the update method in the ACCKernelsDirective class
-    generates the expected code. Use the nemo API.
-
-    '''
-    from fparser.common.readfortran import FortranStringReader
-    reader = FortranStringReader("program implicit_loop\n"
-                                 "real(kind=wp) :: sto_tmp(5,5)\n"
-                                 "sto_tmp(:,:) = 0.0_wp\n"
-                                 "end program implicit_loop\n")
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernels_trans = ACCKernelsTrans()
-    schedule, _ = kernels_trans.apply(schedule.children[0:1],
-                                      {"default_present": default_present})
-    gen_code = str(psy.gen)
-    string = ""
-    if default_present:
-        string = " DEFAULT(PRESENT)"
-    assert ("  !$ACC KERNELS{0}\n"
-            "  sto_tmp(:, :) = 0.0_wp\n"
-            "  !$ACC END KERNELS\n".format(string) in gen_code)
-
-# Class ACCKernelsDirective end
-
-# Class ACCEnterDataDirective start
-
-
-# (1/1) Method __init__
-def test_acc_datadevice_virtual():
-    ''' Check that we can't instantiate an instance of
-    ACCEnterDataDirective. '''
-    # pylint:disable=abstract-class-instantiated
-    with pytest.raises(TypeError) as err:
-        ACCEnterDataDirective()
-    # pylint:enable=abstract-class-instantiated
-    assert ("instantiate abstract class ACCEnterDataDirective with abstract "
-            "methods data_on_device" in str(err.value))
-
-# (1/1) Method node_str
-# Covered in test test_acc_dir_node_str
-
-# (1/1) Method dag_name
-# Covered in test_acc_dag_names
-
-
-# (1/4) Method gen_code
-def test_accenterdatadirective_gencode_1():
-    '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with a single loop, raises the expected exception as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
-
-    '''
-    acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    acc_enter_trans.apply(sched)
-    with pytest.raises(GenerationError) as excinfo:
-        str(psy.gen)
-    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
-
-
-# (2/4) Method gen_code
-def test_accenterdatadirective_gencode_2():
-    '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with multiple loops, raises the expected exception, as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
-
-    '''
-    acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0').schedule
-    acc_enter_trans.apply(sched)
-    with pytest.raises(GenerationError) as excinfo:
-        str(psy.gen)
-    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
-
-
-# (3/4) Method gen_code
-def test_accenterdatadirective_gencode_3():
-    '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with a single loop, produces the expected code (there should be
-    "copy in" data as there is a following OpenACC parallel
-    directive). This test uses the dynamo0.3 API.
-
-    '''
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
-    code = str(psy.gen)
-    assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n" in code)
-
-
-# (4/4) Method gen_code
-def test_accenterdatadirective_gencode_4():
-    '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with multiple loops and multiple OpenACC parallel directives,
-    produces the expected code (when the same argument is used in
-    multiple loops there should only be one entry). This test uses the
-    dynamo0.3 API.
-
-    '''
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_par_trans.apply(sched.children[1])
-    _ = acc_par_trans.apply(sched.children[0])
-    _ = acc_enter_trans.apply(sched)
-    code = str(psy.gen)
-    assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
-        "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
-        "f3_proxy,f3_proxy%data)\n" in code)
-
-# Class ACCEnterDataDirective end
 
 
 def test_haloexchange_halo_depth_get_set():
@@ -2222,8 +2083,6 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
 
 def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
-    from psyclone.gocean1p0 import GOKern
-    from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
@@ -2325,7 +2184,6 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     characters. This test checks that this linewrapping works.
 
     '''
-    from psyclone.transformations import Dynamo0p3KernelConstTrans
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
@@ -2342,7 +2200,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     assert os.path.isfile(filepath)
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
-    assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
+    assert "map_w2, &\n&ndf_w3" in open(filepath).read()
 
 
 def test_walk():

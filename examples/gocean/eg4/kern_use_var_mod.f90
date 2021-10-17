@@ -30,13 +30,17 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab.
+! Modified: S. Siso, STFC Daresbury Laboratory
 
 module kern_use_var_mod
-  implicit none
   use argument_mod
+  use kernel_mod
+  use kind_params_mod
+  use grid_mod
+  implicit none
 
   type, extends(kernel_type) :: kern_use_var
-     type(arg), dimension(1) :: meta_args =              &
+     type(go_arg), dimension(1) :: meta_args =              &
           (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE) /)
      !> This kernel writes only to internal points of the
      !! simulation domain.

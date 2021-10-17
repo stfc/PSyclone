@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified by R. W. Ford, STFC Daresbury Lab
 !
 !-------------------------------------------------------------------------------
 
@@ -61,6 +62,7 @@ module solver_mod
                                       LOG_LEVEL_DEBUG,   &
                                       LOG_LEVEL_TRACE
   use field_mod,               only : field_type
+  use integer_field_mod,       only : integer_field_type
   use function_space_mod,      only : function_space_type, W0, W1, W2, W3, &
                                       Wtheta, W2V, W2H
   use w3_solver_kernel_mod, only: w3_solver_kernel_type
@@ -91,19 +93,21 @@ contains
   !> @param[in]     rhs The right hand side field (b)
   !> @param[in]     mesh The mesh object the model for fields
   !> @param[in]     chi The coordinate array fields
-  !> @param[in]     solver_type (optional) The type of iterative solver to use for
+  !> @param[in]     panel_id Cubed-sphere panel id
+  !> @param[in]     solver_type The type of iterative solver to use for
   !>                continuous systems
   !> @param[in]     qr Quadrature type, optional. The quadrature rule.
   !> @param[in]     mm Operator type, optional. This is the mass matrix
   !! Either qr or mm are required, but not both.
-  subroutine solver_algorithm(lhs, rhs, mesh, chi, solver_type, qr, mm)
+  subroutine solver_algorithm(lhs, rhs, mesh, chi, panel_id, solver_type, qr, mm)
 
     implicit none
 
-    type(field_type), intent(inout)    :: lhs
-    type(field_type), intent(in)       :: rhs
-    type(mesh_type),  intent(in)       :: mesh
-    type(field_type), intent(in)       :: chi(3)
+    type(field_type),         intent(inout) :: lhs
+    type(field_type),         intent(in)    :: rhs
+    type(mesh_type),          intent(in)    :: mesh
+    type(field_type),         intent(in)    :: chi(3)
+    type(integer_field_type), intent(in)    :: panel_id
 
     integer(i_def),                  intent(in) :: solver_type
     type(quadrature_type), optional, intent(in) :: qr
@@ -111,7 +115,6 @@ contains
 
     integer(i_def), parameter :: NUM_JACOBI_ITERS = 5
     integer(i_def) :: fs_l, fs_r
-    real(r_def) :: ascalar = 3.0
 
     fs_l = lhs%which_function_space()
     fs_r = rhs%which_function_space()
@@ -120,7 +123,7 @@ contains
        ! Quadrature present, only for W3
        if( (fs_l == W3) .and. (fs_r == W3) ) then
           ! We are on the right space
-          call invoke( w3_solver_kernel_type(lhs, rhs, chi, ascalar, qr) )
+          call invoke( w3_solver_kernel_type(lhs, rhs, chi, panel_id, qr) )
        else
           write( log_scratch_space, '(A,I3,",",I3)' )  &
                "Quadrature required for w3 solver, stopping",fs_l,fs_r
@@ -501,7 +504,7 @@ contains
 
     ! The scalars
     real(kind=r_def)                   :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
-    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, p, q
+    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, px, q
     ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     real(kind=r_def)                   :: const
@@ -580,9 +583,9 @@ contains
         nrm    = sqrt( h(m,m)*h(m,m) + h(m+1,m)*h(m+1,m) )
         si     = h(m+1,m)/nrm
         ci     = h(m,m)/nrm
-        p      = ci*g(m) + si*g(m+1)
+        px     = ci*g(m) + si*g(m+1)
         q      = -si*g(m) + ci*g(m+1)
-        g(m)   = p
+        g(m)   = px
         g(m+1) = q
         do j = m, GCRK
           h1       = ci*h(m,j)   + si*h(m+1,j)

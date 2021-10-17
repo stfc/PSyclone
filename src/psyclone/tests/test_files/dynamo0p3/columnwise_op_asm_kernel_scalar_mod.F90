@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -65,8 +65,8 @@ private
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_scalar_type
   private
   type(arg_type) :: meta_args(3) = (/                                                 &
-       arg_type(GH_OPERATOR,                     GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_OPERATOR,            GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ) &
        /)
   integer :: operates_on = CELL_COLUMN
@@ -135,7 +135,7 @@ contains
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
     real(kind=r_def), intent(in) :: a_scalar
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
     
     write (*,*) "Hello CMA World"
 

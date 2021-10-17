@@ -1,15 +1,15 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 !-------------------------------------------------------------------------------
-
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities
+! Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
+! Modified by: J. Henrichs, Bureau of Meteorology,
+!              I. Kavcic, Met Office
 
 !> @brief A module providing field related classes.
 !>
@@ -54,7 +55,10 @@ module field_mod
   use mesh_mod,           only: mesh_type
 
   use field_parent_mod,   only: field_parent_type, &
-                                field_parent_proxy_type
+                                field_parent_proxy_type, &
+                                write_interface, read_interface, &
+                                checkpoint_write_interface, &
+                                checkpoint_read_interface
   use pure_abstract_field_mod, &
                           only: pure_abstract_field_type
 
@@ -234,43 +238,6 @@ module field_mod
   end type field_proxy_type
 
 !______end of type declarations_______________________________________________
-
-  ! Define the IO interfaces
-
-  abstract interface
-
-    subroutine write_interface(field_name, field_proxy)
-      import r_def, field_proxy_type
-      character(len=*),        intent(in)  :: field_name
-      type(field_proxy_type ), intent(in)  :: field_proxy
-    end subroutine write_interface
-
-    subroutine read_interface(field_name, field_proxy)
-      import r_def, field_proxy_type
-      character(len=*),        intent(in)    :: field_name
-      type(field_proxy_type ), intent(inout) :: field_proxy
-    end subroutine read_interface
-
-    subroutine checkpoint_write_interface(field_name, file_name, field_proxy)
-      import r_def, field_proxy_type
-      character(len=*),        intent(in)  :: field_name
-      character(len=*),        intent(in)  :: file_name
-      type(field_proxy_type ), intent(in)  :: field_proxy
-    end subroutine checkpoint_write_interface
-
-    subroutine checkpoint_read_interface(field_name, file_name, field_proxy)
-      import r_def, field_proxy_type
-      character(len=*),        intent(in)  :: field_name
-      character(len=*),        intent(in)  :: file_name
-      type(field_proxy_type ), intent(inout)  :: field_proxy
-    end subroutine checkpoint_read_interface
-
-  end interface
-
- public :: write_interface
- public :: read_interface
- public :: checkpoint_write_interface
- public :: checkpoint_read_interface
 
 contains
 
@@ -719,7 +686,11 @@ contains
 
     write( log_scratch_space, '( A, A, A, 2E16.8 )' ) &
          "Min/max ", trim( label ),                   &
-         " = ", fmin%get_min(), fmax%get_max()
+    ! Functions get_min() and get_max() rely on MPI comms so
+    ! these calls are disabled here. Min and max are simply
+    ! values of fmin and fmax scalars.
+    !     " = ", fmin%get_min(), fmax%get_max()
+         " = ", fmin%value, fmax%value
     call log_event( log_scratch_space, log_level )
 
   end subroutine log_minmax
@@ -750,7 +721,10 @@ contains
     fmax = scalar_type( maxval( abs(self%data(1:undf)) ) )
 
     write( log_scratch_space, '( A, A, E16.8 )' ) &
-         trim( label ), " = ", fmax%get_max()
+    ! Function get_max() relies on MPI comms so this call is
+    ! disabled here. Max is simply the values of fmax scalar.
+    !     trim( label ), " = ", fmax%get_max()
+         trim( label ), " = ", fmax%value
     call log_event( log_scratch_space, log_level )
 
   end subroutine log_absmax

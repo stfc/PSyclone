@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,10 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE, \
+    REAL_TYPE, INTEGER_TYPE
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.node import colored
 
 
 def test_literal_init():
@@ -57,7 +59,23 @@ def test_literal_init():
     assert isinstance(literal.datatype, ArrayType)
     assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
-    assert literal.datatype.shape == [10, 10]
+    assert len(literal.datatype.shape) == 2
+    assert isinstance(literal.datatype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(literal.datatype.shape[0].lower, Literal)
+    assert isinstance(literal.datatype.shape[0].upper, Literal)
+    assert literal.datatype.shape[0].lower.value == '1'
+    assert literal.datatype.shape[0].upper.value == '10'
+    assert (literal.datatype.shape[0].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (literal.datatype.shape[0].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(literal.datatype.shape[1].upper, Literal)
+    assert literal.datatype.shape[1].lower.value == '1'
+    assert literal.datatype.shape[1].upper.value == '10'
+    assert (literal.datatype.shape[1].upper.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (literal.datatype.shape[1].upper.datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
@@ -113,26 +131,29 @@ def test_literal_init_invalid_2(value):
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
     assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?$') but "
+            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
             "found '{0}'.".format(value) in str(err.value))
 
 
-def test_literal_init_invalid_3():
+def test_literal_init_empty_value():
     '''Test the initialisation of a Literal object with an empty value
-    argument raises the expected exception.
+    argument raises the expected exception unless it is of CHARACTER_TYPE.
 
     '''
     with pytest.raises(ValueError) as err:
         Literal("", REAL_DOUBLE_TYPE)
-    assert "A literal value can not be empty." in str(err.value)
+    assert "A non-character literal value cannot be empty." in str(err.value)
+    lit = Literal("", CHARACTER_TYPE)
+    assert lit.value == ""
 
 
 @pytest.mark.parametrize("value",
                          ["2", "+2", "-2", "2.", "23", "23.4", "-23.45",
                           "+23.45e0", "23.45e10", "-23.45e-10",
-                          "+23.45e+10", "+23e-10", "23.e10"])
+                          "+23.45e+10", "+23e-10", "23.e10", "2.4E-5"])
 def test_literal_init_valid_value(value):
-    '''Test the initialisation of a Literal object with valid real values.'''
+    '''Test the initialisation of a Literal object with valid real values.
+    Include check that we are not case sensitive. '''
     _ = Literal(value, REAL_DOUBLE_TYPE)
 
 
@@ -144,22 +165,31 @@ def test_literal_value():
     assert literal.value == "1"
 
 
+@pytest.mark.parametrize("value", ["1.0E+3", "1.0", "0.01E-3", "3.14e-2"])
+def test_literal_real_value(value):
+    ''' Test the value property returns the expected string for a Literal
+    representing a real quantity. '''
+    real_type = ScalarType(
+        ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE)
+    literal = Literal(value, real_type)
+    assert literal.value == value.lower()
+
+
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
     # scalar literal
     literal = Literal("1", INTEGER_SINGLE_TYPE)
-    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Scalar<INTEGER, SINGLE>]"
             in literal.node_str())
 
     # array literal
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[10, 10]>]" in literal.node_str())
+            "shape=[10, 10]>]"
+            in literal.node_str())
 
 
 def test_literal_can_be_printed():
@@ -167,8 +197,8 @@ def test_literal_can_be_printed():
     initialised fully)'''
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[10, 10]>]" in str(literal))
+    assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, shape=[10, 10]>]"
+            in str(literal))
 
 
 def test_literal_children_validation():
@@ -181,3 +211,49 @@ def test_literal_children_validation():
         literal.addchild(Literal("2", INTEGER_SINGLE_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'Literal'. Literal is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_literal_can_be_copied():
+    ''' Test that a Literal node can be copied. '''
+
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+
+    literal1 = literal.copy()
+    assert isinstance(literal1, Literal)
+    assert literal1 is not literal
+    assert literal1.value == "1"
+    assert literal1.datatype is INTEGER_SINGLE_TYPE
+
+    # Modifying the new literal does not affect the original
+    literal1._value = "2"
+    assert literal1.value == "2"
+    assert literal.value == "1"
+
+
+def test_literal_math_equal():
+    '''Test that the math_equal() function behaves as expected.'''
+
+    one = Literal("1.0", REAL_TYPE)
+    two = Literal("2.0", REAL_TYPE)
+    assert one.math_equal(one)
+    assert not one.math_equal(None)
+    assert not one.math_equal(two)
+
+
+@pytest.mark.xfail(message="issue #1321. math_equal() for literal is not "
+                   "robust")
+def test_literal_math_equal_reps():
+    '''test that the math_equal() function works with different
+    representations and datatypes.
+
+    '''
+    one = Literal("1.0", REAL_TYPE)
+    another_one = Literal("1.00", REAL_TYPE)
+    yet_another_one = Literal("1", REAL_TYPE)
+    one_with_precision = Literal("1.0", REAL_DOUBLE_TYPE)
+    one_different_type = Literal("1", INTEGER_TYPE)
+
+    assert one.math_equal(another_one)
+    assert one.math_equal(yet_another_one)
+    assert not one.math_equal(one_with_precision)
+    assert not yet_another_one.math_equal(one_different_type)

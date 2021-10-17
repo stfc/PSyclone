@@ -1,0 +1,87 @@
+!-------------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-------------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications Copyright (c) 2017, Science and Technology Facilities Council
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author R. W. Ford, STFC Daresbury Lab
+
+module helmholtz_solver_alg_mod
+
+  use field_mod,                 only: field_type
+  use constants_mod,             only: i_def, r_def
+
+  type(field_type) :: hb_inv
+  type(field_type), private :: grad_p
+
+  private :: apply_helmholtz_lhs
+
+contains
+
+  subroutine apply_helmholtz_lhs(Hp, p)
+
+    use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type
+    use operator_mod,                    only: operator_type
+    use enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+    use apply_variable_hx_kernel_mod,    only: apply_variable_hx_kernel_type
+
+
+    implicit none
+
+    type(field_type),                intent(inout) :: Hp
+    type(field_type),                intent(in)    :: p
+
+    type(operator_type), pointer :: m3_exner_star => null(), &
+                                    div_star => null(), &
+                                    compound_div => null(), &
+                                    ptheta2 => null(), &
+                                    p3theta => null()
+    real(kind=r_def)             :: timestep_term
+    type(field_type),    pointer :: mt_lumped_inv => null()
+
+    call invoke( setval_c(grad_p, 0.0_r_def),                                &
+                 scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &
+                                                  hb_inv),                   &
+                 enforce_bc_kernel_type( grad_p ),                           &
+                 apply_variable_hx_kernel_type(                              &
+                       Hp, grad_p, mt_lumped_inv, p,                         &
+                       compound_div, p3theta, ptheta2, m3_exner_star,        &
+                       tau_t, timestep_term) )
+
+  end subroutine apply_helmholtz_lhs
+
+end module helmholtz_solver_alg_mod

@@ -77,14 +77,14 @@ the instructions for Ubuntu and OpenSUSE only install a minimal subset.
 
 Installing LaTeX on Ubuntu
 ++++++++++++++++++++++++++
-The following three packages need to be installed to create the pdf documentation.
+The following four packages need to be installed to create the pdf documentation.
 It is recommended to install the packages in one ``apt-get`` command, since
 otherwise, depending on your filesystem, unnecessary snapshots might be created
 that take up additional space. The ``--no-install-recommends`` option
 significantly reduces the number of installed packages::
 
    > sudo apt-get install --no-install-recommends texlive \
-   texlive-latex-extra latexmk
+   texlive-latex-extra latexmk tex-gyre
 
 Installing LaTeX on OpenSUSE
 ++++++++++++++++++++++++++++
@@ -118,6 +118,28 @@ You can now build the pdf documentation using
 
    > cd doc
    > make latexpdf
+
+Creating Markdown Documentation
++++++++++++++++++++++++++++++++
+
+The documentation for PSyclone's Examples and Tutorials is written in
+`GitHub-flavoured Markdown
+<https://github.github.com/gfm/>`_. Although this requires no special
+tools to create, checking that it renders correctly means pushing your
+changes to GitHub and then visiting the file in GitHub's source
+browser. This may be avoided by using `grip
+<https://github.com/joeyespo/grip>`_. Once installed, simply start
+`grip` in the directory containing the file you are working on and
+point your web browser at the URL it displays, e.g.::
+
+ > grip
+ * Serving Flask app "grip.app" (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+ * Running on http://localhost:6419/ (Press CTRL+C to quit)
+
 
 Installing Testing Tools
 ^^^^^^^^^^^^^^^^^^^^^^^^

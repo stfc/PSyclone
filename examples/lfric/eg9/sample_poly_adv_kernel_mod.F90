@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@
 module sample_poly_adv_kernel_mod
 
 use argument_mod,          only: arg_type, func_type,         &
-                                 GH_FIELD, GH_WRITE, GH_READ, &
+                                 GH_FIELD, GH_REAL,           &
+                                 GH_WRITE, GH_READ,           &
                                  ANY_SPACE_1, STENCIL, CROSS, &
                                  GH_BASIS, GH_DIFF_BASIS,     &
                                  CELL_COLUMN, GH_EVALUATOR
@@ -82,17 +83,17 @@ real(kind=r_def), allocatable,    private :: coeff_matrix_v(:,:,:)
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_poly_adv_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta, STENCIL(CROSS)),         &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1, STENCIL(CROSS)),    &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1)                     &
+  type(arg_type) :: meta_args(6) = (/                                      &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                      &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta, STENCIL(CROSS)),      &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),                          &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1, STENCIL(CROSS)), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),                 &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)                  &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(W2,          GH_BASIS),                               &
-       func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(2) = (/                                    &
+       func_type(W2,          GH_BASIS),                                   &
+       func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                     &
        /)
   integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
@@ -171,11 +172,11 @@ subroutine sample_poly_adv_code( nlayers,              &
   integer(kind=i_def), intent(in)                    :: undf_wx
   integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
-  real(kind=r_def), dimension(undf_wt), intent(out)  :: advection
-  real(kind=r_def), dimension(undf_w2), intent(in)   :: wind
-  real(kind=r_def), dimension(undf_wt), intent(in)   :: tracer
-  real(kind=r_def), dimension(undf_wx), intent(in)   :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_wt), intent(in)   :: mt_lumped_inv
+  real(kind=r_def), dimension(undf_wt), intent(inout) :: advection
+  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_wt), intent(in)    :: tracer
+  real(kind=r_def), dimension(undf_wx), intent(in)    :: chi1, chi2, chi3
+  real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_lumped_inv
 
   real(kind=r_def), dimension(3,ndf_w2,ndf_wt), intent(in) :: basis_w2
   real(kind=r_def), dimension(1,ndf_wx,ndf_wt), intent(in) :: basis_wx

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic,    Met Office
 #          C.M. Maynard, Met Office / University of Reading
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -46,31 +47,22 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import DirectiveGen
-from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
+from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.f2pygen import CommentGen, CallGen, PSyIRGen, UseGen
 from psyclone.parse.algorithm import BuiltInCall
-
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import PSyIRVisitor
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, Call, OMPDoDirective
+from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
+    Symbol, ContainerSymbol, ImportInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ArgumentInterface, DeferredType
+from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
-
-# OMP_OPERATOR_MAPPING is used to determine the operator to use in the
-# reduction clause of an OpenMP directive. All code for OpenMP
-# directives exists in psyGen.py so this mapping should not be
-# overidden.
-OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
-
-# Names of internal scalar argument types. Can be overridden in
-# domain-specific modules.
-VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
-# Valid types of argument to a kernel call
-VALID_ARG_TYPE_NAMES = []
 
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
@@ -125,7 +117,6 @@ def zero_reduction_variables(red_call_list, parent):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
         parent.add(CommentGen(parent, ""))
@@ -135,7 +126,7 @@ def zero_reduction_variables(red_call_list, parent):
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
-                is_literal=True):
+                include_literals=True):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -150,8 +141,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         :py:class:`psyclone.core.access_type.AccessType`
     :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool is_literal: whether or not to include literal arguments in \
-                            the returned list.
+    :param bool include_literals: whether or not to include literal arguments \
+                                  in the returned list.
 
     :returns: list of kernel arguments matching the requirements.
     :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
@@ -168,7 +159,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         if arg_meshes:
             if argument.mesh not in arg_meshes:
                 continue
-        if not is_literal:
+        if not include_literals:
             # We're not including literal arguments so skip this argument
             # if it is literal.
             if argument.is_literal:
@@ -182,20 +173,24 @@ class PSyFactory(object):
     Creates a specific version of the PSy. If a particular api is not
     provided then the default api, as specified in the psyclone.cfg
     file, is chosen.
+
+    :param str api: name of the PSyclone API (domain) for which to create \
+        a factory.
+    :param bool distributed_memory: whether or not the PSy object created \
+        will include support for distributed-memory parallelism.
+
+    :raises TypeError: if the distributed_memory argument is not a bool.
+
     '''
     def __init__(self, api="", distributed_memory=None):
-        '''Initialises a factory which can create API specific PSY objects.
-        :param str api: Name of the API to use.
-        :param bool distributed_memory: True if distributed memory should be \
-                                        supported.
-        '''
+
         if distributed_memory is None:
             _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
         if _distributed_memory not in [True, False]:
-            raise GenerationError(
+            raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         Config.get().distributed_memory = _distributed_memory
@@ -205,13 +200,21 @@ class PSyFactory(object):
         '''
         Create the API-specific PSy instance.
 
-        :param invoke_info: information on the invoke()s found by parsing
-                            the Algorithm layer.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+        :param invoke_info: information on the invoke()s found by parsing \
+                            the Algorithm layer or (for NEMO) the fparser2 \
+                            parse tree of the source file.
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
+                           :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        :raises InternalError: if this factory is found to have an \
+                               unsupported type (API).
         '''
+        # Conditional run-time importing is a part of this factory
+        # implementation.
+        # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
@@ -225,9 +228,9 @@ class PSyFactory(object):
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
         else:
-            raise GenerationError("PSyFactory: Internal Error: Unsupported "
-                                  "api type '{0}' found. Should not be "
-                                  "possible.".format(self._type))
+            raise InternalError(
+                "PSyFactory: Unsupported API type '{0}' found. Expected one "
+                "of {1}.".format(self._type, Config.get().supported_apis))
         return PSyClass(invoke_info)
 
 
@@ -257,6 +260,17 @@ class PSy(object):
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
+        # create an empty PSy layer container
+        # TODO 1010: Alternatively the PSy object could be a Container itself
+        self._container = Container(self.name)
+
+    @property
+    def container(self):
+        '''
+        :returns: the container associated with this PSy object
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def __str__(self):
         return "PSy"
@@ -283,31 +297,6 @@ class PSy(object):
         :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
-
-    def inline(self, module):
-        '''Inline all kernel subroutines into the module that are marked for
-        inlining. Avoid inlining the same kernel more than once.
-
-        :param module: the module to which the kernel is added for inlining.
-        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
-                is None.
-        '''
-        inlined_kernel_names = []
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.walk(CodedKern):
-                if kernel.module_inline:
-                    # raise an internal error if kernel_code is None
-                    if kernel._kernel_code is None:
-                        raise InternalError(
-                            "Have no fparser1 AST for kernel {0}."
-                            " Therefore cannot inline it."
-                            .format(kernel))
-                    if kernel.name.lower() not in inlined_kernel_names:
-                        inlined_kernel_names.append(kernel.name.lower())
-                        module.add_raw_subroutine(kernel._kernel_code)
 
 
 class Invokes(object):
@@ -363,103 +352,35 @@ class Invokes(object):
 
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
+
+        :raises GenerationError: if an invoke_list schedule is not an \
+            InvokeSchedule.
         '''
-        opencl_kernels = []
-        opencl_num_queues = 1
-        generate_ocl_init = False
         for invoke in self.invoke_list:
-            # If we are generating OpenCL for an Invoke then we need to
-            # create routine(s) to set the arguments of the Kernel(s) it
-            # calls. We do it here as this enables us to prevent
-            # duplication.
-            if invoke.schedule.opencl:
-                generate_ocl_init = True
-                for kern in invoke.schedule.coded_kernels():
-                    if kern.name not in opencl_kernels:
-                        # Compute the maximum number of command queues that
-                        # will be needed.
-                        opencl_num_queues = max(
-                            opencl_num_queues,
-                            kern.opencl_options['queue_number'])
-                        opencl_kernels.append(kern.name)
-                        kern.gen_arg_setter_code(parent)
+            if not isinstance(invoke.schedule, InvokeSchedule):
+                raise GenerationError(
+                    "An invoke.schedule element of the invoke_list "
+                    "is a '{0}', but it should be an 'InvokeSchedule'."
+                    "".format(type(invoke.schedule).__name__))
             invoke.gen_code(parent)
-        if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
-
-    @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues):
-        '''
-        Generates a subroutine to initialise the OpenCL environment and
-        construct the list of OpenCL kernel objects used by this PSy layer.
-
-        :param parent: the node in the f2pygen AST representing the module \
-                       that will contain the generated subroutine.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        :param kernels: List of kernel names called by the PSy layer.
-        :type kernels: list of str
-        :param int num_queues: total number of queues needed for the OpenCL \
-                               implementation.
-        '''
-        from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
-
-        sub = SubroutineGen(parent, "psy_init")
-        parent.add(sub)
-        sub.add(UseGen(sub, name="fortcl", only=True,
-                       funcnames=["ocl_env_init", "add_kernels"]))
-        # Add a logical variable used to ensure that this routine is only
-        # executed once.
-        sub.add(DeclGen(sub, datatype="logical", save=True,
-                        entity_decls=["initialised"],
-                        initial_values=[".False."]))
-        # Check whether or not this is our first time in the routine
-        sub.add(CommentGen(sub, " Check to make sure we only execute this "
-                           "routine once"))
-        ifthen = IfThenGen(sub, ".not. initialised")
-        sub.add(ifthen)
-        ifthen.add(AssignGen(ifthen, lhs="initialised", rhs=".True."))
-
-        # Initialise the OpenCL environment
-        ifthen.add(CommentGen(ifthen,
-                              " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
-
-        # Create a list of our kernels
-        ifthen.add(CommentGen(ifthen,
-                              " The kernels this PSy layer module requires"))
-        nkernstr = str(len(kernels))
-
-        # Declare array of character strings
-        ifthen.add(CharDeclGen(
-            ifthen, length="30",
-            entity_decls=["kernel_names({0})".format(nkernstr)]))
-        for idx, kern in enumerate(kernels):
-            ifthen.add(AssignGen(ifthen, lhs="kernel_names({0})".format(idx+1),
-                                 rhs='"{0}"'.format(kern)))
-        ifthen.add(CommentGen(ifthen,
-                              " Create the OpenCL kernel objects. Expects "
-                              "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
-        ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
 class Invoke(object):
-    '''Manage an individual invoke call.
+    r'''Manage an individual invoke call.
 
     :param alg_invocation: metadata from the parsed code capturing \
-        information for this Invoke instance.
-    :type alg_invocation: :py:class`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: position/index of this invoke call in the subroutine.
-        If not None, this number is added to the name ("invoke_").
+                           information for this Invoke instance.
+    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: position/index of this invoke call in the subroutine. \
+                    If not None, this number is added to the name ("invoke\_").
     :param schedule_class: the schedule class to create for this invoke.
     :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`
     :param invokes: the Invokes instance that contains this Invoke \
-        instance.
-    :type invokes: :py:class:`psyclone.psyGen.invokes`
-    :param reserved_names: optional argument: list of reserved names,
-        i.e. names that should not be used e.g. as a PSyclone-created
-        variable name.
+                    instance.
+    :type invokes: :py:class:`psyclone.psyGen.Invokes`
+    :param reserved_names: optional list of reserved names, i.e. names that \
+                           should not be used e.g. as a PSyclone-created \
+                           variable name.
     :type reserved_names: list of str
 
     '''
@@ -476,7 +397,8 @@ class Invoke(object):
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
-            self._name = alg_invocation.name
+            # In Python2 unicode strings must be converted to str()
+            self._name = str(alg_invocation.name)
         elif len(alg_invocation.kcalls) == 1 and \
                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call with the position appended.
@@ -486,14 +408,23 @@ class Invoke(object):
                 alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
-            self._name = "invoke_"+str(idx)
+            self._name = "invoke_" + str(idx)
 
         if not reserved_names:
             reserved_names = []
-        reserved_names.append(self._name)
+
+        # Get a reference to the parent container, if any
+        container = None
+        if self.invokes:
+            container = self.invokes.psy.container
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+                                        reserved_names, parent=container)
+
+        # Add the new Schedule to the top-level PSy Container
+        if container:
+            container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -566,17 +497,22 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, argument_types, access=None):
+    def unique_declarations(self, argument_types, access=None,
+                            intrinsic_type=None):
         '''
         Returns a list of all required declarations for the specified
         API argument types. If access is supplied (e.g. "write") then
-        only declarations with that access are returned.
+        only declarations with that access are returned. If an intrinsic
+        type is supplied then only declarations with that intrinsic type
+        are returned.
 
         :param argument_types: the types of the kernel argument for the \
                                particular API.
         :type argument_types: list of str
         :param access: optional AccessType that the declaration should have.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: a list of all declared kernel arguments.
         :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
@@ -584,21 +520,31 @@ class Invoke(object):
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
         :raises InternalError: if an invalid access is specified.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types and invalid access
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        # First check for invalid argument types, access and intrinsic type
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declarations() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "Invoke.unique_declarations() called with an invalid access "
-                "type. Type is '{0}' instead of AccessType.".
+                "Invoke.unique_declarations() called with an invalid "
+                "access type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
+
+        if (intrinsic_type and intrinsic_type not in
+                const.VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                "Invoke.unique_declarations() called with an invalid "
+                "intrinsic argument data type. Expected one of {0} but "
+                "found '{1}'.".
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -606,12 +552,13 @@ class Invoke(object):
         # Find unique kernel arguments using their declaration names
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if not access or arg.access == access:
-                    if arg.text is not None:
-                        if arg.argument_type in argument_types:
-                            test_name = arg.declaration_name
-                            if test_name not in declarations:
-                                declarations[test_name] = arg
+                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
+                    if not access or arg.access == access:
+                        if arg.text is not None:
+                            if arg.argument_type in argument_types:
+                                test_name = arg.declaration_name
+                                if test_name not in declarations:
+                                    declarations[test_name] = arg
         return list(declarations.values())
 
     def first_access(self, arg_name):
@@ -625,7 +572,7 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, argument_types):
+    def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
@@ -633,6 +580,8 @@ class Invoke(object):
         :param argument_types: the types of the kernel argument for the \
                                particular API for which the intent is required.
         :type argument_types: list of str
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
@@ -640,15 +589,25 @@ class Invoke(object):
 
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types
-        if any(argtype not in VALID_ARG_TYPE_NAMES for
+        # First check for invalid argument types and intrinsic type
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
-                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
+                format(str(const.VALID_ARG_TYPE_NAMES), str(argument_types)))
+
+        if (intrinsic_type and intrinsic_type not in
+                const.VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                "Invoke.unique_declns_by_intent() called with an invalid "
+                "intrinsic argument data type. Expected one of {0} but "
+                "found '{1}'.".
+                format(str(const.VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -656,7 +615,8 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in self.unique_declarations(argument_types):
+        for arg in self.unique_declarations(argument_types,
+                                            intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
@@ -693,76 +653,20 @@ class Invoke(object):
         self.gen_code(module)
         return module.root
 
+    @abc.abstractmethod
     def gen_code(self, parent):
-        from psyclone.f2pygen import SubroutineGen, TypeDeclGen, DeclGen, \
-            SelectionGen, AssignGen
-        # create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_vars)
-        # add the subroutine argument declarations
-        my_typedecl = TypeDeclGen(invoke_sub, datatype="field_type",
-                                  entity_decls=self.psy_unique_vars,
-                                  intent="inout")
-        invoke_sub.add(my_typedecl)
-        # declare field-type, column topology and function-space types
-        column_topology_name = "topology"
-        my_typedecl = TypeDeclGen(invoke_sub, datatype="ColumnTopology",
-                                  entity_decls=[column_topology_name],
-                                  pointer=True)
-        invoke_sub.add(my_typedecl)
-        # declare any basic types required
-        my_decl = DeclGen(invoke_sub, datatype="integer",
-                          entity_decls=["nlayers"])
-        invoke_sub.add(my_decl)
+        '''
+        Generates invocation code (the subroutine called by the associated
+        invoke call in the algorithm layer). This consists of the PSy
+        invocation subroutine and the declaration of its arguments.
 
-        for (idx, dof) in enumerate(self._dofs):
-            call = self._dofs[dof][0]
-            arg = self._dofs[dof][1]
-            # declare a type select clause which is used to map from a base
-            # class to FunctionSpace_type
-            type_select = SelectionGen(invoke_sub,
-                                       expr=arg.name + "_space=>" + arg.name +
-                                       "%function_space", typeselect=True)
-            invoke_sub.add(type_select)
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
 
-            my_typedecl = TypeDeclGen(invoke_sub,
-                                      datatype="FunctionSpace_type",
-                                      entity_decls=[arg.name+"_space"],
-                                      pointer=True)
-            invoke_sub.add(my_typedecl)
-
-            content = []
-            if idx == 0:
-                # use the first model to provide nlayers
-                # *** assumption that all fields operate over the same number
-                # of layers
-                assign_1 = AssignGen(type_select, lhs="topology",
-                                     rhs=arg.name+"_space%topology",
-                                     pointer=True)
-                assign_2 = AssignGen(type_select, lhs="nlayers",
-                                     rhs="topology%layer_count()")
-                content.append(assign_1)
-                content.append(assign_2)
-            iterates_over = call.iterates_over
-            stencil = arg.stencil
-            assign_3 = AssignGen(type_select, lhs=dof+"dofmap",
-                                 rhs=arg.name +
-                                 "_space%dof_map(" + iterates_over + ", " +
-                                 stencil + ")",
-                                 pointer=True)
-            content.append(assign_3)
-            type_select.addcase(["FunctionSpace_type"], content=content)
-            # declare our dofmap
-            my_decl = DeclGen(invoke_sub, datatype="integer",
-                              entity_decls=[dof+"dofmap(:,:)"], pointer=True)
-            invoke_sub.add(my_decl)
-
-        # create the subroutine kernel call content
-        self.schedule.gen_code(invoke_sub)
-        parent.add(invoke_sub)
+        '''
 
 
-class InvokeSchedule(Schedule):
+class InvokeSchedule(Routine):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -778,11 +682,12 @@ class InvokeSchedule(Schedule):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
+    :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
-     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+     :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
@@ -790,20 +695,16 @@ class InvokeSchedule(Schedule):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
-                 reserved_names=None):
-        super(InvokeSchedule, self).__init__()
+    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
+                 reserved_names=None, parent=None):
+        super(InvokeSchedule, self).__init__(name, parent=parent)
 
         self._invoke = None
-        self._opencl = False  # Whether or not to generate OpenCL
-
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
-            for name in reserved_names:
-                self.symbol_table.add(Symbol(name))
+            for reserved in reserved_names:
+                self.symbol_table.add(Symbol(reserved))
 
         # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -816,6 +717,18 @@ class InvokeSchedule(Schedule):
             else:
                 self.addchild(KernFactory.create(call, parent=self))
 
+        # TODO #1134: If OpenCL is just a PSyIR transformation the following
+        # properties may not be needed or are transformation options instead.
+        # Flag to choose whether or not to generate OpenCL
+        self._opencl = False  # Whether or not to generate OpenCL
+        # Flag to choose whether or not to add an OpenCL barrier at the end of
+        # the Invoke code.
+        self._opencl_end_barrier = True
+
+        # This reference will store during gen_code() the block of code that
+        # is executed only on the first iteration of the invoke.
+        self._first_time_block = None
+
     @property
     def symbol_table(self):
         '''
@@ -823,33 +736,6 @@ class InvokeSchedule(Schedule):
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
-
-    def set_opencl_options(self, options):
-        '''
-        Validate and store a set of options associated with the InvokeSchedule
-        to tune the OpenCL code generation.
-
-        :param options: a set of options to tune the OpenCL code.
-        :type options: dictionary of <string>:<value>
-
-        '''
-        valid_opencl_options = ['end_barrier']
-
-        # Validate that the options given are supported and store them
-        for key, value in options.items():
-            if key in valid_opencl_options:
-                if key == "end_barrier":
-                    if not isinstance(value, bool):
-                        raise TypeError(
-                            "InvokeSchedule opencl_option 'end_barrier' "
-                            "should be a boolean.")
-            else:
-                raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'. "
-                    "The supported options are: {1}."
-                    "".format(key, valid_opencl_options))
-
-            self._opencl_options[key] = value
 
     @property
     def invoke(self):
@@ -870,7 +756,7 @@ class InvokeSchedule(Schedule):
         :rtype: str
         '''
         return "{0}[invoke='{1}']".format(
-            self.coloured_name(colour), self.invoke.name)
+            self.coloured_name(colour), self.name)
 
     def __str__(self):
         result = self.coloured_name(False) + ":\n"
@@ -887,8 +773,7 @@ class InvokeSchedule(Schedule):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen, CallGen
+        from psyclone.f2pygen import DeclGen, AssignGen, IfThenGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -900,17 +785,21 @@ class InvokeSchedule(Schedule):
         # during the whole gen_code() chain, but at the end of this method the
         # original symbol table is restored.
         symbol_table_before_gen = self.symbol_table
+        psy_symbol_table_before_gen = self.parent.symbol_table
+        # pylint: disable=protected-access
         self._symbol_table = self.symbol_table.shallow_copy()
+        self.parent._symbol_table = self.parent.symbol_table.shallow_copy()
+        # pylint: enable=protected-access
 
-        # Global symbols promoted from Kernel Globals are in the SymbolTable
-        # First aggregate all globals variables from the same module in a map
+        # Imported symbols promoted from Kernel imports are in the SymbolTable.
+        # First aggregate all variables imported from the same module in a map.
         module_map = {}
-        for globalvar in self.symbol_table.global_symbols:
-            module_name = globalvar.interface.container_symbol.name
+        for imported_var in self.symbol_table.imported_symbols:
+            module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
-                module_map[module_name].append(globalvar.name)
+                module_map[module_name].append(imported_var.name)
             else:
-                module_map[module_name] = [globalvar.name]
+                module_map[module_name] = [imported_var.name]
 
         # Then we can produce the UseGen statements without repeating modules
         for module_name, var_list in module_map.items():
@@ -926,28 +815,25 @@ class InvokeSchedule(Schedule):
                                          "get_kernel_by_name"]))
 
             # Declare variables needed on a OpenCL PSy-layer invoke
-            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
-            self.symbol_table.add(DataSymbol(nqueues, INTEGER_TYPE),
-                                  tag="opencl_num_cmd_queues")
-            qlist = self.symbol_table.new_symbol_name("cmd_queues")
-            self.symbol_table.add(
-                DataSymbol(qlist,
-                           ArrayType(INTEGER_TYPE,
-                                     [ArrayType.Extent.ATTRIBUTE])),
-                tag="opencl_cmd_queues")
-            first = self.symbol_table.new_symbol_name("first_time")
-            self.symbol_table.add(
-                DataSymbol(first, BOOLEAN_TYPE), tag="first_time")
-            flag = self.symbol_table.new_symbol_name("ierr")
-            self.symbol_table.add(
-                DataSymbol(flag, INTEGER_TYPE), tag="opencl_error")
-            nbytes = self.root.symbol_table.new_symbol_name(
-                "size_in_bytes")
-            self.symbol_table.add(
-                DataSymbol(nbytes, INTEGER_TYPE), tag="opencl_bytes")
-            wevent = self.root.symbol_table.new_symbol_name("write_event")
-            self.symbol_table.add(
-                DataSymbol(wevent, INTEGER_TYPE), tag="opencl_wevent")
+            nqueues = self.symbol_table.new_symbol(
+                "num_cmd_queues", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues").name
+            qlist = self.symbol_table.new_symbol(
+                "cmd_queues", symbol_type=DataSymbol,
+                datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
+                tag="opencl_cmd_queues").name
+            first = self.symbol_table.new_symbol(
+                "first_time", symbol_type=DataSymbol,
+                datatype=BOOLEAN_TYPE, tag="first_time").name
+            flag = self.symbol_table.new_symbol(
+                "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_error").name
+            self.symbol_table.new_symbol(
+                "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_bytes")
+            self.symbol_table.new_symbol(
+                "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
@@ -960,6 +846,9 @@ class InvokeSchedule(Schedule):
                                entity_decls=[first],
                                initial_values=[".true."]))
             if_first = IfThenGen(parent, first)
+            # Keep a reference to the block of code that is executed only on
+            # the first iteration of the invoke.
+            self._first_time_block = if_first
             parent.add(if_first)
             if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
             if_first.add(CommentGen(if_first,
@@ -973,9 +862,11 @@ class InvokeSchedule(Schedule):
             # Kernel pointers
             kernels = self.walk(Kern)
             for kern in kernels:
-                base = "kernel_" + kern.name
-                kernel = self.root.symbol_table.new_symbol_name(base)
-                self.symbol_table.add(Symbol(kernel), tag=kernel)
+                kernel = "kernel_" + kern.name
+                try:
+                    self.symbol_table.lookup_with_tag(kernel)
+                except KeyError:
+                    self.symbol_table.add(RoutineSymbol(kernel), tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))
@@ -987,7 +878,7 @@ class InvokeSchedule(Schedule):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl and self._opencl_options['end_barrier']:
+        if self.opencl and self._opencl_end_barrier:
 
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
@@ -1004,8 +895,11 @@ class InvokeSchedule(Schedule):
                               rhs="clFinish({0}({1}))".format(qlist,
                                                               queue_number)))
 
-        # Restore symbol table
+        # Restore symbol table (with a protected access attribute change)
+        # pylint: disable=protected-access
         self._symbol_table = symbol_table_before_gen
+        self.parent._symbol_table = psy_symbol_table_before_gen
+        # pylint: enable=protected-access
 
     @property
     def opencl(self):
@@ -1031,1070 +925,6 @@ class InvokeSchedule(Schedule):
         self._opencl = value
 
 
-class Directive(Statement):
-    '''
-    Base class for all Directive statements.
-
-    All classes that generate Directive statements (e.g. OpenMP,
-    OpenACC, compiler-specific) inherit from this class.
-
-    :param ast: the entry in the fparser2 parse tree representing the code \
-                contained within this directive or None.
-    :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
-    :param children: list of PSyIR nodes that will be children of this \
-                     Directive node or None.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    :param parent: PSyIR node that is the parent of this Directive or None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-
-    '''
-    # The prefix to use when constructing this directive in Fortran
-    # (e.g. "OMP"). Must be set by sub-class.
-    _PREFIX = ""
-    # Textual description of the node.
-    _children_valid_format = "Schedule"
-    _text_name = "Directive"
-    _colour_key = "Directive"
-
-    def __init__(self, ast=None, children=None, parent=None):
-        # A Directive always contains a Schedule
-        sched = self._insert_schedule(children, ast)
-        super(Directive, self).__init__(ast, children=[sched], parent=parent)
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return position == 0 and isinstance(child, Schedule)
-
-    @property
-    def dir_body(self):
-        '''
-        :returns: the Schedule associated with this directive.
-        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        :raises InternalError: if this node does not have a single Schedule as\
-                               its child.
-        '''
-        if len(self.children) != 1 or not \
-           isinstance(self.children[0], Schedule):
-            raise InternalError(
-                "Directive malformed or incomplete. It should have a single "
-                "Schedule as a child but found: {0}".format(
-                    [type(child).__name__ for child in self.children]))
-        return self.children[0]
-
-    @property
-    def dag_name(self):
-        ''' return the base dag name for this node '''
-        return "directive_" + str(self.abs_position)
-
-    def _add_region(self, start_text, end_text=None, data_movement=None):
-        '''
-        Modifies the underlying fparser2 parse tree to include a subset
-        of nodes within a region. (e.g. a 'kernels' or 'data' region.)
-
-        :param str start_text: the directive body to insert at the \
-                               beginning of the region. "!$"+self._PREFIX+" " \
-                               is prepended to the supplied text.
-        :param str end_text: the directive body to insert at the end of \
-                             the region (or None). "!$"+self._PREFIX+" " is \
-                             prepended to the supplied text.
-        :param str data_movement: whether to include data-movement clauses and\
-                               if so, whether to determine them by analysing \
-                               the code within the region ("analyse") or to \
-                               specify 'default(present)' ("present").
-
-        :raises InternalError: if either start_text or end_text already
-                               begin with '!'.
-        :raises InternalError: if data_movement is not None and not one of \
-                               "present" or "analyse".
-        :raises InternalError: if data_movement=="analyse" and this is an \
-                               OpenMP directive.
-        '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        valid_data_movement = ["present", "analyse"]
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self.ast:
-            return
-
-        # Sanity check the supplied begin/end text
-        if start_text.lstrip()[0] == "!":
-            raise InternalError(
-                "_add_region: start_text must be a plain label without "
-                "directive or comment characters but got: '{0}'".
-                format(start_text))
-        if end_text and end_text.lstrip()[0] == "!":
-            raise InternalError(
-                "_add_region: end_text must be a plain label without directive"
-                " or comment characters but got: '{0}'".format(end_text))
-        # We only deal with data movement if this is an OpenACC directive
-        if data_movement and data_movement == "analyse" and \
-           not isinstance(self, ACCDirective):
-            raise InternalError(
-                "_add_region: the data_movement='analyse' option is only valid"
-                " for an OpenACC directive.")
-
-        # Find a reference to the fparser2 parse tree that belongs to
-        # the contents of this region. Then go back up one level in the
-        # parse tree to find the node to which we will add directives as
-        # children. (We do this because our parent PSyIR node may be a
-        # directive which has no associated entry in the fparser2 parse tree.)
-        first_child = self.children[0][0]
-        last_child = self.children[0][-1]
-        content_ast = first_child.ast
-        fp_parent = content_ast.parent
-
-        try:
-            # Find the location of the AST of our first child node in the
-            # list of child nodes of our parent in the fparser parse tree.
-            ast_start_index = object_index(fp_parent.content,
-                                           content_ast)
-            if end_text:
-                if last_child.ast_end:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast_end)
-                else:
-                    ast_end_index = object_index(fp_parent.content,
-                                                 last_child.ast)
-
-                text = "!$" + self._PREFIX + " " + end_text
-                directive = Comment(FortranStringReader(text,
-                                                        ignore_comments=False))
-                directive.parent = fp_parent
-                fp_parent.content.insert(ast_end_index+1, directive)
-                # Ensure this end directive is included with the set of
-                # statements belonging to this PSyIR node.
-                self.ast_end = directive
-                self.dir_body.ast_end = directive
-        except (IndexError, ValueError):
-            raise InternalError("Failed to find locations to insert "
-                                "begin/end directives.")
-
-        text = "!$" + self._PREFIX + " " + start_text
-
-        if data_movement:
-            if data_movement == "analyse":
-                # Identify the inputs and outputs to the region (variables that
-                # are read and written).
-                processor = Fparser2Reader()
-                readers, writers, readwrites = processor.get_inputs_outputs(
-                    fp_parent.content[ast_start_index:ast_end_index+1])
-
-                if readers:
-                    text += " COPYIN({0})".format(",".join(readers))
-                if writers:
-                    text += " COPYOUT({0})".format(",".join(writers))
-                if readwrites:
-                    text += " COPY({0})".format(",".join(readwrites))
-
-            elif data_movement == "present":
-                text += " DEFAULT(PRESENT)"
-            else:
-                raise InternalError(
-                    "_add_region: the optional data_movement argument must be "
-                    "one of {0} but got '{1}'".format(valid_data_movement,
-                                                      data_movement))
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        directive.parent = fp_parent
-        fp_parent.content.insert(ast_start_index, directive)
-
-        self.ast = directive
-        self.dir_body.ast = directive
-        # If this is a directive applied to a Loop then update the ast_end
-        # for this Node to point to the parse tree for the loop. We have to
-        # do this because the loop is a sibling (rather than a child) of the
-        # directive in the parse tree.
-        if not end_text and isinstance(first_child, Loop):
-            self.ast_end = fp_parent.content[ast_start_index+1]
-
-
-class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statements. '''
-    _PREFIX = "ACC"
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node.
-
-        :returns: Name of corresponding node in DAG
-        :rtype: str
-        '''
-        return "ACC_directive_" + str(self.abs_position)
-
-
-@six.add_metaclass(abc.ABCMeta)
-class ACCEnterDataDirective(ACCDirective):
-    '''
-    Abstract class representing a "!$ACC enter data" OpenACC directive in
-    an InvokeSchedule. Must be sub-classed for a particular API because the way
-    in which fields are marked as being on the remote device is API-
-    -dependent.
-
-    :param children: list of nodes which this directive should \
-                     have as children.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
-    :param parent: the node in the InvokeSchedule to which to add this \
-                   directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-    '''
-    def __init__(self, children=None, parent=None):
-        super(ACCEnterDataDirective, self).__init__(children=children,
-                                                    parent=parent)
-        self._acc_dirs = None  # List of parallel directives
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC enter data]"
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        return "ACC_data_" + str(self.abs_position)
-
-    def gen_code(self, parent):
-        '''Generate the elements of the f2pygen AST for this Node in the
-        Schedule.
-
-        :param parent: node in the f2pygen AST to which to add node(s).
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        :raises GenerationError: if no data is found to copy in.
-
-        '''
-        from psyclone.f2pygen import CommentGen
-
-        # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel directive)
-        # 1. Find all parallel directives. We store this list for later
-        #    use in any sub-class.
-        self._acc_dirs = self.root.walk(ACCParallelDirective)
-        # 2. For each directive, loop over each of the fields used by
-        #    the kernels it contains (this list is given by var_list)
-        #    and add it to our list if we don't already have it
-        var_list = []
-        # TODO grid properties are effectively duplicated in this list (but
-        # the OpenACC deep-copy support should spot this).
-        for pdir in self._acc_dirs:
-            for var in pdir.ref_list:
-                if var not in var_list:
-                    var_list.append(var)
-        # 3. Convert this list of objects into a comma-delimited string
-        var_str = ",".join(var_list)
-        # 4. Add the enter data directive.
-        if var_str:
-            copy_in_str = "copyin("+var_str+")"
-        else:
-            # There should be at least one variable to copyin.
-            raise GenerationError(
-                "ACCEnterData directive did not find any data to copyin. "
-                "Perhaps there are no ACCParallel directives within the "
-                "region.")
-        parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
-                                copy_in_str))
-        # 5. Call an API-specific subclass of this class in case
-        # additional declarations are required.
-        self.data_on_device(parent)
-        parent.add(CommentGen(parent, ""))
-
-    @abc.abstractmethod
-    def data_on_device(self, parent):
-        '''
-        Adds nodes into an InvokeSchedule to flag that the data required by the
-        kernels in the data region is now on the device.
-
-        :param parent: the node in the InvokeSchedule to which to add nodes
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-
-
-class ACCParallelDirective(ACCDirective):
-    '''
-    Class representing the !$ACC PARALLEL directive of OpenACC
-    in the PSyIR.
-
-    '''
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC Parallel]"
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        return "ACC_parallel_" + str(self.abs_position)
-
-    def gen_code(self, parent):
-        '''
-        Generate the elements of the f2pygen AST for this Node in the Schedule.
-
-        :param parent: node in the f2pygen AST to which to add node(s).
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-
-        # Since we use "default(present)" the Schedule must contain an
-        # 'enter data' directive. We don't mandate the order in which
-        # transformations are applied so we have to check for that here.
-        # We can't use Node.ancestor() because the data directive does
-        # not have children. Instead, we go back up to the Schedule and
-        # walk down from there.
-        nodes = self.root.walk(ACCEnterDataDirective)
-        if len(nodes) != 1:
-            raise GenerationError(
-                "A Schedule containing an ACC parallel region must also "
-                "contain an ACC enter data directive but none was found for "
-                "{0}".format(self.root.invoke.name))
-        # Check that the enter-data directive comes before this parallel
-        # directive
-        if nodes[0].abs_position > self.abs_position:
-            raise GenerationError(
-                "An ACC parallel region must be preceeded by an ACC enter-"
-                "data directive but in {0} this is not the case.".
-                format(self.root.invoke.name))
-
-        # "default(present)" means that the compiler is to assume that
-        # all data required by the parallel region is already present
-        # on the device. If we've made a mistake and it isn't present
-        # then we'll get a run-time error.
-        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
-
-        for child in self.children:
-            child.gen_code(parent)
-
-        parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
-
-    @property
-    def ref_list(self):
-        '''
-        Returns a list of the references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this
-        directive. This is the list of quantities that must be
-        available on the remote device (probably a GPU) before
-        the parallel region can be begun.
-
-        :returns: list of variable names
-        :rtype: list of str
-        '''
-        variables = []
-
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                if arg not in variables:
-                    variables.append(arg)
-        return variables
-
-    @property
-    def fields(self):
-        '''
-        Returns a list of the names of field objects required by the Kernel
-        call(s) that are children of this directive.
-
-        :returns: list of names of field arguments.
-        :rtype: list of str
-        '''
-        # Look-up the kernels that are children of this node
-        fld_list = []
-        for call in self.kernels():
-            for arg in call.arguments.fields:
-                if arg not in fld_list:
-                    fld_list.append(arg)
-        return fld_list
-
-    @property
-    def scalars(self):
-        '''
-        Returns a list of the scalar quantities required by the Kernels in
-        this region.
-
-        :returns: list of names of scalar arguments.
-        :rtype: list of str
-        '''
-        scalars = []
-        for call in self.kernels():
-            for arg in call.arguments.scalars:
-                if arg not in scalars:
-                    scalars.append(arg)
-        return scalars
-
-    def update(self):
-        '''
-        Update the underlying fparser2 parse tree with nodes for the start
-        and end of this parallel region.
-        '''
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
-
-
-class ACCLoopDirective(ACCDirective):
-    '''
-    Class managing the creation of a '!$acc loop' OpenACC directive.
-
-    :param children: list of nodes that will be children of this directive.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`.
-    :param parent: the node in the Schedule to which to add this directive.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-    :param int collapse: Number of nested loops to collapse into a single \
-                         iteration space or None.
-    :param bool independent: Whether or not to add the `independent` clause \
-                             to the loop directive.
-    '''
-    def __init__(self, children=None, parent=None, collapse=None,
-                 independent=True, sequential=False):
-        self._collapse = collapse
-        self._independent = independent
-        self._sequential = sequential
-        super(ACCLoopDirective, self).__init__(children=children,
-                                               parent=parent)
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        return "ACC_loop_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        text = self.coloured_name(colour) + "[ACC Loop"
-        if self._sequential:
-            text += ", seq"
-        else:
-            if self._collapse:
-                text += ", collapse={0}".format(self._collapse)
-            if self._independent:
-                text += ", independent"
-        text += "]"
-        return text
-
-    def _pre_gen_validate(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this ACCLoopDirective is not enclosed \
-                            within some OpenACC parallel or kernels region.
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user can
-        # apply transformations to the code). As an orphaned loop directive,
-        # we must have an ACCParallelDirective or an ACCKernelsDirective as
-        # an ancestor somewhere back up the tree.
-        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
-            raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective or "
-                "ACCKernelsDirective as an ancestor in the Schedule")
-
-    def gen_code(self, parent):
-        '''
-        Generate the f2pygen AST entries in the Schedule for this OpenACC
-        loop directive.
-
-        :param parent: the parent Node in the Schedule to which to add our
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$acc loop" is not enclosed within \
-                                 an ACC Parallel region.
-        '''
-        self._pre_gen_validate()
-
-        # Add any clauses to the directive
-        options = []
-        if self._sequential:
-            options.append("seq")
-        else:
-            if self._collapse:
-                options.append("collapse({0})".format(self._collapse))
-            if self._independent:
-                options.append("independent")
-        options_str = " ".join(options)
-
-        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
-
-        for child in self.children:
-            child.gen_code(parent)
-
-    def update(self):
-        '''
-        Update the existing fparser2 parse tree with the code associated with
-        this ACC LOOP directive.
-
-        '''
-        self._pre_gen_validate()
-
-        text = "LOOP"
-        if self._sequential:
-            text += " SEQ"
-        else:
-            if self._independent:
-                text += " INDEPENDENT"
-            if self._collapse:
-                text += " COLLAPSE({0})".format(self._collapse)
-        self._add_region(start_text=text)
-
-
-class OMPDirective(Directive):
-    '''
-    Base class for all OpenMP-related directives
-
-    '''
-    _PREFIX = "OMP"
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node
-        :rtype: str
-        '''
-        return "OMP_directive_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP]"
-
-    def _get_reductions_list(self, reduction_type):
-        '''
-        Returns the names of all scalars within this region that require a
-        reduction of type 'reduction_type'. Returned names will be unique.
-
-        :param reduction_type: the reduction type (e.g. AccessType.SUM) to \
-                               search for.
-        :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
-
-        :returns: names of scalar arguments with reduction access.
-        :rtype: list of str
-
-        '''
-        result = []
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if arg.argument_type in VALID_SCALAR_NAMES:
-                    if arg.descriptor.access == reduction_type:
-                        if arg.name not in result:
-                            result.append(arg.name)
-        return result
-
-
-class OMPParallelDirective(OMPDirective):
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP parallel]"
-
-    def gen_code(self, parent):
-        '''Generate the fortran OMP Parallel Directive and any associated
-        code'''
-        from psyclone.f2pygen import AssignGen, UseGen, \
-            CommentGen, DeclGen
-
-        private_list = self._get_private_list()
-
-        reprod_red_call_list = self.reductions(reprod=True)
-        if reprod_red_call_list:
-            # we will use a private thread index variable
-            thread_idx = \
-                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
-            private_list.append(thread_idx)
-            # declare the variable
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[thread_idx]))
-        private_str = ",".join(private_list)
-
-        # We're not doing nested parallelism so make sure that this
-        # omp parallel region is not already within some parallel region
-        self._not_within_omp_parallel_region()
-
-        # Check that this OpenMP PARALLEL directive encloses other
-        # OpenMP directives. Although it is valid OpenMP if it doesn't,
-        # this almost certainly indicates a user error.
-        self._encloses_omp_directive()
-
-        calls = self.reductions()
-
-        # first check whether we have more than one reduction with the same
-        # name in this Schedule. If so, raise an error as this is not
-        # supported for a parallel region.
-        names = []
-        for call in calls:
-            name = call.reduction_arg.name
-            if name in names:
-                raise GenerationError(
-                    "Reduction variables can only be used once in an invoke. "
-                    "'{0}' is used multiple times, please use a different "
-                    "reduction variable".format(name))
-            else:
-                names.append(name)
-
-        zero_reduction_variables(calls, parent)
-
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
-                                "default(shared), private({0})".
-                                format(private_str)))
-
-        if reprod_red_call_list:
-            # add in a local thread index
-            parent.add(UseGen(parent, name="omp_lib", only=True,
-                              funcnames=["omp_get_thread_num"]))
-            parent.add(AssignGen(parent, lhs=thread_idx,
-                                 rhs="omp_get_thread_num()+1"))
-
-        first_type = type(self.dir_body[0])
-        for child in self.dir_body.children:
-            if first_type != type(child):
-                raise NotImplementedError("Cannot correctly generate code"
-                                          " for an OpenMP parallel region"
-                                          " containing children of "
-                                          "different types")
-            child.gen_code(parent)
-
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
-
-        if reprod_red_call_list:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " sum the partial results "
-                                  "sequentially"))
-            parent.add(CommentGen(parent, ""))
-            for call in reprod_red_call_list:
-                call.reduction_sum_loop(parent)
-
-    def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "omp parallel". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the opening statement of this directive.
-        :rtype: str
-
-        '''
-        result = "omp parallel"
-        # TODO #514: not yet working with NEMO, so commented out for now
-        # if not self._reprod:
-        #     result += self._reduction_string()
-        private_list = self._get_private_list()
-        private_str = ",".join(private_list)
-
-        if private_str:
-            result = "{0} private({1})".format(result, private_str)
-        return result
-
-    def end_string(self):
-        '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end parallel". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the end statement for this directive.
-        :rtype: str
-
-        '''
-        # pylint: disable=no-self-use
-        return "omp end parallel"
-
-    def _get_private_list(self):
-        '''
-        Returns the variable names used for any loops within a directive
-        and any variables that have been declared private by a Kernel
-        within the directive.
-
-        :returns: list of variables to declare as thread private.
-        :rtype: list of str
-
-        :raises InternalError: if a Kernel has local variable(s) but they \
-                               aren't named.
-        '''
-        result = set()
-        # get variable names from all calls that are a child of this node
-        for call in self.kernels():
-            for variable_name in call.local_vars():
-                if variable_name == "":
-                    raise InternalError(
-                        "call '{0}' has a local variable but its "
-                        "name is not set.".format(call.name))
-                result.add(variable_name.lower())
-
-        # Now determine scalar variables that must be private:
-        var_accesses = VariablesAccessInfo()
-        self.reference_accesses(var_accesses)
-        for var_name in var_accesses.all_vars:
-            accesses = var_accesses[var_name].all_accesses
-            # Ignore variables that have indices, we only look at scalar
-            if accesses[0].indices is not None:
-                continue
-
-            # If a variable is only accessed once, it is either an error
-            # or a shared variable - anyway it is not private
-            if len(accesses) == 1:
-                continue
-
-            # We have at least two accesses. If the first one is a write,
-            # assume the variable should be private:
-            if accesses[0].access_type == AccessType.WRITE:
-                # Check if the write access is inside the parallel loop. If
-                # the write is outside of a loop, it is an assignment to
-                # a shared variable. Example where jpk is likely used
-                # outside of the parallel section later, so it must be
-                # declared as shared in order to have its value in other loops:
-                # !$omp parallel
-                # jpk = 100
-                # !omp do
-                # do ji = 1, jpk
-
-                # TODO #598: improve the handling of scalar variables.
-
-                # Go up the tree till we either find the InvokeSchedule,
-                # which is at the top, or a Loop statement (or no parent,
-                # which means we have reached the end of a called kernel).
-                parent = accesses[0].node.ancestor((Loop, InvokeSchedule),
-                                                   include_self=True)
-
-                if parent and isinstance(parent, Loop):
-                    # The assignment to the variable is inside a loop, so
-                    # declare it to be private
-                    result.add(var_name.lower())
-
-        # Convert the set into a list and sort it, so that we get
-        # reproducible results
-        list_result = list(result)
-        list_result.sort()
-        return list_result
-
-    def _not_within_omp_parallel_region(self):
-        ''' Check that this Directive is not within any other
-            parallel region '''
-        if self.ancestor(OMPParallelDirective) is not None:
-            raise GenerationError("Cannot nest OpenMP parallel regions.")
-
-    def _encloses_omp_directive(self):
-        ''' Check that this Parallel region contains other OpenMP
-            directives. While it doesn't have to (in order to be valid
-            OpenMP), it is likely that an absence of directives
-            is an error on the part of the user. '''
-        # We need to recurse down through all our children and check
-        # whether any of them are an OMPDirective.
-        node_list = self.walk(OMPDirective)
-        if not node_list:
-            # TODO raise a warning here so that the user can decide
-            # whether or not this is OK.
-            pass
-            # raise GenerationError("OpenMP parallel region does not enclose "
-            #                       "any OpenMP directives. This is probably "
-            #                       "not what you want.")
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel region.
-
-        '''
-        # TODO #435: Remove this function once this is fixed
-        self._add_region(
-            start_text="parallel default(shared), private({0})".format(
-                ",".join(self._get_private_list())),
-            end_text="end parallel")
-
-
-class OMPDoDirective(OMPDirective):
-    '''
-    Class representing an OpenMP DO directive in the PSyclone AST.
-
-    :param list children: list of Nodes that are children of this Node.
-    :param parent: the Node in the AST that has this directive as a child.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param str omp_schedule: the OpenMP schedule to use.
-    :param bool reprod: whether or not to generate code for run-reproducible \
-                        OpenMP reductions.
-
-    '''
-    def __init__(self, children=None, parent=None, omp_schedule="static",
-                 reprod=None):
-
-        if children is None:
-            children = []
-
-        if reprod is None:
-            self._reprod = Config.get().reproducible_reductions
-        else:
-            self._reprod = reprod
-
-        self._omp_schedule = omp_schedule
-
-        # Call the init method of the base class once we've stored
-        # the OpenMP schedule
-        super(OMPDoDirective, self).__init__(children=children,
-                                             parent=parent)
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_do_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        if self.reductions():
-            reprod = "[reprod={0}]".format(self._reprod)
-        else:
-            reprod = ""
-        return "{0}[OMP do]{1}".format(self.coloured_name(colour), reprod)
-
-    def _reduction_string(self):
-        ''' Return the OMP reduction information as a string '''
-        reduction_str = ""
-        for reduction_type in AccessType.get_valid_reduction_modes():
-            reductions = self._get_reductions_list(reduction_type)
-            for reduction in reductions:
-                reduction_str += ", reduction({0}:{1})".format(
-                    OMP_OPERATOR_MAPPING[reduction_type], reduction)
-        return reduction_str
-
-    @property
-    def reprod(self):
-        ''' returns whether reprod has been set for this object or not '''
-        return self._reprod
-
-    def _pre_gen_validate(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPDoDirective is not enclosed \
-                            within some OpenMP parallel region.
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an orphaned loop
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPDoDirective must be inside an OMP parallel region but "
-                "could not find an ancestor OMPParallelDirective node")
-
-    def gen_code(self, parent):
-        '''
-        Generate the f2pygen AST entries in the Schedule for this OpenMP do
-        directive.
-
-        :param parent: the parent Node in the Schedule to which to add our \
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$omp do" is not enclosed within \
-                                 an OMP Parallel region.
-
-        '''
-        self._pre_gen_validate()
-
-        if self._reprod:
-            local_reduction_string = ""
-        else:
-            local_reduction_string = self._reduction_string()
-
-        # As we're an orphaned loop we don't specify the scope
-        # of any variables so we don't have to generate the
-        # list of private variables
-        options = "schedule({0})".format(self._omp_schedule) + \
-                  local_reduction_string
-        parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
-
-        for child in self.children:
-            child.gen_code(parent)
-
-        # make sure the directive occurs straight after the loop body
-        position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
-                   position=["after", position])
-
-    def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "omp do ...". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
-        '''
-        return "omp do schedule({0})".format(self._omp_schedule)
-
-    def end_string(self):
-        '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end do". The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the end statement for this directive.
-        :rtype: str
-
-        '''
-        return "omp end do"
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP do.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
-        '''
-        self._pre_gen_validate()
-
-        # Since this is an OpenMP do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
-
-        self._add_region(start_text="do schedule({0})".format(
-            self._omp_schedule), end_text="end do")
-
-
-class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
-    ''' Class for the !$OMP PARALLEL DO directive. This inherits from
-        both OMPParallelDirective (because it creates a new OpenMP
-        thread-parallel region) and OMPDoDirective (because it
-        causes a loop to be parallelised). '''
-
-    def __init__(self, children=[], parent=None, omp_schedule="static"):
-        OMPDoDirective.__init__(self,
-                                children=children,
-                                parent=parent,
-                                omp_schedule=omp_schedule)
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "OMP_parallel_do_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[OMP parallel do]"
-
-    def gen_code(self, parent):
-
-        # We're not doing nested parallelism so make sure that this
-        # omp parallel do is not already within some parallel region
-        self._not_within_omp_parallel_region()
-
-        calls = self.reductions()
-        zero_reduction_variables(calls, parent)
-        private_str = ",".join(self._get_private_list())
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "default(shared), private({0}), "
-                                "schedule({1})".
-                                format(private_str, self._omp_schedule) +
-                                self._reduction_string()))
-        for child in self.children:
-            child.gen_code(parent)
-
-        # make sure the directive occurs straight after the loop body
-        position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
-                   position=["after", position])
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel do.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
-        '''
-        # Since this is an OpenMP (parallel) do, it can only be applied
-        # to a single loop.
-        if len(self.dir_body.children) != 1:
-            raise GenerationError(
-                "An OpenMP PARALLEL DO can only be applied to a single loop "
-                "but this Node has {0} children: {1}".
-                format(len(self.dir_body.children), self.dir_body.children))
-
-        self._add_region(
-            start_text="parallel do default(shared), private({0}), "
-            "schedule({1})".format(",".join(self._get_private_list()),
-                                   self._omp_schedule),
-            end_text="end parallel do")
-
-
 class GlobalSum(Statement):
     '''
     Generic Global Sum class which can be added to and manipulated
@@ -2103,13 +933,13 @@ class GlobalSum(Statement):
     :param scalar: the scalar that the global sum is stored into
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
-    _colour_key = "GlobalSum"
+    _colour = "cyan"
 
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2129,7 +959,10 @@ class GlobalSum(Statement):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
         return "globalsum({0})_".format(self._scalar.name) + str(self.position)
 
     @property
@@ -2151,9 +984,6 @@ class GlobalSum(Statement):
         return "{0}[scalar='{1}']".format(self.coloured_name(colour),
                                           self._scalar.name)
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class HaloExchange(Statement):
     '''
@@ -2162,22 +992,22 @@ class HaloExchange(Statement):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating
-    whether this halo exchange should be subject to a run-time check
-    for clean/dirty halos.
+    :param check_dirty: optional argument default True indicating whether \
+                        this halo exchange should be subject to a run-time \
+                        check for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to
-    identify which index of a vector field this halo exchange is
-    responsible for
+    :param vector_index: optional vector index (default None) to identify \
+                         which index of a vector field this halo exchange is \
+                         responsible for.
     :type vector_index: int
     :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
-    _colour_key = "HaloExchange"
+    _colour = "blue"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -2235,7 +1065,7 @@ class HaloExchange(Statement):
         return [self._field]
 
     def check_vector_halos_differ(self, node):
-        '''helper method which checks that two halo exchange nodes (one being
+        '''Helper method which checks that two halo exchange nodes (one being
         self and the other being passed by argument) operating on the
         same field, both have vector fields of the same size and use
         different vector indices. If this is the case then the halo
@@ -2243,21 +1073,22 @@ class HaloExchange(Statement):
         case then an internal error will have occured and we raise an
         appropriate exception.
 
-        :param node: a halo exchange which should exchange the same
-        field as self
+        :param node: a halo exchange which should exchange the same field as \
+                     self.
         :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange
-        :raises GenerationError: if the field name in the halo
-        exchange passed in has a different name to the field in this
-        halo exchange
-        :raises GenerationError: if the field in this halo exchange is
-        not a vector field
-        :raises GenerationError: if the vector size of the field in
-        this halo exchange is different to vector size of the field in
-        the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in
-        this halo exchange is the same as the vector index of the
-        field in the halo exchange passed by argument.
+        :raises GenerationError: if the argument passed is not a halo exchange.
+        :raises GenerationError: if the field name in the halo exchange \
+                                 passed in has a different name to the field \
+                                 in this halo exchange.
+        :raises GenerationError: if the field in this halo exchange is not a \
+                                 vector field
+        :raises GenerationError: if the vector size of the field in this halo \
+                                 exchange is different to vector size of the \
+                                 field in the halo exchange passed by argument.
+        :raises GenerationError: if the vector index of the field in this \
+                                 halo exchange is the same as the vector \
+                                 index of the field in the halo exchange \
+                                 passed by argument.
 
         '''
 
@@ -2312,9 +1143,6 @@ class HaloExchange(Statement):
                     self._halo_type, self._halo_depth,
                     self._check_dirty))
 
-    def __str__(self):
-        return self.node_str(False)
-
 
 class Kern(Statement):
     '''
@@ -2328,9 +1156,10 @@ class Kern(Statement):
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
-    :param arguments: object holding information on the kernel arguments, \
-                      as extracted from kernel meta-data.
-    :type arguments: :py:class:`psyclone.psyGen.Arguments`
+    :param ArgumentsClass: class to create the object that holds all \
+        information on the kernel arguments, as extracted from kernel \
+        meta-data (and accessible here via call.ktype).
+    :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
 
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
@@ -2338,9 +1167,9 @@ class Kern(Statement):
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, arguments):
+    def __init__(self, parent, call, name, ArgumentsClass):
         super(Kern, self).__init__(self, parent=parent)
-        self._arguments = arguments
+        self._arguments = ArgumentsClass(call, self)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
 
@@ -2361,8 +1190,9 @@ class Kern(Statement):
 
         # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
-        args = args_filter(arguments.args,
-                           arg_types=VALID_SCALAR_NAMES,
+        const = Config.get().api_conf().get_constants()
+        args = args_filter(self._arguments.args,
+                           arg_types=const.VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True
@@ -2390,8 +1220,10 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return (self.coloured_name(colour) + " " + self.name +
-                "(" + self.arguments.names + ")")
+        if self.name:
+            return (self.coloured_name(colour) + " " + self.name +
+                    "(" + self.arguments.names + ")")
+        return self.coloured_name(colour) + "[]"
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -2427,8 +1259,7 @@ class Kern(Statement):
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
             return ancestor.reprod
-        else:
-            return False
+        return False
 
     @property
     def local_reduction_name(self):
@@ -2436,16 +1267,15 @@ class Kern(Statement):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
-        # TODO #720: Deprecate name_from_tag method
-        name = self.root.symbol_table.name_from_tag(tag, "l_" + tag)
+        name = self.ancestor(InvokeSchedule).symbol_table.\
+            symbol_from_tag(tag, "l_" + tag).name
         return name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified. Note: this method is currently only supported
-        for LFRic API.
+        reductions, if specified.
 
         :param parent: the Node in the AST to which to add new code.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -2454,6 +1284,8 @@ class Kern(Statement):
         :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the \
                                  configuration file) is less than 1.
+        :raises GenerationError: for a reduction into a scalar that is \
+                                 neither 'real' nor 'integer'.
 
         '''
         from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
@@ -2471,12 +1303,22 @@ class Kern(Statement):
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_value = "0.0"
-        if var_data_type == "integer":
+        elif var_data_type == "integer":
             data_value = "0"
-        kind_type = \
-            Config.get().api_conf("dynamo0.3").default_kind[var_data_type]
-        zero = "_".join([data_value, kind_type])
-        parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
+        else:
+            raise GenerationError(
+                "Kern.zero_reduction_variable() should be either a 'real' "
+                "or an 'integer' scalar but found scalar of type '{0}'.".
+                format(var_arg.intrinsic_type))
+        # Retrieve the precision information (if set) and append it
+        # to the initial reduction value
+        if var_arg.precision:
+            kind_type = var_arg.precision
+            zero_sum_variable = "_".join([data_value, kind_type])
+        else:
+            kind_type = ""
+            zero_sum_variable = data_value
+        parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
                    position=position)
         if self.reprod_reduction:
             parent.add(DeclGen(parent, datatype=var_data_type,
@@ -2484,7 +1326,7 @@ class Kern(Statement):
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
             nthreads = \
-                self.root.symbol_table.lookup_with_tag("omp_num_threads").name
+                self.scope.symbol_table.lookup_with_tag("omp_num_threads").name
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
@@ -2494,11 +1336,20 @@ class Kern(Statement):
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
-                                 rhs=zero), position=position)
+                                 rhs=zero_sum_variable), position=position)
 
     def reduction_sum_loop(self, parent):
-        '''generate the appropriate code to place after the end parallel
-        region'''
+        '''
+        Generate the appropriate code to place after the end parallel
+        region.
+
+        :param parent: the Node in the f2pygen AST to which to add new code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: for an unsupported reduction access in \
+                                 LFRicBuiltIn.
+
+        '''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
@@ -2506,14 +1357,15 @@ class Kern(Statement):
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
-        except KeyError:
+        except KeyError as err:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                "unsupported reduction access '{0}' found in DynBuiltin:"
-                "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access.api_specific_name(), api_strings))
-        symtab = self.root.symbol_table
+            six.raise_from(GenerationError(
+                "Unsupported reduction access '{0}' found in LFRicBuiltIn:"
+                "reduction_sum_loop(). Expected one of {1}.".
+                format(reduction_access.api_specific_name(),
+                       api_strings)), err)
+        symtab = self.scope.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
@@ -2527,13 +1379,15 @@ class Kern(Statement):
         we will be using the OpenMP reduction clause. Otherwise we
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
-        thread.'''
+        thread.
+
+        :param str name: original name of the variable to be reduced.
+
+        '''
+        symtab = self.scope.symbol_table
         if self.reprod_reduction:
-            idx_name = \
-                self.root.symbol_table.lookup_with_tag("omp_thread_index").name
-            # TODO #720: Deprecate name_from_tag method
-            local_name = \
-                self.root.symbol_table.name_from_tag(name, "l_" + name)
+            idx_name = symtab.lookup_with_tag("omp_thread_index").name
+            local_name = symtab.symbol_from_tag(name, "l_" + name).name
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -2572,15 +1426,12 @@ class Kern(Statement):
                   coloured loop.
         :rtype: bool
         '''
-        return self.parent.parent.loop_type == "colour"
-
-    def clear_cached_data(self):
-        '''This function is called to remove all cached data (which
-        then forces all functions to recompute their results). At this
-        stage it supports gen_code by enforcing all arguments to
-        be recomputed.
-        '''
-        self.arguments.clear_cached_data()
+        parent_loop = self.ancestor(Loop)
+        while parent_loop:
+            if parent_loop.loop_type == "colour":
+                return True
+            parent_loop = parent_loop.ancestor(Loop)
+        return False
 
     @property
     def iterates_over(self):
@@ -2588,9 +1439,6 @@ class Kern(Statement):
 
     def local_vars(self):
         raise NotImplementedError("Kern.local_vars should be implemented")
-
-    def __str__(self):
-        raise NotImplementedError("Kern.__str__ should be implemented")
 
     def gen_code(self, parent):
         raise NotImplementedError("Kern.gen_code should be implemented")
@@ -2618,13 +1466,12 @@ class CodedKern(Kern):
     '''
     # Textual description of the node.
     _text_name = "CodedKern"
-    _colour_key = "CodedKern"
+    _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
-        self._parent = parent
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
-                                        KernelArguments(call, self))
+                                        KernelArguments)
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
@@ -2688,16 +1535,16 @@ class CodedKern(Kern):
                 if key == "local_size":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'local_size' should be "
+                            "CodedKern OpenCL option 'local_size' should be "
                             "an integer.")
                 if key == "queue_number":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'queue_number' should be "
+                            "CodedKern OpenCL option 'queue_number' should be "
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'. "
+                    "CodedKern does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_kernel_options))
 
@@ -2716,11 +1563,19 @@ class CodedKern(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "kernel_{0}_{1}".format(self.name, str(position))
 
     @property
     def module_inline(self):
+        '''
+        :returns: whether or not this kernel is being module-inlined.
+        :rtype: bool
+        '''
         return self._module_inline
 
     @module_inline.setter
@@ -2728,28 +1583,18 @@ class CodedKern(Kern):
         '''
         Setter for whether or not to module-inline this kernel.
 
-        :param bool value: Whether or not to module-inline this kernel.
-        :raises NotImplementedError: if module-inlining is enabled and the \
-                                     kernel has been transformed.
+        :param bool value: whether or not to module-inline this kernel.
         '''
         # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
-        # kernel within an invoke. Note, this will set this kernel as
-        # well so there is no need to set it locally.
-        if value and self.modified:
-            # TODO #229. Kernel in-lining is currently implemented via
-            # manipulation of the fparser1 Parse Tree while
-            # transformations work with the fparser2 Parse Tree-derived
-            # PSyIR.  Therefore there is presently no way to inline a
-            # transformed kernel.
-            raise NotImplementedError(
-                "Cannot module-inline a transformed kernel ({0}).".
-                format(self.name))
+        # kernel within an invoke.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
-            if kernel.name == self.name:
-                kernel._module_inline = value
+            if kernel is self:
+                self._module_inline = value
+            elif kernel.name == self.name and kernel.module_inline != value:
+                kernel.module_inline = value
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -2764,26 +1609,139 @@ class CodedKern(Kern):
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of CodedKern concept into language level
+        PSyIR constructs. The CodedKern is implemented as a Call to a
+        routine with the appropriate arguments.
+
+        '''
+        # If the kernel has been transformed and it is not module inlined
+        # then we rename it.
+        if not self.module_inline:
+            self.rename_and_write()
+        else:
+            # Inline the kernel subroutine
+            self._insert_module_inlined_kernel()
+
+        # Create the appropriate symbols
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        try:
+            rsymbol = symtab.lookup(self._name)
+        except KeyError:
+            rsymbol = RoutineSymbol(self._name)
+            symtab.add(rsymbol)
+            if not self.module_inline:
+                # Import subroutine symbol
+                try:
+                    csymbol = symtab.lookup(self._module_name)
+                except KeyError:
+                    csymbol = ContainerSymbol(self._module_name)
+                    symtab.add(csymbol)
+                rsymbol.interface = ImportInterface(csymbol)
+
+        # Create Call to the rsymbol with the argument expressions as children
+        # of the new node
+        call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
+
+        # Swap itself with the appropriate Call node
+        self.replace_with(call_node)
+
+    def _insert_module_inlined_kernel(self, f2pygen_parent=None):
+        ''' Module-inline this kernel into the tree if it hasn't been inlined
+        previously yet. Currently this needs to be done for the PSyIR tree and
+        the f2pygen tree. If the f2pygen_parent argument is None it will be
+        inlined in the PSyIR tree, otherwise it will be inlined in the provided
+        parent
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen` or NoneType
+
+        :raises NotImplementedError: if there is a name clash that prevents \
+            the kernel from being module-inlined without changing its name.
+
+        '''
+        # Check for name clashes
+        try:
+            # Disable false positive no-member issue
+            # pylint: disable=no-member
+            existing_symbol = self.scope.symbol_table.lookup(self._name)
+        except KeyError:
+            existing_symbol = None
+
+        if not existing_symbol:
+            # If it doesn't exist already, module-inline the subroutine by:
+            # 1) Registering the subroutine symbol in the Container
+            self.root.symbol_table.add(RoutineSymbol(self._name))
+            # 2) Insert the relevant code into the tree.
+            inlined_code = self.get_kernel_schedule()
+            if f2pygen_parent:
+                # If we are building a f2pygen tree add it to a PSyIRGen node
+                # under the PSy-layer f2pygen module.
+                module = f2pygen_parent
+                while module.parent:
+                    module = module.parent
+                module.add(PSyIRGen(module, inlined_code))
+            else:
+                # Otherwise just add it to the current PSyIR tree
+                self.root.addchild(inlined_code.detach())
+
+        else:
+            # If the symbol already exists, make sure it refers
+            # to the exact same subroutine.
+            if not isinstance(existing_symbol, RoutineSymbol):
+                raise NotImplementedError(
+                    "Can not module-inline subroutine '{0}' because symbol"
+                    "'{1}' with the same name already exists and changing"
+                    " names of module-inlined subroutines is not "
+                    "implemented yet.".format(self._name, existing_symbol))
+
+            # Make sure the generated code is an exact match by creating
+            # the f2pygen node (which in turn creates the fparser1) of the
+            # kernel_schedule and then compare it to the fparser1 trees of
+            # the PSyIRGen f2pygen nodes children of module.
+            if f2pygen_parent:
+                module = f2pygen_parent
+                while module.parent:
+                    module = module.parent
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            # If there is an exact match (the implementation is
+                            # the same), it is safe to continue.
+                            break
+                else:
+                    raise NotImplementedError(
+                        "Can not inline subroutine '{0}' because another, "
+                        "different, subroutine with the same name already "
+                        "exists and versioning of module-inlined subroutines "
+                        "is not implemented yet.".format(self._name))
+
     def gen_code(self, parent):
         '''
         Generates the f2pygen AST of the Fortran for this kernel call and
         writes the kernel itself to file if it has been transformed.
 
         :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
-        '''
-        from psyclone.f2pygen import CallGen, UseGen
+        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
+        '''
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
 
-        parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list()))
+        # Add the subroutine call with the necessary arguments
+        arguments = self.arguments.raw_arg_list()
+        parent.add(CallGen(parent, self._name, arguments))
 
+        # Also add the subroutine declaration, this can just be the import
+        # statement, or the whole subroutine inlined into the module.
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+        else:
+            self._insert_module_inlined_kernel(parent)
 
     def gen_arg_setter_code(self, parent):
         '''
@@ -2828,8 +1786,8 @@ class CodedKern(Kern):
             return self._fp2_ast
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
-        # Create an fparser2 Fortran2003 parser
-        my_parser = parser.ParserFactory().create()
+        # Create an fparser2 Fortran2008 parser
+        my_parser = parser.ParserFactory().create(std="f2008")
         # Parse that Fortran using our parser
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)
@@ -2876,7 +1834,7 @@ class CodedKern(Kern):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified and not self.root.opencl:
+        if not self.modified and not self.ancestor(InvokeSchedule).opencl:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -2903,7 +1861,7 @@ class CodedKern(Kern):
             # TODO: Issue 499, this works as an OpenCL quickfix but it needs
             # to be generalized and be consistent with the '--kernel-renaming'
             # conventions.
-            if self.root.opencl:
+            if self.ancestor(InvokeSchedule).opencl:
                 if self.name.lower().endswith("_code"):
                     new_suffix += "_" + self.name[:-5]
                 else:
@@ -2912,7 +1870,7 @@ class CodedKern(Kern):
             new_suffix += "_{0}".format(name_idx)
 
             # Choose file extension
-            if self.root.opencl:
+            if self.ancestor(InvokeSchedule).opencl:
                 new_name = old_base_name + new_suffix + ".cl"
             else:
                 new_name = old_base_name + new_suffix + "_mod.f90"
@@ -2937,8 +1895,8 @@ class CodedKern(Kern):
         # We can't rename OpenCL kernels as the Invoke set_args functions
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  PSYCLONE_KERNELS_FILE environment variable)
-        if not self.root.opencl:
+        # the  FORTCL_KERNELS_FILE environment variable)
+        if not self.ancestor(InvokeSchedule).opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
                 # that the PSyIR has been modified and will be used to
@@ -2959,17 +1917,16 @@ class CodedKern(Kern):
         # If this kernel is being module in-lined then we do not need to
         # write it to file.
         if self.module_inline:
-            # TODO #229. We cannot currently inline transformed kernels
-            # (because that requires an fparser1 AST and we only have an
-            # fparser2 AST of the modified kernel) so raise an error.
-            raise NotImplementedError("Cannot module-inline a transformed "
-                                      "kernel ({0})".format(self.name))
+            # TODO #1013: However, the file is already created (opened) and
+            # currently this file is needed for the name versioning, so this
+            # will create an unnecessary file.
+            os.close(fdesc)
+            return
 
-        if self.root.opencl:
+        if self.ancestor(InvokeSchedule).opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
-            self._prepare_opencl_kernel_schedule()
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -2980,7 +1937,6 @@ class CodedKern(Kern):
             # limit the line length). This test is only required
             # whilst old style (direct fp2) transformations still
             # exist.
-            from psyclone.psyir.backend.fortran import FortranWriter
             fortran_writer = FortranWriter()
             # Start from the root of the schedule as we want to output
             # any module information surrounding the kernel subroutine
@@ -3026,7 +1982,7 @@ class CodedKern(Kern):
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes.
+        KernelSchedule nodes as well as the kernel metadata declaration.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -3048,11 +2004,27 @@ class CodedKern(Kern):
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
 
-    def _prepare_opencl_kernel_schedule(self):
-        ''' Generic method to introduce kernel modifications when generating
-        OpenCL kernels. By default this does nothing, but it can be
-        sub-classed by the APIs to introduce kernel modifications.
-        '''
+        # Change the name of the symbol
+        try:
+            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
+            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
+                                                          new_kern_name)
+        except KeyError:
+            # TODO #1013. Right now not all tests have PSyIR symbols because
+            # some only expect f2pygen generation.
+            pass
+
+        # TODO #1013. This needs re-doing properly - in particular the
+        # RoutineSymbol associated with the kernel needs to be replaced. For
+        # now we only fix the specific case of the name of the kernel routine
+        # in the kernel metadata as otherwise various compilation tests
+        # fail.
+        container_table = kern_schedule.root.symbol_table
+        for sym in container_table.local_datatypesymbols:
+            if isinstance(sym.datatype, UnknownFortranType):
+                orig_declaration = sym.datatype.declaration
+                sym.datatype.declaration = orig_declaration.replace(
+                    orig_kern_name, new_kern_name)
 
     def _rename_ast(self, suffix):
         '''
@@ -3145,20 +2117,20 @@ class InlinedKern(Kern):
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     '''
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
-    _colour_key = "InlinedKern"
+    _colour = "magenta"
 
-    def __init__(self, psyir_nodes):
+    def __init__(self, psyir_nodes, parent=None):
         # pylint: disable=non-parent-init-called, super-init-not-called
-        Node.__init__(self)
+        Node.__init__(self, parent=parent)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
-        # Update the parent info for each node we've moved
-        for node in schedule.children:
-            node.parent = schedule
+        self._arguments = None
 
     @staticmethod
     def _validate_child(position, child):
@@ -3172,21 +2144,6 @@ class InlinedKern(Kern):
 
         '''
         return position == 0 and isinstance(child, Schedule)
-
-    def node_str(self, colour=True):
-        '''
-        Creates a class-specific text description of this node, optionally
-        including colour control codes (for coloured output in a terminal).
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: the class-specific text describing this node.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
-
-    def __str__(self):
-        return self.coloured_name(False)
 
     @abc.abstractmethod
     def local_vars(self):
@@ -3204,7 +2161,7 @@ class BuiltIn(Kern):
     '''
     # Textual description of the node.
     _text_name = "BuiltIn"
-    _colour_key = "BuiltIn"
+    _colour = "magenta"
 
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
@@ -3217,8 +2174,12 @@ class BuiltIn(Kern):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "builtin_{0}_".format(self.name) + str(self.abs_position)
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        _, position = self._find_position(self.ancestor(Routine))
+        return "builtin_{0}_{1}".format(self.name, str(position))
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
@@ -3259,10 +2220,13 @@ class Arguments(object):
         raise NotImplementedError("Arguments.raw_arg_list must be "
                                   "implemented in sub-class")
 
-    def clear_cached_data(self):
-        '''This function is called to clear all cached data, which
-        enforces that raw_arg_list is recomputed.'''
-        self._raw_arg_list = []
+    @abc.abstractmethod
+    def psyir_expressions(self):
+        '''
+        :returns: the PSyIR expressions representing this Argument list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
 
     @property
     def names(self):
@@ -3481,21 +2445,22 @@ class DataAccess(object):
 
 
 class Argument(object):
-    ''' Argument base class '''
+    '''
+    Argument base class. Captures information on an argument that is passed
+    to a Kernel from an Invoke.
 
+    :param call: the kernel call that this argument is associated with.
+    :type call: :py:class:`psyclone.psyGen.Kern`
+    :param arg_info: Information about this argument collected by \
+                     the parser.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param access: the way in which this argument is accessed in \
+                   the 'Kern'. Valid values are specified in the config \
+                   object of the current API.
+    :type access: str
+
+    '''
     def __init__(self, call, arg_info, access):
-        '''
-        :param call: the call that this argument is associated with.
-        :type call: :py:class:`psyclone.psyGen.Kern`
-        :param arg_info: Information about this argument collected by \
-                         the parser.
-        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param access: the way in which this argument is accessed in \
-                 the 'Kern'. Valid values are specified in the config object \
-                 of the current API.
-        :type access: str
-
-        '''
         self._call = call
         if arg_info is not None:
             self._text = arg_info.text
@@ -3507,7 +2472,13 @@ class Argument(object):
             self._orig_name = ""
             self._form = ""
             self._is_literal = False
+        # Initialise access
         self._access = access
+        # Default the precision, data type and module to 'None' (no
+        # explicit property specified)
+        self._precision = None
+        self._data_type = None
+        self._module_name = None
 
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
@@ -3517,12 +2488,53 @@ class Argument(object):
             self._text = None
         else:
             # There are unit-tests where we create Arguments without an
-            # associated call.
-            if self._call:
+            # associated call or InvokeSchedule.
+            if self._call and self._call.ancestor(InvokeSchedule):
+
+                symtab = self._call.ancestor(InvokeSchedule).symbol_table
+
+                # Keep original list of arguments
+                previous_arguments = symtab.argument_list
+
+                # Find the tag to use
                 tag = "AlgArgs_" + self._text
-                # TODO #720: Deprecate name_from_tag method
-                self._name = self._call.root.symbol_table.name_from_tag(
-                    tag, self._orig_name)
+
+                # Prepare the Argument Interface Access value
+                argument_access = ArgumentInterface.Access.READWRITE
+
+                # Find the tag or create a new symbol with expected attributes
+                new_argument = symtab.symbol_from_tag(
+                    tag, root_name=self._orig_name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype(),
+                    interface=ArgumentInterface(argument_access))
+                self._name = new_argument.name
+
+                # Unless the argument already exists with another interface
+                # (e.g. import) they come from the invoke argument list
+                if (isinstance(new_argument.interface, ArgumentInterface) and
+                        new_argument not in previous_arguments):
+                    symtab.specify_argument_list(previous_arguments +
+                                                 [new_argument])
+
+    @abc.abstractmethod
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+
+    def infer_datatype(self):
+        ''' Infer the datatype of this argument using the API rules. If no
+        specialisation of this method has been provided make the type
+        DeferredType for now (it may be provided later in the execution).
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.DataType`
+
+        '''
+        # pylint: disable=no-self-use
+        return DeferredType()
 
     def __str__(self):
         return self._name
@@ -3590,6 +2602,38 @@ class Argument(object):
         '''
 
     @property
+    def precision(self):
+        '''
+        :returns: the precision of this argument. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+        '''
+        return self._precision
+
+    @property
+    def data_type(self):
+        '''
+        :returns: the data type of this argument. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+        '''
+        return self._data_type
+
+    @property
+    def module_name(self):
+        '''
+        :returns: the name of the Fortran module that contains definitions \
+                  for the argument data type. Default value is None, \
+                  explicit implementation is left to a specific API.
+        :rtype: str or NoneType
+
+
+        '''
+        return self._module_name
+
+    @property
     def call(self):
         ''' Return the call that this argument is associated with '''
         return self._call
@@ -3639,7 +2683,7 @@ class Argument(object):
         reader then return an empty list.
 
         :param ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False.
+            involving a halo exchange are ignored. Defaults to `False`.
         :type ignore_halos: bool
 
         :returns: a list of arguments that have a preceding write \
@@ -3890,14 +2934,16 @@ class TransInfo(object):
             self._0_to_n = DummyTransformation()  # only here for pyreverse!
 
         # TODO #620: This need to be improved to support the new
-        # layout, where transformations are in different directories and files
+        # layout, where transformations are in different directories and files.
+        # Leaving local imports so they will be removed once TransInfo is
+        # replaced.
+        # pylint: disable=import-outside-toplevel
+        from psyclone import transformations
         if module is None:
             # default to the transformation module
-            from psyclone import transformations
             module = transformations
         if base_class is None:
-            from psyclone import psyGen
-            base_class = psyGen.Transformation
+            base_class = Transformation
         # find our transformations
         self._classes = self._find_subclasses(module, base_class)
 
@@ -3908,6 +2954,18 @@ class TransInfo(object):
             my_object = my_class()
             self._objects.append(my_object)
             self._obj_map[my_object.name] = my_object
+        # TODO #620:
+        # Transformations that are in psyir and other subdirectories
+        # are not found by TransInfo, so we add some that are used in
+        # tests and examples explicitly. I'm leaving this import here
+        # so it is obvious it can be removed.
+        from psyclone.psyir.transformations import LoopFuseTrans
+        my_object = LoopFuseTrans()
+        # Only add the loop-fuse statement if base_class and module
+        # match for the loop fusion transformation.
+        if isinstance(my_object, base_class) and module == transformations:
+            self._objects.append(LoopFuseTrans())
+            self._obj_map["LoopFuseTrans"] = self._objects[-1]
 
     @property
     def list(self):
@@ -3959,12 +3017,29 @@ class TransInfo(object):
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
     '''Abstract baseclass for a transformation. Uses the abc module so it
-        can not be instantiated. '''
+    can not be instantiated.
 
-    @abc.abstractproperty
+    :param writer: optional argument to set the type of writer to \
+        provide to a transformation for use when constructing error \
+        messages. Defaults to FortranWriter().
+    :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
+    '''
+    def __init__(self, writer=FortranWriter()):
+        if not isinstance(writer, PSyIRVisitor):
+            raise TypeError(
+                "The writer argument to a transformation should be a "
+                "PSyIRVisitor, but found '{0}'.".format(type(writer).__name__))
+        self._writer = writer
+
+    @property
     def name(self):
-        '''Returns the name of the transformation.'''
-        return
+        '''
+        :returns: the transformation's class name.
+        :rtype: str
+
+        '''
+        return type(self).__name__
 
     @abc.abstractmethod
     def apply(self, node, options=None):
@@ -4033,6 +3108,8 @@ class Transformation(object):
 
 class DummyTransformation(Transformation):
     '''Dummy transformation use elsewhere to keep pyreverse happy.'''
+
+    @property
     def name(self):
         return
 
@@ -4040,117 +3117,8 @@ class DummyTransformation(Transformation):
         return None, None
 
 
-class ACCKernelsDirective(ACCDirective):
-    '''
-    Class representing the !$ACC KERNELS directive in the PSyIR.
-
-    :param children: the PSyIR nodes to be enclosed in the Kernels region \
-                     and which are therefore children of this node.
-    :type children: list of sub-classes of \
-                    :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param bool default_present: whether or not to add the "default(present)" \
-                                 clause to the kernels directive.
-
-    :raises NotImplementedError: if default_present is False.
-
-    '''
-    def __init__(self, children=None, parent=None, default_present=True):
-        super(ACCKernelsDirective, self).__init__(children=children,
-                                                  parent=parent)
-        self._default_present = default_present
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this node in a dag.
-        :rtype: str
-        '''
-        return "ACC_kernels_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC Kernels]"
-
-    def gen_code(self, parent):
-        '''
-        Generate the f2pygen AST entries in the Schedule for this
-        OpenACC Kernels directive.
-
-        :param parent: the parent Node in the Schedule to which to add this \
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        data_movement = ""
-        if self._default_present:
-            data_movement = "default(present)"
-        parent.add(DirectiveGen(parent, "acc", "begin", "kernels",
-                                data_movement))
-        for child in self.children:
-            child.gen_code(parent)
-        parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this ACC kernels
-        directive.
-        '''
-        data_movement = None
-        if self._default_present:
-            data_movement = "present"
-        self._add_region(start_text="KERNELS", end_text="END KERNELS",
-                         data_movement=data_movement)
-
-
-class ACCDataDirective(ACCDirective):
-    '''
-    Class representing the !$ACC DATA ... !$ACC END DATA directive
-    in the PSyIR.
-
-    '''
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node.
-        :rtype: str
-        '''
-        return "ACC_data_" + str(self.abs_position)
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC DATA]"
-
-    def gen_code(self, _):
-        '''
-        :raises InternalError: the ACC data directive is currently only \
-                               supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
-                               fparser2 parse tree.
-        '''
-        raise InternalError(
-            "ACCDataDirective.gen_code should not have been called.")
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenACC Data
-        directive.
-
-        '''
-        self._add_region(start_text="DATA", end_text="END DATA",
-                         data_movement="analyse")
+# For Sphinx AutoAPI documentation generation
+__all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
+           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
+           'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
+           'TransInfo', 'Transformation', 'DummyTransformation']

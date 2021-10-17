@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,40 +40,13 @@
 This module contains the abstract Node implementation.
 
 '''
+from __future__ import print_function
 
-import abc
-from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface
+import copy
+import six
+
 from psyclone.errors import GenerationError, InternalError
-
-
-#: Colour map to use when writing Invoke schedule to terminal. (Requires
-#: that the termcolor package be installed. If it isn't then output is not
-#: coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "white",
-                       "Loop": "red",
-                       "GlobalSum": "cyan",
-                       "Directive": "green",
-                       "HaloExchange": "blue",
-                       "HaloExchangeStart": "yellow",
-                       "HaloExchangeEnd": "yellow",
-                       "BuiltIn": "magenta",
-                       "CodedKern": "magenta",
-                       "InlinedKern": "magenta",
-                       "PSyData": "green",
-                       "Profile": "green",
-                       "Extract": "green",
-                       "ReadOnlyVerify": "green",
-                       "NanTest": "green",
-                       "If": "red",
-                       "Assignment": "blue",
-                       "Range": "white",
-                       "Reference": "yellow",
-                       "Operation": "blue",
-                       "Literal": "yellow",
-                       "Return": "yellow",
-                       "CodeBlock": "red",
-                       "Container": "green",
-                       "Call": "cyan"}
+from psyclone.psyir.symbols import SymbolError
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -167,6 +140,65 @@ class ChildrenList(list):
 
             raise GenerationError(errmsg)
 
+    def _check_is_orphan(self, item):
+        '''
+        Checks that the provided item is an orphan (has no parent or the parent
+        was predefined in the constructor but the other end of connection has
+        not finalised until now).
+
+        :param item: object that needs to be validated.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: if the given item is not an orphan.
+        :raises GenerationError: if the item had been provided with a parent \
+            argument on its constructor and this operation is trying to \
+            make its parent a different node.
+
+        '''
+        if item.parent and not item.has_constructor_parent:
+            raise GenerationError(
+                "Item '{0}' can't be added as child of '{1}' because it is not"
+                " an orphan. It already has a '{2}' as a parent.".format(
+                    item.coloured_name(False),
+                    self._node_reference.coloured_name(False),
+                    item.parent.coloured_name(False)))
+        if item.parent and item.has_constructor_parent:
+            if item.parent is not self._node_reference:
+                raise GenerationError(
+                    "'{0}' cannot be set as parent of '{1}' because its "
+                    "constructor predefined the parent reference to a "
+                    "different '{2}' node."
+                    .format(self._node_reference.coloured_name(False),
+                            item.coloured_name(False),
+                            item.parent.coloured_name(False)))
+
+    def _set_parent_link(self, node):
+        '''
+        Set parent connection of the given node to this ChildrenList's node.
+
+        :param node: node for which the parent connection need to be updated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # pylint: disable=protected-access
+        node._parent = self._node_reference
+        node._has_constructor_parent = False
+
+    @staticmethod
+    def _del_parent_link(node):
+        '''
+        Delete parent connection of the given node.
+
+        :param node: node for which the parent connection need to be updated.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # This is done from here with protected access because it's the parent
+        # which is in charge of maintaining its children connections.
+        # pylint: disable=protected-access
+        node._parent = None
+        node._has_constructor_parent = False
+
     def append(self, item):
         ''' Extends list append method with children node validation.
 
@@ -175,7 +207,9 @@ class ChildrenList(list):
 
         '''
         self._validate_item(len(self), item)
+        self._check_is_orphan(item)
         super(ChildrenList, self).append(item)
+        self._set_parent_link(item)
 
     def __setitem__(self, index, item):
         ''' Extends list __setitem__ method with children node validation.
@@ -186,7 +220,10 @@ class ChildrenList(list):
 
         '''
         self._validate_item(index, item)
+        self._check_is_orphan(item)
+        self._del_parent_link(self[index])
         super(ChildrenList, self).__setitem__(index, item)
+        self._set_parent_link(item)
 
     def insert(self, index, item):
         ''' Extends list insert method with children node validation.
@@ -198,10 +235,12 @@ class ChildrenList(list):
         '''
         positiveindex = index if index >= 0 else len(self) - index
         self._validate_item(positiveindex, item)
+        self._check_is_orphan(item)
         # Check that all displaced items will still in valid positions
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
         super(ChildrenList, self).insert(index, item)
+        self._set_parent_link(item)
 
     def extend(self, items):
         ''' Extends list extend method with children node validation.
@@ -212,7 +251,10 @@ class ChildrenList(list):
         '''
         for index, item in enumerate(items):
             self._validate_item(len(self) + index, item)
+            self._check_is_orphan(item)
         super(ChildrenList, self).extend(items)
+        for item in items:
+            self._set_parent_link(item)
 
     # Methods below don't insert elements but have the potential to displace
     # or change the order of the items in-place.
@@ -225,6 +267,7 @@ class ChildrenList(list):
         positiveindex = index if index >= 0 else len(self) - index
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(self[index])
         super(ChildrenList, self).__delitem__(index)
 
     def remove(self, item):
@@ -236,6 +279,7 @@ class ChildrenList(list):
         '''
         for position in range(self.index(item) + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(item)
         super(ChildrenList, self).remove(item)
 
     def pop(self, index=-1):
@@ -249,8 +293,10 @@ class ChildrenList(list):
 
         '''
         positiveindex = index if index >= 0 else len(self) - index
-        for position in range(positiveindex, len(self)):
+        # Check if displaced items after 'positiveindex' will still be valid
+        for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(self[index])
         return super(ChildrenList, self).pop(index)
 
     def reverse(self):
@@ -294,13 +340,18 @@ class Node(object):
     # properties for each of them and chain the ABC @abstractmethod annotation.
     _children_valid_format = None
     _text_name = None
-    _colour_key = None
+    _colour = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
         self._children = ChildrenList(self, self._validate_child,
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
+        # Keep a record of whether a parent node was supplied when constructing
+        # this object. In this case it still won't appear in the parent's
+        # children list. When both ends of the reference are connected this
+        # will become False.
+        self._has_constructor_parent = parent is not None
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
@@ -355,17 +406,24 @@ class Node(object):
         :rtype: str
         '''
         if not self._text_name:
-            raise NotImplementedError(
-                "_text_name is an abstract attribute which needs to be "
-                "given a string value in the concrete class '{0}'."
-                "".format(type(self).__name__))
+            name_string = type(self).__name__
+        else:
+            name_string = self._text_name
         if colour:
+            if self._colour is None:
+                raise NotImplementedError(
+                    "The _colour attribute is abstract so needs to be given "
+                    "a string value in the concrete class '{0}'."
+                    "".format(type(self).__name__))
             try:
-                return colored(self._text_name,
-                               SCHEDULE_COLOUR_MAP[self._colour_key])
-            except KeyError:
-                pass
-        return self._text_name
+                return colored(name_string, self._colour)
+            except KeyError as info:
+                message = (
+                    "The _colour attribute in class '{0}' has been set to a "
+                    "colour ('{1}') that is not supported by the termcolor "
+                    "package.".format(type(self).__name__, self._colour))
+                six.raise_from(InternalError(message), info)
+        return name_string
 
     def node_str(self, colour=True):
         '''
@@ -378,7 +436,6 @@ class Node(object):
         '''
         return self.coloured_name(colour) + "[]"
 
-    @abc.abstractmethod
     def __str__(self):
         return self.node_str(False)
 
@@ -491,8 +548,11 @@ class Node(object):
         edges (but their direction is reversed so the layout looks
         reasonable) and parent child dependencies are represented as
         blue edges.'''
-        # pylint: disable=too-many-branches
+        # Import outside top-level to avoid circular dependencies.
+        # pylint: disable=too-many-branches, import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.routine import Routine
+
         # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
@@ -518,9 +578,9 @@ class Node(object):
                 remote_name += start_postfix
             # Create the forward dependence edge in green
             graph.edge(local_name, remote_name, color="green")
-        elif self.parent:
-            # this node is a child of another node and has no forward
-            # dependence. Therefore connect it to the the end vertex
+        elif not isinstance(self, Routine):
+            # If this node is not a Routine (where the DAG context finishes)
+            # and has no forward dependence, connect it to the end vertex
             # of its parent. Use blue to indicate a parent child
             # relationship.
             remote_name = self.parent.dag_name + end_postfix
@@ -544,9 +604,9 @@ class Node(object):
                 remote_name += end_postfix
             # Create the backward dependence edge in red.
             graph.edge(remote_name, local_name, color="red")
-        elif self.parent:
-            # this node has a parent and has no backward
-            # dependence. Therefore connect it to the the start vertex
+        elif not isinstance(self, Routine):
+            # If this node is not a Routine (where the DAG context finishes)
+            # and has no backward dependence, connect it to the start vertex
             # of its parent. Use blue to indicate a parent child
             # relationship.
             remote_name = self.parent.dag_name + start_postfix
@@ -563,8 +623,23 @@ class Node(object):
 
     @property
     def dag_name(self):
-        '''Return the base dag name for this node.'''
-        return "node_" + str(self.abs_position)
+        '''Return the dag name for this node. This includes the name of the
+        class and the index of its relative position to the parent Routine. If
+        no parent Routine is found, the index used is the absolute position
+        in the tree.
+
+        :returns: the dag name for this node.
+        :rtype: str
+
+        '''
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Routine
+        if self.ancestor(Routine):
+            _, position = self._find_position(self.ancestor(Routine))
+        else:
+            position = self.abs_position
+        return self.coloured_name(False) + "_" + str(position)
 
     @property
     def args(self):
@@ -601,9 +676,9 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                if self.sameParent(node):
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
-                    # the same parent as me
+                    # the same parent as me (but its not me)
                     if not dependence:
                         # this is the first dependence found so keep it
                         dependence = node
@@ -638,9 +713,9 @@ class Node(object):
                 # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
-                if self.sameParent(node):
+                if self.sameParent(node) and node is not self:
                     # The remote node (or one of its ancestors) shares
-                    # the same parent as me
+                    # the same parent as me (but its not me)
                     if not dependence:
                         # this is the first dependence found so keep it
                         dependence = node
@@ -752,11 +827,12 @@ class Node(object):
         '''
         from psyclone.psyir.nodes import Schedule
         if not isinstance(self.parent, Schedule) or index is None:
-            print("{0}{1}".format(self.indent(indent),
-                                  self.node_str(colour=True)))
+            result = "{0}{1}".format(self.indent(indent),
+                                     self.node_str(colour=True))
         else:
-            print("{0}{1}: {2}".format(self.indent(indent), index,
-                                       self.node_str(colour=True)))
+            result = "{0}{1}: {2}".format(self.indent(indent), index,
+                                          self.node_str(colour=True))
+        print(six.text_type(result))
         for idx, entity in enumerate(self._children):
             entity.view(indent=indent + 1, index=idx)
 
@@ -793,28 +869,35 @@ class Node(object):
         ''' Set a new children list.
 
         :param my_children: new list of children.
-        :type my_children: list or NoneType
+        :type my_children: list
 
-        :raises TypeError: if the given children parameter is not a list \
-            nor NoneType.
+        :raises TypeError: if the given children parameter is not a list.
         '''
-        if my_children is None:
-            self._children = None
-        elif isinstance(my_children, list):
+        if isinstance(my_children, list):
+            self.pop_all_children()  # First remove existing children if any
             self._children = ChildrenList(self, self._validate_child,
                                           self._children_valid_format)
             self._children.extend(my_children)
         else:
             raise TypeError("The 'my_children' parameter of the node.children"
-                            " setter must be a list or None.")
+                            " setter must be a list.")
 
     @property
     def parent(self):
+        '''
+        :returns: the parent node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        '''
         return self._parent
 
-    @parent.setter
-    def parent(self, my_parent):
-        self._parent = my_parent
+    @property
+    def has_constructor_parent(self):
+        '''
+        :returns: whether the constructor has predefined a parent connection
+            but the parent's children list doesn't include this node yet.
+        :rtype: bool
+        '''
+        return self._has_constructor_parent
 
     @property
     def position(self):
@@ -836,13 +919,13 @@ class Node(object):
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
 
-        :returns: absolute position of a Node in the tree
+        :returns: absolute position of a Node in the tree.
         :rtype: int
 
-        :raises InternalError: if the absolute position cannot be found
+        :raises InternalError: if the absolute position cannot be found.
+
         '''
-        from psyclone.psyir.nodes import Schedule
-        if self.root == self and isinstance(self.root, Schedule):
+        if self.root == self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
@@ -851,17 +934,26 @@ class Node(object):
                                 "in the tree")
         return position
 
-    def _find_position(self, children, position):
+    def _find_position(self, children, position=None):
         '''
         Recurse through the tree depth first returning position of
         a Node if found.
-        :param children: list of Nodes which are children of this Node
+
+        :param children: list of Nodes which are children of this Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :returns: position of the Node in the tree
-        :rtype: int
-        :raises InternalError: if the starting position is < 0
+        :param int position: start counting from this position. Defaults to \
+            START_POSITION.
+
+        :returns: if the self has been found in the provided children list \
+            and its relative position.
+        :rtype: bool, int
+
+        :raises InternalError: if the starting position is < 0.
+
         '''
-        if position < self.START_POSITION:
+        if position is None:
+            position = self.START_POSITION
+        elif position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
                 "instead of {1}.".format(position, self.START_POSITION))
@@ -877,7 +969,17 @@ class Node(object):
 
     @property
     def root(self):
-        node = self
+        '''
+        :returns: the root node of the PSyIR tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Starting with 'self.parent' instead of 'node = self' avoids many
+        # false positive pylint issues that assume self.root type would be
+        # the same as self type.
+        if self.parent is None:
+            return self
+        node = self.parent
         while node.parent is not None:
             node = node.parent
         return node
@@ -983,31 +1085,66 @@ class Node(object):
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
-    def following(self):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after me in
-        the schedule. Ordering is depth first.
+    def following(self, routine=True):
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after this
+        node. Ordering is depth first. If the `routine` argument is
+        set to `True` then nodes are only returned if they are
+        descendents of this node's closest ancestor routine if one
+        exists.
 
-        :returns: a list of nodes
+        :param bool routine: an optional (default `True`) argument \
+            that only returns nodes that are within this node's \
+            closest ancestor Routine node if one exists.
+
+        :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        all_nodes = self.root.walk(Node)
+        root = self.root
+        if routine:
+            # Import here to avoid circular dependencies
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Routine
+            # If there is an ancestor Routine node then only return nodes
+            # that are within it.
+            routine_node = self.ancestor(Routine)
+            if routine_node:
+                root = routine_node
+        all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         return all_nodes[position+1:]
 
-    def preceding(self, reverse=None):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before me
-        in the schedule. Ordering is depth first. If the `reverse` argument
-        is set to `True` then the node ordering is reversed
-        i.e. returning the nodes closest to me first
+    def preceding(self, reverse=False, routine=True):
+        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before this
+        node. Ordering is depth first. If the `reverse` argument is
+        set to `True` then the node ordering is reversed
+        i.e. returning the nodes closest to this node first. if the
+        `routine` argument is set to `True` then nodes are only
+        returned if they are descendents of this node's closest
+        ancestor routine if one exists.
 
-        :param: reverse: An optional, default `False`, boolean flag
-        :type: reverse: bool
-        :returns: A list of nodes
+        :param bool reverse: an optional (default `False`) argument \
+            that reverses the order of any returned nodes (i.e. makes \
+            them 'closest first' if set to true.
+        :param bool routine: an optional (default `True`) argument \
+            that only returns nodes that are within this node's \
+            closest ancestor Routine node if one exists.
+
+        :returns: a list of nodes.
         :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        all_nodes = self.root.walk(Node)
+        root = self.root
+        if routine:
+            # Import here to avoid circular dependencies
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Routine
+            # If there is an ancestor Routine node then only return nodes
+            # that are within it.
+            routine_node = self.ancestor(Routine)
+            if routine_node:
+                root = routine_node
+        all_nodes = root.walk(Node)
         position = all_nodes.index(self)
         nodes = all_nodes[:position]
         if reverse:
@@ -1055,26 +1192,25 @@ class Node(object):
         ''':returns: True if this Node is within an OpenMP parallel region.
 
         '''
-        from psyclone.psyGen import OMPParallelDirective
+        from psyclone.psyir.nodes import OMPParallelDirective
         omp_dir = self.ancestor(OMPParallelDirective)
         if omp_dir:
             return True
         return False
 
-    def gen_code(self, parent):
-        '''Abstract base class for code generation function.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    def lower_to_language_level(self):
         '''
-        raise NotImplementedError("Please implement me")
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. The generic implementation only recurses down
+        to its children, but this method must be re-implemented by Nodes
+        that represent high-level concepts.
 
-    def update(self):
-        ''' By default we assume there is no need to update the existing
-        fparser2 AST which this Node represents. We simply call the update()
-        method of any children. '''
-        for child in self._children:
-            child.update()
+        '''
+        # We recurse only over the original children (hence [:]), this is
+        # because new nodes may be inserted during the lowering, but these
+        # must already be language-level.
+        for child in self.children[:]:
+            child.lower_to_language_level()
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
@@ -1087,186 +1223,135 @@ class Node(object):
         for child in self._children:
             child.reference_accesses(var_accesses)
 
-    def _insert_schedule(self, children=None, ast=None):
-        '''
-        Utility method to insert a Schedule between this Node and the
-        supplied list of children.
-
-        :param children: nodes which will become children of the \
-                         new Schedule.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param ast: reference to fparser2 parse tree for associated \
-                    Fortran code.
-        :type ast: :py:class:`fparser.two.utils.Base`
-
-        :returns: the new Schedule node.
-        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
-        '''
-        from psyclone.psyir.nodes import Schedule
-        sched = Schedule(children=children, parent=self)
-        if children:
-            # If we have children then set the Schedule's AST pointer to
-            # point to the AST associated with them.
-            sched.ast = children[0].ast
-            for child in children:
-                child.parent = sched
-        else:
-            sched.ast = ast
-        return sched
-
     @property
     def scope(self):
-        '''Schedule and Container nodes allow symbols to be scoped via an
-        attached symbol table. This property returns the closest
-        ancestor Schedule or Container node including self.
+        ''' Some nodes (e.g. Schedule and Container) allow symbols to be
+        scoped via an attached symbol table. This property returns the closest
+        ScopingNode node including self.
 
-        :returns: the closest ancestor Schedule or Container node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :returns: the closest ancestor ScopingNode node.
+        :rtype: :py:class:`psyclone.psyir.node.ScopingNode`
 
-        :raises SymbolError: if there is no Schedule or Container ancestor.
+        :raises SymbolError: if there is no ScopingNode ancestor.
 
         '''
         # These imports have to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Schedule, Container
-        node = self.ancestor((Container, Schedule), include_self=True)
+        from psyclone.psyir.nodes.scoping_node import ScopingNode
+        node = self.ancestor(ScopingNode, include_self=True)
         if node:
             return node
         raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
-    def find_or_create_symbol(self, name, scope_limit=None,
-                              visibility=Symbol.DEFAULT_VISIBILITY):
-        '''Returns the symbol with the name 'name' from a symbol table
-        associated with this node or one of its ancestors.  If the symbol
-        is not found and there are no ContainerSymbols with wildcard imports
-        then an exception is raised. However, if there are one or more
-        ContainerSymbols with wildcard imports (which could therefore be
-        bringing the symbol into scope) then a new Symbol with the
-        specified visibility but of unknown interface is created and
-        inserted in the most local SymbolTable that has such an import.
-        The scope_limit variable further limits the symbol table search so
-        that the search through ancestor nodes stops when the scope_limit node
-        is reached i.e. ancestors of the scope_limit node are not searched.
+    def replace_with(self, node):
+        '''Removes self, and its descendants, from the PSyIR tree to which it
+        is connected, and replaces it with the supplied node (and its
+        descendants).
 
-        :param str name: the name of the symbol.
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
-        :param visibility: the visibility to give to any new symbol.
-        :type visibility: :py:class:`psyclone.Symbol.Visbility`
+        :param node: the node that will replace self in the PSyIR \
+            tree.
+        :type node: :py:class:`psyclone.psyir.nodes.node`
 
-        :returns: the matching symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        :raises TypeError: if the supplied scope_limit is not a Node.
-        :raises ValueError: if the supplied scope_limit node is not an \
-            ancestor of the supplied node.
-        :raises TypeError: if the supplied visibility is not of \
-            `Symbol.Visibility` type.
-        :raises SymbolError: if no matching symbol is found and there are \
-            no ContainerSymbols from which it might be brought into scope.
+        :raises TypeError: if the argument 'node' is not a Node.
+        :raises GenerationError: if this node does not have a parent.
+        :raises GenerationError: if the argument 'node' has a parent.
 
         '''
-        if scope_limit:
-            # Validate the supplied scope_limit
-            if not isinstance(scope_limit, Node):
-                raise TypeError(
-                    "The scope_limit argument '{0}' provided to the "
-                    "find_or_create_symbol method, is not of type `Node`."
-                    "".format(str(scope_limit)))
-
-            # Check that the scope_limit Node is an ancestor of this
-            # Reference Node and raise an exception if not.
-            mynode = self.parent
-            while mynode is not None:
-                if mynode is scope_limit:
-                    # The scope_limit node is an ancestor of the
-                    # supplied node.
-                    break
-                mynode = mynode.parent
-            else:
-                # The scope_limit node is not an ancestor of the
-                # supplied node so raise an exception.
-                raise ValueError(
-                    "The scope_limit node '{0}' provided to the "
-                    "find_or_create_symbol method, is not an ancestor of this "
-                    "node '{1}'.".format(str(scope_limit), str(self)))
-
-        # Validate supplied visibility
-        if not isinstance(visibility, Symbol.Visibility):
+        if not isinstance(node, Node):
             raise TypeError(
-                "The visibility argument '{0}' provided to the "
-                "find_or_create_symbol method should be of `Symbol."
-                "Visibility` type but instead is: '{1}'."
-                "".format(str(visibility), type(visibility).__name__))
+                "The argument node in method replace_with in the Node class "
+                "should be a Node but found '{0}'."
+                "".format(type(node).__name__))
+        if not self.parent:
+            raise GenerationError(
+                "This node should have a parent if its replace_with method "
+                "is called.")
+        if node.parent is not None:
+            raise GenerationError(
+                "The parent of argument node in method replace_with in the "
+                "Node class should be None but found '{0}'."
+                "".format(type(node.parent).__name__))
 
-        # Keep a list of (symbol table, container) tuples for containers that
-        # have wildcard imports into the current scope and therefore may
-        # contain the symbol we're searching for.
-        possible_containers = []
-        # Keep a reference to the most local SymbolTable with a wildcard
-        # import in case we need to create a Symbol.
-        first_symbol_table = None
-        test_node = self
+        self.parent.children[self.position] = node
 
-        # Iterate over ancestor Nodes of this Node.
-        while test_node:
-            # For simplicity, test every Node for the existence of a
-            # SymbolTable (rather than checking for the particular
-            # Node types which we know to have SymbolTables).
-            if hasattr(test_node, 'symbol_table'):
-                # This Node does have a SymbolTable.
-                symbol_table = test_node.symbol_table
+    def pop_all_children(self):
+        ''' Remove all children of this node and return them as a list.
 
-                try:
-                    # If the reference matches a Symbol in this
-                    # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(name, check_ancestors=False)
-                except KeyError:
-                    # The Reference Node does not match any Symbols in
-                    # this SymbolTable. Does this SymbolTable have any
-                    # wildcard imports?
-                    for csym in symbol_table.containersymbols:
-                        if csym.wildcard_import:
-                            possible_containers.append((symbol_table, csym))
-                            if not first_symbol_table:
-                                first_symbol_table = symbol_table
+        :returns: all the children of this node as orphan nodes.
+        :rtype: list of :py:class:`psyclone.psyir.node.Node`
 
-            if test_node is scope_limit:
-                # The ancestor scope/top-level Node has been reached and
-                # nothing has matched.
-                break
+        '''
+        free_children = []
+        while self.children:
+            free_children.insert(0, self.children.pop())
+        return free_children
 
-            # Move on to the next ancestor.
-            test_node = test_node.parent
+    def detach(self):
+        ''' Detach this node from the tree it belongs to. This is necessary
+        as a precursor to inserting it as the child of another node.
 
-        if possible_containers:
-            # No symbol found but there are one or more Containers from which
-            # it may be being brought into scope. Therefore create a generic
-            # Symbol with a deferred interface and add it to the most
-            # local SymbolTable with a wildcard import.
-            symbol = Symbol(name, interface=UnresolvedInterface(),
-                            visibility=visibility)
-            first_symbol_table.add(symbol)
-            return symbol
+        :returns: this node detached from its parent.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        # All requested Nodes have been checked but there has been no
-        # match and there are no wildcard imports so raise an exception.
-        raise SymbolError(
-            "No Symbol found for name '{0}'.".format(name))
+        '''
+        if self.parent:
+            self.parent.children.remove(self)
+        return self
+
+    def _refine_copy(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        self._parent = None
+        self._has_constructor_parent = False
+        self._annotations = other.annotations[:]
+        # Invalidate shallow copied children list
+        self._children = ChildrenList(self, self._validate_child,
+                                      self._children_valid_format)
+        # And make a recursive copy of each child instead
+        self.children.extend([child.copy() for child in other.children])
+
+    def copy(self):
+        ''' Return a copy of this node. This is a bespoke implementation for
+        PSyIR nodes that will deepcopy some of its recursive data-structure
+        (e.g. the children tree), while not copying other attributes (e.g.
+        top-level parent reference).
+
+        :returns: a copy of this node and its children.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Start with a shallow copy of the object
+        new_instance = copy.copy(self)
+        # and then refine the elements that shouldn't be shallow copied
+        # pylint: disable=protected-access
+        new_instance._refine_copy(self)
+        return new_instance
+
+    def validate_global_constraints(self):
+        ''' Validates this Node in the context of the whole PSyIR tree.
+        Although there are validation checks for the parent<->child
+        relationships, there are other constraints that can only be
+        checked once the tree is complete and all transformations have
+        been applied. (One example is that an OMP Do directive must be
+        within the scope of an OMP Parallel directive.)
+
+        By default, this routine does nothing. It must be overridden
+        appropriately in any sub-classes to which constraints apply.
+        If an error is found then a GenerationError should be raised.
+
+        '''
 
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
 __all__ = ["colored",
-           "SCHEDULE_COLOUR_MAP",
            "ChildrenList",
            "Node"]

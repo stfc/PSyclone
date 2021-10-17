@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford and S. Siso, STFC Daresbury
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for NanTestTrans and NanTestNode
@@ -42,8 +43,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import (colored, Node, NanTestNode,
-                                  SCHEDULE_COLOUR_MAP)
+from psyclone.psyir.nodes import colored, Node, NanTestNode, Schedule
 from psyclone.psyir.transformations import (NanTestTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
@@ -81,20 +81,16 @@ def test_nan_test_basic(capsys):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     nan_test = NanTestTrans()
-    new_sched, _ = nan_test.apply(invoke.schedule[0].loop_body[0])
-    new_sched.view()
+    nan_test.apply(invoke.schedule[0].loop_body[0])
+    invoke.schedule.view()
     result, _ = capsys.readouterr()
 
     # Create the coloured text (if required)
-    read_node = colored("NanTest",
-                        SCHEDULE_COLOUR_MAP["NanTest"])
-    sched_node = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    read_node = colored("NanTest", NanTestNode._colour)
+    sched_node = colored("Schedule", Schedule._colour)
     assert """{0}[]
             0: {1}[]
                 {0}[]""".format(sched_node, read_node) in result
-
-    read_node = new_sched[0].loop_body[0]
-    assert read_node.dag_name == "nan_test_0"
 
 
 # -----------------------------------------------------------------------------
@@ -109,7 +105,7 @@ def test_nan_test_options():
                           options={"region_name": ("a", "b")})
     code = str(invoke.gen())
 
-    assert 'CALL nan_test_psy_data%PreStart("a", "b", 2, 2)' in code
+    assert 'CALL nan_test_psy_data%PreStart("a", "b", 4, 2)' in code
 
 
 # -----------------------------------------------------------------------------

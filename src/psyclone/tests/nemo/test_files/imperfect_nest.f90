@@ -37,12 +37,13 @@
 !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
 !!----------------------------------------------------------------------
 ! Modifications: A. R. Porter, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 program imperfect_nest
   USE dom_oce        ! ocean space and time domain
   implicit none
   integer :: ji, jj, jk, jn
-  integer :: jpi, jpj, jpk, jpim1, jpjm1, jpkm1
+  integer, parameter :: jpi=10, jpj=20, jpk=30, jpim1=9, jpjm1=19, jpkm1=29, kjpt=2
   real, dimension(jpi,jpj,jpk) :: umask, vmask, wmask, pahu, e3u_n, e3t_n, uslp
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
   REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptbb ! tracer (only used in kpass=2)

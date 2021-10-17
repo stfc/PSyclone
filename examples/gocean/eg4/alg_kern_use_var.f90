@@ -30,20 +30,14 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab.
+! Modified: S. Siso, STFC Daresbury Laboratory
 
-module alg
-
-contains
-
-  subroutine do_update(fld1)
+program alg
     use field_mod, only: r2d_field
     use kern_use_var_mod, only: kern_use_var
     implicit none
-    type(r2d_field), intent(inout) :: fld1
+    type(r2d_field) :: fld1
 
     ! Invoke calls a kernel which USEs a module variable
     call invoke(kern_use_var(fld1))
-
-  end subroutine do_update
-
-end module alg
+end program alg

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,10 @@
 
 from __future__ import absolute_import
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import Container, KernelSchedule
@@ -75,6 +78,20 @@ def test_generate_container(parser):
     assert container.symbol_table.lookup("mod1")
     assert container.symbol_table.lookup("mod2")
     assert container.symbol_table.lookup("dummy_code")
+
+
+def test_generate_container_no_module(parser):
+    ''' Check that generate_container returns None if the parse tree does
+    not contain a module. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "program my_prog\n"
+        "integer :: flag\n"
+        "end program")
+    ast = parser(reader)
+    processor = Fparser2Reader()
+    container = processor.generate_container(ast)
+    assert container is None
 
 
 def test_generate_container_two_modules(parser):
@@ -208,8 +225,8 @@ def test_access_stmt_undeclared_symbol(parser):
     assert var5.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_parse_access_statements_invalid(parser):
-    ''' Tests for the _parse_access_statements() method when an
+def test_process_access_statements_invalid(parser):
+    ''' Tests for the process_access_statements() method when an
     invalid parse tree is encountered. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -223,10 +240,34 @@ def test_parse_access_statements_invalid(parser):
     # Break the parse tree created by fparser2
     fparser2spec.children[1].items = ('not-private', None)
     with pytest.raises(InternalError) as err:
-        processor._parse_access_statements([fparser2spec])
+        processor.process_access_statements([fparser2spec])
     assert ("Failed to process 'not-private'. Found an accessibility "
             "attribute of 'not-private' but expected either 'public' or "
             "'private'" in str(err.value))
+
+
+def test_access_stmt_no_module(parser):
+    ''' Check that we raise the expected error if we encounter multiple access
+    statements (without access-id-lists) that are not within a module (this is
+    invalid Fortran but fparser doesn't catch it). '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module modulename\n"
+        "use some_mod\n"
+        "private\n"
+        "integer :: var3\n"
+        "public\n"
+        "end module modulename")
+    module = parser(reader).children[0]
+    assert isinstance(module, Fortran2003.Module)
+    # Break 'module' so that it is no longer an instance of Fortran2003.Module
+    module.__class__ = Fortran2003.Program
+    spec_part = module.children[1]
+    with pytest.raises(GenerationError) as err:
+        processor.process_access_statements([spec_part])
+    assert ("Found multiple access statements with omitted access-id-lists "
+            "and no enclosing Module. Both of these things are invalid "
+            "Fortran." in str(err.value))
 
 
 def test_access_stmt_routine_name(parser):
@@ -296,5 +337,5 @@ def test_broken_access_spec(parser):
     access_spec = fparser2spec.children[0].children[1].children[0]
     access_spec.string = "not-private"
     with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)

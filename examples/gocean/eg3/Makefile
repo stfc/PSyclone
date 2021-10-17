@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -39,9 +40,7 @@ KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o
 
 GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl \
 	compute_z_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} ${KERNELS:.o=.mod} \
-	alg_opencl.exe allkernels.cl
-
-all: transform compile
+	alg_opencl.exe allkernels.cl alg_gen_dm.f90 psy_gen_dm.f90 *.exe *.o
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -57,8 +56,11 @@ transform:
 	${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
 
 # The dl_esm_inf library
-${INF_LIB}:
-	${MAKE} -C ${INF_DIR} F90=${F90}
+fd_lib:
+	${MAKE} -C ${INF_DIR} F90=${F90} fd_lib
+
+dm_fd_lib:
+	${MAKE} -C ${INF_DIR} F90=${F90} dm_fd_lib
 
 # The FortCL library
 ${FORTCL_LIB}:
@@ -67,19 +69,41 @@ ${FORTCL_LIB}:
 
 # PSyclone command that stores the output code into files
 psy_gen.f90 alg_gen.f90: alg.f90
-	${PSYCLONE} -l output -api "gocean1.0" -s ./ocl_trans.py -opsy psy_gen.f90 \
+	${PSYCLONE} -nodm -api "gocean1.0" -s ./ocl_trans.py -opsy psy_gen.f90 \
 		 -oalg alg_gen.f90 alg.f90
 
-compile-ocl: ${INF_LIB} ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
+psy_gen_dm.f90 alg_gen_dm.f90: alg.f90
+	${PSYCLONE} -dm -api "gocean1.0" -s ./ocl_trans.py -opsy psy_gen_dm.f90 \
+		 -oalg alg_gen_dm.f90 alg.f90
+
+compile-ocl: fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
 	${F90} ${LDFLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} ${FORTCL_LIB} \
 		-lOpenCL -o alg_opencl.exe
-	echo "//OpenCL Kernels file" > allkernels.cl
+	@echo "//OpenCL Kernels file" > allkernels.cl
 	cat compute_*_0.cl >> allkernels.cl
-	echo "OpenCL compilation complete! Use 'FORTCL_KERNELS_FILE=allkernels.cl" \
-	   " ./alg_opencl.exe' to run."
+	@echo "OpenCL compilation complete!"
+	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl ./alg_opencl.exe' to run."
+
+compile-mpi-ocl: dm_fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen_dm.o alg_gen_dm.f90
+	# TODO dl_esm_inf/#54: The generated binary will not execute properly until
+	# this issue is fixed.
+	${F90} ${LDFLAGS} -I${INF_INC} alg_gen_dm.f90 psy_gen_dm.o ${INF_LIB} \
+		${FORTCL_LIB} -lOpenCL -o alg_dm_opencl.exe
+	@echo "//OpenCL Kernels file" > allkernels.cl
+	cat compute_*_0.cl >> allkernels.cl
+	@echo "OpenCL compilation complete!"
+	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl mpirun -n <NUM_RANKS>" \
+	 "./alg_dm_opencl.exe' to run."
 
 %.o: %.f90
 	${F90} ${LDFLAGS} -I${INF_INC} -I${FORTCL_INC} -c $<
 
-compile:
-	echo "This example needs to be compiled with 'make compile-ocl'"
+compile: compile-ocl
+
+run: compile
+	@echo "No run targets for example gocean/eg3"
+
+# Override allclean rule to include INF_DIR library
+allclean: clean
+	${MAKE} -C ${INF_DIR} distclean
+	${MAKE} -C ${FORTCL_DIR} allclean

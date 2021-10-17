@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by A. J. Voysey, Met Office
+
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
@@ -43,10 +46,14 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-
 jobs:
+  markdown-link-check:
+    # Check all markdown files for dead links
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: gaurav-nelson/github-action-markdown-link-check@v1
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -55,6 +62,15 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+        # This is required to get the commit history for merge commits for
+        # the ci-skip check below.
+        fetch-depth: '0'
+    - name: Check for [skip ci] in commit message
+      uses: mstachniuk/ci-skip@v1
+      with:
+        # This setting causes the tests to 'fail' if [skip ci] is specified
+        fail-fast: true
+        commit-filter: '[skip ci]'
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -62,19 +78,24 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest pytest-cov pytest-xdist
+        # Version 4.0.0 of flake8 crashes when processing the
+        # src/psyclone/tests/test_files/dynamo0p3 directory
+        # (see https://github.com/PyCQA/flake8/issues/1408).
+        pip install flake8==3.9.2 pytest pytest-cov pytest-xdist
         # Some of the examples use Jupyter
         pip install jupyter
-        # Install the version of fparser pointed to by the submodule
+        # If you wish to install the version of fparser pointed to by the
+        # submodule instead of the released version (from PyPI) then
+        # uncomment the following line:
         pip install external/fparser
         pip install .
     - name: Lint with flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
+        # Stop the build if there are Python syntax errors or undefined names
         # TODO cannot do this while we still support Python 2
         # flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        # explicitly name the required directories to avoid the fparser submodule
+        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        # Name the required directories to avoid the fparser submodule
         flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics src/psyclone examples tutorial
     - name: Run examples
       run: |
@@ -82,10 +103,21 @@ jobs:
         ( make -C examples notebook )
     - name: Run tutorials
       run: |
-        ( make -C tutorial/practicals/nemo test > /dev/null)
+        ( make -C tutorial/practicals transform > /dev/null )
+        ( make -C tutorial/notebooks notebook )
     - name: Test with pytest
+      if: ${{ !(matrix.python-version == 3.8) }}
       run: |
+        locale
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+    - name: Test with pytest and C Locale
+      if: ${{ matrix.python-version == 3.8 }}
+      run: |
+        locale
+        pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+      env:
+        LC_ALL: C
+        LANG: C
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:

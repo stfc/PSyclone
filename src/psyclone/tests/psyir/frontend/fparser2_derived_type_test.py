@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,31 +39,86 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import KernelSchedule
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
+    ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
+    ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range, \
+    BinaryOperation
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
-    TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from fparser.two.Fortran2003 import Specification_Part
+    DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
+    UnknownFortranType, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
+    _create_struct_reference
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from fparser.common.readfortran import FortranStringReader
 
 
+def test_create_struct_reference():
+    ''' Tests for the _create_struct_reference() utility. '''
+    one = Literal("1", INTEGER_TYPE)
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, StructureReference, Symbol("fake"),
+                                 ["hello", 1], [])
+    assert ("List of members must contain only strings or tuples but found "
+            "entry of type 'int'" in str(err.value))
+    with pytest.raises(NotImplementedError) as err:
+        _create_struct_reference(None, StructureType, Symbol("fake"),
+                                 ["hello"], [])
+    assert "Cannot create structure reference for type '" in str(err.value)
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, StructureReference,
+                                 DataSymbol("fake", DeferredType()),
+                                 ["hello"], [one.copy()])
+    assert ("Creating a StructureReference but array indices have been "
+            "supplied" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _create_struct_reference(None, ArrayOfStructuresReference,
+                                 DataSymbol("fake", DeferredType()),
+                                 ["hello"], [])
+    assert ("Cannot create an ArrayOfStructuresReference without one or more "
+            "index expressions" in str(err.value))
+    ref = _create_struct_reference(None, StructureReference,
+                                   DataSymbol("fake", DeferredType()),
+                                   ["hello"], [])
+    assert isinstance(ref, StructureReference)
+    assert isinstance(ref.member, Member)
+    assert ref.member.name == "hello"
+    # Check that we can create an ArrayOfStructuresReference and that any
+    # PSyIR nodes are copied.
+    idx_var = one.copy()
+    idx_var2 = one.copy()
+    aref = _create_struct_reference(None, ArrayOfStructuresReference,
+                                    DataSymbol("fake", DeferredType()),
+                                    ["a", ("b", [idx_var2])], [idx_var])
+    assert isinstance(aref, ArrayOfStructuresReference)
+    assert isinstance(aref.member, StructureMember)
+    assert aref.member.name == "a"
+    assert aref.member.member.name == "b"
+    assert len(aref.member.member.indices) == 1
+    assert aref.member.member.indices[0] is not idx_var2
+    assert len(aref.indices) == 1
+    assert aref.indices[0] is not idx_var
+
+
 @pytest.mark.usefixtures("f2008_parser")
-def test_deferred_derived_type():
-    ''' Check that we get a symbol with a type given by a TypeSymbol (which
+@pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
+def test_deferred_derived_type(type_name):
+    ''' Check that we get a symbol with a type given by a DataTypeSymbol (which
     itself is of DeferredType) for a declaration using an unresolved derived
     type. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod\n"
-                                 "type(my_type) :: var")
-    fparser2spec = Specification_Part(reader)
+                                 "type({0}) :: var".format(type_name))
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
-    assert isinstance(vsym.datatype, TypeSymbol)
+    assert isinstance(vsym.datatype, DataTypeSymbol)
     assert isinstance(vsym.datatype.datatype, DeferredType)
     tsym = symtab.lookup("my_type")
-    assert isinstance(tsym, TypeSymbol)
+    assert isinstance(tsym, DataTypeSymbol)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -73,7 +128,7 @@ def test_missing_derived_type():
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("type(my_type) :: var")
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     # This should raise an error because there's no Container from which
     # the definition of 'my_type' can be brought into scope.
     with pytest.raises(SymbolError) as err:
@@ -81,7 +136,8 @@ def test_missing_derived_type():
     assert "No Symbol found for name 'my_type'" in str(err.value)
 
 
-def test_name_clash_derived_type(f2008_parser):
+@pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
+def test_name_clash_derived_type(f2008_parser, type_name):
     ''' Check that the frontend raises an error if it encounters a reference
     to a derived type that clashes with another symbol. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -91,16 +147,17 @@ def test_name_clash_derived_type(f2008_parser):
     symtab.add(RoutineSymbol("my_type"))
     processor = Fparser2Reader()
     reader = FortranStringReader("subroutine my_sub()\n"
-                                 "  type(my_type) :: some_var\n"
-                                 "end subroutine my_sub\n")
+                                 "  type({0}) :: some_var\n"
+                                 "end subroutine my_sub\n".format(type_name))
     fparser2spec = f2008_parser(reader)
+    spec_part = walk(fparser2spec, Fortran2003.Specification_Part)[0]
     # This should raise an error because the Container symbol table should
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("Search for a TypeSymbol named 'my_type' (required by declaration"
-            " 'TYPE(my_type) :: some_var') found a 'RoutineSymbol' "
-            "instead" in str(err.value))
+        processor.process_declarations(fake_parent, spec_part.children, [])
+    assert ("Search for a DataTypeSymbol named '{0}' (required by "
+            "specification 'TYPE({0})') found a 'RoutineSymbol' instead".
+            format(type_name) in str(err.value))
 
 
 def test_name_clash_derived_type_def(f2008_parser):
@@ -108,31 +165,53 @@ def test_name_clash_derived_type_def(f2008_parser):
     of a derived type with a name that clashes with another symbol. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
-    # Add a RoutineSymbol to the symbol table that clashes with the name
+    # Add a RoutineSymbol to the symbol table that will clash with the name
     # of the derived type.
     symtab.add(RoutineSymbol("my_type"))
+    # Add a DataTypeSymbol to the symbol table. Make it appear that we've
+    # already seen a definition of this symbol by making it of
+    # UnknownFortranType.
+    symtab.new_symbol("my_type2", symbol_type=DataTypeSymbol,
+                      datatype=UnknownFortranType("huh"))
     processor = Fparser2Reader()
-    reader = FortranStringReader("subroutine my_sub()\n"
-                                 "  type :: my_type\n"
-                                 "    integer :: flag\n"
-                                 "  end type my_type\n"
-                                 "end subroutine my_sub\n")
-    fparser2spec = f2008_parser(reader)
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type :: my_type\n"
+                            "    integer :: flag\n"
+                            "  end type my_type\n"
+                            "end subroutine my_sub\n"))
     # This should raise an error because the Container symbol table will
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("SymbolTable already contains an entry for 'my_type' but it is a "
-            "'RoutineSymbol' when it should be a 'TypeSymbol' (for the "
+    assert ("Error processing definition of derived type 'my_type'. The "
+            "symbol table already contains an entry with this name but it is a"
+            " 'RoutineSymbol' when it should be a 'DataTypeSymbol' (for the "
             "derived-type definition 'TYPE :: my_type\n  INTEGER :: flag\n"
             "END TYPE my_type')" in str(err.value))
+    # Repeat but with a derived-type name that will clash with our existing
+    # DataTypeSymbol
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub2()\n"
+                            "  type :: my_type2\n"
+                            "    integer :: flag\n"
+                            "  end type my_type2\n"
+                            "end subroutine my_sub2\n"))
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("Error processing definition of derived type 'my_type2'. The "
+            "symbol table already contains a DataTypeSymbol with this name but"
+            " it is of type 'UnknownFortranType' when it should be of "
+            "'DeferredType'" in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("use_stmt", ["use grid_mod, only: grid_type",
+                                      "use grid_mod, only: GRID_TYPE",
                                       "use grid_mod"])
-def test_parse_derived_type(use_stmt):
-    ''' Check that the fronted correctly creates a TypeSymbol of type
+@pytest.mark.parametrize("type_name", ["GRID_TYPE", "grid_type"])
+def test_parse_derived_type(use_stmt, type_name):
+    ''' Check that the fronted correctly creates a DataTypeSymbol of type
     StructureType from the declaration of a derived type. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
@@ -140,26 +219,49 @@ def test_parse_derived_type(use_stmt):
     reader = FortranStringReader("{0}\n"
                                  "type :: my_type\n"
                                  "  integer :: flag\n"
-                                 "  type(grid_type), private :: grid\n"
+                                 "  type({1}), private :: grid\n"
                                  "  real, dimension(3) :: posn\n"
                                  "end type my_type\n"
-                                 "type(my_type) :: var\n".format(use_stmt))
-    fparser2spec = Specification_Part(reader)
+                                 "type(my_type) :: var\n".format(use_stmt,
+                                                                 type_name))
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, StructureType)
     flag = sym.datatype.lookup("flag")
     assert isinstance(flag.datatype, ScalarType)
     assert flag.visibility == Symbol.Visibility.PUBLIC
     grid = sym.datatype.lookup("grid")
-    assert isinstance(grid.datatype, TypeSymbol)
+    assert isinstance(grid.datatype, DataTypeSymbol)
     assert isinstance(grid.datatype.datatype, DeferredType)
     assert grid.visibility == Symbol.Visibility.PRIVATE
     posn = sym.datatype.lookup("posn")
     assert isinstance(posn.datatype, ArrayType)
     var = symtab.lookup("var")
     assert var.datatype is sym
+
+
+@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
+def test_derived_type_self_ref(type_name):
+    ''' Test that we can parse a derived type that contains a pointer
+    reference of that same type. The 'pointer' attribute is not supported
+    so we get a DataTypeSymbol of UnknownFortranType. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type :: my_type\n"
+                                 "  type({0}), pointer :: next => null()\n"
+                                 "  integer :: flag\n"
+                                 "end type my_type\n"
+                                 "type({0}) :: var\n".format(type_name))
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("my_type")
+    assert isinstance(sym, DataTypeSymbol)
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert symtab.lookup("var").datatype is sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -176,11 +278,216 @@ def test_derived_type_accessibility():
                                  "  integer :: flag\n"
                                  "  real, public :: scale\n"
                                  "end type my_type\n")
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym, DataTypeSymbol)
     flag = sym.datatype.lookup("flag")
     assert flag.visibility == Symbol.Visibility.PRIVATE
     scale = sym.datatype.lookup("scale")
     assert scale.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_derived_type_ref(f2008_parser, fortran_writer):
+    ''' Check that the frontend handles a references to a member of
+    a derived type. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "subroutine my_sub()\n"
+        "  use some_mod, only: my_type\n"
+        "  type(my_type) :: var, vars(3)\n"
+        "  var%flag = 0\n"
+        "  var%region%start = 1\n"
+        "  var%region%subgrid(3)%stop = 1\n"
+        "  var%region%subgrid(3)%data(:) = 1.0\n"
+        "  var%region%subgrid(3)%data(var%start:var%stop) = 1.0\n"
+        "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
+        "  vars(1)%region%subgrid(:)%data(1) = 1.0\n"
+        "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
+        "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    assert not sched.walk(CodeBlock)
+    assignments = sched.walk(Assignment)
+    # var%flag
+    assign = assignments[0]
+    assert isinstance(assign.lhs, StructureReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert assign.lhs.children[0].name == "flag"
+    # var%region%start
+    assign = assignments[1]
+    assert isinstance(assign.lhs, StructureReference)
+    assert isinstance(assign.lhs.children[0], StructureMember)
+    assert assign.lhs.children[0].name == "region"
+    assert isinstance(assign.lhs.children[0].children[0], Member)
+    assert assign.lhs.children[0].children[0].name == "start"
+    # var%region%subgrid(3)%stop
+    assign = assignments[2]
+    amem = assign.lhs.children[0].children[0]
+    assert isinstance(amem, ArrayOfStructuresMember)
+    assert isinstance(amem.children[0], Member)
+    assert isinstance(amem.children[1], Literal)
+    assert amem.children[0].name == "stop"
+    # var%region%subgrid(3)%data(:)
+    assign = assignments[3]
+    amem = assign.lhs.member.member
+    assert isinstance(amem, ArrayOfStructuresMember)
+    assert isinstance(amem.member, ArrayMember)
+    assert isinstance(amem.member.indices[0], Range)
+    bop = amem.member.indices[0].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.children[0].symbol.name == "var"
+    assert isinstance(bop.children[0], StructureReference)
+    # The argument to the LBOUND binary operator must ultimately resolve down
+    # to a Member access, not an ArrayMember access.
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    bop = amem.member.indices[0].children[1]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.UBOUND
+    # The argument to the UBOUND binary operator must ultimately resolve down
+    # to a Member access, not an ArrayMember access.
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    gen = fortran_writer(amem)
+    assert gen == "subgrid(3)%data(:)"
+    # var%region%subgrid(3)%data(var%start:var%stop)
+    assign = assignments[4]
+    amem = assign.lhs.member.member.member
+    assert isinstance(amem, ArrayMember)
+    assert isinstance(amem.indices[0], Range)
+    assert isinstance(amem.indices[0].children[0], StructureReference)
+    assert isinstance(amem.indices[0].children[0].member, Member)
+    assert amem.indices[0].children[0].member.name == "start"
+    # vars(1)%region%subgrid(3)%data(:) = 1.0
+    assign = assignments[5]
+    amem = assign.lhs
+    data_node = amem.member.member.member
+    bop = data_node.children[0].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.LBOUND
+    # Argument to LBOUND must be a Member, not an ArrayMember
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    bop = data_node.children[0].children[1]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.UBOUND
+    # Argument to UBOUND must be a Member, not an ArrayMember
+    assert isinstance(bop.children[0].member.member.member, Member)
+    assert not isinstance(bop.children[0].member.member.member, ArrayMember)
+    # vars(1)%region%subgrid(:)%data(1) = 1.0
+    assign = assignments[6]
+    amem = assign.lhs
+    assert isinstance(amem.member.member.children[1], Range)
+    bop = amem.member.member.children[1].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.LBOUND
+    assert bop.children[0].member.member.name == "subgrid"
+    assert isinstance(bop.children[0].member.member, Member)
+    assert not isinstance(bop.children[0].member.member, ArrayMember)
+    assert amem.member.member.member.name == "data"
+    assert isinstance(amem.member.member.member, ArrayMember)
+    # vars(:)%region%subgrid(3)%xstop
+    assign = assignments[7]
+    amem = assign.lhs
+    bop = amem.children[1].children[0]
+    assert isinstance(bop, BinaryOperation)
+    assert bop.operator == BinaryOperation.Operator.LBOUND
+    assert isinstance(bop.children[0], Reference)
+    assert bop.children[0].symbol.name == "vars"
+
+
+def test_array_of_derived_type_ref(f2008_parser):
+    ''' Test that the frontend handles a reference to a member of an element
+    of an array of derived types. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader("subroutine my_sub()\n"
+                                 "  use some_mod, only: my_type\n"
+                                 "  type(my_type), dimension(3) :: var\n"
+                                 "  integer :: idx = 2\n"
+                                 "  integer :: start = 2, stop = 3\n"
+                                 "  var(1)%flag = 0\n"
+                                 "  var(idx)%flag = 0\n"
+                                 "  var(start:stop)%flag = 1\n"
+                                 "  var(1)%region%start = 1\n"
+                                 "  var(1)%region%subgrid(3)%stop = 1\n"
+                                 "  var(1)%region%subgrid(3)%data(:) = 1.0\n"
+                                 "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    assert not sched.walk(CodeBlock)
+    assignments = sched.walk(Assignment)
+    # var(1)%flag
+    assign = assignments[0]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert assign.lhs.children[0].name == "flag"
+    assert isinstance(assign.lhs.children[1], Literal)
+    # var(idx)%flag
+    assign = assignments[1]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert isinstance(assign.lhs.children[1], Reference)
+    assert assign.lhs.children[1].symbol.name == "idx"
+    # var(start:stop)%flag
+    assign = assignments[2]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.member, Member)
+    assert isinstance(assign.lhs.indices[0], Range)
+    assert isinstance(assign.lhs.indices[0].children[0], Reference)
+    assert assign.lhs.indices[0].children[0].symbol.name == "start"
+    # var(1)%region%start
+    assign = assignments[3]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.member, StructureMember)
+    assert isinstance(assign.lhs.indices[0], Literal)
+    assert assign.lhs.member.name == "region"
+    assert isinstance(assign.lhs.member.member, Member)
+    # var(1)%region%subgrid(3)%stop
+    assign = assignments[4]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.member.member, ArrayOfStructuresMember)
+    assert isinstance(assign.lhs.member.member.member, Member)
+    assert isinstance(assign.lhs.member.member.indices[0], Literal)
+    # var(1)%region%subgrid(3)%data(:)
+    assign = assignments[5]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    amem = assign.lhs.member.member
+    assert isinstance(amem, ArrayOfStructuresMember)
+    assert isinstance(amem.member, ArrayMember)
+    assert isinstance(amem.indices[0], Literal)
+    assert isinstance(amem.member.indices[0], Range)
+
+
+def test_derived_type_codeblocks(f2008_parser):
+    ''' Check that we create a CodeBlock if we encounter unsupported
+    entries in a parse tree describing a derived-type access. We have
+    to test with invalid content in two locations. '''
+    code = ("subroutine my_sub()\n"
+            "  use some_mod, only: my_type\n"
+            "  type(my_type), dimension(3) :: var\n"
+            "  var(1)%region%subgrid(3)%stop = 1\n"
+            "end subroutine my_sub\n")
+    processor = Fparser2Reader()
+    # First create a valid parse tree.
+    reader = FortranStringReader(code)
+    fparser2spec = f2008_parser(reader)
+    dref = Fortran2003.walk(fparser2spec, Fortran2003.Data_Ref)[0]
+    # Now break the Data_Ref instance by modifying its first child. Requesting
+    # a subset of items from a tuple appears to generate a new tuple so
+    # explicitly create a list and then create a tuple from that.
+    item_list = ["hello"] + list(dref.items[1:])
+    dref.items = tuple(item_list)
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    cblocks = sched.walk(CodeBlock)
+    assert len(cblocks) == 1
+    assert isinstance(cblocks[0].parent, Assignment)
+    # Repeat but this time break the Data_Ref by modifying its second child.
+    reader = FortranStringReader(code)
+    fparser2spec = f2008_parser(reader)
+    dref = Fortran2003.walk(fparser2spec, Fortran2003.Data_Ref)[0]
+    dref.items = (dref.items[0], "hello")
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    cblocks = sched.walk(CodeBlock)
+    assert len(cblocks) == 1
+    assert isinstance(cblocks[0].parent, Assignment)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,27 +31,41 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for the PSyData library
 # from the jinja template psy_data_base.jinja. The compile functionality it
 # offers is only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
-F90FLAGS ?= 
+F90FLAGS ?=
+# Relative path of wrapper libraries in PSyclone (overwrite for custom location)
+PSYDATA_LIB_DIR ?= .
+# -----------------------------------------------------------------------------
 
 default: psy_data_base.o
+
 process: psy_data_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+PROCESS = $$(./get_python.sh) ./process.py
+
+all:
+	$(MAKE) -C extract all
+	$(MAKE) -C profiling all
+	$(MAKE) -C read_only all
 
 %.f90:	%.jinja process.py
-	./process.py $< > $*.f90
+	$$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py $< > $*.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 
 clean:
-	rm -f psy_data_base.f90
+	rm -f psy_data_base.f90 *.o *.mod

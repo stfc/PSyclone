@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -9,7 +9,7 @@
 
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
+! Modified by J. Henrichs, Bureau of Meteorology,
+!             I. Kavcic, Met Office
 
 !> Manages the domain_size namelist.
 !>
@@ -45,7 +46,6 @@ module domain_size_config_mod
 
   use constants_mod, only: i_native, &
                            r_def
-  use mpi_mod,       only: broadcast
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
 
@@ -120,8 +120,6 @@ contains
     buffer_real_r_def(2) = planar_domain_max_y
     buffer_real_r_def(3) = planar_domain_min_x
     buffer_real_r_def(4) = planar_domain_min_y
-
-    call broadcast( buffer_real_r_def, 4, 0 )
 
     planar_domain_max_x = buffer_real_r_def(1)
     planar_domain_max_y = buffer_real_r_def(2)

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple test script showing the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -49,7 +49,10 @@ Fortran.
 
 from __future__ import print_function
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.nodes import Assignment
+from psyclone.psyGen import PSyFactory
+from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 if __name__ == "__main__":
     from psyclone.nemo import NemoKern
@@ -64,27 +67,22 @@ if __name__ == "__main__":
     SCHED = PSY.invokes.get('tra_ldf_iso').schedule
     SCHED.view()
 
-    TRANS_INFO = TransInfo()
-    print(TRANS_INFO.list)
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
+    OMP_TRANS = OMPParallelLoopTrans()
+    LOOP_TRANS = NemoAllArrayRange2LoopTrans()
 
-    # This example did transform implicit loops (arrays with ranges)
-    # so that the outermost loop range became an explicit loop. We are
-    # no longer able to do this in the NEMO API until it uses the
-    # Fortran back end - see #435 - (as the associated transformation
-    # works on the PSyIR not the fparser2 tree). Further a) the
-    # resulting loop from the transformation is a standard loop not a
-    # nemoloop and does not have a "loop type" so would not be picked
-    # up by the OpenMP transformation and b) the content of the loop
-    # is not a kernel so would again not be picked up by the OpenMP
-    # transformation. These two issues are the subject of #843.
+    # Transform implicit loops (arrays with ranges) so that they are
+    # explicit loops. This then means we can parallelise them with
+    # OpenMP below.
+    for assign in SCHED.walk(Assignment):
+        if assign.is_array_range:
+            LOOP_TRANS.apply(assign)
 
     for loop in SCHED.loops():
         # TODO loop.kernel method needs extending to cope with
         # multiple kernels
         kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
-            sched, _ = OMP_TRANS.apply(loop)
+            OMP_TRANS.apply(loop)
 
     SCHED.view()
 

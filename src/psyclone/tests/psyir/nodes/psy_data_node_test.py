@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -41,34 +41,79 @@ from __future__ import absolute_import
 import re
 import pytest
 from psyclone.errors import InternalError, GenerationError
+from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.transformations import PSyDataTrans
+from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
+    SymbolTable
 from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_basics(monkeypatch):
-    '''Tests some elementary functions.'''
+def test_psy_data_node_constructor():
+    ''' Check that we can construct a PSyDataNode and that any options are
+    picked up correctly. '''
     psy_node = PSyDataNode()
+    assert psy_node._prefix == ""
+    assert psy_node._var_name == ""
+    assert psy_node._module_name is None
+    assert psy_node._region_name is None
+    psy_node = PSyDataNode(options={"prefix": "profile"})
+    assert psy_node._prefix == "profile_"
+    assert psy_node.fortran_module == "profile_psy_data_mod"
+    assert psy_node.type_name == "profile_PSyDataType"
+    assert psy_node._var_name == ""
+    assert psy_node._module_name is None
+    assert psy_node._region_name is None
+    psy_node = PSyDataNode(options={"region_name": ("a_routine", "reg1")})
+    assert psy_node._var_name == ""
+    assert psy_node._module_name == "a_routine"
+    assert psy_node._region_name == "reg1"
+    assert psy_node.region_identifier == ("a_routine", "reg1")
+
+    # Test incorrect rename type
+    with pytest.raises(InternalError) as error:
+        PSyDataNode(options={"region_name": 1})
+    assert ("The name must be a tuple containing two non-empty strings." in
+            str(error.value))
+
+    # Invalid prefix
+    with pytest.raises(InternalError) as err:
+        PSyDataNode(options={"prefix": "not-a-valid-prefix"})
+    assert ("Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
+            "expected" in str(err.value))
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_node_basics():
+    '''Tests some elementary functions.'''
+    psy_node = PSyDataNode.create([], SymbolTable())
     assert "PSyDataStart[var=psy_data]\n"\
         "PSyDataEnd[var=psy_data]" in str(psy_node)
 
-    monkeypatch.setattr(psy_node, "children", [])
+    psy_node.children = []
     with pytest.raises(InternalError) as error:
         _ = psy_node.psy_data_body
     assert "PSyData node malformed or incomplete" in str(error.value)
 
-    psy_node_rename = \
-        PSyDataNode(options={"region_name": ("module", "local")})
-    assert psy_node_rename.region_identifier == ("module", "local")
 
-    # Test incorrect rename type
-    with pytest.raises(InternalError) as error:
-        psy_node_rename = \
-            PSyDataNode(options={"region_name": 1})
-    assert "The name must be a tuple containing two non-empty strings." \
-        in str(error.value)
+# -----------------------------------------------------------------------------
+def test_psy_data_node_create_errors():
+    ''' Test the various checks on the arguments to the create() method. '''
+    sym_tab = SymbolTable()
+    with pytest.raises(TypeError) as err:
+        PSyDataNode.create("hello", sym_tab)
+    assert ("create(). The 'children' argument must be a list (of PSyIR "
+            "nodes) but got 'str'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        PSyDataNode.create(["hello"], sym_tab)
+    assert ("create(). The 'children' argument must be a list of PSyIR "
+            "nodes but it contains: ['str']" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        PSyDataNode.create([], "hello")
+    assert ("create(). The 'symbol_table' argument must be an instance of "
+            "psyir.symbols.SymbolTable but got 'str'" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -79,7 +124,7 @@ def test_psy_data_node_tree_correct():
 
     # 1. No parent and no children:
     # =============================
-    psy_node = PSyDataNode()
+    psy_node = PSyDataNode.create([], SymbolTable())
 
     # We must have a single profile node with a schedule which has
     # no children:
@@ -92,7 +137,8 @@ def test_psy_data_node_tree_correct():
     # 2. Parent, but no children:
     # ===========================
     parent = Schedule()
-    psy_node = PSyDataNode(parent=parent)
+    psy_node = PSyDataNode.create([], parent.symbol_table)
+    parent.addchild(psy_node)
 
     # We must have a single node connected to the parent, and an
     # empty schedule for the ExtractNode:
@@ -106,7 +152,7 @@ def test_psy_data_node_tree_correct():
     # 3. No parent, but children:
     # ===========================
     children = [Statement(), Statement()]
-    psy_node = PSyDataNode(children=children)
+    psy_node = PSyDataNode.create(children, SymbolTable())
 
     # The children must be connected to the schedule, which is
     # connected to the ExtractNode:
@@ -127,12 +173,15 @@ def test_psy_data_node_tree_correct():
     parent.addchild(Statement())
     parent.addchild(Statement())
     # Add another child that must stay with the parent node
-    third_child = Statement(parent=parent)
+    third_child = Statement()
     parent.addchild(third_child)
     assert parent.children[2] is third_child
     # Only move the first two children, leave the third where it is
     children = [parent.children[0], parent.children[1]]
-    psy_node = PSyDataNode(parent=parent, children=children)
+    for child in children:
+        child.detach()
+    psy_node = PSyDataNode.create(children, SymbolTable())
+    parent.addchild(psy_node, 0)
 
     # Check all connections
     assert psy_node.parent is parent
@@ -152,16 +201,22 @@ def test_psy_data_node_tree_correct():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    data_node = PSyDataNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        data_node.gen_c_code()
-    assert "Generation of C code is not supported for PSyDataNode" \
-        in str(excinfo.value)
+def test_psy_data_node_incorrect_container():
+    ''' Check that the PSyDataNode constructor raises the expected error if
+    the symbol table already contains an entry for the PSyDataType that is
+    not associated with the PSyData container. '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    csym = schedule.symbol_table.new_symbol("some_mod",
+                                            symbol_type=ContainerSymbol)
+    schedule.symbol_table.new_symbol("PSyDataType",
+                                     interface=ImportInterface(csym))
+    data_trans = PSyDataTrans()
+    with pytest.raises(TransformationError) as err:
+        data_trans.apply(schedule[0].loop_body)
+    assert ("already a symbol named 'PSyDataType' which clashes with one of "
+            "those used by the PSyclone PSyData API" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -218,7 +273,6 @@ def test_psy_data_node_options():
     data_node = schedule[0].loop_body[0]
     assert isinstance(data_node, PSyDataNode)
 
-    from psyclone.f2pygen import ModuleGen
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     mod = ModuleGen(None, "test")
@@ -268,11 +322,10 @@ def test_psy_data_node_options():
 
 def test_psy_data_node_children_validation():
     '''Test that children added to PSyDataNode are validated. PSyDataNode
-    accepts just one Schedule as children.
+    accepts just one Schedule as its child.
 
     '''
-    psy_node = PSyDataNode()
-    schedule = Schedule()
+    psy_node = PSyDataNode.create([], SymbolTable())
     del psy_node.children[0]
 
     # Invalid children (e.g. Return Statement)
@@ -283,10 +336,10 @@ def test_psy_data_node_children_validation():
             " is: 'Schedule'." in str(excinfo.value))
 
     # Valid children
-    psy_node.addchild(schedule)
+    psy_node.addchild(Schedule())
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
-        psy_node.addchild(schedule)
+        psy_node.addchild(Schedule())
     assert ("Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
             " is: 'Schedule'." in str(excinfo.value))

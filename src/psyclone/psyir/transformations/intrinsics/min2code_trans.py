@@ -44,7 +44,7 @@ from __future__ import absolute_import
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
         Operator2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
-        Reference, IfBlock
+        Reference, IfBlock, Routine
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
@@ -111,8 +111,8 @@ class Min2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: a MIN Binary- or Nary-Operation node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation` or \
-        :py:class:`psyclone.psyGen.NaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
+        :py:class:`psyclone.psyir.nodes.NaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
@@ -122,7 +122,7 @@ class Min2CodeTrans(Operator2CodeTrans):
         # pylint: disable=too-many-locals
         self.validate(node)
 
-        schedule = node.root
+        schedule = node.ancestor(Routine)
         symbol_table = schedule.symbol_table
 
         oper_parent = node.parent
@@ -134,15 +134,13 @@ class Min2CodeTrans(Operator2CodeTrans):
         # integers), or there may be errors (arguments are of
         # different types) but this can't be checked as we don't have
         # appropriate methods to query nodes (see #658).
-        res_var = symbol_table.new_symbol_name("res_min")
-        res_var_symbol = DataSymbol(res_var, REAL_TYPE)
-        symbol_table.add(res_var_symbol)
+        res_var_symbol = symbol_table.new_symbol(
+            "res_min", symbol_type=DataSymbol, datatype=REAL_TYPE)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
         # comment (associated issue #658).
-        tmp_var = symbol_table.new_symbol_name("tmp_min")
-        tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
-        symbol_table.add(tmp_var_symbol)
+        tmp_var_symbol = symbol_table.new_symbol(
+            "tmp_min", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_var).
         oper_parent.children[node.position] = Reference(res_var_symbol,
@@ -150,17 +148,15 @@ class Min2CodeTrans(Operator2CodeTrans):
 
         # res_var=A
         lhs = Reference(res_var_symbol)
-        new_assignment = Assignment.create(lhs, node.children[0])
-        new_assignment.parent = assignment.parent
+        new_assignment = Assignment.create(lhs, node.children[0].detach())
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # For each of the remaining min arguments (B,C...)
-        for expression in node.children[1:]:
+        for expression in node.pop_all_children():
 
             # tmp_var=(B or C or ...)
             lhs = Reference(tmp_var_symbol)
             new_assignment = Assignment.create(lhs, expression)
-            new_assignment.parent = assignment.parent
             assignment.parent.children.insert(assignment.position,
                                               new_assignment)
 
@@ -177,5 +173,4 @@ class Min2CodeTrans(Operator2CodeTrans):
 
             # if [if_condition] then [then_body]
             if_stmt = IfBlock.create(if_condition, then_body)
-            if_stmt.parent = assignment.parent
             assignment.parent.children.insert(assignment.position, if_stmt)

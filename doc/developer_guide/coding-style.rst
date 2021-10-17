@@ -8,7 +8,7 @@ Documentation Style
 When writing documentation, each reference to a PSyclone class or function
 should be set in italics (i.e. enclosed by single backticks) except in headings.
 The first time a class or function is mentioned, use the full Python path, e.g.:
-`psyclone.core.access_info.VariableAccessInfo`. After that just use the
+`psyclone.core.access_info.SingleVariableAccessInfo`. After that just use the
 class name (again in italics).
 File names and shell commands should be set in double back-ticks (\`\`).
 
@@ -113,6 +113,19 @@ Additional rules that apply:
      :ref:`interface_description` for full details..
   #) Any new line of code must be covered by at least one test case,
      see :ref:`test_suite` and especially :ref:`test_coverage`.
+
+  #) Importing other modules should be done at the top of a file, and
+     the import statements must be sorted alphabetically. If a
+     module cannot be import at the top of a file due to a circular
+     dependency, a comment must be added to the local import statement,
+     and the corresponding pylint warning must be disabled, e.g.::
+
+         def my_function():
+             ...
+             # Avoid circular import
+             # pylint: disable=import-outside-toplevel
+             from psyclone.core.access_type import AccessType
+
 
 Exceptions
 ----------

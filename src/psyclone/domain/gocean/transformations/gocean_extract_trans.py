@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,12 +33,16 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, STFC Daresbury Laboratory
 
 '''This module contains the GOcean-specific extract transformation.
 '''
 
-from psyclone.domain.gocean.nodes import GOceanExtractNode
 from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
+from psyclone.psyir.tools import DependencyTools
+from psyclone.domain.common import ExtractDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -59,13 +63,18 @@ class GOceanExtractTrans(ExtractTrans):
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
-    >>> newsched, _ = etrans.apply(schedule.children[0])
-    >>> newsched.view()
+    >>> etrans.apply(schedule.children[0])
+    >>> schedule.view()
     '''
 
     def __init__(self):
-        super(GOceanExtractTrans, self).__init__(GOceanExtractNode)
+        super(GOceanExtractTrans, self).__init__(ExtractNode)
+        # Set the integer and real types to use. If required, the constructor
+        # could take a parameter to change these.
 
+        self._driver_creator = ExtractDriverCreator(INTEGER_TYPE, REAL8_TYPE)
+
+    # ------------------------------------------------------------------------
     def validate(self, node_list, options=None):
         ''' Perform GOcean1.0 API specific validation checks before applying
         the transformation.
@@ -79,14 +88,14 @@ class GOceanExtractTrans(ExtractTrans):
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. This flag is forwarded to \
-            the GoceanExtractNode. Its default value is False.
+            the ExtractNode. Its default value is False.
         :param (str,str) options["region_name"]: an optional name to \
             use for this data-extraction region, provided as a 2-tuple \
             containing a module name followed by a local name. The pair of \
             strings should uniquely identify a region unless aggregate \
             information is required (and is supported by the runtime \
             library). This option is forwarded to the PSyDataNode (where it \
-            changes the region names) and to the GOceanExtractNode (where it \
+            changes the region names) and to the ExtractNode (where it \
             changes the name of the created output files and the name of the \
             driver program).
 
@@ -110,6 +119,7 @@ class GOceanExtractTrans(ExtractTrans):
                     "inner Loop without its ancestor outer Loop is not "
                     "allowed.".format(str(self.name)))
 
+    # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
@@ -118,7 +128,7 @@ class GOceanExtractTrans(ExtractTrans):
         the base class, it is only added here to provide the documentation
         for this function, since it accepts different options
         to the base class (e.g. create_driver, which is passed to the
-        GOceanExtractNode instance that will be inserted.).
+        ExtractNode instance that will be inserted.).
 
         :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
@@ -147,7 +157,36 @@ class GOceanExtractTrans(ExtractTrans):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        # Just call the base function, this function is here only to
-        # document all options.
-        # pylint: disable=useless-super-delegation
-        return super(GOceanExtractTrans, self).apply(nodes, options)
+        if options is None:
+            my_options = {}
+        else:
+            # We will add a default prefix, so create a copy to avoid
+            # changing the user's options:
+            my_options = options.copy()
+
+        dep = DependencyTools()
+        nodes = self.get_node_list(nodes)
+        region_name = self.get_unique_region_name(nodes, my_options)
+        my_options["region_name"] = region_name
+        my_options["prefix"] = my_options.get("prefix", "extract")
+        input_list, output_list = dep.get_in_out_parameters(nodes)
+        # Determine a unique postfix to be used for output variables
+        # that avoid any name clashes
+        postfix = ExtractTrans.determine_postfix(input_list,
+                                                 output_list,
+                                                 postfix="_post")
+        my_options["post_var_postfix"] = postfix
+
+        if my_options.get("create_driver", False):
+            # We need to create the driver before inserting the ExtractNode
+            # (since some of the visitors used in driver creation do not
+            # handle an ExtractNode in the tree)
+            self._driver_creator.write_driver(nodes,
+                                              input_list, output_list,
+                                              postfix=postfix,
+                                              prefix=my_options["prefix"],
+                                              region_name=region_name)
+
+        result = super(GOceanExtractTrans, self).apply(nodes, my_options)
+
+        return result

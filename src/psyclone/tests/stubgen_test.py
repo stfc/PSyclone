@@ -108,14 +108,3 @@ def test_failures(monkeypatch, capsys):
         generate(__file__, api="dynamo0.3")
     assert ("Kernel stub generator: Code appears to be invalid "
             "Fortran" in str(err.value))
-
-    # Check invalid iteration space in LFRic API
-    kern_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "test_files",
-        "dynamo0p3", "testkern_dofs_mod.f90")
-    with pytest.raises(GenerationError) as excinfo:
-        generate(kern_file, api="dynamo0.3")
-    assert ("The LFRic API kernel stub generator supports kernels that "
-            "operate on one of ['cells', 'cell_column'], but "
-            "found 'dof' in kernel 'testkern_dofs_code'." in
-            str(excinfo.value))

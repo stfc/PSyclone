@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 # Modified by: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
@@ -39,8 +39,13 @@
 
 from __future__ import absolute_import
 import pytest
+
+from psyclone.nemo import NemoKern
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.nodes import Schedule, Assignment, Node
+from fparser.common.readfortran import FortranStringReader
 
 
 # pylint: disable=redefined-outer-name
@@ -57,7 +62,7 @@ CODE = (
     "  subroutine tmp(n)\n"
     "    integer,intent(in) :: n\n"
     "    real :: a(n,n,n)\n"
-    "    integer :: i,j,k\n"
+    "    integer :: i,j,k,l,m\n"
     "    do i=1,n\n"
     "      do j=1,n\n"
     "        do k=1,n\n"
@@ -81,8 +86,6 @@ def get_schedule(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
     '''
-    from fparser.common.readfortran import FortranStringReader
-    from psyclone.psyGen import PSyFactory
     reader = FortranStringReader(code)
     prog = parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
@@ -101,7 +104,6 @@ def get_kernel(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoKern`
 
     '''
-    from psyclone.nemo import NemoKern
     schedule = get_schedule(parser, code)
     loop1 = schedule.children[0]
     loop2 = loop1.loop_body.children[0]
@@ -123,7 +125,6 @@ def get_assignment(parser, code):
     :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    from psyclone.psyir.nodes import Assignment
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()
     assignment = kernel_schedule.children[0]
@@ -165,13 +166,9 @@ def get_rhs(parser, code):
 
 
 # (1/3) function gen_stencil
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_gen_stencil_1(parser):
     '''Check the gen_stencil function produces the expected dimension
     strings.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
 
     '''
     for form, expected in [("i,j,k,l,m", "[0, 0, 0, 0, 0]"),
@@ -195,7 +192,8 @@ def test_gen_stencil_2(parser):
     schedule = get_schedule(parser, CODE)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_stencil(schedule)
-    assert "gen_stencil expected an Array as input" in str(excinfo.value)
+    assert ("gen_stencil expected an ArrayReference as input" in
+            str(excinfo.value))
 
 
 # (3/3) function gen_stencil
@@ -257,10 +255,8 @@ def test_sirwriter_node_1(parser):
     True. Also check for SIR indentation.
 
     '''
-    from psyclone.psyir.nodes import Node
     schedule = get_schedule(parser, CODE)
 
-    # pylint: disable=abstract-method
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the SIR writer but
         accepts any children inside.'''
@@ -272,7 +268,7 @@ def test_sirwriter_node_1(parser):
     unsupported = Unsupported()
 
     # Add the unsupported node as the root of the tree
-    unsupported.children = [schedule]
+    unsupported.children = [schedule.detach()]
 
     sir_writer = SIRWriter(skip_nodes=False)
     with pytest.raises(VisitorError) as excinfo:
@@ -338,24 +334,6 @@ def test_sirwriter_nemoloop_node_2(parser, sir_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert "Child of loop should be a single loop" in str(excinfo.value)
-
-
-CODE = (
-    "module test\n"
-    "  contains\n"
-    "  subroutine tmp(n)\n"
-    "    integer,intent(in) :: n\n"
-    "    real :: a(n,n,n)\n"
-    "    integer :: i,j,k\n"
-    "    do i=1,n\n"
-    "      do j=1,n\n"
-    "        do k=1,n\n"
-    "          a(i,j,k) = 1.0\n"
-    "        end do\n"
-    "      end do\n"
-    "    end do\n"
-    "  end subroutine tmp\n"
-    "end module test\n")
 
 
 # (3/6) Method nemoloop_node
@@ -435,7 +413,6 @@ def test_sirwriter_nemoloop_node_6(parser, sir_writer):
                         "            a(i,j,k,l) = 1.0\n"
                         "          end do\n")
     code = code.replace("real :: a(n,n,n)", "real :: a(n,n,n,3)")
-    code = code.replace("integer :: i,j,k", "integer :: i,j,k,l")
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -486,16 +463,13 @@ def test_sirwriter_nemoinvokeschedule_node_1(parser, sir_writer):
 
 
 # (2/2) Method nemoinvokeschedule_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
     '''Check the nemoinvokeschedule_node method of the SIRWriter class
     outputs the expected SIR code when there is a scalar variable.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace("a(i,j,k) = 1.0", "b = a(i,j,k)")
+    code = CODE.replace("\n    integer ::", "\n    real :: b\n    integer ::")
+    code = code.replace("a(i,j,k) = 1.0", "b = a(i,j,k)")
     schedule = get_schedule(parser, code)
     result = sir_writer(schedule)
     assert (
@@ -533,17 +507,15 @@ def test_sirwriter_assignment_node(parser, sir_writer):
 
 # (1/4) Method binaryoperation_node
 @pytest.mark.parametrize("oper", ["+", "-", "*", "/", "**"])
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_binaryoperation_node_1(parser, sir_writer, oper):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code. Check all supported computation
     mappings.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    real :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
     rhs = get_rhs(parser, code)
     result = sir_writer.binaryoperation_node(rhs)
@@ -560,17 +532,15 @@ def test_sirwriter_binaryoperation_node_1(parser, sir_writer, oper):
     "foper,soper",
     [(".eq.", "=="), ("/=", "!="), (".le.", "<="), (".lt.", "<"),
      (".ge.", ">="), (".gt.", ">"), (".and.", "&&"), (".or.", "||")])
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code. Check all supported comparator
     mappings.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    real :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if"
         "".format(foper))
     kernel = get_kernel(parser, code)
@@ -587,7 +557,6 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
 
 
 # (3/4) Method binaryoperation_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class
     outputs the expected SIR code when there are are a series of
@@ -596,11 +565,10 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
     managed in this case due to the SIR makeBinaryOperator functions
     being nested.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = b*c+d")
+    code = CODE.replace("\n    integer ::",
+                        "\n    real :: b, c, d\n    integer ::")
+    code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = b*c+d")
     rhs = get_rhs(parser, code)
     result = sir_writer.binaryoperation_node(rhs)
     assert (
@@ -616,18 +584,16 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
 
 
 # (4/4) Method binaryoperation_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
     '''Check the binaryoperation_node method of the SIRWriter class raises
     the expected exception if an unsupported binary operator is found.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
+    code = CODE.replace("\n    integer ::",
+                        "\n    real :: b, c\n    integer ::")
     # Choose the sign function as there is no direct support for it in
     # in the SIR and no mapping is currently provided.
-    code = CODE.replace("a(i,j,k) = 1.0", "a(i,j,k) = sign(b, c)")
+    code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = sign(b, c)")
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer.binaryoperation_node(rhs)
@@ -666,18 +632,18 @@ def test_sirwriter_reference_node_2(parser, sir_writer):
 # (1/1) Method array_node
 def test_sirwriter_array_node(parser, sir_writer):
     '''Check the array_node method of the SIRWriter class outputs the
-    expected SIR when given a PSyIR Array node.
+    expected SIR when given a PSyIR ArrayReference node.
 
     '''
     lhs = get_lhs(parser, CODE)
-    assert (sir_writer.array_node(lhs) ==
+    assert (sir_writer.arrayreference_node(lhs) ==
             "make_field_access_expr(\"a\", [0, 0, 0])")
 
 
 # (1/3) Method literal_node
 def test_sirwriter_literal_node_1(parser, sir_writer):
-    '''Check the array_node method of the SIRWriter class outputs the
-    expected SIR when given a PSyIR Literal node with a 'real' value.
+    '''Check the arrayreference_node method of the SIRWriter class outputs
+    the expected SIR when given a PSyIR Literal node with a 'real' value.
 
     '''
     rhs = get_rhs(parser, CODE)
@@ -687,7 +653,7 @@ def test_sirwriter_literal_node_1(parser, sir_writer):
 
 # (2/3) Method literal_node
 def test_sirwriter_literal_node_2(parser, sir_writer):
-    '''Check the array_node method of the SIRWriter class outputs the
+    '''Check the arrayreference_node method of the SIRWriter class outputs the
     expected SIR when given a PSyIR Literal node with an 'integer'
     value.
 
@@ -702,7 +668,7 @@ def test_sirwriter_literal_node_2(parser, sir_writer):
 @pytest.mark.parametrize("value,datatype", [(".true.", "BOOLEAN"),
                                             ("'hello'", "CHARACTER")])
 def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
-    '''Check the array_node method of the SIRWriter class raises the
+    '''Check the arrayreference_node method of the SIRWriter class raises the
     expected exception when given a PSyIR Literal node with an
     unsupported value.
 
@@ -747,39 +713,26 @@ def test_sirwriter_unary_node_2(parser, sir_writer):
 
 
 # (3/5) Method unaryoperation_node
-def test_sirwriter_unary_node_3(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class raises
-    the expected exception if the subject of the unary operator is not
-    a literal value (as currently only '-' is supported and it is only
-    supported for literal values).
+@pytest.mark.parametrize(
+    "value, datatype", [("-1", "Integer"), ("-1.0", "Float")])
+def test_sirwriter_unary_node_3(parser, sir_writer, value, datatype):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is a
+    literal (tests for both integer and real).
 
     '''
-    code = CODE.replace("1.0", "-a(i,j,k)")
+    code = CODE.replace("1.0", value)
     rhs = get_rhs(parser, code)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.unaryoperation_node(rhs)
-    assert ("unary operators can only be applied to literals."
-            in str(excinfo.value))
+    result = sir_writer.unaryoperation_node(rhs)
+    assert ("make_literal_access_expr(\"{0}\", BuiltinType.{1})"
+            "".format(value, datatype) in result)
 
 
 # (4/5) Method unaryoperation_node
 def test_sirwriter_unary_node_4(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class outputs
-    the expected SIR when the subject of the unary operator is an
-    integer literal.
-
-    '''
-    code = CODE.replace("1.0", "-1")
-    rhs = get_rhs(parser, code)
-    result = sir_writer.unaryoperation_node(rhs)
-    assert "make_literal_access_expr(\"-1\", BuiltinType.Integer)" in result
-
-
-# (5/5) Method unaryoperation_node
-def test_sirwriter_unary_node_5(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class raises
     the expected Exception when the subject of the '-' unary operator
-    is not of type REAL or INTEGER.
+    is a literal but is not of type REAL or INTEGER.
 
     '''
     code = CODE.replace("1.0", "-.false.")
@@ -790,18 +743,42 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
             "with the '-' operator." in str(excinfo.value))
 
 
+# (5/5) Method unaryoperation_node
+def test_sirwriter_unary_node_5(parser, sir_writer):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is not a
+    literal.
+
+    '''
+    code = CODE.replace("1.0", "-(a(i,j,k)-b(i,j,k))")
+    code = code.replace(
+        "    real :: a(n,n,n)\n",
+        "    real :: a(n,n,n), b(n,n,n)\n")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.unaryoperation_node(rhs)
+    assert (
+        result ==
+        "make_binary_operator(\n"
+        "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
+        "  \"*\",\n"
+        "  make_binary_operator(\n"
+        "    make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "    \"-\",\n"
+        "    make_field_access_expr(\"b\", [0, 0, 0])\n"
+        "    )\n"
+        ")\n")
+
+
 # (1/4) Method ifblock_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_ifblock_node_1(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class
     creates the expected code when there is an if statement with no
     else clause.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    integer :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()
@@ -819,16 +796,14 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
 
 
 # (2/4) Method ifblock_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_ifblock_node_2(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class creates the
     expected code when there is an if statement with an else clause.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    integer :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nelse\n"
         "a(i,j,k) = 0.0\nend if")
     kernel = get_kernel(parser, code)
@@ -850,16 +825,14 @@ def test_sirwriter_ifblock_node_2(parser, sir_writer):
 
 
 # (3/4) Method ifblock_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_ifblock_node_3(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class creates the
     expected code when there is more than one if statement in the code.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    integer :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if\n"
         "if (c .ge. 0.5) then\na(i,j,k) = -1.0\nend if\n")
     kernel = get_kernel(parser, code)
@@ -889,16 +862,14 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
 
 
 # (4/4) Method ifblock_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_ifblock_node_4(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class creates the
     expected code when ifs are nested within each other.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    integer :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0",
         "if (b .eq. c) then\n"
         "  if (b. gt. 0.5) then\n"
@@ -943,17 +914,14 @@ def test_sirwriter_ifblock_node_4(parser, sir_writer):
 
 
 # (1/1) Method schedule_node
-@pytest.mark.usefixtures("disable_declaration_check")
 def test_sirwriter_schedule_node_1(parser, sir_writer):
     '''Check the schedule method of the SIRWriter class
     creates the expected code by calling its children.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-
     '''
-    from psyclone.psyir.nodes import Schedule
-    code = CODE.replace(
+    code = CODE.replace("\n    integer ::",
+                        "\n    integer :: b, c\n    integer ::")
+    code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()

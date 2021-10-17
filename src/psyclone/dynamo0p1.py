@@ -40,7 +40,8 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Reference, ArrayReference, \
+    Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
@@ -172,8 +173,6 @@ class DynamoPSy(PSy):
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
-        # inline kernel subroutines if requested
-        self.inline(psy_module)
         return psy_module.root
 
 
@@ -191,7 +190,7 @@ class DynInvoke(Invoke):
         Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule, invokes)
 
     def gen_code(self, parent):
@@ -216,9 +215,10 @@ class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo
         specific loop and infrastructure classes to the base class so it
         creates the ones we require. '''
-    def __init__(self, arg, reserved_names=None):
-        InvokeSchedule.__init__(self, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg, reserved_names)
+    def __init__(self, name, arg, reserved_names=None, parent=None):
+        InvokeSchedule.__init__(self, name, DynKernCallFactory,
+                                DynBuiltInCallFactory, arg, reserved_names,
+                                parent=parent)
 
 
 class DynLoop(Loop):
@@ -244,12 +244,11 @@ class DynLoop(Loop):
 
         symtab = self.scope.symbol_table
         try:
-            data_symbol = symtab.lookup_with_tag(tag)
+            self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
-            name = symtab.new_symbol_name(suggested_name)
-            data_symbol = DataSymbol(name, INTEGER_TYPE)
-            symtab.add(data_symbol, tag=tag)
-        self.variable = data_symbol
+            self.variable = symtab.new_symbol(
+                suggested_name, tag, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -275,8 +274,9 @@ class DynLoop(Loop):
             self.stop_expr = Reference(DataSymbol("ncolour", INTEGER_TYPE),
                                        parent=self)
         elif self._loop_type == "colour":
-            self.stop_expr = Array(DataSymbol("ncp_ncolour", INTEGER_TYPE),
-                                   parent=self)
+            self.stop_expr = ArrayReference(DataSymbol("ncp_ncolour",
+                                                       INTEGER_TYPE),
+                                            parent=self)
             self.stop_expr.addchild(
                 Reference(DataSymbol("colour", INTEGER_TYPE)),
                 parent=self.stop_expr)
@@ -308,11 +308,10 @@ class DynKernCallFactory(object):
 
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop)
+        kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop
         cloop.loop_body.addchild(kern)
-        kern.parent = cloop.children[3]
 
         # Set-up the loop now we have the kernel object
         cloop.load(kern)
@@ -329,7 +328,7 @@ class DynKern(CodedKern):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
-    def load(self, call, parent=None):
+    def load(self, call, parent):
         '''
         Load this DynKern object with state pulled from the call object.
 

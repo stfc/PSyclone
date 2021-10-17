@@ -1,10 +1,37 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# -------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Contains tests for transformations on the GOcean 0.1 API '''
 
@@ -13,8 +40,9 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import LoopFuseTrans, GOceanLoopFuseTrans, \
-    GOceanOMPParallelLoopTrans
+from psyclone.psyir.transformations import LoopFuseTrans
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.transformations import GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"
 
@@ -23,6 +51,8 @@ API = "gocean0.1"
 def setup():
     '''Make sure that all tests here use gocean0.1 as API.'''
     Config.get().api = "gocean0.1"
+    yield()
+    Config._instance = None
 
 
 def test_loop_fuse_with_not_a_loop():
@@ -35,14 +65,14 @@ def test_loop_fuse_with_not_a_loop():
     lftrans = LoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
     # Enclose the first loop within an OMP parallel do
-    new_sched, _ = ompf.apply(schedule.children[0])
+    ompf.apply(schedule.children[0])
     # Attempt to (erroneously) fuse this OMP parallel do
     # with the next loop in the schedule
     with pytest.raises(TransformationError) as ex:
-        schedule, _ = lftrans.apply(new_sched.children[0],
-                                    new_sched.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
     # Exercise the __str__ method of TransformationError
-    assert "At least one of the nodes is not a loop." in str(ex.value)
+    assert ("Target of LoopFuseTrans transformation must be a sub-class of "
+            "Loop but got 'OMPParallelDoDirective'" in str(ex.value))
 
 
 def test_loop_fuse_on_non_siblings():
@@ -85,12 +115,11 @@ def test_gocean_loop_fuse_with_not_a_loop():
     lftrans = GOceanLoopFuseTrans()
     ompf = GOceanOMPParallelLoopTrans()
     # Enclose the first loop within an OMP parallel do
-    new_sched, _ = ompf.apply(schedule.children[0])
+    ompf.apply(schedule.children[0])
     # Attempt to (erroneously) fuse this OMP parallel do
     # with the next loop in the schedule
     with pytest.raises(TransformationError):
-        _, _ = lftrans.apply(new_sched.children[0],
-                             new_sched.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
 
 
 def test_openmp_loop_fuse_trans():
@@ -101,21 +130,16 @@ def test_openmp_loop_fuse_trans():
     ompf = GOceanOMPParallelLoopTrans()
 
     # fuse all outer loops
-    lf_schedule, _ = lftrans.apply(schedule.children[0],
-                                   schedule.children[1])
-    schedule, _ = lftrans.apply(lf_schedule.children[0],
-                                lf_schedule.children[1])
+    lftrans.apply(schedule.children[0], schedule.children[1])
+    lftrans.apply(schedule.children[0], schedule.children[1])
     # fuse all inner loops
-    lf_schedule, _ = lftrans.apply(schedule.children[0].loop_body[0],
-                                   schedule.children[0].loop_body[1])
-    schedule, _ = lftrans.apply(lf_schedule.children[0].loop_body[0],
-                                lf_schedule.children[0].loop_body[1])
+    lftrans.apply(schedule.children[0].loop_body[0],
+                  schedule.children[0].loop_body[1])
+    lftrans.apply(schedule.children[0].loop_body[0],
+                  schedule.children[0].loop_body[1])
 
     # Add an OpenMP directive around the fused loop
-    lf_schedule, _ = ompf.apply(schedule.children[0])
-
-    # Replace the original loop schedule with the transformed one
-    psy.invokes.get('invoke_0').schedule = lf_schedule
+    ompf.apply(schedule.children[0])
 
     # Store the results of applying this code transformation as
     # a string
@@ -154,10 +178,7 @@ def test_openmp_loop_trans():
     schedule = invoke.schedule
     ompf = GOceanOMPParallelLoopTrans()
 
-    omp1_schedule, _ = ompf.apply(schedule.children[0])
-
-    # Replace the original loop schedule with the transformed one
-    psy.invokes.get('invoke_0').schedule = omp1_schedule
+    ompf.apply(schedule.children[0])
 
     # Store the results of applying this code transformation as
     # a string

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 include ../common.mk
 
-transform:
-	${PYTHON} create.py
-	${PYTHON} create_aggregate_types.py
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-all: transform
+transform:
+	$(CONFIG_ENV) ${PYTHON} create.py
+	$(CONFIG_ENV) ${PYTHON} create_structure_types.py
+	$(CONFIG_ENV) ${PYTHON} modify.py
 
 compile:
-	@echo "No compilation supported for the PSyIR creation examples"
+	@echo "No compilation supported for the PSyIR examples"
+
+run: compile
+	@echo "No run targets for PSyIR creation examples"
 

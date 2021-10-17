@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab.
+# Author: R. W. Ford, STFC Daresbury Lab.
 # Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
@@ -39,11 +39,14 @@ limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
+from __future__ import absolute_import
 
-from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
-    Array, UnaryOperation
+import six
+
 from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
+    Reference, UnaryOperation
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -65,7 +68,7 @@ def gen_stencil(node):
     stencil access.
 
     :param node: an array access.
-    :type node: :py:class:`psyclone.psyir.nodes.Array`
+    :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     :returns: the SIR stencil access format for the array access.
     :rtype: str
@@ -74,9 +77,9 @@ def gen_stencil(node):
     array access is not in a recognised stencil form.
 
     '''
-    if not isinstance(node, Array):
+    if not isinstance(node, ArrayReference):
         raise VisitorError(
-            "gen_stencil expected an Array as input but found '{0}'."
+            "gen_stencil expected an ArrayReference as input but found '{0}'."
             "".format(type(node)))
     dims = []
     for child in node.children:
@@ -115,9 +118,8 @@ class SIRWriter(PSyIRVisitor):
     implemented, otherwise the visitor continues, printing out a \
     representation of the unsupported node. This is an optional \
     argument which defaults to False.
-    :param indent_string: specifies what to use for indentation. This \
+    :param str indent_string: specifies what to use for indentation. This \
     is an optional argument that defaults to two spaces.
-    :type indent_string: str or NoneType
     :param int initial_indent_depth: Specifies how much indentation to \
     start with. This is an optional argument that defaults to 0.
 
@@ -290,7 +292,7 @@ class SIRWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: an Assignment PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Assigment`
+        :type node: :py:class:`psyclone.psyir.nodes.Assignment``
 
         :returns: the SIR Python code.
         :rtype: str
@@ -341,10 +343,11 @@ class SIRWriter(PSyIRVisitor):
         lhs = self._visit(node.children[0])
         try:
             oper = binary_operators[node.operator]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            six.raise_from(VisitorError(
                 "Method binaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node.operator)))
+                "operator '{0}' found.".format(str(node.operator))),
+                err)
         rhs = self._visit(node.children[1])
         self._depth -= 1
         result = "{0}make_binary_operator(\n{1}".format(self._nindent, lhs)
@@ -383,12 +386,12 @@ class SIRWriter(PSyIRVisitor):
         return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
                                                            node.name)
 
-    def array_node(self, node):
-        '''This method is called when an Array instance is found in the PSyIR
-        tree.
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found in
+        the PSyIR tree.
 
-        :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :param node: an ArrayReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -417,10 +420,11 @@ class SIRWriter(PSyIRVisitor):
         result = node.value
         try:
             datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            six.raise_from(VisitorError(
                 "PSyIR type '{0}' has no representation in the SIR backend."
-                "".format(str(node.datatype)))
+                "".format(str(node.datatype))),
+                err)
 
         return ("{0}make_literal_access_expr(\"{1}\", {2})"
                 "".format(self._nindent, result, datatype))
@@ -445,27 +449,42 @@ class SIRWriter(PSyIRVisitor):
             UnaryOperation.Operator.MINUS: '-'}
         try:
             oper = unary_operators[node.operator]
-        except KeyError:
-            raise VisitorError(
+        except KeyError as err:
+            six.raise_from(VisitorError(
                 "Method unaryoperation_node in class SIRWriter, unsupported "
-                "operator '{0}' found.".format(str(node.operator)))
-        # Currently only '-<literal>' is supported in the SIR mapping.
-        if not (len(node.children) == 1 and
-                isinstance(node.children[0], Literal)):
-            raise VisitorError(
-                "Currently, unary operators can only be applied to literals.")
-        literal = node.children[0]
-        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
-                                              ScalarType.Intrinsic.INTEGER]:
-            # The '-' operator can only be applied to REAL and INTEGER
-            # datatypes.
-            raise VisitorError(
-                "PSyIR type '{0}' does not work with the '-' operator."
-                "".format(str(literal.datatype)))
-        result = literal.value
-        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
-        return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
-                "".format(self._nindent, oper, result, datatype))
+                "operator '{0}' found.".format(str(node.operator))),
+                err)
+        if isinstance(node.children[0], Literal):
+            # The unary minus operator is being applied to a
+            # literal. This is a special case as the literal value can
+            # be negative in SIR.
+            literal = node.children[0]
+            if literal.datatype.intrinsic not in [
+                    ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]:
+                # The '-' operator can only be applied to REAL and INTEGER
+                # datatypes.
+                raise VisitorError(
+                    "PSyIR type '{0}' does not work with the '-' operator."
+                    "".format(str(literal.datatype)))
+            result = literal.value
+            datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
+            return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
+                    "".format(self._nindent, oper, result, datatype))
+
+        # The unary minus operator is being applied to something that
+        # is not a literal. Default to REAL as we currently have no
+        # way of finding out the type, see issue #658. Replace -x with
+        # -1.0 * x.
+        datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
+        self._depth += 1
+        lhs = "{0}make_literal_access_expr(\"-1.0\", {1})".format(
+            self._nindent, datatype)
+        operator = "{0}\"*\"".format(self._nindent)
+        rhs = self._visit(node.children[0])
+        self._depth -= 1
+        result = "{0}make_binary_operator(\n{1},\n{2},\n{3})\n".format(
+            self._nindent, lhs, operator, rhs)
+        return result
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in

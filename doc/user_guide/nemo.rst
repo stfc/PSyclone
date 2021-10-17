@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
-      
+.. Modified by R. W. Ford, STFC Daresbury Lab
+
 .. _nemo-api:
 
 NEMO API
@@ -154,34 +155,66 @@ Internal Representation of it::
                 Loop[type='lon',field_space='None',it_space='None']
                     CodedKern[]
 
+Transformations
+---------------
+
+The following transformations are specific to the NEMO API.
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoLoopFuseTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayRange2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoOuterArrayRange2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayRange2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayAccess2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayAccess2LoopTrans
+    :noindex:
+    :members: apply, validate
+
 .. _limitations:
 
 Limitations
 -----------
 
-The NEMO API is currently only a prototype implementation. Here
+The NEMO API is currently under development. Here
 we list the current, known limitations/issues:
 
- 1. When transforming implicit loops into explicit loops, the
-    declaration of the loop variables can be repeated (there is an
-    x-failing test for this);
- 2. Scalar variables inside loops are not made private when
+ 1. Scalar variables inside loops are not made private when
     parallelising using OpenMP;
- 3. All recognised loops (levels, latitude etc.) are assumed to be
+ 2. All recognised loops (levels, latitude etc.) are assumed to be
     parallelisable. This will not always be the case (e.g. tridiagonal
     solve has a loop-carried dependence in the vertical);
- 4. Labelled do-loops are not handled (i.e. they will be put inside a
+ 3. Labelled do-loops are not handled (i.e. they will be put inside a
     'CodeBlock' in the PSyIR);
- 5. Loops are currently only permitted to contain one kernel.  This
+ 4. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
- 6. Array slices with specified bounds (e.g. umask(1:10)) are not yet
-    supported and will raise a TransformationError when attempting to
-    transform them into explicit loops;
- 7. When generating new variable names, no attempt is made to avoid
-    clashing with variables already present in the NEMO source. This
-    needs to be resolved by querying the SymbolTable (#381);
- 8. The psyir.nodes.Node base class now has an _ast property to hold a
+ 5. The psyir.nodes.Node base class now has an _ast property to hold a
     pointer into the associated fparser2 AST. However, the psyGen.Kern
     class already has an _fp2_ast property that points to the whole
     fparser2 AST of the kernel code. This will be rationalised in
-    #241.
+    #241;

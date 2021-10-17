@@ -24,7 +24,8 @@ provided with a transformation script::
 psyclone -api "gocean1.0" -s ./ocl_trans.py alg.f90
 ```
 
-where `ocl_trans.py` simply applies the `psyclone.transformations.OCLTrans`
+where `ocl_trans.py` simply applies the
+`psyclone.domain.gocean.transformations.GOOpenCLTrans`
 transformation to the Schedule of the Invoke. This will generate the OpenCL
 driver layer to stdout and a 'kernel_name'.cl file for each of the kernels
 referenced in alg.f90 translated to OpenCL.
@@ -56,13 +57,47 @@ kernels. To run the application with this file use the following command:
 FORTCL_KERNELS_FILE=allkernels.cl ./alg_opencl.exe
 ```
 
+This Makefile also provides a target to combine OpenCL and distributed
+memory:
+```sh
+make compile-mpi-ocl
+```
+
+In addition to the details above, the distributed memory target needs an mpi
+compiler specified by the F90 environment variable and that the libraries have
+been compiled with that compiler. The example can be compiled and executed
+across 2 nodes with the following commands:
+
+```sh
+make allclean
+export F90=mpifc
+make compile-mpi-ocl
+FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 2 ./alg_dm_opencl.exe
+```
+
+The previous example uses a single accelerator device in each node. If more
+than one accelerator is available in each node, these can be used by setting
+the `OCL_DEVICES_PER_NODE` parameter in the PSyclone configuration file and
+then providing the mpirun command with the appropriate parameter to place as
+many MPI ranks per node as as there are accelerators devices. For example,
+with Intel MPI, the following command can be used to run across 2 nodes with
+2 devices per node:
+
+```sh
+# Update psyclone.cfg
+make allclean
+export F90=mpifc
+make compile-mpi-ocl
+FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 4 -ppn 2 ./alg_dm_opencl.exe
+```
+
 ## Licence
 
 -----------------------------------------------------------------------------
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2020, Science and Technology Facilities Council
+Copyright (c) 2018-2021, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

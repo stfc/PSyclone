@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,8 @@ class Literal(DataNode):
     this node are immutable.
 
     If the node represents "real" data and the value is expressed with
-    an exponent (e.g. 3.2e4) then the exponent must be a lower case "e".
+    an exponent (e.g. 3.2e4 or 0.1E-3) then the stored value always uses
+    a lower case "e".
 
     :param str value: the value of the literal.
     :param datatype: the datatype of this literal.
@@ -60,19 +61,22 @@ class Literal(DataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises TypeError: if the datatype is not an instance of \
-                       :py:class:`psyclone.psyir.symbols.DataType`.
-    :raises ValueError: if the datatype is not one of \
-                        self.VALID_DATA_TYPES.
+        :py:class:`psyclone.psyir.symbols.DataType`.
+    :raises ValueError: if the datatype is not one of self.VALID_DATA_TYPES.
     :raises TypeError: if the supplied value is not a string.
+    :raises ValueError: if the supplied value is an empty string and the \
+        Literal is not a CHARACTER.
     :raises ValueError: if the Literal is a BOOLEAN and the value is not \
-                        'true' or 'false'.
+        'true' or 'false'.
+    :raises ValueError: if the Literal is a REAL but does not conform to \
+        the supported format defined by the `_real_value` property.
 
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
-    _colour_key = "Literal"
-    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
+    _colour = "yellow"
+    _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
@@ -89,8 +93,8 @@ class Literal(DataNode):
                 "Literals must be supplied with a value encoded as a string "
                 "but found '{0}'".format(type(value).__name__))
 
-        if not value:
-            raise ValueError("A literal value can not be empty.")
+        if not value and datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+            raise ValueError("A non-character literal value cannot be empty.")
 
         if (isinstance(datatype, ScalarType) and
                 datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
@@ -99,15 +103,17 @@ class Literal(DataNode):
                 "A scalar boolean literal can only be: 'true' or "
                 "'false' but found '{0}'.".format(value))
 
-        if (datatype.intrinsic == ScalarType.Intrinsic.REAL and not
-                re.search(Literal._real_value, value)):
-            raise ValueError(
-                "A scalar real literal value must conform to the "
-                "supported format ('{0}') but found '{1}'."
-                "".format(Literal._real_value, value))
-
+        if datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            if not re.match(Literal._real_value, value):
+                raise ValueError(
+                    "A scalar real literal value must conform to the "
+                    "supported format ('{0}') but found '{1}'."
+                    "".format(Literal._real_value, value))
+            # Ensure we always store any exponent with a lowercase 'e'
+            self._value = value.replace("E", "e", 1)
+        else:
+            self._value = value
         self._datatype = datatype
-        self._value = value
 
     @property
     def datatype(self):
@@ -145,6 +151,8 @@ class Literal(DataNode):
 
         :return: if the self has the same results as other.
         :type: bool
-        '''
 
+        '''
+        if not isinstance(other, Literal):
+            return False
         return self.value == other.value

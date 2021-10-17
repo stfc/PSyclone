@@ -32,11 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Makefile for the PSyclone NEMO OpenACC tutorial.
 
+include ../../../common.mk
+
 # By default we only generate the transformed code
-.DEFAULT_GOAL := psy.f90
+.DEFAULT_GOAL := psy_1.f90
 
 # The PSyclone transformation script to use
 TRANS_SCRIPT ?= ./kernels_trans.py
@@ -49,43 +52,43 @@ F90FLAGS ?= -fopenacc -O2
 # F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
 # F90 = nvfortran
 
-# We use the PSyData simple_timing implementation since it has no
-# dependencies.
-PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
-PROFILE_LINK = -lsimple_timing
-PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
-
 # ------------------------------------------------------------------------------
-NAME = tra_adv.exe
+NAME = ./tra_adv.exe
 
-.PHONY: clean allclean test
+.PHONY: clean allclean transform
 
-$(NAME): $(KERNELS) psy.o runner.o
-	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
+$(NAME): $(KERNELS) psy_openacc.o runner.o
+	$(F90) $(F90FLAGS) $^ -o $@
 
-# Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	psyclone -s ${TRANS_SCRIPT} -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+# Target that uses PSyclone to generate 'psy%.f90' - it is used
+# to create psy_openacc.f90 here, but also to create psy_1 as
+# default target.
+psy%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
+	$(PSYCLONE) -s ${TRANS_SCRIPT} -api nemo \
+                     -opsy $@ -l output tra_adv_mod.F90
+
+.precious: psy_openacc.f90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
 
-# Creating psy.o and runner.o requires that the profiling lib be compiled
-runner.o psy.o: ${PROFILE_LIB}
+# Dependencies - runner needs tra_adv.mod, which is in the psyclone
+# processed file psy_openacc.c.
+runner.o: psy_openacc.o
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
-
-${PROFILE_LIB}:
-	${MAKE} -C ${PROFILE_DIR}
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f psy.f90 *.o *.mod
+	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat
 
 allclean: clean
-	rm -f ${NAME}
-	${MAKE} -C ${PROFILE_DIR}  clean
 
-test:
-	${MAKE} -C solutions test
+transform:
+	${MAKE} -C solutions transform
+
+compile: TRANS_SCRIPT=./solutions/collapse_trans.py
+compile: transform $(NAME)
+
+run: compile
+	JPK=30 JPJ=100 JPI=100 IT=10 $(NAME)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Utility module containing classes and functions that are used by
 the parser modules.
@@ -40,17 +40,17 @@ the parser modules.
 
 import io
 
-from psyclone.configuration import Config
-from psyclone.line_length import FortLineLength
-from psyclone.errors import InternalError
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.utils import FortranSyntaxError
+from psyclone.configuration import Config
+from psyclone.line_length import FortLineLength
+from psyclone.errors import PSycloneError, InternalError
+
 
 # Exceptions
 
-
-class ParseError(Exception):
+class ParseError(PSycloneError):
     '''Provides a PSyclone-specific error class for the situation when
     the PSyclone code parsing finds an error in the input.
 
@@ -58,11 +58,8 @@ class ParseError(Exception):
 
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Parse Error: " + value
-
-    def __str__(self):
-        return repr(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Parse Error: " + str(value)
 
 # support functions
 
@@ -117,7 +114,7 @@ def parse_fp2(filename):
     :raises ParseError: if the file could not be parsed.
 
     '''
-    parser = ParserFactory().create()
+    parser = ParserFactory().create(std="f2008")
     # We get the directories to search for any Fortran include files from
     # our configuration object.
     config = Config.get()

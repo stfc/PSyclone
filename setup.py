@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ CLASSIFIERS = [
 # that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
-    exec(vfile.read()) # pylint:disable=exec-used
+    exec(vfile.read())  # pylint:disable=exec-used
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 if __name__ == '__main__':
@@ -121,8 +121,8 @@ if __name__ == '__main__':
                                      files))
         return examples
 
-    # We have all of the example and tutorial files listed in
-    # MANIFEST.in but unless we specify them in the data_files
+    # We have all of the example, tutorial and wrapper libraries files
+    # listed in MANIFEST.in but unless we specify them in the data_files
     # argument of setup() they don't seem to get installed.
     # Since the data_files argument doesn't accept wildcards we have to
     # explicitly list every file we want.
@@ -138,6 +138,12 @@ if __name__ == '__main__':
     VALID_SUFFIXES = [".ipynb"]
     TUTORIAL = get_files(TUTORIAL_DIR, INSTALL_PATH, VALID_SUFFIXES)
 
+    LIBS_DIR = os.path.join(BASE_PATH, "lib")
+    INSTALL_PATH = os.path.join("share", "psyclone", "lib")
+    VALID_SUFFIXES = ["90", "sh", "py", "md", "Makefile", ".mk",
+                      ".jinja", "doxyfile"]
+    LIBS = get_files(LIBS_DIR, INSTALL_PATH, VALID_SUFFIXES)
+
     setup(
         name=NAME,
         version=VERSION,
@@ -150,16 +156,20 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.11', 'configparser',
-                          'six', 'enum34 ; python_version < "3.0"'],
+        # TODO #1193: Pinned jsonschema to support older versions of python
+        install_requires=['pyparsing', 'fparser==0.0.12', 'configparser',
+                          'six', 'enum34 ; python_version < "3.0"',
+                          'jsonschema==3.0.2'],
         extras_require={
             'dag': ["graphviz"],
-            'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
+            'doc': ["sphinx", "sphinxcontrib.bibtex < 2.0.0",
+                    "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
             'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
                      "pytest-pylint", "pytest-flakes", "pytest-pep257"],
         },
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/genkernelstub'],
+        scripts=['bin/psyclone', 'bin/genkernelstub', 'bin/psyad'],
         data_files=[
-            ('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL,)
+            ('share/psyclone',
+             ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
