@@ -46,6 +46,7 @@ import six
 
 from psyclone.generator import write_unicode_file
 from psyclone.psyad.tl2ad import generate_adjoint_str
+from psyclone.psyad.transformations import TangentLinearError
 
 
 def main(args):
@@ -106,9 +107,16 @@ def main(args):
         logger.error("psyad error: file '%s', not found.", filename)
         sys.exit(1)
 
-    # Create the adjoint (and associated test framework if requested)
-    ad_fortran_str, test_fortran_str = generate_adjoint_str(
-        tl_fortran_str, args.active, create_test=generate_test)
+    try:
+        # Create the adjoint (and associated test framework if requested)
+        ad_fortran_str, test_fortran_str = generate_adjoint_str(
+            tl_fortran_str, args.active, create_test=generate_test)
+    except TangentLinearError as info:
+        print(str(info.value))
+        sys.exit(1)
+    except KeyError as info:
+        print(str(info))
+        sys.exit(1)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:

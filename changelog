@@ -221,6 +221,15 @@
 	support routines from the generation stage to the transformation
 	stage.
 
+	76) PR #1420 for #1113. Completes the symbol-specialisation
+	functionality by adding support for attributes.
+
+	77) PR #1435 for #1425. Adds LFRic BuiltIns for subtraction of
+	field elements from a scalar.
+
+	78) PR #1412 for #1411. Adds visitor to PSyAD script and have it
+	call assignment transformation.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

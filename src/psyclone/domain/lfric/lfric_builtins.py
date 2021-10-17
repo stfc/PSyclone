@@ -425,19 +425,18 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get indexed references for each of the field arguments.
+        # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
-        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(lhs, rhs)
+        assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
 
@@ -451,7 +450,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -478,12 +477,13 @@ class LFRicAPlusXKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Get indexed references for each of the kernel field arguments.
+        # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
@@ -503,21 +503,25 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: inc_a_plus_X (real-valued field)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_a_plus_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We add a scalar value to each element of f1 and return the
-        # result in f1 (real-valued fields).
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        scalar_name = self._arguments.args[0].name
-        parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + " + " + field_name))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar + proxy0%data(df)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
@@ -755,6 +759,63 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
                              rhs=field_name1 + " - " + field_name2))
 
 
+class LFRicAMinusXKern(LFRicBuiltIn):
+    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are
+    real-valued fields (DoF-wise subtraction of a scalar value).
+
+    '''
+    def __str__(self):
+        return "Built-in: a_minus_X (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar - proxy1%data(df)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncAMinusXKern(LFRicBuiltIn):
+    ''' `X = a - X` where `a` is a real scalar and `X` is a real-valued
+    field (DoF-wise subtraction of a scalar value).
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_a_minus_X (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar - proxy0%data(df)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
 class LFRicAXMinusYKern(LFRicBuiltIn):
     ''' `Z = a*X - Y` where `a` is a real scalar and `Z`, `X` and
     `Y` are real-valued fields.
@@ -969,22 +1030,24 @@ class LFRicATimesXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Copy a scaled real-valued field"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        a_times_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply each element of f1 by the real scalar argument and
-        # store the result in f2 (real-valued fields).
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name2,
-                             rhs=scalar_name + " * " + field_name1))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar * proxy1%data(df)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
@@ -994,21 +1057,25 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Scale a real-valued field"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_a_times_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # In this case we're multiplying each element of a real-valued
-        # field by the supplied real scalar value.
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        scalar_name = self._arguments.args[0].name
-        parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + " * " + field_name))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar * proxy0%data(df)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
@@ -1080,22 +1147,24 @@ class LFRicADividebyXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Inverse scaling of a real-valued field (Y = a/X)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        a_divideby_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We divide the real scalar argument by each element of f1 and
-        # store the result in f2 (real-valued fields).
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name2,
-                             rhs=scalar_name + " / " + field_name1))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar / proxy1%data(df)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -1107,21 +1176,25 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Inverse scaling of a real-valued field (X = a/X)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_a_divideby_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We divide the real scalar argument by each element of f1 and
-        # return the result in f1 (real-valued field).
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        scalar_name = self._arguments.args[0].name
-        parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + " / " + field_name))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar / proxy0%data(df)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
@@ -1138,7 +1211,7 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -1164,7 +1237,7 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
 
     def lower_to_language_level(self):
         '''
-        Lowers this LFRic-specific builtin kernel to language-level PSyIR.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         '''
@@ -1463,11 +1536,35 @@ class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     the corresponding element of another, integer-valued, field, `X`,
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicXMinusYKern`.
+    equivalent `LFRicIncXMinusYKern`.
 
     '''
     def __str__(self):
         return "Built-in: Decrement an integer-valued field"
+
+
+class LFRicIntAMinusXKern(LFRicAMinusXKern):
+    ''' Subtract each element of an integer-valued field, `X`, from
+    an integer scalar value, `a`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicAMinusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_a_minus_X (integer-valued fields)"
+
+
+class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
+    ''' Subtract each element of an integer-valued field, `X`, from
+    an integer scalar value, `a`, and return the result in the
+    same field.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncAMinusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_a_minus_X (integer-valued field)"
 
 
 # ------------------------------------------------------------------- #
@@ -1629,6 +1726,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Subtracting (scaled) real fields
     "X_minus_Y": LFRicXMinusYKern,
     "inc_X_minus_Y": LFRicIncXMinusYKern,
+    "a_minus_X": LFRicAMinusXKern,
+    "inc_a_minus_X": LFRicIncAMinusXKern,
     "aX_minus_Y": LFRicAXMinusYKern,
     "X_minus_bY": LFRicXMinusBYKern,
     "inc_X_minus_bY": LFRicIncXMinusBYKern,
@@ -1674,6 +1773,8 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Subtracting integer fields
     "int_X_minus_Y": LFRicIntXMinusYKern,
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
+    "int_a_minus_X": LFRicIntAMinusXKern,
+    "int_inc_a_minus_X": LFRicIntIncAMinusXKern,
     # Multiplying (scaled) real fields
     "int_X_times_Y": LFRicIntXTimesYKern,
     "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
@@ -1714,6 +1815,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicAXPlusAYKern',
            'LFRicXMinusYKern',
            'LFRicIncXMinusYKern',
+           'LFRicAMinusXKern',
+           'LFRicIncAMinusXKern',
            'LFRicAXMinusYKern',
            'LFRicXMinusBYKern',
            'LFRicIncXMinusBYKern',
@@ -1742,6 +1845,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncAPlusXKern',
            'LFRicIntXMinusYKern',
            'LFRicIntIncXMinusYKern',
+           'LFRicIntAMinusXKern',
+           'LFRicIntIncAMinusXKern',
            'LFRicIntXTimesYKern',
            'LFRicIntIncXTimesYKern',
            'LFRicIntATimesXKern',
