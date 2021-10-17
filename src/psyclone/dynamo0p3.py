@@ -1032,8 +1032,7 @@ class DynamoPSy(PSy):
             const.DATA_TYPE_MAP["integer_field"]["module"],
             const.DATA_TYPE_MAP["operator"]["module"],
             const.DATA_TYPE_MAP["columnwise_operator"]["module"],
-            const.DATA_TYPE_MAP["r_solver_operator"]["module"],
-            const.DATA_TYPE_MAP["r_solver_columnwise_operator"]["module"]]
+            const.DATA_TYPE_MAP["r_solver_operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -8907,9 +8906,14 @@ class DynKernelArgument(KernelArgument):
             # If the algorithm information is not being ignored and is
             # available from the algorithm layer then check the
             # metadata and algorithm type are consistent and that the
-            # metadata specifies a supported operator type.
+            # algorithm specifies a supported operator type.
             if self.argument_type == "gh_operator":
                 if use_alg_info:
+                    if not alg_datatype:
+                        raise GenerationError(
+                            "PSyclone was not able to find the declaration of "
+                            "the operator argument '{0}' in kernel '{1}' "
+                            "within the algorithm code.")
                     mapping = {
                         "operator_type": "operator",
                         "r_solver_operator_type": "r_solver_operator"}
@@ -8925,22 +8929,19 @@ class DynKernelArgument(KernelArgument):
                 else:
                     argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
-                if use_alg_info:
-                    mapping = {
-                        "columnwise_operator_type": "columnwise_operator",
-                        "r_solver_columnwise_operator_type":
-                        "r_solver_columnwise_operator"}
-                    try:
-                        argtype = mapping[alg_datatype]
-                    except KeyError:
-                        raise GenerationError(
-                            "The metadata for argument '{0}' in kernel '{1}' "
-                            "specifies that this is a columnwise operator, "
-                            "however it is declared as a '{2}' in the "
-                            "algorithm code.".format(
-                                self.name, self._call.name, alg_datatype))
-                else:
-                    argtype = "columnwise_operator"
+                # The metadata specifies that this argument is an
+                # operator. If 'use_alg_info' is true then check the
+                # declaration in the algorithm layer (if found) is
+                # consistent.
+                if (use_alg_info and alg_datatype and
+                        alg_datatype != "columnwise_operator_type"):
+                    raise GenerationError(
+                        "The metadata for argument '{0}' in kernel '{1}' "
+                        "specifies that this is a columnwise operator, "
+                        "however it is declared as a '{2}' in the "
+                        "algorithm code.".format(
+                            self.name, self._call.name, alg_datatype))
+                argtype = "columnwise_operator"
             else:
                 raise InternalError(
                     "Expected 'gh_operator' or 'gh_columnwise_operator' "

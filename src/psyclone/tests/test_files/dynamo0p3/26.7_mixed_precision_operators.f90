@@ -38,7 +38,6 @@ module operators
   use operator_mod,                     only: operator_type
   use r_solver_operator_mod,            only: r_solver_operator_type
   use columnwise_operator_mod,          only: columnwise_operator_type
-  use r_solver_columnwise_operator_mod, only: r_solver_columnwise_operator_type
 
   use columnwise_op_asm_kernel_mod,     only: columnwise_op_asm_kernel_type
 
@@ -47,12 +46,11 @@ module operators
   type(operator_type) :: lma_op
   type(r_solver_operator_type) :: lma_op_rs
   type(columnwise_operator_type) :: cma_op
-  type(r_solver_columnwise_operator_type) :: cma_op_rs
 
 contains
 
   subroutine my_sub()
-    call invoke(columnwise_op_asm_kernel_type(lma_op, cma_op_rs),    &
+    call invoke(columnwise_op_asm_kernel_type(lma_op, cma_op),     &
                 columnwise_op_asm_kernel_type(lma_op_rs, cma_op))
   end subroutine my_sub
 

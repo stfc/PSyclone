@@ -256,7 +256,7 @@ def test_parser_invokeinfo_operator_mixed():
     assert args[0].form == "variable"
     assert args[0]._datatype == ("operator_type", None)
     assert args[1].form == "variable"
-    assert args[1]._datatype == ("r_solver_columnwise_operator_type", None)
+    assert args[1]._datatype == ("columnwise_operator_type", None)
     args = info.calls[0].kcalls[1].args
     assert args[0].form == "variable"
     assert args[0]._datatype == ("r_solver_operator_type", None)

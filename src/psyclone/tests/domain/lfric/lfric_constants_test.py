@@ -60,8 +60,7 @@ def test_data_type_map():
 
     data_types = [
         "reduction", "field", "r_solver_field", "integer_field", "operator",
-        "columnwise_operator", "r_solver_operator",
-        "r_solver_columnwise_operator"]
+        "columnwise_operator", "r_solver_operator"]
     data_type_properties = [
         "module", "type", "proxy_type", "intrinsic", "kind"]
 

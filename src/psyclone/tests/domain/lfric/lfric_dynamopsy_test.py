@@ -69,13 +69,15 @@ def test_dynamopsy():
     assert issubclass(DynamoPSy, PSy)
     assert isinstance(dynamo_psy._invokes, DynamoInvokes)
     infrastructure_modules = dynamo_psy._infrastructure_modules
-    assert len(infrastructure_modules) == 5
+    assert len(infrastructure_modules) == 7
     assert isinstance(infrastructure_modules, OrderedDict)
     assert infrastructure_modules["constants_mod"] == ["i_def"]
     assert infrastructure_modules["field_mod"] == set()
     assert infrastructure_modules["r_solver_field_mod"] == set()
     assert infrastructure_modules["integer_field_mod"] == set()
     assert infrastructure_modules["operator_mod"] == set()
+    assert infrastructure_modules["r_solver_operator_mod"] == set()
+    assert infrastructure_modules["columnwise_operator_mod"] == set()
 
 
 def test_dynamopsy_kind():

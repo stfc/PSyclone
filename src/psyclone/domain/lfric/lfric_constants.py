@@ -313,24 +313,17 @@ class LFRicConstants(object):
                          "proxy_type": "operator_proxy_type",
                          "intrinsic": "real",
                          "kind": "r_def"},
-            # 'real'-valued columnwise operator with data of kind 'r_def'
+            # 'real'-valued operator with data of kind 'r_solver'
+            "r_solver_operator": {"module": "r_solver_operator_mod",
+                                  "type": "r_solver_operator_type",
+                                  "proxy_type": "r_solver_operator_proxy_type",
+                                  "intrinsic": "real",
+                                  "kind": "r_solver"},
+            # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
-                "intrinsic": "real",
-                "kind": "r_def"},
-            # 'real'-valued operator with data of kind 'r_solver'
-            "r_solver_operator": {"module": "r_solver_operator_mod",
-                         "type": "r_solver_operator_type",
-                         "proxy_type": "r_solver_operator_proxy_type",
-                         "intrinsic": "real",
-                         "kind": "r_solver"},
-            # 'real'-valued columnwise operator with data of kind 'r_solver'
-            "r_solver_columnwise_operator": {
-                "module": "r_solver_columnwise_operator_mod",
-                "type": "r_solver_columnwise_operator_type",
-                "proxy_type": "r_solver_columnwise_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"}}
 
