@@ -38,8 +38,10 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 
 '''
 import logging
+
 from fparser.two import Fortran2003
 from psyclone.errors import InternalError
+from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
@@ -175,16 +177,10 @@ def generate_adjoint(tl_psyir, active_variables):
     '''
     logger = logging.getLogger(__name__)
 
-    # TL LFRic-specific PSyIR
-    logger.debug(
-        "Translation from generic PSyIR to LFRic-specific PSyIR should be "
-        "done now.")
-
-    # Transform from TL to AD. The list of active variables in
-    # the active_variables variable will be used here.
-    logger.debug("Transformation from TL to AD should be done now but instead "
-                 "we copy the input.")
-    ad_psyir = tl_psyir.copy()
+    # Translate from TL to AD
+    logger.debug("Translating from TL to AD.")
+    adjoint_visitor = AdjointVisitor(active_variables)
+    ad_psyir = adjoint_visitor(tl_psyir)
 
     # We permit the input code to be a single Program or Subroutine
     container = _find_container(ad_psyir)

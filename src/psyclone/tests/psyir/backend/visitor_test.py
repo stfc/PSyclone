@@ -41,7 +41,7 @@ from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return, \
-    Statement, Schedule
+    Statement, Schedule, Container, Routine
 from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 from psyclone.errors import GenerationError
 
@@ -147,6 +147,35 @@ def test_psyirvisitor_visit_arg_error():
         visitor._visit("hello")
     assert ("Visitor Error: Expected argument to be of type 'Node' but found "
             "'str'." in str(excinfo.value))
+
+
+def test_psyirvisitor_visit_no_string():
+    '''Check that the visitor supports non-strings being returned.
+
+    '''
+    class MyVisitor(PSyIRVisitor):
+        '''Test visitor to check that non-strings can be returned by a visitor
+        and are returned as a hierachy. In this example the supplied
+        nodes are returned unmodified.
+
+        '''
+        def node_node(self, node):
+            '''Return the supplied node unmodified.
+
+            :param node: the supplied PSyIR node.
+            :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+            '''
+            return node
+
+    visitor = MyVisitor()
+    my_node = Container("blah")
+    my_child_node = Routine("hmm")
+    my_node.children = [my_child_node]
+    result = visitor._visit(my_node)
+    assert result is my_node
+    assert len(result.children) == 1
+    assert result.children[0] is my_child_node
 
 
 def test_psyirvisitor_lower_dsl_concepts():
