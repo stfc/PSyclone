@@ -234,6 +234,14 @@ class PSyIRVisitor(object):
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
+                # pylint: disable=eval-used
+                node_result = eval("self.{0}(node)".format(method_name))
+
+                # We can only proceed to add comments if the Visitor
+                # returned a string, otherwise we just return
+                if not isinstance(node_result, str):
+                    return node_result
+
                 result = ""
 
                 # Add preceding comment if available
@@ -242,8 +250,7 @@ class PSyIRVisitor(object):
                         result += (self._nindent + self._COMMENT_PREFIX +
                                    node.preceding_comment + "\n")
 
-                # pylint: disable=eval-used
-                result += eval("self.{0}(node)".format(method_name))
+                result += node_result
 
                 # Add inline comment if available
                 if isinstance(node, CommentableMixin):
