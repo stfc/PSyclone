@@ -180,6 +180,19 @@ class KernelInterface(ArgOrdering):
         '''
         raise NotImplementedError("mesh_ncell2d not implemented")
 
+    def mesh_ncell2d_no_halos(self, var_accesses=None):
+        '''Not implemented.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NotImplementedError: as this method is not implemented.
+
+        '''
+        raise NotImplementedError("mesh_ncell2d not implemented")
+
     def cell_map(self, var_accesses=None):
         '''Not implemented.
 

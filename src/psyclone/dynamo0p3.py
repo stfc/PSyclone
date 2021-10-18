@@ -301,6 +301,7 @@ class MeshProperty(Enum):
     # pylint: disable=too-few-public-methods
     ADJACENT_FACE = 1
     NCELL_2D = 2
+    NCELL_2D_NO_HALOS = 3
 
 
 class MeshPropertiesMetaData(object):
@@ -943,7 +944,7 @@ class DynKernMetadata(KernelType):
         if self._is_intergrid:
             raise ParseError(
                 "Kernel '{0}' operates on the domain but has fields on "
-                "different mesh resolutions (multi-grid). This is not "
+                "different mesh resolutions (inter-grid). This is not "
                 "permitted in the LFRic API.".format(self.name))
 
     @property
@@ -1822,7 +1823,7 @@ class LFRicMeshProperties(DynCollection):
                                      if prop not in self._properties]
             if call.iterates_over == "domain" and not need_ncell_2d:
                 need_ncell_2d = True
-                self._properties.append(MeshProperty.NCELL_2D)
+                self._properties.append(MeshProperty.NCELL_2D_NO_HALOS)
 
         # Store properties in symbol table
         for prop in self._properties:
@@ -1936,6 +1937,12 @@ class LFRicMeshProperties(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
+            elif prop == MeshProperty.NCELL_2D_NO_HALOS:
+                name = self._symbol_table.symbol_from_tag(
+                    "ncell_2d_no_halos").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
             elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
                 parent.add(DeclGen(parent, datatype="integer",
@@ -2015,6 +2022,12 @@ class LFRicMeshProperties(DynCollection):
                     "adjacent_face").name
                 parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
                                      rhs=mesh+"%get_adjacent_face()"))
+
+            elif prop == MeshProperty.NCELL_2D_NO_HALOS:
+                name = self._symbol_table.symbol_from_tag(
+                    "ncell_2d_no_halos").name
+                parent.add(AssignGen(parent, lhs=name,
+                                     rhs=mesh+"%get_last_edge_cell()"))
 
             elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
