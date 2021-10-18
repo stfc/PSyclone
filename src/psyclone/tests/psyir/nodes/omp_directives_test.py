@@ -534,7 +534,7 @@ def test_omp_loop_directive_collapse_getter_and_setter():
     target.collapse = None
     assert target.collapse is None
 
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(ValueError) as err:
         target.collapse = 0
     assert ("The OMPLoopDirective collapse clause must be a positive integer "
             "or None, but value '0' has been given." in str(err.value))
@@ -566,8 +566,8 @@ def test_omp_loop_directive_validate_global_constraints():
     ompparallel.dir_body.addchild(omploop)
     with pytest.raises(GenerationError) as err:
         omploop.validate_global_constraints()
-    assert ("OMPLoopDirective must have exaclty one children in its associated"
-            " schedule." in str(err.value))
+    assert ("OMPLoopDirective must have exactly one children in its associated"
+            " schedule but found []." in str(err.value))
 
     # Check an OMPLoop attached to a non-loop statement
     variable = schedule.symbol_table.new_symbol("i", symbol_type=DataSymbol,
@@ -576,9 +576,8 @@ def test_omp_loop_directive_validate_global_constraints():
     omploop.dir_body.addchild(stmt)
     with pytest.raises(GenerationError) as err:
         omploop.validate_global_constraints()
-    assert ("OMPLoopDirective must have as much immediate nested loops as the "
-            "collapse clause specifies, or one immediate loop  if no collapse "
-            "is specified." in str(err.value))
+    assert ("OMPLoopDirective must have a Loop as child of its associated "
+            "schedule but found 'Assignment" in str(err.value))
 
     # Check with an OMPLoop and a single Loop inside
     stmt.detach()
@@ -594,9 +593,10 @@ def test_omp_loop_directive_validate_global_constraints():
     omploop.collapse = 2
     with pytest.raises(GenerationError) as err:
         omploop.validate_global_constraints()
-    assert ("OMPLoopDirective must have as much immediate nested loops as the "
-            "collapse clause specifies, or one immediate loop  if no collapse "
-            "is specified." in str(err.value))
+    assert ("OMPLoopDirective must have as many immediately nested loops as "
+            "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
+            " has a collpase=2 and the 1 nested statement is not a Loop."
+            in str(err.value))
 
     # Check with an OMPLoop and collapse is 2 and 2 nested loops inside
     loop2 = loop.copy()

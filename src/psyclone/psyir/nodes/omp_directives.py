@@ -936,7 +936,7 @@ class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations
     of the associated loops may execute concurrently.
 
-    :param int collapse: optional number of nested loop to collapse into a \
+    :param int collapse: optional number of nested loops to collapse into a \
         single iteration space to parallelise. Defaults to None.
     '''
 
@@ -960,17 +960,24 @@ class OMPLoopDirective(OMPRegionDirective):
             single iteration space to parallelise. Defaults to None.
         :type value: int or NoneType.
 
-        :raises TypeError: if the collapse value given is not a positive \
-            integer or NoneType.
+        :raises TypeError: if the collapse value given is not an integer \
+            or NoneType.
+        :raises ValueError: if the collapse integer given is not positive.
 
         '''
-        if value is None or (isinstance(value, int) and value > 0):
-            self._collapse = value
-        else:
+        if value is not None and not isinstance(value, int):
             raise TypeError(
                 "The OMPLoopDirective collapse clause must be a positive "
                 "integer or None, but value '{0}' has been given."
                 "".format(value))
+
+        if value is not None and value <= 0:
+            raise ValueError(
+                "The OMPLoopDirective collapse clause must be a positive "
+                "integer or None, but value '{0}' has been given."
+                "".format(value))
+
+        self._collapse = value
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -1007,30 +1014,44 @@ class OMPLoopDirective(OMPRegionDirective):
         done at code-generation time.
 
         :raises GenerationError: if this OMPLoopDirective is not enclosed \
-                            within some OMPParallelDirective region.
+            within some OMPParallelDirective region.
+        :raises GenerationError: if this OMPLoopDirective has more than one \
+            child in its associated schedule.
+        :raises GenerationError: if this OMPLoopDirective associated schedule \
+            child is not a Loop.
+        :raises GenerationError: if this OMPLoopDirective has a collapse \
+            clause but it doesn't have the expected number of nested Loops.
+
         '''
         if not self.ancestor(OMPParallelDirective):
             raise GenerationError(
                 "OMPLoopDirective must have an OMPParallelDirective as an "
                 "ancestor.")
 
-        # There must be as much immediate nested loops as the collapse clause
-        # specifies or just one immediate loop is the collapse clause is None
-        check_loops = self._collapse if self._collapse is not None else 1
         if len(self.dir_body.children) != 1:
             raise GenerationError(
-                "OMPLoopDirective must have exaclty one children in its "
-                "associated schedule.")
+                "OMPLoopDirective must have exactly one children in its "
+                "associated schedule but found {0}.".format(
+                    self.dir_body.children))
 
-        cursor = self.dir_body.children[0]
-        while check_loops > 0:
-            if not isinstance(cursor, Loop):
-                raise GenerationError(
-                    "OMPLoopDirective must have as much immediate nested loops"
-                    " as the collapse clause specifies, or one immediate loop "
-                    " if no collapse is specified.")
-            check_loops -= 1
-            cursor = cursor.loop_body.children[0]
+        if not isinstance(self.dir_body.children[0], Loop):
+            raise GenerationError(
+                "OMPLoopDirective must have a Loop as child of its associated "
+                "schedule but found '{0}'.".format(self.dir_body.children[0]))
+
+        # If there is a collapse clause, there must be as many immediately
+        # nested loops as the collapse value
+        if self._collapse:
+            cursor = self.dir_body.children[0]
+            for depth in range(self._collapse):
+                if not isinstance(cursor, Loop):
+                    raise GenerationError(
+                        "OMPLoopDirective must have as many immediately nested"
+                        " loops as the collapse clause specifies but '{0}' "
+                        "has a collpase={1} and the {2} nested statement is "
+                        "not a Loop."
+                        "".format(self, self._collapse, depth))
+                cursor = cursor.loop_body.children[0]
 
         super(OMPLoopDirective, self).validate_global_constraints()
 
