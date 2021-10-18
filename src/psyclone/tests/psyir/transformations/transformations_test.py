@@ -98,17 +98,6 @@ def test_accenterdata_internalerr(monkeypatch):
             in str(err.value))
 
 
-def test_omploop_no_collapse():
-    ''' Check that the OMPLoopTrans.directive() method rejects the
-    collapse argument '''
-    trans = OMPLoopTrans()
-    cnode = Node()
-    with pytest.raises(NotImplementedError) as err:
-        _ = trans._directive(cnode, collapse=2)
-    assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
-            "directives" in str(err.value))
-
-
 def test_omptaskloop_no_collapse():
     ''' Check that the OMPTaskloopTrans.directive() method rejects
     the collapse argument '''

@@ -64,7 +64,7 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, Routine, OMPTaskloopDirective
+    ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -564,13 +564,11 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
 
 class OMPLoopTrans(ParallelLoopTrans):
-
     '''
-    Adds an OpenMP directive to a loop. The
-    optional 'reprod' argument in the apply method decides whether
-    standard OpenMP reduction support is to be used (which is not
-    reproducible) or whether a manual reproducible reproduction is
-    to be used.
+    Adds an OpenMP directive to a loop. The optional 'reprod' argument in the
+    apply method decides whether standard OpenMP reduction support is to be
+    used (which is not reproducible) or whether a manual reproducible
+    reproduction is to be used.
 
     :param str omp_schedule: the OpenMP schedule to use.
 
@@ -615,6 +613,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         # via the `reprod` argument to the apply() method.
         self._reprod = Config.get().reproducible_reductions
 
+        self._omp_worksharing = True
+
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
         # pylint doesn't complain), we actually set its value using
@@ -626,6 +626,14 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def __str__(self):
         return "Adds an 'OpenMP DO' directive to a loop"
+
+    @property
+    def omp_worksharing(self):
+        return self._omp_worksharing
+
+    @omp_worksharing.setter
+    def omp_worksharing(self, value):
+        self._omp_worksharing = value
 
     @property
     def omp_schedule(self):
@@ -672,14 +680,13 @@ class OMPLoopTrans(ParallelLoopTrans):
         :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
         :raises NotImplementedError: if a collapse argument is supplied.
         '''
-        # TODO 1370: OpenMP loop functions don't support collapse
-        if collapse:
-            raise NotImplementedError(
-                "The COLLAPSE clause is not yet supported for '!$omp do' "
-                "directives.")
-        _directive = OMPDoDirective(children=children,
-                                    omp_schedule=self.omp_schedule,
-                                    reprod=self._reprod)
+        if self._omp_worksharing:
+            _directive = OMPDoDirective(children=children,
+                                        omp_schedule=self.omp_schedule,
+                                        reprod=self._reprod)
+        else:
+            _directive = OMPLoopDirective(children=children)
+
         return _directive
 
     def apply(self, node, options=None):
