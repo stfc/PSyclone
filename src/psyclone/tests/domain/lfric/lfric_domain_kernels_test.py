@@ -363,8 +363,8 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
 
     expected = ("      !\n"
                 "      !\n"
-                "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-                "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+                "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
+                "b, f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         expected += ("      !\n"
                      "      ! set halos dirty/clean for fields modified in "
