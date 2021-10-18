@@ -1120,21 +1120,6 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
-    def apply(self, node, options=None):
-        '''Perform GOcean specific loop validity checks then call
-        :py:meth:`OMPLoopTrans.apply`.
-
-        :param node: the loop to parallelise using OMP Do.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        '''
-        # Check node is a loop
-        self.validate(node, options=options)
-
-        return OMPLoopTrans.apply(self, node, options)
-
 
 class ColourTrans(LoopTrans):
     '''
@@ -1690,32 +1675,6 @@ class OMPMasterTrans(ParallelRegionTrans):
         :rtype: str
         '''
         return "OMPMasterTrans"
-
-    def apply(self, node_list, options=None):
-        '''Apply the OMPMasterTrans transformation to the specified node in a
-        Schedule.
-
-        At code-generation time this node must be within (i.e. a child of)
-        an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
-        tree is given to a backend.
-
-        :param node_list: the supplied node or node list to which we will \
-                          apply the OMPSingleTrans transformation
-        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a list with options for transformations \
-                        and validation.
-        :type options: a dict of string:values or None
-
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`,
-                 :py:class:`psyclone.undoredo.Memento`)
-
-        '''
-        if not options:
-            options = {}
-
-        return super(OMPMasterTrans, self).apply(node_list, options)
 
 
 class OMPParallelTrans(ParallelRegionTrans):
