@@ -428,8 +428,7 @@ Run
 
 You are now ready to try running PSyclone on the :ref:`examples <examples>`.
 One way of doing this is to use the ``psyclone`` driver script. Assuming it
-is on your ``PATH``:
-::
+is on your ``PATH``::
 
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
@@ -462,91 +461,33 @@ carry out the following instructions. Depending on your precise setup, you
 may also need to set ``PSYCLONE_CONFIG`` to the full-path to the PSyclone
 configuration file (see :ref:`getting-going-configuration`).
 
-There are 7 subdirectories, of which we will focus on 3 of them,
-``lfric``, ``gocean`` and ``nemo``, corresponding to different APIs that
-are supported by PSyclone. Note, the ``lfric`` directory corresponds to
-the Dynamo 0.1 and the current :ref:`LFRic (Dynamo 0.3) <dynamo0.3-api>`
-APIs. In this case we are going to use one of the LFRic examples::
+There are seven subdirectories, three of which (``lfric``, ``gocean``
+and ``nemo``) correspond to the different APIs/domains that are
+supported by PSyclone. (Note, that we are currently in the process of
+renaming the ``dynamo0.3`` API to ``lfric``.)  In this case we are
+going to use one of the LFRic examples::
 
    > cd <EGS_HOME>/examples/lfric/eg1
-   > psyclone -api dynamo0.1 \
-   > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
+   > psyclone -api dynamo0.3 -d ../code -nodm -oalg alg.f90 \
+       -opsy psy.f90 ./single_invoke.x90
 
-You should see two new files created called ``dynamo_alg.f90`` (containing
-the re-written algorithm layer) and ``dynamo_psy.f90`` (containing the
+
+You should see two new files created, called ``alg.f90`` (containing
+the re-written algorithm layer) and ``psy.f90`` (containing the
 generated PSy- or middle-layer). Since this is an LFRic example the
 Fortran source code has dependencies on the LFRic system and
 therefore cannot be compiled stand-alone.
 
-You can also use the ``runme.py`` example to see the interactive
-API in action. This script contains::
+The PSy-layer that PSyclone creates is constructed using the PSyclone Internal
+Representation (:ref:`PSyIR <psyir-ug>`). Accessing this is demonstrated
+by the ``print_psyir_trans.py`` script in the second LFRic example::
 
-   from psyclone.parse.algorithm import parse
-   from psyclone.psyGen import PSyFactory
-   
-   # This example uses version 0.1 of the Dynamo API
-   api = "dynamo0.1"
-   
-   # Parse the file containing the algorithm specification and
-   # return the Abstract Syntax Tree and invokeInfo objects
-   ast, invokeInfo = parse("dynamo.F90", api=api)
-   
-   # Create the PSy-layer object using the invokeInfo
-   psy = PSyFactory(api).create(invokeInfo)
-   # Generate the Fortran code for the PSy layer
-   print(psy.gen)
-   
-   # List the invokes that the PSy layer has
-   print(psy.invokes.names)
-   
-   # Examine the 'schedule' (e.g. loop structure) that each
-   # invoke has
-   schedule = psy.invokes.get('invoke_0_v3_kernel_type').schedule
-   schedule.view()
-    
-   schedule = psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
-   schedule.view()
+  > cd <EGS_HOME>/examples/lfric/eg2
+  > psyclone -api dynamo0.3 -d ../code -s ./print_psyir_trans.py \
+      -opsy psy.f90 -oalg alg.f90 ./multi_invoke_mod.x90
 
-It can be run non-interactively as follows::
-
-   > cd <EGS_HOME>/example/lfric/eg1
-   > python runme.py
-
-However, to understand this example in more depth it is instructive to
-cut-and-paste from the ``runme.py`` file into your own, interactive Python
-session::
-
-   > cd <EGS_HOME>/example/lfric/eg1
-   > python
-
-In addition to the ``runme.py`` script, there is also
-``runme_openmp.py`` which illustrates how one applies an OpenMP
-transform to a loop schedule within the PSy layer. The initial part of
-this script is the same as that of ``runme.py`` (above) and is therefore
-omitted here::
-
-   # List the various invokes that the PSy layer contains
-   print(psy.invokes.names)
-
-   # Get the loop schedule associated with one of these
-   # invokes
-   schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-   schedule.view()
-
-   # Get the list of possible loop transformations
-   from psyclone.psyGen import TransInfo
-   t = TransInfo()
-   print(t.list)
-
-   # Create an OpenMPLoop-transformation object
-   ol = t.get_trans_name('OMPLoopTrans')
-
-   # Apply it to the loop schedule of the selected invoke
-   new_schedule, memento = ol.apply(schedule.children[0])
-   new_schedule.view()
-
-   # Replace the original loop schedule of the selected invoke
-   # with the new, transformed schedule 
-   psy.invokes.get('invoke_v3_kernel_type')._schedule = new_schedule
-   # Generate the Fortran code for the new PSy layer
-   print(psy.gen)
+Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
+you can insert a single line in that script in order to break into the Python
+interpreter during exection: ``import pdb; pdb.set_trace()``. This then enables
+interactive exploration of the PSyIR if you are interested. Alternatively,
+you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.

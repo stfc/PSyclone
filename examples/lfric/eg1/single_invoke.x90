@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2017-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,32 +30,24 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-! ------------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
-! Modified by: R. W. Ford, STFC Daresbury Lab
+! -----------------------------------------------------------------------------
+! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
+!          I. Kavcic, Met Office
 
-! Example module containing a very simple, one-line kernel subroutine.
+program single_invoke
 
-module testkern_mod
+  ! Example of the LFRic domain with a single 'invoke()' that calls two
+  ! kernels.
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
+
   implicit none
 
-contains
+  type(field_type) :: f1, f2, m1, m2
+  real(r_def)      :: a
 
-  subroutine testkern_code(ascalar, field1, field2, npts)
-    real, intent(in) :: ascalar
-    integer, intent(in) :: npts
-    ! issue #1429. Active variables need to be declared as inout as
-    ! the intents can change in the adjoint version and PSyclone does
-    ! not currently deal with this.
-    real, intent(inout), dimension(npts) :: field2
-    real, intent(inout), dimension(npts) :: field1
+  call invoke( setval_c(f1, 0.0_r_def), &
+               testkern_type(a, f1, f2, m1, m2) )
 
-    ! issue #1430. Array notation does not work with the assignment
-    ! transformation so temporarily change the assignment to a single
-    ! index.
-    ! field1(:) = ascalar*field1(:) + field2(:)
-    field1(1) = ascalar*field1(1) + field2(1)
-
-  end subroutine testkern_code
-  
-end module testkern_mod
+end program single_invoke

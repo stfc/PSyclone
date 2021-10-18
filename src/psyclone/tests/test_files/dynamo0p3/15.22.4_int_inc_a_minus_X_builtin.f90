@@ -30,32 +30,24 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-! ------------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
-! Modified by: R. W. Ford, STFC Daresbury Lab
+! -----------------------------------------------------------------------------
+! Author: I. Kavcic, Met Office
 
-! Example module containing a very simple, one-line kernel subroutine.
+program single_invoke
 
-module testkern_mod
+  ! Description: single point-wise operation (X = a - X, DoF-wise subtraction
+  ! of an integer-valued field from an integer scalar value) specified in
+  ! an invoke call.
+  use constants_mod,     only: i_def
+  use integer_field_mod, only: integer_field_type
+
   implicit none
 
-contains
+  type(integer_field_type) :: f1
+  real(i_def)              :: a
 
-  subroutine testkern_code(ascalar, field1, field2, npts)
-    real, intent(in) :: ascalar
-    integer, intent(in) :: npts
-    ! issue #1429. Active variables need to be declared as inout as
-    ! the intents can change in the adjoint version and PSyclone does
-    ! not currently deal with this.
-    real, intent(inout), dimension(npts) :: field2
-    real, intent(inout), dimension(npts) :: field1
+  a = 3
 
-    ! issue #1430. Array notation does not work with the assignment
-    ! transformation so temporarily change the assignment to a single
-    ! index.
-    ! field1(:) = ascalar*field1(:) + field2(:)
-    field1(1) = ascalar*field1(1) + field2(1)
+  call invoke( int_inc_a_minus_X(a, f1) )
 
-  end subroutine testkern_code
-  
-end module testkern_mod
+end program single_invoke

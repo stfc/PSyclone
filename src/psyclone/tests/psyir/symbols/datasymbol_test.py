@@ -103,6 +103,40 @@ def test_datasymbol_initialisation():
                       DataSymbol)
 
 
+def test_datasymbol_specialise_and_process_arguments():
+    ''' Tests that a DataSymbol created from a specialisation instead of
+    the constructor deals with the arguments as expected.'''
+
+    # Try to make a DataSymbol without a datatype
+    sym1 = Symbol("symbol1")
+    with pytest.raises(AttributeError) as error:
+        sym1.specialise(DataSymbol)
+    assert "Missing mandatory 'datatype' attribute" in str(error.value)
+
+    # Include a datatype
+    sym2 = Symbol("symbol2")
+    sym2.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE)
+    assert sym2.datatype is REAL_SINGLE_TYPE
+    assert sym2.constant_value is None
+
+    # Include a constant_value
+    sym3 = Symbol("symbol3")
+    sym3.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE,
+                    constant_value=3.14)
+    assert sym3.datatype is REAL_SINGLE_TYPE
+    assert isinstance(sym3.constant_value, Literal)
+    assert sym3.constant_value.value == '3.14'
+
+    # Include a constant_value of the wrong type
+    sym4 = Symbol("symbol4")
+    with pytest.raises(ValueError) as error:
+        sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+                        constant_value=3.14)
+    assert("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
+           "which means the constant value is expected to be"
+           in str(error.value))
+
+
 def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
@@ -162,6 +196,10 @@ def test_datasymbol_constant_value_setter():
     sym = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=ct_expr)
     assert isinstance(sym.constant_value, BinaryOperation)
     assert sym.constant_value is ct_expr
+
+    # Test setting it back to non-constant
+    sym.constant_value = None
+    assert sym.constant_value is None
 
 
 def test_datasymbol_constant_value_setter_invalid():

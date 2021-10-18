@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
                                    DataSymbol, ImportInterface, \
                                    INTEGER_SINGLE_TYPE, LocalInterface, \
                                    RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolTable, UnresolvedInterface, NoType
+                                   SymbolTable, UnresolvedInterface
 from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
@@ -293,11 +293,7 @@ def test_symbol_specialise():
     asym = Symbol("a")
     assert type(asym) is Symbol
     assert str(asym) == "a"
-    # TODO #1113 the specialise() method does not currently deal with setting
-    # any attributes in the class that were not in the original class.
-    # Therefore we have to set datatype explicitly below.
     asym.specialise(RoutineSymbol)
-    asym.datatype = NoType()
     assert type(asym) is RoutineSymbol
     assert str(asym) == "a : RoutineSymbol <NoType>"
 
