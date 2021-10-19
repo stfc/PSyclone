@@ -386,9 +386,13 @@ def test_omp_taskloop_strings():
     ''' Test the begin_string and end_string methods of the
         OMPTaskloop directive '''
     omp_taskloop = OMPTaskloopDirective()
+    omp_tl2 = OMPTaskloopDirective(num_tasks=32, nogroup=True)
+    omp_tl3 = OMPTaskloopDirective(grainsize=32)
 
     assert omp_taskloop.begin_string() == "omp taskloop"
     assert omp_taskloop.end_string() == "omp end taskloop"
+    assert omp_tl2.begin_string() == "omp taskloop num_tasks(32), nogroup"
+    assert omp_tl3.begin_string() == "omp taskloop grainsize(32)"
 
 
 def test_omp_taskloop_init():
