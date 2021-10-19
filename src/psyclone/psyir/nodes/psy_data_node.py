@@ -244,24 +244,36 @@ class PSyDataNode(Statement):
                 "'{0}'.".format(type(symbol_table).__name__))
 
         data_node = cls(ast=ast, options=options)
-
-        # Ensure that we have a container symbol for the API access
-        try:
-            csym = symbol_table.lookup_with_tag(data_node.fortran_module)
-        except KeyError:
-            # The tag doesn't exist which means that we haven't already added
-            # this Container as part of a PSyData transformation.
-            csym = ContainerSymbol(data_node.fortran_module)
-            symbol_table.add(csym, tag=data_node.fortran_module)
+        data_node.generate_symbols(symbol_table)
 
         # A PSyData node always contains a Schedule
         sched = Schedule(children=children, parent=data_node)
         data_node.addchild(sched)
 
+        return data_node
+
+    def generate_symbols(self, symbol_table):
+        ''' Generate the necessary symbols to import and use this PSyDataNode
+        in the provided symbol_table if they don't already exist.
+
+        :param symbol_table: the associated SymbolTable to which symbols \
+            must be added.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # Ensure that we have a container symbol for the API access
+        try:
+            csym = symbol_table.lookup_with_tag(self.fortran_module)
+        except KeyError:
+            # The tag doesn't exist which means that we haven't already added
+            # this Container as part of a PSyData transformation.
+            csym = ContainerSymbol(self.fortran_module)
+            symbol_table.add(csym, tag=self.fortran_module)
+
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
-        for sym in data_node.imported_symbols:
+        for sym in self.imported_symbols:
             symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
                                          interface=ImportInterface(csym),
                                          datatype=DeferredType())
@@ -270,15 +282,15 @@ class PSyDataNode(Statement):
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
-        data_node._var_name = symbol_table.next_available_name(
-            data_node._psy_data_symbol_with_prefix)
-        psydata_type = UnknownFortranType(
-            "type({0}), save, target :: {1}".format(data_node.type_name,
-                                                    data_node._var_name))
-        symbol_table.new_symbol(data_node._var_name, symbol_type=DataSymbol,
-                                datatype=psydata_type,
-                                visibility=Symbol.Visibility.PRIVATE)
-        return data_node
+        if not self._var_name:
+            self._var_name = symbol_table.next_available_name(
+                self._psy_data_symbol_with_prefix)
+            psydata_type = UnknownFortranType(
+                "type({0}), save, target :: {1}".format(self.type_name,
+                                                        self._var_name))
+            symbol_table.new_symbol(self._var_name, symbol_type=DataSymbol,
+                                    datatype=psydata_type,
+                                    visibility=Symbol.Visibility.PRIVATE)
 
     @staticmethod
     def _validate_child(position, child):
@@ -588,6 +600,8 @@ class PSyDataNode(Statement):
             raise GenerationError(
                 "A PSyDataNode must be inside a Routine context when lowering "
                 "but '{0}' is not.".format(self))
+
+        self.generate_symbols(routine_schedule.symbol_table)
 
         module_name = self._module_name
         if module_name is None:

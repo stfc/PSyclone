@@ -91,8 +91,8 @@ def test_class_definitions(fortran_writer):
     '''Tests if the class-prefix can be set and behaves as expected.
     '''
 
-    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             "gocean1.0", idx=0)
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
     schedule = invoke.schedule
 
     data_trans = PSyDataTrans()
@@ -101,7 +101,7 @@ def test_class_definitions(fortran_writer):
 
     # By default, no prefix should be used:
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(psydatatype), save, target, private :: psy_data" in code
+    assert "type(PSyDataType), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
@@ -109,28 +109,27 @@ def test_class_definitions(fortran_writer):
     data_trans.apply(schedule, {"prefix": "extract"})
     code = fortran_writer(schedule.root)
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
-    assert ("type(extract_psydatatype), save, target, private :: "
+    assert ("type(extract_PSyDataType), save, target :: "
             "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(psydatatype), save, target, private :: psy_data" in code
+    assert "type(PSyDataType), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
     # and new declarations and calls are there:
     data_trans.apply(schedule, {"prefix": "profile"})
     code = fortran_writer(schedule.root)
-    print(code)
     assert "use psy_data_mod, only : PSyDataType" in code
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "type(psydatatype), save, target, private :: psy_data" in code
-    assert ("type(extract_psydatatype), save, target, private :: "
+    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert ("type(extract_PSyDataType), save, target :: "
             "extract_psy_data" in code)
-    assert ("type(profile_psydatatype), save, target, private :: "
+    assert ("type(profile_PSyDataType), save, target :: "
             "profile_psy_data" in code)
 
     assert "CALL psy_data" in code
