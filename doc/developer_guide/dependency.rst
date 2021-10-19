@@ -98,7 +98,7 @@ Dependence Analysis
 ===================
 
 Dependence Analysis in PSyclone produces ordering constraints between
-instances of the `Argument` class within a PSyIR.
+instances of the `Argument` class within a PSyIR tree.
 
 The `Argument` class is used to specify the data being passed into and
 out of instances of the `Kern` class, `HaloExchange` class and
@@ -306,26 +306,33 @@ of `VariablesAccessInfo`.
 
 This class collects information for each variable used in the tree
 starting with the given node. A `VariablesAccessInfo` instance can store
-information about variables in any arbitrary code, not only for a PSyIR
-node. You can pass it to more than one `reference_accesses()` function
-to add more variable access information, or use the `merge()` function to
+information about variables in high-level concepts such as
+a kernel, as well as for language-level PSyIR. You can pass a single
+instance to more than one call to `reference_accesses()` in order to
+add more variable access information, or use the `merge()` function to
 combine two `VariablesAccessInfo` objects into one. It is up to the user to
-keep track of which access information is stored in a `VariablesAccessInfo`
-instance.
+keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
+instance is holding information about.
 
 SingleVariableAccessInfo
 ------------------------
-
-For each variable used an instance of
-`psyclone.core.access_info.SingleVariableAccessInfo` is created, which collects
-all accesses for that variable using `psyclone.core.access_info.AccessInfo`
-instances:
+The class `VariablesAccessInfo` uses a dictionary of
+`psyclone.core.access_info.SingleVariableAccessInfo` instances to map
+from each variable to the accesses of that variable. When a new variable
+is detected when adding access information to a `VariablesAccessInfo` instance
+via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
+which in turn stores all access to the specified variable.
 
 .. autoclass:: psyclone.core.access_info.SingleVariableAccessInfo
     :members:
 
-For each access of a variable, an instance of `AccessInfo` is created and
-stored in the `SingleVariablesAccessInfo` instance.
+AccessInfo
+----------
+The class `SingleVariableAccessInfo` uses a list of
+`psyclone.core.access_info.AccessInfo` instances to store all
+accesses to a single variable. A new instance of `AccessInfo`
+is appended to the list whenever `add_access_with_location()`
+is called.
 
 .. autoclass:: psyclone.core.access_info.AccessInfo
     :members:
@@ -343,17 +350,8 @@ using the `component_indices` property of an `AccessInfo` object.
     :members:
     :special-members: __getitem__, __len__
 
-
-This object internally stores the indices as a list of indices for each
-component. For example, an access like `a(i)%b(j,k)%c(l)` would
-be stored as the list `[ [i], [j,k], [l] ]`. In case of non-array accesses,
-the corresponding index list will be empty, e.g. `a%b(j)%c` will
-be stored as `[ [], [j], [] ]`, and a scalar `a` will just
-return `[ [] ]`. Each member of this list of lists is the PSyIR node
-describing the array expression used.
-
-The component indices provides an array-like access to
-this data structure, you can use `len(component_indices)` to get the
+The `ComponentIndices` class provides an array-like accessor for the
+internal data structure, you can use `len(component_indices)` to get the
 number of components for which array indices are stored.
 The information can be accessed using array subscription syntax, e.g.:
 `component_index[0]` will return the list of array indices used in the
@@ -371,8 +369,9 @@ valid 2-tuples of component index and dimension index. For example:
 
 .. testcode::
 
-  # access_info is an AccessInfo instance and contains one access, e.g.
-  # to `a(i+2*j)%b%c(k, l)`
+  # access_info is an AccessInfo instance and contains one access. This
+  # could be as simple as `a(i,j)`, but also something more complicated
+  # like `a(i+2*j)%b%c(k, l)`.
   for indx in access_info.component_indices.iterate():
       # indx is a 2-tuple of (component_index, dimension_index)
       psyir_index = access_info.component_indices[indx]
@@ -381,13 +380,13 @@ valid 2-tuples of component index and dimension index. For example:
   for count, indx in enumerate(access_info.component_indices.iterate()):
       psyir_index = access_info.component_indices[indx]
       # fortran writer converts a PSyIR node to Fortran:
-      print("Index-id", count, fortran_writer(psyir_index))
+      print("Index-id {0} of 'a(i,j)': {1}"
+            .format(count, fortran_writer(psyir_index)))
 
 .. testoutput::
-    :hide:
 
-    Index-id 0 i
-    Index-id 1 j
+    Index-id 0 of 'a(i,j)': i
+    Index-id 1 of 'a(i,j)': j
 
 To find out details about an index expression, you can either analyse
 the tree (e.g. using `walk`), or use the variable access functionality again.
@@ -473,7 +472,7 @@ As stated above, one instance of `VariablesAccessInfo` can be extended by adding
 additional variable information. It is the responsibility of the user to make
 sure the accesses are added in the right order - the `VariablesAccessInfo` object
 will always assume accesses happen at the current location, and a call to 
-`next_location()` is required to increase the location number.
+`next_location()` is required (internally) to increase the location number.
 
 .. note:: It is not possible to add access information about an earlier
      usage to an existing `VariablesAccessInfo` object. 
@@ -485,7 +484,8 @@ Access Examples
 Below we show a simple example of how to use this API. This is from the
 `psyclone.psyir.nodes.OMPParallelDirective`, and it is used to
 determine a list of all the scalar variables that must be declared as
-thread-private:
+thread-private. Note that this code does not handle the usage of
+`first-private` declarations.
 
 ..
     The testsetup provides the access information to
@@ -502,6 +502,10 @@ thread-private:
   var_accesses = VariablesAccessInfo()
   omp_directive.reference_accesses(var_accesses)
   for signature in var_accesses.all_signatures:
+      if signature.is_structure:
+          # A lookup in the symbol table for structures are
+          # more complicated, so ignore them for this example.
+          continue
       var_name = str(signature)
       symbol = symbol_table.lookup(var_name)
       # Ignore variables that are arrays, we only look at scalar ones.
@@ -579,9 +583,10 @@ until we find accesses that would prevent parallelisation:
 
 Dependency Tools
 ----------------
-PSyclone contains a class that provides useful tools for dependency analaysis.
-It especially provides messages for the user to indicate why parallelisation
-was not possible.
+
+PSyclone contains a class that builds upon the data-dependency functionality
+to provide useful tools for dependency analaysis. It especially provides
+messages for the user to indicate why parallelisation was not possible.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
     :members:
@@ -591,7 +596,7 @@ was not possible.
     considered equal. But this only applies if two items are switched that
     are part of the same PSyIR node. An expression like `i+k+1` is stored as
     `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
-    be equal, because `i+1` and `i+k` are not the same.
+    be equal, because `i+1` and `i+k` are not the same. See issue #533.
 
 
 An example of how to use this class is shown below. It takes a list of statements
@@ -607,14 +612,14 @@ can be parallelised:
 
    parallel_loop = OMPLoopTrans()
    # The loops in the Fortran functions that must be parallelised
-   # are over the 'grid' domain. Note that the psyclone config
+   # are over the 'lat' domain. Note that the psyclone config
    # file specifies the mapping of loop variable to type, e.g.:
    #
-   #   mapping-grid = var: np, start: Ns, stop: Ne,  order: 0
+   #   mapping-lat = var: jj, start: 1, stop: jpj
    #
-   # This means any loop using the variable 'np' is considered a
-   # loop of type 'grid'
-   dt = DependencyTools(["grid"])
+   # This means any loop using the variable 'jj' is considered a
+   # loop of type 'lat'
+   dt = DependencyTools(["lat"])
 
    for statement in loop_statements:
        if isinstance(statement, Loop):
