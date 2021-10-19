@@ -336,7 +336,7 @@ class SingleVariableAccessInfo(object):
 
     def is_written_before(self, reference):
         '''Returns True if this variable is written before the specified
-        reference,and False if not.
+        reference, and False if not.
 
         :param reference: the reference at which to stop for access checks.
         :type reference: :py:class:`psyclone.psyir.nodes.Reference`
@@ -387,7 +387,7 @@ class SingleVariableAccessInfo(object):
     def is_accessed_before(self, reference):
         '''Returns True if this variable is accessed before the specified
         reference, and False if not. This is equivalent to testing that
-        'reference'is the very first access, but this function will also
+        'reference' is the very first access, but this function will also
         verify that 'reference' is indeed in the list of accesses.
 
         :param reference: the reference at which to stop for access checks.
