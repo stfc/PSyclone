@@ -206,10 +206,6 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation does not currently check that it is
-             safe to hoist an assignment out of its parent loop, see
-             issue #1387.
-
 ####
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
