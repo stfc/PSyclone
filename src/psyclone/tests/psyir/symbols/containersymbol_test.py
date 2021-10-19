@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, Symbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
     ContainerSymbolInterface, FortranModuleInterface
 from psyclone.psyir.nodes import Container
@@ -80,11 +80,16 @@ def test_containersymbol_initialisation():
     sym = ContainerSymbol("my_mod")
     assert isinstance(sym, ContainerSymbol)
     assert sym.name == "my_mod"
+    assert sym.wildcard_import is False
     # References are not followed/evaluated until explicitly requested
     assert not sym._reference
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
     assert isinstance(sym._interface, FortranModuleInterface)
+
+    # Test wildcard_import argument
+    sym2 = ContainerSymbol("my_mod", wildcard_import=True)
+    assert sym2.wildcard_import is True
 
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
@@ -96,6 +101,28 @@ def test_containersymbol_initialisation():
     assert ("A ContainerSymbol interface must be of type "
             "'FortranModuleInterface' but found 'str' for Container 'name'."
             in str(error.value))
+
+
+def test_containersymbol_specialise_and_process_arguments():
+    ''' Tests that a ContainerSymbol created from a specialisation instead of
+    the constructor deals with the arguments as expected.'''
+    sym1 = Symbol("symbol1")
+    sym1.specialise(ContainerSymbol)
+    assert isinstance(sym1, ContainerSymbol)
+
+    # It has a wildcard_import and it default to False
+    assert sym1.wildcard_import is False
+    # It could use the container import infrastructure (in this case it fails
+    # because it does not exist)
+    with pytest.raises(SymbolError) as error:
+        _ = sym1.container
+    assert "not found" in str(error.value)
+
+    # Now with a wildcard_import argument
+    sym2 = Symbol("symbol1")
+    sym2.specialise(ContainerSymbol, wildcard_import=True)
+    assert isinstance(sym1, ContainerSymbol)
+    assert sym2.wildcard_import is True
 
 
 def test_containersymbol_can_be_copied():
