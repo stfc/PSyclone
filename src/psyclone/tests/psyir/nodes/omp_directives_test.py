@@ -566,7 +566,7 @@ def test_omp_loop_directive_validate_global_constraints():
     ompparallel.dir_body.addchild(omploop)
     with pytest.raises(GenerationError) as err:
         omploop.validate_global_constraints()
-    assert ("OMPLoopDirective must have exactly one children in its associated"
+    assert ("OMPLoopDirective must have exactly one child in its associated"
             " schedule but found []." in str(err.value))
 
     # Check an OMPLoop attached to a non-loop statement
@@ -595,7 +595,8 @@ def test_omp_loop_directive_validate_global_constraints():
         omploop.validate_global_constraints()
     assert ("OMPLoopDirective must have as many immediately nested loops as "
             "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
-            " has a collpase=2 and the 1 nested statement is not a Loop."
+            " has a collpase=2 and the nested statement at depth 1 is a "
+            "Assignment rather than a Loop."
             in str(err.value))
 
     # Check with an OMPLoop and collapse is 2 and 2 nested loops inside
