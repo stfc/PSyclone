@@ -106,6 +106,56 @@ def test_kernel_stub_invalid_scalar_argument():
             in str(excinfo.value))
 
 
+def test_arg_ordering_generate_domain_kernel(dist_mem):
+    '''
+    Check that ArgOrdering generates the expected arguments
+    for a kernel that iterates over the 'domain'.
+
+    '''
+    # Get hold of a valid Kernel object
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "25.0_domain.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.kernels()[0]
+
+    create_arg_list = KernCallArgList(kernel)
+    assert create_arg_list._arglist == []
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
+        'undf_w3', 'map_w3']
+
+
+def test_arg_ordering_generate_cma_kernel(dist_mem):
+    '''
+    Check that ArgOrdering generates the expected arguments for a
+    CMA kernel.
+
+    '''
+    # Get hold of a valid Kernel object
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "20.0_cma_assembly.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.kernels()[0]
+
+    create_arg_list = KernCallArgList(kernel)
+    assert create_arg_list._arglist == []
+    create_arg_list.generate()
+    assert create_arg_list._arglist == [
+        'cell', 'nlayers', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
+        'lma_op1_proxy%local_stencil', 'cma_op1_matrix', 'cma_op1_nrow',
+        'cma_op1_ncol', 'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
+        'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
+        'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
+        'cbanded_map_adspc2_lma_op1']
+
+
 def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
