@@ -46,6 +46,7 @@ from collections import namedtuple
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
@@ -584,6 +585,7 @@ class PSyDataNode(Statement):
                 argument_str += ",".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
+            ParserFactory().create(std="f2008")
             reader = FortranStringReader(
                 "CALL {0}%{1}{2}".format(typename, methodname, argument_str))
             # Tell the reader that the source is free format
