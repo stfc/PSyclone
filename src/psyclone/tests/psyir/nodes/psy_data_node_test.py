@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
-    SymbolTable
+    SymbolTable, DataTypeSymbol, DeferredType, DataSymbol, UnknownFortranType
 from psyclone.tests.utilities import get_invoke
 
 
@@ -199,6 +199,59 @@ def test_psy_data_node_tree_correct():
     # second child, next to the inserted ExtractNode
     assert parent.children[1] is third_child
     assert third_child.parent is parent
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_generate_symbols():
+    ''' Check that the generate_symbols method inserts the appropriate
+    symbols in the provided symbol table if they don't exist already. '''
+
+    # By inserting the psy_data no symbols are created (only the routine symbol
+    # name exists)
+    routine = Routine('my_routine')
+    psy_data = PSyDataNode()
+    psy_data2 = PSyDataNode()
+    routine.addchild(psy_data)
+    routine.addchild(psy_data2)
+    assert len(routine.symbol_table.symbols) == 1
+
+    # Executing generate_symbols adds 3 more symbols:
+    psy_data.generate_symbols(routine.symbol_table)
+    assert len(routine.symbol_table.symbols) == 4
+
+    # - The module (with a tag equal to its name)
+    assert "psy_data_mod" in routine.symbol_table
+    assert isinstance(routine.symbol_table.lookup("psy_data_mod"),
+                      ContainerSymbol)
+    assert routine.symbol_table.lookup_with_tag("psy_data_mod").name == \
+        "psy_data_mod"
+
+    # - The type (with a tag equal to its name)
+    assert "PSyDataType" in routine.symbol_table
+    typesymbol = routine.symbol_table.lookup("PSyDataType")
+    assert isinstance(typesymbol, DataTypeSymbol)
+    assert isinstance(typesymbol.interface, ImportInterface)
+    assert isinstance(typesymbol.datatype, DeferredType)
+    assert routine.symbol_table.lookup_with_tag("PSyDataType") == typesymbol
+
+    # - The instantiated object
+    assert "psy_data" in routine.symbol_table
+    objectsymbol = routine.symbol_table.lookup("psy_data")
+    assert isinstance(objectsymbol, DataSymbol)
+    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+
+    # Executing it again doesn't add anything new
+    psy_data.generate_symbols(routine.symbol_table)
+    assert len(routine.symbol_table.symbols) == 4
+
+    # But executing it again from a different psy_data re-utilises the module
+    # and type but creates a new object instance
+    psy_data2.generate_symbols(routine.symbol_table)
+    assert len(routine.symbol_table.symbols) == 5
+    assert "psy_data_1" in routine.symbol_table
+    objectsymbol = routine.symbol_table.lookup("psy_data_1")
+    assert isinstance(objectsymbol, DataSymbol)
+    assert isinstance(objectsymbol.datatype, UnknownFortranType)
 
 
 # -----------------------------------------------------------------------------
