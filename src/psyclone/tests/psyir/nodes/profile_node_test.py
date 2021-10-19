@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author:   A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' Module containing pytest tests for the ProfileNode. '''
@@ -39,9 +40,8 @@
 from __future__ import absolute_import
 import pytest
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import (Node, ProfileNode, Literal, Assignment,
-                                  Reference, Return, KernelSchedule, Loop,
-                                  CodeBlock)
+from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
+                                  Reference, Return, KernelSchedule, Loop)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
     ContainerSymbol, DataTypeSymbol, UnknownFortranType, ImportInterface
 from psyclone.profiler import Profiler
