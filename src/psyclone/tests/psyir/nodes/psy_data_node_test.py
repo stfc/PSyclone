@@ -42,7 +42,8 @@ import re
 import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
+        CodeBlock
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
@@ -343,3 +344,104 @@ def test_psy_data_node_children_validation():
         psy_node.addchild(Schedule())
     assert ("Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
             " is: 'Schedule'." in str(excinfo.value))
+
+
+def test_psy_data_node_lower_to_language_level():
+    ''' Test that the generic PSyDataNode is lowered as expected. '''
+
+    # Try without an ancestor Routine
+    psy_node = PSyDataNode.create([], SymbolTable())
+    with pytest.raises(GenerationError) as excinfo:
+        psy_node.lower_to_language_level()
+    assert ("A PSyDataNode must be inside a Routine context when lowering but"
+            " 'PSyDataStart[var=psy_data]\nPSyDataEnd[var=psy_data]' is not."
+            in str(excinfo.value))
+
+    # Add the ancestor Routine and empty body
+    routine = Routine("my_routine")
+    routine.addchild(psy_node)
+    psy_node.lower_to_language_level()
+    # The PSyDataNode is substituted by 2 CodeBlocks, the first one with the
+    # psy-data-start annotation
+    assert not routine.walk(PSyDataNode)
+    codeblocks = routine.walk(CodeBlock)
+    assert len(codeblocks) == 2
+    assert str(codeblocks[0].ast) == \
+        'CALL psy_data % PreStart("my_routine", "r0", 0, 0)'
+    assert "psy-data-start" in codeblocks[0].annotations
+    assert str(codeblocks[1].ast) == \
+        'CALL psy_data % PostEnd'
+
+    # Now try with a PSyDataNode with specified module and region names
+    routine = Routine("my_routine")
+    psy_node = PSyDataNode.create([], SymbolTable())
+    routine.addchild(psy_node)
+    psy_node._module_name = "my_module"
+    psy_node._region_name = "my_region"
+    psy_node.lower_to_language_level()
+    assert not routine.walk(PSyDataNode)
+    codeblocks = routine.walk(CodeBlock)
+    assert len(codeblocks) == 2
+    assert str(codeblocks[0].ast) == \
+        'CALL psy_data % PreStart("my_module", "my_region", 0, 0)'
+    assert str(codeblocks[1].ast) == \
+        'CALL psy_data % PostEnd'
+
+
+def test_psy_data_node_lower_to_language_level_with_options():
+    '''Check that the  generic PSyDataNode is lowered as expected when it
+    is provided with an options dictionary. '''
+
+    # 1) Test that the listed variables will appear in the list
+    # ---------------------------------------------------------
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    data_trans = PSyDataTrans()
+
+    data_trans.apply(schedule[0].loop_body)
+    data_node = schedule[0].loop_body[0]
+
+    data_node.lower_to_language_level(options={"pre_var_list": ["a"],
+                                               "post_var_list": ["b"]})
+
+    codeblocks = schedule.walk(CodeBlock)
+    expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
+                'CALL psy_data % PreDeclareVariable("a", a)',
+                'CALL psy_data % PreDeclareVariable("b", b)',
+                'CALL psy_data % PreEndDeclaration',
+                'CALL psy_data % ProvideVariable("a", a)',
+                'CALL psy_data % PreEnd',
+                'CALL psy_data % PostStart',
+                'CALL psy_data % ProvideVariable("b", b)']
+
+    for codeblock, string in zip(codeblocks, expected):
+        assert string == str(codeblock.ast)
+
+    # 2) Test that variables suffixes are added as expected
+    # -----------------------------------------------------
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    data_trans = PSyDataTrans()
+
+    data_trans.apply(schedule[0].loop_body)
+    data_node = schedule[0].loop_body[0]
+
+    data_node.lower_to_language_level(options={"pre_var_list": ["a"],
+                                               "post_var_list": ["b"],
+                                               "pre_var_postfix": "_pre",
+                                               "post_var_postfix": "_post"})
+
+    codeblocks = schedule.walk(CodeBlock)
+    expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
+                'CALL psy_data % PreDeclareVariable("a_pre", a)',
+                'CALL psy_data % PreDeclareVariable("b_post", b)',
+                'CALL psy_data % PreEndDeclaration',
+                'CALL psy_data % ProvideVariable("a_pre", a)',
+                'CALL psy_data % PreEnd',
+                'CALL psy_data % PostStart',
+                'CALL psy_data % ProvideVariable("b_post", b)']
+
+    for codeblock, string in zip(codeblocks, expected):
+        assert string == str(codeblock.ast)

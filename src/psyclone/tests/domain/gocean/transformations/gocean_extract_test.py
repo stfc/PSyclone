@@ -527,6 +527,7 @@ def test_driver_scalars(tmpdir, fortran_writer):
     # 'ordered_linex_in_text'.
     with pytest.raises(ValueError):
         ordered_lines_in_text(expected_lines, driver_code)
+    pytest.xfail("#644 Scalars not supported yet.")
 
 
 # -----------------------------------------------------------------------------

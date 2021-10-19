@@ -48,7 +48,7 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.routine import Routine
@@ -405,7 +405,7 @@ class PSyDataNode(Statement):
         :param parent: the parent of this node in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of str:value or None
+        :type options: dict of str:value or None
         :param options["pre_var_list"]: a list of variables to be extracted \
             before the first child.
         :type options["pre_var_list"]: list of str
@@ -532,11 +532,12 @@ class PSyDataNode(Statement):
         the Fortran backend is capable of producing code representing the
         PSyDataNode.
 
-        :type options: dictionary of str:value or None
-        :param options["pre_var_list"]: a list of variables to be extracted \
+        :param options: dictionary of the PSyData generation options.
+        :type options: dict of str:value or None
+        :param options["pre_var_list"]: a list of variables to be supplied \
             before the first child.
         :type options["pre_var_list"]: list of str
-        :param options["post_var_list"]: a list of variables to be extracted \
+        :param options["post_var_list"]: a list of variables to be supplied \
             after the last child.
         :type options["post_var_list"]: list of str
         :param str options["pre_var_postfix"]: an optional postfix that will \
@@ -544,13 +545,27 @@ class PSyDataNode(Statement):
         :param str options["post_var_postfix"]: an optional postfix that will \
             be added to each variable name in the post_var_list.
 
-        '''
+        :raises GenerationError: if the node is not inside a Routine.
 
+        '''
         def gen_type_bound_call(typename, methodname, argument_list=None,
                                 annotations=None):
             ''' Helper utility to generate type-bound calls. Since this is
             not directly supported in the PSyIR the call is inserted in a
-            PSyIR CodeBlock.'''
+            PSyIR CodeBlock.
+
+            :param str typename: the name of the base type.
+            :param str methodname: the name of the method to be called.
+            :param argument_list: the list of arguments in the method call.
+            :type argument_list: list of str
+            :param annotations: the list of node annotations to add to the \
+                                generated CodeBlock.
+            :type annotations: list of str
+
+            :returns: a CodeBlock representing the type bound call.
+            :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock`
+
+            '''
             argument_str = ""
             if argument_list:
                 argument_str += "("
@@ -569,6 +584,11 @@ class PSyDataNode(Statement):
             child.lower_to_language_level()
 
         routine_schedule = self.ancestor(Routine)
+        if routine_schedule is None:
+            raise GenerationError(
+                "A PSyDataNode must be inside a Routine context when lowering "
+                "but '{0}' is not.".format(self))
+
         module_name = self._module_name
         if module_name is None:
             module_name = routine_schedule.name
