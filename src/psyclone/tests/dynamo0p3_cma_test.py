@@ -829,7 +829,7 @@ def test_cma_asm_cbanded_dofmap_error():
     for arg in calls[0].arguments.args:
         arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
-        invoke.schedule.dofmaps.__init__(invoke.schedule)
+        invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
             "for a CMA assembly kernel but found 2") in str(excinfo.value)
 
@@ -1014,7 +1014,7 @@ def test_cma_apply_indirection_dofmap_error():
     for arg in calls[0].arguments.args:
         arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
-        invoke.schedule.dofmaps.__init__(invoke.schedule)
+        invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA "
             "operator argument for a kernel that applies a "
             "CMA operator but found 3") in str(excinfo.value)
@@ -1338,7 +1338,7 @@ def test_dyndofmap_stubdecln_err():
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    dofmaps = DynDofmaps(psy.invokes.invoke_list[0].schedule)
+    dofmaps = DynDofmaps(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="test_module")
     for cma in dofmaps._unique_indirection_maps.values():
         cma["direction"] = "not-a-direction"

@@ -886,7 +886,7 @@ def test_bc_kernel_anyspace1_only():
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
     with pytest.raises(GenerationError) as err:
-        _ = DynBoundaryConditions(schedule)
+        _ = DynBoundaryConditions(invoke)
     assert ("enforce_bc_code kernel must have an argument on ANY_SPACE_1 but "
             "failed to find such an argument" in str(err.value))
 
@@ -901,13 +901,12 @@ def test_bc_op_kernel_wrong_args():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernels = schedule.walk(DynKern)
+    kernels = invoke.schedule.walk(DynKern)
     # Ensure that the kernel has the wrong number of arguments - duplicate
     # the existing argument in the list
     kernels[0].arguments.args.append(kernels[0].arguments.args[0])
     with pytest.raises(GenerationError) as err:
-        _ = DynBoundaryConditions(schedule)
+        _ = DynBoundaryConditions(invoke)
     assert ("enforce_operator_bc_code kernel must have exactly one argument "
             "but found 2" in str(err.value))
 
@@ -3171,7 +3170,7 @@ def test_dyncollection_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvokeSchedule or a DynKern but"
+    assert ("DynCollection takes only a DynInvoke or a DynKern but"
             in str(err.value))
 
 
@@ -3183,7 +3182,7 @@ def test_dyncollection_err2(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     # Create a valid sub-class of a DynCollection
-    proxies = DynProxies(invoke.schedule)
+    proxies = DynProxies(invoke)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
@@ -3200,12 +3199,12 @@ def test_dyncelliterators_err(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     # The list of arguments is dynamically generated if it is empty so
     # monkeypatch it to contain a single, scalar argument.
-    monkeypatch.setattr(invoke.schedule._psy_unique_vars[0], "_argument_type",
+    monkeypatch.setattr(invoke._psy_unique_vars[0], "_argument_type",
                         "gh_scalar")
-    monkeypatch.setattr(invoke.schedule, "_psy_unique_vars",
-                        [invoke.schedule._psy_unique_vars[0]])
+    monkeypatch.setattr(invoke, "_psy_unique_vars",
+                        [invoke._psy_unique_vars[0]])
     with pytest.raises(GenerationError) as err:
-        _ = DynCellIterators(invoke.schedule)
+        _ = DynCellIterators(invoke)
     assert ("Cannot create an Invoke with no field/operator arguments."
             in str(err.value))
 

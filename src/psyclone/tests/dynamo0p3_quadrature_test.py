@@ -546,7 +546,7 @@ def test_dynbasisfunctions(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     # Get hold of a DynBasisFunctions object
-    evaluator = psy.invokes.invoke_list[0].schedule.evaluators
+    evaluator = psy.invokes.invoke_list[0].evaluators
 
     # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
@@ -580,7 +580,7 @@ def test_dynbasisfunctions(monkeypatch):
     assert isinstance(call, DynKern)
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
-        _ = DynBasisFunctions(sched)
+        _ = DynBasisFunctions(invoke)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
 
 
@@ -595,7 +595,7 @@ def test_dynbasisfns_setup(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
-    dinf = DynBasisFunctions(sched)
+    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     # Now we've created a DynBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
@@ -616,7 +616,7 @@ def test_dynbasisfns_initialise(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0].schedule)
+    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
@@ -640,7 +640,7 @@ def test_dynbasisfns_compute(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0].schedule)
+    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
@@ -668,7 +668,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
-    dinf = DynBasisFunctions(sched)
+    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
