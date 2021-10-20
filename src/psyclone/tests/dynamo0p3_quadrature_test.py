@@ -95,6 +95,7 @@ def test_field_xyoz(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -182,6 +183,11 @@ def test_field_xyoz(tmpdir):
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -200,7 +206,7 @@ def test_field_xyoz(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
@@ -285,6 +291,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -371,9 +378,14 @@ def test_face_qr(tmpdir, dist_mem):
         "ndf_w3, basis_w3_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "      !\n")
+        "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n")
     if dist_mem:
         init_output2 += (
+            "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -394,15 +406,13 @@ def test_face_qr(tmpdir, dist_mem):
             "      !\n")
     else:
         init_output2 += (
+            "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
+            "      !\n"
             "      ! Call our kernels\n")
     assert init_output2 in generated_code
-    if dist_mem:
-        compute_output = (
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    else:
-        compute_output = (
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
-    compute_output += (
+
+    compute_output = (
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
         "f2_proxy%data, "
@@ -536,7 +546,7 @@ def test_dynbasisfunctions(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     # Get hold of a DynBasisFunctions object
-    evaluator = psy.invokes.invoke_list[0].evaluators
+    evaluator = psy.invokes.invoke_list[0].schedule.evaluators
 
     # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
@@ -570,7 +580,7 @@ def test_dynbasisfunctions(monkeypatch):
     assert isinstance(call, DynKern)
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
-        _ = DynBasisFunctions(invoke)
+        _ = DynBasisFunctions(sched)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
 
 
@@ -585,7 +595,7 @@ def test_dynbasisfns_setup(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = DynBasisFunctions(sched)
     # Now we've created a DynBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
@@ -606,7 +616,7 @@ def test_dynbasisfns_initialise(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = DynBasisFunctions(psy.invokes.invoke_list[0].schedule)
     mod = ModuleGen(name="testmodule")
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
@@ -630,7 +640,7 @@ def test_dynbasisfns_compute(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = DynBasisFunctions(psy.invokes.invoke_list[0].schedule)
     mod = ModuleGen(name="testmodule")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
@@ -658,7 +668,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, DynKern)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = DynBasisFunctions(sched)
     mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])

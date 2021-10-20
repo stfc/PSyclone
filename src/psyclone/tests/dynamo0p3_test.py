@@ -886,7 +886,7 @@ def test_bc_kernel_anyspace1_only():
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
     with pytest.raises(GenerationError) as err:
-        _ = DynBoundaryConditions(invoke)
+        _ = DynBoundaryConditions(schedule)
     assert ("enforce_bc_code kernel must have an argument on ANY_SPACE_1 but "
             "failed to find such an argument" in str(err.value))
 
@@ -907,7 +907,7 @@ def test_bc_op_kernel_wrong_args():
     # the existing argument in the list
     kernels[0].arguments.args.append(kernels[0].arguments.args[0])
     with pytest.raises(GenerationError) as err:
-        _ = DynBoundaryConditions(invoke)
+        _ = DynBoundaryConditions(schedule)
     assert ("enforce_operator_bc_code kernel must have exactly one argument "
             "but found 2" in str(err.value))
 
@@ -1956,8 +1956,8 @@ def test_halo_exchange(tmpdir):
         "      END IF\n"
         "      !\n")
     assert output1 in generated_code
-    output2 = ("      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    assert output2 in generated_code
+    assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
+    assert "DO cell=loop0_start,loop0_stop\n" in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -2088,11 +2088,12 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
         assert result.count("halo_exchange(") == 3
         for idx in range(1, 4):
             assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
         expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
                     "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
                     "      END IF\n"
                     "      !\n"
-                    "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+                    "      DO cell=loop0_start,loop0_stop\n")
         assert expected in result
 
 
@@ -2139,6 +2140,9 @@ def test_halo_exchange_depths(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
+
+    assert "loop0_stop = mesh%get_last_edge_cell()" in result
+
     expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f2_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
@@ -2151,7 +2155,7 @@ def test_halo_exchange_depths(tmpdir):
                 "        CALL f4_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=1,mesh%get_last_edge_cell()\n")
+                "      DO cell=loop0_start,loop0_stop\n")
     assert expected in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -2174,8 +2178,7 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
-    import pdb; pdb.set_trace()
-    result = str(psy.gen)
+
     expected1 = (
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
@@ -2599,6 +2602,11 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -2613,7 +2621,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "        CALL f3_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+            "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
@@ -2636,9 +2644,14 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+            "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
@@ -3158,7 +3171,7 @@ def test_dyncollection_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+    assert ("DynCollection takes only a DynInvokeSchedule or a DynKern but"
             in str(err.value))
 
 
@@ -3170,7 +3183,7 @@ def test_dyncollection_err2(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     # Create a valid sub-class of a DynCollection
-    proxies = DynProxies(invoke)
+    proxies = DynProxies(invoke.schedule)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
@@ -3185,9 +3198,14 @@ def test_dyncelliterators_err(monkeypatch):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    monkeypatch.setattr(invoke, "_psy_unique_vars", [])
+    # The list of arguments is dynamically generated if it is empty so
+    # monkeypatch it to contain a single, scalar argument.
+    monkeypatch.setattr(invoke.schedule._psy_unique_vars[0], "_argument_type",
+                        "gh_scalar")
+    monkeypatch.setattr(invoke.schedule, "_psy_unique_vars",
+                        [invoke.schedule._psy_unique_vars[0]])
     with pytest.raises(GenerationError) as err:
-        _ = DynCellIterators(invoke)
+        _ = DynCellIterators(invoke.schedule)
     assert ("Cannot create an Invoke with no field/operator arguments."
             in str(err.value))
 
@@ -3661,7 +3679,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
         "ield 'f3' is on a read-only function space but is modified by kernel"
         " 'x_plus_y'.\", LOG_LEVEL_ERROR)\n"        "      END IF\n"
         "      !\n"
-        "      ! Call kernels and communication routines\n")
+        "      ! Set-up all of the loop bounds\n")
     assert expected_code2 in generated_code
 
 
