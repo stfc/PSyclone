@@ -684,16 +684,16 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Set the boundaries for this kernel
     expected = '''
-      xstart = cu_fld % internal % xstart
-      xstop = cu_fld % internal % xstop
-      ystart = cu_fld % internal % ystart
-      ystop = cu_fld % internal % ystop'''
+      xstart = cu_fld%internal%xstart
+      xstop = cu_fld%internal%xstop
+      ystart = cu_fld%internal%ystart
+      ystop = cu_fld%internal%ystop'''
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
-      cu_fld_cl_mem = TRANSFER(cu_fld % device_ptr, cu_fld_cl_mem)
-      p_fld_cl_mem = TRANSFER(p_fld % device_ptr, p_fld_cl_mem)
-      u_fld_cl_mem = TRANSFER(u_fld % device_ptr, u_fld_cl_mem)'''
+      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
@@ -705,14 +705,14 @@ ystart - 1, ystop - 1)'''
 
     # Set up globalsize and localsize values
     expected += '''
-      globalsize = (/p_fld % grid % nx, p_fld % grid % ny/)
+      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
       localsize = (/64, 1/)'''
 
     if debug_mode:
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-      IF (MOD(p_fld % grid % nx, 64) .NE. 0) THEN
+      IF (MOD(p_fld%grid%nx, 64) .NE. 0) THEN
         CALL check_status("Global size is not a multiple of local size \
 (mandatory in OpenCL < 2.0).", - 1)
       END IF'''
@@ -722,9 +722,10 @@ ystart - 1, ystop - 1)'''
         # the kernel
         expected += '''
       ierr = clFinish(cmd_queues(1))
-      CALL check_status('Errors before compute_cu_code launch', ierr)'''
+      CALL check_status("Errors before compute_cu_code launch", ierr)'''
 
     expected += '''
+      ! Launch the kernel
       ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
 C_NULL_PTR)'''
@@ -733,11 +734,11 @@ C_NULL_PTR)'''
         # Check that there are no errors during the kernel launch or during
         # the execution of the kernel.
         expected += '''
-      CALL check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
+      CALL check_status("compute_cu_code clEnqueueNDRangeKernel", ierr)
       ierr = clFinish(cmd_queues(1))
-      CALL check_status('Errors during compute_cu_code', ierr)'''
+      CALL check_status("Errors during compute_cu_code", ierr)'''
 
-    assert expected in generated_code
+    assert expected == generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
