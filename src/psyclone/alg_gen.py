@@ -121,7 +121,7 @@ class Alg(object):
                 psy_invoke_info = self._psy.invokes.invoke_list[idx]
                 new_name = psy_invoke_info.name
                 new_args = Section_Subscript_List(
-                    ", ".join(psy_invoke_info.alg_unique_args))
+                    ", ".join(psy_invoke_info.schedule.alg_unique_args))
                 statement.items = (new_name, new_args)
 
                 # The PSy-layer generates a subroutine within a module

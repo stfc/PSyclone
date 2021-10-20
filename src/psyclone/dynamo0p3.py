@@ -5132,7 +5132,7 @@ class DynInvoke(Invoke):
         # arguments so we need to add them in.
 
         # Extend arg list with stencil information
-        self._alg_unique_args = (self.schedule.alg_unique_vars +
+        self._alg_unique_args = (self.schedule.alg_unique_args +
                                  self.schedule.stencil.unique_alg_vars)
 
         # adding in qr arguments
@@ -5375,8 +5375,8 @@ class DynInvokeSchedule(InvokeSchedule):
                 parent.add(DeclGen(parent, datatype="integer",
                                    entity_decls=[nthreads_name]))
                 parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent,
-                                      " Determine the number of OpenMP threads"))
+                parent.add(CommentGen(
+                    parent, " Determine the number of OpenMP threads"))
                 parent.add(CommentGen(parent, ""))
                 parent.add(AssignGen(parent, lhs=nthreads_name,
                                      rhs=omp_function_name+"()"))

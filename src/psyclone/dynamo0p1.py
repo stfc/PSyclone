@@ -190,7 +190,8 @@ class DynInvoke(Invoke):
         Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
+        if False:
+            self._schedule = DynInvokeSchedule(None, None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule, invokes)
 
     def gen_code(self, parent):

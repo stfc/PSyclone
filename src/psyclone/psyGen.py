@@ -425,6 +425,9 @@ class Invoke(object):
         if container:
             container.addchild(self._schedule)
 
+        self._alg_unique_args = []
+        self._psy_unique_args = []
+
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.coded_kernels():
@@ -747,7 +750,7 @@ class InvokeSchedule(Routine):
         return self._psy_unique_vars
 
     @property
-    def alg_unique_vars(self):
+    def alg_unique_args(self):
         if not self._alg_unique_args:
             # Extract the argument list for the algorithm call.
             for call in self.kernels():
