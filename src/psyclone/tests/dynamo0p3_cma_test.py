@@ -856,7 +856,7 @@ def test_cma_asm(tmpdir, dist_mem):
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: cbanded_map_adspc1_lma_op1(:,:) "
             "=> null(), cbanded_map_adspc2_lma_op1(:,:) => null()") in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
             "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
@@ -891,7 +891,8 @@ def test_cma_asm_field(tmpdir, dist_mem):
             "cbanded_map_aspc1_afield(:,:) => null(), "
             "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "mesh => lma_op1_proxy%fs_from%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = (
         "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
@@ -932,7 +933,7 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
             "cbanded_map_aspc1_lma_op1(:,:) => null(), "
             "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
@@ -972,7 +973,8 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cbanded_map_aspc2_lma_op1(:,:) => null()\n" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "mesh => lma_op1_proxy%fs_from%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     if dist_mem:
         # When distributed-memory is enabled then we compute operators

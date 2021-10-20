@@ -1815,15 +1815,20 @@ class LFRicMeshProperties(DynCollection):
         # The (ordered) list of mesh properties required by this invoke or
         # kernel stub.
         self._properties = []
-        need_ncell_2d = False
 
         for call in self._calls:
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
-            if call.iterates_over == "domain" and not need_ncell_2d:
-                need_ncell_2d = True
-                self._properties.append(MeshProperty.NCELL_2D_NO_HALOS)
+            # Kernels that operate on the 'domain' need the number of columns,
+            # excluding those in the halo.
+            if call.iterates_over == "domain":
+                if MeshProperty.NCELL_2D_NO_HALOS not in self._properties:
+                    self._properties.append(MeshProperty.NCELL_2D_NO_HALOS)
+            # Kernels performing CMA operations need the number of columns,
+            if call.cma_operation:
+                if MeshProperty.NCELL_2D not in self._properties:
+                    self._properties.append(MeshProperty.NCELL_2D)
 
         # Store properties in symbol table
         for prop in self._properties:
@@ -3546,19 +3551,19 @@ class DynCMAOperators(DynCollection):
         if not self._cma_ops:
             return
 
-        # If we have one or more CMA operators then we will need the number
-        # of columns in the mesh
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise number of cols"))
-        parent.add(CommentGen(parent, ""))
-        ncol_name = self._symbol_table.symbol_from_tag("ncell_2d").name
-        parent.add(
-            AssignGen(
-                parent, lhs=ncol_name,
-                rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           entity_decls=[ncol_name]))
+        # If we have one or more CMA operators then the number of columns
+        # in the mesh will already be handled by the MeshProperties collection.
+        #parent.add(CommentGen(parent, ""))
+        #parent.add(CommentGen(parent, " Initialise number of cols"))
+        #parent.add(CommentGen(parent, ""))
+        #ncol_name = self._symbol_table.symbol_from_tag("ncell_2d").name
+        #parent.add(
+        #    AssignGen(
+        #        parent, lhs=ncol_name,
+        #        rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
+        #parent.add(DeclGen(parent, datatype="integer",
+        #                   kind=api_config.default_kind["integer"],
+        #                   entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
@@ -3734,7 +3739,8 @@ class DynMeshes(object):
         for call in self._schedule.coded_kernels():
 
             if (call.reference_element.properties or
-                    call.mesh.properties or call.iterates_over == "domain"):
+                    call.mesh.properties or call.iterates_over == "domain" or
+                    call.cma_operation):
                 requires_mesh = True
 
             if not call.is_intergrid:
@@ -7448,8 +7454,7 @@ class DynKern(CodedKern):
         Initialisation of the basis/diff basis information. This may be
         needed before general setup so is computed in a separate method.
 
-        :param kmetadata: The kernel meta-data object produced by the
-                          parser.
+        :param kmetadata: The kernel meta-data object produced by the parser.
         :type kmetadata: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         '''
         for descriptor in kmetadata.func_descriptors:
