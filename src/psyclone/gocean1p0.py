@@ -1164,37 +1164,6 @@ class GOKern(CodedKern):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
-    def gen_ocl_buffers_initial_write(self, parent):
-        # pylint: disable=too-many-locals
-        '''
-        Generate the f2pygen AST for the code to write the initial data into
-        the device.
-
-        :param parent: parent subroutine in f2pygen AST of generated code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
-        symtab = self.scope.symbol_table
-        there_is_a_grid_buffer = False
-        for arg in self._arguments.args:
-            if arg.argument_type == "field":
-                # Insert call to write_to_device method
-                call = Call.create(
-                    RoutineSymbol(arg.name+"%write_to_device()"), [])
-                parent.add(PSyIRGen(parent, call))
-            elif arg.argument_type == "grid_property" and not arg.is_scalar:
-                there_is_a_grid_buffer = True
-
-        if there_is_a_grid_buffer:
-            module = parent
-            while module.parent:
-                module = module.parent
-            grid_write_sub = symtab.lookup_with_tag("ocl_write_grid_buffers")
-
-            # Insert grid writing call
-            field = symtab.lookup(self._arguments.find_grid_access().name)
-            call = Call.create(grid_write_sub, [Reference(field)])
-            parent.add(PSyIRGen(parent, call))
-
     def get_kernel_schedule(self):
         '''
         Returns a PSyIR Schedule representing the GOcean kernel code.
