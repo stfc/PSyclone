@@ -3240,13 +3240,21 @@ class LFRicLoopBounds(DynCollection):
 
         for idx, loop in enumerate(loops):
             root_name = "loop{0}_start".format(idx)
-            lbound = sym_table.new_symbol(root_name=root_name, tag=root_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
+            try:
+                lbound = sym_table.lookup_with_tag(root_name)
+            except KeyError:
+                lbound = sym_table.new_symbol(root_name=root_name,
+                                              tag=root_name,
+                                              symbol_type=DataSymbol,
+                                              datatype=INTEGER_TYPE)
             root_name = "loop{0}_stop".format(idx)
-            ubound = sym_table.new_symbol(root_name=root_name, tag=root_name,
-                                          symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
+            try:
+                ubound = sym_table.lookup_with_tag(root_name)
+            except KeyError:
+                ubound = sym_table.new_symbol(root_name=root_name,
+                                              tag=root_name,
+                                              symbol_type=DataSymbol,
+                                              datatype=INTEGER_TYPE)
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[lbound.name, ubound.name]))
             parent.add(AssignGen(parent, lhs=lbound.name,
