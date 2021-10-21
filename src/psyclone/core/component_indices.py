@@ -47,7 +47,8 @@ class ComponentIndices(object):
     one index list for each component of a variable, e.g. for `a(i)%b(j)`
     it would store `[ [i], [j] ]`. Even for scalar accesses an empty list
     is stored, so `a` would have the component indices `[ [] ]`, and `a%b`
-    would have `[ [], [] ]`.
+    would have `[ [], [] ]`. Each member of this list of lists is the PSyIR
+    node describing the array expression used.
 
     As a shortcut, the `indices` parameter can be None or an empty list
     (which then creates the component indices as `[[]]`, i.e. indicating
