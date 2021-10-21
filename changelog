@@ -233,6 +233,9 @@
 	79) PR #1433 for #1378. Adds dependence checks to the hoist
 	transformation.
 
+	80) PR #1450 for #1291. Adds new dependence-analysis chapter to UG to
+	bring together documentation on 'old' and 'new' way of doing things.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
