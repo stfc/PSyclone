@@ -36,7 +36,7 @@
 '''Module providing a transformation script that converts the supplied
 PSyIR to the Stencil intermediate representation (SIR) and
 
-1) modifies any PSyIR min, abs and sign intrinsics to PSyIR code
+1) modifies any PSyIR min, max, abs and sign intrinsics to PSyIR code
 beforehand using transformations, as SIR does not support intrinsics.
 
 2) transforms implicit loops to explicit loops as the SIR does not
@@ -55,7 +55,7 @@ from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation, Assignment)
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans, HoistTrans
+    Min2CodeTrans, Max2CodeTrans, HoistTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
     NemoAllArrayAccess2LoopTrans
 
@@ -75,6 +75,7 @@ def trans(psy):
     abs_trans = Abs2CodeTrans()
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
+    max_trans = Max2CodeTrans()
     array_range_trans = NemoAllArrayRange2LoopTrans()
     array_access_trans = NemoAllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
@@ -111,6 +112,10 @@ def trans(psy):
                                        NaryOperation.Operator.MIN]:
                     # Apply (2-n arg) MIN transformation
                     min_trans.apply(oper)
+                elif oper.operator in [BinaryOperation.Operator.MAX,
+                                       NaryOperation.Operator.MAX]:
+                    # Apply (2-n arg) MAX transformation
+                    max_trans.apply(oper)
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation
