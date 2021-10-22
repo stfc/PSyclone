@@ -238,6 +238,9 @@
 
 	81) PR #1436 for #1434. Adds new Max2Code transformation.
 
+	82) PR #1427 for #1405. Adds new PSyIR nodes for OMPTarget and
+	OMPLoop directives.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
