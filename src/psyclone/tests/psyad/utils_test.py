@@ -37,14 +37,15 @@
 utils.py file within the psyad directory.
 
 '''
-from psyclone.psyad.utils import active, passive
+from psyclone.psyad.utils import node_is_active, node_is_passive
 
 
-# active and passive functions
+# node_is_active and node_is_passive functions
 def test_active_passive(fortran_reader):
-    '''Test that the active function returns True if an active variable
-    exists in the node or its descendants and False if not. Also test
-    that the passive function returns the opposite results.
+    '''Test that the node_is_active function returns True if an active
+    variable exists in the node or its descendants and False if
+    not. Also test that the node_is_passive function returns the
+    opposite results.
 
     '''
     code = (
@@ -59,16 +60,16 @@ def test_active_passive(fortran_reader):
     symbol_c = symbol_table.lookup("c")
     assignment = tl_psyir.children[0][0]
 
-    assert active(assignment, [symbol_a])
-    assert not passive(assignment, [symbol_a])
-    assert active(assignment, [symbol_b])
-    assert not passive(assignment, [symbol_b])
-    assert active(assignment, [symbol_a, symbol_b])
-    assert not passive(assignment, [symbol_a, symbol_b])
-    assert active(assignment, [symbol_a, symbol_b, symbol_c])
-    assert not passive(assignment, [symbol_a, symbol_b, symbol_c])
+    assert node_is_active(assignment, [symbol_a])
+    assert not node_is_passive(assignment, [symbol_a])
+    assert node_is_active(assignment, [symbol_b])
+    assert not node_is_passive(assignment, [symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b, symbol_c])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b, symbol_c])
 
-    assert passive(assignment, [])
-    assert not active(assignment, [])
-    assert passive(assignment, [symbol_c])
-    assert not active(assignment, [symbol_c])
+    assert node_is_passive(assignment, [])
+    assert not node_is_active(assignment, [])
+    assert node_is_passive(assignment, [symbol_c])
+    assert not node_is_active(assignment, [symbol_c])

@@ -283,7 +283,7 @@ Sequence of Statements (PSyIR Schedule)
 ---------------------------------------
 
 The PSyIR captures a sequence of statements as children of a
-'schedule' node. In PSyclone a sequence of statements in a tangent
+'Schedule' node. In PSyclone a sequence of statements in a tangent
 linear code are transformed to to their adjoint form by implementing
 the following rules:
 
@@ -294,12 +294,12 @@ contain any active variables is classed as an ``inactive statement``.
 
 2) Any inactive statements are left unchanged and immediately output
 as PSyIR in the same order as they were found in the tangent linear
-code. Therefore the resultant sequence of statements in the adjoint
+code. Therefore the resulting sequence of statements in the adjoint
 code will contains all inactive statements before all active
 statements.
 
 3) The order of any active tangent-linear statements are then reversed
-and the rules associated with each statement type are then applied
+and the rules associated with each statement type are applied
 individually to each statement and the resultant PSyIR returned.
 
 .. note:: At the moment the only statements supported within a

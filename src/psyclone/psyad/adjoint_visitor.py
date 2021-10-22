@@ -41,7 +41,7 @@ from __future__ import print_function
 import logging
 
 from psyclone.psyad.transformations import AssignmentTrans
-from psyclone.psyad.utils import passive
+from psyclone.psyad.utils import node_is_passive
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Schedule, Node
 
@@ -121,7 +121,7 @@ class AdjointVisitor(PSyIRVisitor):
         self._logger.debug("Adding passive code into new schedule")
         active_nodes = []
         for child in node.children:
-            if passive(child, self._active_variables):
+            if node_is_passive(child, self._active_variables):
                 # Add passive nodes back into the schedule as they do
                 # not change.
                 node_copy.children.append(child.copy())
@@ -138,10 +138,13 @@ class AdjointVisitor(PSyIRVisitor):
             "Processing active code and adding results into new schedule")
         for child in active_nodes:
             result = self._visit(child)
-            if isinstance(result, list):
-                node_copy.children.extend(result)
-            # The else clause below can not be exercised until nodes in a
-            # schedule other than assignment are support, see issue #1457
+            # The else clause below can not be exercised until nodes
+            # in a schedule other than assignment are supported, see
+            # issue #1457. Therefore, for the moment simply assume
+            # that the result is a list.
+            node_copy.children.extend(result)
+            # if isinstance(result, list):
+            #     node_copy.children.extend(result)
             # else:
             #     node_copy.children.append(result)
 

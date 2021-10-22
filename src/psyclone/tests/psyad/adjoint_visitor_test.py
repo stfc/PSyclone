@@ -42,7 +42,6 @@ import logging
 import pytest
 
 from psyclone.psyad import AdjointVisitor
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import FileContainer, Schedule, Assignment
@@ -65,7 +64,7 @@ EXPECTED_ADJ_CODE = (
 
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
-                  tmpdir):
+                  tmpdir, fortran_writer):
     '''Utility routine that takes tangent-linear Fortran code as input in
     the argument 'tl_fortran', transforms this code into its adjoint
     using the active variables specified in the
@@ -76,7 +75,7 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     To help keep the test code short, this routine also adds the
     subroutine / end subroutine lines to the incoming code.
 
-    :param str tl_fortran: tangent linear code.
+    :param str tl_fortran: tangent-linear code.
     :param list of str active_variable_names: a list of active \
         variable names.
     :param str tl_fortran: the expected adjoint code to be produced.
@@ -90,7 +89,7 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
                             "".format(expected_ad_fortran))
 
-    # Translate the tangent linear code to PSyIR.
+    # Translate the tangent-linear code to PSyIR.
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
 
@@ -101,12 +100,11 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     # Create the visitor
     adj_visitor = AdjointVisitor(active_variable_names)
 
-    # Apply the tangent linear to adjoint transformation.
+    # Apply the tangent-linear to adjoint transformation.
     ad_psyir = adj_visitor(schedule)
 
     # Translate the adjoint code to Fortran.
-    writer = FortranWriter()
-    ad_fortran = writer(ad_psyir)
+    ad_fortran = fortran_writer(ad_psyir)
 
     # Check that the code produced is the same as the expected code
     # provided.
@@ -238,7 +236,7 @@ def test_create_schedule_active_variables(fortran_reader):
             in str(info.value))
 
 
-def test_schedule_active_assign(tmpdir):
+def test_schedule_active_assign(tmpdir, fortran_writer):
     '''Test the validate schedule_node method works when there are
     multiple active assignments in the schedule.
     '''
@@ -264,10 +262,11 @@ def test_schedule_active_assign(tmpdir):
         "  c = c + y * a\n"
         "  d = d + a * z\n"
         "  a = w * a\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
 
 
-def test_schedule_inactive_assign(tmpdir):
+def test_schedule_inactive_assign(tmpdir, fortran_writer):
     '''Test the visitor schedule_node method works when there are multiple
     inactive assignments in the schedule.
     '''
@@ -286,10 +285,11 @@ def test_schedule_inactive_assign(tmpdir):
         "  w = x * y * z\n"
         "  x = y\n"
         "  z = z / w\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
 
 
-def test_schedule_mixed(tmpdir):
+def test_schedule_mixed(tmpdir, fortran_writer):
     '''Test the visitor schedule_node method works when there is a mixture
    of active and inactive assignments in the schedule.
     '''
@@ -320,13 +320,14 @@ def test_schedule_mixed(tmpdir):
         ""
         "  a = a + y * c\n"
         "  c = 0.0\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
 
 
 @pytest.mark.xfail(reason="Incorrect code is output if the variable in an "
                    "inactive assignment is read by an earlier statement, "
                    "issue #1458.")
-def test_schedule_dependent_active(tmpdir):
+def test_schedule_dependent_active(tmpdir, fortran_writer):
     '''Test the validate schedule_node method works when there is a
    mixture of active and inactive assignments in the schedule, the
    inactive variables are updated and have both forward and backward
@@ -348,7 +349,8 @@ def test_schedule_dependent_active(tmpdir):
         "  c = c + y * b\n"
         "  y = 2\n"
         "  b = b + y * a\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
 
 
 # AdjointVisitor.assignment_node()
@@ -361,8 +363,7 @@ def test_assignment_node_logger(caplog, fortran_reader):
 
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
-    tl_schedule = tl_psyir.children[0]
-    assignment = tl_schedule.children[0]
+    assignment = tl_psyir.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     # set up self._active_variables
@@ -381,8 +382,7 @@ def test_assignment_node_error(fortran_reader):
 
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
-    tl_schedule = tl_psyir.children[0]
-    assignment = tl_schedule.children[0]
+    assignment = tl_psyir.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     with pytest.raises(VisitorError) as info:
@@ -397,8 +397,7 @@ def test_assignment_node(fortran_reader, fortran_writer):
 
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
-    tl_schedule = tl_psyir.children[0]
-    assignment = tl_schedule.children[0]
+    assignment = tl_psyir.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     # set up self._active_variables
@@ -421,7 +420,7 @@ def test_copy_and_process(fortran_reader, fortran_writer):
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
     tl_schedule = tl_psyir.children[0]
-    assignment = tl_schedule.children[0]
+    assignment = tl_psyir.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     # set up self._active_variables

@@ -33,20 +33,21 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Utility functions for PSyAD : the PSyclone Adjoint support.
+'''Utilities for the PSyclone Adjoint (PSyAD) functionality.
 
 '''
 
 from psyclone.psyir.nodes import Reference
 
 
-def active(node, active_variables):
+def node_is_active(node, active_variables):
     ''' Determines whether this node contains variables that are active.
 
     :param node: the PSyIR node that is being evaluated.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param active_variables: a list of active variables.
-    :type active_variables: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: True if active and False otherwise.
     :rtype: bool
@@ -58,23 +59,24 @@ def active(node, active_variables):
     return False
 
 
-def passive(node, active_variables):
+def node_is_passive(node, active_variables):
     '''Determines whether this node contains only variables that are
     passive.
 
     :param node: the PSyIR node that is being evaluated.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param active_variables: a list of active variables.
-    :type active_variables: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: True if passive and False otherwise.
     :rtype: bool
 
     '''
-    return not active(node, active_variables)
+    return not node_is_active(node, active_variables)
 
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
 # generate documentation for (see https://psyclone-ref.readthedocs.io).
-__all__ = ["active", "passive"]
+__all__ = ["node_is_active", "node_is_passive"]
