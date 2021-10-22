@@ -259,16 +259,10 @@ class NemoLoop(Loop):
 
     '''
     def __init__(self, parent=None, variable=None):
-        # The order in which names are returned in
-        # get_valid_loop_types depends on the Python implementation
-        # (as it pulls the values from a dictionary). To make it clear
-        # that there is no implied ordering here we store
-        # valid_loop_types as a set, rather than a list.
         const = NemoConstants()
-        valid_loop_types = set(const.VALID_LOOP_TYPES)
         Loop.__init__(self, parent=parent,
                       variable=variable,
-                      valid_loop_types=valid_loop_types)
+                      valid_loop_types=const.VALID_LOOP_TYPES)
 
     @staticmethod
     def create(variable, start, stop, step, children):

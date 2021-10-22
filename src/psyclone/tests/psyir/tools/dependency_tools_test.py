@@ -80,7 +80,7 @@ def test_dep_tool_constructor_errors():
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["lon", "invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'nemo' are ['lon', 'lat', 'levels', 'tracers', "
+            "values for API 'nemo' are ['lat', 'levels', 'lon', 'tracers', "
             "'unknown']." in str(err.value))
 
     # Test that a a change to the API works as expected, i.e. does

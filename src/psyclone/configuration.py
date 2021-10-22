@@ -1326,11 +1326,13 @@ class NemoConfig(APISpecificConfig):
         return self._loop_type_data
 
     def get_valid_loop_types(self):
-        '''
-        :returns: a list of valid loop types.
+        '''The list is sorted to have reproducible results for testing.
+        :returns: a sorted list of valid loop types.
         :rtype: list of str.
         '''
-        return list(self._loop_type_data)
+        valid_types_list = list(self._loop_type_data)
+        valid_types_list.sort()
+        return valid_types_list
 
     def get_index_order(self):
         '''
