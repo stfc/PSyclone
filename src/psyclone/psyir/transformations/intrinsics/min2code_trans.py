@@ -36,7 +36,7 @@
 
 '''Module providing a transformation from a PSyIR MIN operator to
 PSyIR code. This could be useful if the MIN operator is not supported
-by the back-end or if the performance in the inline code is better
+by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
