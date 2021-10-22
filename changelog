@@ -236,6 +236,8 @@
 	80) PR #1450 for #1291. Adds new dependence-analysis chapter to UG to
 	bring together documentation on 'old' and 'new' way of doing things.
 
+	81) PR #1436 for #1434. Adds new Max2Code transformation.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
