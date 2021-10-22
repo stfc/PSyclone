@@ -44,6 +44,7 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.domain.nemo import NemoConstants
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
@@ -255,6 +256,7 @@ class NemoLoop(Loop):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str variable_name: optional name of the loop iterator \
         variable. Defaults to an empty string.
+
     '''
     def __init__(self, parent=None, variable=None):
         # The order in which names are returned in
@@ -262,8 +264,8 @@ class NemoLoop(Loop):
         # (as it pulls the values from a dictionary). To make it clear
         # that there is no implied ordering here we store
         # valid_loop_types as a set, rather than a list.
-        valid_loop_types = set(
-            Config.get().api_conf("nemo").get_valid_loop_types())
+        const = NemoConstants()
+        valid_loop_types = set(const.VALID_LOOP_TYPES)
         Loop.__init__(self, parent=parent,
                       variable=variable,
                       valid_loop_types=valid_loop_types)
