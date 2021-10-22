@@ -21,10 +21,10 @@ contains
     REAL*8                                        :: zw, z0w
     INTEGER                                       :: ji, jj, jk
 
-    ! Not sure what to do with 2D and 1D arrays in the SIR backend
-    DO jk = 1, jpk
-       DO jj = 1, jpj
-          DO ji = 1, jpi
+    ! Mapping of 1D and 2D arrays not yet supported in the SIR backend
+    !DO jk = 1, jpk
+    !   DO jj = 1, jpj
+    !      DO ji = 1, jpi
     !         IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
     !         ELSE                                                 ;   zice = 0.d0
     !         ENDIF
@@ -33,6 +33,16 @@ contains
     !            upsmsk(ji,jj)               ,      &
     !            zice                               &
     !            &                  ) * tmask(ji,jj,jk)
+    !      END DO
+    !   END DO
+    !END DO
+    
+    ! Create a temporary similar loop structure to the original
+    ! commented out version above to test out the MAX intrinsic
+    ! transformation.
+    DO jk = 1, jpk
+       DO jj = 1, jpj
+          DO ji = 1, jpi
              zind(ji,jj,jk) = MAX (   &
                 rnfmsk(ji,jj,jk) * rnfmsk_z(ji,jj,jk),      & 
                 upsmsk(ji,jj,jk)               ,      &

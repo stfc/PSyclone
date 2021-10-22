@@ -45,7 +45,6 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
     Assignment, Literal, KernelSchedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
@@ -54,6 +53,14 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
     MinOrMax2CodeTrans
 from psyclone.tests.utilities import Compile
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use nemo as the API.'''
+    Config.get().api = "nemo"
+    yield()
+    Config._instance = None
 
 
 def test_initialise():
@@ -135,17 +142,15 @@ def example_psyir_nary():
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
                               Literal("3.14", REAL_TYPE)), "arg * 3.14")])
-def test_correct_binary(func, output, tmpdir):
+def test_correct_binary(func, output, tmpdir, fortran_writer):
     '''Check that a valid example produces the expected output when the
     first argument to MIN is a simple argument and when it is an
     expression.
 
     '''
-    Config.get().api = "nemo"
     operation = example_psyir_binary(func)
     root = operation.root
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -160,7 +165,7 @@ def test_correct_binary(func, output, tmpdir):
                         NaryOperation.Operator.MIN)
     trans._compare_operator = BinaryOperation.Operator.LT
     trans.apply(operation)
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -176,16 +181,13 @@ def test_correct_binary(func, output, tmpdir):
         "  psyir_tmp = res_min\n\n"
         "end subroutine min_example\n".format(output)) in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
-def test_correct_expr(tmpdir):
+def test_correct_expr(tmpdir, fortran_writer):
     '''Check that a valid example produces the expected output when MIN()
     is part of an expression.
 
     '''
-    Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
     root = operation.root
     assignment = operation.parent
@@ -196,8 +198,7 @@ def test_correct_expr(tmpdir):
                                  op1, Literal("2.0", REAL_TYPE))
     assignment.addchild(op2)
 
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -212,7 +213,7 @@ def test_correct_expr(tmpdir):
                         NaryOperation.Operator.MIN)
     trans._compare_operator = BinaryOperation.Operator.LT
     trans.apply(operation)
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -228,16 +229,13 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + res_min + 2.0\n\n"
         "end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
-def test_correct_2min(tmpdir):
+def test_correct_2min(tmpdir, fortran_writer):
     '''Check that a valid example produces the expected output when there
     is more than one MIN() in an expression.
 
     '''
-    Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
     root = operation.root
     assignment = operation.parent
@@ -249,8 +247,7 @@ def test_correct_2min(tmpdir):
                                  min_op, operation)
     assignment.addchild(op1)
 
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -266,7 +263,7 @@ def test_correct_2min(tmpdir):
     trans._compare_operator = BinaryOperation.Operator.LT
     trans.apply(operation)
     trans.apply(min_op)
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -289,20 +286,16 @@ def test_correct_2min(tmpdir):
         "  psyir_tmp = res_min_1 + res_min\n\n"
         "end subroutine min_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
-def test_correct_nary(tmpdir):
+def test_correct_nary(tmpdir, fortran_writer):
     '''Check that a valid example with an nary MAX produces the expected
     output.
 
     '''
-    Config.get().api = "nemo"
     operation = example_psyir_nary()
     root = operation.root
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine max_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
@@ -318,7 +311,7 @@ def test_correct_nary(tmpdir):
                         NaryOperation.Operator.MAX)
     trans._compare_operator = BinaryOperation.Operator.GT
     trans.apply(operation)
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine max_example(arg, arg_1, arg_2)\n"
         "  real, intent(inout) :: arg\n"
@@ -339,8 +332,6 @@ def test_correct_nary(tmpdir):
         "  psyir_tmp = res_max\n\n"
         "end subroutine max_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
 def test_invalid():

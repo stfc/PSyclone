@@ -35,7 +35,7 @@
 
 '''Module containing a class that provides functionality to transform
 a PSyIR MIN or MAX operator to PSyIR code. This could be useful if the
-operator is not supported by the back-end or if the performance in the
+operator is not supported by the back-end or if the performance of the
 inline code is better than the intrinsic. This utility transformation
 should not be called directly by the user, rather it provides
 functionality that can be specialised by MIN and MAX-specific
@@ -45,7 +45,7 @@ transformations.
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
-        Reference, IfBlock, Routine
+        Reference, IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
         Operator2CodeTrans
@@ -55,8 +55,8 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
     '''Provides a utility transformation from a PSyIR MIN or MAX Operator
     node to equivalent code in a PSyIR tree. Validity checks are also
     performed (by the parent class). This utility transformation is
-    not design to be called directly by the user, rather it should be
-    specialised to provide MIN or MAX transformations.
+    not designed to be called directly by the user, rather it should
+    be specialised to provide MIN or MAX transformations.
 
     The transformation replaces
 
@@ -115,18 +115,15 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
 
         :param node: a MIN or MAX Binary- or Nary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
-        :py:class:`psyclone.psyir.nodes.NaryOperation`
+            :py:class:`psyclone.psyir.nodes.NaryOperation`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         '''
         # pylint: disable=too-many-locals
         self.validate(node)
 
-        schedule = node.ancestor(Routine)
-        symbol_table = schedule.symbol_table
-
-        oper_parent = node.parent
+        symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
         # Create a temporary result variable. There is an assumption
@@ -146,10 +143,9 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
             symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_var).
-        oper_parent.children[node.position] = Reference(res_var_symbol,
-                                                        parent=oper_parent)
+        node.replace_with(Reference(res_var_symbol))
 
-        # res_var=A
+        # res_var=A (child[0] of node)
         lhs = Reference(res_var_symbol)
         new_assignment = Assignment.create(lhs, node.children[0].detach())
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -163,7 +159,7 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
             assignment.parent.children.insert(assignment.position,
                                               new_assignment)
 
-            # if_condition: tmp_var<res_var
+            # if_condition: tmp_var [< or >] res_var
             lhs = Reference(tmp_var_symbol)
             rhs = Reference(res_var_symbol)
             if_condition = BinaryOperation.create(
