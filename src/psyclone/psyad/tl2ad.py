@@ -45,7 +45,7 @@ from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
+    Call, Container, BinaryOperation, UnaryOperation, IfBlock, \
     CodeBlock, FileContainer, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
@@ -108,7 +108,8 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     # Create test harness if requested
     test_fortran_str = ""
     if create_test:
-        test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+        test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
+                                           active_variables)
         test_fortran_str = writer(test_psyir)
         logger.debug(test_fortran_str)
 
@@ -153,6 +154,28 @@ def _find_container(psyir):
 
     raise NotImplementedError("The supplied PSyIR contains more than two "
                               "Containers. This is not supported.")
+
+
+def _get_active_variable_datatype(kernel, active_variables):
+    '''
+    '''
+    precision = None
+    intrinsic = None
+    for var in active_variables:
+        sym = kernel.symbol_table.lookup(var)
+        if precision is None:
+            precision = sym.datatype.precision
+            intrinsic = sym.datatype.intrinsic
+        else:
+            if (precision != sym.datatype.precision or
+                    intrinsic != sym.datatype.intrinsic):
+                raise NotImplementedError(
+                    "Found active variables of different datatype: '{0}' is "
+                    "of intrinsic type {1} and precision {2} while '{3}' is "
+                    "of intrinsic type {4} and precision {5}.".format(
+                        active_variables[0], intrinsic, precision, sym.name,
+                        sym.datatype.intrinsic, sym.datatype.precision))
+    return ScalarType(intrinsic, precision)
 
 
 def generate_adjoint(tl_psyir, active_variables):
@@ -225,7 +248,7 @@ def generate_adjoint(tl_psyir, active_variables):
 
 
 def generate_adjoint_test(tl_psyir, ad_psyir,
-                          datatype=INNER_PRODUCT_DATATYPE):
+                          active_variables):
     '''
     Creates the PSyIR of a test harness for the supplied TL and adjoint
     kernels.
@@ -234,6 +257,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     :type tl_psyir: :py:class:`psyclone.psyir.Container`
     :param ad_psyir: PSyIR of the adjoint kernel code.
     :type ad_psyir: :py:class:`psyclone.psyir.Container`
+    :param list of str active_variables: list of active variable names.
 
     :returns: the PSyIR of the test harness.
     :rtype: :py:class:`psyclone.psyir.Routine`
@@ -272,6 +296,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
             "but found: {0}".format([sub.name for sub in routines]))
 
     tl_kernel = routines[0]
+
+    datatype = _get_active_variable_datatype(tl_kernel, active_variables)
 
     if tl_kernel.is_program:
         raise NotImplementedError(
@@ -317,9 +343,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
                                      datatype=datatype)
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
                                      datatype=datatype)
-    # Create symbol for result of the diff of the inner products
-    diff_sym = symbol_table.new_symbol("abs_diff", symbol_type=DataSymbol,
-                                       datatype=datatype)
 
     # Identify any arguments to the kernel that are used to dimension other
     # arguments.
@@ -426,7 +449,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
 
     statements = []
     # Initialise those variables and keep a copy of them.
-    # TODO #1247 we need to add comments to the generated code!
     for sym, sym_copy in zip(inputs, input_copies):
         # The PSyIR doesn't support the random_number Fortran intrinsic so we
         # create a CodeBlock for it. Happily, the intrinsic will initialise
@@ -438,22 +460,31 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
         statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
         statements.append(
             Assignment.create(Reference(sym_copy), Reference(sym)))
+    statements[0].preceding_comment = ("Initialise the kernel arguments and "
+                                       "keep copies of them")
 
     # Call the TL kernel
     statements.append(Call.create(tl_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
+    statements[-1].preceding_comment = "Call the tangent-linear kernel"
 
     # Compute the inner product of the result of the TL kernel
-    statements += _create_inner_product(inner1,
-                                        [(sym, sym) for sym in inputs])
+    stmt_list = _create_inner_product(inner1, [(sym, sym) for sym in inputs])
+    stmt_list[0].preceding_comment = ("Compute the inner product of the "
+                                      "results of the tangent-linear kernel")
+    statements.extend(stmt_list)
 
     # Call the adjoint kernel using the outputs of the TL kernel as input
     statements.append(Call.create(adj_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
+    statements[-1].preceding_comment = "Call the adjoint of the kernel"
 
     # Compute inner product of result of adjoint kernel with original inputs
-    statements += _create_inner_product(inner2,
-                                        zip(inputs, input_copies))
+    stmt_list = _create_inner_product(inner2, zip(inputs, input_copies))
+    stmt_list[0].preceding_comment = (
+        "Compute inner product of results of adjoint kernel with the "
+        "original inputs to the tangent-linear kernel")
+    statements.extend(stmt_list)
 
     # Compare the inner products.
     statements += _create_real_comparison(symbol_table, tl_kernel, inner1,
@@ -623,10 +654,12 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
                                        symbol_type=DataSymbol,
                                        datatype=var1.datatype,
                                        constant_value=1500.0)
-    # TODO the precision of `diff_result` should also depend on the precision
+    # The precision of `diff_result` depends on the precision
     # of the supplied values.
+    datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
+                          precision=var1.datatype.precision)
     result = sym_table.new_symbol("diff_result", symbol_type=DataSymbol,
-                                  datatype=INTEGER_TYPE)
+                                  datatype=datatype)
     huge_result = sym_table.new_symbol("huge_result", symbol_type=DataSymbol,
                                        datatype=result.datatype)
     # TODO #1161 - the PSyIR does not support `SPACING`
@@ -634,7 +667,9 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
         "MachineTol = SPACING ( MAX( ABS({0}), ABS({1}) ) )".format(var1.name,
                                                                     var2.name))
     statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
-
+    statements[-1].preceding_comment = (
+        "Test the inner product values for equality, allowing for the "
+        "precision of the active variables")
     sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                     Reference(var1), Reference(var2))
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
@@ -664,6 +699,9 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
                        [Assignment.create(Reference(result),
                                           Reference(huge_result))],
                        [Assignment.create(Reference(result), div_op)]))
+    else_body[-1].preceding_comment = (
+        "Check to avoid divide by zero or integer overflow in calculating "
+        "result")
     # TODO #1345 make this code language agnostic.
     ptree1 = Fortran2003.Write_Stmt(
         "write(*,*) 'Test of adjoint of ''{0}'' passed: ', {1}, {2}".format(
