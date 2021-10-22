@@ -67,6 +67,8 @@ class DependencyTools(object):
     :type language_writer: None (default is Fortran), or an instance \
         of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
+    :raises TypeError: if an invalid loop type is specified.
+
     '''
     def __init__(self, loop_types_to_parallelise=None,
                  language_writer=FortranWriter()):
