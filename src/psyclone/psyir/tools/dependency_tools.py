@@ -41,6 +41,7 @@
 
 from __future__ import absolute_import, print_function
 
+from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
@@ -65,10 +66,22 @@ class DependencyTools(object):
         creating error and warning messages.
     :type language_writer: None (default is Fortran), or an instance \
         of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+
     '''
     def __init__(self, loop_types_to_parallelise=None,
                  language_writer=FortranWriter()):
         if loop_types_to_parallelise:
+            # Verify that all loop types specified are valid:
+            config = Config.get()
+            constants = config.get_constants()
+            for loop_type in loop_types_to_parallelise:
+                if loop_type not in constants.VALID_LOOP_TYPES:
+                    raise TypeError("Invalid loop type '{0}' specified "
+                                    "in DependencyTools. Valid values for "
+                                    "API '{1}' are {2}."
+                                    .format(loop_type, config.api,
+                                            constants.VALID_LOOP_TYPES))
+
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
