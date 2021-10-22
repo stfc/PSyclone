@@ -31,10 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''PSyAD, the PSyclone adjoint generation module.'''
 
+from psyclone.psyad.adjoint_visitor import AdjointVisitor
 from psyclone.psyad.main import main
 from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
