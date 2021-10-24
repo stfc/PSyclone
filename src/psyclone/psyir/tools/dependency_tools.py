@@ -41,6 +41,8 @@
 
 from __future__ import absolute_import, print_function
 
+import six
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
@@ -78,11 +80,15 @@ class DependencyTools(object):
             constants = config.get_constants()
             for loop_type in loop_types_to_parallelise:
                 if loop_type not in constants.VALID_LOOP_TYPES:
+                    if six.PY2:
+                        out_list = [str(l_type)for l_type in
+                                    constants.VALID_LOOP_TYPES]
+                    else:
+                        out_list = constants.VALID_LOOP_TYPES
                     raise TypeError("Invalid loop type '{0}' specified "
                                     "in DependencyTools. Valid values for "
                                     "API '{1}' are {2}."
-                                    .format(loop_type, config.api,
-                                            constants.VALID_LOOP_TYPES))
+                                    .format(loop_type, config.api, out_list))
 
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
