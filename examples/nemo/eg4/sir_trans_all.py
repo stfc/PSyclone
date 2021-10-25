@@ -42,6 +42,12 @@ beforehand using transformations, as SIR does not support intrinsics.
 2) transforms implicit loops to explicit loops as the SIR does not
 have the concept of implicit loops.
 
+3) transforms single index array accesses to single trip loops as the
+PSyclone SIR backend expects all array accesses to be based on loops.
+
+4) moves any invariant code out of loop nests to make all loops perfectly
+nested.
+
 Translation to the SIR is limited to the NEMO API. The NEMO API has no
 algorithm layer so all of the original code is captured in the invoke
 objects. Therefore by translating all of the invoke objects, all of
@@ -50,7 +56,6 @@ the original code is translated.
 '''
 from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation, Assignment)
@@ -81,7 +86,6 @@ def trans(psy):
     hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()
-    fortran_writer = FortranWriter()
 
     # For each Invoke write out the SIR representation of the
     # schedule. Note, there is no algorithm layer in the NEMO API so
@@ -131,8 +135,6 @@ def trans(psy):
                     if isinstance(child, Assignment):
                         hoist_trans.apply(child)
 
-        kern = fortran_writer(schedule)
-        print(kern)
         kern = sir_writer(schedule)
         print(kern)
 

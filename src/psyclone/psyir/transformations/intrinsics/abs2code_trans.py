@@ -136,6 +136,13 @@ class Abs2CodeTrans(Operator2CodeTrans):
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
+        # Hack: Dawn does not allow the first use of a temporary to be
+        # within an if, so set it to zero.
+        lhs = Reference(symbol_res_var)
+        rhs = Literal("0.0", REAL_TYPE)
+        new_assignment = Assignment.create(lhs, rhs)
+        assignment.parent.children.insert(assignment.position, new_assignment)
+
         # if condition: tmp_var>0.0
         lhs = Reference(symbol_tmp_var)
         rhs = Literal("0.0", REAL_TYPE)
