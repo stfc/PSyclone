@@ -244,6 +244,9 @@
 	83) PR #1466 for #1465. Update SIR backend so that generated code
 	specifies cartesian grid (to match latest Dawn API).
 
+	84) PR #1455 for #1441. Extends PSyAD to cope with kernels
+	containing multiple assignment statements.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
