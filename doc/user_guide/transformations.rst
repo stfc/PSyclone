@@ -229,6 +229,17 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Max2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the MAX Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
       :noindex:
