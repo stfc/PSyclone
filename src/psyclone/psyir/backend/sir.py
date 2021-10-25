@@ -132,6 +132,7 @@ class SIRWriter(PSyIRVisitor):
         # found in the PSyIR. This is required as the SIR declares
         # field names after the computation.
         self._field_names = set()
+        self._fields = {}
         # The _scalar_names variable stores the unique scalar names
         # found in the PSyIR. The current assumption is that scalars
         # are temporaries. This is not necessarily correct and this
@@ -278,9 +279,27 @@ class SIRWriter(PSyIRVisitor):
             "{0}{1}{1}[".format(self._nindent, self._indent))
         functions = []
         for name in self._field_names:
+            # field is ArrayReference
+            field = self._fields[name]
+            # symbol is DataSymbol
+            data_symbol = field.symbol
+            # symbol is an array
+            assert data_symbol.is_array
+            # symbol dimensions ...
+            shape = data_symbol.shape
+            number_of_dims = len(shape)
+            # Hack for the moment
+            if number_of_dims == 3:
+                dims = "[1, 1, 1]"
+            elif number_of_dims == 2:
+                dims = "[1, 1, 0]"
+            elif number_of_dims == 1:
+                dims = "[0, 0, 1]"
+            else:
+                raise Exception("Unexpected number of dimensions")
             functions.append(
-                "make_field(\"{0}\", make_field_dimensions_cartesian())"
-                "".format(name))
+                "make_field(\"{0}\", make_field_dimensions_cartesian({1}))"
+                "".format(name, dims))
         # The current assumption is that scalars are temporaries. This
         # is not necessarily correct and this problem is captured in
         # issue #521. Scalar temporaries can be declared as field
@@ -423,6 +442,7 @@ class SIRWriter(PSyIRVisitor):
         # captures all unique field names as the SIR declares field
         # names after the computation.
         self._field_names.add(node.name)
+        self._fields[node.name] = node
         return result
 
     def literal_node(self, node):

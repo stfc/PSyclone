@@ -15,10 +15,8 @@ contains
 
     REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, &
                                                            tmask, tsn
-    ! Not sure what to do with 2D and 1D arrays in the SIR backend
-    !REAL*8, ALLOCATABLE, DIMENSION(:,:), intent(in) :: ztfreez, rnfmsk, upsmsk
-    !REAL*8, ALLOCATABLE, DIMENSION(:), intent(in) :: rnfmsk_z
-    REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(in) :: ztfreez, rnfmsk, upsmsk, rnfmsk_z
+    REAL*8, ALLOCATABLE, DIMENSION(:,:), intent(in) :: ztfreez, rnfmsk, upsmsk
+    REAL*8, ALLOCATABLE, DIMENSION(:), intent(in) :: rnfmsk_z
     REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(inout):: mydomain
     INTEGER, INTENT(IN) :: jpi, jpj, jpk
     
@@ -28,32 +26,16 @@ contains
          zalpha, zw, z0w
     INTEGER                        :: ji, jj, jk
 
-    ! Mapping of 1D and 2D arrays not yet supported in the SIR backend
-    !DO jk = 1, jpk
-    !   DO jj = 1, jpj
-    !      DO ji = 1, jpi
-    !         IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
-    !         ELSE                                                 ;   zice = 0.d0
-    !         ENDIF
-    !         zind(ji,jj,jk) = MAX (   &
-    !            rnfmsk(ji,jj) * rnfmsk_z(jk),      & 
-    !            upsmsk(ji,jj)               ,      &
-    !            zice                               &
-    !            &                  ) * tmask(ji,jj,jk)
-    !         zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
-    !      END DO
-    !   END DO
-    !END DO
-    ! Create a temporary similar loop structure to the original
-    ! commented out version above to test out the MAX intrinsic
-    ! transformation.
     DO jk = 1, jpk
        DO jj = 1, jpj
           DO ji = 1, jpi
+             IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
+             ELSE                                                 ;   zice = 0.d0
+             ENDIF
              zind(ji,jj,jk) = MAX (   &
-                rnfmsk(ji,jj,jk) * rnfmsk_z(ji,jj,jk),      & 
-                upsmsk(ji,jj,jk)               ,      &
-                zice(ji,jj,jk)                               &
+                rnfmsk(ji,jj) * rnfmsk_z(jk),      & 
+                upsmsk(ji,jj)               ,      &
+                zice                               &
                 &                  ) * tmask(ji,jj,jk)
              zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
           END DO
