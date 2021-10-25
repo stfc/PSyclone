@@ -514,15 +514,17 @@ def test_omp_target_directive_constructor_and_strings():
 
 def test_omp_loop_directive_constructor_and_strings():
     ''' Test the OMPLoopDirective constructor and its output strings.'''
-    target = OMPLoopDirective()
-    assert target.begin_string() == "omp loop"
-    assert str(target) == "OMPLoopDirective[]"
-    assert target.collapse is None
+    omploop = OMPLoopDirective()
+    assert omploop.begin_string() == "omp loop"
+    assert omploop.end_string() == "omp end loop"
+    assert str(omploop) == "OMPLoopDirective[]"
+    assert omploop.collapse is None
 
-    target = OMPLoopDirective(collapse=4)
-    assert target.collapse == 4
-    assert target.begin_string() == "omp loop collapse(4)"
-    assert str(target) == "OMPLoopDirective[collapse=4]"
+    omploop = OMPLoopDirective(collapse=4)
+    assert omploop.collapse == 4
+    assert omploop.begin_string() == "omp loop collapse(4)"
+    assert omploop.end_string() == "omp end loop"
+    assert str(omploop) == "OMPLoopDirective[collapse=4]"
 
 
 def test_omp_loop_directive_collapse_getter_and_setter():
@@ -549,21 +551,10 @@ def test_omp_loop_directive_validate_global_constraints():
     ''' Test the OMPLoopDirective is inside a OMPParallelRegion and contains
     as many immediate loops as specified by the collapse clause'''
 
+    # Check an empty OMPLoop
     schedule = Schedule()
-
-    # Check an OMPLoop outside a OMPParallel region
     omploop = OMPLoopDirective()
     schedule.addchild(omploop)
-    with pytest.raises(GenerationError) as err:
-        omploop.validate_global_constraints()
-    assert ("Generation Error: OMPLoopDirective must have an "
-            "OMPParallelDirective as an ancestor." in str(err.value))
-
-    # Check an empty OMPLoop
-    omploop.detach()
-    ompparallel = OMPParallelDirective()
-    schedule.addchild(ompparallel)
-    ompparallel.dir_body.addchild(omploop)
     with pytest.raises(GenerationError) as err:
         omploop.validate_global_constraints()
     assert ("OMPLoopDirective must have exactly one child in its associated"

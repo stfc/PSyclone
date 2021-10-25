@@ -46,7 +46,8 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
+    OMPDoDirective, OMPLoopDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
@@ -62,7 +63,9 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
+@pytest.fixture
 def sample_psyir(fortran_reader):
+    ''' Snippet of code converted to PSyIR to use during the tests. '''
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -80,6 +83,7 @@ def sample_psyir(fortran_reader):
         end do
     end subroutine
     '''
+    return fortran_reader.psyir_from_source(code)
 
 
 def test_accloop():
@@ -231,9 +235,25 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
 
 
-def test_omplooptrans(sample_psyir, fortran_writer):
-    ''' Test OMPLoopTrans'''
-    pass
+@pytest.mark.usefixtures("sample_psyir")
+def test_omplooptrans(fortran_writer):
+    ''' Test OMPLoopTrans works as expected with the different options. '''
+
+    # By default it adds a OMPDoDirective
+    omplooptrans = OMPLoopTrans()
+    tree = sample_psyir.copy()
+    omplooptrans.apply(tree.walk(Loop)[0])
+    assert isinstance(tree.walk(Loop)[0].parent, Schedule)
+    assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
+
+    # By default it adds a OMPDoDirective
+    omplooptrans = OMPLoopTrans(omp_worksharing=False)
+    tree = sample_psyir.copy()
+    omplooptrans.apply(tree.walk(Loop)[1])
+    assert isinstance(tree.walk(Loop)[1].parent, Schedule)
+    assert isinstance(tree.walk(Loop)[1].parent.parent, OMPLoopDirective)
+
+    # assert fortran_writer(tree) == ""
 
 
 def test_ifblock_children_region():

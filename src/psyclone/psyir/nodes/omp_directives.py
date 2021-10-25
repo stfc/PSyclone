@@ -1009,12 +1009,22 @@ class OMPLoopDirective(OMPRegionDirective):
             string += " collapse({0})".format(str(self._collapse))
         return string
 
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end loop". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end loop"
+
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be
         done at code-generation time.
 
-        :raises GenerationError: if this OMPLoopDirective is not enclosed \
-            within some OMPParallelDirective region.
         :raises GenerationError: if this OMPLoopDirective has more than one \
             child in its associated schedule.
         :raises GenerationError: if the schedule associated with this \
@@ -1023,11 +1033,6 @@ class OMPLoopDirective(OMPRegionDirective):
             clause but it doesn't have the expected number of nested Loops.
 
         '''
-        if not self.ancestor(OMPParallelDirective):
-            raise GenerationError(
-                "OMPLoopDirective must have an OMPParallelDirective as an "
-                "ancestor.")
-
         if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "OMPLoopDirective must have exactly one child in its "

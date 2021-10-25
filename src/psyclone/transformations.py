@@ -607,13 +607,14 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>>
 
     '''
-    def __init__(self, omp_schedule="static"):
+    def __init__(self, omp_schedule="static", omp_worksharing=True):
         # Whether or not to generate code for (run-to-run on n threads)
         # reproducible OpenMP reductions. This setting can be overridden
         # via the `reprod` argument to the apply() method.
         self._reprod = Config.get().reproducible_reductions
 
-        self._omp_worksharing = True
+        self._omp_worksharing = None
+        self.omp_worksharing = omp_worksharing
 
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
@@ -629,10 +630,23 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     @property
     def omp_worksharing(self):
+        '''
+        :returns: the value of the omp_worksharing attribute.
+        :rtype: bool
+        '''
         return self._omp_worksharing
 
     @omp_worksharing.setter
     def omp_worksharing(self, value):
+        '''
+        :param bool value: value to set the omp_worsharing attribute.
+
+        :raises TypeError: if the provided value is not a boolean.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                "The OMPLoopTrans omp_worksharing property must be a boolean"
+                " but a {0} has been given.".format(value.__type__.__name__))
         self._omp_worksharing = value
 
     @property
