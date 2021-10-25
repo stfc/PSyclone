@@ -244,6 +244,10 @@
 	83) PR #1466 for #1465. Update SIR backend so that generated code
 	specifies cartesian grid (to match latest Dawn API).
 
+	84) PR #1469 for #1468. Update deprecated 'operatorPrecedence' to
+	'infixNotation' in 'src/psyclone/expression.py' for compatibility
+	with the pyparsing 3.01 update in GitHub.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
