@@ -64,26 +64,50 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
   use my_mod, only : kern
   use my_mod_adj, only : kern_adj
   integer, parameter :: array_extent = 20
-  double precision :: inner1
-  double precision :: inner2
-  double precision :: abs_diff
+  real, parameter :: overall_tolerance = 1500.0
+  real :: inner1
+  real :: inner2
   real :: field
   real :: field_input
+  real :: MachineTol
+  real :: relative_diff
+  integer :: diff_result
+  integer :: huge_result
 
+  ! Initialise the kernel arguments and keep copies of them
   CALL random_number(field)
   field_input = field
+  ! Call the tangent-linear kernel
   call kern(field)
+  ! Compute the inner product of the results of the tangent-linear kernel
   inner1 = 0.0
   inner1 = inner1 + field * field
+  ! Call the adjoint of the kernel
   call kern_adj(field)
+  ! Compute inner product of results of adjoint kernel with the original \
+inputs to the tangent-linear kernel
   inner2 = 0.0
   inner2 = inner2 + field * field_input
-  abs_diff = ABS(inner1 - inner2)
-  if (abs_diff > 1.0d-10) then
-    WRITE(*, *) 'Test of adjoint of ''kern'' failed: diff = ', abs_diff
-    return
+  ! Test the inner product values for equality, allowing for the precision \
+of the active variables
+  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+  relative_diff = ABS(inner1 - inner2) / MachineTol
+  if (0.0 >= relative_diff) then
+    WRITE(*, *) 'Test of adjoint of ''kern'' passed - exact agreement.'
+  else
+    huge_result = HUGE(diff_result)
+    ! Check to avoid divide by zero or integer overflow in calculating result
+    if (relative_diff >= huge_result * overall_tolerance) then
+      diff_result = huge_result
+    else
+      diff_result = relative_diff / overall_tolerance
+    end if
+    if (diff_result == 0) then
+      WRITE(*, *) 'Test of adjoint of ''kern'' passed: ', inner1, inner2
+    else
+      WRITE(*, *) 'Test of adjoint of ''kern'' failed: ', inner1, inner2
+    end if
   end if
-  WRITE(*, *) 'Test of adjoint of ''kern'' passed: diff = ', abs_diff
 
 end program adj_test''')
 

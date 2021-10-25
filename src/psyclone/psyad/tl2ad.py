@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, UnaryOperation, IfBlock, \
     CodeBlock, FileContainer, ArrayReference, Range
-from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
+from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, REAL_TYPE
 
@@ -158,6 +158,19 @@ def _find_container(psyir):
 
 def _get_active_variable_datatype(kernel, active_variables):
     '''
+    Returns a ScalarType describing the type of the active variables in
+    the supplied kernel PSyIR.
+
+    :param kernel: the PSyIR of a tangent-linear kernel.
+    :type kernel: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+    :param active_variables: the names of the active variables.
+    :type active_variables: list of str
+
+    :returns: the type of the active variables.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+
+    :raises NotImplementedError: if the supplied active variables are not all \
+                                 of the same intrinsic type and precision.
     '''
     precision = None
     intrinsic = None
@@ -297,8 +310,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
 
     tl_kernel = routines[0]
 
-    datatype = _get_active_variable_datatype(tl_kernel, active_variables)
-
     if tl_kernel.is_program:
         raise NotImplementedError(
             "Generation of a test harness for a kernel defined as a Program "
@@ -330,6 +341,29 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     adj_kernel_sym = symbol_table.new_symbol(
         adjoint_kernel_name, symbol_type=RoutineSymbol,
         interface=ImportInterface(adj_container))
+
+    # Query the TL Kernel to find out the intrinsic type and precision of
+    # the active variables. The test-harness code will use this when
+    # computing inner products.
+    datatype = _get_active_variable_datatype(tl_kernel, active_variables)
+
+    # If the precision of the active variables is specified by another symbol
+    # then we must ensure that it is declared in the harness too.
+    if isinstance(datatype.precision, Symbol):
+        if datatype.precision.is_local:
+            symbol_table.add(datatype.precision.copy())
+        elif datatype.precision.is_import:
+            kind_contr = datatype.precision.interface.container_symbol.copy()
+            symbol_table.add(kind_contr)
+            kind_symbol = datatype.precision.copy()
+            kind_symbol.interface = ImportInterface(kind_contr)
+            symbol_table.add(kind_symbol)
+        else:
+            raise NotImplementedError(
+                "The active variables {0} have a precision specified by "
+                "symbol '{1}' which is not local or explicitly imported. This "
+                "is not supported.".format(active_variables,
+                                           datatype.precision.name))
 
     # Create a symbol to hold the extent of any test arrays. This is done here
     # to avoid any clashes with any of the container and kernel names.
