@@ -1017,8 +1017,8 @@ class OMPLoopDirective(OMPRegionDirective):
             within some OMPParallelDirective region.
         :raises GenerationError: if this OMPLoopDirective has more than one \
             child in its associated schedule.
-        :raises GenerationError: if this OMPLoopDirective associated schedule \
-            child is not a Loop.
+        :raises GenerationError: if the schedule associated with this \
+            OMPLoopDirective does not contain a Loop.
         :raises GenerationError: if this OMPLoopDirective has a collapse \
             clause but it doesn't have the expected number of nested Loops.
 
@@ -1030,7 +1030,7 @@ class OMPLoopDirective(OMPRegionDirective):
 
         if len(self.dir_body.children) != 1:
             raise GenerationError(
-                "OMPLoopDirective must have exactly one children in its "
+                "OMPLoopDirective must have exactly one child in its "
                 "associated schedule but found {0}.".format(
                     self.dir_body.children))
 
@@ -1048,9 +1048,10 @@ class OMPLoopDirective(OMPRegionDirective):
                     raise GenerationError(
                         "OMPLoopDirective must have as many immediately nested"
                         " loops as the collapse clause specifies but '{0}' "
-                        "has a collpase={1} and the {2} nested statement is "
-                        "not a Loop."
-                        "".format(self, self._collapse, depth))
+                        "has a collpase={1} and the nested statement at depth "
+                        "{2} is a {3} rather than a Loop."
+                        "".format(self, self._collapse, depth,
+                                  type(cursor).__name__))
                 cursor = cursor.loop_body.children[0]
 
         super(OMPLoopDirective, self).validate_global_constraints()
