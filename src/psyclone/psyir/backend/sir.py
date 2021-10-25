@@ -265,21 +265,25 @@ class SIRWriter(PSyIRVisitor):
         result += "{0}\n".format(exec_statements)
         # The file name is hard coded at the moment.
         result += (
-            "{0}hir = make_sir(stencil_name+\".cpp\", [\n"
+            "{0}hir = make_sir(stencil_name+\".cpp\", "
+            "AST.GridType.Value(\"Cartesian\"), [\n"
             "{0}{1}make_stencil(\n"
             "{0}{1}{1}stencil_name,\n"
             "{0}{1}{1}make_ast(vertical_region_fns),\n"
             "{0}{1}{1}[".format(self._nindent, self._indent))
         functions = []
         for name in self._field_names:
-            functions.append("make_field(\"{0}\")".format(name))
+            functions.append(
+                "make_field(\"{0}\", make_field_dimensions_cartesian())"
+                "".format(name))
         # The current assumption is that scalars are temporaries. This
         # is not necessarily correct and this problem is captured in
         # issue #521. Scalar temporaries can be declared as field
         # temporaries as the Dawn backend works out what is required.
         for name in self._scalar_names:
             functions.append(
-                "make_field(\"{0}\", is_temporary=True)".format(name))
+                "make_field(\"{0}\", make_field_dimensions_cartesian(), "
+                "is_temporary=True)".format(name))
         result += ", ".join(functions)
         result += "]\n"
         result += (

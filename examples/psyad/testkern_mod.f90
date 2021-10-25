@@ -49,13 +49,15 @@ contains
     ! not currently deal with this.
     real, intent(inout), dimension(npts) :: field2
     real, intent(inout), dimension(npts) :: field1
+    real :: tmp, tmp2
 
     ! issue #1430. Array notation does not work with the assignment
     ! transformation so temporarily change the assignment to a single
-    ! index.
-    ! field1(:) = ascalar*field1(:) + field2(:)
-    field1(1) = ascalar*field1(1) + field2(1)
-
+    ! index, e.g. previously field1(:) = ascalar*field1(:) + field2(:)
+    tmp = ascalar*ascalar
+    field1(1) = tmp*field1(1) + field2(1)
+    tmp2 = tmp*3.0
+    field2(1) = field2(1) + field1(1)/tmp2
   end subroutine testkern_code
   
 end module testkern_mod

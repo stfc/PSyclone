@@ -335,7 +335,7 @@ OPERAND = (GROUP | OPTIONAL_VAR | VAR_OR_FUNCTION | REAL | INTEGER |
            LITERAL_ARRAY)
 
 # Cause the binary operators to work.
-OPERATOR = pparse.operatorPrecedence(
+OPERATOR = pparse.infixNotation(
     OPERAND,
     ((pparse.Literal("**"), 2, pparse.opAssoc.RIGHT,
       lambda strg, loc, toks: [BinaryOperator(toks)]),
