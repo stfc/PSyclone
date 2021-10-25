@@ -62,6 +62,26 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
+def sample_psyir(fortran_reader):
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+    end subroutine
+    '''
+
+
 def test_accloop():
     ''' Generic tests for the ACCLoopTrans transformation class '''
     trans = ACCLoopTrans()
@@ -209,6 +229,11 @@ def test_omptaskloop_apply(monkeypatch):
         taskloop.apply(schedule[0], {"nogroup": True})
     assert "Fake error" in str(excinfo.value)
     assert taskloop._nogroup is False
+
+
+def test_omplooptrans(sample_psyir, fortran_writer):
+    ''' Test OMPLoopTrans'''
+    pass
 
 
 def test_ifblock_children_region():
