@@ -15,8 +15,7 @@
 ..   and/or other materials provided with the distribution.
 ..
 .. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
+..   contributors may be used to endorse or promote products derived from..   this software without specific prior written permission.
 ..
 .. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -278,7 +277,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPTaskwaitTrans
-    :members: apply, omp_grainsize, omp_num_tasks
+    :members: apply
     :noindex:
 
 ####
@@ -702,6 +701,15 @@ region for a set of nodes that includes halo swaps or global sums will
 produce an error.  In such cases it may be possible to re-order the
 nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
 transformation.
+
+OpenMP Tasking
+++++++++++++++
+PSyclone supports OpenMP Tasking, through the :ref:`OMPTaskloopTrans` and
+:ref:`OMPTaskwaitTrans` transformations. :ref:`OMPTaskloopTrans`
+transformations can be applied to loops, whilst the :ref:`OMPTaskwaitTrans`
+operator is applied to an OpenMP Parallel Region, and computes the dependencies
+caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
+dependencies.
 
 OpenCL
 ------
