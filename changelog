@@ -241,6 +241,9 @@
 	82) PR #1427 for #1405. Adds new PSyIR nodes for OMPTarget and
 	OMPLoop directives.
 
+	83) PR #1466 for #1465. Update SIR backend so that generated code
+	specifies cartesian grid (to match latest Dawn API).
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
