@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 # Modified by: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
@@ -39,9 +39,13 @@
 
 from __future__ import absolute_import
 import pytest
+
+from psyclone.nemo import NemoKern
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Assignment, Node
+from fparser.common.readfortran import FortranStringReader
 
 
 # pylint: disable=redefined-outer-name
@@ -82,8 +86,6 @@ def get_schedule(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
     '''
-    from fparser.common.readfortran import FortranStringReader
-    from psyclone.psyGen import PSyFactory
     reader = FortranStringReader(code)
     prog = parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
@@ -102,7 +104,6 @@ def get_kernel(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoKern`
 
     '''
-    from psyclone.nemo import NemoKern
     schedule = get_schedule(parser, code)
     loop1 = schedule.children[0]
     loop2 = loop1.loop_body.children[0]
@@ -124,7 +125,6 @@ def get_assignment(parser, code):
     :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    from psyclone.psyir.nodes import Assignment
     kernel = get_kernel(parser, code)
     kernel_schedule = kernel.get_kernel_schedule()
     assignment = kernel_schedule.children[0]
@@ -255,10 +255,8 @@ def test_sirwriter_node_1(parser):
     True. Also check for SIR indentation.
 
     '''
-    from psyclone.psyir.nodes import Node
     schedule = get_schedule(parser, CODE)
 
-    # pylint: disable=abstract-method
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the SIR writer but
         accepts any children inside.'''
@@ -455,11 +453,12 @@ def test_sirwriter_nemoinvokeschedule_node_1(parser, sir_writer):
         "interval = make_interval(Interval.Start, Interval.End, 0, 0)\n"
         in result)
     assert (
-        "hir = make_sir(stencil_name+\".cpp\", [\n"
+        "hir = make_sir(stencil_name+\".cpp\", "
+        "AST.GridType.Value(\"Cartesian\"), [\n"
         "  make_stencil(\n"
         "    stencil_name,\n"
         "    make_ast(vertical_region_fns),\n"
-        "    [make_field(\"a\")]\n"
+        "    [make_field(\"a\", make_field_dimensions_cartesian())]\n"
         "  )\n"
         "])\n" in result)
 
@@ -483,11 +482,14 @@ def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
         "interval = make_interval(Interval.Start, Interval.End, 0, 0)\n"
         in result)
     assert (
-        "hir = make_sir(stencil_name+\".cpp\", [\n"
+        "hir = make_sir(stencil_name+\".cpp\", "
+        "AST.GridType.Value(\"Cartesian\"), [\n"
         "  make_stencil(\n"
         "    stencil_name,\n"
         "    make_ast(vertical_region_fns),\n"
-        "    [make_field(\"a\"), make_field(\"b\", is_temporary=True)]\n"
+        "    [make_field(\"a\", make_field_dimensions_cartesian()), "
+        "make_field(\"b\", make_field_dimensions_cartesian(), "
+        "is_temporary=True)]\n"
         "  )\n"
         "])\n" in result)
 
@@ -715,39 +717,26 @@ def test_sirwriter_unary_node_2(parser, sir_writer):
 
 
 # (3/5) Method unaryoperation_node
-def test_sirwriter_unary_node_3(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class raises
-    the expected exception if the subject of the unary operator is not
-    a literal value (as currently only '-' is supported and it is only
-    supported for literal values).
+@pytest.mark.parametrize(
+    "value, datatype", [("-1", "Integer"), ("-1.0", "Float")])
+def test_sirwriter_unary_node_3(parser, sir_writer, value, datatype):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is a
+    literal (tests for both integer and real).
 
     '''
-    code = CODE.replace("1.0", "-a(i,j,k)")
+    code = CODE.replace("1.0", value)
     rhs = get_rhs(parser, code)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.unaryoperation_node(rhs)
-    assert ("unary operators can only be applied to literals."
-            in str(excinfo.value))
+    result = sir_writer.unaryoperation_node(rhs)
+    assert ("make_literal_access_expr(\"{0}\", BuiltinType.{1})"
+            "".format(value, datatype) in result)
 
 
 # (4/5) Method unaryoperation_node
 def test_sirwriter_unary_node_4(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class outputs
-    the expected SIR when the subject of the unary operator is an
-    integer literal.
-
-    '''
-    code = CODE.replace("1.0", "-1")
-    rhs = get_rhs(parser, code)
-    result = sir_writer.unaryoperation_node(rhs)
-    assert "make_literal_access_expr(\"-1\", BuiltinType.Integer)" in result
-
-
-# (5/5) Method unaryoperation_node
-def test_sirwriter_unary_node_5(parser, sir_writer):
     '''Check the unaryoperation_node method of the SIRWriter class raises
     the expected Exception when the subject of the '-' unary operator
-    is not of type REAL or INTEGER.
+    is a literal but is not of type REAL or INTEGER.
 
     '''
     code = CODE.replace("1.0", "-.false.")
@@ -756,6 +745,32 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
         _ = sir_writer.unaryoperation_node(rhs)
     assert ("PSyIR type 'Scalar<BOOLEAN, UNDEFINED>' does not work "
             "with the '-' operator." in str(excinfo.value))
+
+
+# (5/5) Method unaryoperation_node
+def test_sirwriter_unary_node_5(parser, sir_writer):
+    '''Check the unaryoperation_node method of the SIRWriter class outputs
+    the expected SIR when the subject of the unary operator is not a
+    literal.
+
+    '''
+    code = CODE.replace("1.0", "-(a(i,j,k)-b(i,j,k))")
+    code = code.replace(
+        "    real :: a(n,n,n)\n",
+        "    real :: a(n,n,n), b(n,n,n)\n")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.unaryoperation_node(rhs)
+    assert (
+        result ==
+        "make_binary_operator(\n"
+        "  make_literal_access_expr(\"-1.0\", BuiltinType.Float),\n"
+        "  \"*\",\n"
+        "  make_binary_operator(\n"
+        "    make_field_access_expr(\"a\", [0, 0, 0]),\n"
+        "    \"-\",\n"
+        "    make_field_access_expr(\"b\", [0, 0, 0])\n"
+        "    )\n"
+        ")\n")
 
 
 # (1/4) Method ifblock_node

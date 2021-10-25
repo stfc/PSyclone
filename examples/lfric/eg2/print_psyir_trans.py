@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,51 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
+
+''' Simple transformation script that prints out the names of the 'invoke'(s)
+    in the supplied PSy object and the PSyIR for each. '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
 
-api = "dynamo0.1"
 
-# Parse the algorithm specification and return the Abstract Syntax Tree and
-# invokeInfo objects
-ast, invokeInfo = parse("dynamo.F90", api=api)
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which only prints
+    information about the object with which it has been supplied.
 
-# Create the PSy-layer object using the invokeInfo
-psy = PSyFactory(api).create(invokeInfo)
-# Generate the Fortran code for the PSy layer
-print(psy.gen)
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-# List the various invokes that the PSy layer contains
-print(psy.invokes.names)
+    :returns: the supplied PSy object unmodified.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-# Get the loop schedule associated with one of these
-# invokes
-schedule = psy.invokes.get('invoke_0_v3_kernel_type').schedule
-schedule.view()
+    '''
+    print("Supplied code has Invokes: ", psy.invokes.names)
 
-# Get the list of possible loop transformations
-t = TransInfo()
-print(t.list)
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
 
-# Create an OpenMPLoop-transformation object
-ol = t.get_trans_name('OMPParallelLoopTrans')
+    schedule = psy.invokes.get('invoke_1').schedule
+    schedule.view()
 
-# Apply it to the loop schedule of the selected invoke
-ol.apply(schedule.children[0])
-schedule.view()
-
-# Generate the Fortran code for the new PSy layer
-print(psy.gen)
-
-schedule = psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
-schedule.view()
-
-ol.apply(schedule.children[0])
-schedule.view()
-
-print(psy.gen)
+    return psy

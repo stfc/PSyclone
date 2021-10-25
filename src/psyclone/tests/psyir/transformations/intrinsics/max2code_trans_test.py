@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 
-from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
-api = "dynamo0.1"
-ast, invokeInfo = parse("dynamo_algorithm_mod.F90", api=api)
-psy = PSyFactory(api).create(invokeInfo)
-print(psy.gen)
+'''Module containing tests for the Max2CodeTrans transformation.'''
 
-print(psy.invokes.names)
+from __future__ import absolute_import
 
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+from psyclone.psyir.nodes import BinaryOperation, NaryOperation
+from psyclone.psyir.transformations import Max2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
+    MinOrMax2CodeTrans
 
-t = TransInfo()
-print(t.list)
 
-lf = t.get_trans_name('LoopFuseTrans')
+def test_initialise():
+    '''Check that the class Max2CodeTrans behaves as expected when an
+    instance of the class is created.
 
-schedule.view()
-lf.apply(schedule.children[0], schedule.children[1])
-schedule.view()
-
-print(psy.gen)
+    '''
+    assert issubclass(Max2CodeTrans, MinOrMax2CodeTrans)
+    trans = Max2CodeTrans()
+    assert trans._operator_name == "MAX"
+    assert trans._operators == (BinaryOperation.Operator.MAX,
+                                NaryOperation.Operator.MAX)
+    assert trans._compare_operator == BinaryOperation.Operator.GT

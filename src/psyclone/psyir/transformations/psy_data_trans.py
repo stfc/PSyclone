@@ -39,15 +39,11 @@
 
 import six
 
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvoke
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
-    OMPDoDirective, ACCDirective, ACCLoopDirective
+    OMPDoDirective, ACCDirective, ACCLoopDirective, FileContainer
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -178,11 +174,11 @@ class PSyDataTrans(RegionTrans):
     # ------------------------------------------------------------------------
     def validate(self, nodes, options=None):
         '''
-        Calls the validate method of the base class and then checks that,
-        for the NEMO API, the routine that will contain the instrumented
-        region already has a Specification_Part (because we've not yet
-        implemented the necessary support if it doesn't).
-        TODO: #435
+        Checks that the supplied list of nodes is valid, that the location
+        for this node is valid (not between a loop-directive and its loop),
+        that there aren't any name clashes with symbols that must be
+        imported from the appropriate PSyData library and finally, calls the
+        validate method of the base class.
 
         :param nodes: a node or list of nodes to be instrumented with \
             PSyData API calls.
@@ -200,11 +196,15 @@ class PSyDataTrans(RegionTrans):
             should uniquely identify a region unless aggregate information \
             is required (and is supported by the runtime library).
 
-        :raises TransformationError: if we're using the NEMO API and the \
-            target routine has no Specification_Part.
+        :raises TransformationError: if the supplied list of nodes is empty.
         :raises TransformationError: if the PSyData node is inserted \
             between an OpenMP/ACC directive and the loop(s) to which it \
             applies.
+        :raises TransformationError: if the 'prefix' or 'region_name' options \
+            are not valid.
+        :raises TransformationError: if there will be a name clash between \
+            any existing symbols and those that must be imported from the \
+            appropriate PSyData library.
 
         '''
         # pylint: disable=too-many-branches
@@ -270,30 +270,6 @@ class PSyDataTrans(RegionTrans):
 
         super(PSyDataTrans, self).validate(node_list, options)
 
-        # The checks below are only for the NEMO API and can be removed
-        # once #435 is done.
-        sched = node_list[0].ancestor(InvokeSchedule)
-        if not sched:
-            # Some tests construct PSyIR fragments that do not have an
-            # InvokeSchedule
-            return
-        invoke = sched.invoke
-        if not isinstance(invoke, NemoInvoke):
-            return
-
-        # Get the parse tree of the routine containing this region
-        # pylint: disable=protected-access
-        ptree = invoke._ast
-        # pylint: enable=protected-access
-        # Search for the Specification_Part
-        if not walk([ptree], Fortran2003.Specification_Part):
-            raise TransformationError(
-                "For the NEMO API, PSyData can only be added to routines "
-                "which contain existing variable declarations (i.e. a "
-                "Specification Part) but '{0}' does not have any.".format(
-                    invoke.name))
-
-    # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
@@ -329,12 +305,14 @@ class PSyDataTrans(RegionTrans):
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-        root = node_list[0].root
 
-        # We always use the outermost symbol table so that any name clashes
-        # due to multiple applications of this transformation are handled
-        # automatically.
-        table = parent.root.symbol_table
+        # We always use the outermost symbol table (that is not associated with
+        # a FileContainer) so that any name clashes due to multiple
+        # applications of this transformation are handled automatically.
+        root = node_list[0].root
+        if isinstance(root, FileContainer):
+            root = root.children[0]
+        table = root.symbol_table
 
         # Create a memento of the tree root and the proposed transformation
         keep = Memento(root, self)

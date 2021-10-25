@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Author R. W. Ford, STFC Daresbury Laboratory
+# Modified by S. Siso, and A. R. Porter, STFC Daresbury Laboratory
 
-''' example showing the use of the module-inline transformation '''
+''' Example transformation script showing the use of the module-inline
+    transformation for the LFRic domain. '''
+
 from __future__ import print_function
-import os
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.transformations import KernelModuleInlineTrans
+from psyclone.psyGen import Kern
 
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which module-inlines
+    the kernel used in the second 'invoke' in the supplied PSy object.
+
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
     invokes = psy.invokes
     print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
+    invoke = invokes.get("invoke_1")
     schedule = invoke.schedule
     schedule.view()
-    kern = schedule.children[0].loop_body[0]
-    # setting module inline directly
+    # Find the kernel we want to inline.
+    kern = schedule.walk(Kern)[0]
+    # Setting module inline directly.
     kern.module_inline = True
     schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    trans.apply(kern, {"inline": False})
+    # Unsetting module inline via a transformation.
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.apply(kern, {"inline": False})
     schedule.view()
-    # setting module inline via a transformation
-    trans.apply(kern)
+    # Setting module inline via a transformation.
+    inline_trans.apply(kern)
     schedule.view()
-    print(str(psy.gen))
 
-
-if __name__ == "__main__":
-    inline()
+    return psy

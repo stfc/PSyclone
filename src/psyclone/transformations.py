@@ -59,6 +59,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import LazyString, InternalError
 from psyclone.gocean1p0 import GOLoop
+from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -66,13 +67,13 @@ from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, OMPTaskloopDirective, OMPSerialDirective, \
-    OMPTaskwaitDirective, OMPSingleDirective, OMPParallelDirective
+    OMPTaskwaitDirective, OMPSingleDirective, OMPParallelDirective, \
+    Routine
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.undoredo import Memento
-from psyclone.nemo import NemoInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -1174,22 +1175,23 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
 
-        # Add variable names for OMP functions into the InvokeSchedule (root)
-        # symboltable if they don't already exist
-        if not isinstance(node.root, NemoInvokeSchedule):
-            symtab = node.root.symbol_table
-            try:
-                symtab.lookup_with_tag("omp_thread_index")
-            except KeyError:
-                symtab.new_symbol(
-                    "th_idx", tag="omp_thread_index",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            try:
-                symtab.lookup_with_tag("omp_num_threads")
-            except KeyError:
-                symtab.new_symbol(
-                    "nthreads", tag="omp_num_threads",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        # Add variable names for OMP functions into the InvokeSchedule
+        # (a Routine) symboltable if they don't already exist
+        root = node.ancestor(Routine)
+
+        symtab = root.symbol_table
+        try:
+            symtab.lookup_with_tag("omp_thread_index")
+        except KeyError:
+            symtab.new_symbol(
+                "th_idx", tag="omp_thread_index",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        try:
+            symtab.lookup_with_tag("omp_num_threads")
+        except KeyError:
+            symtab.new_symbol(
+                "nthreads", tag="omp_num_threads",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -3542,8 +3544,8 @@ class ACCKernelsTrans(RegionTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises NotImplementedError: if the supplied Nodes do not belong to \
-                                     a NemoInvokeSchedule.
+        :raises NotImplementedError: if the supplied Nodes belong to \
+                                     a GOInvokeSchedule.
         :raises TransformationError: if there are no Loops within the \
                                      proposed region.
 

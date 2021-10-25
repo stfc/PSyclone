@@ -39,14 +39,14 @@
 from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import TransInfo, PSyFactory
-from psyclone.errors import InternalError, GenerationError
-from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
+from psyclone.errors import GenerationError
+from psyclone.psyGen import TransInfo, PSyFactory
+from psyclone.psyir.nodes import Return, OMPDoDirective, \
+    OMPParallelDirective, OMPParallelDoDirective
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans
-from psyclone.psyir.nodes import Statement, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective
 
 # Constants
 API = "nemo"
@@ -67,21 +67,26 @@ def test_omp_explicit_gen():
 
     expected = (
         "program explicit_do\n"
-        "  implicit none\n"
-        "  integer :: ji, jj, jk\n"
-        "  integer, parameter :: jpi = 2, jpj = 4, jpk = 6\n"
+        "  integer, parameter :: jpi = 2\n"
+        "  integer, parameter :: jpj = 4\n"
+        "  integer, parameter :: jpk = 6\n"
+        "  integer :: ji\n"
+        "  integer :: jj\n"
+        "  integer :: jk\n"
         "  real :: r\n"
-        "  real, dimension(jpi, jpj, jpk) :: umask\n"
+        "  real, dimension(jpi,jpj,jpk) :: umask\n"
+        "\n"
         "  !$omp parallel do default(shared), private(ji,jj,jk), "
         "schedule(static)\n"
-        "  do jk = 1, jpk\n"
-        "    do jj = 1, jpj\n"
-        "      do ji = 1, jpi\n"
-        "        umask(ji, jj, jk) = ji * jj * jk / r\n"
-        "      end do\n"
-        "    end do\n"
-        "  end do\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = ji * jj * jk / r\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n"
         "  !$omp end parallel do\n"
+        "\n"
         "end program explicit_do")
     assert expected in gen_code
     # Check that calling gen a second time gives the same code
@@ -126,28 +131,14 @@ def test_omp_parallel():
     otrans.apply([schedule[0]])
     gen_code = str(psy.gen).lower()
     assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
-            "  do jk = 1, jpk\n"
-            "    do jj = 1, jpj\n"
-            "      do ji = 1, jpi\n"
-            "        umask(ji, jj, jk) = ji * jj * jk / r\n"
-            "      end do\n"
-            "    end do\n"
-            "  end do\n"
+            "  do jk = 1, jpk, 1\n"
+            "    do jj = 1, jpj, 1\n"
+            "      do ji = 1, jpi, 1\n"
+            "        umask(ji,jj,jk) = ji * jj * jk / r\n"
+            "      enddo\n"
+            "    enddo\n"
+            "  enddo\n"
             "  !$omp end parallel\n" in gen_code)
-
-
-def test_omp_add_region_invalid_data_move():
-    ''' Check that _add_region() raises the expected error if an invalid
-    value for data_movement is supplied. '''
-    otrans = OMPParallelTrans()
-    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply([schedule[0]])
-    ompdir = schedule[0]
-    with pytest.raises(InternalError) as err:
-        ompdir._add_region("DATA", "END DATA", data_movement="analyse")
-    assert ("the data_movement='analyse' option is only valid for an "
-            "OpenACC directive" in str(err.value))
 
 
 def test_omp_parallel_multi():
@@ -164,27 +155,21 @@ def test_omp_parallel_multi():
     gen_code = str(psy.gen).lower()
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
-            "    do jj = 1, jpjm1\n"
-            "      do ji = 1, jpim1\n"
-            "        zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * "
-            "e3u_n(ji, jj, jk)\n" in gen_code)
-    assert ("    do jj = 2, jpjm1\n"
-            "      do ji = 2, jpim1\n"
-            "        pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + "
-            "zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + "
-            "zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / "
-            "e3t_n(ji, jj, jk)\n"
-            "      end do\n"
-            "    end do\n"
+            "    do jj = 1, jpjm1, 1\n"
+            "      do ji = 1, jpim1, 1\n"
+            "        zabe1 = pahu(ji,jj,jk) * e2_e1u(ji,jj) * "
+            "e3u_n(ji,jj,jk)\n" in gen_code)
+    assert ("    do jj = 2, jpjm1, 1\n"
+            "      do ji = 2, jpim1, 1\n"
+            "        pta(ji,jj,jk,jn) = pta(ji,jj,jk,jn) + "
+            "zsign * (zftu(ji,jj,jk) - zftu(ji - 1,jj,jk) + "
+            "zftv(ji,jj,jk) - zftv(ji,jj - 1,jk)) * r1_e1e2t(ji,jj) / "
+            "e3t_n(ji,jj,jk)\n"
+            "      enddo\n"
+            "    enddo\n"
             "    !$omp end parallel\n" in gen_code)
     directive = schedule[0].loop_body[2]
     assert isinstance(directive, OMPParallelDirective)
-
-    # Check that further calls to the update() method don't change the
-    # stored AST.
-    old_ast = directive.ast
-    directive.update()
-    assert old_ast is directive.ast
 
 
 def test_omp_do_missing_region(parser):
@@ -209,8 +194,8 @@ def test_omp_do_missing_region(parser):
             "not find an ancestor OMPParallelDirective" in str(err.value))
 
 
-def test_omp_do_update():
-    '''Check the OMPDoDirective update function.'''
+def test_omp_do_code_gen():
+    '''Check the OMPDoDirective generates the correct code.'''
     psy, invoke = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke.schedule
     par_trans = OMPParallelTrans()
@@ -220,74 +205,19 @@ def test_omp_do_update():
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
     gen_code = str(psy.gen).lower()
-    correct = '''      !$omp parallel default(shared), private(ji,jj)
-      !$omp do schedule(static)
-      do jj = 1, jpj, 1
-        do ji = 1, jpi, 1
-          zdkt(ji, jj) = (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) * \
-wmask(ji, jj, jk)
-        end do
-      end do
-      !$omp end do
-      !$omp end parallel'''
+    correct = '''        !$omp parallel default(shared), private(ji,jj)
+        !$omp do schedule(static)
+        do jj = 1, jpj, 1
+          do ji = 1, jpi, 1
+            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
+wmask(ji,jj,jk)
+          enddo
+        enddo
+        !$omp end do
+        !$omp end parallel'''
     assert correct in gen_code
     directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
-
-    # Call update a second time and make sure that this does not
-    # trigger the whole update process again, and we get the same ast
-    old_ast = directive.ast
-    directive.update()
-    assert directive.ast is old_ast
-
-    # Remove the existing AST, so we can do more tests:
-    directive.ast = None
-    # Make the schedule invalid by adding a second child to the
-    # OMPParallelDoDirective
-    directive.dir_body.children.append(Statement())
-
-    with pytest.raises(GenerationError) as err:
-        _ = directive.update()
-    assert ("An OpenMP DO can only be applied to a single loop but "
-            "this Node has 2 children:" in str(err.value))
-
-
-def test_omp_parallel_errs():
-    ''' Check that we raise the expected errors when incorrectly attempting
-    to add an OpenMP parallel region containing more than one node. '''
-    otrans = OMPParallelTrans()
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-
-    # Apply the OMP Parallel transformation so as to enclose the last two
-    # loop nests (Python's slice notation is such that the expression below
-    # gives elements 2-3).
-    otrans.apply(schedule[0].loop_body[2:4])
-    directive = schedule[0].loop_body[2]
-    # Break the AST by deleting some of it
-    schedule[0].ast.content.remove(directive.children[0].ast)
-    with pytest.raises(InternalError) as err:
-        _ = psy.gen
-    assert ("Failed to find locations to insert begin/end directives" in
-            str(err.value))
-
-
-def test_omp_do_children_err():
-    ''' Tests that we raise the expected error when an OpenMP parallel do
-    directive has more than one child. '''
-    otrans = OMPParallelLoopTrans()
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply(schedule[0].loop_body[2])
-    directive = schedule[0].loop_body[2]
-    assert isinstance(directive, OMPParallelDoDirective)
-    # Make the schedule invalid by adding a second child to the
-    # OMPParallelDoDirective
-    directive.dir_body.children.append(Statement())
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "
-            "this Node has 2 children:" in str(err.value))
 
 
 def test_omp_do_within_if():
@@ -301,15 +231,15 @@ def test_omp_do_within_if():
     otrans.apply(loop)
     gen = str(psy.gen).lower()
     expected = (
-        "    else\n"
-        "      !$omp parallel do default(shared), private(ji,jj), "
+        "      else\n"
+        "        !$omp parallel do default(shared), private(ji,jj), "
         "schedule(static)\n"
-        "      do jj = 1, jpj, 1\n"
-        "        do ji = 1, jpi, 1\n"
-        "          zdkt(ji, jj) = (ptb(ji, jj, jk - 1, jn) - "
-        "ptb(ji, jj, jk, jn)) * wmask(ji, jj, jk)\n"
-        "        end do\n"
-        "      end do\n"
-        "      !$omp end parallel do\n"
-        "    end if\n")
+        "        do jj = 1, jpj, 1\n"
+        "          do ji = 1, jpi, 1\n"
+        "            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
+        "ptb(ji,jj,jk,jn)) * wmask(ji,jj,jk)\n"
+        "          enddo\n"
+        "        enddo\n"
+        "        !$omp end parallel do\n"
+        "      end if\n")
     assert expected in gen

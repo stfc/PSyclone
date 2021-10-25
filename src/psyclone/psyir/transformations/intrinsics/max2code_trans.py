@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,9 +30,48 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-EXAMPLES=$(sort $(wildcard eg*) inline)
+'''Module providing a transformation from a PSyIR MAX operator to
+PSyIR code. This could be useful if the MAX operator is not supported
+by the back-end or if the performance of the inline code is better
+than the intrinsic.
 
-include ../top_level.mk
+'''
+from __future__ import absolute_import
+
+from psyclone.psyir.nodes import BinaryOperation, NaryOperation
+from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
+        MinOrMax2CodeTrans
+
+
+class Max2CodeTrans(MinOrMax2CodeTrans):
+    '''Provides a transformation from a PSyIR MAX Operator node to
+    equivalent code in a PSyIR tree. Validity checks are also
+    performed (by a parent class).
+
+    The transformation replaces
+
+    .. code-block:: python
+
+        R = MAX(A, B, C ...)
+
+    with the following logic:
+
+    .. code-block:: python
+
+        R = A
+        if B > R:
+            R = B
+        if C > R:
+            R = C
+        ...
+
+    '''
+    def __init__(self):
+        super(Max2CodeTrans, self).__init__()
+        self._operator_name = "MAX"
+        self._operators = (BinaryOperation.Operator.MAX,
+                           NaryOperation.Operator.MAX)
+        self._compare_operator = BinaryOperation.Operator.GT
