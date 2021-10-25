@@ -248,6 +248,9 @@
 	'infixNotation' in 'src/psyclone/expression.py' for compatibility
 	with the pyparsing 3.01 update in GitHub.
 
+	85) PR #1455 for #1441. Extends PSyAD to cope with kernels
+	containing multiple assignment statements.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

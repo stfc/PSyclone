@@ -40,9 +40,10 @@ transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 from __future__ import print_function
 import logging
 
-from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
+from psyclone.psyad.transformations import AssignmentTrans
+from psyclone.psyad.utils import node_is_passive
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Schedule, Assignment, Node
+from psyclone.psyir.nodes import Schedule, Node
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -104,20 +105,50 @@ class AdjointVisitor(PSyIRVisitor):
 
         '''
         self._logger.debug("Transforming Schedule")
-        if not (len(node.children) == 1 and
-                isinstance(node.children[0], Assignment)):
-            raise TangentLinearError(
-                "Support is currently limited to code with a single "
-                "assignment statement.")
+
         # A schedule has a scope so determine and store active variables
         symbol_table = node.scope.symbol_table
         self._active_variables = []
         for variable_name in self._active_variable_names:
             self._active_variables.append(symbol_table.lookup(variable_name))
-        # At the moment support is limited to a single Assignment node
-        # so it is possible to make direct use of the
-        # _copy_and_process() method.
-        return self._copy_and_process(node)
+
+        # We only need to copy this node. Issue #1440 will address
+        # this.
+        node_copy = node.copy()
+        node_copy.children = []
+
+        # Split active and passive nodes.
+        self._logger.debug("Adding passive code into new schedule")
+        active_nodes = []
+        for child in node.children:
+            if node_is_passive(child, self._active_variables):
+                # Add passive nodes back into the schedule as they do
+                # not change.
+                node_copy.children.append(child.copy())
+            else:
+                # Store active nodes for further processing.
+                active_nodes.append(child)
+
+        # Reverse active nodes.
+        self._logger.debug("Reversing order of active code")
+        active_nodes.reverse()
+
+        # Process active nodes.
+        self._logger.debug(
+            "Processing active code and adding results into new schedule")
+        for child in active_nodes:
+            result = self._visit(child)
+            # The else clause below can not be exercised until nodes
+            # in a schedule other than assignment are supported, see
+            # issue #1457. Therefore, for the moment simply assume
+            # that the result is a list.
+            node_copy.children.extend(result)
+            # if isinstance(result, list):
+            #     node_copy.children.extend(result)
+            # else:
+            #     node_copy.children.append(result)
+
+        return node_copy
 
     def assignment_node(self, node):
         '''This method is called if the visitor finds an Assignment node. The
@@ -174,3 +205,9 @@ class AdjointVisitor(PSyIRVisitor):
                 result = [result]
             node_copy.children.extend(result)
         return node_copy
+
+
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
+__all__ = ["AdjointVisitor"]
