@@ -1994,6 +1994,12 @@ class LFRicMeshProperties(DynCollection):
                         dimension=self._symbol_table.symbol_from_tag(
                             "nfaces_re_h").name,
                         intent="in", entity_decls=[adj_face]))
+            elif prop == MeshProperty.NCELL_2D:
+                ncell_2d = self._symbol_table.symbol_from_tag("ncell_2d").name
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            intent="in", entity_decls=[ncell_2d]))
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
