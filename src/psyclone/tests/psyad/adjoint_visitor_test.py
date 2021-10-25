@@ -79,8 +79,10 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     :param list of str active_variable_names: a list of active \
         variable names.
     :param str tl_fortran: the expected adjoint code to be produced.
-    :param str tmpdir: temporary directory created by pytest in which
-    to perform compilation.
+    :param str tmpdir: temporary directory created by pytest in which \
+        to perform compilation.
+    :param fortran_writer: writer to convert Fortran from PSyIR.
+    :type fortran_writer: :py:class:`psyclone.psyir.backend.FortranWriter`
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
