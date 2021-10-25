@@ -47,14 +47,14 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective
+    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -235,25 +235,69 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
 
 
-@pytest.mark.usefixtures("sample_psyir")
-def test_omplooptrans(fortran_writer):
+def test_omptargettrans(sample_psyir):
+    ''' Test OMPTargetTrans works as expected with the different options. '''
+
+    # Insert a OMPTarget just on the first loop
+    omptargettrans = OMPTargetTrans()
+    tree = sample_psyir.copy()
+    loops = tree.walk(Loop, stop_type=Loop)
+    omptargettrans.apply(loops[0])
+    assert isinstance(loops[0].parent, Schedule)
+    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
+    assert isinstance(tree.children[0].children[0], OMPTargetDirective)
+    assert tree.children[0].children[0] is loops[0].parent.parent
+    assert not isinstance(loops[1].parent.parent, OMPTargetDirective)
+    assert len(tree.walk(Routine)[0].children) == 2
+
+    # Insert a combined OMPTarget in both loops (providing a list of nodes)
+    tree = sample_psyir.copy()
+    loops = tree.walk(Loop, stop_type=Loop)
+    omptargettrans.apply(tree.children[0].children)
+    assert isinstance(loops[0].parent, Schedule)
+    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
+    assert isinstance(loops[1].parent, Schedule)
+    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
+    assert len(tree.walk(Routine)[0].children) == 1
+    assert loops[0].parent.parent is loops[1].parent.parent
+
+    # Insert a combined OMPTarget in both loops (now providing a Schedule)
+    tree = sample_psyir.copy()
+    loops = tree.walk(Loop, stop_type=Loop)
+    omptargettrans.apply(tree.children[0])
+    assert isinstance(loops[0].parent, Schedule)
+    assert isinstance(loops[0].parent.parent, OMPTargetDirective)
+    assert isinstance(loops[1].parent, Schedule)
+    assert isinstance(loops[1].parent.parent, OMPTargetDirective)
+    assert len(tree.walk(Routine)[0].children) == 1
+    assert loops[0].parent.parent is loops[1].parent.parent
+
+
+def test_omplooptrans(sample_psyir):
     ''' Test OMPLoopTrans works as expected with the different options. '''
 
-    # By default it adds a OMPDoDirective
+    # By default it adds a OMPDoDirective with static schedule
     omplooptrans = OMPLoopTrans()
     tree = sample_psyir.copy()
     omplooptrans.apply(tree.walk(Loop)[0])
     assert isinstance(tree.walk(Loop)[0].parent, Schedule)
     assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
+    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'static'
 
-    # By default it adds a OMPDoDirective
+    # The omp_schedule can be changed
+    omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2")
+    tree = sample_psyir.copy()
+    omplooptrans.apply(tree.walk(Loop)[0])
+    assert isinstance(tree.walk(Loop)[0].parent, Schedule)
+    assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
+    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'dynamic,2'
+
+    # If omp_worksharing is False, it adds a OMPLoopDirective instead
     omplooptrans = OMPLoopTrans(omp_worksharing=False)
     tree = sample_psyir.copy()
     omplooptrans.apply(tree.walk(Loop)[1])
     assert isinstance(tree.walk(Loop)[1].parent, Schedule)
     assert isinstance(tree.walk(Loop)[1].parent.parent, OMPLoopDirective)
-
-    # assert fortran_writer(tree) == ""
 
 
 def test_ifblock_children_region():

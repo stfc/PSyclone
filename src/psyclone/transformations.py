@@ -64,7 +64,8 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective
+    ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective, \
+    OMPTargetDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -169,9 +170,7 @@ class KernelTrans(Transformation):
 class ParallelLoopTrans(LoopTrans):
     '''
     Adds an orphaned directive to a loop indicating that it should be
-    parallelised. i.e. the directive must be inside the scope of some
-    other Parallel REGION. This condition is tested at
-    code-generation time.
+    parallelised.
 
     '''
     # The types of node that must be excluded from the section of PSyIR
@@ -563,6 +562,54 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         return rval
 
 
+class OMPTargetTrans(RegionTrans):
+    '''
+    Adds an OpenMP target directive to a region of code.
+
+    For example:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import OMPTargetTrans
+    >>>
+    >>> tree = FortranReader().psyir_from_source("""
+    >>>     subroutine my_subroutine()
+    >>>         integer, dimension(10, 10) :: A
+    >>>         integer :: i
+    >>>         integer :: j
+    >>>         do i = 1, 10
+    >>>             do j = 1, 10
+    >>>                 A(i, j) = 0
+    >>>             end do
+    >>>         end do
+    >>>     end subroutine
+    >>>     """
+    >>> omptargettrans = OMPTargetTrans()
+    >>> omptargettrans.apply(tree.walk(Loop))
+
+    '''
+
+    def apply(self, nodes, options=None):
+        ''' Insert a OMPTargetDirective before the provided node or list
+        of nodes.
+        '''
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
+        # list containing just that node.
+        node_list = self.get_node_list(nodes)
+        self.validate(node_list, options)
+
+        # Create a directive containing the nodes in node_list and insert it.
+        parent = node_list[0].parent
+        start_index = node_list[0].position
+        directive = OMPTargetDirective(
+            parent=parent, children=[node.detach() for node in node_list])
+
+        parent.children.insert(start_index, directive)
+
+        return None, None
+
+
 class OMPLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenMP directive to a loop. The optional 'reprod' argument in the
@@ -688,18 +735,21 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param children: list of Nodes that will be the children of \
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: currently un-used but required to keep \
-                             interface the same as in base class.
+        :param int collapse: number of nested loops to collapse or None if \
+                             no collapse attribute is required.
+
         :returns: the new node representing the directive in the AST
-        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective`
-        :raises NotImplementedError: if a collapse argument is supplied.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` or \
+                :py:class:`psyclone.psyir.nodes.OMPLoopDirective`
+
         '''
         if self._omp_worksharing:
             _directive = OMPDoDirective(children=children,
                                         omp_schedule=self.omp_schedule,
                                         reprod=self._reprod)
         else:
-            _directive = OMPLoopDirective(children=children)
+            _directive = OMPLoopDirective(children=children,
+                                          collapse=collapse)
 
         return _directive
 

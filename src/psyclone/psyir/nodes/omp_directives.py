@@ -931,6 +931,18 @@ class OMPTargetDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp target"
 
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end target". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end target"
+
 
 class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations

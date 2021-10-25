@@ -507,6 +507,7 @@ def test_omp_target_directive_constructor_and_strings():
     ''' Test the OMPTargetDirective constructor and its output strings.'''
     target = OMPTargetDirective()
     assert target.begin_string() == "omp target"
+    assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
 
 
