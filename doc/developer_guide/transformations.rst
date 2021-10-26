@@ -336,8 +336,8 @@ issues:
 OpenMP Tasking
 ==============
 OpenMP tasking is supported in PSyclone, currently by the combination
-of the :ref:`OMPTaskloopTrans` and the :ref:`OMPTaskwaitTrans`.
-Dependency analysis and handling is done by the :ref:`OMPTaskwaitTrans`,
+of the `OMPTaskloopTrans` and the `OMPTaskwaitTrans`.
+Dependency analysis and handling is done by the `OMPTaskwaitTrans`,
 which uses its own `get_forward_dependence` function to compute them.
 
 get_forward_dependence
@@ -348,14 +348,16 @@ tools provided in `psyclone.psyir.tools.dependency_tools`. It searches
 through the tree for all `Loop`, `OMPDoDirective`, `OMPTaskloopDirective`,
 and `OMPTaskwaitDirective`. It then iterates forward through these until it
 finds:
-1. A `Loop`, `OMPDoDirective`, or `OMPTaskloopDirective` which contains a 
+
+1) A `Loop`, `OMPDoDirective`, or `OMPTaskloopDirective` which contains a 
    Read-after-Write (RaW) or Write-after-Read (WaR) dependency, in which
    case that node is returned as the next dependence if it is contained
-   within the same :ref:`OMPSerialDirective`. If it is not contained within
-   the same :ref:`OMPSerialDirective`, the taskloop's parent
-   :ref:`OMPSingleDirective` is returned instead, provided it has no
+   within the same `OMPSerialDirective`. If it is not contained within
+   the same `OMPSerialDirective`, the taskloop's parent
+   `OMPSingleDirective` is returned instead, provided it has no
    `nowait` clause associated with it.
-2. An :ref:`OMPTaskloopDirective` within the same :ref:`OMPSingleDirective`
+
+2) An `OMPTaskloopDirective` within the same `OMPSingleDirective`
    provided the single region has no `nowait` clause associated with it.
    If this criteria is satisfied the taskloop directive is returned.
 
@@ -379,4 +381,3 @@ These structures are the only way to satisfy dependencies between taskloops,
 and any other structures of dependendent taskloops will be caught by the
 `OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
 why the dependencies cannot be resolved.
-

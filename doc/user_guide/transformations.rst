@@ -704,9 +704,9 @@ transformation.
 
 OpenMP Tasking
 ++++++++++++++
-PSyclone supports OpenMP Tasking, through the :ref:`OMPTaskloopTrans` and
-:ref:`OMPTaskwaitTrans` transformations. :ref:`OMPTaskloopTrans`
-transformations can be applied to loops, whilst the :ref:`OMPTaskwaitTrans`
+PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
+`OMPTaskwaitTrans` transformations. `OMPTaskloopTrans`
+transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
 operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
 dependencies.
