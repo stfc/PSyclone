@@ -34,7 +34,7 @@
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 from psyclone.psyir.nodes.loop import Loop
-
+from psyclone.psyir.nodes import Schedule
 
 class BlockedLoop(Loop):
     '''
@@ -66,3 +66,45 @@ class BlockedLoop(Loop):
         if "blocked" not in self._valid_loop_types:
             self._valid_loop_types.append("blocked")
         self._loop_type = "blocked"
+
+    @staticmethod
+    def create(variable, start, stop, step, children):
+        '''Create a BlockedLoop instance given valid instances of a variable,
+        start, stop and step nodes, and a list of child nodes for the
+        loop body.
+
+        :param variable: the PSyIR node containing the variable \
+            of the loop iterator.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param start: the PSyIR node determining the value for the \
+            start of the loop.
+        :type start: :py:class:`psyclone.psyir.nodes.Node`
+        :param end: the PSyIR node determining the value for the end \
+            of the loop.
+        :type end: :py:class:`psyclone.psyir.nodes.Node`
+        :param step: the PSyIR node determining the value for the loop \
+            step.
+        :type step: :py:class:`psyclone.psyir.nodes.Node`
+        :param children: a list of PSyIR nodes contained in the \
+            loop.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: a Loop instance.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        Loop._check_variable(variable)
+
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of Loop class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+
+        loop = BlockedLoop(variable=variable)
+        schedule = Schedule(parent=loop, children=children)
+        loop.children = [start, stop, step, schedule]
+        return loop

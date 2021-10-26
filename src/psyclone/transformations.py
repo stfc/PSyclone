@@ -54,6 +54,7 @@ from fparser.two.Fortran2003 import Subroutine_Subprogram, \
 
 from psyclone import psyGen
 from psyclone.configuration import Config
+from psyclone.core import VariablesAccessInfo, Signature, AccessType
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
@@ -65,8 +66,8 @@ from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, Routine, OMPTaskloopDirective, BlockedLoop, Literal, \
-    BinaryOperation
-rom psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
+    BinaryOperation, Reference
+from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
@@ -1147,7 +1148,7 @@ class BlockLoopTrans(LoopTrans):
     '''
     # TODO: Finish docstring
     def __str__(self):
-        return "Split a loop into a blocked loop"
+        return "Split a loop into a blocked loop pair"
 
     def validate(self, node, options=None):
         '''
@@ -1166,7 +1167,9 @@ class BlockLoopTrans(LoopTrans):
         :raises TransformationError: if the supplied Loop has a step size \
                 larger than the chosen block size.
         :raises TransformationError: if the supplied Loop has an ancestor \
-                blocked loop
+                blocked loop.
+        :raises TransformationError: if the supplied Loop writes to Loop \
+                variables inside the Loop body.
         '''
         super(BlockLoopTrans, self).validate(node, options=options)
         # If step is a variable don't support it for now.
@@ -1183,9 +1186,51 @@ class BlockLoopTrans(LoopTrans):
         if node.ancestor(BlockedLoop) is not None:
             raise TransformationError("Cannot apply a BlockedLoopTrans to "
                                       "a loop with a parent BlockedLoop node")
-        # TODO: Other checks needed for validation
+        # Other checks needed for validation
         # Dependency analysis, following rules:
-        # No child has a write dependency to the loop variable
+        # No child has a write dependency to the loop variable.
+        # Find variable access info for the loop variable and step
+        refs = VariablesAccessInfo(node.children[0])
+        node_vars = VariablesAccessInfo()
+        if refs is not None:
+            node_vars.merge(refs)
+        refs = VariablesAccessInfo(node.children[1])
+        if refs is not None:
+            node_vars.merge(refs)
+        # The current implementation of BlockedLoopTrans does not allow
+        # the step size to be non-constant, but we include it for future
+        # proofing.
+        refs = VariablesAccessInfo(node.children[2])
+        if refs is not None:
+            node_vars.merge(refs)
+
+        # Add the access pattern to the node variable name
+        node_vars.add_access(Signature(node.variable.name),
+                             AccessType.WRITE, self)
+        node_vars.add_access(Signature(node.variable.name),
+                             AccessType.READ, self)
+
+        #refs = VariablesAccessInfo(node.variable)
+        #if refs is not None:
+        #    node_vars.merge(refs)
+        node_sigs = node_vars.all_signatures
+
+        #Find the Loop code's signatures
+        child_refs = VariablesAccessInfo(node.children[3])
+        child_sigs = child_refs.all_signatures
+
+        for ref1 in node_sigs:
+            if ref1 not in child_sigs:
+                continue
+            access1 = node_vars[ref1]
+            access2 = child_refs[ref1]
+
+            # If access2 is a write then we write to a loop variable
+            if access2.is_written():
+                raise TransformationError("Cannot apply a BlockedLoopTrans "
+                                          "to a loop where loop variables are "
+                                          "written to inside the loop body.")
+
 
     def apply(self, node, options=None):
         '''
@@ -1200,9 +1245,8 @@ class BlockLoopTrans(LoopTrans):
         :param int options["blocksize"]: The size to block over for this \
                 transformation. If not specified, the value 32 is used.
 
-        :returns: Tuple of modified schedule and record of transformation
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
-                 :py:class:`psyclone.undoredo.Memento`)
+        :returns: Tuple of None and None
+        :rtype: (None, None)
         '''
 
         self.validate(node, options)
@@ -1210,9 +1254,6 @@ class BlockLoopTrans(LoopTrans):
             options = {}
         block_size = options.get("blocksize", 32)
         schedule = node.root
-
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node])
 
         # Create (or find) the symbols we need for the blocking transformation
         routine = node.ancestor(nodes.Routine)
@@ -1236,37 +1277,30 @@ class BlockLoopTrans(LoopTrans):
 
         # Create the end bound for the inner loop
         inner_loop_end = None
-        inner_loop_end_lit = Literal(end_inner_loop.name,
-                                     end_inner_loop.datatype)
+        inner_loop_end_lit = Reference(end_inner_loop)
         # For positive steps we do el_inner = min(out_var+block_size, el_outer)
         # For negative steps we do el_inner = max(out_var-block_size, el_outer)
         if int(node.children[2].value) > 0:
-            add = BinaryOperation.create(BinaryOperation.Operator.ADD, Literal(
-                outer_loop_variable.name, outer_loop_variable.datatype),
+            add = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                         Reference(outer_loop_variable),
                 Literal("{0}".format(block_size), node.variable.datatype))
-            mn = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
-                                        Literal(c1.symbol.name,
-                                                c1.symbol.datatype))
-            inner_loop_end = Assignment.create(Literal(
-                end_inner_loop.name, end_inner_loop.datatype), mn)
+            mn = BinaryOperation.create(BinaryOperation.Operator.MIN, add, 
+                                        c1.copy())
+            inner_loop_end = Assignment.create(Reference(end_inner_loop), mn)
         elif int(node.children[2].value) < 0:
-            sub = BinaryOperation.create(BinaryOperation.Operator.SUB, Literal(
-                outer_loop_variable.name, outer_loop_variable.datatype),
+            sub = BinaryOperation.create(BinaryOperation.Operator.SUB, 
+                                         Reference(outer_loop_variable),
                 Literal("{0}".format(block_size), node.variable.datatype))
             mx = BinaryOperation.create(BinaryOperation.Operator.MAX, add,
-                                        Literal(c1.symbol.name,
-                                                c1.symbol.datatype))
-            inner_loop_end = Assignment.create(Literal(
-                end_inner_loop.name, end_inner_loop.datatype), mx)
+                                        c1.copy())
+            inner_loop_end = Assignment.create(Reference(end_inner_loop), mx)
         else:
             # step is 0 so assert for now
             assert False
 
         # Replace the inner loop start and end with the blocking ones
-        c0.replace_with(Literal(outer_loop_variable.name,
-                                outer_loop_variable.datatype))
-        c1.replace_with(Literal(end_inner_loop.name,
-                                end_inner_loop.datatype))
+        c0.replace_with(Reference(outer_loop_variable))
+        c1.replace_with(Reference(end_inner_loop))
 
         # Create the outerloop
         outerloop = BlockedLoop.create(outer_loop_variable, c0, c1,
@@ -1278,7 +1312,7 @@ class BlockLoopTrans(LoopTrans):
         # Add the loop to the innerloop's schedule
         outerloop.children[3].addchild(node)
 
-        return schedule, keep
+        return None, None
 
 
 class ColourTrans(LoopTrans):

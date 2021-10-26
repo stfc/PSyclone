@@ -46,14 +46,16 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
+    Routine, BlockedLoop, BinaryOperation, Assignment
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ScalarType, SymbolTable
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, BlockLoopTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -416,3 +418,190 @@ def test_profile_trans_invalid_name(value):
         _ = profile_trans.apply(node, options={"region_name": value})
     assert ("User-supplied region name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))
+
+
+def test_blockloop_trans():
+    '''Test the base functions of BlockLoopTrans'''
+    trans = BlockLoopTrans()
+    assert str(trans) == "Split a loop into a blocked loop pair" 
+
+
+def test_blockloop_trans_validate():
+    '''Test the validate function of BlockLoopTrans'''
+    blocktrans = BlockLoopTrans()
+    # Construct a Loop with a non-constant increment
+    routine = Routine("test_routine")
+    lvar = routine.symbol_table.symbol_from_tag(
+            "lvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    incvar = routine.symbol_table.symbol_from_tag(
+            "incvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    parent = Loop()
+    parent.addchild(Reference(lvar))
+    parent.addchild(Literal("10", INTEGER_TYPE))
+    parent.addchild(Reference(incvar))
+    parent.addchild(Schedule())
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent)
+    assert ("Cannot apply a BlockLoopTrans to a loop with a non-constant step"
+            " size") in str(excinfo.value)
+
+    # Construct a Loop with too large a step-size
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("2560", INTEGER_TYPE))
+    parent.addchild(Literal("128", INTEGER_TYPE))
+    parent.addchild(Schedule())
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent, {"blocksize": 16})
+    assert ("Cannot apply a BlockLoopTrans to a loop with larger step size "
+            "than the chosen block size") in str(excinfo.value)
+
+    # Construct a Loop and apply a BlockLoopTrans to it, then revalidate the
+    # child loop
+    symbol_table = SymbolTable()
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("512", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Schedule())
+    routine = Routine.create("test_routine", symbol_table, [parent])
+    lvar = routine.symbol_table.symbol_from_tag(
+            "lvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    parent._variable = lvar
+    blocktrans.apply(parent)
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent)
+    assert ("Cannot apply a BlockedLoopTrans to a loop with a parent "
+            "BlockedLoop node") in str(excinfo.value)
+
+    # Construct a Loop that writes to the Loop variable inside its body
+    symbol_table = SymbolTable()
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("512", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    sched = Schedule()
+    parent.addchild(sched)
+    routine = Routine.create("test_routine", symbol_table, [parent])
+    lvar = routine.symbol_table.symbol_from_tag(
+            "lvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference(lvar), Literal("1", INTEGER_TYPE))
+    assign = Assignment.create(Reference(lvar), binop)
+    sched.addchild(assign)
+    parent._variable = lvar
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent)
+    assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
+           " written to inside the loop body.") in str(excinfo.value)
+
+    # Construct a loop that writes to the variable used for the initial value
+    symbol_table = SymbolTable()
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("512", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    sched = Schedule()
+    parent.addchild(sched)
+    routine = Routine.create("test_routine", symbol_table, [parent])
+    lvar = routine.symbol_table.symbol_from_tag(
+            "lvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    ivar = routine.symbol_table.symbol_from_tag(
+            "ivar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference(lvar), Literal("1", INTEGER_TYPE))
+    assign = Assignment.create(Reference(ivar), binop)
+    sched.addchild(assign)
+    parent.children[0].replace_with(Reference(ivar))
+    parent._variable = lvar
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent)
+    assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
+           " written to inside the loop body.") in str(excinfo.value)
+
+    # Construct a loop that writes to the variable used for the final value
+    symbol_table = SymbolTable()
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("512", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    sched = Schedule()
+    parent.addchild(sched)
+    routine = Routine.create("test_routine", symbol_table, [parent])
+    lvar = routine.symbol_table.symbol_from_tag(
+            "lvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    ivar = routine.symbol_table.symbol_from_tag(
+            "ivar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference(ivar), Literal("1", INTEGER_TYPE))
+    assign = Assignment.create(Reference(ivar), binop)
+    sched.addchild(assign)
+    parent.children[1].replace_with(Reference(ivar))
+    parent._variable = lvar
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent)
+    assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
+           " written to inside the loop body.") in str(excinfo.value)
+
+    # Construct a loop that reads from the loop variable (this is allowed)
+    symbol_table = SymbolTable()
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("512", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    sched = Schedule()
+    parent.addchild(sched)
+    routine = Routine.create("test_routine", symbol_table, [parent])
+    lvar = routine.symbol_table.symbol_from_tag(
+            "lvar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    ivar = routine.symbol_table.symbol_from_tag(
+            "ivar", symbol_type=DataSymbol, datatype=ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Precision.SINGLE))
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Reference(lvar), Literal("1", INTEGER_TYPE))
+    assign = Assignment.create(Reference(ivar), binop)
+    sched.addchild(assign)
+    parent._variable = lvar
+    blocktrans.validate(parent)
+
+
+def test_blockloop_trans_apply():
+    '''Test the apply function of BlockLoopTrans'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    blocktrans = BlockLoopTrans()
+    blocktrans.apply(schedule.children[0])
+    correct ='''DO out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+        el_inner = MIN(out_var + 32, cu_fld%internal%ystop)
+        DO j = out_var, el_inner, 1
+          DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
+    '''
+    print(code)
+    assert correct in code
+    correct = '''END DO
+        END DO
+      END DO'''
+    assert correct in code
+
