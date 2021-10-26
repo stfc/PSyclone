@@ -39,9 +39,9 @@ include ../../common.mk
 GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-.PHONY: basic openmp mpi loop_fuse dag openacc opencl
+.PHONY: basic openmp mpi loop_fuse dag openacc opencl openmp_taskloop
 
-transform: basic openmp mpi loop_fuse dag openacc opencl
+transform: basic openmp mpi loop_fuse dag openacc opencl openmp_taskloop
 
 compile: transform
 	@echo "No compilation targets for example gocean/eg1"
