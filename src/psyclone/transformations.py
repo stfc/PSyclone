@@ -587,11 +587,34 @@ class OMPTargetTrans(RegionTrans):
     >>> omptargettrans = OMPTargetTrans()
     >>> omptargettrans.apply(tree.walk(Loop))
 
-    '''
+    will generate:
 
+    .. code-block:: fortran
+
+        subroutine my_subroutine()
+            integer, dimension(10, 10) :: A
+            integer :: i
+            integer :: j
+            $!omp target
+            do i = 1, 10
+                do j = 1, 10
+                    A(i, j) = 0
+                end do
+            end do
+            $!omp end target
+        end subroutine
+
+    '''
     def apply(self, nodes, options=None):
         ''' Insert a OMPTargetDirective before the provided node or list
         of nodes.
+
+        :param nodes: the PSyIR node or nodes to enclose in the OpenMP \
+                      target region.
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
         '''
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
@@ -612,46 +635,75 @@ class OMPTargetTrans(RegionTrans):
 
 class OMPLoopTrans(ParallelLoopTrans):
     '''
-    Adds an OpenMP directive to a loop. The optional 'reprod' argument in the
-    apply method decides whether standard OpenMP reduction support is to be
-    used (which is not reproducible) or whether a manual reproducible
-    reproduction is to be used.
+    Adds an OpenMP directive to a loop. This can be the loop worksharing
+    OpenMP Do/For directive to distribute the work in the enclosing parallel
+    region or a descriptive OpenMP loop directive to let the compiler decide
+    the best implementation. The OpenMP schedule used for the worksharing
+    directive can also be specified, but this will be ignored in case of the
+    descriptive OpenMP loop. Also, the configuration-defined 'reprod' parameter
+    also specifies whether a manual reproducible reproduction is to be used.
 
-    :param str omp_schedule: the OpenMP schedule to use.
+    :param str omp_schedule: the OpenMP schedule to use. Defaults to 'static'.
+    :param bool omp_worksharing: whether to generate OpenMP loop worksharing \
+        directives (e.g. omp do/for) or simple a OpenMP loop directive. \
+        Defaults to True.
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>> print psy.invokes.names
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Routine
+    >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ltrans = t.get_trans_name('OMPLoopTrans')
-    >>> rtrans = t.get_trans_name('OMPParallelTrans')
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>> new_schedule = schedule
-    >>>
-    # Apply the OpenMP Loop transformation to *every* loop
-    # in the schedule
-    >>> for child in schedule.children:
-    >>>     newschedule, memento = ltrans.apply(child, reprod=True)
-    >>>     schedule = newschedule
-    >>>
-    # Enclose all of these loops within a single OpenMP
-    # PARALLEL region
-    >>> rtrans.omp_schedule("dynamic,1")
-    >>> newschedule, memento = rtrans.apply(schedule.children)
-    >>>
-    >>>
+    >>> tree = FortranReader().psyir_from_source("""
+    >>>     subroutine my_subroutine()
+    >>>         integer, dimension(10, 10) :: A
+    >>>         integer :: i
+    >>>         integer :: j
+    >>>         do i = 1, 10
+    >>>             do j = 1, 10
+    >>>                 A(i, j) = 0
+    >>>             end do
+    >>>         end do
+    >>>         do i = 1, 10
+    >>>             do j = 1, 10
+    >>>                 A(i, j) = 0
+    >>>             end do
+    >>>         end do
+    >>>     end subroutine
+    >>>     """
+    >>> routine.walk(Routine)
+    >>> ompparalleltrans = OMPParallelTrans()  # Necessary in loop worksharing
+    >>> omplooptrans1 = OMPLoopTrans(omp_schedule="auto")
+    >>> omplooptrans2 = OMPLoopTrans(omp_worksharing=False)
+    >>> omplooptrans1.apply(routine.children[0])
+    >>> ompparalleltrans.apply(routine.children[0])
+    >>> omplooptrans2.apply(routine.children[1])
+
+    will generate:
+
+    .. code-block:: fortran
+
+        subroutine my_subroutine()
+            integer, dimension(10, 10) :: A
+            integer :: i
+            integer :: j
+            !$omp parallel
+            !$omp do schedule(auto)
+            do i = 1, 10
+                do j = 1, 10
+                    A(i, j) = 0
+                end do
+            end do
+            !$omp end do
+            !$omp end parallel
+            !$omp loop
+            do i = 1, 10
+                do j = 1, 10
+                    A(i, j) = 0
+                end do
+            end do
+            !$omp end loop
+        end subroutine
 
     '''
     def __init__(self, omp_schedule="static", omp_worksharing=True):
@@ -660,14 +712,12 @@ class OMPLoopTrans(ParallelLoopTrans):
         # via the `reprod` argument to the apply() method.
         self._reprod = Config.get().reproducible_reductions
 
+        # Declare the attributes but use the property setter for proper
+        # error checking
         self._omp_worksharing = None
         self.omp_worksharing = omp_worksharing
 
         self._omp_schedule = ""
-        # Although we create the _omp_schedule attribute above (so that
-        # pylint doesn't complain), we actually set its value using
-        # the setter method in order to make use of the latter's error
-        # checking.
         self.omp_schedule = omp_schedule
 
         super(OMPLoopTrans, self).__init__()
@@ -698,15 +748,24 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     @property
     def omp_schedule(self):
-        ''' Returns the OpenMP schedule that will be specified by
-            this transformation. The default schedule is 'static'.'''
+        '''
+        :returns: the OpenMP schedule that will be specified by \
+            this transformation. The default schedule is 'static'.
+        :rtype: str
+
+        '''
         return self._omp_schedule
 
     @omp_schedule.setter
     def omp_schedule(self, value):
-        ''' Sets the OpenMP schedule that will be specified by
-            this transformation. Checks that the string supplied in
-            :py:obj:`value` is a recognised OpenMP schedule. '''
+        '''
+        :param str value: Sets the OpenMP schedule value that will be \
+            specified by this transformation.
+
+        :raises TypeError: if the provided value is not a string.
+        :raises ValueError: if the provided string is not a valid OpenMP \
+            schedule format.
+        '''
 
         if not isinstance(value, six.string_types):
             raise TypeError(
@@ -725,9 +784,10 @@ class OMPLoopTrans(ParallelLoopTrans):
                                  "OpenMP schedule of 'auto'.")
             try:
                 int(value_parts[1].strip())
-            except ValueError:
-                raise ValueError("Supplied OpenMP schedule '{0}' has an "
-                                 "invalid chunk-size.".format(value))
+            except ValueError as err:
+                six.raise_from(
+                    ValueError("Supplied OpenMP schedule '{0}' has an "
+                               "invalid chunk-size.".format(value)), err)
 
         self._omp_schedule = value
 

@@ -326,7 +326,7 @@ def test_omplooptrans_properties():
             in str(err.value))
 
 
-def test_omplooptrans_apply(sample_psyir):
+def test_omplooptrans_apply(sample_psyir, fortran_writer):
     ''' Test OMPLoopTrans works as expected with the different options. '''
 
     # By default it adds a OMPDoDirective with static schedule
@@ -339,18 +339,41 @@ def test_omplooptrans_apply(sample_psyir):
 
     # The omp_schedule can be changed
     omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2")
+    ompparalleltrans = OMPParallelTrans()
     tree = sample_psyir.copy()
-    omplooptrans.apply(tree.walk(Loop)[0])
-    assert isinstance(tree.walk(Loop)[0].parent, Schedule)
-    assert isinstance(tree.walk(Loop)[0].parent.parent, OMPDoDirective)
-    assert tree.walk(Loop)[0].parent.parent._omp_schedule == 'dynamic,2'
+    loop1 = tree.walk(Loop)[0]
+    omplooptrans.apply(loop1)
+    assert isinstance(loop1.parent, Schedule)
+    assert isinstance(loop1.parent.parent, OMPDoDirective)
+    assert loop1.parent.parent._omp_schedule == 'dynamic,2'
+    ompparalleltrans.apply(loop1.parent.parent)  # Needed for generation
 
     # If omp_worksharing is False, it adds a OMPLoopDirective instead
     omplooptrans = OMPLoopTrans(omp_worksharing=False)
-    tree = sample_psyir.copy()
-    omplooptrans.apply(tree.walk(Loop)[1])
-    assert isinstance(tree.walk(Loop)[1].parent, Schedule)
-    assert isinstance(tree.walk(Loop)[1].parent.parent, OMPLoopDirective)
+    loop2 = tree.walk(Loop, stop_type=Loop)[1]
+    omplooptrans.apply(loop2, {'collapse': 2})
+    assert isinstance(loop2.parent, Schedule)
+    assert isinstance(loop2.parent.parent, OMPLoopDirective)
+
+    # Check that the full resulting code looks like this
+    expected = '''
+  !$omp parallel default(shared), private(i,j)
+  !$omp do schedule(dynamic,2)
+  do i = 1, 10, 1
+    do j = 1, 10, 1
+      a(i,j) = 0
+    enddo
+  enddo
+  !$omp end do
+  !$omp end parallel
+  !$omp loop collapse(2)
+  do i = 1, 10, 1
+    do j = 1, 10, 1
+      a(i,j) = 0
+    enddo
+  enddo
+  !$omp end loop\n'''
+    assert expected in fortran_writer(tree)
 
 
 def test_ifblock_children_region():
