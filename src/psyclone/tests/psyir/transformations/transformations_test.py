@@ -54,8 +54,7 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTaskwaitTrans, \
-    MoveTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, MoveTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
