@@ -15,7 +15,8 @@
 ..   and/or other materials provided with the distribution.
 ..
 .. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from..   this software without specific prior written permission.
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
 ..
 .. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -709,7 +710,8 @@ PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
 transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
 operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
-dependencies.
+dependencies. An example of using OpenMP tasking is available in 
+`PSyclone/examples/nemo/eg1/runme_openmp_taskloop`.
 
 OpenCL
 ------
