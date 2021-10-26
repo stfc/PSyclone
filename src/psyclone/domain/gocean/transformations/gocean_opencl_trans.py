@@ -265,9 +265,9 @@ class GOOpenCLTrans(Transformation):
 
         :param node: the container where the new subroutine will be inserted.
         :param type: :py:class:`psyclone.psyir.nodes.Container`
-        :param kernel: the kernel call from which to provide the arg_setter \
+        :param kernel: the kernel call for which to provide the arg_setter \
                        subroutine.
-        :param type: :py:class:`psyclone.psyGen.CodedKernel`
+        :param type: :py:class:`psyclone.psyGen.CodedKern`
 
         :returns: the symbol representing the arg_setter subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -309,11 +309,11 @@ class GOOpenCLTrans(Transformation):
         argsetter.symbol_table.add(check_status)
 
         # All arguments are read-only, create the interface for later use
-        r_interface = ArgumentInterface(ArgumentInterface.Access.READ)
 
         # Add an argument symbol for the kernel object
         kobj = argsetter.symbol_table.new_symbol(
-            "kernel_obj", symbol_type=DataSymbol, interface=r_interface,
+            "kernel_obj", symbol_type=DataSymbol,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ),
             datatype=UnknownFortranType(
                 "INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj"))
         arg_list.append(kobj)
@@ -324,8 +324,8 @@ class GOOpenCLTrans(Transformation):
             name = argsetter.symbol_table.next_available_name(arg.name)
 
             # This function requires 'TARGET' annotated declarations which are
-            # not supported in the PSyIR, so we build them as UnknownFortraType
-            # for now
+            # not supported in the PSyIR, so we build them as
+            # UnknownFortranType for now.
             if arg.is_scalar and arg.intrinsic_type == "real":
                 pointer_type = UnknownFortranType(
                     "REAL(KIND=go_wp), INTENT(IN), TARGET :: " + name)
@@ -337,8 +337,9 @@ class GOOpenCLTrans(Transformation):
                 pointer_type = UnknownFortranType(
                     "INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: " + name)
 
-            new_arg = DataSymbol(name, datatype=pointer_type,
-                                 interface=r_interface)
+            new_arg = DataSymbol(
+                name, datatype=pointer_type,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
             argsetter.symbol_table.add(new_arg)
             arg_list.append(new_arg)
 

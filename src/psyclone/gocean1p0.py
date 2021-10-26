@@ -192,7 +192,6 @@ class GOInvokes(Invokes):
                        content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
-        opencl_kernels = []
         for invoke in self.invoke_list:
 
             # TODO 1134: The opencl path is still largely implemented using
@@ -1936,7 +1935,7 @@ class GOKernelArgument(KernelArgument):
     @property
     def intrinsic_type(self):
         '''
-        :returns: the intrinsic type of this argument. If its not a scalar \
+        :returns: the intrinsic type of this argument. If it's not a scalar \
             integer or real it will return an empty string.
         :rtype: str
 

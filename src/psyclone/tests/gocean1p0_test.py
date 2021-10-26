@@ -1538,7 +1538,7 @@ def test_gokernelargument_intrinsic_type():
     # First argument 'a_scalar' is a REAL
     assert argument_list[0].intrinsic_type == "real"
     # Second argument 'ssh_fld' is a derived type and doesn't have a single
-    # intrinsic type, so it returns and empty string
+    # intrinsic type, so it returns an empty string
     assert argument_list[1].intrinsic_type == ""
     # Change the first argument metadata type to integer, and check the
     # intrinsic_type value also changes
