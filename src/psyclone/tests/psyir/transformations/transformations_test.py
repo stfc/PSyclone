@@ -593,12 +593,12 @@ def test_blockloop_trans_apply():
     schedule = psy.invokes.invoke_list[0].schedule
     blocktrans = BlockLoopTrans()
     blocktrans.apply(schedule.children[0])
+    code = str(psy.gen)
     correct ='''DO out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
         el_inner = MIN(out_var + 32, cu_fld%internal%ystop)
         DO j = out_var, el_inner, 1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
-    print(code)
     assert correct in code
     correct = '''END DO
         END DO
