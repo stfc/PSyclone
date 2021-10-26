@@ -54,6 +54,8 @@ from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
+from psyclone.psyir.transformations.intrinsics.max2code_trans import \
+    Max2CodeTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \

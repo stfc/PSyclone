@@ -236,6 +236,21 @@
 	80) PR #1450 for #1291. Adds new dependence-analysis chapter to UG to
 	bring together documentation on 'old' and 'new' way of doing things.
 
+	81) PR #1436 for #1434. Adds new Max2Code transformation.
+
+	82) PR #1427 for #1405. Adds new PSyIR nodes for OMPTarget and
+	OMPLoop directives.
+
+	83) PR #1466 for #1465. Update SIR backend so that generated code
+	specifies cartesian grid (to match latest Dawn API).
+
+	84) PR #1469 for #1468. Update deprecated 'operatorPrecedence' to
+	'infixNotation' in 'src/psyclone/expression.py' for compatibility
+	with the pyparsing 3.01 update in GitHub.
+
+	85) PR #1455 for #1441. Extends PSyAD to cope with kernels
+	containing multiple assignment statements.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.

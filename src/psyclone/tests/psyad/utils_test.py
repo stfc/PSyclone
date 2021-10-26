@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,45 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the Min2CodeTrans transformation.'''
+'''A module to perform pytest tests on the code in the
+utils.py file within the psyad directory.
 
-from __future__ import absolute_import
-
-from psyclone.psyir.nodes import BinaryOperation, NaryOperation
-from psyclone.psyir.transformations import Min2CodeTrans
-from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
-    MinOrMax2CodeTrans
+'''
+from psyclone.psyad.utils import node_is_active, node_is_passive
 
 
-def test_initialise():
-    '''Check that the class Min2CodeTrans behaves as expected when an
-    instance of the class is created.
+# node_is_active and node_is_passive functions
+def test_active_passive(fortran_reader):
+    '''Test that the node_is_active function returns True if an active
+    variable exists in the node or its descendants and False if
+    not. Also test that the node_is_passive function returns the
+    opposite results.
 
     '''
-    assert issubclass(Min2CodeTrans, MinOrMax2CodeTrans)
-    trans = Min2CodeTrans()
-    assert trans._operator_name == "MIN"
-    assert trans._operators == (BinaryOperation.Operator.MIN,
-                                NaryOperation.Operator.MIN)
-    assert trans._compare_operator == BinaryOperation.Operator.LT
+    code = (
+        "program test\n"
+        "real :: a, b, c\n"
+        "a = b\n"
+        "end program test\n")
+    tl_psyir = fortran_reader.psyir_from_source(code)
+    symbol_table = tl_psyir.children[0].symbol_table
+    symbol_a = symbol_table.lookup("a")
+    symbol_b = symbol_table.lookup("b")
+    symbol_c = symbol_table.lookup("c")
+    assignment = tl_psyir.children[0][0]
+
+    assert node_is_active(assignment, [symbol_a])
+    assert not node_is_passive(assignment, [symbol_a])
+    assert node_is_active(assignment, [symbol_b])
+    assert not node_is_passive(assignment, [symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b, symbol_c])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b, symbol_c])
+
+    assert node_is_passive(assignment, [])
+    assert not node_is_active(assignment, [])
+    assert node_is_passive(assignment, [symbol_c])
+    assert not node_is_active(assignment, [symbol_c])
