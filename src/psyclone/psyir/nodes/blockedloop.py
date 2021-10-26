@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes import Schedule
 

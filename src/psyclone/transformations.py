@@ -1291,9 +1291,11 @@ class BlockLoopTrans(LoopTrans):
             sub = BinaryOperation.create(BinaryOperation.Operator.SUB, 
                                          Reference(outer_loop_variable),
                 Literal("{0}".format(block_size), node.variable.datatype))
-            mx = BinaryOperation.create(BinaryOperation.Operator.MAX, add,
+            mx = BinaryOperation.create(BinaryOperation.Operator.MAX, sub,
                                         c1.copy())
             inner_loop_end = Assignment.create(Reference(end_inner_loop), mx)
+            # block_size needs to be negative if we're reducing
+            block_size = -block_size
         else:
             # step is 0 so assert for now
             assert False

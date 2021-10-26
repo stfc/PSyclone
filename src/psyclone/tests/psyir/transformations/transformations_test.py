@@ -584,7 +584,7 @@ def test_blockloop_trans_validate():
     blocktrans.validate(parent)
 
 
-def test_blockloop_trans_apply():
+def test_blockloop_trans_apply_pos():
     '''Test the apply function of BlockLoopTrans'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -605,3 +605,24 @@ def test_blockloop_trans_apply():
       END DO'''
     assert correct in code
 
+def test_blockloop_trans_apply_neg():
+    '''Test the apply function of BlockLoopTrans for a negative step'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.children[0].children[2].replace_with(Literal("-1", INTEGER_TYPE))
+    blocktrans = BlockLoopTrans()
+    blocktrans.apply(schedule.children[0])
+    code = str(psy.gen)
+    correct ='''DO out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
+        el_inner = MAX(out_var - 32, cu_fld%internal%ystop)
+        DO j = out_var, el_inner, -1
+          DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
+    '''
+    assert correct in code
+    correct = '''END DO
+        END DO
+      END DO'''
+    assert correct in code
