@@ -264,7 +264,7 @@ def test_extract_node_position():
 
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
-    class: view, dag_name and __str__ produce the correct results. '''
+    class: view  and __str__ produce the correct results. '''
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
@@ -278,9 +278,6 @@ def test_extract_node_representation(capsys):
     output, _ = capsys.readouterr()
     expected_output = colored("Extract", ExtractNode._colour)
     assert expected_output in output
-
-    # Test dag_name method
-    assert schedule.children[1].dag_name == "extract_1"
 
     # Test __str__ method
 

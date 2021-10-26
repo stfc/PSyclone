@@ -31,29 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
+# Modified by S. Siso, and A. R. Porter, STFC Daresbury Laboratory
+
+''' Example transformation script showing the use of the module-inline
+    transformation for the LFRic domain. '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
-api = "dynamo0.1"
-ast, invokeInfo = parse("dynamo_algorithm_mod.F90", api=api)
-psy = PSyFactory(api).create(invokeInfo)
-print(psy.gen)
+from psyclone.transformations import KernelModuleInlineTrans
+from psyclone.psyGen import Kern
 
-print(psy.invokes.names)
 
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which module-inlines
+    the kernel used in the second 'invoke' in the supplied PSy object.
 
-t = TransInfo()
-print(t.list)
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-lf = t.get_trans_name('LoopFuseTrans')
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-schedule.view()
-lf.apply(schedule.children[0], schedule.children[1])
-schedule.view()
+    '''
+    invokes = psy.invokes
+    print(psy.invokes.names)
+    invoke = invokes.get("invoke_1")
+    schedule = invoke.schedule
+    schedule.view()
+    # Find the kernel we want to inline.
+    kern = schedule.walk(Kern)[0]
+    # Setting module inline directly.
+    kern.module_inline = True
+    schedule.view()
+    # Unsetting module inline via a transformation.
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.apply(kern, {"inline": False})
+    schedule.view()
+    # Setting module inline via a transformation.
+    inline_trans.apply(kern)
+    schedule.view()
 
-print(psy.gen)
+    return psy

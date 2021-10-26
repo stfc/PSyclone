@@ -160,13 +160,6 @@ Transformations
 
 The following transformations are specific to the NEMO API.
 
-.. warning:: The transformations below all operate on the PSyIR not
-	     the fparser2 ast. This means that any changes made by
-	     these transformations will not be observed in the code
-	     that is output by PSyclone. The changes will only become
-	     visible when the PSyIR back-ends replace the current
-	     fparser2 AST-based backend (see issue #435).
-
 ####
 
 .. autoclass:: psyclone.domain.nemo.transformations.NemoLoopFuseTrans
@@ -208,7 +201,7 @@ The following transformations are specific to the NEMO API.
 Limitations
 -----------
 
-The NEMO API is currently only a prototype implementation. Here
+The NEMO API is currently under development. Here
 we list the current, known limitations/issues:
 
  1. Scalar variables inside loops are not made private when
@@ -220,14 +213,8 @@ we list the current, known limitations/issues:
     'CodeBlock' in the PSyIR);
  4. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
- 5. When generating new variable names, no attempt is made to avoid
-    clashing with variables already present in the NEMO source. This
-    needs to be resolved by querying the SymbolTable (#381);
- 6. The psyir.nodes.Node base class now has an _ast property to hold a
+ 5. The psyir.nodes.Node base class now has an _ast property to hold a
     pointer into the associated fparser2 AST. However, the psyGen.Kern
     class already has an _fp2_ast property that points to the whole
     fparser2 AST of the kernel code. This will be rationalised in
     #241;
- 7. The nemo-specific implicit-to-explicit and array-access-to-loop
-    transformations will not modify the code that is output until
-    issue #435 has been addressed.

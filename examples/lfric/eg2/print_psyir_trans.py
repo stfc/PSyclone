@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Author R. W. Ford, STFC Daresbury Laboratory
 
-''' example showing the use of the module-inline transformation '''
+''' Simple transformation script that prints out the names of the 'invoke'(s)
+    in the supplied PSy object and the PSyIR for each. '''
+
 from __future__ import print_function
-import os
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.transformations import KernelModuleInlineTrans
 
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].loop_body[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    trans.apply(kern, {"inline": False})
-    schedule.view()
-    # setting module inline via a transformation
-    trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which only prints
+    information about the object with which it has been supplied.
 
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-if __name__ == "__main__":
-    inline()
+    :returns: the supplied PSy object unmodified.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    print("Supplied code has Invokes: ", psy.invokes.names)
+
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
+
+    schedule = psy.invokes.get('invoke_1').schedule
+    schedule.view()
+
+    return psy

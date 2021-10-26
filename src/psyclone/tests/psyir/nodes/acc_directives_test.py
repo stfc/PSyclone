@@ -42,19 +42,15 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ACCEnterDataDirective, \
-    ACCKernelsDirective, Schedule, ACCUpdateDirective, \
-    ACCParallelDirective, ACCLoopDirective
+    ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import ACCLoopTrans, ACCEnterDataTrans, \
-    ACCParallelTrans, ACCKernelsTrans
+from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
+    ACCKernelsTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -67,32 +63,6 @@ def setup():
     yield()
     Config._instance = None
 
-
-def test_acc_dag_names():
-    ''' Check that we generate the correct dag names for ACC parallel,
-    ACC enter-data and ACC loop directive Nodes '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
-                           dist_mem=False)
-    schedule = invoke.schedule
-
-    acclt = ACCLoopTrans()
-    accdt = ACCEnterDataTrans()
-    accpt = ACCParallelTrans()
-    # Enter-data
-    accdt.apply(schedule)
-    assert schedule[0].dag_name == "ACC_data_1"
-    # Parallel region
-    accpt.apply(schedule[1])
-    assert schedule[1].dag_name == "ACC_parallel_2"
-    # Base directive class
-    name = super(ACCParallelDirective, schedule[1]).dag_name
-    assert name == "region_directive_2"
-    # Loop directive
-    acclt.apply(schedule[1].dir_body[0])
-    assert schedule[1].dir_body[0].dag_name == "ACC_loop_4"
-    # Base standalone directive class
-    name = super(ACCEnterDataDirective, schedule[0]).dag_name
-    assert name == "standalone_directive_1"
 
 # Class ACCEnterDataDirective start
 
@@ -107,9 +77,6 @@ def test_acc_datadevice_virtual():
     # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err.value))
-
-# (1/1) Method dag_name
-# Covered in test_acc_dag_names
 
 
 # (1/4) Method gen_code
@@ -262,21 +229,6 @@ def test_acckernelsdirective_init():
     assert not directive._default_present
 
 
-# (1/1) Method dag_name
-def test_acckernelsdirective_dagname():
-    '''Check that the dag_name method in the ACCKernelsDirective class
-    behaves as expected.
-
-    '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched)
-    assert sched.children[0].dag_name == "ACC_kernels_1"
-
-
 # (1/1) Method gen_code
 @pytest.mark.parametrize("default_present", [False, True])
 def test_acckernelsdirective_gencode(default_present):
@@ -301,32 +253,6 @@ def test_acckernelsdirective_gencode(default_present):
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)
-
-
-# (1/1) Method update
-@pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_update(parser, default_present):
-    '''Check that the update method in the ACCKernelsDirective class
-    generates the expected code. Use the nemo API.
-
-    '''
-    reader = FortranStringReader("program implicit_loop\n"
-                                 "real(kind=wp) :: sto_tmp(5,5)\n"
-                                 "sto_tmp(:,:) = 0.0_wp\n"
-                                 "end program implicit_loop\n")
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernels_trans = ACCKernelsTrans()
-    kernels_trans.apply(schedule.children[0:1],
-                        {"default_present": default_present})
-    gen_code = str(psy.gen)
-    string = ""
-    if default_present:
-        string = " DEFAULT(PRESENT)"
-    assert ("  !$ACC KERNELS{0}\n"
-            "  sto_tmp(:, :) = 0.0_wp\n"
-            "  !$ACC END KERNELS\n".format(string) in gen_code)
 
 # Class ACCKernelsDirective end
 
