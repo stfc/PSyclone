@@ -1826,6 +1826,7 @@ class LFRicMeshProperties(DynCollection):
                 if MeshProperty.NCELL_2D_NO_HALOS not in self._properties:
                     self._properties.append(MeshProperty.NCELL_2D_NO_HALOS)
             # Kernels performing CMA operations need the number of columns,
+            # including those in the halo.
             if call.cma_operation:
                 if MeshProperty.NCELL_2D not in self._properties:
                     self._properties.append(MeshProperty.NCELL_2D)
@@ -3551,25 +3552,9 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
-
-        # If we have one or more CMA operators then the number of columns
-        # in the mesh will already be handled by the MeshProperties collection.
-        #parent.add(CommentGen(parent, ""))
-        #parent.add(CommentGen(parent, " Initialise number of cols"))
-        #parent.add(CommentGen(parent, ""))
-        #ncol_name = self._symbol_table.symbol_from_tag("ncell_2d").name
-        #parent.add(
-        #    AssignGen(
-        #        parent, lhs=ncol_name,
-        #        rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
-        #parent.add(DeclGen(parent, datatype="integer",
-        #                   kind=api_config.default_kind["integer"],
-        #                   entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
@@ -7850,17 +7835,7 @@ class DynKern(CodedKern):
                     "However the containing loop goes out to level {1}".
                     format(self._name, parent_loop.upper_bound_halo_depth))
 
-        # If this kernel is being called from within a coloured
-        # loop then we have to look-up the name of the colour map
-        if self.is_coloured():
-            # TODO Check whether this arg is gh_inc and if not, Warn that
-            # we're colouring a kernel that has no field object with INC access
-
-            # We must look-up the cell index using the colour map rather than
-            # use the current cell index directly. We need to know the name
-            # of the variable holding the colour map for this kernel.
-            cell_index = self.colourmap + "(colour, cell)"
-        else:
+        if not self.is_coloured():
             # This kernel call has not been coloured
             #  - is it OpenMP parallel, i.e. are we a child of
             # an OpenMP directive?
@@ -7877,7 +7852,6 @@ class DynKern(CodedKern):
                                           "be coloured in order to be "
                                           "parallelised with OpenMP".
                                           format(self._name))
-            cell_index = "cell"
 
         parent.add(CommentGen(parent, ""))
 

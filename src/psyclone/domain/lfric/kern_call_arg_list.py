@@ -155,7 +155,7 @@ class KernCallArgList(ArgOrdering):
 
     def mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Add the number of columns in the mesh (excluding those in the halo)
-        to the argument list and stores this access in var_accesses (if
+        to the argument list and store this access in var_accesses (if
         supplied).
 
         :param var_accesses: optional VariablesAccessInfo instance to store \
