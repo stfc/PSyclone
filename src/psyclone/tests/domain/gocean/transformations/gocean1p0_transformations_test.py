@@ -1025,13 +1025,6 @@ def test_omp_do_schedule_guided(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_schedule_guided_with_empty_chunk():
-    ''' Test that we raise an appropriate error if we miss off
-    the chunksize '''
-    with pytest.raises(TransformationError):
-        _ = GOceanOMPLoopTrans(omp_schedule="guided, ")
-
-
 def test_omp_schedule_guided_with_chunk(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "guided,n" where n is some chunk size'''
@@ -1053,20 +1046,6 @@ def test_omp_schedule_guided_with_chunk(tmpdir):
 
     assert '!$omp do schedule(guided,10)' in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_omp_invalid_schedule():
-    ''' Test that we raise an appropriate error if we specify
-    an invalid omp schedule '''
-    with pytest.raises(TransformationError):
-        _ = GOceanOMPLoopTrans(omp_schedule="rubbish")
-
-
-def test_omp_schedule_auto_with_chunk():
-    ''' Test that we raise an appropriate error if we specify
-    the omp schedule as "auto" but try to provide a chunk size '''
-    with pytest.raises(TransformationError):
-        _ = GOceanOMPLoopTrans(omp_schedule="auto,4")
 
 
 def test_module_noinline_default(tmpdir):

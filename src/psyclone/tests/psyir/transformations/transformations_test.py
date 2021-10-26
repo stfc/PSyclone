@@ -273,7 +273,60 @@ def test_omptargettrans(sample_psyir):
     assert loops[0].parent.parent is loops[1].parent.parent
 
 
-def test_omplooptrans(sample_psyir):
+def test_omplooptrans_properties():
+    ''' Test that the OMPLoopTrans properties assign and return the expected
+    values and raise errors when necessary. '''
+
+    # Check default values
+    omplooptrans = OMPLoopTrans()
+    assert omplooptrans.omp_schedule == "static"
+    assert omplooptrans.omp_worksharing is True
+
+    # Use setters with valid values
+    omplooptrans.omp_schedule = "dynamic,2"
+    omplooptrans.omp_worksharing = False
+    assert omplooptrans.omp_schedule == "dynamic,2"
+    assert omplooptrans.omp_worksharing is False
+
+    # Setting things at the constructor also works
+    omplooptrans = OMPLoopTrans(omp_schedule="dynamic,2",
+                                omp_worksharing=False)
+    assert omplooptrans.omp_schedule == "dynamic,2"
+    assert omplooptrans.omp_worksharing is False
+
+    # Use setters with invalid values
+    with pytest.raises(TypeError) as err:
+        omplooptrans.omp_worksharing = "invalid"
+    assert ("The OMPLoopTrans.omp_worksharing property must be a boolean but"
+            " found a 'str'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        omplooptrans.omp_schedule = 3
+    assert ("The OMPLoopTrans.omp_schedule property must be a 'str' but"
+            " found a 'int'." in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        omplooptrans.omp_schedule = "invalid"
+    assert ("Valid OpenMP schedules are ['runtime', 'static', 'dynamic', "
+            "'guided', 'auto'] but got 'invalid'." in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        omplooptrans.omp_schedule = "auto,3"
+    assert ("Cannot specify a chunk size when using an OpenMP schedule "
+            "of 'auto'." in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        omplooptrans.omp_schedule = "dynamic,a"
+    assert ("Supplied OpenMP schedule 'dynamic,a' has an invalid chunk-size."
+            in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        omplooptrans.omp_schedule = "dynamic,"
+    assert ("Supplied OpenMP schedule 'dynamic,' has an invalid chunk-size."
+            in str(err.value))
+
+
+def test_omplooptrans_apply(sample_psyir):
     ''' Test OMPLoopTrans works as expected with the different options. '''
 
     # By default it adds a OMPDoDirective with static schedule

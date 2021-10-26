@@ -692,8 +692,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         '''
         if not isinstance(value, bool):
             raise TypeError(
-                "The OMPLoopTrans omp_worksharing property must be a boolean"
-                " but a {0} has been given.".format(value.__type__.__name__))
+                "The OMPLoopTrans.omp_worksharing property must be a boolean"
+                " but found a '{0}'.".format(type(value).__name__))
         self._omp_worksharing = value
 
     @property
@@ -708,22 +708,26 @@ class OMPLoopTrans(ParallelLoopTrans):
             this transformation. Checks that the string supplied in
             :py:obj:`value` is a recognised OpenMP schedule. '''
 
+        if not isinstance(value, six.string_types):
+            raise TypeError(
+                "The OMPLoopTrans.omp_schedule property must be a 'str'"
+                " but found a '{0}'.".format(type(value).__name__))
+
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
         if value_parts[0].lower() not in VALID_OMP_SCHEDULES:
-            raise TransformationError("Valid OpenMP schedules are {0} "
-                                      "but got {1}".
-                                      format(VALID_OMP_SCHEDULES,
-                                             value_parts[0]))
+            raise ValueError("Valid OpenMP schedules are {0} but got '{1}'."
+                             "".format(VALID_OMP_SCHEDULES, value_parts[0]))
+
         if len(value_parts) > 1:
             if value_parts[0] == "auto":
-                raise TransformationError("Cannot specify a chunk size "
-                                          "when using an OpenMP schedule"
-                                          " of 'auto'")
-            if value_parts[1].strip() == "":
-                raise TransformationError("Supplied OpenMP schedule '{0}'"
-                                          " has missing chunk-size.".
-                                          format(value))
+                raise ValueError("Cannot specify a chunk size when using an "
+                                 "OpenMP schedule of 'auto'.")
+            try:
+                int(value_parts[1].strip())
+            except ValueError:
+                raise ValueError("Supplied OpenMP schedule '{0}' has an "
+                                 "invalid chunk-size.".format(value))
 
         self._omp_schedule = value
 
