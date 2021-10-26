@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,52 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the Min2CodeTrans transformation.'''
+'''Utilities for the PSyclone Adjoint (PSyAD) functionality.
 
-from __future__ import absolute_import
+'''
 
-from psyclone.psyir.nodes import BinaryOperation, NaryOperation
-from psyclone.psyir.transformations import Min2CodeTrans
-from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
-    MinOrMax2CodeTrans
+from psyclone.psyir.nodes import Reference
 
 
-def test_initialise():
-    '''Check that the class Min2CodeTrans behaves as expected when an
-    instance of the class is created.
+def node_is_active(node, active_variables):
+    ''' Determines whether this node contains variables that are active.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variables: a list of active variables.
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: True if active and False otherwise.
+    :rtype: bool
 
     '''
-    assert issubclass(Min2CodeTrans, MinOrMax2CodeTrans)
-    trans = Min2CodeTrans()
-    assert trans._operator_name == "MIN"
-    assert trans._operators == (BinaryOperation.Operator.MIN,
-                                NaryOperation.Operator.MIN)
-    assert trans._compare_operator == BinaryOperation.Operator.LT
+    for reference in node.walk(Reference):
+        if reference.symbol in active_variables:
+            return True
+    return False
+
+
+def node_is_passive(node, active_variables):
+    '''Determines whether this node contains only variables that are
+    passive.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variables: a list of active variables.
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: True if passive and False otherwise.
+    :rtype: bool
+
+    '''
+    return not node_is_active(node, active_variables)
+
+
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
+__all__ = ["node_is_active", "node_is_passive"]

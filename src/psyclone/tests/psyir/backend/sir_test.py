@@ -453,11 +453,12 @@ def test_sirwriter_nemoinvokeschedule_node_1(parser, sir_writer):
         "interval = make_interval(Interval.Start, Interval.End, 0, 0)\n"
         in result)
     assert (
-        "hir = make_sir(stencil_name+\".cpp\", [\n"
+        "hir = make_sir(stencil_name+\".cpp\", "
+        "AST.GridType.Value(\"Cartesian\"), [\n"
         "  make_stencil(\n"
         "    stencil_name,\n"
         "    make_ast(vertical_region_fns),\n"
-        "    [make_field(\"a\")]\n"
+        "    [make_field(\"a\", make_field_dimensions_cartesian())]\n"
         "  )\n"
         "])\n" in result)
 
@@ -481,11 +482,14 @@ def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
         "interval = make_interval(Interval.Start, Interval.End, 0, 0)\n"
         in result)
     assert (
-        "hir = make_sir(stencil_name+\".cpp\", [\n"
+        "hir = make_sir(stencil_name+\".cpp\", "
+        "AST.GridType.Value(\"Cartesian\"), [\n"
         "  make_stencil(\n"
         "    stencil_name,\n"
         "    make_ast(vertical_region_fns),\n"
-        "    [make_field(\"a\"), make_field(\"b\", is_temporary=True)]\n"
+        "    [make_field(\"a\", make_field_dimensions_cartesian()), "
+        "make_field(\"b\", make_field_dimensions_cartesian(), "
+        "is_temporary=True)]\n"
         "  )\n"
         "])\n" in result)
 
