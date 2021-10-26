@@ -32,8 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          A. B. G. Chalk, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenMP tasking with 
+'''A simple test script showing the introduction of OpenMP tasking with
 PSyclone.
 
 '''
@@ -45,6 +46,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
 from psyclone.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
+
 
 def trans(psy):
     '''
@@ -70,6 +72,6 @@ def trans(psy):
                 tasklooptrans.apply(child)
         singletrans.apply(schedule.children)
         paralleltrans.apply(schedule.children)
-        taskwaittrans.apply(schedule.children[0])
+        taskwaittrans.apply(schedule)
 
     return psy

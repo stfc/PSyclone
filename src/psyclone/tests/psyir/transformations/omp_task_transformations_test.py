@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,15 +40,15 @@ import os
 import pytest
 
 from psyclone.errors import InternalError
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Node, OMPTaskwaitDirective, \
     OMPTaskloopDirective, OMPParallelDirective, \
     OMPDoDirective, OMPSingleDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTaskwaitTrans, \
-    MoveTrans
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, MoveTrans
+from psyclone.psyir.transformations import OMPTaskwaitTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -233,24 +233,24 @@ def test_omptaskwait_validate_multiple_parallel_regions():
     sing = OMPSingleTrans(nowait=True)
     ttrans = OMPTaskwaitTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
-    # Construct a two parallel regions, each containing
+    # Construct two parallel regions, each containing
     # one loop parallelised with taskloop. These loops
     # operate on the same data, so we check the dependency
     # is not tracked across the parallel regions
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    sing.apply(schedule1.children[0])
-    sing.apply(schedule1.children[1])
-    trans.apply(schedule1.children[0])
-    trans.apply(schedule1.children[1])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    sing.apply(schedule1[0])
+    sing.apply(schedule1[1])
+    trans.apply(schedule1[0])
+    trans.apply(schedule1[1])
     # This should be ok
-    ttrans.validate(schedule1.children[0])
-    ttrans.validate(schedule1.children[1])
+    ttrans.validate(schedule1[0])
+    ttrans.validate(schedule1[1])
 
 
 def test_omptaskwait_validate_barrierless_single_region():
     '''Test the validate method of the OMPTaskwaitTrans throws an
-    error when supplied a dependency across barrierless single regions
+    error when supplied a dependency across barrierless single regions.
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
@@ -268,16 +268,16 @@ def test_omptaskwait_validate_barrierless_single_region():
     # loop parallelised with taskloop. Since the single regions
     # have been created with nowait, there is no way to satisfy
     # the dependency between the two taskloops
-    tloop.apply(schedule1.children[0])
-    child0 = schedule1.children[0]
-    tloop.apply(schedule1.children[1])
-    child1 = schedule1.children[1]
-    sing.apply(schedule1.children[0])
-    sing.apply(schedule1.children[1])
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    child0 = schedule1[0]
+    tloop.apply(schedule1[1])
+    child1 = schedule1[1]
+    sing.apply(schedule1[0])
+    sing.apply(schedule1[1])
+    trans.apply(schedule1)
     # Dependency should still exist
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
     correct = "Couldn't satisfy the dependencies due to taskloop dependencies "
     correct = correct + "across barrierless OMP serial regions. Dependency is "
     correct = correct + '''from
@@ -298,7 +298,7 @@ enddo
 !$omp end taskloop'''
     # This should raise an exception
     with pytest.raises(TransformationError) as excinfo:
-        ttrans.validate(schedule1.children[0])
+        ttrans.validate(schedule1[0])
     assert correct in str(excinfo.value)
 
 
@@ -322,16 +322,16 @@ def test_omptaskwait_validate_master_region():
     # loop parallelised with taskloop. Since the master regions
     # have no barrier associated, there is no way to satisfy
     # the dependency between the two taskloops
-    tloop.apply(schedule1.children[0])
-    child0 = schedule1.children[0]
-    tloop.apply(schedule1.children[1])
-    child1 = schedule1.children[1]
-    sing.apply(schedule1.children[0])
-    sing.apply(schedule1.children[1])
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    child0 = schedule1[0]
+    tloop.apply(schedule1[1])
+    child1 = schedule1[1]
+    sing.apply(schedule1[0])
+    sing.apply(schedule1[1])
+    trans.apply(schedule1)
     # Dependency should still exist
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
     # This should be raise an error
     correct = "Couldn't satisfy the dependencies due to taskloop dependencies "
     correct = correct + "across barrierless OMP serial regions. Dependency is "
@@ -352,7 +352,7 @@ do j = p_fld%internal%ystart, p_fld%internal%ystop, 1
 enddo
 !$omp end taskloop'''
     with pytest.raises(TransformationError) as excinfo:
-        ttrans.validate(schedule1.children[0])
+        ttrans.validate(schedule1[0])
     assert correct in str(excinfo.value)
 
 
@@ -363,7 +363,8 @@ def test_omptaskwait_getforwarddep_invalid_type():
     loop = Loop()
     with pytest.raises(TransformationError) as excinfo:
         OMPTaskwaitTrans.get_forward_dependence(None, loop)
-    assert ("Expected the root to be an instance of OMPParallelDirective,"
+    assert ("Expected the root of the tree in which to search for a forward "
+            "dependence to be an instance of OMPParallelDirective,"
             " but was supplied an instance of 'Loop'") in str(excinfo.value)
 
 
@@ -403,16 +404,16 @@ def test_omptaskwait_get_forward_dependence1():
     # two loops should still be found after transforming the
     # first into an OpenMP task loop.
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    child0 = schedule1.children[0]
-    child1 = schedule1.children[1]
-    sing.apply(schedule1.children)
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    child0 = schedule1[0]
+    child1 = schedule1[1]
+    sing.apply(schedule1)
+    trans.apply(schedule1)
 
     assert isinstance(child0, OMPTaskloopDirective)
     assert isinstance(child1, Loop)
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
 
 
 def test_omptaskwait_get_forward_dependence2():
@@ -433,17 +434,17 @@ def test_omptaskwait_get_forward_dependence2():
     # two loops should still be found after transforming
     # both into OpenMP task loops.
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    child0 = schedule1.children[0]
-    tloop.apply(schedule1.children[1])
-    child1 = schedule1.children[1]
-    sing.apply(schedule1.children)
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    child0 = schedule1[0]
+    tloop.apply(schedule1[1])
+    child1 = schedule1[1]
+    sing.apply(schedule1)
+    trans.apply(schedule1)
 
     assert isinstance(child0, OMPTaskloopDirective)
     assert isinstance(child1, OMPTaskloopDirective)
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
 
 
 def test_omptaskwait_get_forward_dependence3():
@@ -466,17 +467,17 @@ def test_omptaskwait_get_forward_dependence3():
     # two loops should still be found after transforming
     # the first into an OpenMP task loops and the second into
     # an OpenMP do loop.
-    tloop.apply(schedule1.children[0])
-    child0 = schedule1.children[0]
-    oloop.apply(schedule1.children[1])
-    child1 = schedule1.children[1]
-    sing.apply(schedule1.children)
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    child0 = schedule1[0]
+    oloop.apply(schedule1[1])
+    child1 = schedule1[1]
+    sing.apply(schedule1)
+    trans.apply(schedule1)
 
     assert isinstance(child0, OMPTaskloopDirective)
     assert isinstance(child1, OMPDoDirective)
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
 
 
 def test_omptaskwait_get_forward_dependence4():
@@ -498,18 +499,18 @@ def test_omptaskwait_get_forward_dependence4():
     # OMPSingleDirective after transforming both loops into
     # OpenMP task loops.
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    child0 = schedule1.children[0]
-    tloop.apply(schedule1.children[1])
-    sing.apply(schedule1.children[0])
-    child1 = schedule1.children[0]
-    sing.apply(schedule1.children[1])
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    child0 = schedule1[0]
+    tloop.apply(schedule1[1])
+    sing.apply(schedule1[0])
+    child1 = schedule1[0]
+    sing.apply(schedule1[1])
+    trans.apply(schedule1)
 
     assert isinstance(child0, OMPTaskloopDirective)
     assert isinstance(child1, OMPSingleDirective)
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
 
 
 def test_omptaskwait_get_forward_dependence5():
@@ -529,15 +530,15 @@ def test_omptaskwait_get_forward_dependence5():
     # dependency is returned for the second task loop
     # as it has no following loops
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    child0 = schedule1.children[1]
-    sing.apply(schedule1.children)
-    trans.apply(schedule1.children)
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    child0 = schedule1[1]
+    sing.apply(schedule1)
+    trans.apply(schedule1)
 
     assert isinstance(child0, OMPTaskloopDirective)
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is None)
+            child0, schedule1[0]) is None)
 
 
 def test_omptaskwait_get_forward_dependence6():
@@ -557,18 +558,18 @@ def test_omptaskwait_get_forward_dependence6():
     # a single OpenMP region, with an OMPTaskwaitDirective
     # between them.
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
     schedule1.addchild(OMPTaskwaitDirective(), 1)
-    child0 = schedule1.children[0]
-    child1 = schedule1.children[1]
-    sing.apply(schedule1.children)
-    trans.apply(schedule1.children)
+    child0 = schedule1[0]
+    child1 = schedule1[1]
+    sing.apply(schedule1)
+    trans.apply(schedule1)
 
     assert isinstance(child0, OMPTaskloopDirective)
     assert isinstance(child1, OMPTaskwaitDirective)
     assert (OMPTaskwaitTrans.get_forward_dependence(
-            child0, schedule1.children[0]) is child1)
+            child0, schedule1[0]) is child1)
 
 
 def test_omptaskwait_apply_simple():
@@ -591,16 +592,16 @@ def test_omptaskwait_apply_simple():
     # OMPTaskwaitTrans to the schedule. Check the apply
     # routine adds one OMPTaskwait directive as child 1
     # of the OMPSingleDirective
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    sing.apply(schedule1.children)
-    the_sing = schedule1.children[0]
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    sing.apply(schedule1)
+    the_sing = schedule1[0]
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
-            the_sing.children[0].children[1])
+            the_sing.dir_body[1])
 
 
 def test_omptaskwait_apply_multidepend():
@@ -624,18 +625,18 @@ def test_omptaskwait_apply_multidepend():
     # routine adds one OMPTaskwait directive as child 2
     # of the OMPSingleDirective
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    tloop.apply(schedule1.children[2])
-    tloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children)
-    the_sing = schedule1.children[0]
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    tloop.apply(schedule1[2])
+    tloop.apply(schedule1[3])
+    sing.apply(schedule1)
+    the_sing = schedule1[0]
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
-            the_sing.children[0].children[2])
+            the_sing.dir_body[2])
 
 
 def test_omptaskwait_apply_multidepend2():
@@ -661,22 +662,22 @@ def test_omptaskwait_apply_multidepend2():
     # routine adds two OMPTaskwait directive as children 1 and 4
     # of the OMPSingleDirective
     schedule1 = psy.invokes.invoke_list[0].schedule
-    move.apply(schedule1.children[3], schedule1.children[0],
+    move.apply(schedule1[3], schedule1[0],
                {"position": "after"})
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    tloop.apply(schedule1.children[2])
-    tloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children)
-    the_sing = schedule1.children[0]
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    tloop.apply(schedule1[2])
+    tloop.apply(schedule1[3])
+    sing.apply(schedule1)
+    the_sing = schedule1[0]
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 2
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
-            the_sing.children[0].children[1])
+            the_sing.dir_body[1])
     assert (schedule1.walk(OMPTaskwaitDirective)[1] is
-            the_sing.children[0].children[4])
+            the_sing.dir_body[4])
 
 
 def test_omptaskwait_apply_multidepend3():
@@ -702,20 +703,20 @@ def test_omptaskwait_apply_multidepend3():
     # routine adds two OMPTaskwait directive as children 1 and 4
     # of the OMPSingleDirective
     schedule1 = psy.invokes.invoke_list[0].schedule
-    move.apply(schedule1.children[3], schedule1.children[1],
+    move.apply(schedule1[3], schedule1[1],
                {"position": "after"})
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    tloop.apply(schedule1.children[2])
-    tloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children)
-    the_sing = schedule1.children[0]
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    tloop.apply(schedule1[2])
+    tloop.apply(schedule1[3])
+    sing.apply(schedule1)
+    the_sing = schedule1[0]
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
-            the_sing.children[0].children[2])
+            the_sing.dir_body[2])
 
 
 def test_omptaskwait_apply_multiloops():
@@ -741,18 +742,18 @@ def test_omptaskwait_apply_multiloops():
     # routine adds one OMPTaskwait directive as child 3
     # of the OMPSingleDirective
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    oloop.apply(schedule1.children[1])
-    oloop.apply(schedule1.children[2])
-    oloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children)
-    the_sing = schedule1.children[0]
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    oloop.apply(schedule1[1])
+    oloop.apply(schedule1[2])
+    oloop.apply(schedule1[3])
+    sing.apply(schedule1)
+    the_sing = schedule1[0]
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
-            the_sing.children[0].children[3])
+            the_sing.dir_body[3])
 
 
 def test_omptaskwait_apply_multiregion():
@@ -776,17 +777,17 @@ def test_omptaskwait_apply_multiregion():
     # Check the OMPTaskwaitTrans creates one OMPTaskwaitDirective and
     # the final child of the single region
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    oloop.apply(schedule1.children[1])
-    oloop.apply(schedule1.children[2])
-    oloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children[0])
-    the_sing = schedule1.children[0]
-    sing.apply(schedule1.children[1:])
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    oloop.apply(schedule1[1])
+    oloop.apply(schedule1[2])
+    oloop.apply(schedule1[3])
+    sing.apply(schedule1[0])
+    the_sing = schedule1[0]
+    sing.apply(schedule1[1:])
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
-    assert isinstance(the_sing.children[0].children[-1], OMPTaskwaitDirective)
+    assert isinstance(the_sing.dir_body[-1], OMPTaskwaitDirective)
 
 
 def test_omptaskwait_apply_multiregion2():
@@ -812,19 +813,18 @@ def test_omptaskwait_apply_multiregion2():
     # The resulting schedule should contain one OMPTaskwaitDirective, which
     # should be the second child of the first single region.
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    tloop.apply(schedule1.children[1])
-    tloop.apply(schedule1.children[2])
-    tloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children[0:3])
-    the_sing = schedule1.children[0]
-    sing.apply(schedule1.children[1])
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    tloop.apply(schedule1[1])
+    tloop.apply(schedule1[2])
+    tloop.apply(schedule1[3])
+    sing.apply(schedule1[0:3])
+    the_sing = schedule1[0]
+    sing.apply(schedule1[1])
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
-    assert isinstance(the_sing.children[0].children[2], OMPTaskwaitDirective)
-    assert not isinstance(the_sing.children[0].children[-1],
-                          OMPTaskwaitDirective)
+    assert isinstance(the_sing.dir_body[2], OMPTaskwaitDirective)
+    assert not isinstance(the_sing.dir_body[-1], OMPTaskwaitDirective)
 
 
 def test_omptaskwait_ignore_nogroup_clause():
@@ -850,15 +850,15 @@ def test_omptaskwait_ignore_nogroup_clause():
     # OMPTaskwaitDirective and it should appear just before the final
     # OMPTaskloopDirective
     schedule1 = psy.invokes.invoke_list[0].schedule
-    tloop.apply(schedule1.children[0])
-    tloop2.apply(schedule1.children[1])
-    tloop2.apply(schedule1.children[2])
-    tloop.apply(schedule1.children[3])
-    sing.apply(schedule1.children)
-    the_sing = schedule1.children[0]
-    trans.apply(schedule1.children)
-    ttrans.apply(schedule1.children[0])
+    tloop.apply(schedule1[0])
+    tloop2.apply(schedule1[1])
+    tloop2.apply(schedule1[2])
+    tloop.apply(schedule1[3])
+    sing.apply(schedule1)
+    the_sing = schedule1[0]
+    trans.apply(schedule1)
+    ttrans.apply(schedule1[0])
 
     assert len(schedule1.walk(OMPTaskwaitDirective)) == 1
     assert (schedule1.walk(OMPTaskwaitDirective)[0] is
-            the_sing.children[0].children[3])
+            the_sing.dir_body[3])

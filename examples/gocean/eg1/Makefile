@@ -39,7 +39,9 @@ include ../../common.mk
 GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o
+KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o \
+		compute_unew_mod.o compute_vnew_mod.o compute_pnew_mod.o time_smooth_mod.o \
+		infrastructure_mod.o
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -65,11 +67,13 @@ ompt_psy.f90 ompt_alg.f90: shallow_alg.f90
 
 openmp_taskloop: ompt_psy.f90 ompt_alg.f90
 
-compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} dm_fd_lib fd_lib
-	${F90} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 \
-	${INF_LIB} ${FORTCL_LIB} -o shallow_ompt.exe
+# TODO: Cannot compile this example until #1474 is resolved.
+#compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} fd_lib
+#	${F90} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
+	${INF_LIB} -o shallow_ompt.exe
 
-compile: compile-openmptaskloop
+compile: transform
+	@echo "No compile targets for example gocean/eg1, see #1474"
 
 %.o: %.f90
 	${F90} ${LDFLAGS} -I${INF_INC} -c $<
