@@ -1,6 +1,7 @@
 # PSyclone PSyAD Example: creating an adjoint kernel and test harness.
 
 **Author:** A. R. Porter, STFC Daresbury Lab
+**Modified by:** R. W. Ford, STFC Daresbury Lab
 
 In order to use PSyclone you must first install it, ideally with pip.
 See `../../../README.md` for more details.
@@ -8,10 +9,6 @@ See `../../../README.md` for more details.
 This example demonstrates the use of PSyAD to create the adjoint of a
 simple kernel (contained in `testkern_mod.f90`).
 It also demonstrates the creation of a test harness for the adjoint kernel.
-
-Note that the PSyAD functionality is still being developed (see GitHub Issues
-with the [`adjoint` label](<https://github.com/stfc/PSyclone/issues?q=is%3Aissue+is%3Aopen+label%3Aadjoint>)). At this point the script does *not* construct
-the adjoint of the supplied kernel - it merely creates a copy of it.
 
 PSyAD can be run in the directory containing this file by executing, e.g.
 
@@ -33,12 +30,12 @@ the test harness giving output something like:
 
 ```sh
 Running PSyAD-generated test harness...
- Test of adjoint of 'testkern_code' failed: diff =    13.272356033325195     
+ Test of adjoint of 'testkern_code' passed: diff =    0.0000000000000000
 ...done.
 ```
 
-Note that the test *should* fail because, as mentioned above, PSyAD does not
-yet actually construct the adjoint of the input kernel.
+Note, you may find that the test fails, but if so the diff should be
+relatively small.
 
 ## Licence
 

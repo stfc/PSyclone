@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,50 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+'''Utilities for the PSyclone Adjoint (PSyAD) functionality.
 
-from psyclone.psyad.adjoint_visitor import AdjointVisitor
-from psyclone.psyad.main import main
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint, \
-    generate_adjoint_test
+'''
+
+from psyclone.psyir.nodes import Reference
+
+
+def node_is_active(node, active_variables):
+    ''' Determines whether this node contains variables that are active.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variables: a list of active variables.
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: True if active and False otherwise.
+    :rtype: bool
+
+    '''
+    for reference in node.walk(Reference):
+        if reference.symbol in active_variables:
+            return True
+    return False
+
+
+def node_is_passive(node, active_variables):
+    '''Determines whether this node contains only variables that are
+    passive.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variables: a list of active variables.
+    :type active_variables: list of \
+        :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: True if passive and False otherwise.
+    :rtype: bool
+
+    '''
+    return not node_is_active(node, active_variables)
+
+
+# =============================================================================
+# Documentation utils: The list of module members that we wish AutoAPI to
+# generate documentation for (see https://psyclone-ref.readthedocs.io).
+__all__ = ["node_is_active", "node_is_passive"]

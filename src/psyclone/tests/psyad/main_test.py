@@ -46,8 +46,8 @@ from psyclone.psyad import main
 
 TEST_PROG = (
     "program test\n"
-    "integer :: a\n"
-    "a = 0\n"
+    "real :: a\n"
+    "a = 0.0\n"
     "end program test\n")
 
 TEST_MOD = (
@@ -237,6 +237,55 @@ def test_main_invalid_filename(capsys, caplog):
     assert "file 'does_not_exist.f90', not found." in caplog.text
 
 
+# Exceptions in adjoint generation (TangentLinearError, TypeError,
+# KeyError)
+
+def test_main_tangentlinearerror(tmpdir, capsys):
+    '''Test that a TangentLinearError exception is picked up when
+    generating an adjoint and appropriate information output to
+    stdout. This can be triggered by providing active variables that
+    mean that the supplied code is not tangent linear. For example,
+    for the assignment `a=b`, if `b` were specified as being active
+    but `a` was not, the code would not be a valid tangent linear
+    code.
+
+    '''
+    test_prog = (
+        "program test\n"
+        "real :: a, b\n"
+        "a = b\n"
+        "end program test\n")
+    filename = six.text_type(tmpdir.join("tl.f90"))
+    with open(filename, "w") as my_file:
+        my_file.write(test_prog)
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "b", "--", filename])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert ("Assignment node 'a = b\n' has the following active variables "
+            "on its RHS '['b']' but its LHS 'a' is not an active variable."
+            in output)
+
+
+def test_main_keyerror(tmpdir, capsys):
+    '''Test that a KeyError exception is picked up when generating an
+    adjoint and appropriate information output to stdout. This can be
+    triggered by providing a variable name that does not exist in the
+    code.
+
+    '''
+    filename = six.text_type(tmpdir.join("tl.f90"))
+    with open(filename, "w") as my_file:
+        my_file.write(TEST_PROG)
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "doesnotexist", "--", filename])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert "Could not find 'doesnotexist' in the Symbol Table." in output
+
+
 # writing to stdout
 def test_main_stdout(tmpdir, capsys):
     '''Test that the the main() function returns its output to stdout by
@@ -245,13 +294,13 @@ def test_main_stdout(tmpdir, capsys):
     '''
     expected = (
         "program test_adj\n"
-        "  integer :: a\n\n"
-        "  a = 0\n\n"
+        "  real :: a\n\n"
+        "  a = 0.0\n\n"
         "end program test_adj\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
-    with open(filename, "a") as my_file:
+    with open(filename, "w") as my_file:
         my_file.write(TEST_PROG)
-    main(["-a", "var", "--", filename])
+    main(["-a", "a", "--", filename])
     output, error = capsys.readouterr()
     assert error == ""
     assert expected in output
@@ -265,14 +314,14 @@ def test_main_fileout(tmpdir, capsys):
     '''
     expected = (
         "program test_adj\n"
-        "  integer :: a\n\n"
-        "  a = 0\n\n"
+        "  real :: a\n\n"
+        "  a = 0.0\n\n"
         "end program test_adj\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
-    with open(filename_in, "a") as my_file:
+    with open(filename_in, "w") as my_file:
         my_file.write(TEST_PROG)
-    main([filename_in, "-oad", filename_out, "-a", "var"])
+    main([filename_in, "-oad", filename_out, "-a", "a"])
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
@@ -285,9 +334,9 @@ def test_main_t_option(tmpdir, capsys):
     ''' Test that the -t option causes the test harness to be generated. '''
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
-    with open(filename_in, "a") as my_file:
+    with open(filename_in, "w") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-oad", filename_out, "-t", "-a", "var"])
+    main([filename_in, "-oad", filename_out, "-t", "-a", "field"])
     output, error = capsys.readouterr()
     assert error == ""
     assert EXPECTED_HARNESS_CODE in output
@@ -301,9 +350,9 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     harness_out = str(tmpdir.join("harness.f90"))
-    with open(filename_in, "a") as my_file:
+    with open(filename_in, "w") as my_file:
         my_file.write(TEST_MOD)
-    main([filename_in, "-a", "var", "-oad", filename_out,
+    main([filename_in, "-a", "field", "-oad", filename_out,
           "-otest", harness_out] + extra_args)
     output, error = capsys.readouterr()
     assert error == ""
@@ -325,25 +374,22 @@ def test_main_verbose(tmpdir, capsys, caplog):
     '''
     tl_code = (
         "program test\n"
-        "integer :: a\n"
+        "real :: a\n"
         "a = 0.0\n"
         "end program test\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
-    with open(filename_in, "a") as my_file:
+    with open(filename_in, "w") as my_file:
         my_file.write(tl_code)
     with caplog.at_level(logging.DEBUG):
-        main([filename_in, "-v", "-oad", filename_out])
+        main([filename_in, "-v", "-a", "a", "-oad", filename_out])
 
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    assert ("INFO     psyclone.psyad.main:main.py:88 Reading kernel file /"
-            in caplog.text)
+    assert "Reading kernel file" in caplog.text
     assert "/tl.f90" in caplog.text
-    assert "/tl.f90" in caplog.text
-    assert ("INFO     psyclone.psyad.main:main.py:99 Writing adjoint of "
-            "kernel to file /" in caplog.text)
+    assert "Writing adjoint of kernel to file /" in caplog.text
     assert "/ad.f90" in caplog.text
 
 
@@ -355,7 +401,7 @@ def test_main_otest_verbose(tmpdir, caplog):
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     harness_out = str(tmpdir.join("harness.f90"))
-    with open(filename_in, "a") as my_file:
+    with open(filename_in, "w") as my_file:
         my_file.write(TEST_MOD)
     with caplog.at_level(logging.DEBUG):
         main([filename_in, "-v", "-oad", filename_out, "-otest", harness_out])

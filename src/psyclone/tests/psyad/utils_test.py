@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,43 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+'''A module to perform pytest tests on the code in the
+utils.py file within the psyad directory.
 
-from psyclone.psyad.adjoint_visitor import AdjointVisitor
-from psyclone.psyad.main import main
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint, \
-    generate_adjoint_test
+'''
+from psyclone.psyad.utils import node_is_active, node_is_passive
+
+
+# node_is_active and node_is_passive functions
+def test_active_passive(fortran_reader):
+    '''Test that the node_is_active function returns True if an active
+    variable exists in the node or its descendants and False if
+    not. Also test that the node_is_passive function returns the
+    opposite results.
+
+    '''
+    code = (
+        "program test\n"
+        "real :: a, b, c\n"
+        "a = b\n"
+        "end program test\n")
+    tl_psyir = fortran_reader.psyir_from_source(code)
+    symbol_table = tl_psyir.children[0].symbol_table
+    symbol_a = symbol_table.lookup("a")
+    symbol_b = symbol_table.lookup("b")
+    symbol_c = symbol_table.lookup("c")
+    assignment = tl_psyir.children[0][0]
+
+    assert node_is_active(assignment, [symbol_a])
+    assert not node_is_passive(assignment, [symbol_a])
+    assert node_is_active(assignment, [symbol_b])
+    assert not node_is_passive(assignment, [symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b, symbol_c])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b, symbol_c])
+
+    assert node_is_passive(assignment, [])
+    assert not node_is_active(assignment, [])
+    assert node_is_passive(assignment, [symbol_c])
+    assert not node_is_active(assignment, [symbol_c])

@@ -31,11 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''PSyAD, the PSyclone adjoint generation module.'''
+'''Module containing tests for the Max2CodeTrans transformation.'''
 
-from psyclone.psyad.adjoint_visitor import AdjointVisitor
-from psyclone.psyad.main import main
-from psyclone.psyad.tl2ad import generate_adjoint_str, generate_adjoint, \
-    generate_adjoint_test
+from __future__ import absolute_import
+
+from psyclone.psyir.nodes import BinaryOperation, NaryOperation
+from psyclone.psyir.transformations import Max2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
+    MinOrMax2CodeTrans
+
+
+def test_initialise():
+    '''Check that the class Max2CodeTrans behaves as expected when an
+    instance of the class is created.
+
+    '''
+    assert issubclass(Max2CodeTrans, MinOrMax2CodeTrans)
+    trans = Max2CodeTrans()
+    assert trans._operator_name == "MAX"
+    assert trans._operators == (BinaryOperation.Operator.MAX,
+                                NaryOperation.Operator.MAX)
+    assert trans._compare_operator == BinaryOperation.Operator.GT

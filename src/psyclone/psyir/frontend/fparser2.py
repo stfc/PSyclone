@@ -198,14 +198,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
                     if not isinstance(sym, expected_type):
                         # The caller specified a sub-class so we need to
                         # specialise the existing symbol.
-                        # TODO Use the API developed in #1113 to specialise
-                        # the symbol.
-                        sym.specialise(expected_type)
-                        # TODO #1113 this is a workaround to ensure that the
-                        # interface is not set back to the default value.
-                        if "interface" not in kargs:
-                            kargs["interface"] = sym.interface
-                        sym.__init__(sym.name, **kargs)
+                        sym.specialise(expected_type, **kargs)
                 return sym
             except KeyError:
                 # The supplied name does not match any Symbols in
@@ -1206,12 +1199,7 @@ class Fparser2Reader(object):
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
-                        # TODO use the API developed in #1113 - currently the
-                        # specialise method does not set any additional
-                        # attributes possessed by the sub-class.
-                        sym.specialise(DataSymbol)
-                        sym.__init__(sym.name, DeferredType(),
-                                     interface=sym.interface)
+                        sym.specialise(DataSymbol, datatype=DeferredType())
                     elif isinstance(sym.datatype, (UnknownType,
                                                    DeferredType)):
                         # Allow symbols of Unknown/DeferredType.
@@ -3630,11 +3618,6 @@ class Fparser2Reader(object):
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
-                # TODO #1113 - the above specialise() call does not yet
-                # support adding properties to the symbol so we have to
-                # manually set the datatype of the RoutineSymbol. As this is
-                # a call, it must be a subroutine which has no associated type.
-                routine_symbol.datatype = NoType()
             elif type(routine_symbol) is RoutineSymbol:
                 # This symbol is already the expected type
                 pass

@@ -206,10 +206,6 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation does not currently check that it is
-             safe to hoist an assignment out of its parent loop, see
-             issue #1387.
-
 ####
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
@@ -230,6 +226,17 @@ can be found in the API-specific sections).
 
 .. note:: This transformation is currently limited to translating the
           matrix vector form of MATMUL to equivalent PSyIR code.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Max2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the MAX Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 ####
 
