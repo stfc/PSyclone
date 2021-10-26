@@ -71,8 +71,8 @@ def trans(psy):
         for child in schedule.children:
             if isinstance(child, Loop):
                 tasklooptrans.apply(child)
-        singletrans.apply(schedule.children)
-        paralleltrans.apply(schedule.children)
-        taskwaittrans.apply(schedule)
+        singletrans.apply(schedule)
+        paralleltrans.apply(schedule)
+        taskwaittrans.apply(schedule[0])
 
     return psy
