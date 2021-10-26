@@ -1,10 +1,10 @@
-# PSyclone GOcean Example 7
+# PSyclone GOcean PSyData NaN-check Example
 
 **Author:** J. Henrichs, Bureau of Meteorology
 
 ## Introduction
 
-This is a simple test that shows how to use the NaN verification
+This is a simple example that shows how to use the NaN verification
 support in PSyclone. It is a stand-alone program that can be compiled
 and run. 
 
@@ -23,7 +23,7 @@ This script uses PSyclone's ``NanTestTrans`` to instrument the two
 invokes in the ``test.x90`` source file.
 
 The source code computes divisions by 0 on the diagonals, resulting in
-a invalid numbers (Infinity).
+invalid numbers (Infinity).
 
 ## Running
 ```
@@ -38,9 +38,9 @@ Allocating C-T field with bounds: (1:   6,1:   6), internal region is (2:   4,2:
  mainupdate
 
 ```
-After calling the kernel ``mainupdate``, five warnings are being printed,
-indicating that the field ``a_fld`` has infinity as value on the diagonals
-(i.e. indices 1 1, ..., 5 5)
+After calling the kernel ``mainupdate``, five warnings are printed,
+indicating that the field ``a_fld`` has a value of infinity on the diagonals
+(i.e. indices 1 1, ..., 5 5).
 
 ## Licence
 

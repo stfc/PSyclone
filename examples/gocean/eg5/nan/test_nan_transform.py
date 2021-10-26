@@ -36,7 +36,7 @@
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel NAN-verification to
 the invokes. This then creates code that, at runtime, verifies that
-all input and output parameters of a kernel are a valid number, i.e.
+all input and output parameters of a region are a valid number, i.e.
 not infinity or NAN.
 '''
 

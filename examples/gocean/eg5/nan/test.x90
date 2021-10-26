@@ -74,9 +74,9 @@ Program test
                  init_field(b_Fld, 2.0)    )
 
 
-    ! Use a kernel to do some simple maths. But this kernel uses
-    ! some very bad coding to overwrite a read-only scalar and
-    ! array value to show how the read-only detection works!
+    ! Use a kernel to do some simple maths. But this kernel
+    ! will execute some division by zero, creating NANs in
+    ! the output field `a_fld`.
     call invoke (update_field(a_fld, b_fld) )
     print *,"a_fld is", a_fld%data
     call nan_test_PSyDataShutdown()

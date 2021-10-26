@@ -35,7 +35,7 @@
 !! creates some NAN values in the output field by
 !! calling some division by 0. If the compiler should
 !! catch floating point exceptions, the code for checking
-!! for NANs will not be executed, 
+!! for NANs will not be executed.
 
 module update_field_mod
   use kind_params_mod
