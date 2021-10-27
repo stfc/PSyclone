@@ -236,8 +236,7 @@ test all input and output parameters of a kernel to make sure they are not
 ``NaN`` or infinite. If they are, an error message like the following
 is printed, but the program is not aborted::
 
-     PSYDATA: Variable perturbation has the invalid value
-                           NaN  at index/indices          351
+     PSyData: Variable a_fld has the invalid value                   Infinity  at index/indices            1           1 in module 'main' region 'update'.
 
 Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
 for this test. Note that only floating point numbers will be tested.

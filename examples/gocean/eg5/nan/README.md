@@ -30,12 +30,8 @@ invalid numbers (Infinity).
 $ ./nan_test
 ...
 Allocating C-T field with bounds: (1:   6,1:   6), internal region is (2:   4,2:   4)
- PSyData: Variable a_fld has the invalid value
-                  Infinity  at index/indices            1           1
- mainupdate
- PSyData: Variable a_fld has the invalid value
-                  Infinity  at index/indices            2           2
- mainupdate
+ PSyData: Variable a_fld has the invalid value                   Infinity  at index/indices            1           1 in module 'main' region 'update'.
+ PSyData: Variable a_fld has the invalid value                   Infinity  at index/indices            2           2 in module 'main' region 'update'.
 
 ```
 After calling the kernel ``mainupdate``, five warnings are printed,
