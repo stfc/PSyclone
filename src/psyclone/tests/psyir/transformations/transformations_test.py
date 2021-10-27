@@ -93,7 +93,7 @@ def test_accenterdata_internalerr(monkeypatch):
     acct = ACCEnterDataTrans()
     monkeypatch.setattr(acct, "validate", lambda sched, options: None)
     with pytest.raises(InternalError) as err:
-        _, _ = acct.apply("Not a schedule")
+        acct.apply("Not a schedule")
     assert ("validate() has not rejected an (unsupported) schedule"
             in str(err.value))
 
@@ -104,7 +104,7 @@ def test_omploop_no_collapse():
     trans = OMPLoopTrans()
     cnode = Node()
     with pytest.raises(NotImplementedError) as err:
-        _ = trans._directive(cnode, collapse=2)
+        trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
 
@@ -389,9 +389,9 @@ def test_profile_trans_name(options):
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     if options:
-        _, _ = profile_trans.apply(schedule.children, options=options)
+        profile_trans.apply(schedule.children, options=options)
     else:
-        _, _ = profile_trans.apply(schedule.children)
+        profile_trans.apply(schedule.children)
     profile_node = schedule[0]
     if options and "region_name" in options:
         assert profile_node._module_name == "mod"
@@ -413,6 +413,6 @@ def test_profile_trans_invalid_name(value):
     node = Statement(parent=sched)
     sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
-        _ = profile_trans.apply(node, options={"region_name": value})
+        profile_trans.apply(node, options={"region_name": value})
     assert ("User-supplied region name must be a tuple containing "
             "two non-empty strings." in str(excinfo.value))

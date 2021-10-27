@@ -3065,15 +3065,7 @@ class Transformation(object):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
-        # pylint: disable=no-self-use
-        schedule = None
-        memento = None
-        return schedule, memento
 
     def validate(self, node, options=None):
         '''Method that validates that the input data is correct.

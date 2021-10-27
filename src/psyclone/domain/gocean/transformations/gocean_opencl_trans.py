@@ -208,9 +208,6 @@ class GOOpenCLTrans(Transformation):
         :param bool options["end_barrier"]: whether or not to add an OpenCL \
                 barrier at the end of the transformed invoke.
 
-        :returns: None, None
-        :rtype: (NoneType, NoneType)
-
         '''
         if not options:
             options = {}
@@ -246,9 +243,6 @@ class GOOpenCLTrans(Transformation):
         node.opencl = True
         if 'end_barrier' in options:
             node._opencl_end_barrier = options['end_barrier']
-
-        # TODO #595: Remove transformation return values
-        return None, None
 
     def _insert_opencl_init_routine(self, node):
         '''
