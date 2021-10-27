@@ -182,7 +182,7 @@ def test_mesh_ncell2d():
 
     '''
     kernel_interface = KernelInterface(None)
-    kernel_interface.mesh_ncell2d()
+    kernel_interface._mesh_ncell2d()
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
@@ -192,7 +192,7 @@ def test_mesh_ncell2d_no_halos():
 
     '''
     kernel_interface = KernelInterface(None)
-    kernel_interface.mesh_ncell2d_no_halos()
+    kernel_interface._mesh_ncell2d_no_halos()
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
