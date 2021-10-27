@@ -189,10 +189,10 @@ class ArgOrdering(object):
         # the 'domain' or has a CMA operator argument. For the former we
         # exclude halo columns.
         if self._kern.iterates_over == "domain":
-            self.mesh_ncell2d_no_halos(var_accesses=var_accesses)
+            self._mesh_ncell2d_no_halos(var_accesses=var_accesses)
 
         if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
-            self.mesh_ncell2d(var_accesses=var_accesses)
+            self._mesh_ncell2d(var_accesses=var_accesses)
 
         if self._kern.is_intergrid:
             # Inter-grid kernels require special arguments
@@ -372,9 +372,21 @@ class ArgOrdering(object):
         '''
 
     @abc.abstractmethod
-    def mesh_ncell2d(self, var_accesses=None):
-        '''Add the number of columns in the mesh to the argument list and if
-        supplied stores this access in var_accesses.
+    def _mesh_ncell2d(self, var_accesses=None):
+        '''Add the number of columns in the mesh (including halos) to the
+        argument list and stores this access in var_accesses (if supplied).
+
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+
+    @abc.abstractmethod
+    def _mesh_ncell2d_no_halos(self, var_accesses=None):
+        '''Add the number of columns in the mesh (excluding halos) to the
+        argument list and stores this access in var_accesses (if supplied).
 
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.

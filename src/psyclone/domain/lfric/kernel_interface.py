@@ -167,7 +167,7 @@ class KernelInterface(ArgOrdering):
             interface=self._read_access)
         self._arglist.append(symbol)
 
-    def mesh_ncell2d(self, var_accesses=None):
+    def _mesh_ncell2d(self, var_accesses=None):
         '''Not implemented.
 
         :param var_accesses: an unused optional argument that stores \
@@ -180,7 +180,7 @@ class KernelInterface(ArgOrdering):
         '''
         raise NotImplementedError("mesh_ncell2d not implemented")
 
-    def mesh_ncell2d_no_halos(self, var_accesses=None):
+    def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Not implemented.
 
         :param var_accesses: an unused optional argument that stores \

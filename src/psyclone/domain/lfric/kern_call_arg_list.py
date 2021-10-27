@@ -140,7 +140,7 @@ class KernCallArgList(ArgOrdering):
     #         root_name="ncell_3d", context="PSyVars", label="ncell3d")
     #     self.append(ncell3d_name)
 
-    def mesh_ncell2d(self, var_accesses=None):
+    def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
 
@@ -153,7 +153,7 @@ class KernCallArgList(ArgOrdering):
         ncell2d_name = self._symtab.symbol_from_tag("ncell_2d").name
         self.append(ncell2d_name, var_accesses)
 
-    def mesh_ncell2d_no_halos(self, var_accesses=None):
+    def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Add the number of columns in the mesh (excluding those in the halo)
         to the argument list and store this access in var_accesses (if
         supplied).
