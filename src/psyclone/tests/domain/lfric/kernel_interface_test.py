@@ -177,7 +177,7 @@ def test_mesh_height():
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_mesh_ncell2d():
-    '''Test that the KernelInterface class mesh_ncell2d method adds the
+    '''Test that the KernelInterface.mesh_ncell2d() method adds the
     expected symbols to the symbol table and the _arglist list.
 
     '''
@@ -187,8 +187,8 @@ def test_mesh_ncell2d():
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_mesh_ncell2d_no_halos():
-    '''Test that the KernelInterface class mesh_ncell2d_no_halos method adds
-    the expected symbols to the symbol table and the _arglist list.
+    '''Test that the KernelInterface.mesh_ncell2d_no_halos() method
+    adds the expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)

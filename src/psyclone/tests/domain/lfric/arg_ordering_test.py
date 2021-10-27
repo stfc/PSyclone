@@ -108,7 +108,7 @@ def test_kernel_stub_invalid_scalar_argument():
 
 def test_arg_ordering_generate_domain_kernel(dist_mem):
     '''
-    Check that ArgOrdering generates the expected arguments
+    Check that the LFRic ArgOrdering class generates the expected arguments
     for a kernel that iterates over the 'domain'.
 
     '''

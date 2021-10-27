@@ -191,7 +191,7 @@ class KernelInterface(ArgOrdering):
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("mesh_ncell2d not implemented")
+        raise NotImplementedError("mesh_ncell2d_no_halos not implemented")
 
     def cell_map(self, var_accesses=None):
         '''Not implemented.

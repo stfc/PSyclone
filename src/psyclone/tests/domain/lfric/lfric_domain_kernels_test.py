@@ -428,6 +428,7 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen).lower()
 
+    assert "type(mesh_type), pointer :: mesh => null()" in gen_code
     assert "integer(kind=i_def) ncell_2d" in gen_code
     assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code

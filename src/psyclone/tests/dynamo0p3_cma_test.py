@@ -853,6 +853,7 @@ def test_cma_asm(tmpdir, dist_mem):
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert "TYPE(mesh_type), pointer :: mesh => null()" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: cbanded_map_adspc1_lma_op1(:,:) "
             "=> null(), cbanded_map_adspc2_lma_op1(:,:) => null()") in code
