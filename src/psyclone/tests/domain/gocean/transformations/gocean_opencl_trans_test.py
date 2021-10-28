@@ -738,7 +738,9 @@ C_NULL_PTR)'''
       ierr = clFinish(cmd_queues(1))
       CALL check_status("Errors during compute_cu_code", ierr)'''
 
+    print(expected)
     assert expected == generated_code
+    #assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 

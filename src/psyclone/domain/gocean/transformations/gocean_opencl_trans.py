@@ -283,6 +283,9 @@ class GOOpenCLTrans(Transformation):
         c_null = DataSymbol(
                 "C_NULL_PTR", datatype=INTEGER_TYPE,
                 interface=ImportInterface(iso_c_binding))
+        iso_c_bindings = ContainerSymbol("iso_c_binding")
+        iso_c_bindings.wildcard_import = True
+        node.symbol_table.add(iso_c_bindings)
 
         # Include the check_status subroutine if we are in debug_mode
         if api_config.debug_mode:
@@ -399,6 +402,124 @@ class GOOpenCLTrans(Transformation):
                             # a iso_c_binding global container.
                             datatype=UnknownFortranType(
                                 "INTEGER(KIND=c_intptr_t) :: " + name))
+
+        for kern in node.coded_kernels():
+            callblock = self._generate_set_args_call(kern, node.scope)
+            for child in callblock.pop_all_children():
+                setup_block.if_body.addchild(child)
+                # Call the set_args again outside the first_time block in case
+                # some value has changed between iterations. This doesn't seem
+                # to have any performance penalty, but some of these could be
+                # removed for nicer code generation.
+                # TODO #1134: Explore removing unnecessary set_args calls.
+                node.children.insert(cursor, child.copy())
+                cursor = cursor + 1
+
+        for field in fields:
+            # Insert call to write_to_device method
+            call = Call.create(
+                RoutineSymbol(field.name+"%write_to_device"), [])
+            setup_block.if_body.addchild(call)
+
+        if there_is_a_grid_buffer:
+            # Insert grid writing call
+            import pdb; pdb.set_trace()
+            fieldarg = node.coded_kernel()[0].arguments.find_grid_access()
+            field = node.symbol_table.lookup(fieldarg.name)
+            call = Call.create(write_grid_buf, [Reference(field)])
+            setup_block.if_body.addchild(call)
+
+        from psyclone.psyir.backend.fortran import FortranWriter
+        fw = FortranWriter()
+        print(fw(node))
+
+
+        return
+
+        # Create array for the global work size argument of the kernel. Use the
+        # InvokeSchedule symbol table to share this symbols for all the kernels
+        # in the Invoke.
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        garg = self._arguments.find_grid_access()
+        glob_size = symtab.new_symbol(
+            "globalsize", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [2])).name
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[glob_size + "(2)"]))
+        num_x = api_config.grid_properties["go_grid_nx"].fortran\
+            .format(garg.name)
+        num_y = api_config.grid_properties["go_grid_ny"].fortran\
+            .format(garg.name)
+        parent.add(AssignGen(parent, lhs=glob_size,
+                             rhs="(/{0}, {1}/)".format(num_x, num_y)))
+
+        # Create array for the local work size argument of the kernel
+        local_size = symtab.new_symbol(
+            "localsize", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [2])).name
+        parent.add(DeclGen(parent, datatype="integer", target=True,
+                           kind="c_size_t", entity_decls=[local_size + "(2)"]))
+
+        local_size_value = self._opencl_options['local_size']
+        parent.add(AssignGen(parent, lhs=local_size,
+                             rhs="(/{0}, 1/)".format(local_size_value)))
+
+        # Check that the global_size is multiple of the local_size
+        if api_config.debug_mode:
+            condition = "mod({0}, {1}) .ne. 0".format(num_x, local_size_value)
+            ifthen = IfThenGen(parent, condition)
+            parent.add(ifthen)
+            message = ('"Global size is not a multiple of local size ('
+                       'mandatory in OpenCL < 2.0)."')
+            # Since there is no print and break functionality in f2pygen, we
+            # use the check_status function here, this could be improved when
+            # translating to PSyIR.
+            ifthen.add(CallGen(ifthen, "check_status", [message, '-1']))
+
+        # Retrieve kernel name
+        kernel = symtab.lookup_with_tag("kernel_" + self.name).name
+
+        # Get the name of the list of command queues (set in
+        # psyGen.InvokeSchedule)
+        qlist = symtab.lookup_with_tag("opencl_cmd_queues").name
+        flag = symtab.lookup_with_tag("opencl_error").name
+
+        # Choose the command queue number to which to dispatch this kernel. We
+        # have do deal with possible dependencies to kernels dispatched in
+        # different command queues as the order of execution is not guaranteed.
+        queue_number = self._opencl_options['queue_number']
+        cmd_queue = qlist + "({0})".format(queue_number)
+        outer_loop = self.parent.parent.parent.parent
+        dependency = outer_loop.backward_dependence()
+
+        # If the dependency is a loop containing a kernel, add a barrier if the
+        # previous kernels were dispatched in a different command queue
+        if dependency and dependency.coded_kernels():
+            for kernel_dep in dependency.coded_kernels():
+                # TODO #1134: The OpenCL options should not leak from the
+                # OpenCL transformation.
+                # pylint: disable=protected-access
+                previous_queue = kernel_dep._opencl_options['queue_number']
+                if previous_queue != queue_number:
+                    # If the backward dependency is being executed in another
+                    # queue we add a barrier to make sure the previous kernel
+                    # has finished before this one starts.
+                    parent.add(AssignGen(
+                        parent,
+                        lhs=flag,
+                        rhs="clFinish({0}({1}))".format(
+                            qlist, str(previous_queue))))
+
+        # If the dependency is something other than a kernel, currently we
+        # dispatch everything else to queue _OCL_MANAGEMENT_QUEUE, so add a
+        # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
+        if dependency and not dependency.coded_kernels() and \
+                queue_number != _OCL_MANAGEMENT_QUEUE:
+            parent.add(AssignGen(
+                parent,
+                lhs=flag,
+                rhs="clFinish({0}({1}))".format(
+                    qlist, str(_OCL_MANAGEMENT_QUEUE))))
 
         for kern in node.coded_kernels():
             callblock = self._generate_set_args_call(kern, node.scope)
