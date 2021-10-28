@@ -52,8 +52,6 @@ from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
 from psyclone.transformations import TransformationError, KernelTrans
 
 
-
-
 class GOOpenCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
@@ -77,7 +75,7 @@ class GOOpenCLTrans(Transformation):
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
 
-    # TODO #1134: This are class attributes because multiple invokes may have
+    # TODO #1134: These are class attributes because multiple invokes may have
     # to generate a single OpenCL environment (e.g. to share the device data
     # pointers) and therefore guarantee the same properties, but this hasn't
     # been tested. PSycloneBench ShallowWater could be an example of this.
@@ -253,7 +251,7 @@ class GOOpenCLTrans(Transformation):
         init_buf = self._insert_ocl_initialise_buffer(node.root)
 
         for kern in node.coded_kernels():
-            self._insert_ocl_arg_setter_routine(kern, node.root)
+            self._insert_ocl_arg_setter_routine(node.root, kern)
 
         # Insert fortcl, clfotran and c_iso_binding import statement
         fortcl = ContainerSymbol("fortcl")
@@ -800,16 +798,30 @@ class GOOpenCLTrans(Transformation):
         return call_block
 
 
-    def _insert_ocl_arg_setter_routine(self, kernel, node):
+    @staticmethod
+    def _insert_ocl_arg_setter_routine(node, kernel):
         '''
-        Creates a Fortran routine to set the arguments of the OpenCL
-        version of this kernel.
+        Returns the symbol of the subroutine that sets the OpenCL kernel
+        arguments for the provided PSy-layer kernel using FortCL. If the
+        subroutine doesn't exist it also generates it.
+
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :param kernel: the kernel call for which to provide the arg_setter \
+                       subroutine.
+        :param type: :py:class:`psyclone.psyGen.CodedKern`
+
+        :returns: the symbol representing the arg_setter subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
         '''
         # Check if the subroutine already exist.
         sub_name = kernel.name + "_set_args"
         try:
             return node.symbol_table.lookup_with_tag(sub_name)
         except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
             pass
 
         # Create the new Routine and RoutineSymbol
@@ -817,21 +829,18 @@ class GOOpenCLTrans(Transformation):
         argsetter = Routine(sub_name)
         arg_list = []
 
-        # Add imported symbols
+        # Add subroutine imported symbols
         clfortran = ContainerSymbol("clfortran")
-        clsetkernelarg = RoutineSymbol(
-                "clSetKernelArg", interface=ImportInterface(clfortran))
+        clsetkernelarg = RoutineSymbol("clSetKernelArg",
+                                       interface=ImportInterface(clfortran))
         iso_c = ContainerSymbol("iso_c_binding")
-        c_sizeof = RoutineSymbol(
-                "C_SIZEOF", interface=ImportInterface(iso_c))
-        c_loc = RoutineSymbol(
-                "C_LOC", interface=ImportInterface(iso_c))
-        c_intptr_t = RoutineSymbol(
-                "c_intptr_t", interface=ImportInterface(iso_c))
+        c_sizeof = RoutineSymbol("C_SIZEOF", interface=ImportInterface(iso_c))
+        c_loc = RoutineSymbol("C_LOC", interface=ImportInterface(iso_c))
+        c_intptr_t = RoutineSymbol("c_intptr_t",
+                                   interface=ImportInterface(iso_c))
         ocl_utils = ContainerSymbol("ocl_utils_mod")
-        check_status = RoutineSymbol(
-                "check_status", interface=ImportInterface(ocl_utils))
-
+        check_status = RoutineSymbol("check_status",
+                                     interface=ImportInterface(ocl_utils))
         argsetter.symbol_table.add(clfortran)
         argsetter.symbol_table.add(clsetkernelarg)
         argsetter.symbol_table.add(iso_c)
@@ -841,14 +850,14 @@ class GOOpenCLTrans(Transformation):
         argsetter.symbol_table.add(ocl_utils)
         argsetter.symbol_table.add(check_status)
 
-        rinterface = ArgumentInterface(ArgumentInterface.Access.READ)
+        # All arguments are read-only, create the interface for later use
 
         # Add an argument symbol for the kernel object
-        kernel_type = UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj")
         kobj = argsetter.symbol_table.new_symbol(
-            "kernel_obj", symbol_type=DataSymbol, datatype=kernel_type,
-            interface=rinterface)
+            "kernel_obj", symbol_type=DataSymbol,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ),
+            datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj"))
         arg_list.append(kobj)
 
         # Include each kernel call argument as an argument of this routine
@@ -857,8 +866,8 @@ class GOOpenCLTrans(Transformation):
             name = argsetter.symbol_table.next_available_name(arg.name)
 
             # This function requires 'TARGET' annotated declarations which are
-            # not supported in the PSyIR, so we build them as UnknownFortraType
-            # for now
+            # not supported in the PSyIR, so we build them as
+            # UnknownFortranType for now.
             if arg.is_scalar and arg.intrinsic_type == "real":
                 pointer_type = UnknownFortranType(
                     "REAL(KIND=go_wp), INTENT(IN), TARGET :: " + name)
@@ -868,11 +877,11 @@ class GOOpenCLTrans(Transformation):
             else:
                 # Everything else is a cl_mem pointer (c_intptr_t)
                 pointer_type = UnknownFortranType(
-                    "INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: " +
-                    arg.name)
+                    "INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: " + name)
 
-            new_arg = DataSymbol(name, datatype=pointer_type,
-                                 interface=rinterface)
+            new_arg = DataSymbol(
+                name, datatype=pointer_type,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
             argsetter.symbol_table.add(new_arg)
             arg_list.append(new_arg)
 
@@ -882,6 +891,8 @@ class GOOpenCLTrans(Transformation):
         ierr = argsetter.symbol_table.new_symbol(
             "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
+        # Call the clSetKernelArg for each argument and a check_status to
+        # see if the OpenCL call has succeeded
         for index, variable in enumerate(arg_list[1:]):
             call = Call.create(clsetkernelarg,
                                [Reference(kobj),
@@ -895,15 +906,11 @@ class GOOpenCLTrans(Transformation):
                                               Reference(ierr)])
             argsetter.addchild(call)
 
-        #argsetter.children[0].preceding_comment = \
-        #    " Set the arguments for the {0} OpenCL Kernel".format(kernel.name)
+        argsetter.children[0].preceding_comment = \
+            "Set the arguments for the {0} OpenCL Kernel".format(kernel.name)
 
-        # Add the routine to the provided node
+        # Add the subroutine as child of the provided node
         node.addchild(argsetter)
-
-        #from psyclone.psyir.backend.fortran import FortranWriter
-        #fortran_writer = FortranWriter()
-        #print(fortran_writer(node))
 
         return node.symbol_table.lookup_with_tag(sub_name)
 
@@ -999,7 +1006,6 @@ class GOOpenCLTrans(Transformation):
         node.addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("ocl_init_routine")
-
 
     @staticmethod
     def _insert_initialise_grid_buffers(node):

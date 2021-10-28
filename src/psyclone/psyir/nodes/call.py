@@ -44,7 +44,11 @@ from psyclone.errors import GenerationError
 
 
 class Call(Statement, DataNode):
-    '''Node representing a Call.
+    ''' Node representing a Call. This can be found as a standalone statement
+    or an expression.
+
+    TODO #1437: The combined Statement and Expression implementation is simple
+    but it has some shortcoming that may need to be addressed.
 
     :param routine: the routine that this call calls.
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`

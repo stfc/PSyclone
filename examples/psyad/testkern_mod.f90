@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! ------------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Laboratory
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified by: R. W. Ford, STFC Daresbury Lab
 
 ! Example module containing a very simple, one-line kernel subroutine.
 
@@ -43,11 +44,20 @@ contains
   subroutine testkern_code(ascalar, field1, field2, npts)
     real, intent(in) :: ascalar
     integer, intent(in) :: npts
-    real, intent(in), dimension(npts) :: field2
+    ! issue #1429. Active variables need to be declared as inout as
+    ! the intents can change in the adjoint version and PSyclone does
+    ! not currently deal with this.
+    real, intent(inout), dimension(npts) :: field2
     real, intent(inout), dimension(npts) :: field1
+    real :: tmp, tmp2
 
-    field1(:) = field1(:) + ascalar*field2(:)
-
+    ! issue #1430. Array notation does not work with the assignment
+    ! transformation so temporarily change the assignment to a single
+    ! index, e.g. previously field1(:) = ascalar*field1(:) + field2(:)
+    tmp = ascalar*ascalar
+    field1(1) = tmp*field1(1) + field2(1)
+    tmp2 = tmp*3.0
+    field2(1) = field2(1) + field1(1)/tmp2
   end subroutine testkern_code
   
 end module testkern_mod

@@ -31,29 +31,49 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+
+''' Module implementing a `trans` method for use as a PSyclone transformation
+    script. This example performs loop fusion.
+'''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
-api = "dynamo0.1"
-ast, invokeInfo = parse("dynamo_algorithm_mod.F90", api=api)
-psy = PSyFactory(api).create(invokeInfo)
-print(psy.gen)
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
-print(psy.invokes.names)
 
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which performs loop
+    fusion for the Built-in 'setval_c' kernels in the first 'invoke'. For the
+    sake of this example we use the 'same_space' option to tell the
+    transformation that this is safe to do.
 
-t = TransInfo()
-print(t.list)
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-lf = t.get_trans_name('LoopFuseTrans')
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-schedule.view()
-lf.apply(schedule.children[0], schedule.children[1])
-schedule.view()
+    '''
+    print(psy.gen)
 
-print(psy.gen)
+    print(psy.invokes.names)
+
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
+
+    lftrans = LFRicLoopFuseTrans()
+
+    # Since the arguments to the 'setval_c' built-in are on 'ANY_SPACE', we
+    # assert that the various loops over degrees of freedom are of
+    # the same extent and may safely be fused. (This is not actually true
+    # for this particular example but we do this for the purposes of
+    # illustration.)
+    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+
+    schedule.view()
+
+    return psy
