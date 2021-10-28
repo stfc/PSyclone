@@ -280,6 +280,65 @@ class GOInvoke(Invoke):
                     result.append(arg.name)
         return result
 
+    def gen_code(self, parent):
+        # pylint: disable=too-many-locals
+        '''
+        Generates GOcean specific invocation code (the subroutine called
+        by the associated invoke call in the algorithm layer). This
+        consists of the PSy invocation subroutine and the declaration of
+        its arguments.
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
+        # Create the subroutine
+        invoke_sub = SubroutineGen(parent, name=self.name,
+                                   args=self.psy_unique_var_names)
+        parent.add(invoke_sub)
+
+        # Generate the code body of this subroutine
+        self.schedule.gen_code(invoke_sub)
+
+        # If we're generating an OpenCL routine then the arguments must
+        # have the target attribute as we pass pointers to them in to
+        # the OpenCL run-time.
+        target = bool(self.schedule.opencl)
+
+        # Add the subroutine argument declarations for fields
+        if self.unique_args_arrays:
+            my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
+                                         intent="inout", target=target,
+                                         entity_decls=self.unique_args_arrays)
+            invoke_sub.add(my_decl_arrays)
+
+        # Add the subroutine argument declarations for integer and real scalars
+        r_args = []
+        i_args = []
+        for argument in self.schedule.symbol_table.argument_datasymbols:
+            if argument.name in self.unique_args_rscalars:
+                r_args.append(argument.name)
+            if argument.name in self.unique_args_iscalars:
+                i_args.append(argument.name)
+
+        if r_args:
+            my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
+                                       intent="inout", kind="go_wp",
+                                       entity_decls=r_args)
+            invoke_sub.add(my_decl_rscalars)
+
+        if i_args:
+            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
+                                       intent="inout",
+                                       entity_decls=i_args)
+            invoke_sub.add(my_decl_iscalars)
+
+        # Add remaining local scalar symbols using the symbol table
+        for symbol in self.schedule.symbol_table.local_datasymbols:
+            if isinstance(symbol.datatype, ScalarType):
+                invoke_sub.add(DeclGen(
+                    invoke_sub,
+                    datatype=symbol.datatype.intrinsic.name,
+                    entity_decls=[symbol.name]))
+
 
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
