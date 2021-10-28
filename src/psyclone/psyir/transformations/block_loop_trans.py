@@ -34,12 +34,12 @@
 # Authors A. B. G. Chalk STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 '''This module provides the BlockLoopTrans, which transforms a Loop into a
-BlockedLoop'''
+blocked Loop'''
 
 from psyclone.core import VariablesAccessInfo, Signature, AccessType
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
-        BlockedLoop, Literal
+        Literal, Loop, Schedule
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -51,7 +51,6 @@ class BlockLoopTrans(LoopTrans):
     Apply a blocking transformationt to a loop (in order to permit a
     chunked parallelisation). For example:
 
-    TODO
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
@@ -87,8 +86,8 @@ class BlockLoopTrans(LoopTrans):
                 which is not a constant value.
         :raises TransformationError: if the supplied Loop has a step size \
                 larger than the chosen block size.
-        :raises TransformationError: if the supplied Loop has an ancestor \
-                blocked loop.
+        :raises TransformationError: if the supplied Loop has is a blocked
+                loop.
         :raises TransformationError: if the supplied Loop has a step size \
                 of 0.
         :raises TransformationError: if the supplied Loop writes to Loop \
@@ -106,9 +105,9 @@ class BlockLoopTrans(LoopTrans):
             raise TransformationError("Cannot apply a BlockLoopTrans to "
                                       "a loop with larger step size than the "
                                       "chosen block size")
-        if node.ancestor(BlockedLoop) is not None:
+        if 'blocked' in node.annotations:
             raise TransformationError("Cannot apply a BlockLoopTrans to "
-                                      "a loop with a parent BlockedLoop node")
+                                      "an already blocked loop.")
 
         if int(node.children[2].value) == 0:
             raise TransformationError("Cannot apply a BlockLoopTrans to "
@@ -174,10 +173,12 @@ class BlockLoopTrans(LoopTrans):
         # Create (or find) the symbols we need for the blocking transformation
         routine = node.ancestor(nodes.Routine)
         end_inner_loop = routine.symbol_table.symbol_from_tag(
-                "el_inner", symbol_type=DataSymbol,
+                "{0}_el_inner".format(node.variable.name),
+                symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
         outer_loop_variable = routine.symbol_table.symbol_from_tag(
-                "out_var", symbol_type=DataSymbol,
+                "{0}_out_var".format(node.variable.name),
+                symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
         # We currently don't allow BlockedLoops to be ancestors of BlockedLoop
         # so our ancestors cannot use these variables.
@@ -215,11 +216,19 @@ class BlockLoopTrans(LoopTrans):
         child0.replace_with(Reference(outer_loop_variable))
         child1.replace_with(Reference(end_inner_loop))
 
-        # Create the outerloop
-        outerloop = BlockedLoop.create(outer_loop_variable, child0, child1,
-                                       Literal("{0}".format(block_size),
-                                               outer_loop_variable.datatype),
-                                       [inner_loop_end])
+        # Create the outerloop of the same type and loop_type
+        outerloop = Loop(variable=outer_loop_variable,
+                         valid_loop_types=node.valid_loop_types)
+        outerloop.children = [child0, child1,
+                              Literal("{0}".format(block_size),
+                                      outer_loop_variable.datatype),
+                              Schedule(parent=outerloop,
+                                       children=[inner_loop_end])]
+        if node.loop_type is not None:
+            outerloop.loop_type = node.loop_type
+        # Add the blocked annotation
+        outerloop.annotations.append('blocked')
+        node.annotations.append('blocked')
         # Replace this loop with the outerloop
         node.replace_with(outerloop)
         # Add the loop to the innerloop's schedule

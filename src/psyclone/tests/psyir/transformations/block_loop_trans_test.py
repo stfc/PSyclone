@@ -103,7 +103,7 @@ def test_blockloop_trans_validate():
             in str(excinfo.value))
 
     # Construct a Loop and apply a BlockLoopTrans to it, then revalidate the
-    # child loop
+    # parent loop (can't apply a block loop trans to a block loop trans
     symbol_table = SymbolTable()
     parent = Loop()
     parent.addchild(Literal("1", INTEGER_TYPE))
@@ -118,9 +118,13 @@ def test_blockloop_trans_validate():
     parent._variable = lvar
     blocktrans.apply(parent)
     with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent.ancestor(Loop))
+    assert "Cannot apply a BlockLoopTrans to an already blocked loop." \
+           in str(excinfo.value)
+    with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent)
-    assert ("Cannot apply a BlockLoopTrans to a loop with a parent "
-            "BlockedLoop node") in str(excinfo.value)
+    assert "Cannot apply a BlockLoopTrans to an already blocked loop." \
+           in str(excinfo.value)
 
     # Construct a Loop that writes to the Loop variable inside its body
     symbol_table = SymbolTable()
@@ -236,9 +240,11 @@ def test_blockloop_trans_apply_pos():
     blocktrans = BlockLoopTrans()
     blocktrans.apply(schedule.children[0])
     code = str(psy.gen)
-    correct = '''DO out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-        el_inner = MIN(out_var + 32, cu_fld%internal%ystop)
-        DO j = out_var, el_inner, 1
+    print(code)
+    correct = \
+        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+        j_el_inner = MIN(j_out_var + 32, cu_fld%internal%ystop)
+        DO j = j_out_var, j_el_inner, 1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -260,9 +266,9 @@ def test_blockloop_trans_apply_neg():
     blocktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
-        '''DO out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-        el_inner = MAX(out_var - 32, cu_fld%internal%ystop)
-        DO j = out_var, el_inner, -1
+        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
+        j_el_inner = MAX(j_out_var - 32, cu_fld%internal%ystop)
+        DO j = j_out_var, j_el_inner, -1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code

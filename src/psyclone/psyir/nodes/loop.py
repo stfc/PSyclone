@@ -78,7 +78,7 @@ class Loop(Statement):
                            without the 'was_where' annotation.
 
     '''
-    valid_annotations = ('was_where', 'was_single_stmt')
+    valid_annotations = ('was_where', 'was_single_stmt', 'blocked')
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"
@@ -307,6 +307,14 @@ class Loop(Statement):
         else:
             name = "loop_" + str(position)
         return name
+
+    @property
+    def valid_loop_types(self):
+        '''
+        :returns: the (domain-specific) loop types allowed by this instance.
+        :rtype: List of str
+        '''
+        return self._valid_loop_types
 
     @property
     def loop_type(self):
