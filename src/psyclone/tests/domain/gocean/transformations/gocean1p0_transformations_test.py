@@ -1802,66 +1802,6 @@ def test_acc_enter_directive_infrastructure_setup_error():
             in str(err.value))
 
 
-def test_acc_enter_directive_infrastructure_setup_gen_code():
-    ''' Test that the GOcean-specific OpenACC EnterData directive also sets
-    up the necessary GOcean infrastructure to keep track and update the
-    data allocated on the device.
-
-    TODO #1010: This is the same as the previous test but forcing the f2pygen
-    code generation path. This test can be removed when GOcean PSy-layer will
-    exclusively use the PSyIR backend to generate code.
-
-    '''
-
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-
-    acclpt = ACCLoopTrans()
-    accpara = ACCParallelTrans()
-    accdata = ACCEnterDataTrans()
-    etrans = GOceanExtractTrans()
-
-    # Apply ACCLoopTrans to just the second loop
-    acclpt.apply(schedule[1])
-    # Add an enclosing parallel region
-    accpara.apply(schedule[1])
-    # Add a data region. This directive will set-up the necessary GOcean
-    # infrastructure device pointers
-    accdata.apply(schedule)
-
-    # Apply Extract Transformation to force f2pygen code generation path
-    etrans.apply(schedule)
-
-    # Generate the code
-    gen = str(psy.gen)
-
-    # Check that the read_from_device routine has been generated
-    expected = """\
-    SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
-      USE iso_c_binding, ONLY: c_ptr
-      USE kind_params_mod, ONLY: go_wp
-      TYPE(c_ptr), intent(in) :: from
-      REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
-      INTEGER, intent(in) :: startx
-      INTEGER, intent(in) :: starty
-      INTEGER, intent(in) :: nx
-      INTEGER, intent(in) :: ny
-      LOGICAL, intent(in) :: blocking
-
-      !$acc update host(to)
-
-    END SUBROUTINE read_from_device"""
-    assert expected in gen
-
-    # Check that each field data_on_device and read_from_device_f have been
-    # initialised
-    for field in ["cv_fld", "p_fld", "v_fld"]:
-        assert "{0}%data_on_device = .true.\n".format(field) in gen
-        assert ("{0}%read_from_device_f => read_from_device\n".format(field)
-                in gen)
-
-
 def test_acc_loop_before_enter_data():
     ''' Test that we refuse to generate code if the enter data directive
     comes after the OpenACC region. '''
