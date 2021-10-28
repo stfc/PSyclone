@@ -38,6 +38,8 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Reference, Schedule, \
     Routine, BinaryOperation, Assignment
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
@@ -57,8 +59,9 @@ def test_blockloop_trans():
     assert str(trans) == "Split a loop into a blocked loop pair"
 
 
-def test_blockloop_trans_validate():
-    '''Test the validate function of BlockLoopTrans'''
+def test_blockloop_trans_validate1():
+    '''Test the validate function of BlockLoopTrans for non constant
+    increment'''
     blocktrans = BlockLoopTrans()
     # Construct a Loop with a non-constant increment
     routine = Routine("test_routine")
@@ -80,6 +83,10 @@ def test_blockloop_trans_validate():
     assert ("Cannot apply a BlockLoopTrans to a loop with a non-constant step"
             " size") in str(excinfo.value)
 
+
+def test_blockloop_trans_validate2():
+    '''Test the validate function of BlockLoopTrans for bad step sizes'''
+    blocktrans = BlockLoopTrans()
     # Construct a Loop with too large a step-size
     parent = Loop()
     parent.addchild(Literal("1", INTEGER_TYPE))
@@ -102,6 +109,11 @@ def test_blockloop_trans_validate():
     assert ("Cannot apply a BlockLoopTrans to a loop with a step size of 0"
             in str(excinfo.value))
 
+
+def test_blockloop_trans_validate3():
+    '''Test the validate function of BlockLoopTrans fails when applying it
+    to a loop which has already been blocked'''
+    blocktrans = BlockLoopTrans()
     # Construct a Loop and apply a BlockLoopTrans to it, then revalidate the
     # parent loop (can't apply a block loop trans to a block loop trans
     symbol_table = SymbolTable()
@@ -126,6 +138,11 @@ def test_blockloop_trans_validate():
     assert "Cannot apply a BlockLoopTrans to an already blocked loop." \
            in str(excinfo.value)
 
+
+def test_blockloop_trans_validate4():
+    '''Test the validate function of BlockLoopTrans fails when applying it
+    to a loop that writes to the loop variables'''
+    blocktrans = BlockLoopTrans()
     # Construct a Loop that writes to the Loop variable inside its body
     symbol_table = SymbolTable()
     parent = Loop()
@@ -205,6 +222,11 @@ def test_blockloop_trans_validate():
     assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
            " written to inside the loop body.") in str(excinfo.value)
 
+
+def test_blockloop_trans_validate5():
+    '''Test the validate function of BlockLoopTrans passes when applying it
+    to a loop that reads from the loop variable'''
+    blocktrans = BlockLoopTrans()
     # Construct a loop that reads from the loop variable (this is allowed)
     symbol_table = SymbolTable()
     parent = Loop()
@@ -276,3 +298,63 @@ def test_blockloop_trans_apply_neg():
         END DO
       END DO'''
     assert correct in code
+
+
+def test_blockloop_trans_apply_double_block():
+    '''Test the apply function of BlockLoopTrans for multiple
+    blocks of 2 nested loops'''
+    code = \
+        '''Program test
+    integer :: i, j, end
+    integer, dimension(1:end, 1:end) :: ai, aj
+    do i=1, end
+        do j=1, end
+            ai(i, j) = 1
+        end do
+    end do
+
+    do i=1, end, 2
+      do j = 1, end, 2
+        aj(i, j) = 1
+      end do
+    end do
+    End Program test'''
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    blocktrans = BlockLoopTrans()
+    loops = psyir.walk(Loop)
+    for loop in loops:
+        blocktrans.apply(loop)
+    writer = FortranWriter()
+    result = writer(psyir)
+    correct_vars = \
+        '''integer :: i_el_inner
+  integer :: i_out_var
+  integer :: j_el_inner
+  integer :: j_out_var'''
+    assert correct_vars in result
+
+    correct = \
+        '''do i_out_var = 1, end, 32
+    i_el_inner = MIN(i_out_var + 32, end)
+    do i = i_out_var, i_el_inner, 1
+      do j_out_var = 1, end, 32
+        j_el_inner = MIN(j_out_var + 32, end)
+        do j = j_out_var, j_el_inner, 1
+          ai(i,j) = 1
+        enddo
+      enddo
+    enddo
+  enddo
+  do i_out_var = 1, end, 32
+    i_el_inner = MIN(i_out_var + 32, end)
+    do i = i_out_var, i_el_inner, 2
+      do j_out_var = 1, end, 32
+        j_el_inner = MIN(j_out_var + 32, end)
+        do j = j_out_var, j_el_inner, 2
+          aj(i,j) = 1
+        enddo
+      enddo
+    enddo
+  enddo'''
+    assert correct in result
