@@ -39,7 +39,6 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -51,8 +50,6 @@ class DataSymbol(TypedSymbol):
 
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
-    :param visibility: the visibility of this symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Visibility`
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
     :param constant_value: sets a fixed known expression as a permanent \
         value for this DataSymbol. If the value is None then this \
@@ -61,20 +58,52 @@ class DataSymbol(TypedSymbol):
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
-    :param interface: object describing the interface to this symbol (i.e. \
-        whether it is passed as a routine argument or accessed in some other \
-        way).
-    :type interface: \
-        :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
-                 constant_value=None, interface=None):
-        super(DataSymbol, self).__init__(name, datatype, visibility, interface)
-
-        # The following attribute has a setter method (with error checking)
+    def __init__(self, name, datatype, constant_value=None, **kwargs):
+        super(DataSymbol, self).__init__(name, datatype)
         self._constant_value = None
-        self.constant_value = constant_value
+        self._process_arguments(constant_value=constant_value,
+                                **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the constant_value argument.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param constant_value: sets a fixed known expression as a \
+                permanent value for this DataSymbol. If the value is None \
+                then this symbol does not have a fixed constant. Otherwise \
+                it can receive PSyIR expressions or Python intrinsic types \
+                available in the TYPE_MAP_TO_PYTHON map. By default it is \
+                set to None. \n
+            :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+                :py:class:`psyclone.psyir.nodes.Node`\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
+        :type kwargs: unwrapped dict.
+
+        '''
+        new_constant_value = None
+        if "constant_value" in kwargs:
+            new_constant_value = kwargs.pop("constant_value")
+        elif not hasattr(self, '_constant_value'):
+            # At least initialise it if we reach this point and it doesn't
+            # exist
+            self._constant_value = None
+
+        # We need to consume the 'constant_value' before calling the super
+        # because otherwise there will be an unknown argument in kwargs but
+        # we need to call the 'constant_value' setter after this because it
+        # uses the self.datatype which is in turn set in the super.
+        super(DataSymbol, self)._process_arguments(**kwargs)
+
+        # Now that we have a datatype we can use the constant_value setter
+        # with proper error checking
+        if new_constant_value:
+            self.constant_value = new_constant_value
 
     @property
     def is_constant(self):

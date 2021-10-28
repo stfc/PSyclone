@@ -222,6 +222,32 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_X_minus_Y_code
   end type inc_X_minus_Y
 
+  !> field2 = scalar - field1
+  type, public, extends(kernel_type) :: a_minus_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: a_minus_X_code
+  end type a_minus_X
+
+  !> field = scalar - field
+  type, public, extends(kernel_type) :: inc_a_minus_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_a_minus_X_code
+  end type inc_a_minus_X
+
+
   !> field3 = scalar*field1 - field2
   type, public, extends(kernel_type) :: aX_minus_Y
      private
@@ -628,6 +654,31 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_inc_X_minus_Y_code
   end type int_inc_X_minus_Y
 
+  !> ifield2 = iscalar - ifield1
+  type, public, extends(kernel_type) :: int_a_minus_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_a_minus_X_code
+  end type int_a_minus_X
+
+  !> ifield = iscalar - ifield
+  type, public, extends(kernel_type) :: int_inc_a_minus_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ                  ), &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_a_minus_X_code
+  end type int_inc_a_minus_X
+
 ! ------------------------------------------------------------------- !
 ! ============== Multiplying integer fields ========================= !
 ! ------------------------------------------------------------------- !
@@ -788,6 +839,12 @@ contains
   subroutine inc_X_minus_Y_code()
   end subroutine inc_X_minus_Y_code
 
+  subroutine a_minus_X_code()
+  end subroutine a_minus_X_code
+
+  subroutine inc_a_minus_X_code()
+  end subroutine inc_a_minus_X_code
+
   subroutine aX_minus_Y_code()
   end subroutine aX_minus_Y_code
 
@@ -887,6 +944,12 @@ contains
 
   subroutine int_inc_X_minus_Y_code()
   end subroutine int_inc_X_minus_Y_code
+
+  subroutine int_a_minus_X_code()
+  end subroutine int_a_minus_X_code
+
+  subroutine int_inc_a_minus_X_code()
+  end subroutine int_inc_a_minus_X_code
 
   ! Multiplying integer fields
   subroutine int_X_times_Y_code()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,45 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' example showing the use of the module-inline transformation '''
-from __future__ import print_function
-import os
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.transformations import KernelModuleInlineTrans
+'''A module to perform pytest tests on the code in the
+utils.py file within the psyad directory.
+
+'''
+from psyclone.psyad.utils import node_is_active, node_is_passive
 
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].loop_body[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    trans.apply(kern, {"inline": False})
-    schedule.view()
-    # setting module inline via a transformation
-    trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
+# node_is_active and node_is_passive functions
+def test_active_passive(fortran_reader):
+    '''Test that the node_is_active function returns True if an active
+    variable exists in the node or its descendants and False if
+    not. Also test that the node_is_passive function returns the
+    opposite results.
 
+    '''
+    code = (
+        "program test\n"
+        "real :: a, b, c\n"
+        "a = b\n"
+        "end program test\n")
+    tl_psyir = fortran_reader.psyir_from_source(code)
+    symbol_table = tl_psyir.children[0].symbol_table
+    symbol_a = symbol_table.lookup("a")
+    symbol_b = symbol_table.lookup("b")
+    symbol_c = symbol_table.lookup("c")
+    assignment = tl_psyir.children[0][0]
 
-if __name__ == "__main__":
-    inline()
+    assert node_is_active(assignment, [symbol_a])
+    assert not node_is_passive(assignment, [symbol_a])
+    assert node_is_active(assignment, [symbol_b])
+    assert not node_is_passive(assignment, [symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b])
+    assert node_is_active(assignment, [symbol_a, symbol_b, symbol_c])
+    assert not node_is_passive(assignment, [symbol_a, symbol_b, symbol_c])
+
+    assert node_is_passive(assignment, [])
+    assert not node_is_active(assignment, [])
+    assert node_is_passive(assignment, [symbol_c])
+    assert not node_is_active(assignment, [symbol_c])

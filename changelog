@@ -211,6 +211,46 @@
 	72) PR #1147 for #430, #435 and #616. The NEMO API now uses the PSyIR
 	backend to generate output code.
 
+	73) PR #1395 for #1100. Replaces the first two LFRic examples with new
+	ones that use the 'dynamo0.3'/'lfric' domain instead of 'dynamo0.1'.
+	This is a step towards removing the 'dynamo0.1' domain.
+
+	74) PR #1397 for #1390. Add support for unary minus in SIR backend.
+
+	75) PR #1413 towards #1134. Moves the generation of some OpenCL
+	support routines from the generation stage to the transformation
+	stage.
+
+	76) PR #1420 for #1113. Completes the symbol-specialisation
+	functionality by adding support for attributes.
+
+	77) PR #1435 for #1425. Adds LFRic BuiltIns for subtraction of
+	field elements from a scalar.
+
+	78) PR #1412 for #1411. Adds visitor to PSyAD script and have it
+	call assignment transformation.
+
+	79) PR #1433 for #1378. Adds dependence checks to the hoist
+	transformation.
+
+	80) PR #1450 for #1291. Adds new dependence-analysis chapter to UG to
+	bring together documentation on 'old' and 'new' way of doing things.
+
+	81) PR #1436 for #1434. Adds new Max2Code transformation.
+
+	82) PR #1427 for #1405. Adds new PSyIR nodes for OMPTarget and
+	OMPLoop directives.
+
+	83) PR #1466 for #1465. Update SIR backend so that generated code
+	specifies cartesian grid (to match latest Dawn API).
+
+	84) PR #1469 for #1468. Update deprecated 'operatorPrecedence' to
+	'infixNotation' in 'src/psyclone/expression.py' for compatibility
+	with the pyparsing 3.01 update in GitHub.
+
+	85) PR #1455 for #1441. Extends PSyAD to cope with kernels
+	containing multiple assignment statements.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
@@ -1392,7 +1432,7 @@ release 1.7.0 20th December 2018
 
 release 1.6.1 6th December 2018
 
-  	1) #250. Change setup.py (used for pip installation) to only use
+	1) #250. Change setup.py (used for pip installation) to only use
 	version 0.0.7 of fparser.
 
 release 1.6.0 18th May 2018

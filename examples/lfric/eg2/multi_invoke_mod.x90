@@ -31,22 +31,30 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: I. Kavcic, Met Office
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+! Modified I. Kavcic, Met Office
 
-program single_invoke
+program multi_invoke
 
-  ! Description: single point-wise operation (Y = a + X, DoF-wise addition
-  ! of a real scalar value) specified in an invoke call.
+  ! A very simple example of the LFRic domain with two separate 'invoke()'
+  ! calls. This is to illustrate the use of PSyclone - it is not actually a
+  ! valid program (the field objects etc. are not initialised).
   use constants_mod, only: r_def
   use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
 
   implicit none
 
-  type(field_type) :: f1, f2
+  type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
 
-  a = 0.5
+  call invoke( setval_c(f1, 0.0_r_def), &
+               setval_c(f2, 0.0_r_def), &
+               setval_c(m1, 0.0_r_def), &
+               setval_c(m2, 0.0_r_def) )
+  ! This example artificially has two separate 'invoke()' calls. In practice
+  ! these would be merged into a single call.
+  call invoke( testkern_type(a, f1, f2, m1, m2), &
+               testkern_type(a, f1, f2, m1, m2) )
 
-  call invoke( a_plus_X(f2, a, f1) )
-
-end program single_invoke
+end program multi_invoke
