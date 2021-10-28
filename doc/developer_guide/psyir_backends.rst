@@ -403,11 +403,5 @@ of Nodes that have a direct translation into target language concepts.
 .. image:: 2level_psyir.png
 
 .. note::
- Using the language backends to generate the PSy-layer code is still under
- development and not used by PSyclone by default.
- However, it is triggered manually by some PSyclone examples to inform
- its development, these are:
-
- - gocean/eg8
- - lfric/eg4 (backends target)
-
+ Using the language backends to generate the PSy-layer code is supported by
+ the Nemo and GOcean APIs. LFric support is still under development. See #1010.
