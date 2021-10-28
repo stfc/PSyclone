@@ -50,7 +50,6 @@ from psyclone.psyir.transformations.transformation_error import \
 
 
 class OMPTaskwaitTrans(Transformation):
-
     '''
     Adds zero or more OpenMP Taskwait directives to an OMP parallel region.
     This transformation will add directives to satisfy dependencies between

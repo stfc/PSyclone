@@ -277,7 +277,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTaskwaitTrans
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
     :members: apply
     :noindex:
 
@@ -711,7 +711,7 @@ transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
 operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
 dependencies. An example of using OpenMP tasking is available in 
-`PSyclone/examples/nemo/eg1/runme_openmp_taskloop`.
+`PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
 
 OpenCL
 ------
