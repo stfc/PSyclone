@@ -67,18 +67,6 @@ def setup():
 # Class ACCEnterDataDirective start
 
 
-# (1/1) Method __init__
-def test_acc_datadevice_virtual():
-    ''' Check that we can't instantiate an instance of
-    ACCEnterDataDirective. '''
-    # pylint:disable=abstract-class-instantiated
-    with pytest.raises(TypeError) as err:
-        ACCEnterDataDirective()
-    # pylint:enable=abstract-class-instantiated
-    assert ("instantiate abstract class ACCEnterDataDirective with abstract "
-            "methods data_on_device" in str(err.value))
-
-
 # (1/4) Method gen_code
 def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule

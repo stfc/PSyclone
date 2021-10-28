@@ -101,12 +101,12 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    node = invoke.schedule[0].profile_body[0].loop_body[0]
+    node = invoke.schedule[0].psy_data_body[0].loop_body[0]
     prt.apply(node)
 
-    assert isinstance(invoke.schedule[0].profile_body[0].loop_body[0],
+    assert isinstance(invoke.schedule[0].psy_data_body[0].loop_body[0],
                       ProfileNode)
-    assert invoke.schedule[0].profile_body[0].loop_body[0].children[0].\
+    assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
         children[0] is node
 
     Profiler.set_options(None)
@@ -460,20 +460,20 @@ def test_transform():
     assert schedule[0].children[0][0] is previous_first_node
 
     # Now only wrap a single node - the middle loop:
-    previous_first_node = schedule[0].profile_body[1]
-    prt.apply(schedule[0].profile_body[1])
+    previous_first_node = schedule[0].psy_data_body[1]
+    prt.apply(schedule[0].psy_data_body[1])
 
-    assert isinstance(schedule[0].profile_body[1], ProfileNode)
-    assert isinstance(schedule[0].profile_body[1].children[0], Schedule)
-    assert schedule[0].profile_body[1].children[0][0] is previous_first_node
+    assert isinstance(schedule[0].psy_data_body[1], ProfileNode)
+    assert isinstance(schedule[0].psy_data_body[1].children[0], Schedule)
+    assert schedule[0].psy_data_body[1].children[0][0] is previous_first_node
 
     # Check that a sublist created from individual elements
     # can be wrapped
     sched = invoke.schedule
-    prt.apply([sched[0].profile_body[0], sched[0].profile_body[1]])
+    prt.apply([sched[0].psy_data_body[0], sched[0].psy_data_body[1]])
 
-    assert isinstance(schedule[0].profile_body[0], ProfileNode)
-    content = schedule[0].profile_body[0].children[0].children
+    assert isinstance(schedule[0].psy_data_body[0], ProfileNode)
+    content = schedule[0].psy_data_body[0].children[0].children
     assert len(content) == 2
     assert isinstance(content[0], Loop)
     assert isinstance(content[1], ProfileNode)
@@ -558,7 +558,7 @@ def test_region():
     assert ("CALL profile_psy_data_1%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)" in result)
     # Make nested profiles.
-    prt.apply(schedule[1].profile_body[1])
+    prt.apply(schedule[1].psy_data_body[1])
     prt.apply(schedule)
     result = str(invoke.gen())
     assert ("CALL profile_psy_data_3%PreStart(\"multi_functions_multi_"
@@ -649,7 +649,7 @@ def test_omp_transform():
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
-    prt.apply(schedule[0].profile_body[0].dir_body[0])
+    prt.apply(schedule[0].psy_data_body[0].dir_body[0])
 
     code = str(invoke.gen())
 
