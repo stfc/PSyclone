@@ -342,7 +342,7 @@ linkcheck_anchors = True
 # puma is using an old https server and that causes errors in linkcheck.
 # Despite its name 'collab.metoffice.../twiki' requires authenticated access.
 linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
-                    r'http://collab.metoffice.gov.uk/twiki/*']
+                    r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf']
 
 
 # Configuration for intersphinx: refer to the Python standard library and
