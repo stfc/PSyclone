@@ -149,6 +149,24 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
 
+    def lower_to_language_level(self):
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+        '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
+        dep = DependencyTools()
+        input_list, output_list = dep.get_in_out_parameters(self)
+
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list,
+                   'post_var_postfix': self._post_name}
+
+        super(ExtractNode, self).lower_to_language_level(options)
+
 
 # For AutoAPI documentation generation
 __all__ = ['ExtractNode']
