@@ -441,7 +441,7 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
             "  inner2 = inner2 + DOT_PRODUCT(field, field_input)\n"
-            "  ! Test the inner product values for equality, allowing for "
+            "  ! Test the inner-product values for equality, allowing for "
             "the precision of the active variables\n"
             "  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))\n"
             in harness)

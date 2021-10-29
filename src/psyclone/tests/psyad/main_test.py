@@ -71,8 +71,6 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
   real :: field_input
   real :: MachineTol
   real :: relative_diff
-  integer :: diff_result
-  integer :: huge_result
 
   ! Initialise the kernel arguments and keep copies of them
   CALL random_number(field)
@@ -88,25 +86,16 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
 inputs to the tangent-linear kernel
   inner2 = 0.0
   inner2 = inner2 + field * field_input
-  ! Test the inner product values for equality, allowing for the precision \
+  ! Test the inner-product values for equality, allowing for the precision \
 of the active variables
   MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
   relative_diff = ABS(inner1 - inner2) / MachineTol
-  if (0.0 >= relative_diff) then
-    WRITE(*, *) 'Test of adjoint of ''kern'' passed - exact agreement.'
+  if (relative_diff < overall_tolerance) then
+    WRITE(*, *) 'Test of adjoint of ''kern'' PASSED: ', inner1, inner2, \
+relative_diff
   else
-    huge_result = HUGE(diff_result)
-    ! Check to avoid divide by zero or integer overflow in calculating result
-    if (relative_diff >= huge_result * overall_tolerance) then
-      diff_result = huge_result
-    else
-      diff_result = relative_diff / overall_tolerance
-    end if
-    if (diff_result == 0) then
-      WRITE(*, *) 'Test of adjoint of ''kern'' passed: ', inner1, inner2
-    else
-      WRITE(*, *) 'Test of adjoint of ''kern'' failed: ', inner1, inner2
-    end if
+    WRITE(*, *) 'Test of adjoint of ''kern'' FAILED: ', inner1, inner2, \
+relative_diff
   end if
 
 end program adj_test''')

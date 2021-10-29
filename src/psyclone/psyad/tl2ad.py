@@ -55,10 +55,7 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
 #: The tolerance applied to the comparison of the inner product values in
 #: the generated test-harness code.
 #: TODO #1346 this tolerance should be user configurable.
-INNER_PRODUCT_TOLERANCE = "1.0e-10"
-#: The type (and precision) of the variable used to accumulate the inner
-#: product in the generated test-harness code.
-INNER_PRODUCT_DATATYPE = REAL_TYPE
+INNER_PRODUCT_TOLERANCE = 1500.0
 #: The suffix we will prepend to a routine and container name when generating
 #: its adjoint.
 ADJOINT_NAME_SUFFIX = "_adj"
@@ -169,9 +166,13 @@ def _get_active_variable_datatype(kernel, active_variables):
     :returns: the type of the active variables.
     :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
+    :raises InternalError: if no active variables are supplied.
     :raises NotImplementedError: if the supplied active variables are not all \
                                  of the same intrinsic type and precision.
     '''
+    if not active_variables:
+        raise InternalError("No active variables have been supplied.")
+
     precision = None
     intrinsic = None
     for var in active_variables:
@@ -184,8 +185,8 @@ def _get_active_variable_datatype(kernel, active_variables):
                     intrinsic != sym.datatype.intrinsic):
                 raise NotImplementedError(
                     "Found active variables of different datatype: '{0}' is "
-                    "of intrinsic type {1} and precision {2} while '{3}' is "
-                    "of intrinsic type {4} and precision {5}.".format(
+                    "of intrinsic type '{1}' and precision '{2}' while '{3}' "
+                    "is of intrinsic type '{4}' and precision '{5}'.".format(
                         active_variables[0], intrinsic, precision, sym.name,
                         sym.datatype.intrinsic, sym.datatype.precision))
     return ScalarType(intrinsic, precision)
@@ -555,7 +556,7 @@ def _create_inner_product(result, symbol_pairs):
     '''
     # Zero the variable used to accumulate the result
     statements = [Assignment.create(Reference(result),
-                                    Literal("0.0", INNER_PRODUCT_DATATYPE))]
+                                    Literal("0.0", result.datatype))]
 
     # Now generate code to compute the inner product of each pair of symbols
     for (sym1, sym2) in symbol_pairs:
@@ -664,15 +665,15 @@ def _create_array_inner_product(result, array1, array2):
 def _create_real_comparison(sym_table, kernel, var1, var2):
     '''
     Creates PSyIR that checks the values held by Symbols var1 and var2 for
-    equality.
+    equality, allowing for machine precision.
 
     :param sym_table: the SymbolTable in which to put new Symbols.
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param kernel: the routine for which this adjoint test is being performed.
     :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
-    :param var1:
+    :param var1: the symbol holding the first value for the comparison.
     :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
-    :param var2:
+    :param var2: the symbol holding the second value for the comparison.
     :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :returns: the PSyIR nodes that perform the check.
@@ -687,22 +688,14 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
     overall_tol = sym_table.new_symbol("overall_tolerance",
                                        symbol_type=DataSymbol,
                                        datatype=var1.datatype,
-                                       constant_value=1500.0)
-    # The precision of `diff_result` depends on the precision
-    # of the supplied values.
-    datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
-                          precision=var1.datatype.precision)
-    result = sym_table.new_symbol("diff_result", symbol_type=DataSymbol,
-                                  datatype=datatype)
-    huge_result = sym_table.new_symbol("huge_result", symbol_type=DataSymbol,
-                                       datatype=result.datatype)
+                                       constant_value=INNER_PRODUCT_TOLERANCE)
     # TODO #1161 - the PSyIR does not support `SPACING`
     ptree = Fortran2003.Assignment_Stmt(
         "MachineTol = SPACING ( MAX( ABS({0}), ABS({1}) ) )".format(var1.name,
                                                                     var2.name))
     statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
     statements[-1].preceding_comment = (
-        "Test the inner product values for equality, allowing for the "
+        "Test the inner-product values for equality, allowing for the "
         "precision of the active variables")
     sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                     Reference(var1), Reference(var2))
@@ -711,57 +704,20 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
                                     abs_op, Reference(mtol))
     statements.append(Assignment.create(Reference(rel_diff), div_op))
 
-    else_body = []
-    # TODO #1161 - the PSyIR does not support `HUGE`
-    ptree = Fortran2003.Intrinsic_Function_Reference("HUGE({0})".format(
-        result.name))
-    else_body.append(Assignment.create(
-        Reference(huge_result),
-        CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)))
-    prod_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                     Reference(huge_result),
-                                     Reference(overall_tol))
-    # Integer division will round to zero if test is successful
-    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
-                                    Reference(rel_diff),
-                                    Reference(overall_tol))
-
-    else_body.append(
-        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GE,
-                                              Reference(rel_diff),
-                                              prod_op),
-                       [Assignment.create(Reference(result),
-                                          Reference(huge_result))],
-                       [Assignment.create(Reference(result), div_op)]))
-    else_body[-1].preceding_comment = (
-        "Check to avoid divide by zero or integer overflow in calculating "
-        "result")
     # TODO #1345 make this code language agnostic.
     ptree1 = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' passed: ', {1}, {2}".format(
-            kernel.name, var1.name, var2.name))
+        "write(*,*) 'Test of adjoint of ''{0}'' PASSED: ', {1}, {2}, {3}"
+        .format(kernel.name, var1.name, var2.name, rel_diff.name))
     ptree2 = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' failed: ', {1}, {2}".format(
-            kernel.name, var1.name, var2.name))
-
-    else_body.append(
-        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.EQ,
-                                              Reference(result),
-                                              Literal("0", INTEGER_TYPE)),
-                       [CodeBlock([ptree1], CodeBlock.Structure.STATEMENT)],
-                       [CodeBlock([ptree2], CodeBlock.Structure.STATEMENT)]))
-
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' passed - exact agreement.'".
-        format(kernel.name))
+        "write(*,*) 'Test of adjoint of ''{0}'' FAILED: ', {1}, {2}, {3}"
+        .format(kernel.name, var1.name, var2.name, rel_diff.name))
 
     statements.append(
-        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GE,
-                                              Literal("0.0", REAL_TYPE),
-                                              Reference(rel_diff)),
-                       [CodeBlock([ptree], CodeBlock.Structure.STATEMENT)],
-                       else_body))
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
+                                              Reference(rel_diff),
+                                              Reference(overall_tol)),
+                       [CodeBlock([ptree1], CodeBlock.Structure.STATEMENT)],
+                       [CodeBlock([ptree2], CodeBlock.Structure.STATEMENT)]))
 
     return statements
 
