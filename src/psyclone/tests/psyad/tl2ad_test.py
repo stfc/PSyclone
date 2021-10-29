@@ -384,9 +384,6 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
     # assert Compile(tmpdir).string_compiles(harness)
 
 
-@pytest.mark.xfail(reason="issue #1426: only a single assignment statement is "
-                   "supported which causes the multi-routine test to give the "
-                   "wrong exception")
 def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
     ''' Full test for generating test harness for the adjoint created
     from a supplied subroutine within a module. The subroutine has two

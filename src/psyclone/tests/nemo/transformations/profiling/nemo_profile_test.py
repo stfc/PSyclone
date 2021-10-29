@@ -40,7 +40,7 @@
 
 '''
 
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
@@ -113,7 +113,7 @@ def test_profile_single_loop(parser):
         "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         in code)
     assert (
-        "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
+        "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
         "    sto_tmp(ji) = 1.0d0\n"
         "  enddo\n"
@@ -138,7 +138,7 @@ def test_profile_single_loop_named(parser):
     options = {"region_name": ("my_routine", "my_region")}
     PTRANS.apply(schedule.children[0], options=options)
     code = str(psy.gen).lower()
-    assert ("call profile_psy_data % prestart('my_routine', 'my_region', "
+    assert ("call profile_psy_data % prestart(\"my_routine\", \"my_region\", "
             "0, 0)" in code)
 
 
@@ -174,13 +174,13 @@ def test_profile_two_loops(parser):
         "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
         in code)
     assert (
-        "  call profile_psy_data_1 % prestart('do_loop', 'r0', 0, 0)\n"
+        "  call profile_psy_data_1 % prestart(\"do_loop\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
         "    sto_tmp(ji) = 1.0d0\n"
         "  enddo\n"
         "  call profile_psy_data_1 % postend\n" in code)
     assert (
-        "  call profile_psy_data % prestart('do_loop', 'r1', 0, 0)\n"
+        "  call profile_psy_data % prestart(\"do_loop\", \"r1\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
         "    sto_tmp2(ji) = 1.0d0\n"
         "  enddo\n"
@@ -203,7 +203,7 @@ def test_profile_codeblock(parser):
     PTRANS.apply(schedule.children[0])
     code = str(psy.gen).lower()
     assert (
-        "  call profile_psy_data % prestart('cb_test', 'r0', 0, 0)\n"
+        "  call profile_psy_data % prestart(\"cb_test\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "  enddo\n"
@@ -278,7 +278,7 @@ def test_profile_single_line_if(parser):
     gen_code = str(psy.gen).lower()
     assert (
         "  if (do_this) then\n"
-        "    call profile_psy_data % prestart('one_line_if_test', 'r0', 0, "
+        "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0, "
         "0)\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
@@ -347,21 +347,21 @@ def test_profiling_case(parser):
         "  type(profile_psydatatype), save, target :: profile_psy_data_2\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_3\n"
         "\n"
-        "  call profile_psy_data_3 % prestart('my_test', 'r0', 0, 0)\n"
+        "  call profile_psy_data_3 % prestart(\"my_test\", \"r0\", 0, 0)\n"
         "  p_fld_crs(:,:) = 0.0\n" in code)
     assert ("      if (mje_crs(2) - mjs_crs(2) == 1) then\n"
-            "        call profile_psy_data % prestart('my_test', 'r2', 0, "
+            "        call profile_psy_data % prestart(\"my_test\", \"r2\", 0, "
             "0)\n"
             in code)
     assert ("        enddo\n"
             "        call profile_psy_data % postend\n"
             "      end if\n" in code)
     assert ("  if (cd_op == 'vol') then\n"
-            "    call profile_psy_data_1 % prestart('my_test', 'r1', 0, 0)\n"
+            "    call profile_psy_data_1 % prestart(\"my_test\", \"r1\", 0, 0)\n"
             in code)
     assert ("    call profile_psy_data_1 % postend\n"
             "  else\n"
-            "    call profile_psy_data_2 % prestart('my_test', 'r3', 0, 0)\n"
+            "    call profile_psy_data_2 % prestart(\"my_test\", \"r3\", 0, 0)\n"
             in code)
     assert ("    call profile_psy_data_2 % postend\n"
             "  end if\n"
@@ -392,7 +392,7 @@ def test_profiling_case_loop(parser):
     psy, sched = get_nemo_schedule(parser, code)
     PTRANS.apply(sched.children)
     code = str(psy.gen).lower()
-    assert ("  call profile_psy_data % prestart('my_test', 'r0', 0, 0)\n"
+    assert ("  call profile_psy_data % prestart(\"my_test\", \"r0\", 0, 0)\n"
             "  if (igrd == 1) then\n" in code)
     assert ("call profile_psy_data % postend\n\n"
             "end subroutine" in code)
@@ -507,7 +507,7 @@ def test_profile_nemo_auto_kernels(parser):
     # Check that it's the first loop that's had profiling added
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
             "\n"
-            "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
+            "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
             "  do ji = 1, jpj, 1" in code)
 
 
@@ -531,7 +531,7 @@ def test_profile_nemo_loop_nests(parser):
     # Check that it's the outer loop that's had profiling added
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
             "\n"
-            "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
+            "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
             "  do jj = 1, jpj, 1" in code)
 
 
@@ -556,7 +556,7 @@ def test_profile_nemo_openmp(parser):
     code = str(psy.gen).lower()
     assert ("  type(profile_psydatatype), save, target :: profile_psy_data\n"
             "\n"
-            "  call profile_psy_data % prestart('do_loop', 'r0', 0, 0)\n"
+            "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
             "  !$omp parallel do default(shared), private(ji,jj), "
             "schedule(static)\n"
             "  do jj = 1, jpj, 1" in code)
@@ -623,5 +623,5 @@ def test_profile_nemo_loop_imperfect_nest(parser):
     assert ("        enddo\n"
             "      enddo\n"
             "      call profile_psy_data % postend\n"
-            "      call profile_psy_data_1 % prestart('do_loop', 'r1', 0, 0)\n"
+            "      call profile_psy_data_1 % prestart(\"do_loop\", \"r1\", 0, 0)\n"
             "      do ji = 1, jpi, 1" in code)
