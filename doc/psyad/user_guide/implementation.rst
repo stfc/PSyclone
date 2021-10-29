@@ -39,9 +39,9 @@
 Implementation
 ==============
 
-The approach taken is the line-by-line method, where the order of
-computation is reversed and each line of the tangent-linear code is
-transformed into its adjoint form.
+The approach taken to constructing the adjoint is the line-by-line
+method, where the order of computation is reversed and each line of
+the tangent-linear (TL) code is transformed into its adjoint form.
 
 This approach is implemented in PSyclone by parsing the tangent-linear
 code and transforming it into the PSyIR (the PSyclone Internal
@@ -311,3 +311,59 @@ individually to each statement and the resultant PSyIR returned.
              and after it is modified from within active
              statements. This case is not checked in this version, see
              issue #1458.
+
+Test Harness
+++++++++++++
+
+The code generated for the test harness must perform the following steps:
+
+1) Initialise all of the kernel arguments and keep copies of them;
+2) Call the tangent-linear kernel;
+3) Compute the inner product of the results of the kernel;
+4) Call the adjoint of the TL kernel, passing in the outputs of the TL
+   kernel call;
+5) Compute the inner product of the results of the adjoint kernel with
+   the original inputs to the TL kernel;
+6) Compare the two inner products for equality, allowing for machine
+   precision.
+
+Some of these steps are described in more detail below.
+
+Initialisation
+--------------
+
+All arguments to the TL kernel are initialised with pseudo-random numbers
+in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
+function.
+
+Inner products
+--------------
+
+The precision of the variables used to accumulate the inner-product values
+is set to match that of the active variables in the supplied TL kernel.
+
+For simplicity, when computing the inner product in steps 3) and 5), *all*
+kernel arguments are included (since those that are only read by a kernel
+will remain constant for both the TL and adjoint kernel calls). It may be
+that this will require refinement in future, e.g. if there are kernels
+that have non-numeric arguments.
+
+Comparing the inner products
+----------------------------
+
+Performing the comparison of the two inner products while allowing for
+machine precision is implemented as follows:
+
+1) Find the smallest possible difference that can be represented by
+   calling the Fortran `spacing` intrinsic on the largest of the two
+   inner-product values;
+
+2) Compute the *relative* difference between the two values by dividing
+   their absolute difference by this spacing;
+
+3) If this relative difference is less than the overall test tolerance
+   then the test has passed.
+
+By default, the overall test tolerance is set to `1500.0`. This is currently
+set as a constant in the `psyclone.psyad.tl2ad` module but will eventually
+be exposed as a configuration option (this is the subject of issue #1346).
