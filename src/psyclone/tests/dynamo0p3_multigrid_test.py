@@ -269,7 +269,7 @@ def test_field_prolong(tmpdir):
             "ONLY: prolong_test_kernel_code\n"
             "      USE mesh_map_mod, ONLY: mesh_map_type\n"
             "      USE mesh_mod, ONLY: mesh_type\n"
-            "      TYPE(field_type), intent(in) :: field1, field2\n"
+            "      CLASS(field_type), intent(in) :: field1, field2\n"
             "      INTEGER(KIND=i_def) cell\n")
         assert expected in gen_code
 
@@ -360,7 +360,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "ONLY: restrict_test_kernel_code\n"
         "      USE mesh_map_mod, ONLY: mesh_map_type\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: field1, field2\n")
+        "      CLASS(field_type), intent(in) :: field1, field2\n")
     assert defs in output
 
     defs2 = (
@@ -647,7 +647,7 @@ def test_prolong_vector(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "TYPE(field_type), intent(in) :: field1(3)" in output
+    assert "CLASS(field_type), intent(in) :: field1(3)" in output
     assert "TYPE(field_proxy_type) field1_proxy(3)" in output
     # Make sure we always index into the field arrays
     assert " field1%" not in output

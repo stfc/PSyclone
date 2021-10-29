@@ -80,7 +80,7 @@ def test_field(tmpdir):
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
+        "      CLASS(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
@@ -160,7 +160,7 @@ def test_field_deref(tmpdir, dist_mem):
 
     output = (
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
+        "      CLASS(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
@@ -289,7 +289,7 @@ def test_field_fs(tmpdir):
         "m3, m4, f5, f6, m5, m6, m7)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
+        "      CLASS(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
         "m4, f5, f6, m5, m6, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) nlayers\n"
@@ -507,7 +507,7 @@ def test_vector_field(tmpdir):
 
     assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, chi, f2)" in
             generated_code)
-    assert "TYPE(field_type), intent(in) :: f1, chi(3), f2" in generated_code
+    assert "CLASS(field_type), intent(in) :: f1, chi(3), f2" in generated_code
 
 
 def test_vector_field_2(tmpdir):
@@ -541,7 +541,7 @@ def test_vector_field_deref(tmpdir, dist_mem):
     generated_code = str(psy.gen)
     assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, box_chi, f2)" in
             generated_code)
-    assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
+    assert ("CLASS(field_type), intent(in) :: f1, box_chi(3), f2" in
             generated_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -556,7 +556,7 @@ def test_mkern_invoke_vec_fields():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    assert ("TYPE(field_type), intent(in) :: f1, chi(3), chi(3)"
+    assert ("CLASS(field_type), intent(in) :: f1, chi(3), chi(3)"
             not in generated_code)
     # 2nd test for duplication of name vector-field declaration
     assert ("TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
@@ -948,7 +948,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "m3, m4, f5, f6, m5, m6, m7)\n")
     assert output in generated_code
     output = (
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, "
+        "      CLASS(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, "
         "m3, m4, f5, f6, m5, m6, m7\n"
         "      TYPE(integer_field_type), intent(in) :: i1, i2, n1, n2, "
         "i3, i4, n3, n4, i5, i6, n5, n6, i7, i8, n7\n"

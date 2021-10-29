@@ -1069,7 +1069,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f2, f1)\n"
-            "      TYPE(field_type), intent(in) :: f2\n"
+            "      CLASS(field_type), intent(in) :: f2\n"
             "      TYPE(integer_field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(integer_field_proxy_type) f1_proxy\n"

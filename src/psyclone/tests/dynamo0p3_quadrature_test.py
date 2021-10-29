@@ -92,7 +92,7 @@ def test_field_xyoz(tmpdir):
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      INTEGER(KIND=i_def), intent(in) :: istp\n"
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
+        "      CLASS(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
@@ -282,7 +282,7 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         output_decls += "      USE mesh_mod, ONLY: mesh_type\n"
     output_decls += (
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
+        "      CLASS(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "

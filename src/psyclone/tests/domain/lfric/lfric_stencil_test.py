@@ -1483,7 +1483,7 @@ def test_extent_name_clash(dist_mem, tmpdir):
     assert ("INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_stencil_size\n"
             in result)
     output3 = (
-        "      TYPE(field_type), intent(in) :: f2_stencil_map, f2, "
+        "      CLASS(field_type), intent(in) :: f2_stencil_map, f2, "
         "f2_stencil_dofmap, stencil_cross_1, f3_stencil_map, f3, "
         "f3_stencil_dofmap\n")
     assert output3 in result

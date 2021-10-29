@@ -368,7 +368,7 @@ def test_derived_type_deref_naming(tmpdir):
         "      USE testkern_mod, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(in) :: f1_my_field, f1_my_field_1, "
+        "      CLASS(field_type), intent(in) :: f1_my_field, f1_my_field_1, "
         "m1, m2\n")
     assert output in generated_code
 
@@ -1052,13 +1052,13 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
         zero_sum_decls = (
             "      USE scalar_mod, ONLY: scalar_type\n"
             "      REAL, intent(out) :: asum\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      CLASS(field_type), intent(in) :: f1\n"
             "      TYPE(scalar_type) global_sum\n"
             "      INTEGER df\n")
     else:
         zero_sum_decls = (
             "      REAL, intent(out) :: asum\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      CLASS(field_type), intent(in) :: f1\n"
             "      INTEGER df\n")
     assert zero_sum_decls in generated_code
 
@@ -1138,7 +1138,7 @@ def test_named_invoke_name_clash(tmpdir):
 
     assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
             "f, c, g, qr)") in gen
-    assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
+    assert "CLASS(field_type), intent(in) :: invoke_a_1" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

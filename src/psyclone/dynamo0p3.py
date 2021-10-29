@@ -2780,6 +2780,7 @@ class LFRicFields(DynCollection):
             fld_mod = real_field_args[0].module_name
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=real_field_arg_list,
+                                   is_class=True,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))

@@ -510,7 +510,7 @@ def test_operator_different_spaces(tmpdir):
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: coord(3)\n"
+        "      CLASS(field_type), intent(in) :: coord(3)\n"
         "      TYPE(operator_type), intent(in) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"

@@ -958,7 +958,7 @@ def test_multikern_invoke_oper():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    assert "TYPE(field_type), intent(in) :: f1(3), f1(3)" not in generated_code
+    assert "CLASS(field_type), intent(in) :: f1(3), f1(3)" not in generated_code
     # 2nd test for duplication of name vector-field declaration
     assert "TYPE(field_proxy_type) f1_proxy(3), f1_proxy(3)" not in \
         generated_code
@@ -3641,7 +3641,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     expected_code1 = (
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
-        "      TYPE(field_type), intent(in) :: f3, f1, f2\n")
+        "      CLASS(field_type), intent(in) :: f3, f1, f2\n")
     assert expected_code1 in generated_code
     expected_code2 = (
         "      f2_proxy = f2%get_proxy()\n"

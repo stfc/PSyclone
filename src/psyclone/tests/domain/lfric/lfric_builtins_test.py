@@ -491,7 +491,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     # Check for the correct field type declarations
     output = (
-        "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+        "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
         "      INTEGER df\n"
         "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n")
     assert output in code
@@ -761,7 +761,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -832,7 +832,7 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(a, f1, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -902,7 +902,7 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f1, b, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -972,7 +972,7 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a, b\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -1044,7 +1044,7 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(a, f1, b, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a, b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -1415,7 +1415,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -1486,7 +1486,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f3, f1, b, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: b\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -1557,7 +1557,7 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f1, b, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -1627,7 +1627,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a, b\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -1699,7 +1699,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -1825,7 +1825,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(a, f1, f2)\n"
             "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -1967,7 +1967,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         output = (
             "    SUBROUTINE invoke_0(a_scalar, f1)\n"
             "      REAL(KIND=r_def), intent(in) :: a_scalar\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      CLASS(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -2410,7 +2410,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f1, c)\n"
             "      REAL(KIND=r_def), intent(in) :: c\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      CLASS(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -2474,7 +2474,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f2, f1)\n"
-            "      TYPE(field_type), intent(in) :: f2, f1\n"
+            "      CLASS(field_type), intent(in) :: f2, f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
@@ -2813,7 +2813,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f2, f1)\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      CLASS(field_type), intent(in) :: f1\n"
             "      TYPE(integer_field_type), intent(in) :: f2\n"
             "      INTEGER df\n"
             "      TYPE(integer_field_proxy_type) f2_proxy\n"
@@ -2919,7 +2919,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output_seq = (
             "    SUBROUTINE invoke_0(f1)\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      CLASS(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
@@ -2981,7 +2981,7 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -3046,7 +3046,7 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -3110,7 +3110,7 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f2, f1)\n"
-            "      TYPE(field_type), intent(in) :: f2, f1\n"
+            "      CLASS(field_type), intent(in) :: f2, f1\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
@@ -3177,7 +3177,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
             "      REAL(KIND=r_def), intent(in) :: fred, ginger\n"
-            "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
+            "      CLASS(field_type), intent(in) :: f1, f2, f3\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1, "
@@ -3384,7 +3384,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      USE scalar_mod, ONLY: scalar_type\n"
             "      REAL(KIND=r_def), intent(out) :: asum\n"
             "      REAL(KIND=r_def), intent(in) :: b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      TYPE(scalar_type) global_sum\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
@@ -3425,7 +3425,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
             "      REAL(KIND=r_def), intent(out) :: asum\n"
             "      REAL(KIND=r_def), intent(in) :: b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      CLASS(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n") in code
