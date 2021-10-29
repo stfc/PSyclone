@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 from psyclone.psyir.transformations import Abs2CodeTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
-    Reference, Literal, IfBlock, Routine
+    Reference, Literal, IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
@@ -122,11 +122,9 @@ class Sign2CodeTrans(Operator2CodeTrans):
         # pylint: disable=too-many-locals
         self.validate(node)
 
-        schedule = node.ancestor(Routine)
-        symbol_table = schedule.symbol_table
-
-        oper_parent = node.parent
+        symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
+
         # Create two temporary variables.  There is an assumption here
         # that the SIGN Operator returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
@@ -139,8 +137,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
             "tmp_sign", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operator with a temporary (res_var).
-        oper_parent.children[node.position] = Reference(res_var_symbol,
-                                                        parent=oper_parent)
+        node.replace_with(Reference(res_var_symbol))
 
         # Extract the operand nodes
         op1, op2 = node.pop_all_children()

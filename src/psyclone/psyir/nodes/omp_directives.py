@@ -915,8 +915,151 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         self._validate_single_loop()
 
 
+class OMPTargetDirective(OMPRegionDirective):
+    ''' Class for the !$OMP TARGET directive that offloads the code contained
+    in its region into an accelerator device. '''
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp target". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp target"
+
+
+class OMPLoopDirective(OMPRegionDirective):
+    ''' Class for the !$OMP LOOP directive that specifies that the iterations
+    of the associated loops may execute concurrently.
+
+    :param int collapse: optional number of nested loops to collapse into a \
+        single iteration space to parallelise. Defaults to None.
+    '''
+
+    def __init__(self, collapse=None, **kwargs):
+        super(OMPLoopDirective, self).__init__(**kwargs)
+        self._collapse = None
+        self.collapse = collapse  # Use setter with error checking
+
+    @property
+    def collapse(self):
+        '''
+        :returns: the value of the collapse clause.
+        :rtype: int or NoneType
+        '''
+        return self._collapse
+
+    @collapse.setter
+    def collapse(self, value):
+        '''
+        :param value: optional number of nested loop to collapse into a \
+            single iteration space to parallelise. Defaults to None.
+        :type value: int or NoneType.
+
+        :raises TypeError: if the collapse value given is not an integer \
+            or NoneType.
+        :raises ValueError: if the collapse integer given is not positive.
+
+        '''
+        if value is not None and not isinstance(value, int):
+            raise TypeError(
+                "The OMPLoopDirective collapse clause must be a positive "
+                "integer or None, but value '{0}' has been given."
+                "".format(value))
+
+        if value is not None and value <= 0:
+            raise ValueError(
+                "The OMPLoopDirective collapse clause must be a positive "
+                "integer or None, but value '{0}' has been given."
+                "".format(value))
+
+        self._collapse = value
+
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        text = self.coloured_name(colour)
+        if self._collapse:
+            text += "[collapse={0}]".format(str(self._collapse))
+        else:
+            text += "[]"
+        return text
+
+    def begin_string(self):
+        ''' Returns the beginning statement of this directive, i.e. "omp loop".
+        The visitor is responsible for adding the correct directive beginning
+        (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        string = "omp loop"
+        if self._collapse:
+            string += " collapse({0})".format(str(self._collapse))
+        return string
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if this OMPLoopDirective is not enclosed \
+            within some OMPParallelDirective region.
+        :raises GenerationError: if this OMPLoopDirective has more than one \
+            child in its associated schedule.
+        :raises GenerationError: if the schedule associated with this \
+            OMPLoopDirective does not contain a Loop.
+        :raises GenerationError: if this OMPLoopDirective has a collapse \
+            clause but it doesn't have the expected number of nested Loops.
+
+        '''
+        if not self.ancestor(OMPParallelDirective):
+            raise GenerationError(
+                "OMPLoopDirective must have an OMPParallelDirective as an "
+                "ancestor.")
+
+        if len(self.dir_body.children) != 1:
+            raise GenerationError(
+                "OMPLoopDirective must have exactly one child in its "
+                "associated schedule but found {0}.".format(
+                    self.dir_body.children))
+
+        if not isinstance(self.dir_body.children[0], Loop):
+            raise GenerationError(
+                "OMPLoopDirective must have a Loop as child of its associated "
+                "schedule but found '{0}'.".format(self.dir_body.children[0]))
+
+        # If there is a collapse clause, there must be as many immediately
+        # nested loops as the collapse value
+        if self._collapse:
+            cursor = self.dir_body.children[0]
+            for depth in range(self._collapse):
+                if not isinstance(cursor, Loop):
+                    raise GenerationError(
+                        "OMPLoopDirective must have as many immediately nested"
+                        " loops as the collapse clause specifies but '{0}' "
+                        "has a collpase={1} and the nested statement at depth "
+                        "{2} is a {3} rather than a Loop."
+                        "".format(self, self._collapse, depth,
+                                  type(cursor).__name__))
+                cursor = cursor.loop_body.children[0]
+
+        super(OMPLoopDirective, self).validate_global_constraints()
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
-           "OMPSerialDirective", "OMPTaskloopDirective",
-           "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective"]
+           "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
+           "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
+           "OMPLoopDirective"]

@@ -556,8 +556,9 @@ class Loop(Statement):
             zero_reduction_variables(calls, parent)
 
         invoke = self.ancestor(InvokeSchedule)
-        if invoke.opencl or (is_unit_literal(self.start_expr) and
-                             is_unit_literal(self.stop_expr)):
+        if (invoke and invoke.opencl) or (
+                is_unit_literal(self.start_expr) and
+                is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)
