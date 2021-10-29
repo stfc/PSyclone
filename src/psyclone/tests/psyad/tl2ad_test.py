@@ -45,13 +45,14 @@ from psyclone.errors import InternalError
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
 from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product
+    _create_array_inner_product, _get_active_variable_datatype
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation, Reference, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
-    INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface
+    INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface, \
+    ScalarType
 
 
 # 1: generate_adjoint_str function
@@ -172,7 +173,73 @@ def test_find_container():
             "not supported." in str(err.value))
 
 
-# 3: generate_adjoint function
+# 3: _get_active_variable_datatype function
+
+def test_get_active_variable_datatype_error(fortran_reader):
+    ''' Test that the _get_active_variable_datatype raises the expected
+    errors if no active variables are supplied or if they are of different
+    type or precision. '''
+    tl_fortran_str = (
+        "program test\n"
+        "use kinds_mod, only: wp\n"
+        "real :: a, b\n"
+        "real(kind=wp) :: c\n"
+        "integer :: idx\n"
+        "a = b + c + idx\n"
+        "end program test\n")
+    prog_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    tl_psyir = prog_psyir.children[0]
+    with pytest.raises(InternalError) as err:
+        _get_active_variable_datatype(tl_psyir, [])
+    assert "No active variables have been supplied." in str(err.value)
+
+    with pytest.raises(NotImplementedError) as err:
+        _get_active_variable_datatype(tl_psyir, ["a", "c"])
+    assert ("active variables of different datatype: 'a' is of intrinsic "
+            "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
+            "'c' is of intrinsic type 'Intrinsic.REAL' and precision 'wp: "
+            in str(err.value))
+
+    with pytest.raises(NotImplementedError) as err:
+        _get_active_variable_datatype(tl_psyir, ["a", "idx"])
+    assert ("active variables of different datatype: 'a' is of intrinsic "
+            "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
+            "'idx' is of intrinsic type 'Intrinsic.INTEGER' and precision "
+            "'Precision.UNDEFINED'" in str(err.value))
+
+
+def test_get_active_variable_datatype(fortran_reader):
+    ''' Test that _get_active_variable_datatype() works as expected. '''
+    tl_fortran_str = (
+        "program test\n"
+        "use kind_mod, only: wp, i_def\n"
+        "real :: a, b, c\n"
+        "real(wp) :: d, e\n"
+        "integer(i_def) :: ii, jj, kk\n"
+        "a = b + c\n"
+        "d = 2.0*e\n"
+        "ii = jj + kk\n"
+        "end program test\n")
+    prog_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    tl_psyir = prog_psyir.children[0]
+    # Real, default precision
+    atype = _get_active_variable_datatype(tl_psyir, ["a", "b"])
+    assert isinstance(atype, ScalarType)
+    assert atype.intrinsic == ScalarType.Intrinsic.REAL
+    assert atype.precision == ScalarType.Precision.UNDEFINED
+    # Real, specified KIND
+    atype = _get_active_variable_datatype(tl_psyir, ["d", "e"])
+    assert atype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(atype.precision, DataSymbol)
+    assert atype.precision.name == "wp"
+    # Integer, specified KIND
+    atype = _get_active_variable_datatype(tl_psyir, ["ii", "jj", "kk"])
+    assert atype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(atype.precision, DataSymbol)
+    assert atype.precision.name == "i_def"
+
+
+# 4: generate_adjoint function
 
 def test_generate_adjoint(fortran_reader):
     '''Test that the generate_adjoint() function works as expected.'''
@@ -299,7 +366,7 @@ def test_generate_adjoint_logging(caplog):
     assert expected_ad_fortran_str in ad_fortran_str
 
 
-# 4: generate_adjoint_test
+# 5: generate_adjoint_test
 
 def test_generate_adjoint_test_errors():
     ''' Check that generate_adjoint_test() raises the expected exceptions if
@@ -634,7 +701,7 @@ def test_generate_harness_constant_kind(fortran_reader, fortran_writer):
             "1500.0_r_def" in harness)
 
 
-def test_generate_harness_unknown_kind_error(fortran_reader, fortran_writer):
+def test_generate_harness_unknown_kind_error(fortran_reader):
     ''' Check that generate_adjoint_test() raises the expected error if the
     kind of the active variables is of an unsupported form.
     '''
@@ -658,7 +725,7 @@ def test_generate_harness_unknown_kind_error(fortran_reader, fortran_writer):
             str(err.value))
 
 
-# 5: _create_inner_product and _create_array_inner_product
+# 6: _create_inner_product and _create_array_inner_product
 
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected
