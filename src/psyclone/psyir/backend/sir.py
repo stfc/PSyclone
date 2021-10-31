@@ -67,6 +67,8 @@ def gen_stencil(node):
     string. Raise an exception if the array access is not a recognised
     stencil access.
 
+    *** SIR ALWAYS EXPECTS 3 ARGS ***
+
     :param node: an array access.
     :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
@@ -81,17 +83,17 @@ def gen_stencil(node):
         raise VisitorError(
             "gen_stencil expected an ArrayReference as input but found '{0}'."
             "".format(type(node)))
-    dims = []
-    for child in node.children:
+    dims = ["0", "0", "0"]
+    for idx, child in enumerate(node.children):
         if isinstance(child, Reference):
-            dims.append("0")
+            dims[idx] = "0" # *** Not needed now!!!
         elif isinstance(child, BinaryOperation):
             if isinstance(child.children[0], Reference) and \
                isinstance(child.children[1], Literal):
                 if child.operator == BinaryOperation.Operator.SUB:
-                    dims.append("-"+child.children[1].value)
+                    dims[idx] = "-"+child.children[1].value
                 elif child.operator == BinaryOperation.Operator.ADD:
-                    dims.append(child.children[1].value)
+                    dims[idx] = child.children[1].value
                 else:
                     raise VisitorError(
                         "gen_stencil unsupported stencil operator found "
@@ -140,6 +142,7 @@ class SIRWriter(PSyIRVisitor):
         # declared as field temporaries as the Dawn backend works out
         # what is required.
         self._scalar_names = set()
+        self._scalars = {}
 
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
@@ -187,29 +190,90 @@ class SIRWriter(PSyIRVisitor):
         computation within the triply nested loop.
 
         '''
+        def create_make_interval(loop, upper_bound_name):
+            ''' xxx '''
+            def bound_value(expr):
+                if isinstance(expr, Literal):
+                    return int(expr.value)
+                else:
+                    raise TypeError()
+
+            def bound_name_offset(expr, name):
+                ''' xxx '''
+                if isinstance(expr, Reference) and expr.name == name:
+                    return 0
+                elif isinstance(expr, BinaryOperation) and isinstance(expr.children[0], Reference) and expr.children[0].name == name:
+                    if expr.operator == BinaryOperation.Operator.SUB:
+                        value = bound_value(expr.children[1])
+                        return value * -1
+                    else:
+                        print ("Operator not supported {0}".format(type(expr.children[1])))
+                        exit(1)
+                else:
+                    print ("bounds not supported", expr, name)
+                    exit(1)
+
+            # Lower bound
+            try:
+                value = bound_value(loop.start_expr)
+                lower_bound_offset = value - 1
+                lower_bound_str = "Interval.Start"
+            except TypeError:
+                try:
+                    lower_bound_offset = bound_name_offset(loop.start_expr, upper_bound_name)
+                    lower_bound_str = "Interval.End"
+                except TypeError:
+                    print ("Unsupported lower bound found".format(loop.start_expr))
+                    exit(1)
+            # Upper bound
+            try:
+                value = bound_value(loop.stop_expr)
+                upper_bound_offset = 0
+                upper_bound_str = str(value)
+            except TypeError:
+                try:
+                    upper_bound_offset = bound_name_offset(loop.stop_expr, upper_bound_name)
+                    upper_bound_str = "Interval.End"
+                except TypeError:
+                    print ("Unsupported upper bound found {0}".format(loop.stop_expr))
+                    exit(1)
+            # print ("upper bound is {0}".format(loop.stop_expr))
+            # print ("step is {0}".format(loop.step_expr))
+            # print ("lower", loop.start_expr, lower_bound_str, str(lower_bound_offset))
+            # print ("upper", loop.stop_expr, upper_bound_str, str(upper_bound_offset))
+            return "make_interval({0}, {1}, {2}, {3})".format(
+                lower_bound_str, upper_bound_str, lower_bound_offset, upper_bound_offset)
+
         # Check first loop has a single loop as a child.
-        loop_content = loop_node.loop_body.children
+        k_loop = loop_node
+        loop_content = k_loop.loop_body.children
         if not (len(loop_content) == 1 and
                 isinstance(loop_content[0], NemoLoop)):
             raise VisitorError("Child of loop should be a single loop.")
 
         # Check second loop has a single loop as a child.
-        loop_content = loop_content[0].loop_body.children
+        j_loop = loop_content[0]
+        loop_content = j_loop.loop_body.children
         if not (len(loop_content) == 1 and
                 isinstance(loop_content[0], NemoLoop)):
             raise VisitorError(
                 "Child of child of loop should be a single loop.")
 
         # Check third loop has a single NemoKern as a child.
-        loop_content = loop_content[0].loop_body.children
+        i_loop = loop_content[0]
+        loop_content = i_loop.loop_body.children
         if not (len(loop_content) == 1 and
                 isinstance(loop_content[0], NemoKern)):
             raise VisitorError(
                 "Child of child of child of loop should be a NemoKern.")
 
-        # The interval values are hardcoded for the moment (see #470).
-        result = ("{0}interval = make_interval(Interval.Start, Interval.End, "
-                  "0, 0)\n".format(self._nindent))
+        # Create the intervals
+        make_k_interval_str = create_make_interval(k_loop, "jpk")
+        make_j_interval_str = create_make_interval(j_loop, "jpj")
+        make_i_interval_str = create_make_interval(i_loop, "jpi")
+
+        result = ("{0}k_interval = {1}\n".format(
+            self._nindent, make_k_interval_str))
         result += ("{0}body_ast = make_ast([\n".format(self._nindent))
         self._depth += 1
         result += self.nemokern_node(loop_content[0])
@@ -223,8 +287,8 @@ class SIRWriter(PSyIRVisitor):
         # #470).
         result += (
             "{0}vertical_region_fns.append(make_vertical_region_decl_stmt("
-            "body_ast, interval, VerticalRegion.Forward))\n"
-            "".format(self._nindent))
+            "body_ast, k_interval, VerticalRegion.Forward, IRange={1}, JRange={2}))\n"
+            "".format(self._nindent, make_i_interval_str, make_j_interval_str))
         return result
 
     def nemokern_node(self, node):
@@ -279,10 +343,10 @@ class SIRWriter(PSyIRVisitor):
             "{0}{1}{1}[".format(self._nindent, self._indent))
         functions = []
         for name in self._field_names:
-            # field is ArrayReference
-            field = self._fields[name]
+            # field reference is ArrayReference
+            field_ref = self._fields[name]
             # symbol is DataSymbol
-            data_symbol = field.symbol
+            data_symbol = field_ref.symbol
             # symbol is an array
             assert data_symbol.is_array
             # symbol dimensions ...
@@ -297,17 +361,27 @@ class SIRWriter(PSyIRVisitor):
                 dims = "[0, 0, 1]"
             else:
                 raise Exception("Unexpected number of dimensions")
+            temporary_text = ""
+            if data_symbol.is_local:
+                temporary_text = ", is_temporary=True"
             functions.append(
-                "make_field(\"{0}\", make_field_dimensions_cartesian({1}))"
-                "".format(name, dims))
-        # The current assumption is that scalars are temporaries. This
-        # is not necessarily correct and this problem is captured in
-        # issue #521. Scalar temporaries can be declared as field
-        # temporaries as the Dawn backend works out what is required.
+                "make_field(\"{0}\", make_field_dimensions_cartesian({1}){2})"
+                "".format(name, dims, temporary_text))
+        # Scalar temporaries can be declared as field temporaries as
+        # the Dawn backend works out what is required.
         for name in self._scalar_names:
+            # scalar_ref is Reference
+            scalar_ref = self._scalars[name]
+            # symbol is DataSymbol
+            data_symbol = scalar_ref.symbol
+            # symbol is a scalar
+            assert data_symbol.is_scalar
+            temporary_text = ""
+            if data_symbol.is_local:
+                temporary_text = ", is_temporary=True"
             functions.append(
-                "make_field(\"{0}\", make_field_dimensions_cartesian(), "
-                "is_temporary=True)".format(name))
+                "make_field(\"{0}\", make_field_dimensions_cartesian([1, 0, 0]){1})"
+                "".format(name, temporary_text))
         result += ", ".join(functions)
         result += "]\n"
         result += (
@@ -420,6 +494,7 @@ class SIRWriter(PSyIRVisitor):
         # a field temporary (as the Dawn backend works out if a scalar
         # is required).
         self._scalar_names.add(node.name)
+        self._scalars[node.name] = node
 
         return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
                                                            node.name)

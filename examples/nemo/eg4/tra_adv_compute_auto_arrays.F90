@@ -10,25 +10,26 @@ contains
 
   subroutine tra_adv_compute(ztfreez, pun, pvn, pwn, umask, vmask,           &
                              tmask, rnfmsk, rnfmsk_z, upsmsk, mydomain, tsn, &
-                             jpi, jpj, jpk)
+                             jpi, jpj, jpk, zslpx)
     implicit none
 
     REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, &
-                                                           tmask, tsn
+                                                           tmask, tsn, zslpx
     REAL*8, ALLOCATABLE, DIMENSION(:,:), intent(in) :: ztfreez, rnfmsk, upsmsk
     REAL*8, ALLOCATABLE, DIMENSION(:), intent(in) :: rnfmsk_z
     REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(inout):: mydomain
     INTEGER, INTENT(IN) :: jpi, jpj, jpk
     
     ! local variables
-    REAL*8, DIMENSION(jpi,jpj,jpk) :: zslpx, zslpy, zwx, zwy, zind, zice
+    REAL*8, DIMENSION(jpi,jpj,jpk) :: zslpy, zwx, zwy, zind
     REAL*8                         :: zu, z0u, zzwx, zv, z0v, zzwy, ztra, zbtr, zdt, &
-         zalpha, zw, z0w
+         zalpha, zw, z0w, zice
     INTEGER                        :: ji, jj, jk
 
     DO jk = 1, jpk
        DO jj = 1, jpj
           DO ji = 1, jpi
+             zice = 0.d0
              IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
              ELSE                                                 ;   zice = 0.d0
              ENDIF
