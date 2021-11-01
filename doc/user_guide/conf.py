@@ -42,6 +42,8 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
 bibtex_bibfiles = ['../bibliography/references.bib']
 
 use_external_links = os.environ.get('RTD_USE_EXTERNAL_LINKS')
+github_event = os.environ.get('GITHUB_EVENT_PATH')
+print("GITHUB_EVENT_PATH = {0}".format(github_event))
 
 if use_external_links == '1':
     apilinks_base = \
