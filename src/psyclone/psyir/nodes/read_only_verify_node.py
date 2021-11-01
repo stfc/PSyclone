@@ -103,6 +103,23 @@ class ReadOnlyVerifyNode(PSyDataNode):
         parent.add(CommentGen(parent, " ReadOnlyVerifyEnd"))
         parent.add(CommentGen(parent, ""))
 
+    def lower_to_language_level(self):
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+        '''
+        # Determine the variables to validate:
+        variables_info = VariablesAccessInfo(self)
+        read_only = []
+        for var_name in variables_info:
+            if variables_info[var_name].is_read_only():
+                read_only.append(var_name)
+
+        options = {'pre_var_list': read_only,
+                   'post_var_list': read_only}
+
+        super(ReadOnlyVerifyNode, self).lower_to_language_level(options)
+
 
 # ============================================================================
 # For automatic documentation creation:

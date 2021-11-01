@@ -251,6 +251,12 @@
 	85) PR #1455 for #1441. Extends PSyAD to cope with kernels
 	containing multiple assignment statements.
 
+	86) PR #1432 for #1168. Adds PSyIR lowering support for generic
+	PSyData nodes.
+
+	87) PR #1415 towards #1338. Adds the OMPTaskwaitTrans transformation
+	that resolves dependencies between task loops.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
