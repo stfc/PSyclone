@@ -54,6 +54,8 @@ from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
+from psyclone.psyir.transformations.intrinsics.max2code_trans import \
+    Max2CodeTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
@@ -64,6 +66,7 @@ from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
@@ -83,4 +86,5 @@ __all__ = ['ExtractTrans',
            'TransformationError',
            'ArrayRange2LoopTrans',
            'FoldConditionalReturnExpressionsTrans',
-           'HoistTrans']
+           'HoistTrans',
+           'OMPTaskwaitTrans']

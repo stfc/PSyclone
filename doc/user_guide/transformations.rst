@@ -206,10 +206,6 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation does not currently check that it is
-             safe to hoist an assignment out of its parent loop, see
-             issue #1387.
-
 ####
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
@@ -230,6 +226,17 @@ can be found in the API-specific sections).
 
 .. note:: This transformation is currently limited to translating the
           matrix vector form of MATMUL to equivalent PSyIR code.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Max2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the MAX Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 ####
 
@@ -266,6 +273,12 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPTaskloopTrans
     :members: apply, omp_grainsize, omp_num_tasks
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+    :members: apply
     :noindex:
 
 ####
@@ -630,7 +643,8 @@ transformations currently supported allow the addition of:
 * an **OpenMP Do** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
-* an **OpenMP Taskloop** directive; and
+* an **OpenMP Taskloop** directive
+* multiple **OpenMP Taskwait** directives; and
 * an **OpenMP Parallel Do** directive.
 
 The generic versions of these transformations (i.e. ones that
@@ -688,6 +702,16 @@ region for a set of nodes that includes halo swaps or global sums will
 produce an error.  In such cases it may be possible to re-order the
 nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
 transformation.
+
+OpenMP Tasking
+++++++++++++++
+PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
+`OMPTaskwaitTrans` transformations. `OMPTaskloopTrans`
+transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
+operator is applied to an OpenMP Parallel Region, and computes the dependencies
+caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
+dependencies. An example of using OpenMP tasking is available in 
+`PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
 
 OpenCL
 ------
