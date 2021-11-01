@@ -44,6 +44,8 @@ bibtex_bibfiles = ['../bibliography/references.bib']
 use_external_links = os.environ.get('RTD_USE_EXTERNAL_LINKS')
 github_event = os.environ.get('GITHUB_EVENT_PATH')
 print("GITHUB_EVENT_PATH = {0}".format(github_event))
+print("GITHUB PR NUMBER = {0}".format(os.environ.get('GITHUB_PR_NUMBER')))
+print("GITHUB_REF = {0}".format(os.environ.get('GITHUB_REF')))
 
 if use_external_links == '1':
     apilinks_base = \
