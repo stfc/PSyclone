@@ -257,6 +257,10 @@
 	87) PR #1415 towards #1338. Adds the OMPTaskwaitTrans transformation
 	that resolves dependencies between task loops.
 
+	88) PR #1460 for #1454. Fix code generation to pass the number of
+	cells up to the last edge cell instead of the halo cells to the
+	'domain' kernels in the LFRic API.
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
