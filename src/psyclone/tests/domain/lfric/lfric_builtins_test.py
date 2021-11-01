@@ -414,8 +414,7 @@ def test_lfricbuiltin_cma(dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    cma_type = kern.cma_operation()
-    assert cma_type is None
+    assert kern.cma_operation is None
 
 
 def test_lfricbuiltfactory_str():

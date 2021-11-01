@@ -45,10 +45,10 @@ transformed into its adjoint form.
 
 This approach is implemented in PSyclone by parsing the tangent-linear
 code and transforming it into the PSyIR (the PSyclone Internal
-Representation). Transformations have been written that tranform the
-PSyIR representation into its adjoint form. These transformations are
-then applied to the PSyIR representation. Once this is complete, the PSyIR
-representation is then written back out as code.
+Representation). A PSyIR visitor has been written that visits each
+node in the PSyIR tree and transforms each node into its adjoint form. Once
+this is complete, the PSyIR representation is then written back out as
+code.
 
 
 Active variables
@@ -75,8 +75,8 @@ As the line-by-line method is used then there are rules that must be
 followed for the different types of statements. This section goes
 through the rules for each supported statement type.
 
-Assignments
------------
+Assignment
+----------
 
 If a tangent-linear assigment statement contains no active variables
 then it is left unchanged when creating the adjoint code.
@@ -278,3 +278,36 @@ Transformation
 
 .. autoclass:: psyclone.psyad.transformations.AssignmentTrans
       :members: apply
+
+Sequence of Statements (PSyIR Schedule)
+---------------------------------------
+
+The PSyIR captures a sequence of statements as children of a
+'Schedule' node. In PSyclone a sequence of statements in a tangent
+linear code are transformed to to their adjoint form by implementing
+the following rules:
+
+1) Each statement is examined to see whether it contains any active
+variables. A statement that contains one or more active variables is
+classed as an ``active statement`` and a statement that does not
+contain any active variables is classed as an ``inactive statement``.
+
+2) Any inactive statements are left unchanged and immediately output
+as PSyIR in the same order as they were found in the tangent linear
+code. Therefore the resulting sequence of statements in the adjoint
+code will contains all inactive statements before all active
+statements.
+
+3) The order of any active tangent-linear statements are then reversed
+and the rules associated with each statement type are applied
+individually to each statement and the resultant PSyIR returned.
+
+.. note:: At the moment the only statements supported within a
+          sequence of statements are assignments. If other types of
+          statement are found then an exception will be raised.
+
+.. warning:: The above rules are invalid if an inactive variable is
+             modified and that inactive variable is read both before
+             and after it is modified from within active
+             statements. This case is not checked in this version, see
+             issue #1458.
