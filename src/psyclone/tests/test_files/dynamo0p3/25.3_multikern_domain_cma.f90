@@ -38,7 +38,7 @@ program single_invoke
   ! Description: invoke containing multiple kernels, the first 
   ! of which is a kernel that operates on the domain instead of a
   ! cell-column and the last of which is a CMA kernel.
-  use constants_mod,                only : r_def
+  use constants_mod,                only: r_def
   use field_mod,                    only: field_type
   use operator_mod,                 only: columnwise_operator_type
   use columnwise_op_asm_kernel_mod, only: columnwise_op_asm_kernel_type
@@ -57,7 +57,7 @@ program single_invoke
                testkern_domain_type(b, f1),              &
                ! Read from f1
                testkern_type(b, f2, f3, f4, f1),         &
-               ! Write f1
+               ! Write cma_op1
                columnwise_op_asm_kernel_type(lma_op1, cma_op1) )
 
 end program single_invoke

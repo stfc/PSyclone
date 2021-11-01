@@ -2065,8 +2065,8 @@ identical to those for general-purpose kernels (described :ref:`above
 <dynamo0.3-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
-on the whole domain, the number of columns in the mesh, excluding those
-in the halo, (``ncell_2d_no_halos``) must be passed in. This is provided
+on the whole domain, the number of columns in the mesh excluding those
+in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
 as the second argument to the kernel (after ``nlayers``).
 ``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
 

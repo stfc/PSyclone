@@ -131,8 +131,8 @@ def test_arg_ordering_generate_domain_kernel(dist_mem):
 
 def test_arg_ordering_generate_cma_kernel(dist_mem):
     '''
-    Check that ArgOrdering generates the expected arguments for a
-    CMA kernel.
+    Check that the LFRic ArgOrdering class generates the expected arguments
+    for a CMA kernel.
 
     '''
     # Get hold of a valid Kernel object
