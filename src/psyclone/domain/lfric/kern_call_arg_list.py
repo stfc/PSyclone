@@ -140,7 +140,7 @@ class KernCallArgList(ArgOrdering):
     #         root_name="ncell_3d", context="PSyVars", label="ncell3d")
     #     self.append(ncell3d_name)
 
-    def mesh_ncell2d(self, var_accesses=None):
+    def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
 
@@ -150,8 +150,22 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        ncell2d_name = self._symtab.symbol_from_tag("ncell_2d").name
-        self.append(ncell2d_name, var_accesses)
+        name = self._symtab.symbol_from_tag("ncell_2d").name
+        self.append(name, var_accesses)
+
+    def _mesh_ncell2d_no_halos(self, var_accesses=None):
+        '''Add the number of columns in the mesh (excluding those in the halo)
+        to the argument list and store this access in var_accesses (if
+        supplied).
+
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        name = self._symtab.symbol_from_tag("ncell_2d_no_halos").name
+        self.append(name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
