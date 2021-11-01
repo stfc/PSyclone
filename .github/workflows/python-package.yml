@@ -56,6 +56,8 @@ jobs:
   sphinx-link-check:
     # Check all Sphinx documentation for dead links
     runs-on: ubuntu-latest
+    env:
+      GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
