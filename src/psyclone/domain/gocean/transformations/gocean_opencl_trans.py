@@ -119,6 +119,8 @@ class GOOpenCLTrans(Transformation):
                                      environment.
         :raises TransformationError: if any kernel in this invoke has a \
                                      global variable used by an import.
+        :raises TransformationError: if any kernel doesn't have the loop \
+                                     boundary values as arguments.
         '''
 
         if isinstance(node, InvokeSchedule):
@@ -191,6 +193,23 @@ class GOOpenCLTrans(Transformation):
                     "transformation to convert such symbols to kernel "
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
+
+        # Check that the loop boundary values have been added as an argument in
+        # each of the kernels.
+        for kernel in node.kernels():
+            found = {'xstart': False, 'xstop': False,
+                     'ystart': False, 'ystop': False}
+            for arg in kernel.arguments.args:
+                name_first_component = arg.name.split('_')[0]
+                if name_first_component in found:
+                    found[name_first_component] = True
+            if not all(found.values()):
+                raise TransformationError(
+                    "The kernel '{0}' does not have the loop boundaries as "
+                    "arguments. This is necessary requirement for generating "
+                    "the OpenCL code and can be done by applying the "
+                    "GOMoveIterationBoundariesInsideKernelTrans to each kernel"
+                    " before the GOOpenCLTrans.".format(kernel.name))
 
     def apply(self, node, options=None):
         '''
@@ -307,8 +326,6 @@ class GOOpenCLTrans(Transformation):
         argsetter.symbol_table.add(c_intptr_t)
         argsetter.symbol_table.add(ocl_utils)
         argsetter.symbol_table.add(check_status)
-
-        # All arguments are read-only, create the interface for later use
 
         # Add an argument symbol for the kernel object
         kobj = argsetter.symbol_table.new_symbol(
