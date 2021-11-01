@@ -56,6 +56,8 @@ jobs:
   sphinx-link-check:
     # Check all Sphinx documentation for dead links
     runs-on: ubuntu-latest
+    needs:
+      build
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
@@ -63,10 +65,10 @@ jobs:
     - uses: actions/setup-python@v2
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
-    - run: cd doc/user_guide; make html
-    - run: cd doc/developer_guide; make html
-    - run: cd doc/reference_guide; make html
-    - run: cd doc/psyad/user_guide; make html
+    #- run: cd doc/user_guide; make html
+    #- run: cd doc/developer_guide; make html
+    #- run: cd doc/reference_guide; make html
+    #- run: cd doc/psyad/user_guide; make html
     - run: cd doc/user_guide; make linkcheck
     - run: cd doc/developer_guide; make linkcheck
     - run: cd doc/reference_guide; make linkcheck
