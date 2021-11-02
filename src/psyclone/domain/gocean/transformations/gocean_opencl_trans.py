@@ -37,7 +37,7 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, Assignment
@@ -119,8 +119,8 @@ class GOOpenCLTrans(Transformation):
                                      environment.
         :raises TransformationError: if any kernel in this invoke has a \
                                      global variable used by an import.
-        :raises TransformationError: if any kernel doesn't have the loop \
-                                     boundary values as arguments.
+        :raises TransformationError: if any kernel does not iterate over \
+                                     the whole grid.
         '''
 
         if isinstance(node, InvokeSchedule):
@@ -194,19 +194,17 @@ class GOOpenCLTrans(Transformation):
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
-        # Check that the loop boundary values have been added as an argument in
-        # each of the kernels.
+        # In OpenCL all kernel loops should iterate the whole grid
         for kernel in node.kernels():
-            found = {'xstart': False, 'xstop': False,
-                     'ystart': False, 'ystop': False}
-            for arg in kernel.arguments.args:
-                name_first_component = arg.name.split('_')[0]
-                if name_first_component in found:
-                    found[name_first_component] = True
-            if not all(found.values()):
+            inner_loop = kernel.ancestor(GOLoop)
+            outer_loop = inner_loop.ancestor(GOLoop)
+            if not (inner_loop.field_space == "go_every" and
+                    outer_loop.field_space == "go_every" and
+                    inner_loop.iteration_space == "go_all_pts" and
+                    outer_loop.iteration_space == "go_all_pts"):
                 raise TransformationError(
-                    "The kernel '{0}' does not have the loop boundaries as "
-                    "arguments. This is necessary requirement for generating "
+                    "The kernel '{0}' does not iterate over all grid points. "
+                    "This is a necessary requirement for generating "
                     "the OpenCL code and can be done by applying the "
                     "GOMoveIterationBoundariesInsideKernelTrans to each kernel"
                     " before the GOOpenCLTrans.".format(kernel.name))

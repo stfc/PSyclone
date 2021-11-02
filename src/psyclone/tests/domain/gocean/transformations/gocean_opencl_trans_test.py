@@ -738,9 +738,9 @@ C_NULL_PTR)'''
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_opencl_boundary_values_validation():
+def test_opencl_kernel_boundaries_validation():
     ''' Check that the OpenCL transformation can not be applied if the
-    loop boundaries are not arguments of a kernel.
+    kernel loop doesn't iterate the whole grid.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -750,8 +750,8 @@ def test_opencl_boundary_values_validation():
     # Try to apply the OpenCL transformation without moving the boundaries
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
-    assert ("The kernel 'compute_cu_code' does not have the loop boundaries "
-            "as arguments. This is necessary requirement for generating the "
+    assert ("The kernel 'compute_cu_code' does not iterate over all grid "
+            "points. This is a necessary requirement for generating the "
             "OpenCL code and can be done by applying the GOMoveIteration"
             "BoundariesInsideKernelTrans to each kernel before the "
             "GOOpenCLTrans." in str(err.value))
