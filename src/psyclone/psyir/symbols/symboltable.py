@@ -339,7 +339,27 @@ class SymbolTable(object):
         self.add(symbol, tag)
         return symbol
 
-    def symbol_from_tag(self, tag, root_name=None, **new_symbol_args):
+    def find_or_create(self, name, **new_symbol_args):
+        ''' Lookup a symbol by its name, if it doesn't exist create a new
+        symbol with the given properties.
+        '''
+        try:
+            symbol = self.lookup(name)
+            # Check that the symbol found matches the requested description
+            if 'symbol_type' in new_symbol_args:
+                symbol_type = new_symbol_args['symbol_type']
+                if not isinstance(symbol, new_symbol_args['symbol_type']):
+                    raise SymbolError(
+                        "Expected symbol with name '{0}' to be of type '{1}' "
+                        "but found type '{2}'.".format(
+                            name, symbol_type.__name__, type(symbol).__name__))
+            # TODO #1057: If the symbol is found and some unmatching arguments
+            # were given it should also fail here.
+            return symbol
+        except KeyError:
+            return self.new_symbol(name, **new_symbol_args)
+
+    def find_or_create_tag(self, tag, root_name=None, **new_symbol_args):
         ''' Lookup a tag, if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
         root of the symbol name. Optionally, a different root_name or any of

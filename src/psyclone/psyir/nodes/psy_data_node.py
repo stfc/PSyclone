@@ -275,7 +275,7 @@ class PSyDataNode(Statement):
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
         for sym in self.imported_symbols:
-            symbol_table.symbol_from_tag(sym.name, symbol_type=sym.symbol_type,
+            symbol_table.find_or_create_tag(sym.name, symbol_type=sym.symbol_type,
                                          interface=ImportInterface(csym),
                                          datatype=DeferredType())
 
