@@ -61,9 +61,6 @@ def trans(psy):
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
 
-    # Transform the Schedule
-    ocl_trans.apply(sched, options={"end_barrier": True})
-
     # Provide kernel-specific OpenCL optimization options
     for idx, kern in enumerate(sched.kernels()):
         # Move the PSy-layer loop boundaries inside the kernel as a kernel
@@ -77,5 +74,8 @@ def trans(psy):
         # that the output code has the necessary barriers to guarantee the
         # kernel execution order.
         kern.set_opencl_options({"queue_number": idx+1, 'local_size': 4})
+
+    # Transform the Schedule
+    ocl_trans.apply(sched, options={"end_barrier": True})
 
     return psy
