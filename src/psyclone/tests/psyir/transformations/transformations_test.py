@@ -46,14 +46,15 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective
+    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
+    OMPTaskwaitDirective, OMPTaskloopDirective, OMPParallelDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, MoveTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -107,119 +108,6 @@ def test_omploop_no_collapse():
         _ = trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
-
-
-def test_omptaskloop_no_collapse():
-    ''' Check that the OMPTaskloopTrans.directive() method rejects
-    the collapse argument '''
-    trans = OMPTaskloopTrans()
-    cnode = Node()
-    with pytest.raises(NotImplementedError) as err:
-        trans._directive(cnode, collapse=True)
-    assert ("The COLLAPSE clause is not yet supported for "
-            "'!$omp taskloop' directives" in str(err.value))
-
-
-def test_omptaskloop_getters_and_setters():
-    ''' Check that the OMPTaskloopTrans getters and setters
-    correctly throw TransformationErrors on illegal values '''
-    trans = OMPTaskloopTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.omp_num_tasks = "String"
-    assert "num_tasks must be an integer or None, got str" in str(err.value)
-    with pytest.raises(TransformationError) as err:
-        trans.omp_num_tasks = -1
-    assert "num_tasks must be a positive integer, got -1" in str(err.value)
-    with pytest.raises(TransformationError) as err:
-        trans.omp_grainsize = "String"
-    assert "grainsize must be an integer or None, got str" in str(err.value)
-    with pytest.raises(TransformationError) as err:
-        trans.omp_grainsize = -1
-    assert "grainsize must be a positive integer, got -1" in str(err.value)
-    trans.omp_num_tasks = 32
-    assert trans.omp_num_tasks == 32
-    with pytest.raises(TransformationError) as err:
-        trans.omp_grainsize = 32
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
-    trans.omp_num_tasks = None
-    assert trans.omp_num_tasks is None
-    trans.omp_grainsize = 32
-    assert trans.omp_grainsize == 32
-    trans.grainsize = None
-    assert trans.grainsize is None
-
-    trans = OMPTaskloopTrans(num_tasks=32)
-    assert trans.omp_num_tasks == 32
-    trans = OMPTaskloopTrans(grainsize=32)
-    assert trans.omp_grainsize == 32
-
-    with pytest.raises(TransformationError) as err:
-        trans = OMPTaskloopTrans(grainsize=32, num_tasks=32)
-    assert("The grainsize and num_tasks clauses would both "
-           "be specified for this Taskloop transformation"
-           in str(err.value))
-
-    with pytest.raises(TypeError) as err:
-        trans = OMPTaskloopTrans(nogroup=32)
-    assert "Expected nogroup to be a bool but got a int" in str(err.value)
-
-
-def test_omptaskloop_apply(monkeypatch):
-    '''Check that the gen_code method in the OMPTaskloopDirective
-    class generates the expected code when passing options to
-    the OMPTaskloopTrans's apply method and correctly overrides the
-    taskloop's inbuilt value. Use the gocean API.
-    '''
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    taskloop = OMPTaskloopTrans()
-    master = OMPMasterTrans()
-    parallel = OMPParallelTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    # Check that the _nogroup clause isn't changed during apply
-    assert taskloop._nogroup is False
-    taskloop.apply(schedule.children[0], {"nogroup": True})
-    assert taskloop._nogroup is False
-    taskloop_node = schedule.children[0]
-    master.apply(schedule.children[0])
-    parallel.apply(schedule.children[0])
-
-    code = str(psy.gen)
-
-    clauses = " nogroup"
-
-    assert (
-        "    !$omp parallel default(shared), private(i,j)\n" +
-        "      !$omp master\n" +
-        "      !$omp taskloop{0}\n".format(clauses) +
-        "      DO" in code)
-    assert (
-        "      END DO\n" +
-        "      !$omp end taskloop\n" +
-        "      !$omp end master\n" +
-        "      !$omp end parallel" in code)
-
-    assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
-
-    # Create a fake validate function to throw an exception
-    def validate(self, options):
-        raise TransformationError("Fake error")
-    monkeypatch.setattr(taskloop, "validate", validate)
-    # Test that the nogroup attribute isn't permanently changed if validate
-    # throws an exception
-    assert taskloop._nogroup is False
-    with pytest.raises(TransformationError) as excinfo:
-        _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                               "single_invoke.f90"), api="gocean1.0")
-        schedule = psy.invokes.invoke_list[0].schedule
-        taskloop.apply(schedule[0], {"nogroup": True})
-    assert "Fake error" in str(excinfo.value)
-    assert taskloop._nogroup is False
 
 
 def test_ifblock_children_region():

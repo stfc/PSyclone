@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,34 +30,34 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-! ------------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
-! Modified by: R. W. Ford, STFC Daresbury Lab
+! -----------------------------------------------------------------------------
+! Author A. R. Porter, STFC Daresbury Lab
 
-! Example module containing a very simple, one-line kernel subroutine.
+program single_invoke
 
-module testkern_mod
+  ! Description: invoke containing multiple kernels, the first 
+  ! of which is a kernel that operates on the domain instead of a
+  ! cell-column and the last of which is a CMA kernel.
+  use constants_mod,                only: r_def
+  use field_mod,                    only: field_type
+  use operator_mod,                 only: columnwise_operator_type
+  use columnwise_op_asm_kernel_mod, only: columnwise_op_asm_kernel_type
+  use testkern_domain_mod,          only: testkern_domain_type
+  use testkern_mod,                 only: testkern_type
+
   implicit none
 
-contains
+  real(kind=r_def) :: b, c
+  type(field_type) :: f1, f2, f3, f4
+  type(operator_type)            :: lma_op1
+  type(columnwise_operator_type) :: cma_op1
 
-  subroutine testkern_code(ascalar, field1, field2, npts)
-    real, intent(in) :: ascalar
-    integer, intent(in) :: npts
-    ! issue #1429. Active variables need to be declared as inout as
-    ! the intents can change in the adjoint version and PSyclone does
-    ! not currently deal with this.
-    real, intent(inout), dimension(npts) :: field2
-    real, intent(inout), dimension(npts) :: field1
-    real :: tmp, tmp2
+  call invoke(                                           &
+               ! Read-write f1 (W3)
+               testkern_domain_type(b, f1),              &
+               ! Read from f1
+               testkern_type(b, f2, f3, f4, f1),         &
+               ! Write cma_op1
+               columnwise_op_asm_kernel_type(lma_op1, cma_op1) )
 
-    ! issue #1430. Array notation does not work with the assignment
-    ! transformation so temporarily change the assignment to a single
-    ! index, e.g. previously field1(:) = ascalar*field1(:) + field2(:)
-    tmp = ascalar*ascalar
-    field1(1) = tmp*field1(1) + field2(1)
-    tmp2 = tmp*3.0
-    field2(1) = field2(1) + field1(1)/tmp2
-  end subroutine testkern_code
-  
-end module testkern_mod
+end program single_invoke

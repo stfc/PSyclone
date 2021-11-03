@@ -853,10 +853,11 @@ def test_cma_asm(tmpdir, dist_mem):
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert "TYPE(mesh_type), pointer :: mesh => null()" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: cbanded_map_adspc1_lma_op1(:,:) "
             "=> null(), cbanded_map_adspc2_lma_op1(:,:) => null()") in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
             "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
@@ -891,7 +892,8 @@ def test_cma_asm_field(tmpdir, dist_mem):
             "cbanded_map_aspc1_afield(:,:) => null(), "
             "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "mesh => afield_proxy%vspace%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = (
         "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
@@ -932,7 +934,7 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
             "cbanded_map_aspc1_lma_op1(:,:) => null(), "
             "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
@@ -972,7 +974,8 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cbanded_map_aspc2_lma_op1(:,:) => null()\n" in code)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "mesh => lma_op1_proxy%fs_from%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
@@ -1032,7 +1035,8 @@ def test_cma_apply(tmpdir, dist_mem):
 
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "mesh => field_a_proxy%vspace%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_aspc1_"
             "field_a(:) => null(), "
             "cma_indirection_map_aspc2_field_b(:) => null()\n") in code
@@ -1074,7 +1078,6 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     # Check any_discontinuous_space_1
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cma_indirection_map_adspc1_field_a(:) => null(), "
             "cma_indirection_map_aspc1_field_b(:) => null()\n") in code
@@ -1085,7 +1088,8 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "cma_op1_proxy%indirection_dofmap_to") in code
     # Check w2v
     assert "TYPE(columnwise_operator_proxy_type) cma_op2_proxy" in code
-    assert "ncell_2d = cma_op2_proxy%ncell_2d" in code
+    assert "mesh => field_a_proxy%vspace%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert ("INTEGER(KIND=i_def), pointer :: "
             "cma_indirection_map_w2v(:) => null(), "
             "cma_indirection_map_aspc2_field_d(:) => null()\n") in code
@@ -1147,7 +1151,8 @@ def test_cma_apply_same_space(dist_mem, tmpdir):
 
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "mesh => field_a_proxy%vspace%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert ("INTEGER(KIND=i_def), pointer :: cma_indirection_map_aspc2_"
             "field_a(:) => null()\n") in code
     assert ("ndf_aspc2_field_a = field_a_proxy%vspace%get_ndf()\n"
@@ -1182,7 +1187,8 @@ def test_cma_matrix_matrix(tmpdir, dist_mem):
     code = str(psy.gen)
 
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_opa_proxy%ncell_2d" in code
+    assert "mesh => cma_opa_proxy%fs_from%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
 
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
@@ -1220,7 +1226,8 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
     assert "INTEGER(KIND=i_def) ncell_2d" in code
-    assert "ncell_2d = cma_opa_proxy%ncell_2d" in code
+    assert "mesh => cma_opa_proxy%fs_from%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
 
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
