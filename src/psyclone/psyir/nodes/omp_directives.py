@@ -237,6 +237,15 @@ class OMPSingleDirective(OMPSerialDirective):
         super(OMPSingleDirective, self).__init__(children=children,
                                                  parent=parent)
 
+    @property
+    def nowait(self):
+        '''
+        :returns: whether the nowait clause is specified for this directive.
+        :rtype: bool
+
+        '''
+        return self._nowait
+
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
         code
@@ -590,6 +599,14 @@ class OMPTaskloopDirective(OMPRegionDirective):
                 "numtasks clauses specified.")
         super(OMPTaskloopDirective, self).__init__(children=children,
                                                    parent=parent)
+
+    @property
+    def nogroup(self):
+        '''
+        :returns: the nogroup clause status of this node.
+        :rtype: bool
+        '''
+        return self._nogroup
 
     def validate_global_constraints(self):
         '''
