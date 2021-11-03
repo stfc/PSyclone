@@ -9073,21 +9073,14 @@ class DynKernelArgument(KernelArgument):
             :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
             '''
-            try:
-                arg_type = symbol_table.lookup(type_name)
-            except KeyError:
-                # TODO Once #1258 is done we should already have symbols for
-                # the various types at this point.
-                try:
-                    arg_mod_container = symbol_table.lookup(mod_name)
-                except KeyError:
-                    arg_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(arg_mod_container)
-                arg_type = DataTypeSymbol(
-                    type_name, DeferredType(),
-                    interface=ImportInterface(arg_mod_container))
-                root_table.add(arg_type)
-            return arg_type
+            return root_table.find_or_create(
+                    type_name,
+                    symbol_type=DataTypeSymbol,
+                    datatype=DeferredType(),
+                    interface=ImportInterface(root_table.find_or_create(
+                        mod_name,
+                        symbol_type=ContainerSymbol)
+                        ))
 
         if self.is_scalar:
 
