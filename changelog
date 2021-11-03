@@ -261,6 +261,10 @@
 	cells up to the last edge cell instead of the halo cells to the
 	'domain' kernels in the LFRic API.
 
+	89) PR #1480 for #1479 Makes PSyclone use the release version of
+	fparser (0.0.13) from pypi on installation (towards making a new
+	PSyclone release).
+
 release 2.0.0 28th April 2021
 
 	1) #778 for #713. Use 'make' to execute all examples.
