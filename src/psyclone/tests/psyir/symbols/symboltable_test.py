@@ -1487,8 +1487,8 @@ def test_new_symbol():
 
 
 def test_find_or_create():
-    ''' Tests the SymbolTable find_or_create method '''
-
+    ''' Tests the SymbolTable find_or_create method find existing symbols or
+    otherwise creates a new symbol with the given properties. '''
     symtab = SymbolTable()
     existing_symbol = Symbol("existing")
     symtab.add(existing_symbol, tag="tag1")
@@ -1498,7 +1498,33 @@ def test_find_or_create():
 
     # If the given name does not exist, crate and return new symbol
     new1 = symtab.find_or_create("new1")
-    assert new1 is not existing_symbol
+    assert isinstance(new1, Symbol)
+    assert new1.name == "new1"
+    assert new1 is symtab.find_or_create("new1")  # Which then is found
+
+    # Creating symbols can have parameters passed to the new_symbol method
+    new2 = symtab.find_or_create("new2",
+                                 tag="mytag",
+                                 symbol_type=DataSymbol,
+                                 datatype=INTEGER_TYPE,
+                                 visibility=Symbol.Visibility.PRIVATE,
+                                 constant_value=3)
+    assert new2.name == "new2"
+    assert isinstance(new2, DataSymbol)
+    assert new2.datatype is INTEGER_TYPE
+    assert new2.visibility is Symbol.Visibility.PRIVATE
+    assert new2.constant_value.value == "3"
+    assert symtab.lookup_with_tag("mytag") is new2
+
+    # Check that it fails if the Symbol type is different than expected by
+    # the provided properties
+    with pytest.raises(SymbolError) as err:
+        symtab.find_or_create("new2", symbol_type=RoutineSymbol)
+    assert ("Expected symbol with name 'new2' to be of type 'RoutineSymbol' "
+            "but found type 'DataSymbol'." in str(err.value))
+
+    # TODO #1057: It should also fail the symbol is found but the properties
+    # are different than the requested ones.
 
 
 def test_find_or_create_tag():
