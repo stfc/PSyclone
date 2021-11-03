@@ -372,8 +372,8 @@ class LFRicBuiltIn(BuiltIn):
         # constructor.
         # TODO #696 - 'df' should have KIND i_def.
         return table.find_or_create_tag(tag="dof_loop_idx", root_name="df",
-                                     symbol_type=DataSymbol,
-                                     datatype=INTEGER_SINGLE_TYPE)
+                                        symbol_type=DataSymbol,
+                                        datatype=INTEGER_SINGLE_TYPE)
 
     def get_indexed_field_argument_references(self):
         '''

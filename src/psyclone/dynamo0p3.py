@@ -1996,11 +1996,11 @@ class LFRicMeshProperties(DynCollection):
                             "nfaces_re_h").name,
                         intent="in", entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D:
-                ncell_2d = self._symbol_table.find_or_create_tag("ncell_2d").name
+                ncell_2d = self._symbol_table.find_or_create_tag("ncell_2d")
                 parent.add(
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
-                            intent="in", entity_decls=[ncell_2d]))
+                            intent="in", entity_decls=[ncell_2d.name]))
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
@@ -2097,7 +2097,8 @@ class DynReferenceElement(DynCollection):
         symtab = self._symbol_table
 
         # Create and store a name for the reference element object
-        self._ref_elem_name = symtab.find_or_create_tag("reference_element").name
+        self._ref_elem_name = \
+            symtab.find_or_create_tag("reference_element").name
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
@@ -2154,7 +2155,8 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
                 self._horiz_face_out_normals_name = \
-                    symtab.find_or_create_tag("out_normals_to_horiz_faces").name
+                    symtab.find_or_create_tag("out_normals_to_horiz_faces") \
+                          .name
                 if self._horiz_face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._horiz_face_out_normals_name] = \
@@ -3169,7 +3171,8 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        self._nlayers_name = self._symbol_table.find_or_create_tag("nlayers").name
+        self._nlayers_name = \
+            self._symbol_table.find_or_create_tag("nlayers").name
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -3775,8 +3778,8 @@ class DynMeshes(object):
         if not _name_set:
             if (requires_mesh or (Config.get().distributed_memory and
                                   not invoke.operates_on_dofs_only)):
-                _name_set.add(
-                    self._schedule.symbol_table.find_or_create_tag("mesh").name)
+                _name_set.add(self._schedule.symbol_table.find_or_create_tag(
+                    "mesh").name)
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -3801,11 +3804,13 @@ class DynMeshes(object):
                 # Colour map
                 base_name = "cmap_" + carg_name
                 colour_map = \
-                    self._schedule.symbol_table.find_or_create_tag(base_name).name
+                    self._schedule.symbol_table.find_or_create_tag(base_name) \
+                                               .name
                 # No. of colours
                 base_name = "ncolour_" + carg_name
                 ncolours = \
-                    self._schedule.symbol_table.find_or_create_tag(base_name).name
+                    self._schedule.symbol_table.find_or_create_tag(base_name)\
+                                               .name
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
@@ -3929,7 +3934,8 @@ class DynMeshes(object):
                 colour_map = self._schedule.symbol_table.find_or_create_tag(
                     "cmap").name
                 ncolour = \
-                    self._schedule.symbol_table.find_or_create_tag("ncolour").name
+                    self._schedule.symbol_table.find_or_create_tag("ncolour")\
+                                               .name
                 # Get the number of colours
                 parent.add(AssignGen(
                     parent, lhs=ncolour,
@@ -4422,7 +4428,8 @@ class DynBasisFunctions(DynCollection):
                 var_names = []
                 for var in self._qr_vars[shape]:
                     var_names.append(
-                        self._symbol_table.find_or_create_tag(var+"_proxy").name)
+                        self._symbol_table.find_or_create_tag(var+"_proxy")
+                                          .name)
                 parent.add(
                     TypeDeclGen(
                         parent,

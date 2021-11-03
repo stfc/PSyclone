@@ -1486,6 +1486,21 @@ def test_new_symbol():
             " one of its sub-classes but found" in str(err.value))
 
 
+def test_find_or_create():
+    ''' Tests the SymbolTable find_or_create method '''
+
+    symtab = SymbolTable()
+    existing_symbol = Symbol("existing")
+    symtab.add(existing_symbol, tag="tag1")
+
+    # If the given name exists, return the symbol
+    assert symtab.find_or_create("existing") is existing_symbol
+
+    # If the given name does not exist, crate and return new symbol
+    new1 = symtab.find_or_create("new1")
+    assert new1 is not existing_symbol
+
+
 def test_find_or_create_tag():
     ''' Tests the SymbolTable find_or_create_tag method '''
     # pylint: disable=unidiomatic-typecheck
@@ -1510,10 +1525,10 @@ def test_find_or_create_tag():
 
     # It can be given additional new_symbol parameters
     tag3 = symtab.find_or_create_tag("tag3",
-                                  symbol_type=DataSymbol,
-                                  datatype=INTEGER_TYPE,
-                                  visibility=Symbol.Visibility.PRIVATE,
-                                  constant_value=3)
+                                     symbol_type=DataSymbol,
+                                     datatype=INTEGER_TYPE,
+                                     visibility=Symbol.Visibility.PRIVATE,
+                                     constant_value=3)
     assert symtab.lookup_with_tag("tag3") is tag3
     assert type(tag3) == DataSymbol
     assert tag3.visibility is Symbol.Visibility.PRIVATE
