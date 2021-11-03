@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     StructureReference
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, DeferredType, ArrayType, BOOLEAN_TYPE
+    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE
 from psyclone.transformations import TransformationError, KernelTrans
 
 
@@ -125,6 +125,8 @@ class GOOpenCLTrans(Transformation):
                                      environment.
         :raises TransformationError: if any kernel in this invoke has a \
                                      global variable used by an import.
+        :raises TransformationError: if any kernel does not iterate over \
+                                     the whole grid.
         '''
 
         if isinstance(node, InvokeSchedule):
@@ -197,6 +199,21 @@ class GOOpenCLTrans(Transformation):
                     "transformation to convert such symbols to kernel "
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
+
+        # In OpenCL all kernel loops should iterate the whole grid
+        for kernel in node.kernels():
+            inner_loop = kernel.ancestor(GOLoop)
+            outer_loop = inner_loop.ancestor(GOLoop)
+            if not (inner_loop.field_space == "go_every" and
+                    outer_loop.field_space == "go_every" and
+                    inner_loop.iteration_space == "go_all_pts" and
+                    outer_loop.iteration_space == "go_all_pts"):
+                raise TransformationError(
+                    "The kernel '{0}' does not iterate over all grid points. "
+                    "This is a necessary requirement for generating "
+                    "the OpenCL code and can be done by applying the "
+                    "GOMoveIterationBoundariesInsideKernelTrans to each kernel"
+                    " before the GOOpenCLTrans.".format(kernel.name))
 
     def apply(self, node, options=None):
         '''
@@ -849,8 +866,6 @@ class GOOpenCLTrans(Transformation):
         argsetter.symbol_table.add(c_intptr_t)
         argsetter.symbol_table.add(ocl_utils)
         argsetter.symbol_table.add(check_status)
-
-        # All arguments are read-only, create the interface for later use
 
         # Add an argument symbol for the kernel object
         kobj = argsetter.symbol_table.new_symbol(

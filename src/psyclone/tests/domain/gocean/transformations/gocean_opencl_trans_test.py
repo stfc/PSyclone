@@ -744,7 +744,31 @@ C_NULL_PTR)'''
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_boundaries_validation():
+    ''' Check that the OpenCL transformation can not be applied if the
+    kernel loop doesn't iterate the whole grid.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    otrans = GOOpenCLTrans()
+
+    # Try to apply the OpenCL transformation without moving the boundaries
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched)
+    assert ("The kernel 'compute_cu_code' does not iterate over all grid "
+            "points. This is a necessary requirement for generating the "
+            "OpenCL code and can be done by applying the GOMoveIteration"
+            "BoundariesInsideKernelTrans to each kernel before the "
+            "GOOpenCLTrans." in str(err.value))
+
+    # After move the boundaries the OpenCL transformation should pass
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+    otrans.apply(sched)
+
+
 def test_opencl_options_validation():
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
@@ -1213,8 +1237,9 @@ def test_opencl_code_generation_with_boundary_mask():
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_kernel_missing_boundary_symbol():
-    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
+    '''Check that during code generation if a tagged symbol to represent a
+    loop boundary doesn't exist the relevant error is raised.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -1222,22 +1247,26 @@ def test_opencl_kernel_missing_boundary_symbol():
     # Create dummy boundary symbols for the "name" kernel with one missing
     # symbol
     sched.symbol_table.new_symbol(
-        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "a", tag="xstart_compute_cu_code", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
     sched.symbol_table.new_symbol(
-        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "c", tag="ystart_compute_cu_code", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
     sched.symbol_table.new_symbol(
-        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "d", tag="ystop_compute_cu_code", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
 
     otrans = GOOpenCLTrans()
+    # We skip validation as in this test we purposefully want to have the issue
+    monkeypatch.setattr(otrans, "validate", lambda x, y: None)
     otrans.apply(sched)
-    sched.kernels()[0].name = "name"
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
-    assert ("Boundary symbol tag 'xstop_name' not found while generating the "
-            "OpenCL code for kernel 'name'. Make sure to apply the "
-            "GOMoveIterationBoundariesInsideKernelTrans before attempting the"
-            " OpenCL code generation." in str(err.value))
+    assert ("Boundary symbol tag 'xstop_compute_cu_code' not found while "
+            "generating the OpenCL code for kernel 'compute_cu_code'. Make "
+            "sure to apply the GOMoveIterationBoundariesInsideKernelTrans "
+            "before attempting the OpenCL code generation." in str(err.value))
 
 
 def test_opencl_kernel_output_file(kernel_outputdir):
