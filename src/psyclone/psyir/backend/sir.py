@@ -67,8 +67,6 @@ def gen_stencil(node):
     string. Raise an exception if the array access is not a recognised
     stencil access.
 
-    *** SIR ALWAYS EXPECTS 3 ARGS ***
-
     :param node: an array access.
     :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
@@ -143,6 +141,7 @@ class SIRWriter(PSyIRVisitor):
         # what is required.
         self._scalar_names = set()
         self._scalars = {}
+        self._in_vertical_region = False
 
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
@@ -287,8 +286,9 @@ class SIRWriter(PSyIRVisitor):
         # #470).
         result += (
             "{0}vertical_region_fns.append(make_vertical_region_decl_stmt("
-            "body_ast, k_interval, VerticalRegion.Forward, IRange={1}, JRange={2}))\n"
+            "body_ast, k_interval, VerticalRegion.Forward, IRange={1}, JRange={2}))\n\n"
             "".format(self._nindent, make_i_interval_str, make_j_interval_str))
+        
         return result
 
     def nemokern_node(self, node):
@@ -327,12 +327,51 @@ class SIRWriter(PSyIRVisitor):
         result += "import dawn4py\n\n"
         result += "vertical_region_fns = []\n"
         # The stencil name is currently hardcoded.
-        result += "stencil_name = \"psyclone\"\n"
+        result += "stencil_name = \"psyclone\"\n\n"
 
         exec_statements = ""
+
         for child in node.children:
+            from psyclone.psyir.nodes import Loop
+            if not isinstance(child, Loop) and not self._in_vertical_region:
+                exec_statements += ("{0}k_interval = make_interval(Interval.Start, Interval.End, 0, 0)\n".format(
+                    self._nindent))
+                exec_statements += ("{0}body_ast = make_ast([\n".format(self._nindent))
+                self._depth += 1
+                self._in_vertical_region = True
+            if isinstance(child, Loop) and self._in_vertical_region:
+                self._depth -= 1
+                # Remove the trailing comma if there is one as this is the
+                # last entry in make_ast.
+                exec_statements = exec_statements.rstrip(",\n") + "\n"
+                exec_statements += "{0}])\n".format(self._nindent)
+                # For the moment there is a hard coded assumption that the
+                # vertical looping is in the forward (1..n) direction (see
+                # #470).
+                exec_statements += (
+                    "{0}vertical_region_fns.append(make_vertical_region_decl_stmt("
+                    "body_ast, k_interval, VerticalRegion.Forward))\n\n"
+                    "".format(self._nindent))
+                self._in_vertical_region = False
+        
             exec_statements += self._visit(child)
         result += "{0}\n".format(exec_statements)
+
+        if self._in_vertical_region:
+            self._depth -= 1
+            # Remove the trailing comma if there is one as this is the
+            # last entry in make_ast.
+            result = result.rstrip(",\n") + "\n"
+            result += "{0}])\n".format(self._nindent)
+            # For the moment there is a hard coded assumption that the
+            # vertical looping is in the forward (1..n) direction (see
+            # #470).
+            result += (
+                "{0}vertical_region_fns.append(make_vertical_region_decl_stmt("
+                "body_ast, k_interval, VerticalRegion.Forward))\n\n"
+                "".format(self._nindent))
+            self._in_vertical_region = False
+
         # The file name is hard coded at the moment.
         result += (
             "{0}sir = make_sir(stencil_name+\".cpp\", "
@@ -395,7 +434,7 @@ class SIRWriter(PSyIRVisitor):
             "backend=dawn4py.CodeGenBackend.CUDA)\n"
             "# code = dawn4py.compile(sir, "
             "backend=dawn4py.CodeGenBackend.GridTools)\n")
-        result += "print (code)"
+        result += "print(code)"
 
         return result
 
