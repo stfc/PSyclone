@@ -573,17 +573,17 @@ class OMPTargetTrans(RegionTrans):
     >>> from psyclone.transformations import OMPTargetTrans
     >>>
     >>> tree = FortranReader().psyir_from_source("""
-    >>>     subroutine my_subroutine()
-    >>>         integer, dimension(10, 10) :: A
-    >>>         integer :: i
-    >>>         integer :: j
-    >>>         do i = 1, 10
-    >>>             do j = 1, 10
-    >>>                 A(i, j) = 0
-    >>>             end do
-    >>>         end do
-    >>>     end subroutine
-    >>>     """
+    ...     subroutine my_subroutine()
+    ...         integer, dimension(10, 10) :: A
+    ...         integer :: i
+    ...         integer :: j
+    ...         do i = 1, 10
+    ...             do j = 1, 10
+    ...                 A(i, j) = 0
+    ...             end do
+    ...         end do
+    ...     end subroutine
+    ...     """
     >>> omptargettrans = OMPTargetTrans()
     >>> omptargettrans.apply(tree.walk(Loop))
 
@@ -595,31 +595,31 @@ class OMPTargetTrans(RegionTrans):
             integer, dimension(10, 10) :: A
             integer :: i
             integer :: j
-            $!omp target
+            !$omp target
             do i = 1, 10
                 do j = 1, 10
                     A(i, j) = 0
                 end do
             end do
-            $!omp end target
+            !$omp end target
         end subroutine
 
     '''
-    def apply(self, nodes, options=None):
-        ''' Insert a OMPTargetDirective before the provided node or list
+    def apply(self, node, options=None):
+        ''' Insert an OMPTargetDirective before the provided node or list
         of nodes.
 
-        :param nodes: the PSyIR node or nodes to enclose in the OpenMP \
+        :param node: the PSyIR node or nodes to enclose in the OpenMP \
                       target region.
-        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type node: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         '''
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        node_list = self.get_node_list(nodes)
+        node_list = self.get_node_list(node)
         self.validate(node_list, options)
 
         # Create a directive containing the nodes in node_list and insert it.
@@ -636,17 +636,17 @@ class OMPTargetTrans(RegionTrans):
 class OMPLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenMP directive to a loop. This can be the loop worksharing
-    OpenMP Do/For directive to distribute the work in the enclosing parallel
-    region or a descriptive OpenMP loop directive to let the compiler decide
+    OpenMP Do/For directive to distribute the iterations of the enclosed
+    loop or a descriptive OpenMP loop directive to let the compiler decide
     the best implementation. The OpenMP schedule used for the worksharing
     directive can also be specified, but this will be ignored in case of the
-    descriptive OpenMP loop. Also, the configuration-defined 'reprod' parameter
+    descriptive OpenMP loop. The configuration-defined 'reprod' parameter
     also specifies whether a manual reproducible reproduction is to be used.
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'static'.
     :param bool omp_worksharing: whether to generate OpenMP loop worksharing \
-        directives (e.g. omp do/for) or simple a OpenMP loop directive. \
-        Defaults to True.
+        directives (e.g. omp do/for) or an OpenMP loop directive. Defaults to \
+        True.
 
     For example:
 
@@ -655,22 +655,22 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
     >>>
     >>> tree = FortranReader().psyir_from_source("""
-    >>>     subroutine my_subroutine()
-    >>>         integer, dimension(10, 10) :: A
-    >>>         integer :: i
-    >>>         integer :: j
-    >>>         do i = 1, 10
-    >>>             do j = 1, 10
-    >>>                 A(i, j) = 0
-    >>>             end do
-    >>>         end do
-    >>>         do i = 1, 10
-    >>>             do j = 1, 10
-    >>>                 A(i, j) = 0
-    >>>             end do
-    >>>         end do
-    >>>     end subroutine
-    >>>     """
+    ...     subroutine my_subroutine()
+    ...         integer, dimension(10, 10) :: A
+    ...         integer :: i
+    ...         integer :: j
+    ...         do i = 1, 10
+    ...             do j = 1, 10
+    ...                 A(i, j) = 0
+    ...             end do
+    ...         end do
+    ...         do i = 1, 10
+    ...             do j = 1, 10
+    ...                 A(i, j) = 0
+    ...             end do
+    ...         end do
+    ...     end subroutine
+    ...     """
     >>> routine.walk(Routine)
     >>> ompparalleltrans = OMPParallelTrans()  # Necessary in loop worksharing
     >>> omplooptrans1 = OMPLoopTrans(omp_schedule="auto")
@@ -736,7 +736,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     @omp_worksharing.setter
     def omp_worksharing(self, value):
         '''
-        :param bool value: value to set the omp_worsharing attribute.
+        :param bool value: new value of the omp_worksharing attribute.
 
         :raises TypeError: if the provided value is not a boolean.
         '''

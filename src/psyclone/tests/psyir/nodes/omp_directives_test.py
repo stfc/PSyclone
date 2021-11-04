@@ -549,8 +549,8 @@ def test_omp_loop_directive_collapse_getter_and_setter():
 
 
 def test_omp_loop_directive_validate_global_constraints():
-    ''' Test the OMPLoopDirective is inside a OMPParallelRegion and contains
-    as many immediate loops as specified by the collapse clause'''
+    ''' Test the OMPLoopDirective contains valid children and have as many
+    immediate loops as specified by the collapse clause'''
 
     # Check an empty OMPLoop
     schedule = Schedule()

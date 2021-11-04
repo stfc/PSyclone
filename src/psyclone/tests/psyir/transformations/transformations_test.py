@@ -63,8 +63,8 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
-@pytest.fixture
-def sample_psyir(fortran_reader):
+@pytest.fixture(name="sample_psyir")
+def sample_psyir_fixture(fortran_reader):
     ''' Snippet of code converted to PSyIR to use during the tests. '''
     code = '''
     subroutine my_subroutine()
