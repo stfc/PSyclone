@@ -808,6 +808,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         '''
         if self._omp_worksharing:
+            # TODO 1370: OpenMP Do Directive don't support collapse yet.
             _directive = OMPDoDirective(children=children,
                                         omp_schedule=self.omp_schedule,
                                         reprod=self._reprod)
