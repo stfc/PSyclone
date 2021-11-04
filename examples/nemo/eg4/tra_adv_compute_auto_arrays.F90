@@ -14,10 +14,10 @@ contains
     implicit none
 
     REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, &
-                                                           tmask, tsn, zslpx
+                                                           tmask, tsn
     REAL*8, ALLOCATABLE, DIMENSION(:,:), intent(in) :: ztfreez, rnfmsk, upsmsk
     REAL*8, ALLOCATABLE, DIMENSION(:), intent(in) :: rnfmsk_z
-    REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(inout):: mydomain
+    REAL*8, ALLOCATABLE, DIMENSION(:,:,:), intent(inout):: mydomain, zslpx
     INTEGER, INTENT(IN) :: jpi, jpj, jpk
     
     ! local variables
