@@ -641,31 +641,31 @@ def test_process_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     newsymbol = fake_parent.symbol_table.lookup("i1")
     assert newsymbol.is_constant
-    assert isinstance(newsymbol.constant_value, Literal)
-    assert newsymbol.constant_value.value == "1"
+    assert isinstance(newsymbol.initial_value, Literal)
+    assert newsymbol.initial_value.value == "1"
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i2").constant_value.value == "2.2"
-    assert fake_parent.symbol_table.lookup("i3").constant_value.value == "3.3"
+    assert fake_parent.symbol_table.lookup("i2").initial_value.value == "2.2"
+    assert fake_parent.symbol_table.lookup("i3").initial_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("i4").constant_value.value == "1.1"
-    assert isinstance(fake_parent.symbol_table.lookup("i5").constant_value,
+    assert fake_parent.symbol_table.lookup("i4").initial_value.value == "1.1"
+    assert isinstance(fake_parent.symbol_table.lookup("i5").initial_value,
                       BinaryOperation)
 
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
+    assert fake_parent.symbol_table.lookup("val1").initial_value.value == "1"
     assert isinstance(
-        fake_parent.symbol_table.lookup("val2").constant_value, Reference)
-    assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
+        fake_parent.symbol_table.lookup("val2").initial_value, Reference)
+    assert fake_parent.symbol_table.lookup("val2").initial_value.symbol == \
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
@@ -674,16 +674,19 @@ def test_process_declarations():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     # Val3 has been given a constant expression
-    assert fake_parent.symbol_table.lookup("val3").constant_value
+    assert fake_parent.symbol_table.lookup("val3").initial_value
     # The new symbol (precisionkind) has been added to the parent Symbol Table
     assert fake_parent.symbol_table.lookup("precisionkind")
 
-    # Initialisation with of a variable
+    # Initialisation of a variable
     reader = FortranStringReader(
         "integer :: val4 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("val4").initial_value
+    val4 = fake_parent.symbol_table.lookup("val4")
+    assert val4.initial_value
+    assert isinstance(val4.initial_value, BinaryOperation)
+    assert val4.is_constant is False
 
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
@@ -731,49 +734,30 @@ def test_process_unsupported_declarations(fortran_reader):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    # Initial values for variables are not supported so we should get a symbol
-    # with unknown type.
-    reader = FortranStringReader("real:: a = 1.1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    asym = fake_parent.symbol_table.lookup("a")
-    assert isinstance(asym.datatype, UnknownFortranType)
-    assert asym.datatype.declaration == "REAL :: a = 1.1"
-
-    reader = FortranStringReader("real:: b = 1.1, c = 2.2")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    bsym = fake_parent.symbol_table.lookup("b")
-    assert isinstance(bsym.datatype, UnknownFortranType)
-    assert bsym.datatype.declaration == "REAL :: b = 1.1"
-    csym = fake_parent.symbol_table.lookup("c")
-    assert isinstance(csym.datatype, UnknownFortranType)
-    assert csym.datatype.declaration == "REAL :: c = 2.2"
-
     # Multiple symbols with a single attribute
-    reader = FortranStringReader("integer, private :: d = 1, e = 2")
+    reader = FortranStringReader("integer, private, pointer :: d, e")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
     assert isinstance(dsym.datatype, UnknownFortranType)
-    assert dsym.datatype.declaration == "INTEGER, PRIVATE :: d = 1"
+    assert dsym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: d"
     esym = fake_parent.symbol_table.lookup("e")
     assert isinstance(esym.datatype, UnknownFortranType)
-    assert esym.datatype.declaration == "INTEGER, PRIVATE :: e = 2"
+    assert esym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: e"
 
     # Multiple attributes
     reader = FortranStringReader(
-        "INTEGER, PRIVATE, DIMENSION(3) :: f = 2, g = 3")
+        "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f, g")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
     assert isinstance(fsym.datatype, UnknownFortranType)
     assert (fsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3) :: f = 2")
+            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f")
     gsym = fake_parent.symbol_table.lookup("g")
     assert isinstance(gsym.datatype, UnknownFortranType)
     assert (gsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3) :: g = 3")
+            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: g")
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
@@ -809,7 +793,7 @@ def test_process_unsupported_declarations(fortran_reader):
     # The first parameter should have been handled correctly
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert hsym.constant_value.value == "1"
+    assert hsym.initial_value.value == "1"
     # The fparser2 parse tree should still be intact
     assert ("INTEGER, PARAMETER :: happy = 1, fbsp = SELECTED_REAL_KIND(6, 37)"
             in str(fparser2spec))

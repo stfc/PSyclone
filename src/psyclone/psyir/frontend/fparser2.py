@@ -1583,8 +1583,6 @@ class Fparser2Reader(object):
             a non-array declaration.
         :raises InternalError: if an array with defined extent has the \
             allocatable attribute.
-        :raises NotImplementedError: if an initialisation expression is found \
-            for a variable declaration.
         :raises NotImplementedError: if an unsupported initialisation \
             expression is found for a parameter declaration.
         :raises NotImplementedError: if a character-length specification is \
@@ -1678,7 +1676,7 @@ class Fparser2Reader(object):
         # parent symbol table for each entity found.
         for entity in entities.items:
             (name, array_spec, char_len, initialisation) = entity.items
-            ct_expr = None
+            init_expr = None
 
             # If the entity has an array-spec shape, it has priority.
             # Otherwise use the declaration attribute shape.
@@ -1712,21 +1710,16 @@ class Fparser2Reader(object):
                         format(str(decl)))
 
             if initialisation:
-                if has_constant_value:
-                    # If it is a parameter parse its initialization into
-                    # a dummy Assignment inside a Schedule which temporally
-                    # hijacks the parent's node symbol table
-                    tmp_sch = Schedule(symbol_table=symbol_table)
-                    dummynode = Assignment(parent=tmp_sch)
-                    tmp_sch.addchild(dummynode)
-                    expr = initialisation.items[1]
-                    self.process_nodes(parent=dummynode, nodes=[expr])
-                    ct_expr = dummynode.children[0]
-                else:
-                    raise NotImplementedError(
-                        "Could not process {0}. Initialisations on the"
-                        " declaration statements are only supported for "
-                        "parameter declarations.".format(decl.items))
+                # If the variable or parameter has an initial value then
+                # parse its initialization into a dummy Assignment inside a
+                # Schedule which temporarily hijacks the parent node's symbol
+                # table.
+                tmp_sch = Schedule(symbol_table=symbol_table)
+                dummynode = Assignment(parent=tmp_sch)
+                tmp_sch.addchild(dummynode)
+                expr = initialisation.items[1]
+                self.process_nodes(parent=dummynode, nodes=[expr])
+                init_expr = dummynode.children[0]
 
             if char_len is not None:
                 raise NotImplementedError(
@@ -1773,7 +1766,8 @@ class Fparser2Reader(object):
                 try:
                     sym = DataSymbol(sym_name, datatype,
                                      visibility=visibility,
-                                     constant_value=ct_expr)
+                                     is_constant=has_constant_value,
+                                     initial_value=init_expr)
                 except ValueError:
                     # Error setting initial value have to be raised as
                     # NotImplementedError in order to create an UnknownType

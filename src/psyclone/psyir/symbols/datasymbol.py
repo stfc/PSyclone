@@ -51,16 +51,17 @@ class DataSymbol(TypedSymbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param constant_value: sets a fixed known expression as a permanent \
-        value for this DataSymbol. If the value is None then this \
-        symbol does not have a fixed constant. Otherwise it can receive \
+    :param bool is_constant: whether this DataSymbol is a compile-time \
+        constant (default is False). If True then an `initial_value` must \
+        also be provided.
+    :param initial_value: sets a fixed known expression as an initial \
+        value for this DataSymbol. If `is_constant` is True then this \
+        Symbol will always have this value. If the value is None then this \
+        symbol does not have an intial value. Otherwise it can receive \
         PSyIR expressions or Python intrinsic types available in the \
         TYPE_MAP_TO_PYTHON map. By default it is None.
-    :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+    :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
-    :param initial_value: analogous to `constant_value` but sets a known \
-        expression as the initial value to assign to this DataSymbol. If the \
-        value is None (the default) then this symbol is not initialised.
     :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
     :param kwargs: additional keyword arguments provided by \
@@ -68,12 +69,12 @@ class DataSymbol(TypedSymbol):
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, datatype, constant_value=None, initial_value=None,
+    def __init__(self, name, datatype, is_constant=False, initial_value=None,
                  **kwargs):
         super(DataSymbol, self).__init__(name, datatype)
-        self._constant_value = None
+        self._is_constant = None
         self._initial_value = None
-        self._process_arguments(constant_value=constant_value,
+        self._process_arguments(is_constant=is_constant,
                                 initial_value=initial_value,
                                 **kwargs)
 
@@ -94,15 +95,14 @@ class DataSymbol(TypedSymbol):
         :type kwargs: unwrapped dict.
 
         '''
-        new_constant_value = None
         new_initial_value = None
 
-        if "constant_value" in kwargs:
-            new_constant_value = kwargs.pop("constant_value")
-        elif not hasattr(self, '_constant_value'):
+        if "is_constant" in kwargs:
+            self.is_constant = kwargs.pop("is_constant")
+        elif not hasattr(self, '_is_constant'):
             # At least initialise it if we reach this point and it doesn't
             # exist
-            self._constant_value = None
+            self._is_constant = False
 
         if "initial_value" in kwargs:
             new_initial_value = kwargs.pop("initial_value")
@@ -111,17 +111,19 @@ class DataSymbol(TypedSymbol):
             # doesn't already have it.
             self._initial_value = None
 
-        # We need to consume 'constant_value' and 'initial_value' before
-        # calling the super because otherwise there will be an unknown
-        # argument in kwargs but we need to call the 'constant_value' and
-        # 'initial_value' setters after this because they
-        # use the self.datatype which is in turn set in the super.
+        if self.is_constant and not new_initial_value:
+            raise ValueError(
+                "A DataSymbol representing a constant must be given an "
+                "initial value but '{0}' does not have one.".format(self.name))
+
+        # We need to consume 'initial_value' before calling the super because
+        # otherwise there will be an unknown argument in kwargs but we need
+        # to call the 'initial_value' setter after this because it uses
+        # the self.datatype which is in turn set in the super.
         super(DataSymbol, self)._process_arguments(**kwargs)
 
-        # Now that we have a datatype we can use the constant/initial_value
-        # setters with proper error checking.
-        if new_constant_value:
-            self.constant_value = new_constant_value
+        # Now that we have a datatype we can use initial_value setter
+        # with proper error checking.
         if new_initial_value:
             self.initial_value = new_initial_value
 
@@ -133,19 +135,23 @@ class DataSymbol(TypedSymbol):
         :rtype: bool
 
         '''
-        return self._constant_value is not None
+        return self._is_constant
+
+    @is_constant.setter
+    def is_constant(self, value):
+        self._is_constant = value
 
     @property
-    def constant_value(self):
+    def initial_value(self):
         '''
-        :returns: the fixed known value of this symbol.
+        :returns: the initial value of this symbol (if any).
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        return self._constant_value
+        return self._initial_value
 
-    @constant_value.setter
-    def constant_value(self, new_value):
+    @initial_value.setter
+    def initial_value(self, new_value):
         '''
         :param new_value: set or change the fixed known value of the \
             constant for this DataSymbol. If the value is None then this \
@@ -187,7 +193,7 @@ class DataSymbol(TypedSymbol):
                             "PSyIR static expressions can only contain PSyIR "
                             "literal, operation or reference nodes but found:"
                             " {1}".format(self.name, node))
-                self._constant_value = new_value
+                self._initial_value = new_value
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
                 # No need to check that self.datatype has an intrinsic
@@ -196,25 +202,25 @@ class DataSymbol(TypedSymbol):
                 lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
-                        "Error setting constant value for symbol '{0}'. This "
+                        "Error setting initial value for symbol '{0}'. This "
                         "DataSymbol instance datatype is '{1}' which means the"
-                        " constant value is expected to be '{2}' but found "
+                        " initial value is expected to be '{2}' but found "
                         "'{3}'.".format(self.name, self.datatype, lookup,
                                         type(new_value)))
                 if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:
-                        self._constant_value = Literal('true', self.datatype)
+                        self._initial_value = Literal('true', self.datatype)
                     else:
-                        self._constant_value = Literal('false', self.datatype)
+                        self._initial_value = Literal('false', self.datatype)
                 else:
                     # Otherwise we convert the Python intrinsic to a PSyIR
                     # Literal using its string representation.
-                    self._constant_value = Literal(str(new_value),
-                                                   self.datatype)
+                    self._initial_value = Literal(str(new_value),
+                                                  self.datatype)
         else:
-            self._constant_value = None
+            self._initial_value = None
 
     def __str__(self):
         ret = self.name + ": <" + str(self.datatype)
