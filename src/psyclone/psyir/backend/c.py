@@ -496,3 +496,19 @@ class CWriter(LanguageWriter):
         result_list = ["{0}#pragma {1}\n".format(self._nindent,
                                                  node.begin_string())]
         return "".join(result_list)
+
+    def filecontainer_node(self, node):
+        '''This method is called when a FileContainer instance is found in
+        the PSyIR tree.
+
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        :returns: the C code as a string.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result

@@ -151,7 +151,6 @@ def test_ocl_apply(kernel_outputdir):
         in str(err.value)
 
     ocl.apply(schedule)
-    assert schedule.opencl
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
@@ -212,6 +211,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
       '''
+    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
