@@ -58,15 +58,23 @@ class DataSymbol(TypedSymbol):
         TYPE_MAP_TO_PYTHON map. By default it is None.
     :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
         :py:class:`psyclone.psyir.nodes.Node`
+    :param initial_value: analogous to `constant_value` but sets a known \
+        expression as the initial value to assign to this DataSymbol. If the \
+        value is None (the default) then this symbol is not initialised.
+    :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+        :py:class:`psyclone.psyir.nodes.Node`
     :param kwargs: additional keyword arguments provided by \
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, datatype, constant_value=None, **kwargs):
+    def __init__(self, name, datatype, constant_value=None, initial_value=None,
+                 **kwargs):
         super(DataSymbol, self).__init__(name, datatype)
         self._constant_value = None
+        self._initial_value = None
         self._process_arguments(constant_value=constant_value,
+                                initial_value=initial_value,
                                 **kwargs)
 
     def _process_arguments(self, **kwargs):
@@ -87,6 +95,8 @@ class DataSymbol(TypedSymbol):
 
         '''
         new_constant_value = None
+        new_initial_value = None
+
         if "constant_value" in kwargs:
             new_constant_value = kwargs.pop("constant_value")
         elif not hasattr(self, '_constant_value'):
@@ -94,16 +104,26 @@ class DataSymbol(TypedSymbol):
             # exist
             self._constant_value = None
 
-        # We need to consume the 'constant_value' before calling the super
-        # because otherwise there will be an unknown argument in kwargs but
-        # we need to call the 'constant_value' setter after this because it
-        # uses the self.datatype which is in turn set in the super.
+        if "initial_value" in kwargs:
+            new_initial_value = kwargs.pop("initial_value")
+        elif not hasattr(self, '_initial_value'):
+            # Initialise this attribute if we reach this point and this object
+            # doesn't already have it.
+            self._initial_value = None
+
+        # We need to consume 'constant_value' and 'initial_value' before
+        # calling the super because otherwise there will be an unknown
+        # argument in kwargs but we need to call the 'constant_value' and
+        # 'initial_value' setters after this because they
+        # use the self.datatype which is in turn set in the super.
         super(DataSymbol, self)._process_arguments(**kwargs)
 
-        # Now that we have a datatype we can use the constant_value setter
-        # with proper error checking
+        # Now that we have a datatype we can use the constant/initial_value
+        # setters with proper error checking.
         if new_constant_value:
             self.constant_value = new_constant_value
+        if new_initial_value:
+            self.initial_value = new_initial_value
 
     @property
     def is_constant(self):

@@ -678,6 +678,13 @@ def test_process_declarations():
     # The new symbol (precisionkind) has been added to the parent Symbol Table
     assert fake_parent.symbol_table.lookup("precisionkind")
 
+    # Initialisation with of a variable
+    reader = FortranStringReader(
+        "integer :: val4 = 2 * (val1 + val2) + 2_precisionkind")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("val4").initial_value
+
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
     fparser2spec = Specification_Part(reader).content[0]
