@@ -2,18 +2,20 @@
 
 **Authors:** A. R. Porter, STFC Daresbury Lab
 **Modified by:** R. W. Ford, STFC Daresbury Lab
+**Modified by:** S. Siso, STFC Daresbury Lab
 
-This directory contains an example script, `runme_openmp.py`, that
-demonstrates the use of PSyclone to parallelise all loops over levels
-for the `tra_adv.F90` code, using OpenMP. Once you have installed
-PSyclone, this script may be run by doing:
+This directory contains the example scripts: `runme_openmp.py` and
+`runme_openmp_gpu.py`, that demonstrates the use of PSyclone to parallelise
+all loops over levels for the `tra_adv.F90` code, using OpenMP. Once you have
+installed PSyclone, this scripts may be run by doing:
 
 ```sh
-./runme_openmp.py
+./runme_openmp{_gpu}.py
 ```
 
-This will output PSyclone's Schedule view of the Fortran routine followed by
-the generated Fortran code with the OpenMP directives added.
+This will output the generated Fortran code with the OpenMP directives added.
+`runme_openmp.py` will also output the PSyIR view of the code.
+
 
 `tra_adv.F90` - is a stand-alone version of one of the tracer-advection
 routines from the NEMO ocean model. It was originally extracted by
@@ -26,7 +28,7 @@ directory.
 
 BSD 3-Clause License
 
-Copyright (c) 2018, Science and Technology Facilities Council
+Copyright (c) 2018-2021, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
