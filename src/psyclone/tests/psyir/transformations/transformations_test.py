@@ -47,14 +47,16 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
+    OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine, \
+    OMPTaskwaitDirective, OMPTaskloopDirective, OMPParallelDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans, \
+    MoveTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 

@@ -37,10 +37,13 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.nodes import Routine, Call, Reference, Literal, Assignment
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
+    ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
+    INTEGER_TYPE, CHARACTER_TYPE
 from psyclone.transformations import TransformationError, KernelTrans
 
 
@@ -116,6 +119,8 @@ class GOOpenCLTrans(Transformation):
                                      environment.
         :raises TransformationError: if any kernel in this invoke has a \
                                      global variable used by an import.
+        :raises TransformationError: if any kernel does not iterate over \
+                                     the whole grid.
         '''
 
         if isinstance(node, InvokeSchedule):
@@ -189,6 +194,21 @@ class GOOpenCLTrans(Transformation):
                     "arguments first.".
                     format(kern.name, [sym.name for sym in global_variables]))
 
+        # In OpenCL all kernel loops should iterate the whole grid
+        for kernel in node.kernels():
+            inner_loop = kernel.ancestor(GOLoop)
+            outer_loop = inner_loop.ancestor(GOLoop)
+            if not (inner_loop.field_space == "go_every" and
+                    outer_loop.field_space == "go_every" and
+                    inner_loop.iteration_space == "go_all_pts" and
+                    outer_loop.iteration_space == "go_all_pts"):
+                raise TransformationError(
+                    "The kernel '{0}' does not iterate over all grid points. "
+                    "This is a necessary requirement for generating "
+                    "the OpenCL code and can be done by applying the "
+                    "GOMoveIterationBoundariesInsideKernelTrans to each kernel"
+                    " before the GOOpenCLTrans.".format(kernel.name))
+
     def apply(self, node, options=None):
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
@@ -240,6 +260,9 @@ class GOOpenCLTrans(Transformation):
         self._insert_ocl_write_to_device_function(node.root)
         self._insert_ocl_initialise_buffer(node.root)
 
+        for kern in node.coded_kernels():
+            self._insert_ocl_arg_setter_routine(node.root, kern)
+
         # TODO #1134: Some of the OpenCL logic is provided at generation time
         # when the following opencl flag is set. This should eventually be part
         # of this tranformation.
@@ -249,6 +272,120 @@ class GOOpenCLTrans(Transformation):
 
         # TODO #595: Remove transformation return values
         return None, None
+
+    @staticmethod
+    def _insert_ocl_arg_setter_routine(node, kernel):
+        '''
+        Returns the symbol of the subroutine that sets the OpenCL kernel
+        arguments for the provided PSy-layer kernel using FortCL. If the
+        subroutine doesn't exist it also generates it.
+
+        :param node: the container where the new subroutine will be inserted.
+        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :param kernel: the kernel call for which to provide the arg_setter \
+                       subroutine.
+        :param type: :py:class:`psyclone.psyGen.CodedKern`
+
+        :returns: the symbol representing the arg_setter subroutine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        '''
+        # Check if the subroutine already exist.
+        sub_name = kernel.name + "_set_args"
+        try:
+            return node.symbol_table.lookup_with_tag(sub_name)
+        except KeyError:
+            # If the Symbol does not exist, the rest of this method
+            # will generate it.
+            pass
+
+        # Create the new Routine and RoutineSymbol
+        node.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
+        argsetter = Routine(sub_name)
+        arg_list = []
+
+        # Add subroutine imported symbols
+        clfortran = ContainerSymbol("clfortran")
+        clsetkernelarg = RoutineSymbol("clSetKernelArg",
+                                       interface=ImportInterface(clfortran))
+        iso_c = ContainerSymbol("iso_c_binding")
+        c_sizeof = RoutineSymbol("C_SIZEOF", interface=ImportInterface(iso_c))
+        c_loc = RoutineSymbol("C_LOC", interface=ImportInterface(iso_c))
+        c_intptr_t = RoutineSymbol("c_intptr_t",
+                                   interface=ImportInterface(iso_c))
+        ocl_utils = ContainerSymbol("ocl_utils_mod")
+        check_status = RoutineSymbol("check_status",
+                                     interface=ImportInterface(ocl_utils))
+        argsetter.symbol_table.add(clfortran)
+        argsetter.symbol_table.add(clsetkernelarg)
+        argsetter.symbol_table.add(iso_c)
+        argsetter.symbol_table.add(c_sizeof)
+        argsetter.symbol_table.add(c_loc)
+        argsetter.symbol_table.add(c_intptr_t)
+        argsetter.symbol_table.add(ocl_utils)
+        argsetter.symbol_table.add(check_status)
+
+        # Add an argument symbol for the kernel object
+        kobj = argsetter.symbol_table.new_symbol(
+            "kernel_obj", symbol_type=DataSymbol,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ),
+            datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj"))
+        arg_list.append(kobj)
+
+        # Include each kernel call argument as an argument of this routine
+        for arg in kernel.arguments.args:
+
+            name = argsetter.symbol_table.next_available_name(arg.name)
+
+            # This function requires 'TARGET' annotated declarations which are
+            # not supported in the PSyIR, so we build them as
+            # UnknownFortranType for now.
+            if arg.is_scalar and arg.intrinsic_type == "real":
+                pointer_type = UnknownFortranType(
+                    "REAL(KIND=go_wp), INTENT(IN), TARGET :: " + name)
+            elif arg.is_scalar:
+                pointer_type = UnknownFortranType(
+                    "INTEGER, INTENT(IN), TARGET :: " + name)
+            else:
+                # Everything else is a cl_mem pointer (c_intptr_t)
+                pointer_type = UnknownFortranType(
+                    "INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: " + name)
+
+            new_arg = DataSymbol(
+                name, datatype=pointer_type,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            argsetter.symbol_table.add(new_arg)
+            arg_list.append(new_arg)
+
+        argsetter.symbol_table.specify_argument_list(arg_list)
+
+        # Create the ierr local variable
+        ierr = argsetter.symbol_table.new_symbol(
+            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+
+        # Call the clSetKernelArg for each argument and a check_status to
+        # see if the OpenCL call has succeeded
+        for index, variable in enumerate(arg_list[1:]):
+            call = Call.create(clsetkernelarg,
+                               [Reference(kobj),
+                                Literal(str(index), INTEGER_TYPE),
+                                Call.create(c_sizeof, [Reference(variable)]),
+                                Call.create(c_loc, [Reference(variable)])])
+            assignment = Assignment.create(Reference(ierr), call)
+            argsetter.addchild(assignment)
+            emsg = "clSetKernelArg: arg {0} of {1}".format(index, kernel.name)
+            call = Call.create(check_status, [Literal(emsg, CHARACTER_TYPE),
+                                              Reference(ierr)])
+            argsetter.addchild(call)
+
+        argsetter.children[0].preceding_comment = \
+            "Set the arguments for the {0} OpenCL Kernel".format(kernel.name)
+
+        # Add the subroutine as child of the provided node
+        node.addchild(argsetter)
+
+        return node.symbol_table.lookup_with_tag(sub_name)
 
     def _insert_opencl_init_routine(self, node):
         '''

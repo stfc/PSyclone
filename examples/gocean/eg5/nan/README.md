@@ -1,42 +1,42 @@
-# PSyclone GOcean Example 1
+# PSyclone GOcean PSyData NaN-check Example
 
-**Authors:** A. R. Porter, S. Siso and A. B. G. Chalk, STFC Daresbury Lab
+**Author:** J. Henrichs, Bureau of Meteorology
 
-These scripts and this version of PSyclone work with version 1.0 of GOcean.
+## Introduction
 
-In order to use PSyclone you must first install it, ideally with pip.
-See `../../../README.md` for more details.
+This is a simple example that shows how to use the NaN verification
+support in PSyclone. It is a stand-alone program that can be compiled
+and run. 
 
-PSyclone can be run in the directory containing this file by 
-executing, e.g.
+## Compilation
+A makefile is provided to compile this example. If required,
+it will compile the dl_esm_inf library and the nan_test
+wrapper library. By default, the compilation uses the version
+of the dl_esm_inf library provided as a git submodule (under
+``../../../external/dl_esm_inf/finite_difference``- see
+https://psyclone-dev.readthedocs.io/en/latest/working_practises.html)
+within the PSyclone repository. You can set the environment variable
+``INF_DIR`` for the ``make`` command to pick a different version.
 
-```sh
-python ./runme.py
-``` 
+The makefile here invokes psyclone with the script ``test_nan_transform.py``.
+This script uses PSyclone's ``NanTestTrans`` to instrument the two
+invokes in the ``test.x90`` source file.
 
-Examine the runme*.py scripts themselves for further details or see the
-Makefile.
+The source code computes divisions by 0 on the diagonals, resulting in
+invalid numbers (Infinity).
 
-
-## OpenMP tasking transformation script
-
-The OpenMP tasking transformation is provided in the form of a PSyclone
-transformation script (`openmp_taskloop_trans.py`). This can be run
-using the PSyclone command:
-
-```sh
-psyclone -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 shallow_alg.f90
+## Running
 ```
+$ ./nan_test
+...
+Allocating C-T field with bounds: (1:   6,1:   6), internal region is (2:   4,2:   4)
+PSyData: Variable a_fld has the invalid value Inf at index/indices 1 1 in module 'main' region 'update'.
+PSyData: Variable a_fld has the invalid value Inf at index/indices 2 2 in module 'main' region 'update'.
 
-## OpenCL PSyclone script
-
-The OpenCL transformation is provided with a PSyclone transformation script
-(`opencl_transformation.py`). This can be run using the PSyclone command:
-
-```sh
-psyclone -s ./opencl_transformation.py -api gocean1.0 shallow_alg.f90
 ```
-
+After calling the kernel ``mainupdate``, five warnings are printed,
+indicating that the field ``a_fld`` has a value of infinity on the diagonals
+(i.e. indices 1 1, ..., 5 5).
 
 ## Licence
 
@@ -44,7 +44,7 @@ psyclone -s ./opencl_transformation.py -api gocean1.0 shallow_alg.f90
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2021, Science and Technology Facilities Council.
+Copyright (c) 2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

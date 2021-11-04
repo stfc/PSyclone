@@ -107,7 +107,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     assert sched.children[4].loop_body[0].field_space == "go_every"
     assert sched.children[4].loop_body[0].iteration_space == "go_all_pts"
 
-    # -  And the appropriate arguments have been added to the kernel call
+    # - And the appropriate arguments have been added to the kernel call
     assert len(kernel.arguments.args) == num_args + 4
     assert kernel.arguments.args[-4].name == "xstart"
     assert kernel.arguments.args[-4].argument_type == "scalar"
