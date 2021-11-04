@@ -154,11 +154,11 @@ def test_ocl_apply(kernel_outputdir):
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
-    # Check that the new kernel files have been generated
+
+    # Check that the new kernel file have been generated
     kernel_files = os.listdir(str(kernel_outputdir))
-    assert len(kernel_files) == 2
-    assert "kernel_ne_offset_compute_cv_0.cl" in kernel_files
-    assert "kernel_scalar_int_bc_ssh_0.cl" in kernel_files
+    assert len(kernel_files) == 1
+    assert "opencl_kernels_0.cl" in kernel_files
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -1270,7 +1270,8 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
 
 
 def test_opencl_kernel_output_file(kernel_outputdir):
-    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+    '''Check that a new OpenCL file named opencl_kernels_{suffix}.cl is
+    generated.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -1280,32 +1281,16 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
 
-    otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
-
-    assert os.path.exists(
-        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
-
-
-def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
-    '''Check that an OpenCL file named modulename_kernelname_0 is
-    generated without the _code suffix in the kernelname
-    '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
-    sched = psy.invokes.invoke_list[0].schedule
-    # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for the GOcean gen_ocl() code generation.
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kernel in sched.coded_kernels():
-        trans.apply(kernel)
+    # Create a opencl_kernels_0.cl so another name is needed for the new file
+    filename = os.path.join(str(kernel_outputdir), "opencl_kernels_0.cl")
+    with open(filename, "w") as myfile:
+        myfile.write("This file exists!")
 
     otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-    _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+    otrans.apply(sched)  # Generates the OpenCL kernels as a side-effect.
 
     assert os.path.exists(
-        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
+        os.path.join(str(kernel_outputdir), "opencl_kernels_1.cl"))
 
 
 def test_symtab_implementation_for_opencl():
