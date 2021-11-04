@@ -33,20 +33,22 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk STFC Daresbury Lab
 # -----------------------------------------------------------------------------
+
 '''This module contains the unit tests for the BlockLoopTrans module'''
 from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Reference, Schedule, \
     Routine, BinaryOperation, Assignment
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
-    ScalarType, SymbolTable
+    ScalarType, SymbolTable, REAL_DOUBLE_TYPE
 from psyclone.psyir.transformations import TransformationError, BlockLoopTrans
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import Compile
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -54,13 +56,13 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def test_blockloop_trans():
-    '''Test the base functions of BlockLoopTrans'''
+    '''Test the base methods of BlockLoopTrans'''
     trans = BlockLoopTrans()
     assert str(trans) == "Split a loop into a blocked loop pair"
 
 
 def test_blockloop_trans_validate1():
-    '''Test the validate function of BlockLoopTrans for non constant
+    '''Test the validate method of BlockLoopTrans for non constant
     increment'''
     blocktrans = BlockLoopTrans()
     # Construct a Loop with a non-constant increment
@@ -81,11 +83,11 @@ def test_blockloop_trans_validate1():
     with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent)
     assert ("Cannot apply a BlockLoopTrans to a loop with a non-constant step"
-            " size") in str(excinfo.value)
+            " size.") in str(excinfo.value)
 
 
 def test_blockloop_trans_validate2():
-    '''Test the validate function of BlockLoopTrans for bad step sizes'''
+    '''Test the validate method of BlockLoopTrans for bad step sizes'''
     blocktrans = BlockLoopTrans()
     # Construct a Loop with too large a step-size
     parent = Loop()
@@ -96,7 +98,7 @@ def test_blockloop_trans_validate2():
     with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent, {"blocksize": 16})
     assert ("Cannot apply a BlockLoopTrans to a loop with larger step size "
-            "than the chosen block size") in str(excinfo.value)
+            "(128) than the chosen block size (16).") in str(excinfo.value)
 
     # Construct a Loop with step-size of 0
     parent = Loop()
@@ -106,12 +108,12 @@ def test_blockloop_trans_validate2():
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent)
-    assert ("Cannot apply a BlockLoopTrans to a loop with a step size of 0"
+    assert ("Cannot apply a BlockLoopTrans to a loop with a step size of 0."
             in str(excinfo.value))
 
 
 def test_blockloop_trans_validate3():
-    '''Test the validate function of BlockLoopTrans fails when applying it
+    '''Test the validate method of BlockLoopTrans fails when applying it
     to a loop which has already been blocked'''
     blocktrans = BlockLoopTrans()
     # Construct a Loop and apply a BlockLoopTrans to it, then revalidate the
@@ -140,7 +142,7 @@ def test_blockloop_trans_validate3():
 
 
 def test_blockloop_trans_validate4():
-    '''Test the validate function of BlockLoopTrans fails when applying it
+    '''Test the validate method of BlockLoopTrans fails when applying it
     to a loop that writes to the loop variables'''
     blocktrans = BlockLoopTrans()
     # Construct a Loop that writes to the Loop variable inside its body
@@ -163,8 +165,9 @@ def test_blockloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent)
-    assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
-           " written to inside the loop body.") in str(excinfo.value)
+    assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
+           "variable 'lvar' is written to inside the loop body.") in \
+        str(excinfo.value)
 
     # Construct a loop that writes to the variable used for the initial value
     symbol_table = SymbolTable()
@@ -191,8 +194,9 @@ def test_blockloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent)
-    assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
-           " written to inside the loop body.") in str(excinfo.value)
+    assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
+           "variable 'ivar' is written to inside the loop body.") in \
+        str(excinfo.value)
 
     # Construct a loop that writes to the variable used for the final value
     symbol_table = SymbolTable()
@@ -219,12 +223,13 @@ def test_blockloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         blocktrans.validate(parent)
-    assert("Cannot apply a BlockedLoopTrans to a loop where loop variables are"
-           " written to inside the loop body.") in str(excinfo.value)
+    assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
+           "variable 'ivar' is written to inside the loop body.") in \
+        str(excinfo.value)
 
 
 def test_blockloop_trans_validate5():
-    '''Test the validate function of BlockLoopTrans passes when applying it
+    '''Test the validate method of BlockLoopTrans passes when applying it
     to a loop that reads from the loop variable'''
     blocktrans = BlockLoopTrans()
     # Construct a loop that reads from the loop variable (this is allowed)
@@ -252,8 +257,24 @@ def test_blockloop_trans_validate5():
     blocktrans.validate(parent)
 
 
+def test_blockloop_trans_validate_6():
+    '''Test the validate method of BlockLoopTrans fails when applying it
+    to a loop that has a non-integer loop step'''
+    blocktrans = BlockLoopTrans()
+    # Construct a Loop with a non-integer step
+    parent = Loop()
+    parent.addchild(Literal("1.0", REAL_DOUBLE_TYPE))
+    parent.addchild(Literal("2560.0", REAL_DOUBLE_TYPE))
+    parent.addchild(Literal("1.1", REAL_DOUBLE_TYPE))
+    parent.addchild(Schedule())
+    with pytest.raises(TransformationError) as excinfo:
+        blocktrans.validate(parent)
+    assert ("Cannot apply a BlockLoopTrans to a loop with a non-integer "
+           "step size.") in str(excinfo.value)
+
+
 def test_blockloop_trans_apply_pos():
-    '''Test the apply function of BlockLoopTrans'''
+    '''Test the apply method of BlockLoopTrans for a positive step index'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
@@ -262,7 +283,6 @@ def test_blockloop_trans_apply_pos():
     blocktrans = BlockLoopTrans()
     blocktrans.apply(schedule.children[0])
     code = str(psy.gen)
-    print(code)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
         j_el_inner = MIN(j_out_var + 32, cu_fld%internal%ystop)
@@ -277,7 +297,7 @@ def test_blockloop_trans_apply_pos():
 
 
 def test_blockloop_trans_apply_neg():
-    '''Test the apply function of BlockLoopTrans for a negative step'''
+    '''Test the apply method of BlockLoopTrans for a negative step'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
@@ -300,8 +320,8 @@ def test_blockloop_trans_apply_neg():
     assert correct in code
 
 
-def test_blockloop_trans_apply_double_block():
-    '''Test the apply function of BlockLoopTrans for multiple
+def test_blockloop_trans_apply_double_block(tmpdir):
+    '''Test the apply method of BlockLoopTrans for multiple
     blocks of 2 nested loops'''
     code = \
         '''Program test
@@ -327,6 +347,7 @@ def test_blockloop_trans_apply_double_block():
         blocktrans.apply(loop)
     writer = FortranWriter()
     result = writer(psyir)
+    assert Compile(tmpdir).string_compiles(result)
     correct_vars = \
         '''integer :: i_el_inner
   integer :: i_out_var
