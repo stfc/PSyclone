@@ -100,6 +100,25 @@ class NanTestNode(PSyDataNode):
         parent.add(CommentGen(parent, " NanTestEnd"))
         parent.add(CommentGen(parent, ""))
 
+    def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+        '''
+
+        # This cannot be moved to the top, it would cause a circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to check:
+        dep = DependencyTools()
+        input_list, output_list = dep.get_in_out_parameters(self)
+
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list}
+
+        return super(NanTestNode, self).lower_to_language_level(options)
+
 
 # For AutoAPI documentation generation
 __all__ = ['NanTestNode']

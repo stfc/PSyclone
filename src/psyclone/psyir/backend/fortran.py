@@ -1488,5 +1488,9 @@ class FortranWriter(LanguageWriter):
         for child in node.children:
             result_list.append(self._visit(child))
         args = ", ".join(result_list)
-        return "{0}call {1}({2})\n".format(self._nindent, node.routine.name,
-                                           args)
+        if not node.parent or isinstance(node.parent, Schedule):
+            return "{0}call {1}({2})\n".format(self._nindent,
+                                               node.routine.name,
+                                               args)
+        # Otherwise it is inside-expression function call
+        return "{0}({1})".format(node.routine.name, args)

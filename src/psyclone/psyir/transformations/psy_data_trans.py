@@ -43,7 +43,7 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
-    OMPDoDirective, ACCDirective, ACCLoopDirective, FileContainer
+    OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -305,14 +305,10 @@ class PSyDataTrans(RegionTrans):
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-
-        # We always use the outermost symbol table (that is not associated with
-        # a FileContainer) so that any name clashes due to multiple
-        # applications of this transformation are handled automatically.
         root = node_list[0].root
-        if isinstance(root, FileContainer):
-            root = root.children[0]
-        table = root.symbol_table
+
+        # We always use the Routine symbol table
+        table = node_list[0].ancestor(Routine).symbol_table
 
         # Create a memento of the tree root and the proposed transformation
         keep = Memento(root, self)
