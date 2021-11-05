@@ -46,8 +46,6 @@
     SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
-    # Disable outut of code snippets
-    DEBUG = False
 
 Transformations
 ###############

@@ -65,13 +65,13 @@ class PSyDataTrans(RegionTrans):
     >>> data_trans = PSyDataTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> if DEBUG:
-    ...     schedule.view()
+    >>> # Uncomment the following line to see a text view of the schedule
+    >>> # schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
     >>> _ = data_trans.apply(schedule.children)
-    >>> if DEBUG:
-    ...     schedule.view()
+    >>> # Uncomment the following line to see a text view of the schedule
+    >>> # schedule.view()
     >>> # Or to use custom region name:
     >>> _ = data_trans.apply(schedule.children,
     ...                      {"region_name": ("module","region")})
