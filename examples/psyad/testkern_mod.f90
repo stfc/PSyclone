@@ -34,7 +34,8 @@
 ! Author: A. R. Porter, STFC Daresbury Lab
 ! Modified by: R. W. Ford, STFC Daresbury Lab
 
-! Example module containing a very simple, one-line kernel subroutine.
+! Example module containing a very simple kernel subroutine that
+! contains only assignments.
 
 module testkern_mod
   implicit none
@@ -44,11 +45,10 @@ contains
   subroutine testkern_code(ascalar, field1, field2, npts)
     real, intent(in) :: ascalar
     integer, intent(in) :: npts
-    ! issue #1429. Active variables need to be declared as inout as
-    ! the intents can change in the adjoint version and PSyclone does
-    ! not currently deal with this.
     real, intent(inout), dimension(npts) :: field2
-    real, intent(inout), dimension(npts) :: field1
+    ! Deliberately leave off the intent for 'field1' to demonstrate that
+    ! it is correctly set in the generated adjoint code.
+    real, dimension(npts) :: field1
     real :: tmp, tmp2
 
     ! issue #1430. Array notation does not work with the assignment
