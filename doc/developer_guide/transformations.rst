@@ -35,6 +35,8 @@
 
 .. testsetup::
 
+    # TODO 1238: This is not necessary anymore once we can explicitly
+    #            disable colouring.
     import psyclone.psyir.nodes.node
     def new_colored(text, _):
         return text
