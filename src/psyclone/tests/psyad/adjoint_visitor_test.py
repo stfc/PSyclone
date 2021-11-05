@@ -45,7 +45,7 @@ from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import FileContainer, Schedule, Assignment
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, ArgumentInterface
 from psyclone.tests.utilities import Compile
 
 TL_CODE = (
@@ -353,6 +353,33 @@ def test_schedule_dependent_active(tmpdir, fortran_writer):
         "  b = b + y * a\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
                   fortran_writer)
+
+
+def test_subroutine_schedule_access(fortran_reader):
+    ''' Test that the accesses of any active variables that are subroutine
+    arguments are updated correctly. '''
+    tl_fortran_lines = [
+        "subroutine kern(a, b, c, d)",
+        "  real, intent(inout) :: a, b",
+        "  real, intent(out) :: d",
+        "  real, intent(in) :: c",
+        "  real y",
+        "  y = 2",
+        "  a = a + y*b",
+        "  b = b + y*c",
+        "  d = 0",
+        "end subroutine kern"]
+    tl_fortran = "\n".join(tl_fortran_lines)
+    psyir = fortran_reader.psyir_from_source(tl_fortran)
+    schedule = psyir.children[0]
+    adj_visitor = AdjointVisitor(["a", "b", "c", "d"])
+    ad_psyir = adj_visitor(schedule)
+    a_hat = ad_psyir.symbol_table.lookup("a")
+    assert a_hat.interface.access == ArgumentInterface.Access.READ
+    c_hat = ad_psyir.symbol_table.lookup("c")
+    assert c_hat.interface.access == ArgumentInterface.Access.READWRITE
+    d_hat = ad_psyir.symbol_table.lookup("d")
+    assert d_hat.interface.access == ArgumentInterface.Access.WRITE
 
 
 # AdjointVisitor.assignment_node()
