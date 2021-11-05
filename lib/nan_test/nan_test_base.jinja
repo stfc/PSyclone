@@ -150,9 +150,9 @@ contains
 
         if (IEEE_SUPPORT_DATATYPE(value)) then
             if (.not. IEEE_IS_FINITE(value)) then
-                write(stderr, *) "PSyData: Variable ", name," has invalid value"
-                write(stderr, *) value
-                write(stderr, *) trim(this%module_name), trim(this%region_name)
+                write(stderr, '(8G0)') "PSyData: Variable ", name," has invalid value ", &
+                                 value, " in module '", trim(this%module_name), &
+                                 "' region '", trim(this%region_name),"'."
             endif
         endif
         {% else %}
@@ -202,9 +202,11 @@ contains
             {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
-            {{indent}}    write(stderr, *) "PSyData: Variable ", name," has the invalid value"
-            {{indent}}    write(stderr, *) value({{vars}}), " at index/indices ", {{vars}}
-            {{indent}}    write(stderr, *) trim(this%module_name), trim(this%region_name)
+            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),5G0)') "PSyData: Variable ", &
+            {{indent}}                     name," has the invalid value ", &
+            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}                     "in module '", trim(this%module_name), &
+            {{indent}}                     "' region '", trim(this%region_name),"'."
             {{indent}}endif
             {% for j in range(dim, 0, -1) %}
             {{" "*3*(j-1)}}enddo

@@ -150,6 +150,7 @@ class ExtractNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
 
     def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
