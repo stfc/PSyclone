@@ -240,7 +240,8 @@ class DataSymbol(TypedSymbol):
         '''
         return DataSymbol(self.name, self.datatype, visibility=self.visibility,
                           interface=self.interface,
-                          constant_value=self.constant_value)
+                          is_constant=self.is_constant,
+                          initial_value=self.initial_value)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -256,4 +257,5 @@ class DataSymbol(TypedSymbol):
             raise TypeError("Argument should be of type 'DataSymbol' but found"
                             " '{0}'.".format(type(symbol_in).__name__))
         super(DataSymbol, self).copy_properties(symbol_in)
-        self._constant_value = symbol_in.constant_value
+        self._is_constant = symbol_in.is_constant
+        self._initial_value = symbol_in.initial_value
