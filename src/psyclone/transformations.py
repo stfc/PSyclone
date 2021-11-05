@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, and S. Siso STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
-#        J. Henrichs, Bureau of Meteorology
+#         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 ''' This module provides the various transformations that can be applied to
