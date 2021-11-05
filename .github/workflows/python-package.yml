@@ -34,6 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. J. Voysey, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.
@@ -53,6 +54,19 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
+  dev-doctest:
+    # Check doctests of developer's guide
+    runs-on: ubuntu-latest
+    needs:
+      build
+    env:
+      GITHUB_PR_NUMBER: ${{ github.event.number }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+    - run: python -m pip install --upgrade pip
+    - run: pip install .[doc]
+    - run: cd doc/developer_guide; make doctest
   build:
     runs-on: ubuntu-latest
     strategy:
