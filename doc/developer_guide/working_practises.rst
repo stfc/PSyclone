@@ -319,7 +319,9 @@ file.
 Currently there are three main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked;
+ 1. All links within all MarkDown files are checked. Those links to skip
+    (because they are e.g. password protected) are specified in the
+    ``PSyclone/mlc_config.json`` configuration file;
 
  2. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
