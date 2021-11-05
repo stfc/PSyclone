@@ -1784,7 +1784,7 @@ class Fparser2Reader(object):
                 symbol_table.add(sym)
 
             # The Symbol must have the interface given by the declaration
-            sym.interface = interface
+            sym.interface = interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
