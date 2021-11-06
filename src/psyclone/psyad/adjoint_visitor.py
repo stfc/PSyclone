@@ -41,7 +41,7 @@ from __future__ import print_function
 import logging
 
 from psyclone.psyad.transformations import AssignmentTrans
-from psyclone.psyad.utils import node_is_passive
+from psyclone.psyad.utils import node_is_passive, negate_expr
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Schedule, Node
 
@@ -138,15 +138,10 @@ class AdjointVisitor(PSyIRVisitor):
             "Processing active code and adding results into new schedule")
         for child in active_nodes:
             result = self._visit(child)
-            # The else clause below can not be exercised until nodes
-            # in a schedule other than assignment are supported, see
-            # issue #1457. Therefore, for the moment simply assume
-            # that the result is a list.
-            node_copy.children.extend(result)
-            # if isinstance(result, list):
-            #     node_copy.children.extend(result)
-            # else:
-            #     node_copy.children.append(result)
+            if isinstance(result, list):
+                node_copy.children.extend(result)
+            else:
+                node_copy.children.append(result)
 
         return node_copy
 
@@ -180,6 +175,50 @@ class AdjointVisitor(PSyIRVisitor):
         dummy_schedule.children.append(new_node)
         assign_trans.apply(new_node)
         return dummy_schedule.pop_all_children()
+
+    def loop_node(self, node):
+        '''This method is called if the visitor finds a Loop node. If the loop
+        contains active variables then a new loop is returned which
+        iterates in the reverse order to the original loop and the
+        body of the new loop is the result of processing the body of
+        the original loop. If the loop does not contain any active
+        variables then an unmodified copy of the loop as its
+        descendents is returned.
+
+        :param node: a Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its descendents.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        '''
+        # TODO Check that variables in loop bounds and the iterator are passive.
+
+        if self._active_variables is None:
+            raise VisitorError(
+                "A loop node should not be visited before a schedule, "
+                "as the latter sets up the active variables.")
+
+        if node_is_passive(node, self._active_variables):
+            self._logger.debug(
+                "Returning a copy of the original loop and its descendents "
+                "as it contains no active variables")
+            return node.copy()
+
+        self._logger.debug("Transforming active loop")
+        # We only need to copy this node. Issue #1440 will address
+        # this.
+        new_node = node.copy()
+        # Reverse loop order
+        start_expr = new_node.start_expr.copy()
+        new_node.start_expr = new_node.stop_expr.copy()
+        new_node.stop_expr = start_expr
+        new_node.step_expr = negate_expr(new_node.step_expr.copy())
+        # Determine the adjoint of the loop body
+        new_node.children[3] = self._visit(node.children[3])
+        # new_node.loop_body = self._visit(node.loop_body)
+        return new_node
 
     def _copy_and_process(self, node):
         '''Utility function to return a copy the current node containing the

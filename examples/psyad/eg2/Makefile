@@ -31,9 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-EXAMPLES=$(sort $(wildcard eg*))
+include ../../common.mk
 
-include ../top_level.mk
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += 
+
+# The first command will write the adjoint kernel to stdout. The
+# second, if supported, would write both it and the corresponding test
+# harness to separate files.
+transform:
+	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad
+	@echo "Harness generation not yet supported"
+
+compile: transform
+	@echo "Harness compilation not yet supported"
+
+run: compile
+	@echo "Harness running not yet supported"

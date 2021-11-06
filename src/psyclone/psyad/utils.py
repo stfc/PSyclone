@@ -75,8 +75,21 @@ def node_is_passive(node, active_variables):
     '''
     return not node_is_active(node, active_variables)
 
+def negate_expr(expr):
+    ''' xxx TODO Use sympy or similar'''
+    # TODO Check it is an expr with expected properties
+    from psyclone.psyir.nodes import Literal, UnaryOperation, BinaryOperation
+    from psyclone.psyir.symbols import INTEGER_TYPE
+    if isinstance(expr, Literal):
+        return UnaryOperation.create(UnaryOperation.Operator.MINUS, expr)
+    elif (isinstance(expr, UnaryOperation) and
+          expr.operator == UnaryOperation.Operator.MINUS):
+        return expr.children[0].detach()
+    return BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Literal("-1", INTEGER_TYPE), expr)
+
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
 # generate documentation for (see https://psyclone-ref.readthedocs.io).
-__all__ = ["node_is_active", "node_is_passive"]
+__all__ = ["node_is_active", "node_is_passive", "negate_node"]
