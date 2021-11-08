@@ -49,10 +49,11 @@ from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
+    UnknownType
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
-    Assignment, Literal, Operation, BinaryOperation
+    Assignment, Literal, Operation, BinaryOperation, CodeBlock, ArrayMember
 from psyclone.nemo import NemoLoop
 from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
@@ -104,7 +105,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         (with the same loop index) is also placed around the modified
         assignment statement. If the array reference on the
         left-hand-side of the assignment only had one range node as an
-        index (so now has none) then the assigment is also placed
+        index (so now has none) then the assignment is also placed
         within a NemoKern.
 
         The name of the loop index is taken from the PSyclone
@@ -137,21 +138,21 @@ class NemoArrayRange2LoopTrans(Transformation):
         symbol_table = node.ancestor(InvokeSchedule).symbol_table
 
         # See if there is any configuration information for this array index
-        loop_type_order = Config.get().api_conf("nemo").get_index_order()
+        # loop_type_order = Config.get().api_conf("nemo").get_index_order()
         # TODO: Add tests in get_loop_type_data() to make sure values
         # are strings that represent an integer or a valid variable
         # name, e.g. 1a should not be allowed. See issue #1035
-        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
-        try:
-            loop_type = loop_type_order[array_index]
-            loop_type_info = loop_type_data[loop_type]
-            lower_bound_info = loop_type_info['start']
-            upper_bound_info = loop_type_info['stop']
-            loop_variable_name = loop_type_info['var']
-        except IndexError:
-            lower_bound_info = None
-            upper_bound_info = None
-            loop_variable_name = symbol_table.next_available_name("idx")
+        # loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
+        #try:
+        #    loop_type = loop_type_order[array_index]
+        #    loop_type_info = loop_type_data[loop_type]
+        #    lower_bound_info = loop_type_info['start']
+        #    upper_bound_info = loop_type_info['stop']
+        #    loop_variable_name = loop_type_info['var']
+        #except IndexError:
+        lower_bound_info = None
+        upper_bound_info = None
+        loop_variable_name = symbol_table.next_available_name("idx")
 
         # Lower bound
         if not array_reference.is_lower_bound(array_index):
@@ -199,28 +200,30 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Replace the loop_idx array dimension with the loop variable.
         n_ranges = None
-        for array in assignment.walk(ArrayReference):
+        #import pdb; pdb.set_trace()
+        for array in assignment.walk((ArrayReference, ArrayMember)):
 
             # Ignore the array reference if none of its index accesses
-            # are Ranges
+            # are Ranges (we ignore arrays without explicit dimensions
+            # access specified during the validation)
             if not any(child for child in array.children if
                        isinstance(child, Range)):
                 continue
             # Ignore the array reference if any of its parents up to
             # the Assignment node are not Operations that return
             # scalars.
-            ignore = False
-            current = array.parent
-            while not isinstance(current, Assignment):
+            #ignore = False
+            #current = array.parent
+            #while not isinstance(current, Assignment):
                 # Ignore if not a scalar valued operation (vector
                 # valued operations are excluded in the validate
                 # method).
-                if not isinstance(current, Operation):
-                    ignore = True
-                    break
-                current = current.parent
-            if ignore:
-                continue
+            #    if not isinstance(current, (Operation, Reference)):
+            #        ignore = True
+            #        break
+            #    current = current.parent
+            #if ignore:
+            #    continue
 
             current_n_ranges = len([child for child in array.children
                                     if isinstance(child, Range)])
@@ -245,6 +248,10 @@ class NemoArrayRange2LoopTrans(Transformation):
             # loops. We now need to take the content of the loop and
             # place it within a NemoKern (inlined kernel) node.
             CreateNemoKernelTrans().apply(assignment.parent)
+
+        # from psyclone.psyir.backend.fortran import FortranWriter
+        # code = FortranWriter()(assignment)
+        # import pdb; pdb.set_trace()
 
     def __str__(self):
         return (
@@ -318,6 +325,42 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "transformation does not support array valued operations "
                     "on the rhs of the associated Assignment node, but found "
                     "'{0}'.".format(operation.operator.name))
+        if assignment.walk(CodeBlock):
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. This "
+                "transformation does not support array assignments that "
+                "contain a CodeBlock anywhere in the expression.")
+
+        # We need all type info about all references (maybe not, see below)
+        for reference in assignment.walk(Reference):
+            if not isinstance(reference.symbol, DataSymbol):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation.")
+            if isinstance(reference.symbol.datatype,
+                          (UnknownType, DeferredType)):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation.")
+
+        # For now don't attempt arrays without at least 1 range, as we need
+        # to check if they are a scalar or have the range expression missing
+        for array in assignment.walk((ArrayReference, ArrayMember)):
+            if not any(child for child in array.children if
+                       isinstance(child, Range)):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation.")
+
+        # FIXME: Do the same for ArrayMember
+        # for array in assignment.walk(ArrayReference):
+        #    import pdb; pdb.set_trace()
+        #    if len(array.symbol.datatype.shape) != len(array.children):
+        #        raise TransformationError(
+        #            "Error in NemoArrayRange2LoopTrans transformation. This "
+        #            "transformation does not support arrays that done have all"
+        #            "the access dimensions explicitly specified.")
+
+        # from psyclone.psyir.backend.fortran import FortranWriter
+        # code = FortranWriter()(assignment)
+        # import pdb; pdb.set_trace()
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
