@@ -41,10 +41,10 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, Call
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, DeferredType
+    ArrayType, DeferredType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
@@ -281,6 +281,52 @@ def test_apply_existing_names_as_ancestor_loop_variables():
             in str(info.value))
 
 
+def test_apply_with_codeblock():
+    '''Check that the transformation is not applied if there is a Codeblock as
+    part of the assignment.
+    '''
+    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    trans = NemoArrayRange2LoopTrans()
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    previous_rhs = assignment.rhs.detach()
+    assignment.addchild(
+            BinaryOperation.create(
+                BinaryOperation.Operator.ADD,
+                previous_rhs,
+                CodeBlock([], CodeBlock.Structure.EXPRESSION)))
+
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.children[2])
+    assert ("This transformation does not support array assignments that "
+            "contain a CodeBlock anywhere in the expression."
+            in str(info.value))
+
+
+def test_apply_with_a_function_call():
+    '''Check that the transformation is not applied if there is a Call as
+    part of the assignment.
+    '''
+    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    trans = NemoArrayRange2LoopTrans()
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    previous_rhs = assignment.rhs.detach()
+    assignment.addchild(
+            BinaryOperation.create(
+                BinaryOperation.Operator.ADD,
+                previous_rhs,
+                Call.create(RoutineSymbol("func"), [])))
+
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.children[2])
+    assert ("This transformation does not support array assignments that "
+            "contain a Call anywhere in the expression."
+            in str(info.value))
+
+
 def test_apply_different_num_dims():
     '''Check that the apply method raises an exception when the number of
     range dimensions differ in different arrays. This should never
@@ -295,8 +341,9 @@ def test_apply_different_num_dims():
     with pytest.raises(InternalError) as info:
         trans.apply(array_ref.children[1])
     assert ("The number of ranges in the arrays within this "
-            "assignment are not equal. This is invalid PSyIR and "
-            "should never happen." in str(info.value))
+            "assignment are not equal. Any such case should have "
+            "been dealt with by the validation method or represents "
+            "invalid PSyIR." in str(info.value))
 
 
 def test_apply_array_valued_function():

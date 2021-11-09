@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Operation, BinaryOperation, CodeBlock, ArrayMember, \
-    Loop, Routine
+    Loop, Routine, Call
 from psyclone.nemo import NemoLoop
 from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
@@ -201,31 +201,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Replace the loop_idx array dimension with the loop variable.
         n_ranges = None
-        #import pdb; pdb.set_trace()
         for array in assignment.walk((ArrayReference, ArrayMember)):
-
-            # Ignore the array reference if none of its index accesses
-            # are Ranges (we ignore arrays without explicit dimensions
-            # access specified during the validation)
-            if not any(child for child in array.children if
-                       isinstance(child, Range)):
-                continue
-            # Ignore the array reference if any of its parents up to
-            # the Assignment node are not Operations that return
-            # scalars.
-            #ignore = False
-            #current = array.parent
-            #while not isinstance(current, Assignment):
-                # Ignore if not a scalar valued operation (vector
-                # valued operations are excluded in the validate
-                # method).
-            #    if not isinstance(current, (Operation, Reference)):
-            #        ignore = True
-            #        break
-            #    current = current.parent
-            #if ignore:
-            #    continue
-
             current_n_ranges = len([child for child in array.children
                                     if isinstance(child, Range)])
             if n_ranges is None:
@@ -233,10 +209,13 @@ class NemoArrayRange2LoopTrans(Transformation):
             elif n_ranges != current_n_ranges:
                 raise InternalError(
                     "The number of ranges in the arrays within this "
-                    "assignment are not equal. This is invalid PSyIR and "
-                    "should never happen.")
+                    "assignment are not equal. Any such case should have "
+                    "been dealt with by the validation method or represents "
+                    "invalid PSyIR.")
             idx = get_outer_index(array)
             array.children[idx] = Reference(loop_variable_symbol)
+
+        # Replace the assingment with the new explicit loop structure
         position = assignment.position
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
                                upper_bound, step, [assignment.detach()])
@@ -332,6 +311,15 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "Error in NemoArrayRange2LoopTrans transformation. This "
                 "transformation does not support array assignments that "
                 "contain a CodeBlock anywhere in the expression.")
+
+        # Do not allow to optimise expressions with function calls (to allow
+        # this we need to differentiate between elemental and not elemental
+        # functions as they have different semantics in array notation)
+        if assignment.walk(Call):
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. This "
+                "transformation does not support array assignments that "
+                "contain a Call anywhere in the expression.")
 
         # We need all type info about all references (maybe not, see below)
         # for reference in assignment.walk(Reference):
