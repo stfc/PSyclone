@@ -248,6 +248,124 @@ of checking for this is to run pylint on any modified test modules.
     without actually executing the tests.
 
 
+Documentation testing
+---------------------
+Any code snippet included in the documentation should be tested to make
+sure our examples and documentation work as expected.
+Therefore, all examples in the documentation should be specified using
+``testcode`` and ``testoutput`` directives, which allows
+these code snippets to be tested. For example::
+
+    .. testcode::
+
+    # access_info is an AccessInfo instance and contains one access. This
+    # could be as simple as `a(i,j)`, but also something more complicated
+    # like `a(i+2*j)%b%c(k, l)`.
+    for indx in access_info.component_indices.iterate():
+        # indx is a 2-tuple of (component_index, dimension_index)
+        psyir_index = access_info.component_indices[indx]
+
+    # Using enumerate:
+    for count, indx in enumerate(access_info.component_indices.iterate()):
+        psyir_index = access_info.component_indices[indx]
+        # fortran writer converts a PSyIR node to Fortran:
+        print("Index-id {0} of 'a(i,j)': {1}"
+              .format(count, fortran_writer(psyir_index)))
+
+  .. testoutput::
+
+      Index-id 0 of 'a(i,j)': i
+      Index-id 1 of 'a(i,j)': j
+
+Output should only be included if it is reasonable short. To avoid adding
+output to the manual, use the ``:hide:`` option of ``testoutput``::
+
+  .. testoutput::
+      :hide:
+
+      Index 'i' is used.
+
+
+The command `make doctest` will execute all tests marked in the documentation,
+and also any example code included in a docstring of a function or class
+that is documented in the manual (e.g. using ``automethod``).
+Some tests or examples will require data structure to be set up or
+modules to be imported. This can be done in a ``testsetup``
+section. For example, here an excerpt from ``dependency.rst``::
+
+    .. testsetup::
+
+        from psyclone.psyir.frontend.fortran import FortranReader
+        from psyclone.psyir.nodes import Loop
+
+        code = '''subroutine sub()
+        integer :: i, j, k, a(10, 10)
+        a(i,j) = 1
+        do i=1, 10
+           j = 3
+           a(i,i) = j + k
+        enddo
+        end subroutine sub
+        '''
+        psyir = FortranReader().psyir_from_source(code)
+        # Take the loop node:
+        loop = psyir.children[0][1]
+        loop_statements = [loop]
+
+    Here might be then be several paragraphs of documentation.
+    Then in an example code, anything prepared in the above
+    code can be used, for example:
+
+    .. testcode::
+
+        for statement in loop_statements:
+            if isinstance(statement, Loop):
+
+The ``testsetup`` section creates a variable ``loop_statements``
+and imports the Loop class, and the actual example uses this code.
+
+Many code snippets in python docstrings might try to parse a file,
+which typically cannot be found (unless the full path would be
+provided, which makes the example look ugly). One solution for this
+is to use variable that is supposed to contain the filename, and then
+define this variable in the ``testsetup`` section. For example, the
+file ``transformation.py`` uses::
+
+    class ACCEnterDataTrans(Transformation):
+        '''
+        Adds an OpenACC "enter data" directive to a Schedule.
+        For example:
+
+        >>> from psyclone.parse.algorithm import parse
+        >>> api = "gocean1.0"
+        >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+        ...
+        >>> _ = dtrans.apply(schedule)
+
+
+And the variable SOURCE_FILE is defined in the ``testsetup`` section
+of ``transformations.rst``::
+
+    .. testsetup::
+
+        # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+        SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+            "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+    ...
+
+    .. autoclass:: psyclone.transformations.ACCEnterDataTrans
+       :noindex:
+
+.. note::
+
+  The result of applying the transformation is assigned to ``_``,
+  otherwise the result will be printed on stdout, which would result
+  in a test failure (since no output is expected). TODO #595 intends
+  to remove the output value of applying a transformation, after which
+  the assignments to ``_`` can be removed.
+
+
 .. _compilation_testing:
 
 Compilation testing
