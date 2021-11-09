@@ -257,6 +257,51 @@ def test_apply_existing_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_apply_structure_of_arrays(tmpdir):
+    '''Check that the apply method works when the assingment expression contains
+    structure of arrays.
+
+    '''
+    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment1 = schedule[0]
+    assignment2 = schedule[1]
+    assignment3 = schedule[2]
+    trans = NemoArrayRange2LoopTrans()
+
+    # Case 1: SoA in the RHS
+    array_ref = assignment1.lhs
+    trans.apply(array_ref.children[2])
+    trans.apply(array_ref.children[1])
+    trans.apply(array_ref.children[0])
+
+    writer = FortranWriter()
+    result = writer(schedule)
+    assert (
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = mystruct%field(ji,jj,jk) "
+        "+ mystruct%field2%field(ji,jj,jk)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+    # Case 2: SoA in the LHS is not yet supported
+    array_ref = assignment2.lhs.children[0].children[0]
+    result = writer(schedule)
+    assert "mystruct%field2%field(:,:,:) = 0.0d0" in result
+
+    # Case 3: Nested SoA currently causes an InternalError
+    array_ref = assignment3.lhs
+    with pytest.raises(InternalError) as info:
+        trans.apply(array_ref.children[2])
+    assert ("The number of ranges in the arrays within this assignment are "
+            "not equal. Any such case should have been dealt with by the "
+            "validation method or represents invalid PSyIR."
+            in str(info.value))
+
+
 def test_apply_existing_names_as_ancestor_loop_variables():
     '''Check that the transformation is not applied if the variable name
     already exists as the variable name of an ancestor loop.
