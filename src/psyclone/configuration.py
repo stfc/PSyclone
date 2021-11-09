@@ -698,8 +698,7 @@ class Config(object):
         :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
             :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
             :py:class:`psyclone.domain.nemo.NemoConstants`
-            '''
-
+        '''
         return self.api_conf().get_constants()
 
 
@@ -1326,9 +1325,11 @@ class NemoConfig(APISpecificConfig):
         return self._loop_type_data
 
     def get_valid_loop_types(self):
-        '''The list is sorted to have reproducible results for testing.
+        '''
+        The list is sorted to have reproducible results for testing.
         :returns: a sorted list of valid loop types.
         :rtype: list of str.
+
         '''
         valid_types_list = list(self._loop_type_data)
         valid_types_list.sort()

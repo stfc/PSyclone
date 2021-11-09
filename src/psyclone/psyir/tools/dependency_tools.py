@@ -81,7 +81,7 @@ class DependencyTools(object):
             for loop_type in loop_types_to_parallelise:
                 if loop_type not in constants.VALID_LOOP_TYPES:
                     if six.PY2:
-                        out_list = [str(l_type)for l_type in
+                        out_list = [str(l_type) for l_type in
                                     constants.VALID_LOOP_TYPES]
                     else:
                         out_list = constants.VALID_LOOP_TYPES
