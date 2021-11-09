@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, STFC Daresbury Lab
+.. Written by: R. W. Ford, STFC Daresbury Lab
 
 # PSyclone NEMO Example 4 - SIR
 
@@ -129,7 +129,4 @@ To build Dawn with Python support:
 2. There are no checks that the loops conform to the NEMO lat.lon.levs
    convention.
 3. The only unary operator currently supported is '-'.
-4. The subject of the unary operator must be a literal.
-5. Loops must be triply nested.
-6. Loops must be perfectly nested (no computation between different
-   loop levels).
+4. Loops must be triply nested.

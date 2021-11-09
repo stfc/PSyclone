@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,51 +31,47 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a region are a valid number, i.e.
+not infinity or NAN.
+'''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
 
-api = "dynamo0.1"
+from psyclone.psyir.transformations import NanTestTrans
 
-# Parse the algorithm specification and return the Abstract Syntax Tree and
-# invokeInfo objects
-ast, invokeInfo = parse("dynamo.F90", api=api)
 
-# Create the PSy-layer object using the invokeInfo
-psy = PSyFactory(api).create(invokeInfo)
-# Generate the Fortran code for the PSy layer
-print(psy.gen)
+def trans(psy):
+    '''
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
 
-# List the various invokes that the PSy layer contains
-print(psy.invokes.names)
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-# Get the loop schedule associated with one of these
-# invokes
-schedule = psy.invokes.get('invoke_0_v3_kernel_type').schedule
-schedule.view()
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
-# Get the list of possible loop transformations
-t = TransInfo()
-print(t.list)
+    '''
+    nan_test = NanTestTrans()
 
-# Create an OpenMPLoop-transformation object
-ol = t.get_trans_name('OMPParallelLoopTrans')
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
 
-# Apply it to the loop schedule of the selected invoke
-ol.apply(schedule.children[0])
-schedule.view()
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
+    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
 
-# Generate the Fortran code for the new PSy layer
-print(psy.gen)
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
 
-schedule = psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
-schedule.view()
+    # Enclose everything in a nan_test region
+    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
 
-ol.apply(schedule.children[0])
-schedule.view()
-
-print(psy.gen)
+    # newschedule.view()
+    return psy

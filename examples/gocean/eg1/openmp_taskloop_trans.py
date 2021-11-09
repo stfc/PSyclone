@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,38 +31,48 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          A. B. G. Chalk, STFC Daresbury Lab
 
-''' Module containing py.test tests for the generation of Fortran from
-    the PSy representation of NEMO code. '''
+'''A simple test script showing the introduction of OpenMP tasking with
+PSyclone.
 
-from __future__ import print_function, absolute_import
-import os
-import fparser
+'''
 
-# Constants
-API = "nemo"
-# Location of the Fortran files associated with these tests
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files")
-
-
-def test_api_no_alg():
-    ''' Checks that generate works OK for an API which doesn't have an
-    Algorithm layer '''
-    from psyclone.generator import generate
-    alg, psy = generate(os.path.join(BASE_PATH, "explicit_do.f90"),
-                        api="nemo")
-    assert alg is None
-    assert isinstance(psy, fparser.two.Fortran2003.Program)
+from __future__ import print_function
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Loop
+from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+from psyclone.transformations import OMPTaskloopTrans
+from psyclone.psyir.transformations import OMPTaskwaitTrans
 
 
-def test_utf_char(tmpdir):
-    ''' Check that we generate the PSy layer OK when the original Fortran
-    code contains UTF characters with no representation in the ASCII
-    character set. '''
-    from psyclone.generator import main
-    test_file = os.path.join(BASE_PATH, "utf_char.f90")
-    tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
-    main(["-api", "nemo", "-opsy", tmp_file, test_file])
-    assert os.path.isfile(tmp_file)
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Applies the OpenMP
+    taskloop and taskwait transformations to the PSy layer.
+
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+
+    singletrans = OMPSingleTrans()
+    paralleltrans = OMPParallelTrans()
+    tasklooptrans = OMPTaskloopTrans(nogroup=False)
+    taskwaittrans = OMPTaskwaitTrans()
+    for invoke in psy.invokes.invoke_list:
+        print("Adding OpenMP tasking to invoke: " + invoke.name)
+        schedule = invoke.schedule
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                tasklooptrans.apply(child)
+        singletrans.apply(schedule)
+        paralleltrans.apply(schedule)
+        taskwaittrans.apply(schedule[0])
+
+    return psy

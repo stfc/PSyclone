@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module tests the hoist transformation.
 '''
@@ -41,16 +42,16 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
-    IfBlock, ArrayReference
+    IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    BOOLEAN_TYPE, ArrayType
+    BOOLEAN_TYPE
 from psyclone.psyir.transformations import HoistTrans, TransformationError
 
 
 # init
 
 def test_init():
-    '''Test a hoist transformation can be succesfully created.'''
+    '''Test a hoist transformation can be successfully created.'''
     hoist_trans = HoistTrans()
     assert isinstance(hoist_trans, HoistTrans)
 
@@ -140,27 +141,256 @@ def test_validate_direct_loop():
             "within a loop but found 'if (.true.) then\n  a = 1.0\nend if\n'."
             in str(info.value))
 
+# _validate_dependencies
 
-@pytest.mark.xfail(
-    reason="issue #1378: dependence analysis needs to be added.")
-def test_validate_dependent_variable():
+
+@pytest.mark.parametrize("assignment_str", ["a = a + 1",
+                                            "a = b(a)+1",
+                                            "a = sin(a)"])
+def test_validate_error_read_and_write(fortran_reader, assignment_str):
     '''Test the expected exception is raised if the supplied assignment
-    depends on the loop iterator.
+    depends on the loop iteration.
 
     '''
-    array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
-    loop_iterator = DataSymbol("i", INTEGER_TYPE)
-    array_reference = ArrayReference.create(
-        array_symbol, [Reference(loop_iterator)])
-    assignment = Assignment.create(array_reference, Literal("1.0", REAL_TYPE))
-    one = Literal("1", INTEGER_TYPE)
-    _ = Loop.create(
-        loop_iterator, one, one.copy(), one.copy(), [assignment])
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  {0}
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
-    assert ("The supplied assignment node 'a(i) = 1.0\n' depends on the "
-            "parent loop iterator 'i'." in str(info.value))
+    assert ("The statement can't be hoisted as it contains a variable ('a') "
+            "that is both read and written." in str(info.value))
+
+
+@pytest.mark.parametrize("assignment_str", ["a = 1",
+                                            "a = b(j)+1",
+                                            "a = sin(j)"])
+def test_validate_read_and_write(fortran_reader, assignment_str):
+    '''Tests valid assignments that can be hoisted.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  {0}
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0][0].loop_body[0]
+    hoist_trans = HoistTrans()
+    hoist_trans.validate(assignment)
+
+
+@pytest.mark.parametrize("assignment_str", ["a(i) = 1",
+                                            "a(j,i,j) = 1",
+                                            "a(j * 2 + 5 * i) = 1",
+                                            "a(b(i)) = 2",
+                                            "a = i",
+                                            "a = b(j,2 * i)",
+                                            "a = 1 + i * i"])
+def test_validate_direct_dependency_errors(fortran_reader, assignment_str):
+    '''Test the expected exception is raised if the supplied assignment
+    depends directly on the loop variable.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a(10), b(10)
+              do i=1, 10
+                  {0}
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0][0].loop_body[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The statement '{0}' can't be hoisted as it reads variable 'i' "
+            "which is written somewhere else in the loop."
+            .format(assignment_str) in str(info.value))
+
+
+@pytest.mark.parametrize("statement_var", [("a(j) = 1", "j"),
+                                           ("a(b(j)) = 2", "j"),
+                                           ("a = j", "j"),
+                                           ("a = b(1,j + 1)", "j"),
+                                           ("a(k) = 1", "k"),
+                                           ("a(b(k)) = 2", "k"),
+                                           ("a = k", "k"),
+                                           ("a = b(1,k + 1)", "k")])
+def test_validate_indirect_dependency_errors(fortran_reader, statement_var):
+    '''Test the expected exception is raised if the statement to be hoisted
+    indirectly depends on the loop iteration because it reads a variable that
+    is written (either before or after the statement to be hoisted).
+    The 'statement_var' parameter contains a 2-tuple: first the statement
+    to be hoisted, then the variable on which it depends that causes the
+    dependency.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, k,  a(10), b(10)
+              do i=1, 10
+                  j = i+1
+                  {0}
+                  k = j + 1
+              enddo
+              end subroutine test'''.format(statement_var[0]))
+    assignment = psyir.children[0][0].loop_body[1]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The statement '{0}' can't be hoisted as it reads variable '{1}' "
+            "which is written somewhere else in the loop."
+            .format(statement_var[0], statement_var[1]) in str(info.value))
+
+
+def test_validate_dependencies_multi_write(fortran_reader):
+    '''Test the expected exception is raised if the variable is written
+    more than once.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  a = 2
+                  b(i) = a
+                  a = 3
+                  j = a
+              enddo
+              end subroutine test''')
+    assignment = psyir.children[0][0].loop_body[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("There is at least one additional write to the variable 'a' in "
+            "the loop, outside of the supplied statement." in str(info.value))
+
+
+@pytest.mark.parametrize("assignment_str", ["a = 2", "b(i) = a"])
+def test_validate_dependencies_read_or_write_before(assignment_str,
+                                                    fortran_reader):
+    '''Test that the expected exception is raised if variable is read or
+    written before the assignment that is to be hoisted.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test()
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  {0}    ! read or write 'a' here
+                  a = 3
+                  j = a
+              enddo
+              end subroutine test'''.format(assignment_str))
+    assignment = psyir.children[0][0].loop_body[1]
+    # Make sure we are trying to hoist the right assignment:
+    assert isinstance(assignment.rhs, Literal)
+    assert assignment.rhs.value == "3"
+
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The statement 'a = 3' can't be hoisted as variable 'a' is "
+            "accessed earlier within the loop." in str(info.value))
+
+
+def test_validate_dependencies_if_statement(fortran_reader):
+    '''Test if various if-statements pass the dependency validation to
+    be allowed to be hoisted. While this is not currently supported
+    in the hoist transformation, this will be added in TODO #1445.
+
+    '''
+    # A simple constant test:
+    # -----------------------
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j)
+              integer :: i, j, a, b(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     a = 4
+                  endif
+                  b(i) = a
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    hoist_trans = HoistTrans()
+    hoist_trans._validate_dependencies(ifblock, loop)
+
+    # Test if there is more than one variable written:
+    # ------------------------------------------------
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j, a, b)
+              integer :: i, j, a, b, c(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     b = 4
+                  endif
+                  c(i) = a+b
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    hoist_trans._validate_dependencies(ifblock, loop)
+
+    # Now one part of the if statement contains a read-write:
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j, a, b)
+              integer :: i, j, a, b, c(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     a = a + 1
+                  endif
+                  c(i) = a+b
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    with pytest.raises(TransformationError) as err:
+        hoist_trans._validate_dependencies(ifblock, loop)
+    assert ("The statement can't be hoisted as it contains a variable ('a') "
+            "that is both read and written." in str(err.value))
+
+    # The second written variable is written again in the loop:
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine test(j, a, b)
+              integer :: i, j, a, b, c(10)
+              do i=1, 10
+                  if (j == 1) then
+                     a = 3
+                  else
+                     b = 4
+                  endif
+                  c(i) = a+b
+                  b = 2
+              enddo
+              end subroutine test''')
+    loop = psyir.children[0][0]
+    ifblock = loop.loop_body[0]
+    # Make sure we are trying to hoist the right statement:
+    assert isinstance(ifblock, IfBlock)
+    with pytest.raises(TransformationError) as err:
+        hoist_trans._validate_dependencies(ifblock, loop)
+    assert ("There is at least one additional write to the variable 'b' in "
+            "the loop, outside of the supplied statement." in str(err.value))
 
 
 # str

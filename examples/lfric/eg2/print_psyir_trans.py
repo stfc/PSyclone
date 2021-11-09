@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
 
-'''Example script showing how to apply OpenMP transformations to
-dynamo code'''
+''' Simple transformation script that prints out the names of the 'invoke'(s)
+    in the supplied PSy object and the PSyIR for each. '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
-API = "dynamo0.1"
-_, INVOKEINFO = parse("dynamo_algorithm_mod.F90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
-print(PSY.gen)
 
-print(PSY.invokes.names)
 
-TRANS = TransInfo()
-print(TRANS.list)
+def trans(psy):
+    '''
+    PSyclone transformation routine. This is an example which only prints
+    information about the object with which it has been supplied.
 
-LOOP_FUSE = TRANS.get_trans_name('LoopFuseTrans')
-OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
+    :param psy: the PSy object that PSyclone has constructed for the \
+                'invoke'(s) found in the Algorithm file.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+    :returns: the supplied PSy object unmodified.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
-LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
-SCHEDULE.view()
-OMP_PAR.apply(SCHEDULE.children[0])
-SCHEDULE.view()
+    '''
+    print("Supplied code has Invokes: ", psy.invokes.names)
 
-SCHEDULE = PSY.invokes.get('invoke_1_v2_kernel_type').schedule
-SCHEDULE.view()
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
 
-OMP_PAR.apply(SCHEDULE.children[0])
-SCHEDULE.view()
+    schedule = psy.invokes.get('invoke_1').schedule
+    schedule.view()
 
-SCHEDULE = PSY.invokes.get('invoke_2_v1_kernel_type').schedule
-SCHEDULE.view()
-
-OMP_PAR.apply(SCHEDULE.children[0])
-SCHEDULE.view()
-
-print(PSY.gen)
+    return psy

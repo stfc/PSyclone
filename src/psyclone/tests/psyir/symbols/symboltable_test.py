@@ -156,6 +156,7 @@ def test_next_available_name_1():
     name = sym_table.next_available_name()
     assert name == "psyir_tmp"
     sym_table.add(DataSymbol(name, REAL_TYPE))
+
     # Check we return the expected symbol name when there is a
     # supplied root name.
     assert sym_table.next_available_name(root_name="my_name") == "my_name"
@@ -164,8 +165,9 @@ def test_next_available_name_1():
     name = sym_table.next_available_name(root_name="my_mod")
     assert name == "my_mod_1"
     sym_table.add(ContainerSymbol(name))
-    name = sym_table.next_available_name(root_name="my_mod")
-    assert name == "my_mod_2"
+    # Check that the name-clash checking is not case sensitive
+    name = sym_table.next_available_name(root_name="my_MOD")
+    assert name == "my_MOD_2"
     name = sym_table.next_available_name(root_name="my_mod_1")
     assert name == "my_mod_1_1"
     # Check we return a new symbol by appending an integer index to
@@ -282,6 +284,10 @@ def test_add_1():
         sym_table.add(DataSymbol("var1", REAL_TYPE))
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
+    with pytest.raises(KeyError) as error:
+        sym_table.add(DataSymbol("vAR1", REAL_TYPE))
+    assert ("Symbol table already contains a symbol with name "
+            "'vAR1'.") in str(error.value)
 
     # Test that an exception is raised if a non-symbol is added
     with pytest.raises(InternalError) as error:
@@ -622,14 +628,15 @@ def test_lookup_1():
 
     sym_table.add(DataSymbol("var1", array_type))
     sym_table.add(DataSymbol("var2", INTEGER_TYPE))
-    sym_table.add(DataSymbol("var3", REAL_TYPE))
+    sym_table.add(DataSymbol("vAR3", REAL_TYPE))
 
     assert isinstance(sym_table.lookup("var1"), DataSymbol)
     assert sym_table.lookup("var1").name == "var1"
+    assert sym_table.lookup("vAR1").name == "var1"
     assert isinstance(sym_table.lookup("var2"), DataSymbol)
     assert sym_table.lookup("var2").name == "var2"
     assert isinstance(sym_table.lookup("var3"), DataSymbol)
-    assert sym_table.lookup("var3").name == "var3"
+    assert sym_table.lookup("var3").name == "vAR3"
 
     with pytest.raises(KeyError) as error:
         sym_table.lookup("notdeclared")
@@ -959,6 +966,7 @@ def test_contains():
 
     assert "var1" in sym_table
     assert "var2" in sym_table
+    assert "vAR2" in sym_table
     assert "var3" not in sym_table
 
 
@@ -1589,3 +1597,8 @@ def test_rename_symbol():
         schedule_symbol_table.rename_symbol(symbol, "array")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'array' does." in str(err.value))
+
+    with pytest.raises(KeyError) as err:
+        schedule_symbol_table.rename_symbol(symbol, "aRRay")
+    assert ("The name argument of rename_symbol() must not already exist in "
+            "this symbol_table instance, but 'aRRay' does." in str(err.value))

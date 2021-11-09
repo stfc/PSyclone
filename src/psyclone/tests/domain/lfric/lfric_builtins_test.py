@@ -388,8 +388,7 @@ def test_lfricbuiltin_cma(dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    cma_type = kern.cma_operation()
-    assert cma_type is None
+    assert kern.cma_operation is None
 
 
 def test_lfricbuiltfactory_str():
@@ -2388,7 +2387,7 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
                 "enddo") in code
     else:
         output_dm = (
-            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      loop0_stop = f1_proxyn%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"

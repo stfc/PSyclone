@@ -53,8 +53,8 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
-    DataTypeSymbol, StructureType
+    REAL_DOUBLE_TYPE, DeferredType, RoutineSymbol, Symbol, UnknownType, \
+    UnknownFortranType, DataTypeSymbol, StructureType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
@@ -2076,6 +2076,14 @@ def test_fw_literal_node(fortran_writer):
     result = fortran_writer(lit1)
     assert result == '3.14'
 
+    lit1 = Literal('3.14E0', REAL_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.14e0'
+
+    lit1 = Literal('3.14E0', REAL_DOUBLE_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.14d0'
+
     # Check that BOOLEANS use the FORTRAN formatting
     lit1 = Literal('true', BOOLEAN_TYPE)
     result = fortran_writer(lit1)
@@ -2111,17 +2119,24 @@ def test_fw_literal_node(fortran_writer):
 
 
 def test_fw_call_node(fortran_writer):
-    '''Test the PSyIR call node is translated to the required Fortran
-    code.
-
-    '''
-    # no args
+    '''Test the PSyIR call node is translated to the required Fortran code. '''
+    # No call arguments nor node parent
     routine_symbol = RoutineSymbol("mysub")
     call = Call.create(routine_symbol, [])
     result = fortran_writer(call)
     assert result == "call mysub()\n"
 
-    # simple args
+    # If its inside a Schedule it still show the call keyword and a line break
+    schedule = Schedule()
+    schedule.addchild(call)
+    assert fortran_writer(call) == "call mysub()\n"
+
+    # Inside an expression it will not show the call keyword and line break
+    ifblock = IfBlock.create(call.detach(), [Return()])
+    assert fortran_writer(call) == "mysub()"
+    assert fortran_writer(ifblock) == "if (mysub()) then\n  return\nend if\n"
+
+    # Call with arguments
     args = [Reference(DataSymbol("arg1", REAL_TYPE)),
             Reference(DataSymbol("arg2", REAL_TYPE))]
     call = Call.create(routine_symbol, args)

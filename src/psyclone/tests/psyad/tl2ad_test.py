@@ -39,7 +39,6 @@ within the psyad directory.
 '''
 from __future__ import print_function, absolute_import
 import logging
-import six
 import pytest
 
 from psyclone.errors import InternalError
@@ -50,7 +49,7 @@ from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
-    Assignment, BinaryOperation
+    Assignment, BinaryOperation, Reference, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
     INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface
 
@@ -105,7 +104,8 @@ def test_generate_adjoint_str_generate_harness():
         "  end subroutine kern\n"
         "end module my_mod\n"
     )
-    result, harness = generate_adjoint_str(tl_code, [], create_test=True)
+    result, harness = generate_adjoint_str(
+        tl_code, ["field"], create_test=True)
     assert "subroutine kern_adj(field)\n" in result
     assert '''program adj_test
   use my_mod, only : kern
@@ -126,7 +126,7 @@ def test_generate_adjoint_str_generate_harness():
   inner2 = 0.0
   inner2 = inner2 + field * field_input
   abs_diff = ABS(inner1 - inner2)
-  if (abs_diff > 1.0e-10) then
+  if (abs_diff > 1.0d-10) then
     WRITE(*, *) 'Test of adjoint of ''kern'' failed: diff = ', abs_diff
     return
   end if
@@ -202,21 +202,23 @@ def test_generate_adjoint(fortran_reader):
 
     tl_fortran_str = (
         "program test\n"
-        "integer :: a\n"
-        "a = 0.0\n"
+        "real :: a, b, c\n"
+        "a = b + c\n"
         "end program test\n")
     expected_ad_fortran_str = (
         "program test_adj\n"
-        "  integer :: a\n\n"
+        "  real :: a\n  real :: b\n  real :: c\n\n"
+        "  b = b + a\n"
+        "  c = c + a\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
     tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
 
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
+    assert ad_fortran_str in expected_ad_fortran_str
 
 
 def test_generate_adjoint_errors():
@@ -225,25 +227,32 @@ def test_generate_adjoint_errors():
     # Only a FileContainer
     psyir = FileContainer("test_file")
     with pytest.raises(InternalError) as err:
-        generate_adjoint(psyir, [])
+        generate_adjoint(psyir, ["dummy"])
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
     with pytest.raises(InternalError) as err:
         generate_adjoint(Container.create("test_mod", SymbolTable(),
-                                          [psyir.copy()]), [])
+                                          [psyir.copy()]), ["dummy"])
     assert ("The supplied PSyIR contains two Containers but the innermost is "
             "a FileContainer. This should not be possible" in str(err.value))
     # No kernel code
     cont = Container("test_mod")
     with pytest.raises(InternalError) as err:
-        generate_adjoint(cont, [])
+        generate_adjoint(cont, ["dummy"])
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
-    # Only one routine is permitted
-    cont.addchild(Routine.create("my_kern1", SymbolTable(), [Return()]))
-    cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
+    # Multiple routines
+    symbol_table = cont.symbol_table
+    symbol = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    assignment = Assignment.create(
+        Reference(symbol), Literal("0.0", REAL_TYPE))
+    cont.addchild(Routine.create("my_kern1", symbol_table, [assignment]))
+    assignment = Assignment.create(
+        Reference(symbol), Literal("0.0", REAL_TYPE))
+    cont.addchild(Routine.create("my_kern2", symbol_table, [assignment]))
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint(cont, [])
+        generate_adjoint(cont, [symbol.name])
     assert ("The supplied Fortran must contain one and only one routine but "
             "found: ['my_kern1', 'my_kern2']" in str(err.value))
 
@@ -257,41 +266,29 @@ def test_generate_adjoint_logging(caplog):
     '''
     tl_fortran_str = (
         "program test\n"
-        "integer :: a\n"
+        "real :: a\n"
         "a = 0.0\n"
         "end program test\n")
     expected_ad_fortran_str = (
-        "program test\n"
-        "  integer :: a\n\n"
+        "program test_adj\n"
+        "  real :: a\n\n"
         "  a = 0.0\n\n"
-        "end program test\n")
+        "end program test_adj\n")
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
     with caplog.at_level(logging.INFO):
-        ad_psyir = generate_adjoint(tl_psyir, [])
+        ad_psyir = generate_adjoint(tl_psyir, ["a"])
     assert caplog.text == ""
 
     writer = FortranWriter()
     ad_fortran_str = writer(ad_psyir)
-    assert expected_ad_fortran_str in ad_fortran_str
+    assert ad_fortran_str in expected_ad_fortran_str
 
     with caplog.at_level(logging.DEBUG):
-        ad_psyir = generate_adjoint(tl_psyir, [])
-    # Python2 and 3 report different line numbers
-    if six.PY2:
-        line_number = 96
-    else:
-        line_number = 95
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:{0} Translation from generic "
-        "PSyIR to LFRic-specific PSyIR should be done now.".format(line_number)
-        in caplog.text)
-    assert (
-        "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:100 Transformation from TL to "
-        "AD should be done now." in caplog.text)
-    assert ("DEBUG    psyclone.psyad.tl2ad:tl2ad.py:224 AD kernel will be "
-            "named 'kern_adj'" in caplog.text)
+        ad_psyir = generate_adjoint(tl_psyir, ["a"])
+    assert "Translating from TL to AD." in caplog.text
+    assert "AD kernel will be named 'test_adj'" in caplog.text
 
     ad_fortran_str = writer(ad_psyir)
     assert expected_ad_fortran_str in ad_fortran_str
@@ -342,7 +339,7 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
     assert isinstance(test_psyir, Routine)
     assert test_psyir.is_program is True
@@ -388,7 +385,7 @@ def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field1", "field2"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
     harness = fortran_writer(test_psyir)
     assert "integer, parameter :: array_extent = 20\n" in harness
@@ -418,7 +415,7 @@ def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field1"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
     prog = test_psyir.walk(Routine)[0]
     assert "array_extent" in prog.symbol_table
@@ -447,7 +444,7 @@ def test_generate_harness_arg_name_clash(fortran_reader, fortran_writer):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["array_extent"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
     prog = test_psyir.walk(Routine)[0]
     assert "array_extent" in prog.symbol_table
@@ -477,7 +474,7 @@ def test_generate_harness_routine_name_clash(fortran_reader, fortran_writer):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field1"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
     harness = fortran_writer(test_psyir)
     assert "integer, parameter :: array_extent_1 = 20" in harness
@@ -499,7 +496,7 @@ def test_generate_harness_kernel_arg_static_shape(fortran_reader,
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field1"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
     harness = fortran_writer(test_psyir)
     assert "integer, parameter :: npts = array_extent_1" in harness
@@ -521,7 +518,7 @@ def test_generate_harness_kernel_arg_shape_error(fortran_reader):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field1"])
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir)
     assert ("Found argument 'field1' to kernel 'array_extent' which has a "
@@ -543,7 +540,7 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
         "end module my_mod\n"
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
-    ad_psyir = generate_adjoint(tl_psyir, [])
+    ad_psyir = generate_adjoint(tl_psyir, ["field1"])
     # Get hold of the kernel argument
     kernel = tl_psyir.walk(Routine)[0]
     fld_arg = kernel.symbol_table.argument_list[0]

@@ -126,7 +126,7 @@ def zero_reduction_variables(red_call_list, parent):
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
-                is_literal=True):
+                include_literals=True):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -141,8 +141,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         :py:class:`psyclone.core.access_type.AccessType`
     :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool is_literal: whether or not to include literal arguments in \
-                            the returned list.
+    :param bool include_literals: whether or not to include literal arguments \
+                                  in the returned list.
 
     :returns: list of kernel arguments matching the requirements.
     :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
@@ -159,7 +159,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         if arg_meshes:
             if argument.mesh not in arg_meshes:
                 continue
-        if not is_literal:
+        if not include_literals:
             # We're not including literal arguments so skip this argument
             # if it is literal.
             if argument.is_literal:
@@ -173,20 +173,24 @@ class PSyFactory(object):
     Creates a specific version of the PSy. If a particular api is not
     provided then the default api, as specified in the psyclone.cfg
     file, is chosen.
+
+    :param str api: name of the PSyclone API (domain) for which to create \
+        a factory.
+    :param bool distributed_memory: whether or not the PSy object created \
+        will include support for distributed-memory parallelism.
+
+    :raises TypeError: if the distributed_memory argument is not a bool.
+
     '''
     def __init__(self, api="", distributed_memory=None):
-        '''Initialises a factory which can create API specific PSY objects.
-        :param str api: Name of the API to use.
-        :param bool distributed_memory: True if distributed memory should be \
-                                        supported.
-        '''
+
         if distributed_memory is None:
             _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
         if _distributed_memory not in [True, False]:
-            raise GenerationError(
+            raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         Config.get().distributed_memory = _distributed_memory
@@ -196,13 +200,21 @@ class PSyFactory(object):
         '''
         Create the API-specific PSy instance.
 
-        :param invoke_info: information on the invoke()s found by parsing
-                            the Algorithm layer.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+        :param invoke_info: information on the invoke()s found by parsing \
+                            the Algorithm layer or (for NEMO) the fparser2 \
+                            parse tree of the source file.
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
+                           :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+
+        :raises InternalError: if this factory is found to have an \
+                               unsupported type (API).
         '''
+        # Conditional run-time importing is a part of this factory
+        # implementation.
+        # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
@@ -216,9 +228,9 @@ class PSyFactory(object):
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
         else:
-            raise GenerationError("PSyFactory: Internal Error: Unsupported "
-                                  "api type '{0}' found. Should not be "
-                                  "possible.".format(self._type))
+            raise InternalError(
+                "PSyFactory: Unsupported API type '{0}' found. Expected one "
+                "of {1}.".format(self._type, Config.get().supported_apis))
         return PSyClass(invoke_info)
 
 
@@ -344,163 +356,13 @@ class Invokes(object):
         :raises GenerationError: if an invoke_list schedule is not an \
             InvokeSchedule.
         '''
-        def raise_unmatching_options(option_name):
-            ''' Create unmatching OpenCL options error message.
-
-            :param str option_name: name of the option that failed.
-            :raises NotImplementedError: with the given option_name.
-            '''
-            raise NotImplementedError(
-                "The current implementation creates a single OpenCL context "
-                "for all the invokes which needs certain OpenCL options to "
-                "match between invokes. Found '{0}' with unmatching values "
-                "between invokes.".format(option_name))
-        opencl_kernels = []
-        opencl_num_queues = 1
-        generate_ocl_init = False
-        ocl_enable_profiling = None
-        ocl_out_of_order = None
         for invoke in self.invoke_list:
             if not isinstance(invoke.schedule, InvokeSchedule):
                 raise GenerationError(
                     "An invoke.schedule element of the invoke_list "
                     "is a '{0}', but it should be an 'InvokeSchedule'."
                     "".format(type(invoke.schedule).__name__))
-
-            # If we are generating OpenCL for an Invoke then we need to
-            # create routine(s) to set the arguments of the Kernel(s) it
-            # calls. We do it here as this enables us to prevent
-            # duplication.
-            if invoke.schedule.opencl:
-                generate_ocl_init = True
-                isch = invoke.schedule
-
-                # The enable_profiling option must be equal in all invokes
-                if ocl_enable_profiling is not None and \
-                   ocl_enable_profiling != isch.get_opencl_option(
-                           'enable_profiling'):
-                    raise_unmatching_options('enable_profiling')
-                ocl_enable_profiling = isch.get_opencl_option(
-                    'enable_profiling')
-
-                # The out_of_order option must be equal in all invokes
-                if ocl_out_of_order is not None and \
-                   ocl_out_of_order != isch.get_opencl_option('out_of_order'):
-                    raise_unmatching_options('out_of_order')
-                ocl_out_of_order = isch.get_opencl_option('out_of_order')
-
-                # openCL_num_queues must be the maximum number from any invoke
-                for kern in isch.coded_kernels():
-                    if kern.name not in opencl_kernels:
-                        # Compute the maximum number of command queues that
-                        # will be needed.
-                        opencl_num_queues = max(
-                            opencl_num_queues,
-                            kern.opencl_options['queue_number'])
-                        opencl_kernels.append(kern.name)
-                        kern.gen_arg_setter_code(parent)
             invoke.gen_code(parent)
-        if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
-                              ocl_enable_profiling, ocl_out_of_order)
-
-    def gen_ocl_init(self, parent, kernels, num_queues, enable_profiling,
-                     out_of_order):
-        '''
-        Generates a subroutine to initialise the OpenCL environment and
-        construct the list of OpenCL kernel objects used by this PSy layer.
-
-        :param parent: the node in the f2pygen AST representing the module \
-                       that will contain the generated subroutine.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        :param kernels: List of kernel names called by the PSy layer.
-        :type kernels: list of str
-        :param int num_queues: total number of queues needed for the OpenCL \
-                               implementation.
-        :param bool enable_profiling: value given to the enable_profiling \
-                                      flag in the OpenCL initialisation.
-        :param bool out_of_order: value given to the out_of_order flag in \
-                                  the OpenCL initialisation.
-
-        '''
-        from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CharDeclGen, IfThenGen
-
-        def bool_to_fortran(value):
-            '''
-            :param bool value: a python boolean value
-            :returns: the Fortran representation of the given boolean value.
-            :rtype: str
-            '''
-            if value:
-                return ".True."
-            return ".False."
-
-        sub = SubroutineGen(parent, "psy_init")
-        parent.add(sub)
-        sub.add(UseGen(sub, name="fortcl", only=True,
-                       funcnames=["ocl_env_init", "add_kernels"]))
-        # Add a logical variable used to ensure that this routine is only
-        # executed once.
-        sub.add(DeclGen(sub, datatype="logical", save=True,
-                        entity_decls=["initialised"],
-                        initial_values=[".False."]))
-        # Check whether or not this is our first time in the routine
-        sub.add(CommentGen(sub, " Check to make sure we only execute this "
-                           "routine once"))
-        ifthen = IfThenGen(sub, ".not. initialised")
-        sub.add(ifthen)
-        ifthen.add(AssignGen(ifthen, lhs="initialised", rhs=".True."))
-
-        # Initialise the OpenCL environment
-        ifthen.add(CommentGen(ifthen,
-                              " Initialise the OpenCL environment/device"))
-        sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=["ocl_device_num"],
-                        initial_values=["1"]))
-
-        distributed_memory = Config.get().distributed_memory
-        devices_per_node = Config.get().ocl_devices_per_node
-
-        if devices_per_node > 1 and distributed_memory:
-            my_rank = self.gen_rank_expression(sub)
-            # Add + 1 as FortCL devices are 1-indexed
-            ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
-                                 rhs="mod({0} - 1, {1}) + 1"
-                                 "".format(my_rank, devices_per_node)))
-
-        ifthen.add(CallGen(ifthen, "ocl_env_init",
-                           [num_queues, 'ocl_device_num',
-                            bool_to_fortran(enable_profiling),
-                            bool_to_fortran(out_of_order)]))
-
-        # Create a list of our kernels
-        ifthen.add(CommentGen(ifthen,
-                              " The kernels this PSy layer module requires"))
-        nkernstr = str(len(kernels))
-
-        # Declare array of character strings
-        ifthen.add(CharDeclGen(
-            ifthen, length="30",
-            entity_decls=["kernel_names({0})".format(nkernstr)]))
-        for idx, kern in enumerate(kernels):
-            ifthen.add(AssignGen(ifthen, lhs="kernel_names({0})".format(idx+1),
-                                 rhs='"{0}"'.format(kern)))
-        ifthen.add(CommentGen(ifthen,
-                              " Create the OpenCL kernel objects. Expects "
-                              "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
-        ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
-
-    @abc.abstractmethod
-    def gen_rank_expression(self, scope):
-        ''' Generate the expression to retrieve the process rank.
-
-        :param scope: where the expression is going to be located.
-        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
-        :return: generate the expression to retrieve the process rank.
-        :rtype: str
-        '''
 
 
 class Invoke(object):
@@ -791,73 +653,17 @@ class Invoke(object):
         self.gen_code(module)
         return module.root
 
+    @abc.abstractmethod
     def gen_code(self, parent):
-        from psyclone.f2pygen import SubroutineGen, TypeDeclGen, DeclGen, \
-            SelectionGen, AssignGen
-        # create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_vars)
-        # add the subroutine argument declarations
-        my_typedecl = TypeDeclGen(invoke_sub, datatype="field_type",
-                                  entity_decls=self.psy_unique_vars,
-                                  intent="inout")
-        invoke_sub.add(my_typedecl)
-        # declare field-type, column topology and function-space types
-        column_topology_name = "topology"
-        my_typedecl = TypeDeclGen(invoke_sub, datatype="ColumnTopology",
-                                  entity_decls=[column_topology_name],
-                                  pointer=True)
-        invoke_sub.add(my_typedecl)
-        # declare any basic types required
-        my_decl = DeclGen(invoke_sub, datatype="integer",
-                          entity_decls=["nlayers"])
-        invoke_sub.add(my_decl)
+        '''
+        Generates invocation code (the subroutine called by the associated
+        invoke call in the algorithm layer). This consists of the PSy
+        invocation subroutine and the declaration of its arguments.
 
-        for (idx, dof) in enumerate(self._dofs):
-            call = self._dofs[dof][0]
-            arg = self._dofs[dof][1]
-            # declare a type select clause which is used to map from a base
-            # class to FunctionSpace_type
-            type_select = SelectionGen(invoke_sub,
-                                       expr=arg.name + "_space=>" + arg.name +
-                                       "%function_space", typeselect=True)
-            invoke_sub.add(type_select)
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
 
-            my_typedecl = TypeDeclGen(invoke_sub,
-                                      datatype="FunctionSpace_type",
-                                      entity_decls=[arg.name+"_space"],
-                                      pointer=True)
-            invoke_sub.add(my_typedecl)
-
-            content = []
-            if idx == 0:
-                # use the first model to provide nlayers
-                # *** assumption that all fields operate over the same number
-                # of layers
-                assign_1 = AssignGen(type_select, lhs="topology",
-                                     rhs=arg.name+"_space%topology",
-                                     pointer=True)
-                assign_2 = AssignGen(type_select, lhs="nlayers",
-                                     rhs="topology%layer_count()")
-                content.append(assign_1)
-                content.append(assign_2)
-            iterates_over = call.iterates_over
-            stencil = arg.stencil
-            assign_3 = AssignGen(type_select, lhs=dof+"dofmap",
-                                 rhs=arg.name +
-                                 "_space%dof_map(" + iterates_over + ", " +
-                                 stencil + ")",
-                                 pointer=True)
-            content.append(assign_3)
-            type_select.addcase(["FunctionSpace_type"], content=content)
-            # declare our dofmap
-            my_decl = DeclGen(invoke_sub, datatype="integer",
-                              entity_decls=[dof+"dofmap(:,:)"], pointer=True)
-            invoke_sub.add(my_decl)
-
-        # create the subroutine kernel call content
-        self.schedule.gen_code(invoke_sub)
-        parent.add(invoke_sub)
+        '''
 
 
 class InvokeSchedule(Routine):
@@ -913,12 +719,11 @@ class InvokeSchedule(Routine):
 
         # TODO #1134: If OpenCL is just a PSyIR transformation the following
         # properties may not be needed or are transformation options instead.
+        # Flag to choose whether or not to generate OpenCL
         self._opencl = False  # Whether or not to generate OpenCL
-
-        # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True,
-                                "enable_profiling": False,
-                                "out_of_order": False}
+        # Flag to choose whether or not to add an OpenCL barrier at the end of
+        # the Invoke code.
+        self._opencl_end_barrier = True
 
         # This reference will store during gen_code() the block of code that
         # is executed only on the first iteration of the invoke.
@@ -931,41 +736,6 @@ class InvokeSchedule(Routine):
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
-
-    def set_opencl_options(self, options):
-        '''
-        Validate and store a set of options associated with the InvokeSchedule
-        to tune the OpenCL code generation.
-
-        :param options: a set of options to tune the OpenCL code.
-        :type options: dictionary of <string>:<value>
-
-        '''
-        valid_opencl_options = ['end_barrier', 'enable_profiling',
-                                'out_of_order']
-
-        # Validate that the options given are supported and store them
-        for key, value in options.items():
-            if key in valid_opencl_options:
-                # All current options should contain boolean values
-                if not isinstance(value, bool):
-                    raise TypeError(
-                        "InvokeSchedule OpenCL option '{0}' "
-                        "should be a boolean.".format(key))
-            else:
-                raise AttributeError(
-                    "InvokeSchedule does not support the OpenCL option '{0}'. "
-                    "The supported options are: {1}."
-                    "".format(key, valid_opencl_options))
-
-            self._opencl_options[key] = value
-
-    def get_opencl_option(self, key):
-        '''
-        :returns: The value of the requested Invoke OpenCL option.
-        :rtype: bool
-        '''
-        return self._opencl_options[key]
 
     @property
     def invoke(self):
@@ -1108,7 +878,7 @@ class InvokeSchedule(Routine):
         for entity in self._children:
             entity.gen_code(parent)
 
-        if self.opencl and self._opencl_options['end_barrier']:
+        if self.opencl and self._opencl_end_barrier:
 
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
@@ -1595,7 +1365,7 @@ class Kern(Statement):
                 "reduction_sum_loop(). Expected one of {1}.".
                 format(reduction_access.api_specific_name(),
                        api_strings)), err)
-        symtab = self.root.symbol_table
+        symtab = self.scope.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
@@ -1973,17 +1743,6 @@ class CodedKern(Kern):
         else:
             self._insert_module_inlined_kernel(parent)
 
-    def gen_arg_setter_code(self, parent):
-        '''
-        Creates a Fortran routine to set the arguments of the OpenCL
-        version of this kernel.
-
-        :param parent: Parent node of the set-kernel-arguments routine.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        '''
-        raise NotImplementedError("gen_arg_setter_code must be implemented "
-                                  "by sub-class.")
-
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
@@ -2360,6 +2119,7 @@ class InlinedKern(Kern):
         Node.__init__(self, parent=parent)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
+        self._arguments = None
 
     @staticmethod
     def _validate_child(position, child):

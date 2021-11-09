@@ -58,18 +58,18 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
+from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, OMPTaskloopDirective
+    ACCKernelsDirective, OMPTaskloopDirective, Routine
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.undoredo import Memento
-from psyclone.nemo import NemoInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -338,20 +338,19 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> from psyclone.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>> tasklooptrans = OMPTaskloopTrans()
+    >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
-    >>> # This ignores loop dependencies. These must be manually handled
-    >>> # either through end of regions.
-    >>> # TODO: #1368 These can also be handled through the taskwait
-    >>> # directive
+    >>> # This ignores loop dependencies. These can be handled
+    >>> # by the OMPTaskwaitTrans
     >>> for child in schedule.children:
     >>>     tasklooptrans.apply(child)
     >>> # Enclose all of these loops within a single OpenMP
@@ -360,6 +359,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
+    >>> # Ensure loop dependencies are satisfied
+    >>> taskwaittrans.apply(schedule.children)
     >>> schedule.view()
 
     '''
@@ -525,7 +526,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           !$OMP END TASKLOOP
 
         At code-generation time (when
-        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
+        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -534,7 +535,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         apply call to which the value is supplied.
 
         :param node: the supplied node to which we will apply the \
-                     OMPLoopTrans transformation
+                     OMPTaskloopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
@@ -725,22 +726,23 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._reprod = options.get("reprod",
                                    Config.get().reproducible_reductions)
 
-        # Add variable names for OMP functions into the InvokeSchedule (root)
-        # symboltable if they don't already exist
-        if not isinstance(node.root, NemoInvokeSchedule):
-            symtab = node.root.symbol_table
-            try:
-                symtab.lookup_with_tag("omp_thread_index")
-            except KeyError:
-                symtab.new_symbol(
-                    "th_idx", tag="omp_thread_index",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            try:
-                symtab.lookup_with_tag("omp_num_threads")
-            except KeyError:
-                symtab.new_symbol(
-                    "nthreads", tag="omp_num_threads",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        # Add variable names for OMP functions into the InvokeSchedule
+        # (a Routine) symboltable if they don't already exist
+        root = node.ancestor(Routine)
+
+        symtab = root.symbol_table
+        try:
+            symtab.lookup_with_tag("omp_thread_index")
+        except KeyError:
+            symtab.new_symbol(
+                "th_idx", tag="omp_thread_index",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        try:
+            symtab.lookup_with_tag("omp_num_threads")
+        except KeyError:
+            symtab.new_symbol(
+                "nthreads", tag="omp_num_threads",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         return super(OMPLoopTrans, self).apply(node, options)
 
@@ -1696,11 +1698,11 @@ class OMPMasterTrans(ParallelRegionTrans):
 
         At code-generation time this node must be within (i.e. a child of)
         an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
+        :py:meth:`OMPMasterDirective.gen_code` is called, or when the PSyIR
         tree is given to a backend.
 
         :param node_list: the supplied node or node list to which we will \
-                          apply the OMPSingleTrans transformation
+                          apply the OMPMasterTrans transformation
         :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a list with options for transformations \
                         and validation.
@@ -1857,7 +1859,7 @@ class MoveTrans(Transformation):
     >>> trans=MoveTrans()
     >>> new_schedule, memento = trans.apply(schedule.children[0],
                                             schedule.children[2],
-                                            position="after")
+                                            options = {"position":"after")
     >>> new_schedule.view()
 
     Nodes may only be moved to a new location with the same parent
@@ -3093,8 +3095,8 @@ class ACCKernelsTrans(RegionTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises NotImplementedError: if the supplied Nodes do not belong to \
-                                     a NemoInvokeSchedule.
+        :raises NotImplementedError: if the supplied Nodes belong to \
+                                     a GOInvokeSchedule.
         :raises TransformationError: if there are no Loops within the \
                                      proposed region.
 

@@ -1843,8 +1843,9 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
    is an ``integer`` of kind ``i_def`` and has intent ``in``.
 
-3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an ``integer`` of kind ``i_def`` with intent ``in``.
+3) Include the total number of cells in the 2D mesh (including halos),
+   ``ncell_2d``, which is an ``integer`` of kind ``i_def`` with
+   intent ``in``.
 
 4) Include the total number of cells, ``ncell_3d``, which is an ``integer``
    of kind ``i_def`` with intent ``in``.
@@ -1934,8 +1935,9 @@ The full set of rules is then:
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
 
-2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an ``integer`` of kind ``i_def`` with intent ``in``.
+2) Include the total number of cells in the 2D mesh (including halos),
+   ``ncell_2d``, which is an ``integer`` of kind ``i_def`` with
+   intent ``in``.
 
 3) For each argument in the ``meta_args`` metadata array:
 
@@ -1984,8 +1986,8 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
 
-2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an ``integer`` of kind ``i_def`` with intent ``in``.
+2) Include the total number of cells in the 2D mesh (including halos),
+   ``ncell_2d``, which is an ``integer`` of kind ``i_def`` with intent ``in``.
 
 3) For each CMA operator or scalar argument specified in metadata:
 
@@ -2063,10 +2065,10 @@ identical to those for general-purpose kernels (described :ref:`above
 <dynamo0.3-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
-on the whole domain, the number of columns in the mesh (``ncell_2d``)
-must be passed in. This is provided as the second argument to the
-kernel (after ``nlayers``). ``ncell_2d`` is an ``integer`` of kind
-``i_def`` with intent ``in``.
+on the whole domain, the number of columns in the mesh excluding those
+in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
+as the second argument to the kernel (after ``nlayers``).
+``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
 
@@ -2500,6 +2502,36 @@ Subtracts the second field from the first and returns it (``X = X - Y``)::
 where:
 
 * ``type(field_type), intent(in) ::`` **field1**, *field2*
+
+a_minus_X
+^^^^^^^^^
+
+**a_minus_X** (*field2*, *rscalar*, *field1*)
+
+Subtracts all elements of a field from a ``real`` scalar value and
+stores the result in another field (``Y = a - X``)::
+
+  field2(:) = rscalar - field1(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
+
+inc_a_minus_X
+^^^^^^^^^^^^^
+
+**inc_a_minus_X** (*rscalar*, *field*)
+
+Subtracts all elements of a field from a ``real`` scalar value and
+returns the field (``X = a - X``)::
+
+  field(:) = rscalar - field(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field**
 
 aX_minus_Y
 ^^^^^^^^^^
@@ -3003,6 +3035,36 @@ Subtracts the second field from the first and returns it (``X = X - Y``)::
 where:
 
 * ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+int_a_minus_X
+^^^^^^^^^^^^^
+
+**int_a_minus_X** (*ifield2*, *iscalar*, *ifield1*)
+
+Subtracts all elements of a field from an ``integer`` scalar value and
+stores the result in another field (``Y = a - X``)::
+
+  ifield2(:) = iscalar - ifield1(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+int_inc_a_minus_X
+^^^^^^^^^^^^^^^^^
+
+**int_inc_a_minus_X** (*iscalar*, *ifield*)
+
+Subtracts all elements of a field from an ``integer`` scalar value and
+returns the field (``X = a - X``)::
+
+  ifield(:) = iscalar - ifield(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield**
 
 Multiplication
 ##############
