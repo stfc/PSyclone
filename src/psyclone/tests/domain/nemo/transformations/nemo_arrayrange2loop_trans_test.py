@@ -257,6 +257,30 @@ def test_apply_existing_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_apply_existing_names_as_ancestor_loop_variables():
+    '''Check that the transformation is not applied if the variable name
+    already exists as the variable name of an ancestor loop.
+    '''
+    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    trans = NemoArrayRange2LoopTrans()
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+
+    # We create the same-variable loop by converting an explicit to
+    # loop once and then copy the full implicit expression again inside
+    implicit_loop = assignment.copy()
+    trans.apply(array_ref.children[2])
+    schedule[0].loop_body.addchild(implicit_loop)
+
+    # Now the variable 'jk' in this case will already exist in an ancestor
+    with pytest.raises(TransformationError) as info:
+        trans.apply(implicit_loop.lhs.children[2])
+    assert ("The config file specifies 'jk' as the name of the iteration "
+            "variable but this is already used by an ancestor loop variable."
+            in str(info.value))
+
+
 def test_apply_different_num_dims():
     '''Check that the apply method raises an exception when the number of
     range dimensions differ in different arrays. This should never
@@ -276,24 +300,24 @@ def test_apply_different_num_dims():
 
 
 def test_apply_array_valued_function():
-    '''Check that the apply method does not modify range nodes when they are
-    used to specify the part of an array to pass into an array valued
-    function.
-
+    ''' Check that the apply the transformation refuses to transform the
+    assignment when range nodes are inside a function, as it does not know
+    if the function is declared as 'elemental' which changes the semantics
+    of the array notation.
     '''
     _, invoke_info = get_invoke("array_valued_function.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     assignment = schedule[1]
     array_ref = assignment.lhs
     trans = NemoArrayRange2LoopTrans()
-    trans.apply(array_ref.children[2])
-    writer = FortranWriter()
-    result = writer(schedule)
-    assert (
-        "  jn = 2\n"
-        "  do jk = 1, jpk, 1\n"
-        "    z3d(1,:,jk) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
-        "  enddo" in result)
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.children[2])
+    # The PSyIR currently sees imported symbols that can be functions or arrays
+    # always as arrays (e.g. `use my_mod, only: my_object`), for this reason
+    # the error message talks about arrays instead of functions.
+    assert("Error in NemoArrayRange2LoopTrans transformation. This "
+           "transformation does not support assignments with rhs arrays that "
+           "don't have a range." in str(info.value))
 
 
 def test_apply_calls_validate():

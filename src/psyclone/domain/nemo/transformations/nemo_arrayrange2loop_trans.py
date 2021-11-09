@@ -53,7 +53,8 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
     UnknownType
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
-    Assignment, Literal, Operation, BinaryOperation, CodeBlock, ArrayMember
+    Assignment, Literal, Operation, BinaryOperation, CodeBlock, ArrayMember, \
+    Loop, Routine
 from psyclone.nemo import NemoLoop
 from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
@@ -138,21 +139,21 @@ class NemoArrayRange2LoopTrans(Transformation):
         symbol_table = node.ancestor(InvokeSchedule).symbol_table
 
         # See if there is any configuration information for this array index
-        # loop_type_order = Config.get().api_conf("nemo").get_index_order()
+        loop_type_order = Config.get().api_conf("nemo").get_index_order()
         # TODO: Add tests in get_loop_type_data() to make sure values
         # are strings that represent an integer or a valid variable
         # name, e.g. 1a should not be allowed. See issue #1035
-        # loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
-        #try:
-        #    loop_type = loop_type_order[array_index]
-        #    loop_type_info = loop_type_data[loop_type]
-        #    lower_bound_info = loop_type_info['start']
-        #    upper_bound_info = loop_type_info['stop']
-        #    loop_variable_name = loop_type_info['var']
-        #except IndexError:
-        lower_bound_info = None
-        upper_bound_info = None
-        loop_variable_name = symbol_table.next_available_name("idx")
+        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
+        try:
+            loop_type = loop_type_order[array_index]
+            loop_type_info = loop_type_data[loop_type]
+            lower_bound_info = loop_type_info['start']
+            upper_bound_info = loop_type_info['stop']
+            loop_variable_name = loop_type_info['var']
+        except IndexError:
+            lower_bound_info = None
+            upper_bound_info = None
+            loop_variable_name = symbol_table.next_available_name("idx")
 
         # Lower bound
         if not array_reference.is_lower_bound(array_index):
@@ -325,6 +326,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "transformation does not support array valued operations "
                     "on the rhs of the associated Assignment node, but found "
                     "'{0}'.".format(operation.operator.name))
+        # Do not allow to optimise expressions with CodeBlocks
         if assignment.walk(CodeBlock):
             raise TransformationError(
                 "Error in NemoArrayRange2LoopTrans transformation. This "
@@ -332,14 +334,14 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "contain a CodeBlock anywhere in the expression.")
 
         # We need all type info about all references (maybe not, see below)
-        for reference in assignment.walk(Reference):
-            if not isinstance(reference.symbol, DataSymbol):
-                raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation.")
-            if isinstance(reference.symbol.datatype,
-                          (UnknownType, DeferredType)):
-                raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation.")
+        # for reference in assignment.walk(Reference):
+        #     if not isinstance(reference.symbol, DataSymbol):
+        #         raise TransformationError(
+        #             "Error in NemoArrayRange2LoopTrans transformation.")
+        #     if isinstance(reference.symbol.datatype,
+        #                   (UnknownType, DeferredType)):
+        #         raise TransformationError(
+        #             "Error in NemoArrayRange2LoopTrans transformation.")
 
         # For now don't attempt arrays without at least 1 range, as we need
         # to check if they are a scalar or have the range expression missing
@@ -347,7 +349,9 @@ class NemoArrayRange2LoopTrans(Transformation):
             if not any(child for child in array.children if
                        isinstance(child, Range)):
                 raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation.")
+                    "Error in NemoArrayRange2LoopTrans transformation. This "
+                    "transformation does not support assignments with rhs "
+                    "arrays that don't have a range.")
 
         # FIXME: Do the same for ArrayMember
         # for array in assignment.walk(ArrayReference):
@@ -397,8 +401,29 @@ class NemoArrayRange2LoopTrans(Transformation):
             except KeyError:
                 # Variable is not defined
                 pass
+
+            # Make sure this array is not already inside a loop with the
+            # loop_variable_name that we choose. If it is we ignore it (as
+            # usually we will already have some explicit loops above this
+            # construct to apply further parallelisation/optimisations).
+            current = node.parent
+            while not isinstance(current, Routine):
+                if isinstance(current, Loop):
+                    varname = current.variable.name
+                    if varname.lower() == loop_variable_name.lower():
+                        raise TransformationError(
+                            "The config file specifies '{0}' as the name of "
+                            "the iteration variable but this is already used "
+                            "by an ancestor loop variable."
+                            "".format(loop_variable_name))
+                current = current.parent
+            # Note that we don't check if the variable name is used in a
+            # context different that the loop if its an integer. We assume
+            # this is a guarantee of the API.
+
         except IndexError:
-            # There is no name for this index in the config file
+            # There is no name for this index in the config file (it can
+            # proceed as the apply will generate a new variable for it)
             pass
 
 
