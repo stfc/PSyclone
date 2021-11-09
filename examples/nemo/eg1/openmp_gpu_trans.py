@@ -34,69 +34,62 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenMP for GPU with
-PSyclone. In order to use it you must first install PSyclone. See README.md
-in the top-level psyclone directory.
-
-Once you have psyclone installed, this script may be run by doing:
-
- >>> python runme_openmp_gpu.py
-
-This should generate the Fortran with OpenMP target and loop directives.
-'''
+''' PSyclone transformation script showing the introduction of OpenMP for GPU
+directives into Nemo code. '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Loop, Assignment, CodeBlock
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
-API = "nemo"
 USE_GPU = True  # Enable for generating OpenMP target directives
 
 
-def main():
-    ''' Parser the Nemo tra_adv file and transform it to OpenMP for GPU '''
-    _, invokeinfo = parse("../code/tra_adv.F90", api=API)
-    psy = PSyFactory(API).create(invokeinfo)
-    sched = psy.invokes.get('tra_adv').schedule
+def trans(psy):
+    ''' Add OpenMP Target and Loop directives to Nemo loops over levels
+    in the provided PSy-layer.
 
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
-    omp_loop_trans.omp_worksharing = False
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
     omp_target_trans = TransInfo().get_trans_name('OMPTargetTrans')
+    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
+    # Disabling worksharing will produce the 'loop' directive which is better
+    # suited to map the work into the GPU
+    omp_loop_trans.omp_worksharing = False
 
-    # Convert all array implicit loops to explicit loops
-    explicit_loops = NemoAllArrayRange2LoopTrans()
-    for assignment in sched.walk(Assignment):
-        try:
+    print("Invokes found:")
+    for invoke in psy.invokes.invoke_list:
+        print(invoke.name)
+
+        # Convert all array implicit loops to explicit loops
+        explicit_loops = NemoAllArrayRange2LoopTrans()
+        for assignment in invoke.schedule.walk(Assignment):
             explicit_loops.apply(assignment)
-        except KeyError:
-            # The transformation just works if jpi and jpj are
-            # already declared in the file. Ignore other cases.
-            pass
 
-    # Add the OpenMP directives in each loop
-    for loop in sched.walk(Loop):
-        if loop.loop_type == "levels" and not loop.loop_body.walk(CodeBlock):
+        # Add the OpenMP directives in each loop
+        for loop in invoke.schedule.walk(Loop):
+            if loop.loop_type == "levels":
+                if loop.loop_body.walk(CodeBlock):
+                    continue  # Ignore loops with Codebloks
 
-            if USE_GPU:
-                omp_target_trans.apply(loop)
+                if USE_GPU:
+                    omp_target_trans.apply(loop)
 
-            omp_loop_trans.apply(loop)
+                omp_loop_trans.apply(loop)
 
-            num_nested_loops = 0
-            next_loop = loop
-            while isinstance(next_loop, Loop):
-                if len(next_loop.loop_body.children) > 1:
-                    break
-                next_loop = next_loop.loop_body.children[0]
-                num_nested_loops += 1
+                num_nested_loops = 0
+                next_loop = loop
+                while isinstance(next_loop, Loop):
+                    num_nested_loops += 1
+                    if len(next_loop.loop_body.children) > 1:
+                        break
+                    next_loop = next_loop.loop_body.children[0]
 
-            if num_nested_loops > 0:
-                loop.parent.parent.collapse = num_nested_loops
+                if num_nested_loops > 1:
+                    loop.parent.parent.collapse = num_nested_loops
 
-    print(psy.gen)
-
-
-if __name__ == "__main__":
-    main()
+        return psy

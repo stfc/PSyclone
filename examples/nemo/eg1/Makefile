@@ -38,8 +38,8 @@
 include ../../common.mk
 
 transform:
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ./runme_openmp.py
-	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ./runme_openmp_gpu.py
+	${PSYCLONE} -api nemo -s ./openmp_trans.py ../code/tra_adv.F90
+	${PSYCLONE} -api nemo -s ./openmp_gpu_trans.py ../code/tra_adv.F90
 
 compile: transform
 	@echo "No compilation supported for nemo/eg1"
