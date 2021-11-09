@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -60,6 +61,7 @@ class CreateNemoLoopTrans(Transformation):
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loops = psyir.walk(Loop)
     >>> trans = CreateNemoLoopTrans()
+    >>> # TODO 595 to remove assignment to _
     >>> _ = trans.apply(loops[0])
     >>> psyir.view()
     FileContainer[None]

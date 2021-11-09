@@ -69,10 +69,12 @@ class PSyDataTrans(RegionTrans):
     >>> # schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
+    >>> # TODO 595 to remove assignment to _
     >>> _ = data_trans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # schedule.view()
     >>> # Or to use custom region name:
+    >>> # TODO 595 to remove assignment to _
     >>> _ = data_trans.apply(schedule.children,
     ...                      {"region_name": ("module","region")})
 
