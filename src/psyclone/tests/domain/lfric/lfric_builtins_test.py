@@ -665,7 +665,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert isinstance(scalar.datatype, ScalarType)
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo") in code
     else:
@@ -729,7 +729,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo") in code
     else:
@@ -1362,9 +1362,11 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1375,15 +1377,17 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a - f1_proxy%data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
+            "      loop0_start = 1\n"
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1423,9 +1427,11 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1436,15 +1442,16 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a - f1_proxy%data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2025,7 +2032,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "enddo") in code
     else:
@@ -2108,7 +2115,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "enddo") in code
     else:
@@ -2316,7 +2323,7 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
                 "enddo") in code
     else:
@@ -2382,12 +2389,12 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
-            "      loop0_stop = f1_proxyn%vspace%get_last_dof_annexed()\n"
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
