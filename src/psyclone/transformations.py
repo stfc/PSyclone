@@ -612,7 +612,7 @@ class OMPTargetTrans(RegionTrans):
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP \
                       target region.
-        :type node: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:values or None
 
