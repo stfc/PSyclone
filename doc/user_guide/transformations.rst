@@ -259,7 +259,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.BlockLoopTrans
+.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
     :members: apply
     :noindex:
 

@@ -34,27 +34,27 @@
 # Authors A. B. G. Chalk STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''This module provides the BlockLoopTrans, which transforms a Loop into a
+'''This module provides the ChunkLoopTrans, which transforms a Loop into a
 blocked implementation of the Loop'''
 
 from psyclone.core import VariablesAccessInfo, Signature, AccessType
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
-        Literal, Loop, Schedule
+        Literal, Loop, Schedule, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
 
-class BlockLoopTrans(LoopTrans):
+class ChunkLoopTrans(LoopTrans):
     '''
     Apply a blocking transformation to a loop (in order to permit a
     chunked parallelisation or improve cache utilisation). For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.psyir.transformations import BlockLoopTrans
+    >>> from psyclone.psyir.transformations import ChunkLoopTrans
     >>> psyir = FortranReader().psyir_from_source("""
     ... subroutine sub()
     ...     integer :: ji, tmp(100)
@@ -63,31 +63,31 @@ class BlockLoopTrans(LoopTrans):
     ...     enddo
     ... end subroutine sub""")
     >>> loop = psyir.walk(Loop)[0]
-    >>> BlockLoopTrans().apply(loop)
+    >>> ChunkLoopTrans().apply(loop)
 
     will generate:
     .. code-block:: fortran
+
         subroutine sub()
             integer :: ji
             integer, dimension(100) :: tmp
             integer :: ji_el_inner
             integer :: ji_out_var
-
             do ji_out_var = 1, 100, 32
                 ji_el_inner = MIN(ji_out_var + 32, 100)
                 do ji = ji_out_var, ji_el_inner, 1
                     tmp(ji) = 2 * ji
                 enddo
             enddo
-
         end subroutine sub
+
     '''
     def __str__(self):
         return "Split a loop into a blocked loop pair"
 
     def validate(self, node, options=None):
         '''
-        Validates that the given Loop node can have a BlockLoopTrans applied.
+        Validates that the given Loop node can have a ChunkLoopTrans applied.
 
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -107,32 +107,46 @@ class BlockLoopTrans(LoopTrans):
                 of 0.
         :raises TransformationError: if the supplied Loop writes to Loop \
                 variables inside the Loop body.
+        :raises TransformationError: if the supplied Loop contains a \
+                CodeBlock node.
         '''
-        super(BlockLoopTrans, self).validate(node, options=options)
+        super(ChunkLoopTrans, self).validate(node, options=options)
         if options is None:
             options = {}
         if not isinstance(node.children[2], nodes.Literal):
             # If step is a variable we don't support it.
-            raise TransformationError("Cannot apply a BlockLoopTrans to "
-                                      "a loop with a non-constant step size.")
+            raise TransformationError("Cannot apply a ChunkLoopTrans to "
+                                      "a loop with a non-literal step size, "
+                                      "but a step expression node of type "
+                                      "'{0}' was found."
+                                      .format(type(node).__name__))
         if node.children[2].datatype.intrinsic is not \
            ScalarType.Intrinsic.INTEGER:
-            raise TransformationError("Cannot apply a BlockLoopTrans to a "
-                                      "loop with a non-integer step size.")
+            raise TransformationError("Cannot apply a ChunkLoopTrans to a "
+                                      "loop with a non-integer step size, "
+                                      "but a step expression of type '{0}' "
+                                      "was found."
+                                      .format(node.children[2].
+                                              datatype.intrinsic.name))
         block_size = options.get("blocksize", 32)
         if abs(int(node.children[2].value)) > abs(block_size):
-            raise TransformationError("Cannot apply a BlockLoopTrans to "
+            raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "a loop with larger step size ({0}) "
                                       "than the chosen block size ({1})."
                                       .format(node.children[2].value,
                                               block_size))
         if 'blocked' in node.annotations:
-            raise TransformationError("Cannot apply a BlockLoopTrans to "
+            raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "an already blocked loop.")
 
         if int(node.children[2].value) == 0:
-            raise TransformationError("Cannot apply a BlockLoopTrans to "
+            raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "a loop with a step size of 0.")
+
+        if len(node.loop_body.walk(CodeBlock)) != 0:
+            raise TransformationError("Cannot apply a ChunkLoopTrans to "
+                                      "a loop which contains a CodeBlock "
+                                      "node.")
         # Other checks needed for validation
         # Dependency analysis, following rules:
         # No child has a write dependency to the loop variable.

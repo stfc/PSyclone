@@ -34,7 +34,7 @@
 # Authors A. B. G. Chalk STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''This module contains the unit tests for the BlockLoopTrans module'''
+'''This module contains the unit tests for the ChunkLoopTrans module'''
 from __future__ import absolute_import, print_function
 import os
 import pytest
@@ -44,10 +44,10 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Reference, Schedule, \
-    Routine, BinaryOperation, Assignment
+    Routine, BinaryOperation, Assignment, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
     ScalarType, SymbolTable, REAL_DOUBLE_TYPE
-from psyclone.psyir.transformations import TransformationError, BlockLoopTrans
+from psyclone.psyir.transformations import TransformationError, ChunkLoopTrans
 from psyclone.tests.utilities import Compile
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -56,15 +56,15 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def test_blockloop_trans():
-    '''Test the base methods of BlockLoopTrans'''
-    trans = BlockLoopTrans()
+    '''Test the base methods of ChunkLoopTrans'''
+    trans = ChunkLoopTrans()
     assert str(trans) == "Split a loop into a blocked loop pair"
 
 
 def test_blockloop_trans_validate1():
-    '''Test the validate method of BlockLoopTrans for non constant
+    '''Test the validate method of ChunkLoopTrans for non constant
     increment'''
-    blocktrans = BlockLoopTrans()
+    chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-constant increment
     routine = Routine("test_routine")
     lvar = routine.symbol_table.symbol_from_tag(
@@ -81,14 +81,15 @@ def test_blockloop_trans_validate1():
     parent.addchild(Reference(incvar))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
-    assert ("Cannot apply a BlockLoopTrans to a loop with a non-constant step"
-            " size.") in str(excinfo.value)
+        chunktrans.validate(parent)
+    assert ("Cannot apply a ChunkLoopTrans to a loop with a non-literal step"
+            " size, but a step expression node of type 'Loop' was found.") \
+        in str(excinfo.value)
 
 
 def test_blockloop_trans_validate2():
-    '''Test the validate method of BlockLoopTrans for bad step sizes'''
-    blocktrans = BlockLoopTrans()
+    '''Test the validate method of ChunkLoopTrans for bad step sizes'''
+    chunktrans = ChunkLoopTrans()
     # Construct a Loop with too large a step-size
     parent = Loop()
     parent.addchild(Literal("1", INTEGER_TYPE))
@@ -96,8 +97,8 @@ def test_blockloop_trans_validate2():
     parent.addchild(Literal("128", INTEGER_TYPE))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent, {"blocksize": 16})
-    assert ("Cannot apply a BlockLoopTrans to a loop with larger step size "
+        chunktrans.validate(parent, {"blocksize": 16})
+    assert ("Cannot apply a ChunkLoopTrans to a loop with larger step size "
             "(128) than the chosen block size (16).") in str(excinfo.value)
 
     # Construct a Loop with step-size of 0
@@ -107,16 +108,16 @@ def test_blockloop_trans_validate2():
     parent.addchild(Literal("0", INTEGER_TYPE))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
-    assert ("Cannot apply a BlockLoopTrans to a loop with a step size of 0."
+        chunktrans.validate(parent)
+    assert ("Cannot apply a ChunkLoopTrans to a loop with a step size of 0."
             in str(excinfo.value))
 
 
 def test_blockloop_trans_validate3():
-    '''Test the validate method of BlockLoopTrans fails when applying it
+    '''Test the validate method of ChunkLoopTrans fails when applying it
     to a loop which has already been blocked'''
-    blocktrans = BlockLoopTrans()
-    # Construct a Loop and apply a BlockLoopTrans to it, then revalidate the
+    chunktrans = ChunkLoopTrans()
+    # Construct a Loop and apply a ChunkLoopTrans to it, then revalidate the
     # parent loop (can't apply a block loop trans to a block loop trans
     symbol_table = SymbolTable()
     parent = Loop()
@@ -130,21 +131,21 @@ def test_blockloop_trans_validate3():
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
     parent._variable = lvar
-    blocktrans.apply(parent)
+    chunktrans.apply(parent)
+#    with pytest.raises(TransformationError) as excinfo:
+#        chunktrans.validate(parent.ancestor(Loop))
+#    assert "Cannot apply a ChunkLoopTrans to an already blocked loop." \
+#           in str(excinfo.value)
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent.ancestor(Loop))
-    assert "Cannot apply a BlockLoopTrans to an already blocked loop." \
-           in str(excinfo.value)
-    with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
-    assert "Cannot apply a BlockLoopTrans to an already blocked loop." \
+        chunktrans.validate(parent)
+    assert "Cannot apply a ChunkLoopTrans to an already blocked loop." \
            in str(excinfo.value)
 
 
 def test_blockloop_trans_validate4():
-    '''Test the validate method of BlockLoopTrans fails when applying it
+    '''Test the validate method of ChunkLoopTrans fails when applying it
     to a loop that writes to the loop variables'''
-    blocktrans = BlockLoopTrans()
+    chunktrans = ChunkLoopTrans()
     # Construct a Loop that writes to the Loop variable inside its body
     symbol_table = SymbolTable()
     parent = Loop()
@@ -164,7 +165,7 @@ def test_blockloop_trans_validate4():
     sched.addchild(assign)
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
+        chunktrans.validate(parent)
     assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
            "variable 'lvar' is written to inside the loop body.") in \
         str(excinfo.value)
@@ -193,7 +194,7 @@ def test_blockloop_trans_validate4():
     parent.children[0].replace_with(Reference(ivar))
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
+        chunktrans.validate(parent)
     assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
            "variable 'ivar' is written to inside the loop body.") in \
         str(excinfo.value)
@@ -222,16 +223,16 @@ def test_blockloop_trans_validate4():
     parent.children[1].replace_with(Reference(ivar))
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
+        chunktrans.validate(parent)
     assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
            "variable 'ivar' is written to inside the loop body.") in \
         str(excinfo.value)
 
 
 def test_blockloop_trans_validate5():
-    '''Test the validate method of BlockLoopTrans passes when applying it
+    '''Test the validate method of ChunkLoopTrans passes when applying it
     to a loop that reads from the loop variable'''
-    blocktrans = BlockLoopTrans()
+    chunktrans = ChunkLoopTrans()
     # Construct a loop that reads from the loop variable (this is allowed)
     symbol_table = SymbolTable()
     parent = Loop()
@@ -254,13 +255,13 @@ def test_blockloop_trans_validate5():
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
     parent._variable = lvar
-    blocktrans.validate(parent)
+    chunktrans.validate(parent)
 
 
-def test_blockloop_trans_validate_6():
-    '''Test the validate method of BlockLoopTrans fails when applying it
+def test_blockloop_trans_validate6():
+    '''Test the validate method of ChunkLoopTrans fails when applying it
     to a loop that has a non-integer loop step'''
-    blocktrans = BlockLoopTrans()
+    chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-integer step
     parent = Loop()
     parent.addchild(Literal("1.0", REAL_DOUBLE_TYPE))
@@ -268,20 +269,39 @@ def test_blockloop_trans_validate_6():
     parent.addchild(Literal("1.1", REAL_DOUBLE_TYPE))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        blocktrans.validate(parent)
-    assert ("Cannot apply a BlockLoopTrans to a loop with a non-integer "
-           "step size.") in str(excinfo.value)
+        chunktrans.validate(parent)
+    assert ("Cannot apply a ChunkLoopTrans to a loop with a non-integer "
+           "step size, but a step expression of type 'REAL' was found.") \
+        in str(excinfo.value)
+
+
+def test_blockloop_trans_validate7():
+    '''Test the validate method of ChunkLoopTrans fails when applying it
+    to a loop that contains a CodeBlock'''
+    chunktrans = ChunkLoopTrans()
+    # Construct a Schedule containing a CodeBlock
+    sched = Schedule()
+    sched.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("512", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(sched)
+    with pytest.raises(TransformationError) as excinfo:
+        chunktrans.validate(parent)
+    assert ("Cannot apply a ChunkLoopTrans to a loop which contains a "
+            "CodeBlock node.") in str(excinfo.value)
 
 
 def test_blockloop_trans_apply_pos():
-    '''Test the apply method of BlockLoopTrans for a positive step index'''
+    '''Test the apply method of ChunkLoopTrans for a positive step index'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    blocktrans = BlockLoopTrans()
-    blocktrans.apply(schedule.children[0])
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
@@ -297,15 +317,15 @@ def test_blockloop_trans_apply_pos():
 
 
 def test_blockloop_trans_apply_neg():
-    '''Test the apply method of BlockLoopTrans for a negative step'''
+    '''Test the apply method of ChunkLoopTrans for a negative step'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.children[0].children[2].replace_with(Literal("-1", INTEGER_TYPE))
-    blocktrans = BlockLoopTrans()
-    blocktrans.apply(schedule.children[0])
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
@@ -321,7 +341,7 @@ def test_blockloop_trans_apply_neg():
 
 
 def test_blockloop_trans_apply_double_block(tmpdir):
-    '''Test the apply method of BlockLoopTrans for multiple
+    '''Test the apply method of ChunkLoopTrans for multiple
     blocks of 2 nested loops'''
     code = \
         '''Program test
@@ -341,10 +361,10 @@ def test_blockloop_trans_apply_double_block(tmpdir):
     End Program test'''
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    blocktrans = BlockLoopTrans()
+    chunktrans = ChunkLoopTrans()
     loops = psyir.walk(Loop)
     for loop in loops:
-        blocktrans.apply(loop)
+        chunktrans.apply(loop)
     writer = FortranWriter()
     result = writer(psyir)
     assert Compile(tmpdir).string_compiles(result)

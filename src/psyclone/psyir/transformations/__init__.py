@@ -40,7 +40,7 @@
 transformations and base classes.
 '''
 
-from psyclone.psyir.transformations.block_loop_trans import BlockLoopTrans
+from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -72,7 +72,7 @@ from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['BlockLoopTrans',
+__all__ = ['ChunkLoopTrans',
            'ExtractTrans',
            'NanTestTrans',
            'ProfileTrans',
