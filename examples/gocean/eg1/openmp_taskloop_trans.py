@@ -31,15 +31,48 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          A. B. G. Chalk, STFC Daresbury Lab
 
-''' Single location for the current version number of PSyclone. This is
-    used in setup.py and doc/conf.py '''
+'''A simple test script showing the introduction of OpenMP tasking with
+PSyclone.
 
-__MAJOR__ = 2
-__MINOR__ = 1
-__MICRO__ = 0
+'''
 
-__SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)
-__VERSION__ = "{0:d}.{1:d}.{2:d}".format(__MAJOR__, __MINOR__, __MICRO__)
+from __future__ import print_function
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Loop
+from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+from psyclone.transformations import OMPTaskloopTrans
+from psyclone.psyir.transformations import OMPTaskwaitTrans
+
+
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Applies the OpenMP
+    taskloop and taskwait transformations to the PSy layer.
+
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+
+    singletrans = OMPSingleTrans()
+    paralleltrans = OMPParallelTrans()
+    tasklooptrans = OMPTaskloopTrans(nogroup=False)
+    taskwaittrans = OMPTaskwaitTrans()
+    for invoke in psy.invokes.invoke_list:
+        print("Adding OpenMP tasking to invoke: " + invoke.name)
+        schedule = invoke.schedule
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                tasklooptrans.apply(child)
+        singletrans.apply(schedule)
+        paralleltrans.apply(schedule)
+        taskwaittrans.apply(schedule[0])
+
+    return psy

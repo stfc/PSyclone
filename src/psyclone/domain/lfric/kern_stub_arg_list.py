@@ -97,7 +97,7 @@ class KernStubArgList(ArgOrdering):
         '''
         self.append("nlayers", var_accesses)
 
-    def mesh_ncell2d(self, var_accesses=None):
+    def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
 
