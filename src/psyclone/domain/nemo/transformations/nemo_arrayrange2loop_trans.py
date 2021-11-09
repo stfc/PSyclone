@@ -156,6 +156,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             loop_variable_name = symbol_table.next_available_name("idx")
 
         # Lower bound
+        lower_bound = None
         if not array_reference.is_lower_bound(array_index):
             # The range specifies a lower bound so use it
             lower_bound = node.start.copy()
@@ -165,13 +166,18 @@ class NemoArrayRange2LoopTrans(Transformation):
                 _ = int(lower_bound_info)
                 lower_bound = Literal(lower_bound_info, INTEGER_TYPE)
             except ValueError:
-                lower_bound = Reference(symbol_table.lookup(lower_bound_info))
-        else:
-            # The lower bound is not set or specified so use the
-            # LBOUND() intrinsic
+                try:
+                    lower_bound = Reference(
+                        symbol_table.lookup(lower_bound_info))
+                except KeyError:
+                    # The config lower bound symbol name does not exist
+                    pass
+        # The lower bound is still not set use the LBOUND() intrinsic
+        if not lower_bound:
             lower_bound = node.start.copy()
 
         # Upper bound
+        upper_bound = None
         if not array_reference.is_upper_bound(array_index):
             # The range specifies an upper bound so use it
             upper_bound = node.stop.copy()
@@ -181,10 +187,14 @@ class NemoArrayRange2LoopTrans(Transformation):
                 _ = int(upper_bound_info)
                 upper_bound = Literal(upper_bound_info, INTEGER_TYPE)
             except ValueError:
-                upper_bound = Reference(symbol_table.lookup(upper_bound_info))
-        else:
-            # The upper bound is not set or specified so use the
-            # UBOUND() intrinsic
+                try:
+                    upper_bound = Reference(
+                        symbol_table.lookup(upper_bound_info))
+                except KeyError:
+                    # The config lower upper symbol name does not exist
+                    pass
+        # The upper_bound bound is still not set use the UBOUND() intrinsic
+        if not upper_bound:
             upper_bound = node.stop.copy()
 
         # Just use the specified step value
