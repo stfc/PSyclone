@@ -1739,17 +1739,6 @@ class CodedKern(Kern):
         else:
             self._insert_module_inlined_kernel(parent)
 
-    def gen_arg_setter_code(self, parent):
-        '''
-        Creates a Fortran routine to set the arguments of the OpenCL
-        version of this kernel.
-
-        :param parent: Parent node of the set-kernel-arguments routine.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        '''
-        raise NotImplementedError("gen_arg_setter_code must be implemented "
-                                  "by sub-class.")
-
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.

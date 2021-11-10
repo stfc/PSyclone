@@ -1,4 +1,9 @@
 
+	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
+	checking functionality (in PSyData).
+
+release 2.1.0 3rd November 2021
+
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
 	by the LoopFusion transformation.
 
@@ -260,6 +265,13 @@
 	88) PR #1460 for #1454. Fix code generation to pass the number of
 	cells up to the last edge cell instead of the halo cells to the
 	'domain' kernels in the LFRic API.
+
+	89) PR #1438 towards #1134. Moves the creation of the OpenCL
+	set_args routines into the transformation.
+
+	90) PR #1480 for #1479 Makes PSyclone use the release version of
+	fparser (0.0.13) from pypi on installation (towards making a new
+	PSyclone release).
 
 release 2.0.0 28th April 2021
 
