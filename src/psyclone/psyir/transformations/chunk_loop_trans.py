@@ -66,6 +66,7 @@ class ChunkLoopTrans(LoopTrans):
     >>> ChunkLoopTrans().apply(loop)
 
     will generate:
+
     .. code-block:: fortran
 
         subroutine sub()
