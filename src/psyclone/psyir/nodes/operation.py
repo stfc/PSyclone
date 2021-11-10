@@ -42,8 +42,10 @@ sub-classes.'''
 import abc
 from enum import Enum
 import six
-from psyclone.psyir.nodes.datanode import DataNode
+
+from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.datanode import DataNode
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -286,11 +288,18 @@ class BinaryOperation(Operation):
         :returns: True if the self has the same results as other.
         :rtype: bool
         '''
+
+        # If available, use the symbolic maths package to evaluate
+        # the two expressions (which properly supports commutative
+        # law etc):
+        symbolic_maths = SymbolicMaths.get()
+        if symbolic_maths:
+            return symbolic_maths.equal(self, other)
+
         if not super(BinaryOperation, self).math_equal(other):
             # Support some commutative law, unfortunately we now need
             # to repeat some tests already done in super(), since we
             # don't know why the above test failed
-            # TODO #533 for documenting restrictions
             # pylint: disable=unidiomatic-typecheck
             if type(self) != type(other):
                 return False
