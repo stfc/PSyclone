@@ -38,9 +38,6 @@
 functions.'''
 
 
-from psyclone.errors import InternalError
-
-
 class SymbolicMaths:
     '''A wrapper around the symbolic maths package 'sympy'. It
     provides convenience functions for PSyclone. It has a Singleton
@@ -102,12 +99,9 @@ class SymbolicMaths:
         representation, which can be fed into sympy for evaluation.
 
         :param exp1: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Operation`
-
-        :raises InternalError: if either exp1 or exp2 is not an Operation.
+        :type exp2: py:class:`psyclone.psyir.nodes.Node`
 
         '''
         str_exp1 = self._parse_expr(self._writer(exp1))
         str_exp2 = self._parse_expr(self._writer(exp2))
-        result = self._simplify(str_exp1 == str_exp2)
-        return result
+        return self._simplify(str_exp1 == str_exp2)

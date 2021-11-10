@@ -505,8 +505,16 @@ def test_math_equal(parser):
     assert exp12.math_equal(schedule[13].rhs)
 
 
-def test_math_equal_commutative(parser):
-    '''Test that the sympy based comparison handles commutative
+@pytest.mark.parametrize("expressions", [("i", "i"),
+                                         ("2", "1+1"),
+                                         ("2.0", "1.1+0.9"),
+                                         ("2", "1+7*i-3-4*i-3*i+4"),
+                                         ("i+j", "j+i"),
+                                         ("i+j+k", "i+k+j"),
+                                         ("i+i", "2*i"),
+                                         ("i+j-2*k+3*j-2*i", "-i+4*j-2*k")])
+def test_math_equal_sympy(parser, expressions):
+    '''Test that the sympy based comparison handles complex
     expressions.
 
     '''
@@ -514,10 +522,11 @@ def test_math_equal_commutative(parser):
     # expressions we need. We just take the RHS of the assignments
     reader = FortranStringReader('''program test_prog
                                     integer :: i, j, k, x
-                                    x = i+j+k
-                                    x = i+k+j
+                                    x = {0}
+                                    x = {1}
                                     end program test_prog
-                                 ''')
+                                 '''.format(expressions[0],
+                                            expressions[1]))
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     schedule = psy.invokes.get("test_prog").schedule
