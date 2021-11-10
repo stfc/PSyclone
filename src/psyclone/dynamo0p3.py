@@ -74,7 +74,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  ACCEnterDataDirective,
+                                  ArrayReference, ACCEnterDataDirective,
                                   OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
@@ -1961,6 +1961,39 @@ class LFRicMeshProperties(DynCollection):
                     "the MeshProperty Enum are permitted "
                     "({1}).".format(str(prop), list(MeshProperty)))
 
+        # We can only handle colouring at code-generation time since it
+        # is enabled/disabled through transformations.
+        # If any of the kernel calls have been coloured then we will need
+        # arrays giving us the last cell of each colour.
+        if any(call.is_coloured() for call in self._calls):
+            if Config.get().distributed_memory:
+                root_name = "last_halo_cell_all_colours"
+                array_type = ArrayType(INTEGER_TYPE,
+                                       [ArrayType.Extent.DEFERRED,
+                                        ArrayType.Extent.DEFERRED])
+                last_halo_cell = self._symbol_table.new_symbol(
+                    root_name=root_name,
+                    tag=root_name,
+                    symbol_type=DataSymbol,
+                    datatype=array_type)
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_halo_cell.name+"(:,:)"]))
+            else:
+                root_name = "last_edge_cell_all_colours"
+                array_type = ArrayType(INTEGER_TYPE,
+                                       [ArrayType.Extent.DEFERRED])
+                last_edge_cell = self._symbol_table.new_symbol(
+                    root_name=root_name,
+                    tag=root_name,
+                    symbol_type=DataSymbol,
+                    datatype=array_type)
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_edge_cell.name+"(:)"]))
+
     def _stub_declarations(self, parent):
         '''
         Creates the necessary declarations for the variables needed in order
@@ -2019,7 +2052,9 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        if not self._properties:
+        needs_colour_limits = any(call.is_coloured() for call in self._calls)
+
+        if not self._properties and not needs_colour_limits:
             return
 
         parent.add(CommentGen(parent, ""))
@@ -2051,6 +2086,20 @@ class LFRicMeshProperties(DynCollection):
                     "initialisation code. Only members of the "
                     "MeshProperty Enum are permitted "
                     "({1})".format(str(prop), list(MeshProperty)))
+
+        if needs_colour_limits:
+            if Config.get().distributed_memory:
+                parent.add(
+                    AssignGen(parent,
+                              lhs=self._symbol_table.symbol_from_tag(
+                                  "last_halo_cell_all_colours").name,
+                              rhs=mesh+"%get_last_halo_cell_all_colours()"))
+            else:
+                parent.add(
+                    AssignGen(parent,
+                              lhs=self._symbol_table.symbol_from_tag(
+                                  "last_edge_cell_all_colours").name,
+                              rhs=mesh+"%get_last_edge_cell_all_colours()"))
 
 
 class DynReferenceElement(DynCollection):
@@ -3262,7 +3311,8 @@ class LFRicLoopBounds(DynCollection):
         parent.add(CommentGen(parent, ""))
 
         sym_table = self._invoke.schedule.symbol_table
-        api_config = Config.get().api_conf("dynamo0.3")
+        config = Config.get()
+        api_config = config.api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
             root_name = "loop{0}_start".format(idx)
@@ -3273,21 +3323,26 @@ class LFRicLoopBounds(DynCollection):
                                               tag=root_name,
                                               symbol_type=DataSymbol,
                                               datatype=INTEGER_TYPE)
-            root_name = "loop{0}_stop".format(idx)
-            try:
-                ubound = sym_table.lookup_with_tag(root_name)
-            except KeyError:
-                ubound = sym_table.new_symbol(root_name=root_name,
-                                              tag=root_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=INTEGER_TYPE)
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[lbound.name, ubound.name]))
             parent.add(AssignGen(parent, lhs=lbound.name,
                                  rhs=loop._lower_bound_fortran()))
-            parent.add(AssignGen(parent, lhs=ubound.name,
-                                 rhs=loop._upper_bound_fortran()))
+            entities = [lbound.name]
+
+            if loop.loop_type != "colour":
+                root_name = "loop{0}_stop".format(idx)
+                try:
+                    ubound = sym_table.lookup_with_tag(root_name)
+                except KeyError:
+                    ubound = sym_table.new_symbol(root_name=root_name,
+                                                  tag=root_name,
+                                                  symbol_type=DataSymbol,
+                                                  datatype=INTEGER_TYPE)
+                entities.append(ubound.name)
+                parent.add(AssignGen(parent, lhs=ubound.name,
+                                     rhs=loop._upper_bound_fortran()))
+
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               entity_decls=entities))
 
 
 class LFRicScalarArgs(DynCollection):
@@ -6783,7 +6838,8 @@ class DynLoop(Loop):
                     "The specified index '{0}' for this upper loop bound is "
                     "invalid".format(str(index)))
         self._upper_bound_name = name
-        self._upper_bound_halo_depth = index
+        self._upper_bound_halo_depth = Literal("{0}".format(index),
+                                               INTEGER_TYPE)
 
     @property
     def upper_bound_name(self):
@@ -6901,22 +6957,17 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
+            return "last_edge_cell_all_colours(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
-            append = ""
+            depth = "1"
             if halo_index:
-                # The colouring API support an additional optional
-                # argument which specifies the depth of the halo to
-                # which the coloured loop computes. If no argument is
-                # supplied it is assumed that the coloured loop
-                # computes to the full depth of the halo (whatever that
-                # may be).
-                append = ","+halo_index
-            return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh, append))
+                # The colouring API provides a 2D array that holds the last
+                # halo cell for a given colour and halo depth.
+                depth = halo_index
+            return "last_halo_cell_all_colours(colour, {0})".format(depth)
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
@@ -7195,10 +7246,10 @@ class DynLoop(Loop):
         generate the code.
 
         :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
+            f2pygen objects created in this method
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :raises GenerationError: if a loop over colours is within an \
-        OpenMP parallel region (as it must be serial)
+            OpenMP parallel region (as it must be serial)
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
@@ -7219,9 +7270,35 @@ class DynLoop(Loop):
             loops = inv_sched.loops()
             posn = loops.index(self)
             lbound = sym_table.lookup_with_tag("loop{0}_start".format(posn))
-            ubound = sym_table.lookup_with_tag("loop{0}_stop".format(posn))
             self.start_expr = Reference(lbound)
-            self.stop_expr = Reference(ubound)
+
+            if self._loop_type == "colour":
+                # If this loop is over all cells of a given colour then we
+                # must lookup the loop bound as it depends on the current
+                # colour.
+                parent_loop = self.ancestor(Loop)
+                colour_var = parent_loop.variable
+
+                if Config.get().distributed_memory:
+                    if self._upper_bound_halo_depth:
+                        halo_depth = self._upper_bound_halo_depth
+                    else:
+                        halo_depth = Literal("1", INTEGER_TYPE)
+
+                    asym = sym_table.lookup_with_tag(
+                        "last_halo_cell_all_colours")
+                    self.stop_expr = ArrayReference.create(
+                        asym, [Reference(colour_var), halo_depth])
+                else:
+                    asym = sym_table.lookup_with_tag(
+                        "last_edge_cell_all_colours")
+                    self.stop_expr = ArrayReference.create(
+                        asym, [Reference(colour_var)])
+            else:
+                # This isn't a 'colour' loop so we have already set-up a
+                # variable that holds the upper bound.
+                ubound = sym_table.lookup_with_tag("loop{0}_stop".format(posn))
+                self.stop_expr = Reference(ubound)
 
             super(DynLoop, self).gen_code(parent)
         else:

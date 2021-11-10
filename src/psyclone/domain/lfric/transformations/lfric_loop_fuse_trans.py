@@ -201,7 +201,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_name))
 
         # 4) Check halo depths
-        if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
+        if not node1.upper_bound_halo_depth.math_equal(
+                node2.upper_bound_halo_depth):
             raise TransformationError(
                 "Error in {0} transformation: The halo-depth indices "
                 "are not the same. Found '{1}' and '{2}'.".

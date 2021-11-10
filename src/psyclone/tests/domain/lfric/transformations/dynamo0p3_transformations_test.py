@@ -137,6 +137,13 @@ def test_colour_trans(tmpdir, dist_mem):
     # a string (Fortran is not case sensitive)
     gen = str(psy.gen).lower()
 
+    if dist_mem:
+        assert ("integer(kind=i_def), allocatable :: "
+                "last_halo_cell_all_colours(:,:)" in gen)
+    else:
+        assert ("integer(kind=i_def), allocatable :: "
+                "last_edge_cell_all_colours(:)" in gen)
+
     # Check that we're calling the API to get the no. of colours
     # and the generated loop bounds are correct
     output = ("      ncolour = mesh%get_ncolours()\n"
@@ -148,19 +155,18 @@ def test_colour_trans(tmpdir, dist_mem):
     assert "loop1_start = 1" in gen
 
     if dist_mem:
-        # TODO ARPDBG cannot set this loop bound like this because it depends
-        # upon 'colour'!
-        assert ("loop1_stop = mesh%get_last_halo_cell_per_colour(colour,1)" in
-                gen)
+        assert ("last_halo_cell_all_colours = mesh%get_last_halo_cell_all_"
+                "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,loop1_stop\n")
+            "        do cell=loop1_start,last_halo_cell_all_colours(colour,"
+            "1)\n")
     else:  # not dist_mem
-        assert ("loop1_stop = mesh%get_last_edge_cell_per_colour(colour)" in
-                gen)
+        assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
+                "colours()" in gen)
         output = (
-            "      do colour=1,ncolour\n"
-            "        do cell=1,loop1_stop\n")
+            "      do colour=loop0_start,loop0_stop\n"
+            "        do cell=loop1_start,last_edge_cell_all_colours(colour)\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
@@ -209,7 +215,6 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     # Store the results of applying this code transformation as a
     # string
     gen = str(psy.gen)
-    print(gen)
 
     # check the first argument is a colourmap lookup
     assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
@@ -244,13 +249,13 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
     gen = str(psy.gen)
 
     if dist_mem:
-        lookup = "get_last_halo_cell_per_colour(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "get_last_edge_cell_per_colour(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
 
     assert (
-        "      DO colour=1,ncolour\n"
-        "        DO cell=1,mesh%{0}\n"
+        "      DO colour=loop0_start,loop0_stop\n"
+        "        DO cell=loop1_start,{0}\n"
         "          !\n"
         "          CALL columnwise_op_asm_field_kernel_code("
         "cmap(colour, ".format(lookup)) in gen
@@ -447,14 +452,14 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     assert ("      ncolour = mesh%get_ncolours()\n"
             "      cmap => mesh%get_colour_map()\n" in code)
     if dist_mem:
-        lookup = "get_last_halo_cell_per_colour(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "get_last_edge_cell_per_colour(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
     output = (
-        "      DO colour=1,ncolour\n"
+        "      DO colour=loop0_start,loop0_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=1,mesh%{0}\n".format(lookup))
+        "        DO cell=loop1_start,{0}\n".format(lookup))
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -779,16 +784,15 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     # a string
     code = str(psy.gen)
 
-    print(code)
-
     omp_do_idx = -1
     omp_para_idx = -1
     cell_loop_idx = -1
     omp_enddo_idx = -1
     if dist_mem:
-        loop_str = "cell=1,mesh%get_last_edge_cell()"
+        assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+    loop_str = "DO cell=loop0_start,loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -1140,9 +1144,10 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     call1_idx = -1
     call2_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
+        assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
-        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
+    loop_str = "DO cell=loop0_start,loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_do_idx = idx
@@ -1213,20 +1218,21 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         otrans.apply(loop)
 
     code = str(psy.gen)
-    assert "      ncolour = mesh%get_ncolours()" in code
-    assert "      cmap => mesh%get_colour_map()\n" in code
+    assert "ncolour = mesh%get_ncolours()" in code
+    assert "cmap => mesh%get_colour_map()\n" in code
+    assert "loop0_stop = ncolour" in code
 
     if dist_mem:
-        lookup = "get_last_halo_cell_per_colour(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "get_last_edge_cell_per_colour(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
         "      !\n"
-        "      DO colour=1,ncolour\n"
+        "      DO colour=loop0_start,loop0_stop\n"
         "        !$omp parallel default(shared), private(cell)\n"
         "        !$omp do schedule(static)\n"
-        "        DO cell=1,mesh%{0}\n"
+        "        DO cell=loop1_start,{0}\n"
         "          !\n"
         "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
         "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
@@ -1238,7 +1244,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         "        END DO\n"
         "        !$omp end do\n"
         "        !$omp do schedule(static)\n"
-        "        DO cell=1,mesh%{0}\n"
+        "        DO cell=loop2_start,{0}\n"
         "          !\n"
         "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
         "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
@@ -1406,10 +1412,16 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f2_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f2_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1418,14 +1430,13 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f2" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do") in result
@@ -1451,10 +1462,18 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        for idx in range(1, 4):
+            if annexed:
+                name = "annexed"
+            else:
+                name = "owned"
+            assert ("loop{0}_stop = f{1}_proxy%vspace%get_last_dof_{2}()".
+                    format(idx-1, idx, name) in result)
+
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1466,7 +1485,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1478,7 +1497,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop2_start,loop2_stop\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1487,26 +1506,27 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop\n"
             "      !\n"
             "      CALL f3_proxy%set_dirty()")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
+        for idx in range(1, 4):
+            assert ("loop{0}_stop = undf_aspc1_f{1}".format(idx-1, idx)
+                    in result)
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f3\n"
+            "      DO df=loop2_start,loop2_stop\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in result
