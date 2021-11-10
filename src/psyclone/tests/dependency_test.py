@@ -505,15 +505,15 @@ def test_math_equal(parser):
     assert exp12.math_equal(schedule[13].rhs)
 
 
-@pytest.mark.xfail(reason="Limitation when using commutative law - #533")
-def test_math_equal_limitations(parser):
-    '''Shows that the current math_equal implementation can not
-    detect that i+j+k and i+k+j are the same.
+def test_math_equal_commutative(parser):
+    '''Test that the sympy based comparison handles commutative
+    expressions.
 
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     reader = FortranStringReader('''program test_prog
+                                    integer :: i, j, k, x
                                     x = i+j+k
                                     x = i+k+j
                                     end program test_prog
@@ -522,8 +522,6 @@ def test_math_equal_limitations(parser):
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     schedule = psy.invokes.get("test_prog").schedule
 
-    # Compare i+j+k and i+k+j - they should be equal, but due to
-    # TODO #533 it is not detected.
     exp0 = schedule[0].rhs
     exp1 = schedule[1].rhs
     assert exp0.math_equal(exp1)

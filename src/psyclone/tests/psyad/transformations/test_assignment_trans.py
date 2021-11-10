@@ -623,8 +623,6 @@ def test_same_indices_ordering(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(reason="issue #1075: Better symbolic comparison of indices "
-                   "is needed.")
 def test_same_indices_ordering2(tmpdir):
     '''Test the adjoint transformation recognises a write and a read
     access to the same active array (A) with the same indices, but
