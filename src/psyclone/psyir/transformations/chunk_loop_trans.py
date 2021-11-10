@@ -35,7 +35,7 @@
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
-blocked implementation of the Loop'''
+chunked implementation of the Loop'''
 
 from psyclone.core import VariablesAccessInfo, Signature, AccessType
 from psyclone.psyir import nodes
@@ -49,8 +49,8 @@ from psyclone.psyir.transformations.transformation_error import \
 
 class ChunkLoopTrans(LoopTrans):
     '''
-    Apply a blocking transformation to a loop (in order to permit a
-    chunked parallelisation or improve cache utilisation). For example:
+    Apply a chunking transformation to a loop (in order to permit a
+    chunked parallelisation). For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
@@ -83,7 +83,7 @@ class ChunkLoopTrans(LoopTrans):
 
     '''
     def __str__(self):
-        return "Split a loop into a blocked loop pair"
+        return "Split a loop into a chunked loop pair"
 
     def validate(self, node, options=None):
         '''
@@ -93,7 +93,7 @@ class ChunkLoopTrans(LoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
         :type options: dict of string:values or None
-        :param int options["blocksize"]: The size to block over for this \
+        :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
         :raises TransformationError: if the supplied Loop has a step size \
@@ -101,8 +101,8 @@ class ChunkLoopTrans(LoopTrans):
         :raises TransformationError: if the supplied Loop has a non-integer \
                 step size.
         :raises TransformationError: if the supplied Loop has a step size \
-                larger than the chosen block size.
-        :raises TransformationError: if the supplied Loop is a blocked loop.
+                larger than the chosen chunk size.
+        :raises TransformationError: if the supplied Loop is a chunked loop.
         :raises TransformationError: if the supplied Loop has a step size \
                 of 0.
         :raises TransformationError: if the supplied Loop writes to Loop \
@@ -128,16 +128,16 @@ class ChunkLoopTrans(LoopTrans):
                                       "was found."
                                       .format(node.children[2].
                                               datatype.intrinsic.name))
-        block_size = options.get("blocksize", 32)
-        if abs(int(node.children[2].value)) > abs(block_size):
+        chunk_size = options.get("chunksize", 32)
+        if abs(int(node.children[2].value)) > abs(chunk_size):
             raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "a loop with larger step size ({0}) "
-                                      "than the chosen block size ({1})."
+                                      "than the chosen chunk size ({1})."
                                       .format(node.children[2].value,
-                                              block_size))
-        if 'blocked' in node.annotations:
+                                              chunk_size))
+        if 'chunked' in node.annotations:
             raise TransformationError("Cannot apply a ChunkLoopTrans to "
-                                      "an already blocked loop.")
+                                      "an already chunked loop.")
 
         if int(node.children[2].value) == 0:
             raise TransformationError("Cannot apply a ChunkLoopTrans to "
@@ -158,7 +158,7 @@ class ChunkLoopTrans(LoopTrans):
         refs = VariablesAccessInfo(node.children[1])
         if refs is not None:
             bounds_ref.merge(refs)
-        # The current implementation of BlockedLoopTrans does not allow
+        # The current implementation of ChunkLoopTrans does not allow
         # the step size to be non-constant, so it is ignored.
 
         # Add the access pattern to the node variable name
@@ -178,7 +178,7 @@ class ChunkLoopTrans(LoopTrans):
 
             # If access2 is a write then we write to a loop variable
             if access2.is_written():
-                raise TransformationError("Cannot apply a BlockedLoopTrans "
+                raise TransformationError("Cannot apply a ChunkLoopTrans "
                                           "to this loop because the boundary "
                                           "variable '{0}' is written to "
                                           "inside the loop body.".format(
@@ -187,14 +187,14 @@ class ChunkLoopTrans(LoopTrans):
     def apply(self, node, options=None):
         '''
         Converts the given Loop node into a nested loop where the outer
-        loop is over blocks and the inner loop is over each individual element
-        of the block.
+        loop is over chunks and the inner loop is over each individual element
+        of the chunk.
 
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
         :type options: dict of string:values or None
-        :param int options["blocksize"]: The size to block over for this \
+        :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
         :returns: Tuple of None and None
@@ -204,8 +204,8 @@ class ChunkLoopTrans(LoopTrans):
         self.validate(node, options)
         if options is None:
             options = {}
-        block_size = options.get("blocksize", 32)
-        # Create (or find) the symbols we need for the blocking transformation
+        chunk_size = options.get("chunksize", 32)
+        # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
         end_inner_loop = routine.symbol_table.symbol_from_tag(
                 "{0}_el_inner".format(node.variable.name),
@@ -215,7 +215,7 @@ class ChunkLoopTrans(LoopTrans):
                 "{0}_out_var".format(node.variable.name),
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
-        # We currently don't allow BlockedLoops to be ancestors of BlockedLoop
+        # We currently don't allow ChunkLoops to be ancestors of ChunkLoop
         # so our ancestors cannot use these variables.
 
         # Store the node's parent for replacing later and the start and end
@@ -223,12 +223,12 @@ class ChunkLoopTrans(LoopTrans):
         start = node.children[0]
         stop = node.children[1]
 
-        # For positive steps we do el_inner = min(out_var+block_size, el_outer)
-        # For negative steps we do el_inner = max(out_var-block_size, el_outer)
+        # For positive steps we do el_inner = min(out_var+chunk_size, el_outer)
+        # For negative steps we do el_inner = max(out_var-chunk_size, el_outer)
         if int(node.children[2].value) > 0:
             add = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                          Reference(outer_loop_variable),
-                                         Literal("{0}".format(block_size),
+                                         Literal("{0}".format(chunk_size),
                                                  node.variable.datatype))
             minop = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
                                            stop.copy())
@@ -237,17 +237,17 @@ class ChunkLoopTrans(LoopTrans):
         elif int(node.children[2].value) < 0:
             sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                          Reference(outer_loop_variable),
-                                         Literal("{0}".format(block_size),
+                                         Literal("{0}".format(chunk_size),
                                                  node.variable.datatype))
             maxop = BinaryOperation.create(BinaryOperation.Operator.MAX, sub,
                                            stop.copy())
             inner_loop_end = Assignment.create(Reference(end_inner_loop),
                                                maxop)
-            # block_size needs to be negative if we're reducing
-            block_size = -block_size
+            # chunk_size needs to be negative if we're reducing
+            chunk_size = -chunk_size
         # step size of 0 is caught by the validate call
 
-        # Replace the inner loop start and end with the blocking ones
+        # Replace the inner loop start and end with the chunking ones
         start.replace_with(Reference(outer_loop_variable))
         stop.replace_with(Reference(end_inner_loop))
 
@@ -255,15 +255,15 @@ class ChunkLoopTrans(LoopTrans):
         outerloop = Loop(variable=outer_loop_variable,
                          valid_loop_types=node.valid_loop_types)
         outerloop.children = [start, stop,
-                              Literal("{0}".format(block_size),
+                              Literal("{0}".format(chunk_size),
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
                                        children=[inner_loop_end])]
         if node.loop_type is not None:
             outerloop.loop_type = node.loop_type
-        # Add the blocked annotation
-        outerloop.annotations.append('blocked')
-        node.annotations.append('blocked')
+        # Add the chunked annotation
+        outerloop.annotations.append('chunked')
+        node.annotations.append('chunked')
         # Replace this loop with the outerloop
         node.replace_with(outerloop)
         # Add the loop to the innerloop's schedule

@@ -78,7 +78,7 @@ class Loop(Statement):
                            without the 'was_where' annotation.
 
     '''
-    valid_annotations = ('was_where', 'was_single_stmt', 'blocked')
+    valid_annotations = ('was_where', 'was_single_stmt', 'chunked')
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"

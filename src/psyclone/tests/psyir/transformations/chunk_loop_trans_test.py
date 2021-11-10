@@ -55,13 +55,13 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
-def test_blockloop_trans():
+def test_chunkloop_trans():
     '''Test the base methods of ChunkLoopTrans'''
     trans = ChunkLoopTrans()
-    assert str(trans) == "Split a loop into a blocked loop pair"
+    assert str(trans) == "Split a loop into a chunked loop pair"
 
 
-def test_blockloop_trans_validate1():
+def test_chunkloop_trans_validate1():
     '''Test the validate method of ChunkLoopTrans for non constant
     increment'''
     chunktrans = ChunkLoopTrans()
@@ -87,7 +87,7 @@ def test_blockloop_trans_validate1():
         in str(excinfo.value)
 
 
-def test_blockloop_trans_validate2():
+def test_chunkloop_trans_validate2():
     '''Test the validate method of ChunkLoopTrans for bad step sizes'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with too large a step-size
@@ -97,9 +97,9 @@ def test_blockloop_trans_validate2():
     parent.addchild(Literal("128", INTEGER_TYPE))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        chunktrans.validate(parent, {"blocksize": 16})
+        chunktrans.validate(parent, {"chunksize": 16})
     assert ("Cannot apply a ChunkLoopTrans to a loop with larger step size "
-            "(128) than the chosen block size (16).") in str(excinfo.value)
+            "(128) than the chosen chunk size (16).") in str(excinfo.value)
 
     # Construct a Loop with step-size of 0
     parent = Loop()
@@ -113,12 +113,12 @@ def test_blockloop_trans_validate2():
             in str(excinfo.value))
 
 
-def test_blockloop_trans_validate3():
+def test_chunkloop_trans_validate3():
     '''Test the validate method of ChunkLoopTrans fails when applying it
-    to a loop which has already been blocked'''
+    to a loop which has already been chunked'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop and apply a ChunkLoopTrans to it, then revalidate the
-    # parent loop (can't apply a block loop trans to a block loop trans
+    # parent loop (can't apply a chunk loop trans to a chunk loop trans
     symbol_table = SymbolTable()
     parent = Loop()
     parent.addchild(Literal("1", INTEGER_TYPE))
@@ -132,17 +132,17 @@ def test_blockloop_trans_validate3():
                     ScalarType.Precision.SINGLE))
     parent._variable = lvar
     chunktrans.apply(parent)
-#    with pytest.raises(TransformationError) as excinfo:
-#        chunktrans.validate(parent.ancestor(Loop))
-#    assert "Cannot apply a ChunkLoopTrans to an already blocked loop." \
-#           in str(excinfo.value)
+    with pytest.raises(TransformationError) as excinfo:
+        chunktrans.validate(parent.ancestor(Loop))
+    assert "Cannot apply a ChunkLoopTrans to an already chunked loop." \
+           in str(excinfo.value)
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert "Cannot apply a ChunkLoopTrans to an already blocked loop." \
+    assert "Cannot apply a ChunkLoopTrans to an already chunked loop." \
            in str(excinfo.value)
 
 
-def test_blockloop_trans_validate4():
+def test_chunkloop_trans_validate4():
     '''Test the validate method of ChunkLoopTrans fails when applying it
     to a loop that writes to the loop variables'''
     chunktrans = ChunkLoopTrans()
@@ -166,7 +166,7 @@ def test_blockloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
+    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
            "variable 'lvar' is written to inside the loop body.") in \
         str(excinfo.value)
 
@@ -195,7 +195,7 @@ def test_blockloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
+    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
            "variable 'ivar' is written to inside the loop body.") in \
         str(excinfo.value)
 
@@ -224,12 +224,12 @@ def test_blockloop_trans_validate4():
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
-    assert("Cannot apply a BlockedLoopTrans to this loop because the boundary "
+    assert("Cannot apply a ChunkLoopTrans to this loop because the boundary "
            "variable 'ivar' is written to inside the loop body.") in \
         str(excinfo.value)
 
 
-def test_blockloop_trans_validate5():
+def test_chunkloop_trans_validate5():
     '''Test the validate method of ChunkLoopTrans passes when applying it
     to a loop that reads from the loop variable'''
     chunktrans = ChunkLoopTrans()
@@ -258,7 +258,7 @@ def test_blockloop_trans_validate5():
     chunktrans.validate(parent)
 
 
-def test_blockloop_trans_validate6():
+def test_chunkloop_trans_validate6():
     '''Test the validate method of ChunkLoopTrans fails when applying it
     to a loop that has a non-integer loop step'''
     chunktrans = ChunkLoopTrans()
@@ -275,7 +275,7 @@ def test_blockloop_trans_validate6():
         in str(excinfo.value)
 
 
-def test_blockloop_trans_validate7():
+def test_chunkloop_trans_validate7():
     '''Test the validate method of ChunkLoopTrans fails when applying it
     to a loop that contains a CodeBlock'''
     chunktrans = ChunkLoopTrans()
@@ -293,7 +293,7 @@ def test_blockloop_trans_validate7():
             "CodeBlock node.") in str(excinfo.value)
 
 
-def test_blockloop_trans_apply_pos():
+def test_chunkloop_trans_apply_pos():
     '''Test the apply method of ChunkLoopTrans for a positive step index'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -314,9 +314,11 @@ def test_blockloop_trans_apply_pos():
         END DO
       END DO'''
     assert correct in code
+    loop = schedule.walk(Loop)[0]
+    assert 'chunked' in loop.annotations
 
 
-def test_blockloop_trans_apply_neg():
+def test_chunkloop_trans_apply_neg():
     '''Test the apply method of ChunkLoopTrans for a negative step'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -340,9 +342,9 @@ def test_blockloop_trans_apply_neg():
     assert correct in code
 
 
-def test_blockloop_trans_apply_double_block(tmpdir):
+def test_chunkloop_trans_apply_double_chunk(tmpdir):
     '''Test the apply method of ChunkLoopTrans for multiple
-    blocks of 2 nested loops'''
+    chunks of 2 nested loops'''
     code = \
         '''Program test
     integer :: i, j, end
