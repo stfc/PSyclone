@@ -35,6 +35,7 @@
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
+
 from __future__ import absolute_import, print_function
 import os
 import pytest
@@ -348,7 +349,8 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     code = \
         '''Program test
     integer :: i, j, end
-    integer, dimension(1:end, 1:end) :: ai, aj
+    integer, dimension(1:100, 1:100) :: ai, aj
+    end = 100
     do i=1, end
         do j=1, end
             ai(i, j) = 1
@@ -369,7 +371,6 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
         chunktrans.apply(loop)
     writer = FortranWriter()
     result = writer(psyir)
-    assert Compile(tmpdir).string_compiles(result)
     correct_vars = \
         '''integer :: i_el_inner
   integer :: i_out_var
@@ -401,3 +402,4 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     enddo
   enddo'''
     assert correct in result
+    assert Compile(tmpdir).string_compiles(result)
