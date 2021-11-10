@@ -388,6 +388,162 @@ as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
 
+Mixed Precision
+---------------
+
+The LFRic API allows fields, scalars and operators to be declared in
+the algorithm layer with LFRic-specific precision symbols as long as
+any associated kernels have been written to support the underlying
+precision that they represent. If a kernel is required to support more
+than one precision then multiple precision-specific kernels should be
+written which are called via a generic interface. If the generic
+interfance is called then Fortran will then ensure that the
+appropriate precision-specific kernel will be used.
+
+Below is a simple example of an algorithm code calling the same
+generic kernel twice with potentially different precision and for the
+kernel to support 32-bit and 64-bit precision. The use of LFRic names
+for precision in the algorithm code allows precision to be controlled
+in a simple way. For example r_solver could be set to be 32-bits in
+one configuration and 64-bits in another:
+
+```
+program test
+
+  use constants_mod, only : r_def, r_solver
+  use example_mod, only : example_type
+
+  real(r_def)    :: x_r_def
+  real(r_solver) :: x_r_solver
+
+  call invoke( example_type(x_r_def),    &
+               example_type(x_r_solver))
+
+end program test
+
+module example_mod
+
+  use argument_mod
+  use kernel_mod
+
+  implicit none
+
+  type, extends(kernel_type) :: example_type
+    type(arg_type), dimension(1) :: meta_args =     &
+          (/ arg_type(gh_scalar, gh_real, gh_read ) &
+           /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => example_code
+  end type example_type
+
+  private
+  public :: example_code
+
+  interface example_code
+    module procedure example_code_32
+    module procedure example_code_64
+  end interface example_code
+
+contains
+
+  subroutine example_code_32(x)
+    real*4, intent(in) :: x
+    print *, "32-bit example called"
+  end subroutine example_code_32
+     
+  subroutine example_code_64(x)
+    real*8, intent(in) :: x
+    print *, "64-bit example called"
+  end subroutine example_code_64
+
+end module example_mod
+```
+
+In order to support mixed precision, PSyclone needs to know the
+precision (as specified in the algorithm layer) of any LFRic data that
+has a type that supports different multiple precisions. The reason for
+this is that PSyclone needs to be able to declare data with the
+correct precision information within the PSy-layer to ensure that
+the correct flavour of kernels are called.
+
+PSyclone must therefore parse the algorithm layer to determine this
+information. The rules for whether PSyclone requires information for
+particular LFRic datatypes and what it does with or without this
+information is given below:
+
+Fields
+++++++
+
+PSyclone must be able to determine the datatype of a field from the
+algorithm layer declarations. If it is not able to do this an
+exception will be raised and PSyclone will stop with a message that
+indicates the problem.
+
+Supported field types are `field_type` (which contains `real` data
+with precision `r_def`), `r_solver_field_type` (which contains `real`
+data with precision `r_solver`) and `integer_field_type` (which
+contains `integer` data with precision `i_def`). If an unsupported
+field type is found then an exception will be raised and PSyclone will
+stop with a message that indicates the problem.
+
+Scalars
++++++++
+
+It is not mandatory for PSyclone to be able to determine the datatype
+of a scalar from the algorithm layer. This constraint was considered
+to be too restrictive as PSyclone only looks at the current algorithm
+code to determine a scalars datatype and scalars are often included in
+the algorithm layer from other modules which means their datatype is
+not directly visible.
+
+If the precision information for a scalar is found by PSyclone then
+this is used. If the scalar declaration is found and it contains no
+precision information then an exception is raised and PSyclone will
+stop with a message that indicates the problem. If no precision
+information is found then default precision values are used as
+specified in the PSyclone config file (`r_def` for real, `i_def` for
+integer and `l_def` for logical).
+
+Supported precisions are `r_def` and `r_solver` for real data, `i_def`
+for integer data and `l_def` for logical data. If an unsupported
+scalar precision is found then an exception will be raised and
+PSyclone will stop with a message that indicates the problem.
+
+LMA Operators
++++++++++++++
+
+PSyclone must be able to determine the datatype of an LMA operator.
+If it is not able to do this an exception will be raised and PSyclone
+will stop with a message that indicates the problem.
+
+Supported LMA Operator types are `operator_type` (which contains real
+data with precision `r_def`) and `r_solver_operator_type` (which
+contains real data with precision `r_solver`). If an unsupported LMA
+Operator type is found then an exception will be raised and PSyclone
+will stop with a message that indicates the problem.
+
+Columnwise Operators
+++++++++++++++++++++
+
+It is not mandatory for PSyclone to be able to determine the datatype
+of a Columnwise Operator. The reason for this is that only one
+datatype is supported, a `columnwise_operator_type` which contains
+real data with precision `r_solver`. PSyclone can therefore simply add
+this datatype in the PSy-layer. However, if the datatype information
+is found in the algorithm layer then and it is not of the expected
+type then an exception will be raised and PSyclone will stop with a
+message that indicates the problem.
+
+Consistency
++++++++++++
+
+If PSyclone is able to determine the datatype of an LFRic datatype
+then PSyclone also checks that this datatype is consistent with the
+associated kernel metadata. If it is not consistent then an exception
+is raised and PSyclone will stop with a message that indicates the
+problem.
+
 .. _dynamo0.3-psy:
 
 PSy-layer
