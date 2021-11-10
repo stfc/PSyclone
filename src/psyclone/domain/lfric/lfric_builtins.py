@@ -325,6 +325,7 @@ class LFRicBuiltIn(BuiltIn):
         # For now we create an f2pygen node from the PSyIR of this routine.
         parent.add(PSyIRGen(parent, self))
 
+    @property
     def cma_operation(self):
         '''
         Built-ins do not perform operations with Column-Matrix-Assembly

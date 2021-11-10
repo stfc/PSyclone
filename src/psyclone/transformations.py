@@ -64,7 +64,7 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, Routine, OMPTaskloopDirective
+    ACCKernelsDirective, OMPTaskloopDirective, Routine
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -328,20 +328,19 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> from psyclone.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>> tasklooptrans = OMPTaskloopTrans()
+    >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
-    >>> # This ignores loop dependencies. These must be manually handled
-    >>> # either through end of regions.
-    >>> # TODO: #1368 These can also be handled through the taskwait
-    >>> # directive
+    >>> # This ignores loop dependencies. These can be handled
+    >>> # by the OMPTaskwaitTrans
     >>> for child in schedule.children:
     >>>     tasklooptrans.apply(child)
     >>> # Enclose all of these loops within a single OpenMP
@@ -350,6 +349,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
+    >>> # Ensure loop dependencies are satisfied
+    >>> taskwaittrans.apply(schedule.children)
     >>> schedule.view()
 
     '''
@@ -515,7 +516,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           !$OMP END TASKLOOP
 
         At code-generation time (when
-        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
+        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -524,7 +525,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         apply call to which the value is supplied.
 
         :param node: the supplied node to which we will apply the \
-                     OMPLoopTrans transformation
+                     OMPTaskloopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations\
                         and validation.
@@ -1753,7 +1754,7 @@ class MoveTrans(Transformation):
     >>> from psyclone.transformations import MoveTrans
     >>> trans=MoveTrans()
     >>> trans.apply(schedule.children[0], schedule.children[2],
-                    position="after")
+    ...             options = {"position":"after")
     >>> schedule.view()
 
     Nodes may only be moved to a new location with the same parent

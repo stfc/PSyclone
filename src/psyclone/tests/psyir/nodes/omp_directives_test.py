@@ -196,6 +196,13 @@ def test_omp_forward_dependence():
 
 
 @pytest.mark.parametrize("nowait", [False, True])
+def test_omp_single_nowait(nowait):
+    ''' Test the nowait getter of the OMPSingle directive '''
+    single = OMPSingleDirective(nowait=nowait)
+    assert single.nowait is nowait
+
+
+@pytest.mark.parametrize("nowait", [False, True])
 def test_omp_single_strings(nowait):
     ''' Test the begin_string and end_string methods of the OMPSingle
         directive '''
@@ -431,6 +438,13 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
 
     assert "!$omp taskloop" + clauses + "\n" in str(temporary_module.root)
     assert "!$omp end taskloop\n" in str(temporary_module.root)
+
+
+@pytest.mark.parametrize("nogroup", [False, True])
+def test_omptaskloop_nogroup(nogroup):
+    '''Test the nogroup method of OMPTaskloop'''
+    taskwait = OMPTaskloopDirective(nogroup=nogroup)
+    assert taskwait.nogroup == nogroup
 
 
 def test_omp_taskloop_validate_global_constraints():
