@@ -84,10 +84,10 @@ class SymbolicMaths:
     def __init__(self):
 
         # Avoid circular dependency (and import errors if sympy
-        # is not installed)
+        # is not installed).
         # pylint: disable=import-outside-toplevel
-        from sympy.parsing.sympy_parser import parse_expr
         from sympy import simplify
+        from sympy.parsing.sympy_parser import parse_expr
         from psyclone.psyir.backend.fortran import FortranWriter
 
         self._writer = FortranWriter()
@@ -107,17 +107,7 @@ class SymbolicMaths:
         :raises InternalError: if either exp1 or exp2 is not an Operation.
 
         '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Operation
-
         str_exp1 = self._parse_expr(self._writer(exp1))
         str_exp2 = self._parse_expr(self._writer(exp2))
-        if not isinstance(exp1, Operation):
-            raise InternalError("Expected exp1 '{0}' to be an operation.".
-                                format(str_exp1))
-        if not isinstance(exp2, Operation):
-            raise InternalError("Expected exp2 '{0}' to be an operation.".
-                                format(str_exp2))
         result = self._simplify(str_exp1 == str_exp2)
         return result
