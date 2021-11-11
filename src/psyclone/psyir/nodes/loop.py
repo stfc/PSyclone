@@ -312,7 +312,7 @@ class Loop(Statement):
     def valid_loop_types(self):
         '''
         :returns: the (domain-specific) loop types allowed by this instance.
-        :rtype: List of str
+        :rtype: list of str
         '''
         return self._valid_loop_types
 
