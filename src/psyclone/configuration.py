@@ -241,10 +241,10 @@ class Config(object):
         # Check for missing section headers and general parsing errors
         # (e.g. incomplete or incorrect key-value mapping)
         except (MissingSectionHeaderError, ParsingError) as err:
-            raise ConfigurationError(
+            six.raise_from(ConfigurationError(
                 "ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: {0})".format(str(err)),
-                config=self)
+                config=self), err)
 
         # Check that the configuration file has a [DEFAULT] section. Even
         # if there isn't one in the file, ConfigParser creates an (empty)
@@ -264,9 +264,9 @@ class Config(object):
             self._distributed_mem = self._config['DEFAULT'].getboolean(
                 'DISTRIBUTED_MEMORY')
         except ValueError as err:
-            raise ConfigurationError(
+            six.raise_from(ConfigurationError(
                 "Error while parsing DISTRIBUTED_MEMORY: {0}".
-                format(str(err)), config=self)
+                format(str(err)), config=self), err)
 
         # API for psyclone
         if "API" in self._config["DEFAULT"]:
@@ -310,17 +310,17 @@ class Config(object):
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
         except ValueError as err:
-            raise ConfigurationError(
+            six.raise_from(ConfigurationError(
                 "Error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
-                format(str(err)), config=self)
+                format(str(err)), config=self), err)
 
         try:
             self._reprod_pad_size = self._config['DEFAULT'].getint(
                 'REPROD_PAD_SIZE')
         except ValueError as err:
-            raise ConfigurationError(
+            six.raise_from(ConfigurationError(
                 "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
-                config=self)
+                config=self), err)
 
         if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
             # Use the default name if no default is specified for the
@@ -670,9 +670,10 @@ class Config(object):
                     raise ConfigurationError(
                         "Include path '{0}' does not exist".format(path))
                 self._include_paths.append(path)
-        except (TypeError, ValueError):
-            raise ValueError("include_paths must be a list but got: {0}".
-                             format(type(path_list)))
+        except (TypeError, ValueError) as err:
+            six.raise_from(ValueError("include_paths must be a list but got: "
+                                      "{0}". format(type(path_list))),
+                           err)
 
     @property
     def valid_psy_data_prefixes(self):
@@ -692,9 +693,16 @@ class Config(object):
         '''
         return self._config.defaults()
 
+    def get_constants(self):
+        ''':returns: the constants instance of the current API.
+        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
+            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
+            :py:class:`psyclone.domain.nemo.NemoConstants`
+        '''
+        return self.api_conf().get_constants()
+
 
 # =============================================================================
-# TODO (issue #1163): Add support for lists in the configuration file
 class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
@@ -730,12 +738,13 @@ class APISpecificConfig(object):
             try:
                 self._access_mapping[api_access_name] = \
                     AccessType.from_string(access_type)
-            except ValueError:
+            except ValueError as err:
                 # Raised by from_string()
-                raise ConfigurationError("Unknown access type '{0}' found "
-                                         "for key '{1}'"
-                                         .format(access_type,
-                                                 api_access_name))
+                six.raise_from(ConfigurationError("Unknown access type '{0}' "
+                                                  "found for key '{1}'"
+                                                  .format(access_type,
+                                                          api_access_name)),
+                               err)
 
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
@@ -762,10 +771,12 @@ class APISpecificConfig(object):
         for entry in input_list:
             try:
                 key, value = entry.split(":", 1)
-            except ValueError:
+            except ValueError as err:
                 # Raised when split does not return two elements:
-                raise ConfigurationError("Invalid format for mapping: {0}".
-                                         format(entry.strip()))
+                six.raise_from(ConfigurationError("Invalid format for "
+                                                  "mapping: {0}".
+                                                  format(entry.strip())),
+                               err)
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = str(value.strip())
         return return_dict
@@ -1109,7 +1120,7 @@ class GOceanConfig(APISpecificConfig):
                     try:
                         fortran, variable_type, intrinsic_type = \
                             all_props[grid_property].split(":")
-                    except ValueError:
+                    except ValueError as err:
                         # Raised when the string does not contain exactly
                         # three values separated by ":"
                         error = "Invalid property \"{0}\" found with value " \
@@ -1121,7 +1132,7 @@ class GOceanConfig(APISpecificConfig):
                                 .format(grid_property,
                                         all_props[grid_property],
                                         config.filename)
-                        raise ConfigurationError(error)
+                        six.raise_from(ConfigurationError(error), err)
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
@@ -1315,10 +1326,14 @@ class NemoConfig(APISpecificConfig):
 
     def get_valid_loop_types(self):
         '''
-        :returns: a list of valid loop types.
+        The list is sorted to have reproducible results for testing.
+        :returns: a sorted list of valid loop types.
         :rtype: list of str.
+
         '''
-        return list(self._loop_type_data)
+        valid_types_list = list(self._loop_type_data)
+        valid_types_list.sort()
+        return valid_types_list
 
     def get_index_order(self):
         '''
