@@ -7,7 +7,7 @@
 This directory contains the PSyclone example scripts: `openmp_trans.py` and
 `openmp_gpu_trans.py`, that demonstrates the use of PSyclone to parallelise
 all loops over levels for the `tra_adv.F90` code, using OpenMP. Once you have
-installed PSyclone, this scripts may be run by doing:
+installed PSyclone, these scripts may be run by doing:
 
 ```sh
 psyclone -api nemo -s ./openmp_{gpu_}trans.py ../code/traadv.f90

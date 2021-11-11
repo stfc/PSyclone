@@ -39,8 +39,9 @@ directives into Nemo code. '''
 
 from __future__ import print_function
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.nodes import Loop, Assignment, CodeBlock
+from psyclone.psyir.nodes import Loop, Assignment
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.transformations import TransformationError
 
 USE_GPU = True  # Enable for generating OpenMP target directives
 
@@ -73,13 +74,14 @@ def trans(psy):
         # Add the OpenMP directives in each loop
         for loop in invoke.schedule.walk(Loop):
             if loop.loop_type == "levels":
-                if loop.loop_body.walk(CodeBlock):
-                    continue  # Ignore loops with Codebloks
+                try:
+                    if USE_GPU:
+                        omp_target_trans.apply(loop)
 
-                if USE_GPU:
-                    omp_target_trans.apply(loop)
-
-                omp_loop_trans.apply(loop)
+                    omp_loop_trans.apply(loop)
+                except TransformationError:
+                    # This loop can not be transformed, proceed to next loop
+                    continue
 
                 num_nested_loops = 0
                 next_loop = loop
