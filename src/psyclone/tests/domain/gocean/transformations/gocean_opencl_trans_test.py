@@ -126,7 +126,7 @@ def test_validate_unsupported_api():
     sched = invoke.schedule
     trans = GOOpenCLTrans()
     with pytest.raises(TransformationError) as err:
-        _ = trans.apply(sched)
+        trans.apply(sched)
     assert ("OpenCL generation is currently only supported for the GOcean "
             "API but got an InvokeSchedule of type:" in str(err.value))
 

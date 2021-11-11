@@ -131,7 +131,7 @@ the number of MPI processes and resulting inter-process communication.)
 
    ```python
      try:
-         _ = OMP_TRANS.apply(child)
+         OMP_TRANS.apply(child)
      except TransformationError:
          pass
    ```

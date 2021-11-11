@@ -160,7 +160,7 @@ class CreateNemoPSyTrans(Transformation):
 
         # Second, transform generic Loops into NemoLoops
         for loop in loops:
-            _ = loop_trans.apply(loop)
+            loop_trans.apply(loop)
 
         # Third, transform any Routines into NemoInvokeSchedules. Have to
         # allow for the supplied top-level node being a Routine and therefore

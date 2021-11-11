@@ -1567,8 +1567,11 @@ class OMPMasterTrans(ParallelRegionTrans):
     '''
     Create an OpenMP MASTER region by inserting directives. The most
     likely use case for this transformation is to wrap around task-based
-    transformations. The parent region for this should usually also be
-    a OMPParallelTrans. For example:
+    transformations. Note that adding this directive requires a parent
+    OpenMP parallel region (which can be inserted by OMPParallelTrans),
+    otherwise it will produce an error in generation-time.
+
+    For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
