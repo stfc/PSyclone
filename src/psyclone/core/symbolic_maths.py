@@ -37,6 +37,8 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
+import sympy
+
 
 class SymbolicMaths:
     '''A wrapper around the symbolic maths package 'sympy'. It
@@ -58,22 +60,14 @@ class SymbolicMaths:
     @staticmethod
     def get():
         '''Static function that if necessary creates and returns the singleton
-        SymbolicMaths instance if available. If sympy is not installed,
-        this function will return None.
+        SymbolicMaths instance.
 
         :returns: the instance of the symbolic maths class.
         :rtype: :py:class:`psyclone.core.SymbolicMaths.`
 
         '''
-        if not SymbolicMaths._has_been_imported:
-            try:
-                # pylint: disable=unused-import, import-outside-toplevel
-                import sympy
-                SymbolicMaths._instance = SymbolicMaths()
-            except ImportError:
-                SymbolicMaths._instance = None
-
-            SymbolicMaths._has_been_imported = True
+        if SymbolicMaths._instance is None:
+            SymbolicMaths._instance = SymbolicMaths()
 
         return SymbolicMaths._instance
 
@@ -83,13 +77,11 @@ class SymbolicMaths:
         # Avoid circular dependency (and import errors if sympy
         # is not installed).
         # pylint: disable=import-outside-toplevel
-        from sympy import simplify
-        from sympy.parsing.sympy_parser import parse_expr
         from psyclone.psyir.backend.fortran import FortranWriter
 
         self._writer = FortranWriter()
-        self._parse_expr = parse_expr
-        self._simplify = simplify
+        self._parse_expr = sympy.parsing.sympy_parser.parse_expr
+        self._simplify = sympy.simplify
 
     # -------------------------------------------------------------------------
 

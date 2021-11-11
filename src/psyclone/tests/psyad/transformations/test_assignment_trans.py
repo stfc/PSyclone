@@ -644,7 +644,6 @@ def test_same_indices_ordering2(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(reason="issue #1332 math_equal thinks a%b(i) equals a%c(i)")
 def test_different_structures(tmpdir):
     '''Test the adjoint transformation recognises a distinct write and
     read within a structure (A).
