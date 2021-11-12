@@ -277,7 +277,7 @@ these code snippets to be tested. For example::
       Index-id 0 of 'a(i,j)': i
       Index-id 1 of 'a(i,j)': j
 
-Output should only be included if it is reasonable short. To avoid adding
+Output should only be included if it is reasonably short. To avoid adding
 output to the manual, use the ``:hide:`` option of ``testoutput``::
 
   .. testoutput::
@@ -327,7 +327,7 @@ and imports the Loop class, and the actual example uses this code.
 Many code snippets in python docstrings might try to parse a file,
 which typically cannot be found (unless the full path would be
 provided, which makes the example look ugly). One solution for this
-is to use variable that is supposed to contain the filename, and then
+is use variable that is supposed to contain the filename, and then
 define this variable in the ``testsetup`` section. For example, the
 file ``transformation.py`` uses::
 
@@ -446,6 +446,9 @@ computational cost (so that we 'fail fast'):
 
  3. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
     the compilation checks.
+
+ 4. All examples in the Developer Guide are checked for correctness by
+    running ``make doctest``.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
