@@ -51,7 +51,7 @@ this is complete, the PSyIR representation is then written back out as
 code.
 
 
-Active variables
+Active Variables
 ++++++++++++++++
 
 When creating the adjoint of a tangent-linear code the active
@@ -229,7 +229,7 @@ adjoint variable :math:`\hat{A}` must be set to zero:
 
     \hat{A} = 0
 
-Array accesses
+Array Accesses
 **************
 
 Active variables will typically be arrays that are accessed within a
@@ -315,7 +315,12 @@ individually to each statement and the resultant PSyIR returned.
 Test Harness
 ++++++++++++
 
-The code generated for the test harness must perform the following steps:
+In addition to generating the adjoint of a tangent-linear kernel, PSyAD
+is also able to :ref:`generate <test_harness_gen>` a test harness for
+that kernel that verifies that the generated adjoint is mathematically
+correct.
+
+This test harness code must perform the following steps:
 
 1) Initialise all of the kernel arguments and keep copies of them;
 2) Call the tangent-linear kernel;
@@ -327,7 +332,7 @@ The code generated for the test harness must perform the following steps:
 6) Compare the two inner products for equality, allowing for machine
    precision.
 
-Some of these steps are described in more detail below.
+Steps 1, 3, 5 and 6 are described in more detail below.
 
 Initialisation
 --------------
@@ -336,19 +341,26 @@ All arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
 function.
 
-Inner products
+.. note:: this initialisation will not be correct when a kernel contains
+	  indirection and is passed a mapping array. In such cases the mapping
+	  array will need initialising with meaningful values. This is the
+	  subject of Issue #1496.
+
+Inner Products
 --------------
 
 The precision of the variables used to accumulate the inner-product values
 is set to match that of the active variables in the supplied TL kernel.
+(An exception is raised if active variables of different precision
+are found.)
 
-For simplicity, when computing the inner product in steps 3) and 5), *all*
-kernel arguments are included (since those that are only read by a kernel
-will remain constant for both the TL and adjoint kernel calls). It may be
-that this will require refinement in future, e.g. if there are kernels
-that have non-numeric arguments.
+For simplicity, when computing the inner product in steps 3) and 5),
+both active and passive kernel arguments are included (since those
+that are only read by a kernel will remain constant for both the TL
+and adjoint kernel calls). It is likely that this will require refinement
+in future, e.g. for kernels that have non-numeric arguments.
 
-Comparing the inner products
+Comparing the Inner Products
 ----------------------------
 
 Performing the comparison of the two inner products while allowing for
