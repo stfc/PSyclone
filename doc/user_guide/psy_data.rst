@@ -135,7 +135,7 @@ is named ``gravity_wave``)::
             schedule = invoke.schedule
             for node in schedule:
                 if isinstance(node, Loop):
-                    schedule, _ = read_only_verify.apply(node)
+                    read_only_verify.apply(node)
 
         return psy
 

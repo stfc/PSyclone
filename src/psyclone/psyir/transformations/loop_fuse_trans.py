@@ -42,7 +42,6 @@ class for all API-specific loop fusion transformations.
 from psyclone.psyir.transformations import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
-from psyclone.undoredo import Memento
 
 
 class LoopFuseTrans(LoopTrans):
@@ -108,27 +107,17 @@ class LoopFuseTrans(LoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
-
         '''
         # Validity checks for the supplied nodes
         self.validate(node1, node2, options=options)
 
         schedule = node1.root
 
-        # Create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node1, node2])
-
         # Remove node2 from the parent
         node2.detach()
 
         # Add loop contents of node2 to node1
         node1.loop_body.children.extend(node2.loop_body.pop_all_children())
-
-        return schedule, keep
 
 
 # For automatic documentation generation

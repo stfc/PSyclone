@@ -63,8 +63,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoInvokeScheduleTrans()
-    >>> sched, _ = trans.apply(psyir)
-    >>> sched.view()
+    >>> trans.apply(psyir)
+    >>> psyir.view()
     NemoInvokeSchedule[name:'sub']
         0: Loop[type='None', field_space='None', it_space='None']
             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -134,12 +134,6 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             to None.
         :type options: dict of str:values or None
 
-        TODO #595 - transformation should return nothing.
-
-        :returns: 2-tuple containing the root node of the modified PSyIR tree \
-            and None.
-        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, NoneType)
-
         '''
         self.validate(routine, options=options)
 
@@ -151,8 +145,6 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         # tree that we've been passed.
         if routine.parent:
             routine.replace_with(new_node)
-
-        return (new_node.root, None)
 
 
 # For AutoAPI documentation generation
