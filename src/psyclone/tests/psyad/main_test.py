@@ -320,6 +320,7 @@ def test_main_not_implemented_error(tmpdir, capsys):
     output, error = capsys.readouterr()
     assert error == ""
     assert "'a' is of intrinsic type 'Intrinsic.REAL'" in output
+    assert "This is not currently supported" in output
 
 
 # writing to stdout

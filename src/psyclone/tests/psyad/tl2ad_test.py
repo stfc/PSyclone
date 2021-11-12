@@ -45,7 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
 from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product, _get_active_variable_datatype
+    _create_array_inner_product, _get_active_variables_datatype
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
@@ -173,10 +173,10 @@ def test_find_container():
             "not supported." in str(err.value))
 
 
-# 3: _get_active_variable_datatype function
+# 3: _get_active_variables_datatype function
 
-def test_get_active_variable_datatype_error(fortran_reader):
-    ''' Test that the _get_active_variable_datatype raises the expected
+def test_get_active_variables_datatype_error(fortran_reader):
+    ''' Test that the _get_active_variables_datatype raises the expected
     errors if no active variables are supplied or if they are of different
     type or precision. '''
     tl_fortran_str = (
@@ -190,26 +190,26 @@ def test_get_active_variable_datatype_error(fortran_reader):
     prog_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
     tl_psyir = prog_psyir.children[0]
     with pytest.raises(InternalError) as err:
-        _get_active_variable_datatype(tl_psyir, [])
+        _get_active_variables_datatype(tl_psyir, [])
     assert "No active variables have been supplied." in str(err.value)
 
     with pytest.raises(NotImplementedError) as err:
-        _get_active_variable_datatype(tl_psyir, ["a", "c"])
+        _get_active_variables_datatype(tl_psyir, ["a", "c"])
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
             "'c' is of intrinsic type 'Intrinsic.REAL' and precision 'wp: "
             in str(err.value))
 
     with pytest.raises(NotImplementedError) as err:
-        _get_active_variable_datatype(tl_psyir, ["a", "idx"])
+        _get_active_variables_datatype(tl_psyir, ["a", "idx"])
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
             "'idx' is of intrinsic type 'Intrinsic.INTEGER' and precision "
             "'Precision.UNDEFINED'" in str(err.value))
 
 
-def test_get_active_variable_datatype(fortran_reader):
-    ''' Test that _get_active_variable_datatype() works as expected. '''
+def test_get_active_variables_datatype(fortran_reader):
+    ''' Test that _get_active_variables_datatype() works as expected. '''
     tl_fortran_str = (
         "program test\n"
         "use kind_mod, only: wp, i_def\n"
@@ -223,17 +223,17 @@ def test_get_active_variable_datatype(fortran_reader):
     prog_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
     tl_psyir = prog_psyir.children[0]
     # Real, default precision
-    atype = _get_active_variable_datatype(tl_psyir, ["a", "b"])
+    atype = _get_active_variables_datatype(tl_psyir, ["a", "b"])
     assert isinstance(atype, ScalarType)
     assert atype.intrinsic == ScalarType.Intrinsic.REAL
     assert atype.precision == ScalarType.Precision.UNDEFINED
     # Real, specified KIND
-    atype = _get_active_variable_datatype(tl_psyir, ["d", "e"])
+    atype = _get_active_variables_datatype(tl_psyir, ["d", "e"])
     assert atype.intrinsic == ScalarType.Intrinsic.REAL
     assert isinstance(atype.precision, DataSymbol)
     assert atype.precision.name == "wp"
     # Integer, specified KIND
-    atype = _get_active_variable_datatype(tl_psyir, ["ii", "jj", "kk"])
+    atype = _get_active_variables_datatype(tl_psyir, ["ii", "jj", "kk"])
     assert atype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert isinstance(atype.precision, DataSymbol)
     assert atype.precision.name == "i_def"

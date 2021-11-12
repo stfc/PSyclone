@@ -153,7 +153,7 @@ def _find_container(psyir):
                               "Containers. This is not supported.")
 
 
-def _get_active_variable_datatype(kernel, active_variables):
+def _get_active_variables_datatype(kernel, active_variables):
     '''
     Returns a ScalarType describing the type of the active variables in
     the supplied kernel PSyIR.
@@ -186,7 +186,8 @@ def _get_active_variable_datatype(kernel, active_variables):
                 raise NotImplementedError(
                     "Found active variables of different datatype: '{0}' is "
                     "of intrinsic type '{1}' and precision '{2}' while '{3}' "
-                    "is of intrinsic type '{4}' and precision '{5}'.".format(
+                    "is of intrinsic type '{4}' and precision '{5}'. This is "
+                    "not currently supported.".format(
                         active_variables[0], intrinsic, precision, sym.name,
                         sym.datatype.intrinsic, sym.datatype.precision))
     return ScalarType(intrinsic, precision)
@@ -346,7 +347,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # Query the TL Kernel to find out the intrinsic type and precision of
     # the active variables. The test-harness code will use this when
     # computing inner products.
-    datatype = _get_active_variable_datatype(tl_kernel, active_variables)
+    datatype = _get_active_variables_datatype(tl_kernel, active_variables)
 
     # If the precision of the active variables is specified by another symbol
     # then we must ensure that it is declared in the harness too.
