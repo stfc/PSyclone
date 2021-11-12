@@ -337,13 +337,10 @@ def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="Needs evaluation of constant expressions")
 def test_fuse_correct_bounds(tmpdir, fortran_reader, fortran_writer):
     '''
     Test that loop boundaries must be identical.
     '''
-    # TODO: This test needs evaluation
-    # of constant expressions in PSyclone
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
