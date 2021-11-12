@@ -69,7 +69,7 @@ tutorial:
    ```python
    for child in sched.children:
        if isinstance(child, Loop) and child.loop_type == "levels":
-           sched, _ = OMP_TRANS.apply(child)
+           OMP_TRANS.apply(child)
    ```
 
 Hopefully that looks similar to what you may have ended up with at the
@@ -131,7 +131,7 @@ the number of MPI processes and resulting inter-process communication.)
 
    ```python
      try:
-         _ = OMP_TRANS.apply(child)
+         OMP_TRANS.apply(child)
      except TransformationError:
          pass
    ```

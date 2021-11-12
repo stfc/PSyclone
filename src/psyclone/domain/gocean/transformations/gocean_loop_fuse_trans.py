@@ -57,8 +57,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>>
     >>> from psyclone.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
-    >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
-    >>> new_schedule.view()
+    >>> ftrans.apply(schedule[0], schedule[1])
+    >>> schedule.view()
 
     '''
     def __str__(self):
@@ -117,23 +117,18 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         :raises TransformationError: if the supplied loops are over \
                                      different grid-point types.
         :raises TransformationError: if there is an unexpected exception.
-        '''
 
+        '''
         # Validate first
         self.validate(node1, node2, options=options)
 
         # Now check for GOcean-specific constraints before applying
         # the transformation
         try:
-            return LoopFuseTrans.apply(self, node1, node2, options)
+            LoopFuseTrans.apply(self, node1, node2, options)
         except Exception as err:
             raise TransformationError(
                 "Error in {0} transformation. Unexpected exception: {1}".

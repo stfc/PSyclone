@@ -70,7 +70,6 @@ from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
-from psyclone.undoredo import Memento
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -280,9 +279,6 @@ class ParallelLoopTrans(LoopTrans):
         :param int options["collapse"]: the number of loops to collapse into \
                 single iteration space or None.
 
-        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                   :py:class:`psyclone.undoredo.Memento`)
-
         '''
         if not options:
             options = {}
@@ -291,10 +287,6 @@ class ParallelLoopTrans(LoopTrans):
         schedule = node.root
 
         collapse = options.get("collapse", None)
-
-        # create a memento of the schedule and the proposed
-        # transformation
-        keep = Memento(schedule, self, [node, options])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -308,8 +300,6 @@ class ParallelLoopTrans(LoopTrans):
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
-
-        return schedule, keep
 
 
 class OMPTaskloopTrans(ParallelLoopTrans):
@@ -543,9 +533,6 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                 indicating whether a nogroup clause should be applied to
                 this taskloop.
 
-        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.undoredo.Memento`)
-
         '''
         if not options:
             options = {}
@@ -556,11 +543,10 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            rval = super(OMPTaskloopTrans, self).apply(node, options)
+            super(OMPTaskloopTrans, self).apply(node, options)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
-        return rval
 
 
 class OMPTargetTrans(RegionTrans):
@@ -853,9 +839,6 @@ class OMPLoopTrans(ParallelLoopTrans):
                 indicating whether reproducible reductions should be used. \
                 By default the value from the config file will be used.
 
-        :returns: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.undoredo.Memento`)
-
         '''
         if not options:
             options = {}
@@ -880,7 +863,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                 "nthreads", tag="omp_num_threads",
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        return super(OMPLoopTrans, self).apply(node, options)
+        super(OMPLoopTrans, self).apply(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
@@ -906,18 +889,17 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule = schedule
     >>>
     # Apply the OpenACC Loop transformation to *every* loop
     # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule, memento = ltrans.apply(child, reprod=True)
+    >>>     ltrans.apply(child, reprod=True)
     >>>     schedule = newschedule
     >>>
     # Enclose all of these loops within a single OpenACC
     # PARALLEL region
     >>> rtrans.omp_schedule("dynamic,1")
-    >>> newschedule, memento = rtrans.apply(schedule.children)
+    >>> rtrans.apply(schedule.children)
     >>>
 
     '''
@@ -978,10 +960,6 @@ class ACCLoopTrans(ParallelLoopTrans):
                 clause to the directive (not strictly necessary within \
                 PARALLEL regions).
 
-        :returns: 2-tuple of new schedule and memento of transform
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
@@ -991,7 +969,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         self._sequential = options.get("sequential", False)
 
         # Call the apply() method of the base class
-        return super(ACCLoopTrans, self).apply(node, options)
+        super(ACCLoopTrans, self).apply(node, options)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -1009,8 +987,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>>
         >>> from psyclone.transformations import OMPParallelLoopTrans
         >>> trans = OMPParallelLoopTrans()
-        >>> new_schedule, memento = trans.apply(schedule.children[0])
-        >>> new_schedule.view()
+        >>> trans.apply(schedule.children[0])
+        >>> schedule.view()
 
     '''
     def __str__(self):
@@ -1054,17 +1032,10 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         :param options: a dictionary with options for transformations\
                         and validation.
         :type options: dictionary of string:values or None
-
-        :returns: two-tuple of transformed schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
-                 :py:class:`psyclone.undoredo.Memento`)
         '''
         self.validate(node, options=options)
 
         schedule = node.root
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -1078,8 +1049,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
-
-        return schedule, keep
 
 
 class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -1106,10 +1075,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :raises TransformationError: if the associated loop requires \
                 colouring.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node, options=options)
 
@@ -1126,7 +1091,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                     "argument with INC access. Colouring is required.".
                     format(self.name))
 
-        return OMPParallelLoopTrans.apply(self, node)
+        OMPParallelLoopTrans.apply(self, node)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -1156,10 +1121,6 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         :raises TransformationError: if the supplied node is not an inner or\
             outer loop.
 
-        :returns: 2-tuple of new schedule and memento of transform
-        :rtype: (:py:class:`psyclone.dynamo0p3.GOInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node, options=options)
 
@@ -1169,7 +1130,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 "Error in "+self.name+" transformation.  The requested loop"
                 " is not of type inner or outer.")
 
-        return OMPParallelLoopTrans.apply(self, node)
+        OMPParallelLoopTrans.apply(self, node)
 
 
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
@@ -1218,7 +1179,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 " with INC access. Colouring is required.".
                 format(self.name))
 
-        return OMPLoopTrans.apply(self, node, options)
+        OMPLoopTrans.apply(self, node, options)
 
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
@@ -1289,16 +1250,10 @@ class ColourTrans(LoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: Tuple of modified schedule and record of transformation
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
-                 :py:class:`psyclone.undoredo.Memento`)
         '''
         self.validate(node, options=options)
 
         schedule = node.root
-
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node])
 
         node_parent = node.parent
         node_position = node.position
@@ -1337,8 +1292,6 @@ class ColourTrans(LoopTrans):
 
         # remove original loop
         node_parent.children.remove(node)
-
-        return schedule, keep
 
 
 class KernelModuleInlineTrans(KernelTrans):
@@ -1389,17 +1342,10 @@ class KernelModuleInlineTrans(KernelTrans):
         :param bool options["inline"]: whether the kernel should be module\
                 inlined or not.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node, options)
 
         schedule = node.root
-
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node])
 
         if not options:
             options = {}
@@ -1412,8 +1358,6 @@ class KernelModuleInlineTrans(KernelTrans):
             pass
         else:
             node.module_inline = inline
-
-        return schedule, keep
 
 
 class Dynamo0p3ColourTrans(ColourTrans):
@@ -1473,10 +1417,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
         :param options: a dictionary with options for transformations.\
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         # check node is a loop
         super(Dynamo0p3ColourTrans, self).validate(node, options=options)
@@ -1511,9 +1451,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-        schedule, keep = ColourTrans.apply(self, node)
-
-        return schedule, keep
+        ColourTrans.apply(self, node)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -1587,10 +1525,6 @@ class ParallelRegionTrans(RegionTrans):
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
 
         # Check whether we've been passed a list of nodes or just a
@@ -1605,12 +1539,7 @@ class ParallelRegionTrans(RegionTrans):
         # position of the new !$omp parallel directive.
         node_parent = node_list[0].parent
         node_position = node_list[0].position
-
-        # create a memento of the schedule and the proposed
-        # transformation
         schedule = node_list[0].root
-
-        keep = Memento(schedule, self)
 
         # Create the parallel directive as a child of the
         # parent of the nodes being enclosed and with those nodes
@@ -1622,8 +1551,6 @@ class ParallelRegionTrans(RegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-
-        return schedule, keep
 
 
 class OMPSingleTrans(ParallelRegionTrans):
@@ -1749,25 +1676,24 @@ class OMPSingleTrans(ParallelRegionTrans):
                 indicating whether or not to use a nowait clause on this \
                 single region.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`,
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         if not options:
             options = {}
         if options.get("nowait") is not None:
             self.omp_nowait = options.get("nowait")
 
-        return super(OMPSingleTrans, self).apply(node_list, options)
+        super(OMPSingleTrans, self).apply(node_list, options)
 
 
 class OMPMasterTrans(ParallelRegionTrans):
     '''
     Create an OpenMP MASTER region by inserting directives. The most
     likely use case for this transformation is to wrap around task-based
-    transformations. The parent region for this should usually also be
-    a OMPParallelTrans. For example:
+    transformations. Note that adding this directive requires a parent
+    OpenMP parallel region (which can be inserted by OMPParallelTrans),
+    otherwise it will produce an error in generation-time.
+
+    For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -1952,10 +1878,9 @@ class MoveTrans(Transformation):
     >>>
     >>> from psyclone.transformations import MoveTrans
     >>> trans=MoveTrans()
-    >>> new_schedule, memento = trans.apply(schedule.children[0],
-                                            schedule.children[2],
-                                            options = {"position":"after")
-    >>> new_schedule.view()
+    >>> trans.apply(schedule.children[0], schedule.children[2],
+    ...             options = {"position":"after")
+    >>> schedule.view()
 
     Nodes may only be moved to a new location with the same parent
     and must not break any dependencies otherwise an exception is
@@ -2022,10 +1947,6 @@ class MoveTrans(Transformation):
             of :py:class:`psyclone.psyir.nodes.Node`
         :raises TransformationError: if the location is not valid.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         # pylint:disable=arguments-differ
 
@@ -2034,9 +1955,6 @@ class MoveTrans(Transformation):
         if not options:
             options = {}
         position = options.get("position", "before")
-
-        # Create a memento of the schedule and the proposed transformation
-        keep = Memento(node.root, self, [node, location])
 
         parent = node.parent
 
@@ -2047,8 +1965,6 @@ class MoveTrans(Transformation):
             location.parent.children.insert(location_index, my_node)
         else:
             location.parent.children.insert(location_index+1, my_node)
-
-        return node.root, keep
 
 
 class Dynamo0p3RedundantComputationTrans(LoopTrans):
@@ -2254,10 +2170,6 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         :param int options["depth"]: the depth of the stencil. Defaults \
                 to None.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(loop, options=options)
         if not options:
@@ -2265,10 +2177,6 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         depth = options.get("depth")
 
         schedule = loop.root
-
-        # create a memento of the schedule and the proposed
-        # transformation
-        keep = Memento(schedule, self, [loop, depth])
 
         if loop.loop_type == "":
             # Loop is over cells
@@ -2285,8 +2193,6 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
-
-        return schedule, keep
 
 
 class GOLoopSwapTrans(LoopTrans):
@@ -2315,8 +2221,8 @@ class GOLoopSwapTrans(LoopTrans):
      >>>
      >>> from psyclone.transformations import GOLoopSwapTrans
      >>> swap = GOLoopSwapTrans()
-     >>> new_schedule, memento = swap.apply(schedule.children[0])
-     >>> new_schedule.view()
+     >>> swap.apply(schedule.children[0])
+     >>> schedule.view()
 
     '''
     def __str__(self):
@@ -2395,18 +2301,11 @@ class GOLoopSwapTrans(LoopTrans):
         :raises TransformationError: if the supplied node does not \
                                      allow a loop swap to be done.
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(outer, options=options)
 
         schedule = outer.root
         inner = outer.loop_body[0]
-
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [inner, outer])
 
         # Detach the inner code
         inner_loop_body = inner.loop_body.detach()
@@ -2418,8 +2317,6 @@ class GOLoopSwapTrans(LoopTrans):
 
         # Insert again the inner code in the new inner loop
         outer.loop_body.replace_with(inner_loop_body)
-
-        return schedule, keep
 
 
 class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
@@ -2436,8 +2333,8 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     >>>
     >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
     >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
-    >>> new_schedule, memento = trans.apply(schedule.children[0])
-    >>> new_schedule.view()
+    >>> trans.apply(schedule.children[0])
+    >>> schedule.view()
 
     '''
 
@@ -2462,18 +2359,10 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: tuple of the modified schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node, options)
 
         schedule = node.root
-
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node])
 
         from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
         # add asynchronous start and end halo exchanges and initialise
@@ -2492,8 +2381,6 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         # remove the existing synchronous halo exchange
         node.parent.children.remove(node)
-
-        return schedule, keep
 
     def validate(self, node, options):
         '''Internal method to check whether the node is valid for this
@@ -2616,11 +2503,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
             points values are set as constants in the kernel (True) or not \
             (False). The default is False.
 
-        :returns: tuple of the modified schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`)
-
         '''
         # --------------------------------------------------------------------
         def make_constant(symbol_table, arg_position, value,
@@ -2697,9 +2579,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
         schedule = node.root
         kernel = node
 
-        # create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [kernel])
-
         from psyclone.domain.lfric import KernCallArgList
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
@@ -2761,8 +2640,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         # Flag that the kernel has been modified
         kernel.modified = True
-
-        return schedule, keep
 
     def validate(self, node, options=None):
         '''This method checks whether the input arguments are valid for
@@ -2893,10 +2770,6 @@ class ACCEnterDataTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: tuple of the modified schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`)
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
 
@@ -2915,15 +2788,9 @@ class ACCEnterDataTrans(Transformation):
                 "ACCEnterDataTrans.validate() has not rejected an "
                 "(unsupported) schedule of type {0}".format(type(sched)))
 
-        # Create a memento of the schedule and the proposed
-        # transformation.
-        keep = Memento(sched, self, [sched])
-
         # Add the directive
         data_dir = AccEnterDataDir(parent=sched, children=[])
         sched.addchild(data_dir, index=0)
-
-        return sched, keep
 
     def validate(self, sched, options=None):
         # pylint: disable=arguments-differ
@@ -2983,7 +2850,7 @@ class ACCRoutineTrans(KernelTrans):
     >>> schedule.view()
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
-    >>> newkern, _ = rtrans.apply(kern)
+    >>> rtrans.apply(kern)
     '''
     @property
     def name(self):
@@ -3008,10 +2875,6 @@ class ACCRoutineTrans(KernelTrans):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
 
-        :returns: (transformed kernel, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
-                :py:class:`psyclone.undoredo.Memento`).
-
         '''
         # pylint: disable=too-many-locals
 
@@ -3020,8 +2883,6 @@ class ACCRoutineTrans(KernelTrans):
 
         # Get the fparser2 AST of the kernel
         ast = kern.ast
-        # Keep a record of this transformation
-        keep = Memento(kern, self)
         # Find the kernel subroutine in the fparser2 parse tree
         kern_sub = None
         subroutines = walk(ast.content, Subroutine_Subprogram)
@@ -3055,9 +2916,6 @@ class ACCRoutineTrans(KernelTrans):
         kernel_schedule = kern.get_kernel_schedule()
         kernel_schedule.addchild(
             CodeBlock([cmt], CodeBlock.Structure.STATEMENT), 0)
-
-        # Return the now modified kernel
-        return kern, keep
 
     def validate(self, kern, options=None):
         '''
@@ -3147,19 +3005,12 @@ class ACCKernelsTrans(RegionTrans):
             that data is already on the accelerator). When using managed \
             memory this option should be False.
 
-        :returns: (transformed schedule, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyir.nodes.Schedule`,
-                            :py:class:`psyclone.undoredo.Memento`).
-
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `node` argument.
         node_list = self.get_node_list(node)
 
         self.validate(node_list, options)
-
-        # Keep a record of this transformation
-        keep = Memento(node_list[:], self)
 
         parent = node_list[0].parent
         schedule = node_list[0].root
@@ -3175,9 +3026,6 @@ class ACCKernelsTrans(RegionTrans):
             default_present=default_present)
 
         parent.children.insert(start_index, directive)
-
-        # Return the now modified kernel
-        return schedule, keep
 
     def validate(self, nodes, options):
         '''
@@ -3265,19 +3113,12 @@ class ACCDataTrans(RegionTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: (transformed schedule, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`).
-
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `node` argument.
         node_list = self.get_node_list(node)
 
         self.validate(node_list, options)
-
-        # Keep a record of this transformation
-        keep = Memento(node_list[:], self)
 
         parent = node_list[0].parent
         schedule = node_list[0].root
@@ -3288,9 +3129,6 @@ class ACCDataTrans(RegionTrans):
             parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
-
-        # Return the now modified kernel
-        return schedule, keep
 
     def validate(self, nodes, options):
         '''
@@ -3399,10 +3237,6 @@ class KernelImportsToArguments(Transformation):
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
         the kernel call.
-
-        This apply() method does not return anything, as agreed in #595.
-        However, this change has yet to be applied to the other Transformation
-        classes.
 
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`

@@ -46,7 +46,6 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans, \
     GOceanExtractTrans
-from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import Loop, Routine
@@ -84,12 +83,11 @@ def test_loop_fuse_different_iterates_over():
     # Attempt to fuse two loops that are iterating over different
     # things
     with pytest.raises(TransformationError) as err:
-        _, _ = lftrans.apply(schedule.children[0],
-                             schedule.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
     assert "Loops do not have the same iteration space" in str(err.value)
 
 
-def test_loop_fuse_error(monkeypatch):
+def test_loop_fuse_error():
     ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
                            dist_mem=False)
@@ -101,28 +99,13 @@ def test_loop_fuse_error(monkeypatch):
 
     # Apply loop fuse, but the first node is not a loop:
     with pytest.raises(TransformationError) as err:
-        _, _ = lftrans.apply(schedule.children[0].children[0],
-                             schedule.children[1])
+        lftrans.apply(schedule.children[0].children[0], schedule.children[1])
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # Also check that we catch this for the second argument:
     with pytest.raises(TransformationError) as err:
-        _, _ = lftrans.apply(schedule.children[0],
-                             schedule.children[1].children[0])
+        lftrans.apply(schedule.children[0], schedule.children[1].children[0])
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
-
-    # Cause an unexpected error. This is not easy so we resort to
-    # monkeypatching the constructor of the Memento class.
-    def raise_error(_1, _2, _3):
-        raise NotImplementedError("Test exception")
-    monkeypatch.setattr(Memento, "__init__", raise_error)
-
-    # Attempt to fuse two loops that are iterating over different
-    # things
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = lftrans.apply(schedule.children[0],
-                             schedule.children[1])
-    assert 'Unexpected exception' in str(excinfo.value)
 
 
 def test_omp_parallel_loop(tmpdir, fortran_writer):
@@ -174,7 +157,7 @@ def test_omp_region_with_wrong_arg_type():
     ompr = OMPParallelTrans()
 
     with pytest.raises(TransformationError):
-        _, _ = ompr.apply(invoke)
+        ompr.apply(invoke)
 
 
 def test_omp_region_with_single_loop(tmpdir):
@@ -614,14 +597,13 @@ def test_omp_region_nodes_not_children_of_same_parent():
     ompr = OMPParallelTrans()
 
     # Put an OpenMP parallel do around the first loop in the schedule
-    _, _ = ompl.apply(schedule.children[0])
+    ompl.apply(schedule.children[0])
 
     # Attempt to put an OpenMP parallel region around that same loop
     # (which is now a child of an OpenMP loop directive) and the
     # second loop in the schedule
     with pytest.raises(TransformationError):
-        _, _ = ompr.apply([schedule.children[0].children[0],
-                           schedule.children[1]])
+        ompr.apply([schedule.children[0].children[0], schedule.children[1]])
 
 
 def test_omp_region_nodes_not_children_of_same_schedule():
@@ -639,8 +621,7 @@ def test_omp_region_nodes_not_children_of_same_schedule():
     # Attempt to put an OpenMP parallel region the loops from the
     # two different schedules
     with pytest.raises(TransformationError):
-        _, _ = ompr.apply([schedule1.children[0],
-                           schedule2.children[0]])
+        ompr.apply([schedule1.children[0], schedule2.children[0]])
 
 
 def test_omp_loop_outside_region():
@@ -731,7 +712,7 @@ def test_go_omp_loop_applied_to_wrong_loop_type():
     assert ("The requested loop is not of type inner or outer" in
             str(err.value))
     with pytest.raises(TransformationError) as err:
-        _, _ = ompl.apply(schedule.children[0])
+        ompl.apply(schedule.children[0])
     assert ("The requested loop is not of type inner or outer" in
             str(err.value))
 
@@ -772,7 +753,7 @@ def test_go_omp_parallel_loop_applied_to_wrong_loop_type():
     # Attempt to apply the transformation to the loop that has been
     # given an incorrect type
     with pytest.raises(TransformationError):
-        _, _ = ompl.apply(schedule.children[0])
+        ompl.apply(schedule.children[0])
 
 
 def test_omp_parallel_do_inside_parallel_region():
@@ -810,11 +791,11 @@ def test_omp_parallel_region_inside_parallel_do():
     ompr = OMPParallelTrans()
 
     # Put an OpenMP parallel do directive around one of the loops
-    _, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Now attempt to put a parallel region inside that parallel do
     with pytest.raises(TransformationError) as err:
-        _, _ = ompr.apply([schedule.children[1].children[0]])
+        ompr.apply([schedule.children[1].children[0]])
     assert ("cannot create an OpenMP PARALLEL region within another "
             "OpenMP region" in str(err.value))
 
@@ -1088,7 +1069,7 @@ def test_transformation_inline_error_if_not_kernel():
     kern_call = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError):
-        _, _ = inline_trans.apply(kern_call)
+        inline_trans.apply(kern_call)
 
 
 def test_module_inline_with_sub_use(tmpdir):
@@ -1119,7 +1100,7 @@ def test_module_inline_same_kernel(tmpdir):
     schedule = invoke.schedule
     kern_call = schedule.coded_kernels()[0]
     inline_trans = KernelModuleInlineTrans()
-    _, _ = inline_trans.apply(kern_call)
+    inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE compute_cu_code(' in gen
@@ -1144,7 +1125,7 @@ def test_module_inline_and_compile(tmpdir):
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
-    _, _ = inline_trans.apply(kern_call)
+    inline_trans.apply(kern_call)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1159,7 +1140,7 @@ def test_module_inline_warning_no_change():
     schedule = invoke.schedule
     kern_call = schedule.coded_kernels()[0]
     inline_trans = KernelModuleInlineTrans()
-    _, _ = inline_trans.apply(kern_call, {"inline": False})
+    inline_trans.apply(kern_call, {"inline": False})
 
 
 def test_loop_swap_correct(tmpdir):
@@ -1328,7 +1309,7 @@ def test_acc_parallel_not_a_loop():
     # Provide an invalid node type (just the integer 1) to the OpenACC
     # Parallel transformation
     with pytest.raises(TransformationError) as error:
-        _, _ = acct.apply(1)
+        acct.apply(1)
 
     assert "Argument must be a single Node in a Schedule, a Schedule or a " \
            "list of Nodes in a Schedule but have been passed an object " \
@@ -1388,13 +1369,12 @@ def test_acc_incorrect_parallel_trans():
     # Apply the OpenACC Parallel transformation
     # to the children in the wrong order
     with pytest.raises(TransformationError) as err:
-        _, _ = acct.apply([schedule.children[1], schedule.children[0]])
+        acct.apply([schedule.children[1], schedule.children[0]])
 
     assert "Children are not consecutive children" in str(err.value)
 
     with pytest.raises(TransformationError) as err:
-        _, _ = acct.apply([schedule.children[0].children[0],
-                           schedule.children[0]])
+        acct.apply([schedule.children[0].children[0], schedule.children[0]])
 
     assert ("supplied nodes are not children of the same parent"
             in str(err.value))
@@ -1411,7 +1391,7 @@ def test_acc_data_not_a_schedule():
     acct = ACCEnterDataTrans()
 
     with pytest.raises(TransformationError) as err:
-        _, _ = acct.apply(schedule.children[0])
+        acct.apply(schedule.children[0])
     assert ("Cannot apply an OpenACC enter-data directive to something that "
             "is not a Schedule" in str(err.value))
 
@@ -1431,7 +1411,7 @@ def test_acc_parallel_invalid_node():
 
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
-        _, _ = accpara.apply(schedule.children[0])
+        accpara.apply(schedule.children[0])
     assert ("'GOACCEnterDataDirective' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
 
@@ -1571,7 +1551,7 @@ def test_accloop(tmpdir, fortran_writer):
     schedule = invoke.schedule
 
     with pytest.raises(TransformationError) as err:
-        _ = acclpt.apply(schedule)
+        acclpt.apply(schedule)
     assert ("Target of ACCLoopTrans transformation must be a sub-class of "
             "Loop but got 'GOInvokeSchedule'" in str(err.value))
 
@@ -1776,19 +1756,19 @@ def test_acc_collapse(tmpdir):
 
     # Check that we reject non-integer collapse arguments
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, {"collapse": child})
+        acclpt.apply(child, {"collapse": child})
     assert ("The 'collapse' argument must be an integer but got an object "
             "of type" in str(err.value))
 
     # Check that we reject invalid depths
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, {"collapse": 1})
+        acclpt.apply(child, {"collapse": 1})
     assert ("It only makes sense to collapse 2 or more loops but got a "
             "value of 1" in str(err.value))
 
     # Check that we reject attempts to collapse more loops than we have
     with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(child, {"collapse": 3})
+        acclpt.apply(child, {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
             "only 2 loops" in str(err.value))
 
@@ -1858,7 +1838,7 @@ def test_acc_kernels_error():
     schedule = invoke.schedule
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:
-        _, _ = accktrans.apply(schedule.children)
+        accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
             " and dynamo0.3 front-ends" in str(err.value))
 
