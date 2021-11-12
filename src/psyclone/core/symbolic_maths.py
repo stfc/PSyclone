@@ -91,9 +91,15 @@ class SymbolicMaths:
         representation, which can be fed into sympy for evaluation.
 
         :param exp1: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Node`
+        :type exp1: py:class:`psyclone.psyir.nodes.Node` or None
+        :param exp2: the first expression to be compared.
+        :type exp2: py:class:`psyclone.psyir.nodes.Node` or None
 
         '''
+        # Some tests provide a None as parameters
+        if exp1 is None or exp2 is None:
+            return exp1 == exp2
+
         str_exp1 = self._parse_expr(self._writer(exp1))
         str_exp2 = self._parse_expr(self._writer(exp2))
         return self._simplify(str_exp1 == str_exp2)
