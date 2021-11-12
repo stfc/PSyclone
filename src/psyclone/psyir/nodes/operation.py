@@ -287,31 +287,9 @@ class BinaryOperation(Operation):
         :type other: py:class:`psyclone.psyir.nodes.Node`
         :returns: True if the self has the same results as other.
         :rtype: bool
+
         '''
-
-        # If available, use the symbolic maths package to evaluate
-        # the two expressions (which properly supports commutative
-        # law etc):
-        symbolic_maths = SymbolicMaths.get()
-        if symbolic_maths:
-            return symbolic_maths.equal(self, other)
-
-        if not super(BinaryOperation, self).math_equal(other):
-            # Support some commutative law, unfortunately we now need
-            # to repeat some tests already done in super(), since we
-            # don't know why the above test failed
-            # pylint: disable=unidiomatic-typecheck
-            if type(self) != type(other):
-                return False
-            if self.operator != other.operator:
-                return False
-            if self.operator not in [self.Operator.ADD, self.Operator.MUL,
-                                     self.Operator.AND, self.Operator.OR,
-                                     self.Operator.EQ]:
-                return False
-            return self._children[0].math_equal(other.children[1]) and \
-                self._children[1].math_equal(other.children[0])
-        return self.operator == other.operator
+        return SymbolicMaths.get().equal(self, other)
 
     @staticmethod
     def create(oper, lhs, rhs):
