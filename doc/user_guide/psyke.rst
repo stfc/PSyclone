@@ -200,7 +200,7 @@ would be written as:
   schedule = invoke.schedule
 
   # Apply extract transformation to the selected Node
-  schedule, _ = etrans.apply(schedule.children[2])
+  etrans.apply(schedule.children[2])
   schedule.view()
 
 and called as:
@@ -277,7 +277,7 @@ of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
 .. code-block:: python
 
   # Apply extract transformation to the selected Nodes
-  schedule, _ = etrans.apply(schedule.children[1:3])
+  etrans.apply(schedule.children[1:3])
 
 This modifies the above Schedule as:
 
@@ -316,10 +316,10 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
   schedule = invoke.schedule
 
   # Add OMP PARALLEL DO directives
-  schedule, _ = otrans.apply(schedule.children[1])
-  schedule, _ = otrans.apply(schedule.children[2])
+  otrans.apply(schedule.children[1])
+  otrans.apply(schedule.children[2])
   # Apply extract transformation to the selected Nodes
-  schedule, _ = etrans.apply(schedule.children[1:3])
+  etrans.apply(schedule.children[1:3])
   schedule.view()
 
 The generated code is now:

@@ -71,7 +71,7 @@ if __name__ == "__main__":
         # multiple kernels
         kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
-            SCHED, _ = OMP_TRANS.apply(loop)
+            OMP_TRANS.apply(loop)
 
     SCHED.view()
 

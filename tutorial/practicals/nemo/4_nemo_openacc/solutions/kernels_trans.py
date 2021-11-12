@@ -80,10 +80,10 @@ def trans(psy):
     for node in tloop.loop_body.children:
         # Enclose explicit loops over vertical levels
         if isinstance(node, Loop) and node.loop_type == "levels":
-            _ = ACC_KERNELS_TRANS.apply([node])
+            ACC_KERNELS_TRANS.apply([node])
         # Enclose array assignments (implicit loops)
         if isinstance(node, Assignment) and node.is_array_range:
-            _ = ACC_KERNELS_TRANS.apply([node])
+            ACC_KERNELS_TRANS.apply([node])
 
     # Finally, enclose the whole of the 'iteration' loop within
     # a data region

@@ -63,8 +63,8 @@ class CreateNemoPSyTrans(Transformation):
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
-    >>> sched, _ = trans.apply(psyir)
-    >>> sched.view()
+    >>> trans.apply(psyir)
+    >>> psyir.view()
     FileContainer[None]
         NemoInvokeSchedule[invoke='sub']
             0: Loop[type='lon', field_space='None', it_space='None']
@@ -136,13 +136,6 @@ class CreateNemoPSyTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        TODO #595. Decide what this transformation should return. Since it may
-        replace the root node of a given PSyIR tree, it seems that it has to
-        return that node?
-
-        :returns: 2-tuple containing root of the modified PSyIR tree and None.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Node`, NoneType)
-
         '''
         self.validate(psyir, options=options)
 
@@ -168,16 +161,13 @@ class CreateNemoPSyTrans(Transformation):
 
         # Second, transform generic Loops into NemoLoops
         for loop in loops:
-            _ = loop_trans.apply(loop)
+            loop_trans.apply(loop)
 
         # Third, transform any Routines into NemoInvokeSchedules. Have to
         # allow for the supplied top-level node being a Routine and therefore
         # being replaced.
-        new_root = psyir
         for routine in psyir.walk(Routine):
-            new_root, _ = invoke_trans.apply(routine)
-
-        return (new_root.root, None)
+            invoke_trans.apply(routine)
 
 
 # For AutoAPI documentation generation

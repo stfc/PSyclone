@@ -211,13 +211,14 @@ These objects can be used in two different ways:
          if some_variable is in const.VALID_INTRINSIC_TYPES:
              ...
 
-     This patterns is used in ``psyGen`` in some functions
-     that might be called with different APIs. The following
-     constants are used in ``psyGen`` this way:
+     This pattern is used in some functions
+     that can be called with different APIs. The following
+     constants are used this way:
 
      - ``VALID_ARG_TYPE_NAMES``
      - ``VALID_INTRINSIC_TYPES``
      - ``VALID_SCALAR_NAMES``
+     - ``VALID_LOOP_TYPES``
 
      These are the only variables that are defined across all
      constant objects.

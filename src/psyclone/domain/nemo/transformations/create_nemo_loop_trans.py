@@ -128,12 +128,6 @@ class CreateNemoLoopTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        TODO #595 decide what this method should return.
-
-        :returns: 2-tuple containing the root of the modified PSyIR tree \
-            and None.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Node`, None)
-
         '''
         self.validate(loop, options=options)
 
@@ -149,8 +143,6 @@ class CreateNemoLoopTrans(Transformation):
         new_loop.loop_body._symbol_table = table
         new_loop.loop_body._symbol_table._node = new_loop.loop_body
         loop.replace_with(new_loop)
-
-        return (new_loop.root, None)
 
 
 # For AutoAPI documentation generation
