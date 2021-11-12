@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     CodeBlock, FileContainer, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, REAL_TYPE
+    INTEGER_TYPE
 
 
 #: The tolerance applied to the comparison of the inner product values in

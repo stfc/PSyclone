@@ -117,6 +117,9 @@ def main(args):
     except KeyError as info:
         print(str(info))
         sys.exit(1)
+    except NotImplementedError as info:
+        print(str(info))
+        sys.exit(1)
 
     # Output the Fortran code for the adjoint kernel
     if args.oad:

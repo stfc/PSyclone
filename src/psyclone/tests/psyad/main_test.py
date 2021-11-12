@@ -251,7 +251,7 @@ def test_main_invalid_filename(capsys, caplog):
 
 
 # Exceptions in adjoint generation (TangentLinearError, TypeError,
-# KeyError)
+# KeyError, NotImplementedError)
 
 def test_main_tangentlinearerror(tmpdir, capsys):
     '''Test that a TangentLinearError exception is picked up when
@@ -297,6 +297,29 @@ def test_main_keyerror(tmpdir, capsys):
     output, error = capsys.readouterr()
     assert error == ""
     assert "Could not find 'doesnotexist' in the Symbol Table." in output
+
+
+def test_main_not_implemented_error(tmpdir, capsys):
+    ''' Test that a NotImplementedError is caught when generating an adjoint
+    test harness and that appropriate information is output to stdout. '''
+    test_prog = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "real :: a\n"
+        "integer :: b\n"
+        "a = b\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    filename = six.text_type(tmpdir.join("tl.f90"))
+    with open(filename, "w") as my_file:
+        my_file.write(test_prog)
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "a", "b", "-t", "--", filename])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert "'a' is of intrinsic type 'Intrinsic.REAL'" in output
 
 
 # writing to stdout
