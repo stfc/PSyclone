@@ -50,6 +50,13 @@ node in the PSyIR tree and transforms each node into its adjoint form. Once
 this is complete, the PSyIR representation is then written back out as
 code.
 
+If the supplied tangent-linear code takes the form of a subroutine
+with active and inactive variables passed as arguments then PSyAD must
+also update the ``intent`` of each argument. This is implemented as a
+final step in the visitor for a Schedule node: dependence analysis is
+used to identify the way in which each argument is being accessed in
+the adjoint code and the ``intent`` is updated appropriately.
+
 
 Active variables
 ++++++++++++++++
