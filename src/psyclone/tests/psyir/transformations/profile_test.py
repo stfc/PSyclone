@@ -292,7 +292,7 @@ def test_profile_named_gocean1p0():
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
-    _ = profile_trans.apply(schedule.children, options=options)
+    profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL profile_psy_data%PreStart("
             "\"psy_single_invoke_different_iterates_over\", "
@@ -431,7 +431,7 @@ def test_profile_named_dynamo0p3():
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
-    _, _ = profile_trans.apply(schedule.children, options=options)
+    profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL profile_psy_data%PreStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", 0, 0)") in result
@@ -494,10 +494,10 @@ def test_transform_errors(capsys):
     prt = ProfileTrans()
 
     # Just to be sure: also check that the right order does indeed work!
-    sched1, _ = prt.apply([schedule.children[0],
-                           schedule.children[1],
-                           schedule.children[2]])
-    sched1.view()
+    prt.apply([schedule.children[0],
+               schedule.children[1],
+               schedule.children[2]])
+    schedule.view()
     out, _ = capsys.readouterr()
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
@@ -586,9 +586,9 @@ def test_multi_prefix_profile(monkeypatch):
     monkeypatch.setattr(config, "_valid_psy_data_prefixes",
                         ["profile", "tool1"])
     # Use the 'tool1' prefix for the region around the halo exchanges.
-    _ = prt.apply(schedule[0:4], options={"prefix": "tool1"})
+    prt.apply(schedule[0:4], options={"prefix": "tool1"})
     # Use the default prefix for the two loops.
-    _ = prt.apply(schedule[1:3])
+    prt.apply(schedule[1:3])
     result = str(invoke.gen())
 
     assert ("      USE profile_psy_data_mod, ONLY: profile_PSyDataType\n" in

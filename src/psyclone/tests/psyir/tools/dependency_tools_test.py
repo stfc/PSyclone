@@ -40,12 +40,20 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+
+from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.tests.utilities import get_invoke
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_instance():
+    '''The tests in this file all assume that the Nemo API is used.'''
+    Config.get().api = "nemo"
 
 
 # -----------------------------------------------------------------------------
@@ -63,6 +71,28 @@ def test_messages():
 
     dep_tools._clear_messages()
     assert dep_tools.get_all_messages() == []
+
+
+# -----------------------------------------------------------------------------
+def test_dep_tool_constructor_errors():
+    '''Test that invalid loop types raise an error in the constructor.
+    '''
+    with pytest.raises(TypeError) as err:
+        _ = DependencyTools(loop_types_to_parallelise=["lon", "invalid"])
+    assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
+            "values for API 'nemo' are ['lat', 'levels', 'lon', 'tracers', "
+            "'unknown']." in str(err.value))
+
+    # Test that a a change to the API works as expected, i.e. does
+    # not raise an exception with a valid loop type, but still raises
+    # one with an invalid loop type
+    Config.get().api = "dynamo0.3"
+    _ = DependencyTools(loop_types_to_parallelise=["dof", "colours"])
+    with pytest.raises(TypeError) as err:
+        _ = DependencyTools(loop_types_to_parallelise=["invalid"])
+    assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
+            "values for API 'dynamo0.3' are ['dof', 'colours', 'colour', '', "
+            "'null']." in str(err.value))
 
 
 # -----------------------------------------------------------------------------
