@@ -130,3 +130,25 @@ To build Dawn with Python support:
    convention.
 3. The only unary operator currently supported is '-'.
 4. Loops must be triply nested.
+
+**********************
+
+Installing Dawn ...
+
+sudo apt install git cmake g++ libeckit-dev llvm clang \
+llvm-dev libclang-dev libclang-cpp10-dev \
+python3-dev libboost-dev
+# sudo apt install nvidia-cuda-toolkit
+
+git clone https://github.com/MeteoSwiss-APN/dawn.git
+cd dawn
+mkdir build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cd build
+make -j4
+sudo pip install dawn
+export PATH=/home/rupert/.local/bin:$PATH
+export PSYCLONE_CONFIG=/home/rupert/proj/PSyclone/config/psyclone.cfg
+cd ~/proj/PSyclone/examples/nemo/eg4
+psyclone -api nemo -s ./sir_trans_all.py tra_adv... -oalg /dev/null -opsy /dev/null > tra_adv.py
+python3 tra_adv.py > tra_adv.cu
