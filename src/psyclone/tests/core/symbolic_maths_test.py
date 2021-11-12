@@ -61,79 +61,8 @@ def test_sym_maths_get():
     sym_maths = SymbolicMaths.get()
     assert sym_maths is not None
 
-
-def test_math_equal(parser):
-    '''Tests the math_equal function of nodes in the PSyIR.'''
-
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    integer :: x(2,2), a(2,2), b, c, i, j, k
-                                    x = a                 !  0
-                                    x = a                 !  1
-                                    x = b                 !  2
-                                    x = a+12*b*sin(c)     !  3
-                                    x = 12*b*sin(c)+a     !  4
-                                    x = i+j               !  5
-                                    x = j+i               !  6
-                                    x = i-j               !  7
-                                    x = j-i               !  8
-                                    x = max(1, 2, 3, 4)   !  9
-                                    x = max(1, 2, 3)      ! 10
-                                    x = a(1,2)            ! 11
-                                    x = i+j+k             ! 12
-                                    x = j+i+k             ! 13
-                                    end program test_prog
-                                 ''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    # Compare a and a
-    exp0 = schedule[0].rhs
-    exp1 = schedule[1].rhs
-    assert exp0.math_equal(exp1)
-
-    # Different node types: assignment and expression
-    assert not schedule[0].math_equal(exp1)
-
-    # Compare a and b
-    assert not exp1.math_equal(schedule[2].rhs)
-
-    # Compare a+12*b... and 12*b...+a - both commutative and
-    # complex expression
-    assert schedule[3].rhs.math_equal(schedule[4].rhs)
-
-    # Compare i+j and j+i - we do support _simple_ commutative changes:
-    exp5 = schedule[5].rhs
-    exp6 = schedule[6].rhs
-    assert exp5.math_equal(exp6)
-
-    # Compare i-j and j-i
-    exp7 = schedule[7].rhs
-    assert not exp7.math_equal(schedule[8].rhs)
-
-    # Same node type, but different number of children
-    # max(1, 2, 3, 4) and max(1, 2, 3)
-    exp9 = schedule[9].rhs
-    assert not exp9.math_equal(schedule[10].rhs)
-
-    # Compare a and a(1,2), which triggers the recursion in Reference
-    # to be false.
-    assert not exp0.math_equal(schedule[11].rhs)
-
-    # Compare i+j and max(1,2,3,4) to trigger different types
-    # in the recursion in BinaryOperator
-    assert not exp5.math_equal(exp9)
-
-    # Different operator: j+i vs i-j. Do not compare
-    # i+j with i-j, since this will not trigger the
-    # additional tests in commutative law handling
-    assert not exp6.math_equal(exp7)
-
-    # i+j+k and j+i+k are the same:
-    exp12 = schedule[12].rhs
-    assert exp12.math_equal(schedule[13].rhs)
+    assert not sym_maths.equal(None, 1)
+    assert not sym_maths.equal(2, None)
 
 
 @pytest.mark.parametrize("expressions", [("i", "i"),
@@ -178,6 +107,8 @@ def test_math_equal_sympy(parser, expressions):
                                          ("i", "j"),
                                          ("2", "1+1-1"),
                                          ("i+j", "j+i+1"),
+                                         ("i-j", "j-i"),
+                                         ("max(1, 2)", "max(1, 2, 3)"),
                                          ("a%b", "a%c"),
                                          ("a%b(i)", "a%b(i+1)"),
                                          ("a%b(i)%c(k)", "a%b(i+1)%c(k)"),
