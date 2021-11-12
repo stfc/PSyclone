@@ -367,8 +367,8 @@ Performing the comparison of the two inner products while allowing for
 machine precision is implemented as follows:
 
 1) Find the smallest possible difference that can be represented by
-   calling the Fortran `spacing` intrinsic on the largest of the two
-   inner-product values;
+   calling the Fortran `spacing` intrinsic on the largest absolute value of
+   of the two inner products;
 
 2) Compute the *relative* difference between the two values by dividing
    their absolute difference by this spacing;
@@ -376,6 +376,17 @@ machine precision is implemented as follows:
 3) If this relative difference is less than the overall test tolerance
    then the test has passed.
 
-By default, the overall test tolerance is set to `1500.0`. This is currently
-set as a constant in the `psyclone.psyad.tl2ad` module but will eventually
-be exposed as a configuration option (this is the subject of issue #1346).
+By using the largest of the two inner product results in step 1), the
+resulting spacing value is guaranteed to be appropriate in the case where
+there is an error and one of the inner products is zero or less than
+`tiny(1.0)`.
+
+By default, the overall test tolerance is set to `1500.0`. This is
+currently set as a constant in the `psyclone.psyad.tl2ad` module but
+will eventually be exposed as a configuration option (this is the
+subject of issue #1346).  This value is the one arrived at over time
+by the Met Office in the current adjoint-testing code. In that code,
+the vector of variables can be of order 200M in length (since it
+involves values at all points of the 3D mesh) and therefore there is
+plenty of scope for numerical errors to accumulate. Whether this value
+is appropriate for LFRic kernels is yet to be determined.
