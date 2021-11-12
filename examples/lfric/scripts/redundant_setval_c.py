@@ -74,7 +74,7 @@ def trans(psy):
                         break
                 if setcalls:
                     transformed += 1
-                    schedule, _ = rc_trans.apply(loop, {"depth": DEPTH})
+                    rc_trans.apply(loop, {"depth": DEPTH})
 
     print("Transformed {0} loops".format(transformed))
     return psy

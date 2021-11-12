@@ -53,7 +53,7 @@ def trans(psy):
 
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
-        _, _ = kernels_trans.apply(schedule)
+        kernels_trans.apply(schedule)
         schedule.view()
 
     return psy

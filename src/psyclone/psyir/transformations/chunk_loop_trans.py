@@ -198,8 +198,6 @@ class ChunkLoopTrans(LoopTrans):
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
-        :returns: Tuple of None and None
-        :rtype: (None, None)
         '''
 
         self.validate(node, options)
@@ -269,5 +267,3 @@ class ChunkLoopTrans(LoopTrans):
         node.replace_with(outerloop)
         # Add the loop to the innerloop's schedule
         outerloop.children[3].addchild(node)
-
-        return None, None

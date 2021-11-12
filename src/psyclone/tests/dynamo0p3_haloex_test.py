@@ -449,7 +449,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
-    _, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
     # There should now be a halo exchange for f1 before the first
     # (builtin) kernel call
     assert isinstance(first_invoke.schedule[0], DynHaloExchange)

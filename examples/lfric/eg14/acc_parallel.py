@@ -59,8 +59,8 @@ def trans(psy):
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
         for loop in schedule.loops():
-            _, _ = loop_trans.apply(loop)
-        _, _ = parallel_trans.apply(schedule.children)
-        _, _ = enter_data_trans.apply(schedule)
+            loop_trans.apply(loop)
+        parallel_trans.apply(schedule.children)
+        enter_data_trans.apply(schedule)
 
     return psy
