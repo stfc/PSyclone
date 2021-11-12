@@ -2640,8 +2640,8 @@ class ACCEnterDataTrans(Transformation):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # schedule.view()
     >>>
-    >>> # Add an enter-data directive  # TODO 595 to remove assignment to _
-    >>> _ = dtrans.apply(schedule)
+    >>> # Add an enter-data directive
+    >>> dtrans.apply(schedule)
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # schedule.view()
 

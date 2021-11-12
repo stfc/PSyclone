@@ -68,14 +68,12 @@ class PSyDataTrans(RegionTrans):
     >>> # schedule.view()
     >>>
     >>> # Enclose all children within a single PSyData region
-    >>> # TODO 595 to remove assignment to _
-    >>> _ = data_trans.apply(schedule.children)
+    >>> data_trans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # schedule.view()
     >>> # Or to use custom region name:
-    >>> # TODO 595 to remove assignment to _
-    >>> _ = data_trans.apply(schedule.children,
-    ...                      {"region_name": ("module","region")})
+    >>> data_trans.apply(schedule.children,
+    ...                  {"region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).
