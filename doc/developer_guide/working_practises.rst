@@ -340,7 +340,7 @@ file ``transformation.py`` uses::
         >>> api = "gocean1.0"
         >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
         ...
-        >>> _ = dtrans.apply(schedule)
+        >>> dtrans.apply(schedule)
 
 
 And the variable SOURCE_FILE is defined in the ``testsetup`` section
@@ -356,14 +356,6 @@ of ``transformations.rst``::
 
     .. autoclass:: psyclone.transformations.ACCEnterDataTrans
        :noindex:
-
-.. note::
-
-  The result of applying the transformation is assigned to ``_``,
-  otherwise the result will be printed on stdout, which would result
-  in a test failure (since no output is expected). TODO #595 intends
-  to remove the output value of applying a transformation, after which
-  the assignments to ``_`` can be removed.
 
 
 .. _compilation_testing:
