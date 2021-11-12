@@ -7,6 +7,8 @@
 
 	3) PR #1473 for #1423. Adds the ChunkLoopTrans PSyIR transformation.
 
+	4) PR #1475 for #595. Remove memento and transformation return values.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
