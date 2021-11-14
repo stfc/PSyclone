@@ -44,7 +44,8 @@ import pytest
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import FileContainer, Schedule, Assignment
+from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop, \
+    Node
 from psyclone.psyir.symbols import Symbol
 from psyclone.tests.utilities import Compile
 
@@ -60,6 +61,18 @@ EXPECTED_ADJ_CODE = (
     "  c = c + a\n"
     "  a = 0.0\n\n"
     "end program test\n"
+)
+TL_LOOP_CODE = (
+    "subroutine test(lo, hi, step)\n"
+    "  integer, intent(in) :: lo, hi, step\n"
+    "  real :: a(10), b(10), c(10)\n"
+    "  real :: d, e\n"
+    "  integer :: i\n"
+    "  do i=lo,hi,step\n"
+    "    a(i) = b(i) + c(i)\n"
+    "  end do\n"
+    "  d = d - e\n"
+    "end subroutine test\n"
 )
 
 
@@ -411,6 +424,144 @@ def test_assignment_node(fortran_reader, fortran_writer):
     assert fortran_writer(adj_assignment_psyir_nodes[0]) == "b = b + a\n"
     assert fortran_writer(adj_assignment_psyir_nodes[1]) == "c = c + a\n"
     assert fortran_writer(adj_assignment_psyir_nodes[2]) == "a = 0.0\n"
+
+
+# AdjointVisitor.loop_node()
+
+def test_loop_node_active_error(fortran_reader):
+    '''Test that the loop_node method raises the expected exception
+    if no active variables are found.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    loop = tl_psyir.walk(Loop)[0]
+    assert isinstance(loop, Loop)
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.loop_node(loop)
+    assert ("A loop node should not be visited before a schedule, as "
+            "the latter sets up the active variables." in str(info.value))
+
+
+def test_loop_node_bounds_error(fortran_reader):
+    '''Test that the loop_node method raises the expected exception if an
+    active variable is found in a loop bound (lower, upper or step) or
+    the iterator is an active variable.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    # lower bound
+    adj_visitor = AdjointVisitor(["a", "b", "c", "lo"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The lower bound of a loop should not contain active variables, "
+            "but found 'lo'" in str(info.value))
+    # upper bound
+    adj_visitor = AdjointVisitor(["a", "b", "c", "hi"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The upper bound of a loop should not contain active variables, "
+            "but found 'hi'" in str(info.value))
+    # step
+    adj_visitor = AdjointVisitor(["a", "b", "c", "step"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The step of a loop should not contain active variables, "
+            "but found 'step'" in str(info.value))
+    # loop variable
+    adj_visitor = AdjointVisitor(["a", "b", "c", "i"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The loop iterator 'i' should not be an active variable."
+            in str(info.value))
+
+
+def test_loop_node_inactive(fortran_reader, fortran_writer):
+    '''Test that the loop_node method returns an unchanged copy of the
+    loop and the loop body when there are no active variables within
+    the loop.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    tl_loop = tl_psyir.walk(Loop)[0]
+    assert isinstance(tl_loop, Loop)
+    adj_visitor = AdjointVisitor(["d", "e"])
+    ad_psyir = adj_visitor(tl_psyir)
+    ad_loop = ad_psyir.walk(Loop)[0]
+    assert isinstance(ad_loop, Loop)
+    # Check that tl_loop and ad_loop are equal but not identical
+    assert fortran_writer(ad_loop) == fortran_writer(tl_loop)
+    tl_nodes = tl_loop.walk(Node)
+    ad_nodes = ad_loop.walk(Node)
+    assert len(tl_nodes) == len(ad_nodes)
+    for idx in range(len(tl_nodes)):
+        assert tl_nodes[idx] is not ad_nodes[idx]
+
+
+def test_loop_node_active(fortran_reader, fortran_writer):
+    '''Test that a loop_node containing active variables returns with its
+    loop order reversed and its loop body processed by the adjoint
+    visitor.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    tl_loop = tl_psyir.walk(Loop)[0]
+    assert isinstance(tl_loop, Loop)
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    ad_psyir = adj_visitor(tl_psyir)
+    ad_loop = ad_psyir.walk(Loop)[0]
+    assert isinstance(ad_loop, Loop)
+    result = fortran_writer(ad_loop)
+    expected_result = (
+        "do i = hi, lo, -1 * step\n"
+        "  b(i) = b(i) + a(i)\n"
+        "  c(i) = c(i) + a(i)\n"
+        "  a(i) = 0.0\n"
+        "enddo\n")
+    assert result == expected_result
+
+
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_loop_logger(fortran_reader, caplog, fortran_writer):
+    '''Test that the logger writes the expected output if the loop_node
+    method is called with an inactive node and an active node.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    tl_loop = tl_psyir.walk(Loop)[0]
+    assert isinstance(tl_loop, Loop)
+
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    # Need to use _visit() here rather than adj_visitor(tl_psyir) as
+    # the latter takes a copy of the tree in case any lowering needs
+    # to be done and that causes the stored symbols for active
+    # variables to be different which means they do not match in
+    # subsequent calls. This only a problem for tests as we don't
+    # normally call loop_node() or similar, directly.
+    result = adj_visitor._visit(tl_psyir)
+
+    # active loop
+    with caplog.at_level(logging.INFO):
+        result = adj_visitor.loop_node(tl_loop)
+    assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG):
+        result = adj_visitor.loop_node(tl_loop)
+    assert "Transforming active loop" in caplog.text
+
+    # Remove content for subsequent inactive loop code
+    caplog.clear()
+
+    # inactive loop
+    adj_visitor = AdjointVisitor(["d", "e"])
+    _ = adj_visitor(tl_psyir)
+    with caplog.at_level(logging.INFO):
+        _ = adj_visitor.loop_node(tl_loop)
+    assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG):
+        _ = adj_visitor.loop_node(tl_loop)
+    assert ("Returning a copy of the original loop and its descendants as it "
+            "contains no active variables" in caplog.text)
 
 
 # AdjointVisitor._copy_and_process()

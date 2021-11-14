@@ -36,8 +36,9 @@
 '''Utilities for the PSyclone Adjoint (PSyAD) functionality.
 
 '''
-
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
+    BinaryOperation
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 def node_is_active(node, active_variables):
@@ -76,10 +77,17 @@ def node_is_passive(node, active_variables):
     return not node_is_active(node, active_variables)
 
 def negate_expr(expr):
-    ''' xxx TODO Use sympy or similar'''
-    # TODO Check it is an expr with expected properties
-    from psyclone.psyir.nodes import Literal, UnaryOperation, BinaryOperation
-    from psyclone.psyir.symbols import INTEGER_TYPE
+    '''Takes a PSyIR expression and negates it by multiplying it by minus
+    one. it is assumed that the expression returns an integer.
+
+    :param node: the PSyIR expression to negate.
+    :type node: :py:class:`psyclone.psyir.nodes.DataNode`
+
+    :returns: the expression multiplied by minus one.
+    :rytpe: :py:class:`psyclone.psyir.nodes.DataNode`
+
+    '''
+    # TODO, this would be better using sympy see #1497
     if isinstance(expr, Literal):
         return UnaryOperation.create(UnaryOperation.Operator.MINUS, expr)
     elif (isinstance(expr, UnaryOperation) and

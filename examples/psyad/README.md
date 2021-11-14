@@ -47,6 +47,8 @@ adjoint form and tested with the harness generation.
 
 ## Example 2
 
-LFRic kernel examples showing how much of a real kernel code can
-currently be transformed. Unsupported code commented out. Harness not
-currently supported.
+An LFRic tangent-linear kernel example which shows how much of this
+code PSyAD can currently translate. The kernel computes the
+tangent-linear for hydrostatic balance. It was taken from the LFRic
+repository and has any unsupported code commented out. The harness
+generation does not currently support this example.

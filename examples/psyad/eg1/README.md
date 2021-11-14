@@ -1,4 +1,4 @@
-# PSyclone PSyAD Example: creating an adjoint kernel and test harness.
+# PSyclone PSyAD Example1: creating an adjoint kernel and test harness.
 
 **Author:** A. R. Porter, STFC Daresbury Lab
 **Modified by:** R. W. Ford, STFC Daresbury Lab

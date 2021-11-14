@@ -41,9 +41,10 @@ from __future__ import print_function
 import logging
 
 from psyclone.psyad.transformations import AssignmentTrans
-from psyclone.psyad.utils import node_is_passive, negate_expr
+from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Schedule, Node
+from psyclone.psyir.nodes import Schedule, Reference
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -52,11 +53,15 @@ class AdjointVisitor(PSyIRVisitor):
 
     :param active_variable_names: a list of the active variables.
     :type active_variable_names: list of str
+    :param writer: the writer to use when outputting PSyIR in error or \
+        logging messages. Defaults to FortranWriter.
+    :type writer: \
+        :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
     :raises ValueError: if no active variables are supplied.
 
     '''
-    def __init__(self, active_variable_names):
+    def __init__(self, active_variable_names, writer=FortranWriter()):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
             raise ValueError(
@@ -65,6 +70,7 @@ class AdjointVisitor(PSyIRVisitor):
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
+        self._writer = writer
 
     def container_node(self, node):
         '''This method is called if the visitor finds a Container node. A copy
@@ -178,31 +184,44 @@ class AdjointVisitor(PSyIRVisitor):
 
     def loop_node(self, node):
         '''This method is called if the visitor finds a Loop node. If the loop
-        contains active variables then a new loop is returned which
-        iterates in the reverse order to the original loop and the
-        body of the new loop is the result of processing the body of
-        the original loop. If the loop does not contain any active
-        variables then an unmodified copy of the loop as its
-        descendents is returned.
+        (including any descendants) contains active variables then a
+        new loop is returned which iterates in the reverse order of
+        the original loop and the body of the new loop is the result
+        of processing the body of the original loop. If the loop does
+        not contain any active variables then an unmodified copy of
+        the loop and its descendants is returned.
 
         :param node: a Loop PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: a new PSyIR tree containing the adjoint equivalent \
-            of this node and its descendents.
+            of this node and its descendants.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        # TODO Check that variables in loop bounds and the iterator are passive.
-
         if self._active_variables is None:
             raise VisitorError(
                 "A loop node should not be visited before a schedule, "
                 "as the latter sets up the active variables.")
 
+        # Check that variables in loop bounds and the iterator are passive.
+        for expr, description in [(node.start_expr, "lower bound"),
+                                  (node.stop_expr, "upper bound"),
+                                  (node.step_expr, "step")]:
+            if node_is_active(expr, self._active_variables):
+                raise VisitorError(
+                    "The {0} of a loop should not contain active "
+                    "variables, but found '{1}'".format(
+                        description, self._writer(expr)))
+
+        if node_is_active(Reference(node.variable), self._active_variables):
+            raise VisitorError(
+                "The loop iterator '{0}' should not be an active "
+                "variable.".format(node.variable.name))
+
         if node_is_passive(node, self._active_variables):
             self._logger.debug(
-                "Returning a copy of the original loop and its descendents "
+                "Returning a copy of the original loop and its descendants "
                 "as it contains no active variables")
             return node.copy()
 
@@ -217,7 +236,6 @@ class AdjointVisitor(PSyIRVisitor):
         new_node.step_expr = negate_expr(new_node.step_expr.copy())
         # Determine the adjoint of the loop body
         new_node.children[3] = self._visit(node.children[3])
-        # new_node.loop_body = self._visit(node.loop_body)
         return new_node
 
     def _copy_and_process(self, node):
