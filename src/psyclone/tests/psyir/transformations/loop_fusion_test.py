@@ -141,9 +141,9 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     psy_trans = CreateNemoPSyTrans()
     fuse = NemoLoopFuseTrans()
     # Raise the language-level PSyIR to NEMO PSyIR
-    nemo_psy, _ = psy_trans.apply(psyir)
-    loop1 = nemo_psy.children[0].children[0]
-    loop2 = nemo_psy.children[0].children[1]
+    psy_trans.apply(psyir)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
 
     return fortran_writer(psyir), psyir

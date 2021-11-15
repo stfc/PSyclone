@@ -40,6 +40,8 @@ This module provides a class with all GOcean related constants.
 # Imports
 from __future__ import print_function, absolute_import
 
+from psyclone.configuration import Config
+
 
 # pylint: disable=too-few-public-methods
 class NemoConstants(object):
@@ -66,6 +68,9 @@ class NemoConstants(object):
 
         # psyGen names of internal scalar argument types.
         NemoConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
+
+        config = Config.get().api_conf("nemo")
+        NemoConstants.VALID_LOOP_TYPES = config.get_valid_loop_types()
 
 
 # =============================================================================

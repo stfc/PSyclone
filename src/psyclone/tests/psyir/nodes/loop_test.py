@@ -86,7 +86,7 @@ def test_loop_init():
     # valid_loop_types. Note, there is no error checking for this
     # variable in the Loop class.
     loop = Loop(valid_loop_types=["a"])
-    assert loop._valid_loop_types == ["a"]
+    assert loop.valid_loop_types == ["a"]
 
     parent = Schedule()
     loop = Loop(parent=parent)

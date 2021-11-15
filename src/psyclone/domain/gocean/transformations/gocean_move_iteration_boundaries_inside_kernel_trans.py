@@ -117,10 +117,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node, options)
 
@@ -240,8 +236,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         # Insert the conditional mask as the first statement of the kernel
         if_statement = IfBlock.create(condition, [Return()])
         kschedule.children.insert(0, if_statement)
-
-        return node.root, None
 
 
 # For Sphinx AutoAPI documentation generation

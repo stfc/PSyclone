@@ -156,7 +156,7 @@ def test_seq_loop(parser):
     kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
-    _ = acc_trans.apply(loops[0], {"sequential": True})
+    acc_trans.apply(loops[0], {"sequential": True})
     code = str(psy.gen).lower()
     assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
             "\n"
@@ -197,6 +197,6 @@ def test_collapse_err(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0], {"collapse": 3})
+        acc_trans.apply(schedule.children[0], {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
             "only 2 loops" in str(err.value))

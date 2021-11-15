@@ -105,8 +105,8 @@ def test_read_only_options():
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
-    _, _ = read_only.apply(invoke.schedule[0].loop_body[0],
-                           options={"region_name": ("a", "b")})
+    read_only.apply(invoke.schedule[0].loop_body[0],
+                    options={"region_name": ("a", "b")})
     code = str(invoke.gen())
 
     assert 'CALL read_only_verify_psy_data%PreStart("a", "b", 4, 4)' in code
@@ -121,15 +121,15 @@ def test_invalid_apply():
                            "gocean1.0", idx=0)
     read_only = ReadOnlyVerifyTrans()
     omp = OMPParallelLoopTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
-        _, _ = read_only.apply(invoke.schedule[0].dir_body[0],
-                               options={"region_name": ("a", "b")})
+        read_only.apply(invoke.schedule[0].dir_body[0],
+                        options={"region_name": ("a", "b")})
     assert "Error in ReadOnlyVerifyTrans: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
-        _, _ = read_only.apply(invoke.schedule[0].dir_body[0].loop_body[0],
-                               options={"region_name": ("a", "b")})
+        read_only.apply(invoke.schedule[0].dir_body[0].loop_body[0],
+                        options={"region_name": ("a", "b")})
     assert "Error in ReadOnlyVerifyTrans: Application to Nodes enclosed " \
            "within a thread-parallel region is not allowed." in str(err.value)
