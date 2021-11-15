@@ -216,8 +216,9 @@ PSyclone is written in Python so needs Python to be installed on the
 target machine. PSyclone has been tested under Python 2.7, 3.5, 3.6
 and 3.8.
 
-PSyclone immediately relies on four external Python packages; ``six``,
-``configparser``, ``fparser`` and ``pyparsing``. There is also dependency
+PSyclone immediately relies on five external Python packages; ``six``,
+``configparser``, ``fparser``, ``sympy`` and ``pyparsing``. There is
+also dependency
 on ``enum34`` for Python 2 support, however support for Python 2 will be
 dropped in future. The easiest way to satisfy the Python dependencies is
 to use the `PyPI installation
@@ -327,7 +328,41 @@ you can instruct ``pip`` to do a user-local install:
 Alternatively, you could follow `these instructions
 <https://github.com/pyparsing/pyparsing>`_.
 
-graphviz
+
+SymPy
+^^^^^
+
+PSyclone requires ``sympy``, a library for symbolic mathematics. PSyclone
+uses ``sympy`` to reason about expression being equal or not, e.g. ``i+j``
+and ``j+i``. PSyclone has been tested with ``sympy`` versions 1.7.1.
+
+You can test whether ``sympy`` is already installed on your machine by
+typing ``import sympy`` from the Python command line. If ``sympy``
+is installed, this command will complete successfully. If ``sympy`` is
+installed you can check its version by typing
+``sympy.__version__`` after successfully importing it.
+
+If ``sympy`` is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+
+   > pip install sympy
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+
+   > pip uninstall sympy
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user sympy
+
+Alternatively, you could follow on the `SymPy web page
+<https://docs.sympy.org/latest/install.html>`_.
+
+Graphviz
 ^^^^^^^^
 
 The data dependencies of a PSyIR schedule determine the validity of
