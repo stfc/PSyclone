@@ -362,8 +362,8 @@ As an example::
     schedule.view()
     
     # Enclose some children within a single profile region
-    newschedule, _ = p_trans.apply(schedule.children[1:3])
-    newschedule.view()
+    p_trans.apply(schedule.children[1:3])
+    schedule.view()
 
 The profiler transformation also allows the profile name to be set
 explicitly, rather than being automatically created (see

@@ -62,8 +62,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
     >>> from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
     >>> ftrans =  LFRicLoopFuseTrans()
     >>>
-    >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
-    >>> new_schedule.view()
+    >>> ftrans.apply(schedule[0], schedule[1])
+    >>> schedule.view()
 
     The optional argument `same_space` can be set as
 
@@ -232,30 +232,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                             "loops as the first loop has a reduction "
                             "and the second loop reads the result of "
                             "the reduction.".format(self.name))
-
-    def apply(self, node1, node2, options=None):
-        ''' Fuses two `psyclone.dynamo0p3.DynLoop` loops after performing
-        validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class.
-
-        :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-        '''
-
-        # Validity checks for the supplied nodes
-        self.validate(node1, node2, options=options)
-
-        # Apply fuse method from the parent class
-        return super(LFRicLoopFuseTrans, self).apply(node1, node2, options)
 
 
 # For automatic documentation generation
