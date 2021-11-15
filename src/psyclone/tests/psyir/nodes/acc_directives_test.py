@@ -67,18 +67,6 @@ def setup():
 # Class ACCEnterDataDirective start
 
 
-# (1/1) Method __init__
-def test_acc_datadevice_virtual():
-    ''' Check that we can't instantiate an instance of
-    ACCEnterDataDirective. '''
-    # pylint:disable=abstract-class-instantiated
-    with pytest.raises(TypeError) as err:
-        ACCEnterDataDirective()
-    # pylint:enable=abstract-class-instantiated
-    assert ("instantiate abstract class ACCEnterDataDirective with abstract "
-            "methods data_on_device" in str(err.value))
-
-
 # (1/4) Method gen_code
 def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
@@ -142,8 +130,8 @@ def test_accenterdatadirective_gencode_3(trans):
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
@@ -172,9 +160,9 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_trans1.apply([sched.children[1]])
-    _ = acc_trans2.apply([sched.children[0]])
-    _ = acc_enter_trans.apply(sched)
+    acc_trans1.apply([sched.children[1]])
+    acc_trans2.apply([sched.children[0]])
+    acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
@@ -241,7 +229,7 @@ def test_acckernelsdirective_gencode(default_present):
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched, {"default_present": default_present})
+    trans.apply(sched, {"default_present": default_present})
 
     code = str(psy.gen)
     string = ""

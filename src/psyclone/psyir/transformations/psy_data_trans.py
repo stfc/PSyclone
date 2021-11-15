@@ -43,11 +43,10 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
-    OMPDoDirective, ACCDirective, ACCLoopDirective, FileContainer
+    OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.undoredo import Memento
 
 
 class PSyDataTrans(RegionTrans):
@@ -291,11 +290,6 @@ class PSyDataTrans(RegionTrans):
             should uniquely identify a region unless aggregate information \
             is required (and is supported by the runtime library).
 
-        :returns: Tuple of the modified schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`)
-
         '''
         node_list = self.get_node_list(nodes)
 
@@ -305,17 +299,10 @@ class PSyDataTrans(RegionTrans):
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-
-        # We always use the outermost symbol table (that is not associated with
-        # a FileContainer) so that any name clashes due to multiple
-        # applications of this transformation are handled automatically.
         root = node_list[0].root
-        if isinstance(root, FileContainer):
-            root = root.children[0]
-        table = root.symbol_table
 
-        # Create a memento of the tree root and the proposed transformation
-        keep = Memento(root, self)
+        # We always use the Routine symbol table
+        table = node_list[0].ancestor(Routine).symbol_table
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
@@ -329,8 +316,6 @@ class PSyDataTrans(RegionTrans):
         psy_data_node = self._node_class.create(
             node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
-
-        return root, keep
 
 
 # =============================================================================

@@ -101,10 +101,9 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
     ''' Base class for all standalone OpenACC directive statements. '''
 
 
-@six.add_metaclass(abc.ABCMeta)
 class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
-    Abstract class representing a "!$ACC enter data" OpenACC directive in
+    Class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
     in which fields are marked as being on the remote device is API-
     -dependent.
@@ -224,11 +223,12 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
 
         return "acc enter data " + copy_in_str
 
-    @abc.abstractmethod
     def data_on_device(self, parent):
         '''
         Adds nodes into an InvokeSchedule to flag that the data required by the
-        kernels in the data region is now on the device.
+        kernels in the data region is now on the device. The generic
+        implementation doesn't add any node but this can be redefined in the
+        APIs if any infrastructure call is needed.
 
         :param parent: the node in the InvokeSchedule to which to add nodes
         :type parent: :py:class:`psyclone.psyir.nodes.Node`

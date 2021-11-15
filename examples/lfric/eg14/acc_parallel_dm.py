@@ -59,9 +59,9 @@ def trans(psy):
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
         for loop in schedule.loops():
-            _, _ = loop_trans.apply(loop)
+            loop_trans.apply(loop)
             # The loop is now the child of the Directive's Schedule
-            _, _ = parallel_trans.apply(loop.parent.parent)
-        _, _ = enter_data_trans.apply(schedule)
+            parallel_trans.apply(loop.parent.parent)
+        enter_data_trans.apply(schedule)
 
     return psy

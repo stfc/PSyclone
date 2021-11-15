@@ -78,7 +78,7 @@ class Loop(Statement):
                            without the 'was_where' annotation.
 
     '''
-    valid_annotations = ('was_where', 'was_single_stmt')
+    valid_annotations = ('was_where', 'was_single_stmt', 'chunked')
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"
@@ -307,6 +307,14 @@ class Loop(Statement):
         else:
             name = "loop_" + str(position)
         return name
+
+    @property
+    def valid_loop_types(self):
+        '''
+        :returns: the (domain-specific) loop types allowed by this instance.
+        :rtype: list of str
+        '''
+        return self._valid_loop_types
 
     @property
     def loop_type(self):
@@ -556,8 +564,9 @@ class Loop(Statement):
             zero_reduction_variables(calls, parent)
 
         invoke = self.ancestor(InvokeSchedule)
-        if invoke.opencl or (is_unit_literal(self.start_expr) and
-                             is_unit_literal(self.stop_expr)):
+        if (invoke and invoke.opencl) or (
+                is_unit_literal(self.start_expr) and
+                is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)

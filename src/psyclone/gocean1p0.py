@@ -74,7 +74,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
-    PSyDataNode, ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
+    ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
     ACCKernelsDirective, Container, ACCUpdateDirective
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
@@ -193,7 +193,6 @@ class GOInvokes(Invokes):
                        content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
-        opencl_kernels = []
         for invoke in self.invoke_list:
 
             # TODO 1134: The opencl path is still largely implemented using
@@ -203,41 +202,24 @@ class GOInvokes(Invokes):
                 name = invoke.schedule.name
                 temporary_module = ModuleGen("dummy")
 
-                # Generate set_args in a temporary fparser module
-                for kern in invoke.schedule.coded_kernels():
-                    if kern.name not in opencl_kernels:
-                        opencl_kernels.append(kern.name)
-                        kern.gen_arg_setter_code(temporary_module)
-
                 # Generate invoke in a temporary fparser module
                 invoke.gen_code(temporary_module)
 
                 # Add the invoke and set_args subroutines as CodeBlocks in
                 # the PSyIR tree representing the PSy layer.
                 for item in temporary_module.root.content:
-                    if hasattr(item, 'name') and \
-                            (item.name == name or
-                             item.name.endswith("set_args")):
+                    if hasattr(item, 'name') and item.name == name:
                         reader = FortranStringReader(str(item))
                         reader.set_format(FortranFormat(True, True))
                         sub = Subroutine_Subprogram(reader)
                         codeblock = CodeBlock(
                             [sub], CodeBlock.Structure.STATEMENT)
-                        if item.name == name:
-                            invoke.schedule.replace_with(codeblock)
-                            # We have replaced the schedule in the tree but
-                            # invoke.schedule is not the tree, just a reference
-                            # to the previous schedule, so it has to be updated
-                            # too.
-                            invoke.schedule = codeblock
-                        else:
-                            invoke.schedule.parent.addchild(codeblock)
-
-            # TODO 1168: PSyDataNodes are not supported by the backend yet.
-            # For now the f2pygen gen_code path is used instead
-            if invoke.schedule.root.walk(PSyDataNode):
-                super(GOInvokes, self).gen_code(parent)
-                return
+                        invoke.schedule.replace_with(codeblock)
+                        # We have replaced the schedule in the tree but
+                        # invoke.schedule is not the tree, just a reference
+                        # to the previous schedule, so it has to be updated
+                        # too.
+                        invoke.schedule = codeblock
 
         if self.invoke_list:
             # We just need one invoke as they all have a common root.
@@ -382,12 +364,13 @@ class GOInvoke(Invoke):
                                        entity_decls=i_args)
             invoke_sub.add(my_decl_iscalars)
 
-        # Add remaining local symbols using the symbol table
+        # Add remaining local scalar symbols using the symbol table
         for symbol in self.schedule.symbol_table.local_datasymbols:
-            invoke_sub.add(DeclGen(
-                invoke_sub,
-                datatype=symbol.datatype.intrinsic.name,
-                entity_decls=[symbol.name]))
+            if isinstance(symbol.datatype, ScalarType):
+                invoke_sub.add(DeclGen(
+                    invoke_sub,
+                    datatype=symbol.datatype.intrinsic.name,
+                    entity_decls=[symbol.name]))
 
 
 class GOInvokeSchedule(InvokeSchedule):
@@ -1455,142 +1438,6 @@ class GOKern(CodedKern):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
-    def gen_arg_setter_code(self, parent):
-        '''
-        Creates a Fortran routine to set the arguments of the OpenCL
-        version of this kernel.
-
-        :param parent: Parent node of the set-kernel-arguments routine
-        :type parent: :py:class:`psyclone.f2pygen.moduleGen`
-        '''
-        # pylint: disable=too-many-locals, too-many-statements
-        # The arg_setter code is in a subroutine, so we create a new scope
-        argsetter_st = SymbolTable()
-
-        # Add an argument symbol for the kernel object
-        kobj = argsetter_st.new_symbol("kernel_obj").name
-
-        # Keep track of the argument names
-        argument_names = [arg.name for arg in self.arguments.args]
-
-        # Declare the subroutine in the Invoke SymbolTable and the argsetter
-        # subroutine SymbolTable. Subroutine names should be an exact match.
-        sub_name = self.name + "_set_args"
-        try:
-            self.root.symbol_table.lookup(sub_name)
-        except KeyError:
-            self.root.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
-        argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
-
-        # Create the f2pygen Subroutine node, the subroutine arguments are not
-        # provided yet as they have to be processed to avoid name clashes
-        sub = SubroutineGen(parent, name=sub_name)
-        parent.add(sub)
-
-        def resolve_argument_names(args):
-            ''' Utility to declare the given arguments in the argsetter_st and
-            if any name is already used, update the argument_names list with
-            a new name to avoid the clash.
-
-            :params args: A subset of arguments from self.arguments.args
-            :type args: list of :py:class:`psyclone.psyGen.Arguments`
-
-            :returns: Updated name list for the arguments
-            :rtype: list of str
-            '''
-            names = []
-            for arg in args:
-                name = argsetter_st.new_symbol(arg.name).name
-                argument_names[self.arguments.args.index(arg)] = name
-                names.append(name)
-            return names
-
-        # Add module imports
-        sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
-                       funcnames=["check_status"]))
-        sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
-        sub.add(UseGen(sub, name="clfortran", only=True,
-                       funcnames=["clSetKernelArg"]))
-
-        # Declare arguments
-        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        target=True, entity_decls=[kobj]))
-
-        # Get all Grid property arguments
-        grid_prop_args = args_filter(self._arguments.args,
-                                     arg_types=["field", "grid_property"])
-
-        # Array grid properties are c_intptr_t
-        args = [x for x in grid_prop_args if not x.is_scalar]
-        if args:
-            names = resolve_argument_names(args)
-            sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                            intent="in", target=True, entity_decls=names))
-
-        # Scalar integer grid properties
-        args = [x for x in grid_prop_args
-                if x.is_scalar and x.intrinsic_type == "integer"]
-
-        if args:
-            names = resolve_argument_names(args)
-            sub.add(DeclGen(sub, datatype="integer", intent="in",
-                            target=True, entity_decls=names))
-
-        # Scalar real grid properties
-        args = [x for x in grid_prop_args
-                if x.is_scalar and x.intrinsic_type == "real"]
-        if args:
-            names = resolve_argument_names(args)
-            sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
-                            target=True, entity_decls=names))
-
-        # Scalar arguments
-        scalar_args = args_filter(self._arguments.args, arg_types=["scalar"],
-                                  include_literals=False)
-        go_r_scalars = []
-        other_scalars = []
-        for arg in scalar_args:
-            # Use symbol table to avoid name clashes
-            name = argsetter_st.new_symbol(arg.name).name
-            argument_names[self.arguments.args.index(arg)] = name
-            if arg.space.lower() == "go_r_scalar":
-                go_r_scalars.append(name)
-            else:
-                other_scalars.append(name)
-        if go_r_scalars:
-            sub.add(DeclGen(
-                sub, datatype="REAL", intent="in", kind="go_wp",
-                target=True, entity_decls=go_r_scalars))
-        if other_scalars:
-            sub.add(DeclGen(sub, datatype="INTEGER", intent="in",
-                            target=True, entity_decls=other_scalars))
-
-        # Declare local variables
-        err_name = argsetter_st.new_symbol(
-            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
-
-        # Set kernel arguments
-        sub.add(CommentGen(
-            sub,
-            " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
-        index = 0
-        # Add a SetKenrelArg for each Argument and check the OpenCL status
-        for variable in argument_names:
-            sub.add(AssignGen(
-                sub, lhs=err_name,
-                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, variable)))
-            sub.add(CallGen(
-                sub, "check_status",
-                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
-                 err_name]))
-            index = index + 1
-
-        # Finally we can provide the updated argument list without name clashes
-        sub.args = [kobj] + argument_names
-
     def gen_ocl_buffers_initialisation(self, parent):
         # pylint: disable=too-many-locals
         '''
@@ -2082,6 +1929,21 @@ class GOKernelArgument(KernelArgument):
         raise InternalError("GOcean expects the Argument.argument_type() to be"
                             " 'field' or 'scalar' but found '{0}'."
                             "".format(self.argument_type))
+
+    @property
+    def intrinsic_type(self):
+        '''
+        :returns: the intrinsic type of this argument. If it's not a scalar \
+            integer or real it will return an empty string.
+        :rtype: str
+
+        '''
+        if self.argument_type == "scalar":
+            if self.space.lower() == "go_r_scalar":
+                return "real"
+            if self.space.lower() == "go_i_scalar":
+                return "integer"
+        return ""
 
     @property
     def argument_type(self):
@@ -2692,53 +2554,13 @@ class GOKernelType1p0(KernelType):
 
 class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
-    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
-    of data_on_device().
+    Sub-classes ACCEnterDataDirective to provide the dl_esm_inf infrastructure-
+    specific interfaces to flag and update when data is on a device.
 
     '''
-    def data_on_device(self, parent):
-        '''
-        Adds nodes into the f2pygen AST to flag that each of the
-        objects required by the kernels in the data region is now on the
-        device. We do this by setting the data_on_device attribute to .true.
-
-        :param parent: The node in the f2pygen AST to which to add the \
-                       assignment nodes.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-
-        # Get a reference to the f2pygen module root
-        module = parent
-        while module.parent:
-            module = module.parent
-
-        obj_list = []
-        for pdir in self._acc_dirs:
-            for var in pdir.fields:
-                if var not in obj_list:
-                    parent.add(AssignGen(parent,
-                                         lhs=var+"%data_on_device",
-                                         rhs=".true."))
-                    parent.add(AssignGen(
-                        parent,
-                        lhs=var+"%read_from_device_f",
-                        rhs=self._read_from_device_routine(module).name,
-                        pointer=True))
-                    obj_list.append(var)
-
-    def _read_from_device_routine(self, f2pygen_module=None, psyir=None):
+    def _read_from_device_routine(self):
         ''' Return the symbol of the routine that reads data from the OpenACC
-        device, if it doesn't exist create the Routine and the Symbol, and if
-        either f2pygen_module or psyir are supplied then a suitable node
-        representing the routine is inserted.
-
-        :param f2pygen_module: optional f2pygen module where to insert the \
-                               generated read_from_device routine.
-        :type f2pygen_module: :py:class:`psyclone.f2pygen.ModuleGen` or \
-                              NoneType
-        :param psyir: optional psyir tree where to insert the generated \
-                      read_from_device routine.
-        :type psyir: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        device, if it doesn't exist create the Routine and the Symbol.
 
         :returns: the symbol representing the read_from_device routine.
         :rtype: :py:class:`psyclone.psyir.symbols.symbol`
@@ -2778,20 +2600,14 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Rename subroutine
         subroutine.name = subroutine_name
 
-        # If a f2pygen module is provided insert a PSyIRGen node
-        if f2pygen_module:
-            f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
-
-        # If PSyIR is provided insert the routine as a child of the parent
-        # Container
-        if psyir:
-            if not psyir.ancestor(Container):
-                raise GenerationError(
-                    "The GOACCEnterDataDirective can only be generated/lowered"
-                    " inside a Container in order to insert a sibling "
-                    "subroutine, but '{0}' is not inside a Container."
-                    "".format(psyir))
-            psyir.ancestor(Container).addchild(subroutine.detach())
+        # Insert the routine as a child of the ancestor Container
+        if not self.ancestor(Container):
+            raise GenerationError(
+                "The GOACCEnterDataDirective can only be generated/lowered"
+                " inside a Container in order to insert a sibling "
+                "subroutine, but '{0}' is not inside a Container."
+                "".format(self))
+        self.ancestor(Container).addchild(subroutine.detach())
 
         return symtab.lookup_with_tag("openacc_read_func")
 
@@ -2811,7 +2627,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 if var not in obj_list:
                     obj_list.append(var)
 
-        read_routine_symbol = self._read_from_device_routine(psyir=self)
+        read_routine_symbol = self._read_from_device_routine()
 
         for var in obj_list:
             symbol = self.scope.symbol_table.lookup(var)

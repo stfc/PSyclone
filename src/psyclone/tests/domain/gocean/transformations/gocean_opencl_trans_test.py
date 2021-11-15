@@ -126,7 +126,7 @@ def test_validate_unsupported_api():
     sched = invoke.schedule
     trans = GOOpenCLTrans()
     with pytest.raises(TransformationError) as err:
-        _ = trans.apply(sched)
+        trans.apply(sched)
     assert ("OpenCL generation is currently only supported for the GOcean "
             "API but got an InvokeSchedule of type:" in str(err.value))
 
@@ -146,7 +146,7 @@ def test_ocl_apply(kernel_outputdir):
     # Check that we raise the correct error if we attempt to apply the
     # transformation to something that is not an InvokeSchedule
     with pytest.raises(TransformationError) as err:
-        _, _ = ocl.apply(schedule.children[0])
+        ocl.apply(schedule.children[0])
     assert "the supplied node must be a (sub-class of) InvokeSchedule " \
         in str(err.value)
 
@@ -738,7 +738,31 @@ C_NULL_PTR)'''
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_boundaries_validation():
+    ''' Check that the OpenCL transformation can not be applied if the
+    kernel loop doesn't iterate the whole grid.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    otrans = GOOpenCLTrans()
+
+    # Try to apply the OpenCL transformation without moving the boundaries
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched)
+    assert ("The kernel 'compute_cu_code' does not iterate over all grid "
+            "points. This is a necessary requirement for generating the "
+            "OpenCL code and can be done by applying the GOMoveIteration"
+            "BoundariesInsideKernelTrans to each kernel before the "
+            "GOOpenCLTrans." in str(err.value))
+
+    # After move the boundaries the OpenCL transformation should pass
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+    otrans.apply(sched)
+
+
 def test_opencl_options_validation():
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
@@ -965,12 +989,17 @@ def test_set_kern_args(kernel_outputdir):
     # Declarations
     expected = '''\
       USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld, p_fld, u_fld
-      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop
-      INTEGER ierr
-      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj'''
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: p_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: u_fld
+      INTEGER, INTENT(IN), TARGET :: xstart
+      INTEGER, INTENT(IN), TARGET :: xstop
+      INTEGER, INTENT(IN), TARGET :: ystart
+      INTEGER, INTENT(IN), TARGET :: ystop
+      INTEGER ierr'''
     assert expected in generated_code
     expected = '''\
       ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
@@ -987,6 +1016,7 @@ def test_set_kern_args(kernel_outputdir):
       CALL check_status('clSetKernelArg: arg 5 of compute_cu_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystop), C_LOC(ystop))
       CALL check_status('clSetKernelArg: arg 6 of compute_cu_code', ierr)
+
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
 
@@ -1023,12 +1053,19 @@ def test_set_kern_args_real_grid_property():
     SUBROUTINE compute_kernel_code_set_args(kernel_obj, out_fld, in_out_fld, \
 in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld, in_out_fld, \
-in_fld, dx, gphiu
+      INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_out_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_fld
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: dx
       REAL(KIND=go_wp), INTENT(IN), TARGET :: dx_1
-      INTEGER, INTENT(IN), TARGET :: xstart, xstop, ystart, ystop'''
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: gphiu
+      INTEGER, INTENT(IN), TARGET :: xstart
+      INTEGER, INTENT(IN), TARGET :: xstop
+      INTEGER, INTENT(IN), TARGET :: ystart
+      INTEGER, INTENT(IN), TARGET :: ystop'''
     assert expected in generated_code
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
@@ -1055,14 +1092,18 @@ def test_set_kern_float_arg():
     SUBROUTINE bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
 tmask, xstart, xstop_1, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld, tmask
-      INTEGER, INTENT(IN), TARGET :: xstop
-      REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
-      INTEGER, INTENT(IN), TARGET :: xstart, xstop_1, ystart, ystop
-      INTEGER ierr
       INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
+      REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld
+      INTEGER, INTENT(IN), TARGET :: xstop
+      INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: tmask
+      INTEGER, INTENT(IN), TARGET :: xstart
+      INTEGER, INTENT(IN), TARGET :: xstop_1
+      INTEGER, INTENT(IN), TARGET :: ystart
+      INTEGER, INTENT(IN), TARGET :: ystop
+      INTEGER ierr
 '''
     assert expected in generated_code
     expected = '''\
@@ -1082,7 +1123,9 @@ tmask, xstart, xstop_1, ystart, ystop)
       CALL check_status('clSetKernelArg: arg 6 of bc_ssh_code', ierr)
       ierr = clSetKernelArg(kernel_obj, 7, C_SIZEOF(ystop), C_LOC(ystop))
       CALL check_status('clSetKernelArg: arg 7 of bc_ssh_code', ierr)
+
     END SUBROUTINE bc_ssh_code_set_args'''
+
     assert expected in generated_code
     # The generated code of this test cannot be compiled due the duplication
     # of the xstop symbol in the argument list. This happens because the first
@@ -1188,8 +1231,9 @@ def test_opencl_code_generation_with_boundary_mask():
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_kernel_missing_boundary_symbol():
-    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
+    '''Check that during code generation if a tagged symbol to represent a
+    loop boundary doesn't exist the relevant error is raised.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -1197,22 +1241,26 @@ def test_opencl_kernel_missing_boundary_symbol():
     # Create dummy boundary symbols for the "name" kernel with one missing
     # symbol
     sched.symbol_table.new_symbol(
-        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "a", tag="xstart_compute_cu_code", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
     sched.symbol_table.new_symbol(
-        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "c", tag="ystart_compute_cu_code", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
     sched.symbol_table.new_symbol(
-        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "d", tag="ystop_compute_cu_code", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
 
     otrans = GOOpenCLTrans()
+    # We skip validation as in this test we purposefully want to have the issue
+    monkeypatch.setattr(otrans, "validate", lambda x, y: None)
     otrans.apply(sched)
-    sched.kernels()[0].name = "name"
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
-    assert ("Boundary symbol tag 'xstop_name' not found while generating the "
-            "OpenCL code for kernel 'name'. Make sure to apply the "
-            "GOMoveIterationBoundariesInsideKernelTrans before attempting the"
-            " OpenCL code generation." in str(err.value))
+    assert ("Boundary symbol tag 'xstop_compute_cu_code' not found while "
+            "generating the OpenCL code for kernel 'compute_cu_code'. Make "
+            "sure to apply the GOMoveIterationBoundariesInsideKernelTrans "
+            "before attempting the OpenCL code generation." in str(err.value))
 
 
 def test_opencl_kernel_output_file(kernel_outputdir):
@@ -1220,23 +1268,18 @@ def test_opencl_kernel_output_file(kernel_outputdir):
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    # Create dummy boundary symbols for the "name" kernel
-    sched.symbol_table.new_symbol(
-        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    sched.symbol_table.new_symbol(
-        "b", tag="xstop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    sched.symbol_table.new_symbol(
-        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    sched.symbol_table.new_symbol(
-        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
 
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
-    sched.kernels()[0].name = "name"
     _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
 
     assert os.path.exists(
-        os.path.join(str(kernel_outputdir), "compute_cu_name_0.cl"))
+        os.path.join(str(kernel_outputdir), "compute_cu_compute_cu_0.cl"))
 
 
 def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):

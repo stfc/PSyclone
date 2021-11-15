@@ -96,7 +96,7 @@ def test_accroutine_err(monkeypatch):
     monkeypatch.setattr(end, "name", "some_other_name")
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
-        _ = rtrans.apply(kern)
+        rtrans.apply(kern)
     assert(
         "Failed to create PSyIR version of kernel code for kernel "
         "'testkern_code'. Error reported is Generation Error: Unexpected "
@@ -113,7 +113,7 @@ def test_accroutine_module_use():
     kernels = sched.walk(Kern)
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
-        _ = rtrans.apply(kernels[0])
+        rtrans.apply(kernels[0])
     assert ("imported interface: ['rdt']. If these symbols represent data then"
             " they must first" in str(err.value))
 
@@ -129,17 +129,17 @@ def test_accroutine():
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    new_kern, _ = rtrans.apply(kern)
+    rtrans.apply(kern)
     # The transformation should have populated the fparser2 AST of
     # the kernel...
-    assert new_kern._fp2_ast
-    assert isinstance(new_kern._fp2_ast, Fortran2003.Program)
+    assert kern._fp2_ast
+    assert isinstance(kern._fp2_ast, Fortran2003.Program)
     # Check AST contains directive
-    comments = walk(new_kern._fp2_ast.content, Fortran2003.Comment)
+    comments = walk(kern._fp2_ast.content, Fortran2003.Comment)
     assert len(comments) == 1
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
-    gen = str(new_kern._fp2_ast)
+    gen = str(kern._fp2_ast)
     assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
@@ -153,9 +153,9 @@ def test_accroutine_empty_kernel():
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kernels[0])
+    rtrans.apply(kernels[0])
     # Check that directive is in correct place (end of declarations)
-    gen = str(new_kern._fp2_ast).lower()
+    gen = str(kernels[0]._fp2_ast).lower()
     assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
@@ -168,7 +168,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
-    _, _ = rtrans.apply(kern)
+    rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
     # Work out the value of the tag used to re-name the kernel
@@ -207,7 +207,7 @@ def test_new_kernel_dir(kernel_outputdir):
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
-    _, _ = rtrans.apply(kern)
+    rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     _ = str(psy.gen)
     file_list = os.listdir(str(kernel_outputdir))
@@ -233,7 +233,7 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
-    _, _ = rtrans.apply(kern)
+    rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     _ = str(psy.gen).lower()
     filename = os.path.join(str(kernel_outputdir), old_mod_name+"_1_mod.f90")
@@ -257,7 +257,7 @@ def test_kernel_module_name(mod_name, sub_name, kernel_outputdir,
     kernels = sched.coded_kernels()
     kern = kernels[0]
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kern, {"number_of_layers": 100})
+    ktrans.apply(kern, {"number_of_layers": 100})
     # Modify the kernel module and subroutine names.
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
@@ -286,7 +286,7 @@ def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
     kernels = sched.walk(Kern)
     kern = kernels[0]
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kern, {"number_of_layers": 100})
+    ktrans.apply(kern, {"number_of_layers": 100})
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
     # Generate the code - this should not raise an exception.
@@ -313,12 +313,12 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kern)
+    rtrans.apply(kern)
     # Generate the code - this should raise an error as we get a name
     # clash and the content of the existing file is not the same as that
     # which we would generate
     with pytest.raises(GenerationError) as err:
-        new_kern.rename_and_write()
+        kern.rename_and_write()
     assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
@@ -340,8 +340,8 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     # two, identical transformed kernels.
     new_kernels = []
     for kern in sched.coded_kernels():
-        new_kern, _ = rtrans.apply(kern)
-        new_kernels.append(new_kern)
+        rtrans.apply(kern)
+        new_kernels.append(kern)
 
     # Generate the code - we should end up with just one transformed kernel
     new_kernels[0].rename_and_write()
@@ -362,7 +362,7 @@ def test_1kern_trans(kernel_outputdir):
     # We will transform the second kernel but not the first
     kern = kernels[1]
     rtrans = ACCRoutineTrans()
-    _, _ = rtrans.apply(kern)
+    rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
@@ -387,8 +387,8 @@ def test_2kern_trans(kernel_outputdir):
     kernels = sched.walk(Kern)
     assert len(kernels) == 5
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kernels[1], {"number_of_layers": 100})
-    _, _ = ktrans.apply(kernels[2], {"number_of_layers": 100})
+    ktrans.apply(kernels[1], {"number_of_layers": 100})
+    ktrans.apply(kernels[2], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     code = str(psy.gen).lower()
     # Find the tags added to the kernel/module names
@@ -415,7 +415,7 @@ def test_builtin_no_trans():
     kernels = sched.walk(LFRicBuiltIn)
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
-        _ = rtrans.apply(kernels[0])
+        rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
             "kernel 'x_plus_y' is of type " in str(err.value))
 
@@ -430,7 +430,7 @@ def test_no_inline_global_var():
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
-        _, _ = inline_trans.apply(kernels[0])
+        inline_trans.apply(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to data (variable "
             "'alpha') that are not captured in the PSyIR Symbol Table(s) "
             "within KernelSchedule scope." in str(err.value))
@@ -461,7 +461,7 @@ def test_kernel_trans_validate(monkeypatch):
         raise SymbolError("error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", dummy_func)
     with pytest.raises(TransformationError) as err:
-        _, _ = kernel_trans.apply(kernel)
+        kernel_trans.apply(kernel)
     assert ("'kernel_with_global_code' contains accesses to data that are "
             "not captured in the PSyIR Symbol Table(s) (error)."
             "" in str(err.value))

@@ -349,7 +349,7 @@ def test_colouring_not_a_loop(dist_mem):
 
     # Erroneously attempt to colour the schedule rather than the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = ctrans.apply(schedule)
+        ctrans.apply(schedule)
     assert ("Target of Dynamo0p3ColourTrans transformation must be a "
             "sub-class of Loop but got 'DynInvokeSchedule'" in
             str(excinfo.value))
@@ -364,7 +364,7 @@ def test_no_colour_dofs(dist_mem):
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = ctrans.apply(schedule.children[0])
+        ctrans.apply(schedule.children[0])
     val = str(excinfo.value)
     assert "Error in DynamoColour transformation" in val
     assert ("Only loops over cells may be coloured but this loop is over "
@@ -390,7 +390,7 @@ def test_omp_not_a_loop(dist_mem):
     # Erroneously attempt to apply OpenMP to the schedule rather than
     # the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = otrans.apply(schedule)
+        otrans.apply(schedule)
 
     assert ("Target of Dynamo0p3OMPLoopTrans transformation must be a sub-"
             "class of Loop but got 'DynInvokeSchedule'" in str(excinfo.value))
@@ -408,7 +408,7 @@ def test_omp_parallel_not_a_loop(dist_mem):
     # Erroneously attempt to apply OpenMP to the schedule rather than
     # the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = otrans.apply(schedule)
+        otrans.apply(schedule)
     assert ("Target of DynamoOMPParallelLoopTrans transformation must be a "
             "sub-class of Loop" in str(excinfo.value))
 
@@ -928,8 +928,7 @@ def test_loop_fuse_invalid_space(monkeypatch):
     # Apply transformation and raise the error
     ftrans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = ftrans.apply(schedule.children[0],
-                            schedule.children[1])
+        ftrans.apply(schedule.children[0], schedule.children[1])
     assert ("One or both function spaces 'not_a_space_name' and 'w1' have "
             "invalid names" in str(excinfo.value))
 
@@ -961,7 +960,7 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
             index = 0
 
         with pytest.raises(TransformationError) as excinfo:
-            _, _ = ftrans.apply(schedule.children[index],
+            ftrans.apply(schedule.children[index],
                                 schedule.children[index+1],
                                 {"same_space": same_space})
 
@@ -5181,7 +5180,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the DynInvokeSchedule"
             in str(excinfo.value))
@@ -5194,7 +5193,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
@@ -5207,7 +5206,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'colour'" in str(excinfo.value))
 
@@ -5242,7 +5241,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
@@ -5396,7 +5395,7 @@ def test_colour_discontinuous():
 
         with pytest.raises(TransformationError) as excinfo:
             # Colour the loop
-            _, _ = ctrans.apply(schedule.children[0])
+            ctrans.apply(schedule.children[0])
         assert ("Loops iterating over a discontinuous function space are "
                 "not currently supported") in str(excinfo.value)
 
@@ -6010,9 +6009,9 @@ def test_intergrid_colour(dist_mem):
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
-    _, _ = ctrans.apply(loops[1])
+    ctrans.apply(loops[1])
     # To a restrict kernel
-    _, _ = ctrans.apply(loops[3])
+    ctrans.apply(loops[3])
     gen = str(psy.gen).lower()
     expected = '''\
       ncolour_fld_m = mesh_fld_m%get_ncolours()
@@ -6054,7 +6053,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     loops = schedule.walk(Loop)
     loop = loops[1]
     # To a prolong kernel
-    _, _ = ctrans.apply(loop)
+    ctrans.apply(loop)
     # Update our list of loops
     loops = schedule.walk(Loop)
     # Trigger the error by calling the internal method to get the upper
@@ -6093,14 +6092,14 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
-    _, _ = ctrans.apply(loops[1])
+    ctrans.apply(loops[1])
     # To a restrict kernel
-    _, _ = ctrans.apply(loops[3])
+    ctrans.apply(loops[3])
     loops = schedule.walk(Loop)
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OMP to loops over coloured cells
-    _, _ = otrans.apply(loops[2])
-    _, _ = otrans.apply(loops[5])
+    otrans.apply(loops[2])
+    otrans.apply(loops[5])
     gen = str(psy.gen)
     assert ("      DO colour=1,ncolour_fld_c\n"
             "        !$omp parallel do default(shared), private(cell), "
@@ -6126,13 +6125,13 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     otrans = Dynamo0p3OMPLoopTrans()
     # Colour the first loop
     loops = schedule.walk(Loop)
-    _, _ = ctrans.apply(loops[0])
+    ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
     loops = schedule.walk(Loop)
-    _, _ = otrans.apply(loops[1])
+    otrans.apply(loops[1])
     # Put the parallel loop inside a parallel region
     dirs = schedule.walk(Directive)
-    _, _ = ptrans.apply(dirs[0])
+    ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
         upper_bound = "mesh_fld_c%get_last_halo_cell_per_colour(colour,1)"
@@ -6167,11 +6166,11 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = LFRicLoopFuseTrans()
-    _, _ = ctrans.apply(loops[0])
-    _, _ = ctrans.apply(loops[1])
+    ctrans.apply(loops[0])
+    ctrans.apply(loops[1])
     schedule.view()
     loops = schedule.walk(Loop)
-    _, _ = ftrans.apply(loops[0], loops[2])
+    ftrans.apply(loops[0], loops[2])
     schedule.view()
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6217,7 +6216,7 @@ def test_accenterdatatrans():
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    _ = acc_enter_trans.apply(sched)
+    acc_enter_trans.apply(sched)
     assert isinstance(sched[0], ACCEnterDataDirective)
     # This code can't be generated as ACCEnterData requires at least one
     # parallel directive within its region and this example does not
@@ -6238,9 +6237,9 @@ def test_accenterdata_builtin(tmpdir):
                              TEST_API, name="invoke_0", dist_mem=False)
     sched = invoke.schedule
     for loop in sched.loops():
-        _, _ = acc_loop_trans.apply(loop)
-    _, _ = parallel_trans.apply(sched.children)
-    _, _ = acc_enter_trans.apply(sched)
+        acc_loop_trans.apply(loop)
+    parallel_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
     output = str(psy.gen).lower()
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6271,7 +6270,7 @@ def test_acckernelstrans():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    _ = kernels_trans.apply(sched.children)
+    kernels_trans.apply(sched.children)
     code = str(psy.gen)
     assert (
         "      !$acc kernels\n"
@@ -6298,8 +6297,8 @@ def test_accparalleltrans():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
@@ -6330,9 +6329,9 @@ def test_acclooptrans():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    _ = acc_loop_trans.apply(sched.children[0])
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_loop_trans.apply(sched.children[0])
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
@@ -6361,7 +6360,7 @@ def test_async_hex_wrong_node():
     node = Loop()
     ahex = Dynamo0p3AsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
-        _, _ = ahex.apply(node)
+        ahex.apply(node)
     assert "node must be a synchronous halo exchange" in str(err.value)
 
 
@@ -6869,7 +6868,7 @@ def test_async_halo_exchange_nomatch1():
 
     hex_start = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
-        _ = hex_start._get_hex_end()
+        hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' should match with a halo "
             "exchange end, but found <class 'psyclone.dynamo0p3."
             "DynHaloExchange'>") in str(excinfo.value)
@@ -6898,7 +6897,7 @@ def test_async_halo_exchange_nomatch2():
 
     hex_start = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
-        _ = hex_start._get_hex_end()
+        hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' has no matching halo "
             "exchange end") in str(excinfo.value)
 
@@ -6958,31 +6957,31 @@ def test_kern_const_apply(capsys, monkeypatch):
         "    Modified nqp_v, arg position 22, value 3.\n")
 
     # element_order only
-    _, _ = kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order": 0})
     result, _ = capsys.readouterr()
     assert result == element_order_expected
 
     # nlayers only
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    _, _ = kctrans.apply(kernel, {"number_of_layers": 20})
+    kctrans.apply(kernel, {"number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
     # element_order and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    _, _ = kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == quadrature_expected + element_order_expected
 
     # element_order and nlayers
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    _, _ = kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20})
+    kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + element_order_expected
 
     # element_order, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    _, _ = kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
+    kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
                                   "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
@@ -6993,7 +6992,7 @@ def test_kern_const_apply(capsys, monkeypatch):
     # handling of options=None in the apply function.
     monkeypatch.setattr(kctrans, "validate",
                         lambda loop, options: None)
-    _, _ = kctrans.apply(kernel)
+    kctrans.apply(kernel)
     result, _ = capsys.readouterr()
     # In case of no options, the transformation does not do anything
     assert result == ""
@@ -7009,7 +7008,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    _, _ = kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 9, function space any_space_1\n"
@@ -7034,7 +7033,7 @@ def test_kern_const_anyw2_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    _, _ = kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 5, function space any_w2\n")
@@ -7091,44 +7090,44 @@ def test_kern_const_invalid():
 
     # Node is not a dynamo kernel
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(None)
+        kctrans.apply(None)
     assert "Supplied node must be a dynamo kernel" in str(excinfo.value)
 
     # Cell shape not quadrilateral
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"cellshape": "rotund"})
+        kctrans.apply(kernel, {"cellshape": "rotund"})
     assert ("Supplied cellshape must be set to 'quadrilateral' but found "
             "'rotund'.") in str(excinfo.value)
 
     # Element order < 0
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"element_order": -1})
+        kctrans.apply(kernel, {"element_order": -1})
     assert "The element_order argument must be >= 0 but found '-1'." \
         in str(excinfo.value)
 
     # Number of layers < 1
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"number_of_layers": 0})
+        kctrans.apply(kernel, {"number_of_layers": 0})
     assert "The number_of_layers argument must be > 0 but found '0'." \
         in str(excinfo.value)
 
     # Quadrature not a boolean
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"quadrature": "hello"})
+        kctrans.apply(kernel, {"quadrature": "hello"})
     assert "The quadrature argument must be boolean but found 'hello'." \
         in str(excinfo.value)
 
     # Not element order and not number of layers
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel)
+        kctrans.apply(kernel)
     assert ("At least one of element_order or number_of_layers must be set "
             "otherwise this transformation does nothing.") \
         in str(excinfo.value)
 
     # Quadrature but not element order
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"number_of_layers": 20,
-                                      "quadrature": True})
+        kctrans.apply(kernel, {"number_of_layers": 20,
+                               "quadrature": True})
     assert "If quadrature is set then element_order must also be set" \
         in str(excinfo.value)
 
@@ -7145,7 +7144,7 @@ def test_kern_const_invalid_dofs(monkeypatch):
                         {"wa": [], "wb": []})
 
     with pytest.raises(InternalError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order": 0})
     assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)
     assert "'wa'" in str(excinfo.value)
@@ -7208,7 +7207,7 @@ def test_kern_const_invalid_make_constant1():
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order": 0})
     assert ("The argument index '7' is greater than the number of "
             "arguments '0'.") in str(excinfo.value)
 
@@ -7230,13 +7229,13 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to array.
     symbol._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar argument but found "
             "'ArrayType'." in str(excinfo.value))
     # Expecting scalar integer. Set to real.
     symbol._datatype = REAL_TYPE
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
@@ -7244,7 +7243,7 @@ def test_kern_const_invalid_make_constant2():
                                   ScalarType.Precision.UNDEFINED)
     symbol._constant_value = 10
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "a constant." in str(excinfo.value))
 

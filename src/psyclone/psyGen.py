@@ -1772,17 +1772,6 @@ class CodedKern(Kern):
         else:
             self._insert_module_inlined_kernel(parent)
 
-    def gen_arg_setter_code(self, parent):
-        '''
-        Creates a Fortran routine to set the arguments of the OpenCL
-        version of this kernel.
-
-        :param parent: Parent node of the set-kernel-arguments routine.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        '''
-        raise NotImplementedError("gen_arg_setter_code must be implemented "
-                                  "by sub-class.")
-
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
@@ -3094,15 +3083,7 @@ class Transformation(object):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
-        # pylint: disable=no-self-use
-        schedule = None
-        memento = None
-        return schedule, memento
 
     def validate(self, node, options=None):
         '''Method that validates that the input data is correct.
@@ -3143,7 +3124,7 @@ class DummyTransformation(Transformation):
         return
 
     def apply(self, node, options=None):
-        return None, None
+        pass
 
 
 # For Sphinx AutoAPI documentation generation

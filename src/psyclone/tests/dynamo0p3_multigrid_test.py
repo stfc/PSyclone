@@ -744,10 +744,10 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
     # Apply OMP to the first restrict kernel
-    _, _ = otrans.apply(schedule[0])
+    otrans.apply(schedule[0])
     # Apply colouring and OMP to the first prolong kernel
-    _, _ = ctrans.apply(schedule[4])
-    _, _ = otrans.apply(schedule[4].loop_body[0])
+    ctrans.apply(schedule[4])
+    otrans.apply(schedule[4].loop_body[0])
     output = str(psy.gen)
     expected = (
         "      !$omp parallel do default(shared), private(cell), "
@@ -771,6 +771,6 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         pytest.xfail("#451 colourmap lookup needs fixing")
     # Try to apply colouring to the second restrict kernel
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = ctrans.apply(schedule.children[1])
+        ctrans.apply(schedule.children[1])
     assert ("Loops iterating over a discontinuous function space "
             "are not currently supported." in str(excinfo.value))

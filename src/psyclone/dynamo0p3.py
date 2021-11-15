@@ -301,6 +301,7 @@ class MeshProperty(Enum):
     # pylint: disable=too-few-public-methods
     ADJACENT_FACE = 1
     NCELL_2D = 2
+    NCELL_2D_NO_HALOS = 3
 
 
 class MeshPropertiesMetaData(object):
@@ -943,7 +944,7 @@ class DynKernMetadata(KernelType):
         if self._is_intergrid:
             raise ParseError(
                 "Kernel '{0}' operates on the domain but has fields on "
-                "different mesh resolutions (multi-grid). This is not "
+                "different mesh resolutions (inter-grid). This is not "
                 "permitted in the LFRic API.".format(self.name))
 
     @property
@@ -1819,15 +1820,21 @@ class LFRicMeshProperties(DynCollection):
         # The (ordered) list of mesh properties required by this invoke or
         # kernel stub.
         self._properties = []
-        need_ncell_2d = False
 
         for call in self._calls:
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
-            if call.iterates_over == "domain" and not need_ncell_2d:
-                need_ncell_2d = True
-                self._properties.append(MeshProperty.NCELL_2D)
+            # Kernels that operate on the 'domain' need the number of columns,
+            # excluding those in the halo.
+            if call.iterates_over == "domain":
+                if MeshProperty.NCELL_2D_NO_HALOS not in self._properties:
+                    self._properties.append(MeshProperty.NCELL_2D_NO_HALOS)
+            # Kernels performing CMA operations need the number of columns,
+            # including those in the halo.
+            if call.cma_operation:
+                if MeshProperty.NCELL_2D not in self._properties:
+                    self._properties.append(MeshProperty.NCELL_2D)
 
         # Store properties in symbol table
         for prop in self._properties:
@@ -1941,6 +1948,12 @@ class LFRicMeshProperties(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
+            elif prop == MeshProperty.NCELL_2D_NO_HALOS:
+                name = self._symbol_table.symbol_from_tag(
+                    "ncell_2d_no_halos").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
             elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
                 parent.add(DeclGen(parent, datatype="integer",
@@ -1987,6 +2000,12 @@ class LFRicMeshProperties(DynCollection):
                         dimension=self._symbol_table.symbol_from_tag(
                             "nfaces_re_h").name,
                         intent="in", entity_decls=[adj_face]))
+            elif prop == MeshProperty.NCELL_2D:
+                ncell_2d = self._symbol_table.symbol_from_tag("ncell_2d").name
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            intent="in", entity_decls=[ncell_2d]))
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
@@ -2020,6 +2039,12 @@ class LFRicMeshProperties(DynCollection):
                     "adjacent_face").name
                 parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
                                      rhs=mesh+"%get_adjacent_face()"))
+
+            elif prop == MeshProperty.NCELL_2D_NO_HALOS:
+                name = self._symbol_table.symbol_from_tag(
+                    "ncell_2d_no_halos").name
+                parent.add(AssignGen(parent, lhs=name,
+                                     rhs=mesh+"%get_last_edge_cell()"))
 
             elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
@@ -3577,25 +3602,9 @@ class DynCMAOperators(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
-
-        # If we have one or more CMA operators then we will need the number
-        # of columns in the mesh
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise number of cols"))
-        parent.add(CommentGen(parent, ""))
-        ncol_name = self._symbol_table.symbol_from_tag("ncell_2d").name
-        parent.add(
-            AssignGen(
-                parent, lhs=ncol_name,
-                rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
@@ -3771,7 +3780,8 @@ class DynMeshes(object):
         for call in self._schedule.coded_kernels():
 
             if (call.reference_element.properties or
-                    call.mesh.properties or call.iterates_over == "domain"):
+                    call.mesh.properties or call.iterates_over == "domain" or
+                    call.cma_operation):
                 requires_mesh = True
 
             if not call.is_intergrid:
@@ -7513,8 +7523,7 @@ class DynKern(CodedKern):
         Initialisation of the basis/diff basis information. This may be
         needed before general setup so is computed in a separate method.
 
-        :param kmetadata: The kernel meta-data object produced by the
-                          parser.
+        :param kmetadata: The kernel meta-data object produced by the parser.
         :type kmetadata: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         '''
         for descriptor in kmetadata.func_descriptors:
@@ -7904,17 +7913,7 @@ class DynKern(CodedKern):
                     "However the containing loop goes out to level {1}".
                     format(self._name, parent_loop.upper_bound_halo_depth))
 
-        # If this kernel is being called from within a coloured
-        # loop then we have to look-up the name of the colour map
-        if self.is_coloured():
-            # TODO Check whether this arg is gh_inc and if not, Warn that
-            # we're colouring a kernel that has no field object with INC access
-
-            # We must look-up the cell index using the colour map rather than
-            # use the current cell index directly. We need to know the name
-            # of the variable holding the colour map for this kernel.
-            cell_index = self.colourmap + "(colour, cell)"
-        else:
+        if not self.is_coloured():
             # This kernel call has not been coloured
             #  - is it OpenMP parallel, i.e. are we a child of
             # an OpenMP directive?
@@ -7931,7 +7930,6 @@ class DynKern(CodedKern):
                                           "be coloured in order to be "
                                           "parallelised with OpenMP".
                                           format(self._name))
-            cell_index = "cell"
 
         parent.add(CommentGen(parent, ""))
 
