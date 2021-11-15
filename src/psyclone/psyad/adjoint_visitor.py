@@ -43,8 +43,9 @@ import logging
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Schedule, Reference
+from psyclone.psyir.nodes import Schedule, Reference, Node
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -67,6 +68,10 @@ class AdjointVisitor(PSyIRVisitor):
             raise ValueError(
                 "There should be at least one active variable supplied to "
                 "an AdjointVisitor.")
+        if not isinstance(writer, LanguageWriter):
+            raise TypeError(
+                "The writer argument should be a subclass of LanguageWriter "
+                "but found '{0}'.".format(type(writer).__name__))
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)

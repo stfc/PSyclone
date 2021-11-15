@@ -43,6 +43,8 @@ import pytest
 
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop, \
     Node
@@ -140,9 +142,14 @@ def test_create():
     assert adj_visitor._active_variable_names == ["dummy"]
     assert adj_visitor._active_variables is None
     assert isinstance(adj_visitor._logger, logging.Logger)
+    assert isinstance(adj_visitor._writer, FortranWriter)
+    # Optional writer argument
+    c_writer = CWriter()
+    adj_visitor = AdjointVisitor(["dummy"], writer=c_writer)
+    assert adj_visitor._writer == c_writer
 
 
-def test_create_error():
+def test_create_error_active():
     '''Test that an AdjointVisitor raises an exception if no active
     variables are provided.
 
@@ -151,6 +158,17 @@ def test_create_error():
         _ = AdjointVisitor([])
     assert ("There should be at least one active variable supplied to an "
             "AdjointVisitor." in str(info.value))
+
+
+def test_create_error_writer():
+    '''Test that an AdjointVisitor raises an exception if an invalid
+    writer argument is supplied.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        _ = AdjointVisitor(["dummy"], writer=None)
+    assert ("The writer argument should be a subclass of LanguageWriter but "
+            "found 'NoneType'." in str(info.value))
 
 
 # AdjointVisitor.container_node()
