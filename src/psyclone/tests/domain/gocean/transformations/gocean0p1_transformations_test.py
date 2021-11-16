@@ -85,9 +85,7 @@ def test_loop_fuse_on_non_siblings():
 
     # Attempt to fuse an outer loop with an inner loop
     with pytest.raises(TransformationError):
-        _, _ = lftrans.apply(schedule.children[0],
-                             schedule.children[1].
-                             children[0])
+        lftrans.apply(schedule.children[0], schedule.children[1].children[0])
 
 
 def test_loop_fuse_non_adjacent_nodes():
@@ -101,8 +99,7 @@ def test_loop_fuse_non_adjacent_nodes():
     # Attempt to fuse two loops that are not adjacent to one another
     # in the schedule
     with pytest.raises(TransformationError):
-        _, _ = lftrans.apply(schedule.children[0],
-                             schedule.children[2])
+        lftrans.apply(schedule.children[0], schedule.children[2])
 
 
 def test_gocean_loop_fuse_with_not_a_loop():
@@ -168,8 +165,7 @@ def test_loop_fuse_different_spaces():
     schedule = invoke.schedule
     lftrans = GOceanLoopFuseTrans()
     with pytest.raises(TransformationError):
-        _, _ = lftrans.apply(schedule.children[0],
-                             schedule.children[1])
+        lftrans.apply(schedule.children[0], schedule.children[1])
 
 
 def test_openmp_loop_trans():

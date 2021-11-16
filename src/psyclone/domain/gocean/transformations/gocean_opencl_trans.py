@@ -235,9 +235,6 @@ class GOOpenCLTrans(Transformation):
         :param bool options["end_barrier"]: whether or not to add an OpenCL \
                 barrier at the end of the transformed invoke.
 
-        :returns: None, None
-        :rtype: (NoneType, NoneType)
-
         '''
         if not options:
             options = {}

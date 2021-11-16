@@ -101,10 +101,9 @@ def test_nan_test_options():
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     nan_test = NanTestTrans()
-    _, _ = nan_test.apply(invoke.schedule[0].loop_body[0],
-                          options={"region_name": ("a", "b")})
+    nan_test.apply(invoke.schedule[0].loop_body[0],
+                   options={"region_name": ("a", "b")})
     code = str(invoke.gen())
-
     assert 'CALL nan_test_psy_data%PreStart("a", "b", 4, 2)' in code
 
 
@@ -117,17 +116,53 @@ def test_invalid_apply():
                            "gocean1.0", idx=0)
     nan_test = NanTestTrans()
     omp = OMPParallelLoopTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
-        _, _ = nan_test.apply(invoke.schedule[0].dir_body[0],
-                              options={"region_name": ("a", "b")})
+        nan_test.apply(invoke.schedule[0].dir_body[0],
+                       options={"region_name": ("a", "b")})
 
     assert "Error in NanTestTrans: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
-        _, _ = nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
-                              options={"region_name": ("a", "b")})
+        nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
+                       options={"region_name": ("a", "b")})
 
     assert "Error in NanTestTrans: Application to Nodes enclosed within a "\
            "thread-parallel region is not allowed." in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_nan_test_psyir_visitor(fortran_writer):
+    '''Check that options are passed to the NanTestNode and trigger
+    the use of the newly defined names. This test uses the FortranWriter
+    for creating output, which triggers a different code path
+    (it is based on lower_to_language_level).
+
+    '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+
+    nan_test = NanTestTrans()
+    nan_test.apply(invoke.schedule, options={"region_name": ("a", "b")})
+
+    code = fortran_writer(invoke.schedule)
+    # Test only some of the lines to keep this test short:
+    expected = ['CALL nan_test_psy_data % PreStart("a", "b", 12, 4)',
+                'CALL nan_test_psy_data % PreDeclareVariable("cv_fld%'
+                'internal%xstart", cv_fld % internal % xstart)',
+                'CALL nan_test_psy_data % PreDeclareVariable("ncycle", '
+                'ncycle)',
+                'CALL nan_test_psy_data % PreEndDeclaration',
+                'CALL nan_test_psy_data % ProvideVariable("ncycle", ncycle)',
+                'CALL nan_test_psy_data % PreEnd',
+                'CALL nan_test_psy_data % PostStart',
+                'CALL nan_test_psy_data % ProvideVariable("cv_fld", cv_fld)',
+                'CALL nan_test_psy_data % ProvideVariable("i", i)',
+                'CALL nan_test_psy_data % ProvideVariable("j", j)',
+                'CALL nan_test_psy_data % ProvideVariable("p_fld", p_fld)',
+                'CALL nan_test_psy_data % PostEnd',
+                ]
+
+    for line in expected:
+        assert line in code

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,47 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Author: J. Henrichs, Bureau of Meteorology
 
-
-'''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Kernels directives generically. This can be
-applied via the -s option in the psyclone script.
-
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a region are a valid number, i.e.
+not infinity or NAN.
 '''
+
 from __future__ import print_function
-from psyclone.transformations import ACCKernelsTrans
+
+from psyclone.psyir.transformations import NanTestTrans
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC Kernels directives generically.'''
-    kernels_trans = ACCKernelsTrans()
+    '''
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
-        kernels_trans.apply(schedule)
-        schedule.view()
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
+    '''
+    nan_test = NanTestTrans()
+
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
+    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
+
+    # Enclose everything in a nan_test region
+    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
+
+    # newschedule.view()
     return psy
