@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, Call
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, DeferredType, RoutineSymbol
+    ArrayType, DeferredType, UnknownType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
@@ -370,6 +370,40 @@ def test_apply_with_a_function_call():
     assert ("This transformation does not support array assignments that "
             "contain a Call anywhere in the expression."
             in str(info.value))
+
+
+def test_apply_with_array_with_hidden_accessor(fortran_writer):
+    '''Check that the transformation is not applied if there is a RHS array
+    (or UnknownType) with the accessor expression missing.
+
+    '''
+    _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
+                                api=API, idx=0)
+    trans = NemoArrayRange2LoopTrans()
+    schedule = invoke_info.schedule
+    assignment1 = schedule[0]
+    assignment2 = schedule[1]
+    schedule.symbol_table.view()
+    # This test expects arg1 is parsed as ArrayType and arg2 as UnknownType
+    assert isinstance(schedule.symbol_table.lookup("arg1").datatype,
+                      ArrayType)
+    assert isinstance(schedule.symbol_table.lookup("arg2").datatype,
+                      UnknownType)
+
+    # The first one works because we have a datatype and we knwo it is an
+    # array wit sufficient number of dimentions
+    trans.apply(assignment1.lhs.children[2])
+
+    # The second fails because its an UnknwonType and we don't know if its
+    # an scalar or an array
+    with pytest.raises(TransformationError) as info:
+        trans.apply(assignment2.lhs.children[2])
+    assert ("Error in NemoArrayRange2LoopTrans transformation."
+            in str(info.value))
+
+    # The resulting code has explicit array accessors in the lhs
+    result = fortran_writer(schedule)
+    assert "local1(:,:,jk) = arg1(:,:,jk)" in result
 
 
 def test_apply_different_num_dims():

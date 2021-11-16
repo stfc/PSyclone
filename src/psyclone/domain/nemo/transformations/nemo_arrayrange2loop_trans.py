@@ -239,10 +239,6 @@ class NemoArrayRange2LoopTrans(Transformation):
             # place it within a NemoKern (inlined kernel) node.
             CreateNemoKernelTrans().apply(assignment.parent)
 
-        # from psyclone.psyir.backend.fortran import FortranWriter
-        # code = FortranWriter()(assignment)
-        # import pdb; pdb.set_trace()
-
     def __str__(self):
         return (
             "Convert the PSyIR assignment for a specified ArrayReference "
@@ -309,6 +305,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         # return arrays as this is not currently supported?
         for operation in assignment.rhs.walk(Operation):
             # At the moment the only array valued operator is matmul
+            # raise TransformationError("")
             if operation.operator == BinaryOperation.Operator.MATMUL:
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "
@@ -331,16 +328,6 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "transformation does not support array assignments that "
                 "contain a Call anywhere in the expression.")
 
-        # We need all type info about all references (maybe not, see below)
-        # for reference in assignment.walk(Reference):
-        #     if not isinstance(reference.symbol, DataSymbol):
-        #         raise TransformationError(
-        #             "Error in NemoArrayRange2LoopTrans transformation.")
-        #     if isinstance(reference.symbol.datatype,
-        #                   (UnknownType, DeferredType)):
-        #         raise TransformationError(
-        #             "Error in NemoArrayRange2LoopTrans transformation.")
-
         # For now don't attempt arrays without at least 1 range, as we need
         # to check if they are a scalar or have the range expression missing
         for array in assignment.walk((ArrayReference, ArrayMember)):
@@ -351,18 +338,23 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "transformation does not support assignments with rhs "
                     "arrays that don't have a range.")
 
-        # FIXME: Do the same for ArrayMember
-        # for array in assignment.walk(ArrayReference):
-        #    import pdb; pdb.set_trace()
-        #    if len(array.symbol.datatype.shape) != len(array.children):
-        #        raise TransformationError(
-        #            "Error in NemoArrayRange2LoopTrans transformation. This "
-        #            "transformation does not support arrays that done have all"
-        #            "the access dimensions explicitly specified.")
+        # We need all type info about all references (maybe not, see below)
+        for reference in assignment.walk(Reference):
+            if not isinstance(reference.symbol, DataSymbol):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation.")
+            if isinstance(reference.symbol.datatype,
+                          (UnknownType, DeferredType)):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation.")
 
-        # from psyclone.psyir.backend.fortran import FortranWriter
-        # code = FortranWriter()(assignment)
-        # import pdb; pdb.set_trace()
+        # FIXME: Do the same for ArrayMember
+        for array in assignment.walk(ArrayReference):
+            if len(array.symbol.datatype.shape) != len(array.children):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation. This "
+                    "transformation does not support arrays that done have all"
+                    "the access dimensions explicitly specified.")
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
