@@ -130,8 +130,8 @@ def test_accenterdatadirective_gencode_3(trans):
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
@@ -160,9 +160,9 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_trans1.apply([sched.children[1]])
-    _ = acc_trans2.apply([sched.children[0]])
-    _ = acc_enter_trans.apply(sched)
+    acc_trans1.apply([sched.children[1]])
+    acc_trans2.apply([sched.children[0]])
+    acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
@@ -229,7 +229,7 @@ def test_acckernelsdirective_gencode(default_present):
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()
-    _, _ = trans.apply(sched, {"default_present": default_present})
+    trans.apply(sched, {"default_present": default_present})
 
     code = str(psy.gen)
     string = ""

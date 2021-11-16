@@ -93,8 +93,7 @@ def test_no_kernels_error(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:2],
-                               {"default_present": True})
+        acc_trans.apply(schedule.children[0:2], {"default_present": True})
     assert ("cannot be enclosed by a ACCKernelsTrans transformation"
             in str(err.value))
 
@@ -111,8 +110,7 @@ def test_no_loops(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:1],
-                               {"default_present": True})
+        acc_trans.apply(schedule.children[0:1], {"default_present": True})
     assert ("must enclose at least one loop or array range but none were "
             "found" in str(err.value))
 
@@ -220,7 +218,7 @@ def test_no_code_block_kernels(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children)
+        acc_trans.apply(schedule.children)
     assert ("'CodeBlock' cannot be enclosed by a ACCKernelsTrans "
             in str(err.value))
 
@@ -233,7 +231,7 @@ def test_no_default_present(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    _, _ = acc_trans.apply(schedule.children, {"default_present": False})
+    acc_trans.apply(schedule.children, {"default_present": False})
     gen_code = str(psy.gen)
     assert "!$acc kernels\n" in gen_code
 

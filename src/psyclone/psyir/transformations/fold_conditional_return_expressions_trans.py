@@ -110,10 +110,6 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.psyGen.InvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         routine = node
         self.validate(routine, options)
