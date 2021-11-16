@@ -157,13 +157,10 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
-        # TODO 1484: sympy version 1.5 is required for python 2, newer
-        # versions only support python3
         install_requires=['pyparsing', 'fparser==0.0.13', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"',
                           'jsonschema==3.0.2',
-                          'sympy==1.5 ; python_version < "3.0"',
-                          'sympy ; python_version >= "3.0"',
+                          'sympy',
                           ],
         extras_require={
             'dag': ["graphviz"],
