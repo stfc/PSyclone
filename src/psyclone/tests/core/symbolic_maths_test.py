@@ -68,8 +68,42 @@ def test_sym_maths_get():
     assert not sym_maths.equal(2, None)
 
 
+@pytest.mark.parametrize("expressions", [(".true.", ".TRUE."),
+                                         (".false.", ".FALSE."),
+                                         ])
+def test_math_logicals(parser, expressions):
+    '''Test that the sympy based comparison handles constant numbers,
+    especially once using Fortran type specification
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    reader = FortranStringReader('''program test_prog
+                                    use some_mod
+                                    logical :: x
+                                    x = {0}
+                                    x = {1}
+                                    end program test_prog
+                                 '''.format(expressions[0],
+                                            expressions[1]))
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    schedule = psy.invokes.get("test_prog").schedule
+
+    sym_maths = SymbolicMaths.get()
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+
+
 @pytest.mark.parametrize("expressions", [("i", "i"),
                                          ("2", "1+1"),
+                                         ("123_4", "123_8"),
+                                         ("123_4", "120+3"),
+                                         ("123_xx", "123"),
+                                         ("1.23E5", "123000"),
+                                         ("1.23D5", "123000"),
+                                         ("1.0E+3", "1000"),
+                                         ("1.0", "1"),
+                                         ("0.01E-3", "0.00001"),
+                                         ("3.14e-2", "0.0314"),
                                          ("2.0", "1.1+0.9"),
                                          ("2", "1+7*i-3-4*i-3*i+4"),
                                          ("i+j", "j+i"),
@@ -123,7 +157,7 @@ def test_math_equal_structures(parser, expressions):
     reader = FortranStringReader('''program test_prog
                                     use some_mod
                                     integer :: i, j, k
-                                    type(my_mod_type) :: a, b, c
+                                    type(my_mod_type) :: a, b, c(:,:)
                                     x = {0}
                                     x = {1}
                                     end program test_prog

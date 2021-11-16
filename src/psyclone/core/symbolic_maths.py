@@ -37,7 +37,8 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-import sympy
+from sympy import simplify
+from sympy.parsing.sympy_parser import parse_expr
 
 
 class SymbolicMaths:
@@ -74,14 +75,11 @@ class SymbolicMaths:
     # -------------------------------------------------------------------------
     def __init__(self):
 
-        # Avoid circular dependency (and import errors if sympy
-        # is not installed).
+        # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
-        self._writer = FortranWriter()
-        self._parse_expr = sympy.parsing.sympy_parser.parse_expr
-        self._simplify = sympy.simplify
+        self._writer = SymPyWriter()
 
     # -------------------------------------------------------------------------
 
@@ -100,6 +98,6 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        str_exp1 = self._parse_expr(self._writer(exp1))
-        str_exp2 = self._parse_expr(self._writer(exp2))
-        return self._simplify(str_exp1 == str_exp2)
+        str_exp1 = parse_expr(self._writer(exp1))
+        str_exp2 = parse_expr(self._writer(exp2))
+        return simplify(str_exp1 == str_exp2)
