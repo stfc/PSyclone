@@ -42,6 +42,7 @@ from __future__ import absolute_import
 import re
 from collections import OrderedDict
 import pytest
+from psyclone.configuration import Config
 from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
     Literal, Reference, Assignment
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
@@ -1602,3 +1603,27 @@ def test_rename_symbol():
         schedule_symbol_table.rename_symbol(symbol, "aRRay")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'aRRay' does." in str(err.value))
+
+
+def test_resolve_imports(fortran_reader):
+    ''' Tests the SymbolTable resolve_imports method. '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            use a, only: a_1
+            use b
+            use c
+
+            a_1 = b_1 + 1
+        end subroutine test
+    ''')
+
+    subroutine = psyir.children[0]
+    assert isinstance(subroutine.symbol_table.lookup('a_1').interface,
+                      ImportInterface)
+    assert isinstance(subroutine.symbol_table.lookup('b_1').interface,
+                      UnresolvedInterface)
+
+    # Set up include_path to import the proper modules
+    Config.get()._include_paths = []
+    subroutine.symbol_table.resolve_imports()
+    Config._instance = None

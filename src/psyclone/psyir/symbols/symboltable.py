@@ -1040,6 +1040,30 @@ class SymbolTable(object):
                         " tag '{1}' is already used by another symbol."
                         "".format(imported_var, tag))
 
+    def resolve_imports(self, container_symbols=None):
+        ''' Try to resolve deferred and unknown information from imported
+        symbols in this symbol table by searching for its definitions in
+        referred external container.
+
+        :param container_symbols: list of container symbols to search in
+            order to resolve imported symbols. Defaults to all container \
+            symbols in the symbol table.
+        :type container_symbols: list of \
+            :py:class:`psyclone.psyr.symbols.ContainerSymbol`
+        '''
+        # If no container_symbol is given, search in all the container symbols
+        if container_symbols is None:
+            container_symbols = self.containersymbols
+
+        for c_symbol in container_symbols:
+            try:
+                external_container = c_symbol.container
+            except SymbolError:
+                # Ignore this container if the associated module file has not
+                # been found in the given include_path.
+                # TODO #11: It would be useful to log this.
+                continue
+
     def rename_symbol(self, symbol, name):
         '''
         Rename the given symbol which should belong to this symbol table
