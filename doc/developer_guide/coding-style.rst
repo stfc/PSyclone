@@ -138,16 +138,14 @@ Where it makes sense to do so, the past tense should be used,
 e.g. "expected a str but got an object of type 'blah'."
 
 In the event that code that is handling an exception then needs to
-raise a new exception, the `raise_from` routine provided by the `six`
-Python 2/3 interoperability package must be used. (This ensures that
-contextual information about the source of the error is
+raise a new exception, the `raise XXX from YYY` form must be used.
+(This ensures that contextual information about the source of the error is
 retained.). For example::
 
-    import six
     try:
         something()
     except KeyError as err:
-        six.raise_from(InternalError("Useful message here"), err)
+        raise InternalError("Useful message here") from err
 
 .. _interface_description:
 

@@ -321,12 +321,12 @@ computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked;
 
- 2. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+ 2. All of the examples are tested (for Python versions 3.5 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 3. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
+ 3. The full test suite is run for Python versions 3.5 and 3.8 but without
     the compilation checks.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
@@ -352,7 +352,7 @@ and therefore the line described above must be commented out again
 before making a release.
 
 A single run of the test suite on GitHub Actions uses
-approximately 20 minutes of CPU time and we run the test suite on three
+approximately 20 minutes of CPU time and we run the test suite on two
 different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without
