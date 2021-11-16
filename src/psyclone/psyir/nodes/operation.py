@@ -65,6 +65,7 @@ class Operation(DataNode):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = object
+    _non_elemental_names = []
     # Textual description of the node.
     _text_name = "Operation"
     _colour = "blue"
@@ -105,6 +106,15 @@ class Operation(DataNode):
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
 
+    def is_elemental(self):
+        '''
+        :returns: whether this operation is elemental (provided with an input \
+            array it will apply the operation individually to each of the \
+            array elements and return and array with the results).
+        :rtype: bool
+        '''
+        return self.operator.name not in self._non_elemental_names
+
     def __str__(self):
         result = self.node_str(False) + "\n"
         for entity in self._children:
@@ -137,6 +147,8 @@ class UnaryOperation(Operation):
         # Casting Operators
         'REAL', 'INT', 'NINT'
         ])
+
+    _non_elemental_names = ['SUM']
 
     @staticmethod
     def _validate_child(position, child):
@@ -200,6 +212,7 @@ class BinaryOperation(Operation):
         # Matrix and Vector Operators
         'MATMUL'
         ])
+    _non_elemental_names = ['POW', 'SUM', 'MATMUL', 'SIZE']
     '''Arithmetic operators:
 
     .. function:: POW(arg0, arg1) -> type(arg0)
@@ -351,6 +364,7 @@ class NaryOperation(Operation):
         # Arithmetic Operators
         'MAX', 'MIN', 'SUM'
         ])
+    _non_elemental_names = ['SUM']
 
     @staticmethod
     def _validate_child(position, child):

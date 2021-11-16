@@ -306,7 +306,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         for operation in assignment.rhs.walk(Operation):
             # At the moment the only array valued operator is matmul
             # raise TransformationError("")
-            if operation.operator == BinaryOperation.Operator.MATMUL:
+            if not operation.is_elemental():
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "
                     "transformation does not support array valued operations "
