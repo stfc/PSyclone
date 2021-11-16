@@ -1564,9 +1564,6 @@ def test_arg_intrinsic_type_error():
             format(expected_descriptor) in str(excinfo.value))
 
 
-@pytest.mark.skipif(
-    sys.version_info > (3,),
-    reason="Deepcopy of function_space not working in Python 3")
 def test_no_arg_on_space(monkeypatch):
     ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
     the appropriate error when there is no kernel argument on the
