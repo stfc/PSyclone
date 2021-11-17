@@ -392,13 +392,15 @@ Mixed Precision
 ---------------
 
 The LFRic API allows fields, scalars and operators to be declared in
-the algorithm layer with LFRic-specific precision symbols as long as
-any associated kernels have been written to support the underlying
-precision that they represent. If a kernel is required to support more
-than one precision then multiple precision-specific kernels should be
-written which are called via a generic interface. If the generic
-interfance is called then Fortran will then ensure that the
-appropriate precision-specific kernel will be used.
+the algorithm layer with certain LFRic-specific precision symbols
+(such as r_def) as long as any associated kernels have been written so
+that they support the underlying precision that the symbols will
+represent (typically 32bit or 64bit). If a kernel needs to support
+data that can be stored with different precisions then appropriate
+precision-specific sub-kernels should be written. These
+precision-specific sub-kernels should be called via a generic
+interface (which lets Fortran choose the appropriate sub-kernel based
+on the precision of its argument(s).
 
 Below is a simple example of an algorithm code calling the same
 generic kernel twice with potentially different precision and for the
@@ -407,58 +409,58 @@ for precision in the algorithm code allows precision to be controlled
 in a simple way. For example r_solver could be set to be 32-bits in
 one configuration and 64-bits in another:
 
-```
-program test
+.. code-block:: fortran
 
-  use constants_mod, only : r_def, r_solver
-  use example_mod, only : example_type
+  program test
 
-  real(r_def)    :: x_r_def
-  real(r_solver) :: x_r_solver
+    use constants_mod, only : r_def, r_solver
+    use example_mod, only : example_type
 
-  call invoke( example_type(x_r_def),    &
-               example_type(x_r_solver))
+    real(r_def)    :: x_r_def
+    real(r_solver) :: x_r_solver
 
-end program test
+    call invoke( example_type(x_r_def),    &
+                 example_type(x_r_solver))
 
-module example_mod
+  end program test
 
-  use argument_mod
-  use kernel_mod
+  module example_mod
 
-  implicit none
+    use argument_mod
+    use kernel_mod
 
-  type, extends(kernel_type) :: example_type
-    type(arg_type), dimension(1) :: meta_args =     &
-          (/ arg_type(gh_scalar, gh_real, gh_read ) &
-           /)
-     integer :: operates_on = cell_column
-   contains
-     procedure, nopass :: code => example_code
-  end type example_type
+    implicit none
 
-  private
-  public :: example_code
+    type, extends(kernel_type) :: example_type
+      type(arg_type), dimension(1) :: meta_args =     &
+            (/ arg_type(gh_scalar, gh_real, gh_read ) &
+             /)
+       integer :: operates_on = cell_column
+     contains
+       procedure, nopass :: code => example_code
+    end type example_type
 
-  interface example_code
-    module procedure example_code_32
-    module procedure example_code_64
-  end interface example_code
+    private
+    public :: example_code
 
-contains
+    interface example_code
+      module procedure example_code_32
+      module procedure example_code_64
+    end interface example_code
 
-  subroutine example_code_32(x)
-    real*4, intent(in) :: x
-    print *, "32-bit example called"
-  end subroutine example_code_32
-     
-  subroutine example_code_64(x)
-    real*8, intent(in) :: x
-    print *, "64-bit example called"
-  end subroutine example_code_64
+  contains
 
-end module example_mod
-```
+    subroutine example_code_32(x)
+      real*4, intent(in) :: x
+      print *, "32-bit example called"
+    end subroutine example_code_32
+
+    subroutine example_code_64(x)
+      real*8, intent(in) :: x
+      print *, "64-bit example called"
+    end subroutine example_code_64
+
+  end module example_mod
 
 In order to support mixed precision, PSyclone needs to know the
 precision (as specified in the algorithm layer) of any LFRic data that
