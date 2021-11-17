@@ -1965,9 +1965,16 @@ class LFRicMeshProperties(DynCollection):
         # is enabled/disabled through transformations.
         # If any of the kernel calls have been coloured then we will need
         # arrays giving us the last cell of each colour.
-        if any(call.is_coloured() for call in self._calls):
+        #if any(call.is_coloured() for call in self._calls):
+        for call in self._calls:
+            if not call.is_coloured():
+                continue
+            #import pdb; pdb.set_trace()
             if Config.get().distributed_memory:
-                root_name = "last_halo_cell_all_colours"
+                if call.is_intergrid:
+                    root_name = "hello"
+                else:
+                    root_name = "last_halo_cell_all_colours"
                 array_type = ArrayType(INTEGER_TYPE,
                                        [ArrayType.Extent.DEFERRED,
                                         ArrayType.Extent.DEFERRED])
@@ -3914,10 +3921,16 @@ class DynMeshes(object):
                 base_name = "ncolour_" + carg_name
                 ncolours = \
                     self._schedule.symbol_table.symbol_from_tag(base_name).name
+                # Array holding the last halo or edge cell of a given colour
+                # and halo depth.
+                base_name = "last_cell_all_colours_" + carg_name
+                last_cell = \
+                    self._schedule.symbol_table.symbol_from_tag(base_name).name
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
                 self._ig_kernels[call.name].ncolours_var = ncolours
+                self._ig_kernels[call.name].last_cell_var = last_cell
 
         if not self._mesh_names and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
@@ -4192,6 +4205,8 @@ class DynInterGrid(object):
         self.colourmap = ""
         # Name of the variable holding the number of colours
         self.ncolours_var = ""
+        # Name of the variable holding the last cell of a particular colour
+        self.last_cell_var = ""
 
 
 class DynBasisFunctions(DynCollection):
@@ -6838,8 +6853,8 @@ class DynLoop(Loop):
                     "The specified index '{0}' for this upper loop bound is "
                     "invalid".format(str(index)))
         self._upper_bound_name = name
-        self._upper_bound_halo_depth = Literal("{0}".format(index),
-                                               INTEGER_TYPE)
+        self._upper_bound_halo_depth = index #Literal("{0}".format(index),
+                                             #  INTEGER_TYPE)
 
     @property
     def upper_bound_name(self):
@@ -6957,7 +6972,8 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            return "last_edge_cell_all_colours(colour)"
+            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag("last_cell_all_colours_"+self._field_name)
+            return sym.name+"(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
@@ -6967,7 +6983,8 @@ class DynLoop(Loop):
                 # The colouring API provides a 2D array that holds the last
                 # halo cell for a given colour and halo depth.
                 depth = halo_index
-            return "last_halo_cell_all_colours(colour, {0})".format(depth)
+            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag("last_cell_all_colours_"+self._field_name)
+            return sym.name+"(colour, {0})".format(depth)
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
@@ -7281,7 +7298,8 @@ class DynLoop(Loop):
 
                 if Config.get().distributed_memory:
                     if self._upper_bound_halo_depth:
-                        halo_depth = self._upper_bound_halo_depth
+                        halo_depth = Literal(str(self._upper_bound_halo_depth),
+                                             INTEGER_TYPE)
                     else:
                         halo_depth = Literal("1", INTEGER_TYPE)
 

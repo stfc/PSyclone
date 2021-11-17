@@ -732,11 +732,11 @@ def test_omp_region_omp_do(dist_mem):
     cell_loop_idx = -1
     omp_enddo_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
+        assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
-        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
     for idx, line in enumerate(code.split('\n')):
-        if loop_str in line:
+        if "DO cell=loop0_start,loop0_stop" in line:
             cell_loop_idx = idx
         if "!$omp do" in line:
             omp_do_idx = idx
@@ -847,9 +847,10 @@ def test_multi_kernel_single_omp_region(dist_mem):
     cell_loop_idx = -1
     end_do_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
+        assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
-        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
+    loop_str = "DO cell=loop0_start,loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if (cell_loop_idx == -1) and (loop_str in line):
             cell_loop_idx = idx
@@ -965,8 +966,8 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[index],
-                                schedule.children[index+1],
-                                {"same_space": same_space})
+                         schedule.children[index+1],
+                         {"same_space": same_space})
 
         if same_space:
             assert ("The 'same_space' flag was set, but does not apply "
@@ -1015,9 +1016,10 @@ def test_loop_fuse(dist_mem):
     call_idx1 = -1
     call_idx2 = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in gen
+    loop_str = "DO cell=loop0_start,loop0_stop"
     for idx, line in enumerate(gen.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -1078,9 +1080,10 @@ def test_loop_fuse_omp(dist_mem):
     call1_idx = -1
     call2_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
+        assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+    loop_str = "DO cell=loop0_start,loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_do_idx = idx
@@ -1556,10 +1559,16 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
@@ -1572,14 +1581,13 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      CALL f2_proxy%set_dirty()\n"
             "      CALL f3_proxy%set_dirty()")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # distmem is False. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
@@ -1613,10 +1621,16 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f2_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f2_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1629,14 +1643,13 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end master\n"
             "      !\n"
             "      !$omp end parallel")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # distmem is False. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f2" in result
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1669,10 +1682,24 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+            assert ("loop1_stop = f2_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+            assert ("loop2_stop = f3_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
+            assert ("loop1_stop = f2_proxy%vspace%get_last_dof_owned()"
+                    in result)
+            assert ("loop2_stop = f3_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1685,7 +1712,7 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end master\n"
             "      !\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1698,7 +1725,7 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end master\n"
             "      !\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop2_start,loop2_stop\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1711,24 +1738,25 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end master\n"
             "      !\n"
             "      !$omp end parallel")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # distmem is False. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f2" in result
+        assert "loop2_stop = undf_aspc1_f3" in result
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f3\n"
+            "      DO df=loop2_start,loop2_stop\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1764,10 +1792,16 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
@@ -1784,14 +1818,13 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end master\n"
             "      !\n"
             "      !$omp end parallel")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # distmem is False. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = fred\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
@@ -1816,10 +1849,11 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1827,10 +1861,11 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      asum = global_sum%get_sum()\n") in code
 
     else:
+        assert "loop0_stop = undf_aspc1_f1" in code
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
@@ -1855,10 +1890,11 @@ def test_reduction_real_do(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1866,10 +1902,11 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n") in code
     else:
+        assert "loop0_stop = undf_aspc1_f1\n" in code
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1894,6 +1931,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -1901,7 +1940,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1914,19 +1953,21 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n") in code
     else:
+        assert "loop0_stop = undf_aspc1_f1\n" in code
+        assert "loop1_stop = undf_aspc1_f1\n" in code
         assert (
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1937,7 +1978,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
@@ -1970,6 +2011,16 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
+        else:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -1977,7 +2028,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1990,17 +2041,16 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp end master\n"
             "      !\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
-        if not annexed:
-            expected_output = expected_output.replace("dof_annexed",
-                                                      "dof_owned")
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2008,12 +2058,12 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2048,6 +2098,13 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2058,7 +2115,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2071,7 +2128,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp end master\n"
             "      !\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2085,10 +2142,9 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      DEALLOCATE (l_asum)\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
-        if not annexed:
-            expected_output = expected_output.replace("dof_annexed",
-                                                      "dof_owned")
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2099,12 +2155,12 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2147,6 +2203,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2155,12 +2213,12 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2170,6 +2228,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      global_sum%value = bsum\n"
             "      bsum = global_sum%get_sum()")
     else:
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2178,12 +2238,12 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2219,6 +2279,8 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2232,13 +2294,13 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
             "f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2259,6 +2321,8 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      global_sum%value = bsum\n"
             "      bsum = global_sum%get_sum()")
     else:
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2272,13 +2336,13 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
             "f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2371,6 +2435,8 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2378,7 +2444,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -2391,13 +2457,15 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:bsum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = bsum\n"
             "      bsum = global_sum%get_sum()\n") in code
     else:
+        assert "loop0_stop = undf_aspc1_f1" in code
+        assert "loop1_stop = undf_aspc1_f1" in code
         assert (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2405,7 +2473,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -2416,7 +2484,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:bsum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
@@ -2444,6 +2512,13 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
+        if annexed:
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2451,7 +2526,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -2459,7 +2534,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = global_sum%get_sum()\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -2468,10 +2543,10 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         assert (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2479,13 +2554,13 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in result
@@ -2519,6 +2594,13 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
+        if annexed:
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2526,12 +2608,12 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2550,6 +2632,8 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         assert (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -2557,12 +2641,12 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -2605,6 +2689,8 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
         result = str(psy.gen)
 
         if dist_mem:  # annexed must be False here
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in
+                    result)
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2612,7 +2698,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2626,6 +2712,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
+            assert "loop0_stop = undf_aspc1_f1" in result
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2633,7 +2720,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_aspc1_f1\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2680,12 +2767,14 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
         result = str(psy.gen)
 
         if dist_mem:  # annexed must be False here
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
             code = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2702,12 +2791,13 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem, annexed is True or False
+            assert "loop0_stop = undf_aspc1_f1" in result
             code = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_aspc1_f1\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2741,10 +2831,17 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
+        if annexed:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -2761,20 +2858,20 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned", 1)
         assert code in result
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -2785,7 +2882,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in result
@@ -2820,6 +2917,8 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
         result = str(psy.gen)
 
         if dist_mem:  # annexed is False here
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2827,7 +2926,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
                 "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2841,6 +2940,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
+            assert "loop0_stop = undf_aspc1_f1" in result
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2848,7 +2948,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_aspc1_f1\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
                 "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2889,12 +2989,14 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
         result = str(psy.gen)
 
         if dist_mem:  # annexed is False here
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
             code = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
                 "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -2911,12 +3013,13 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
+            assert "loop0_stop = undf_aspc1_f1" in result
             code = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_aspc1_f1\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
                 "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
@@ -3003,6 +3106,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
         "      nthreads = omp_get_max_threads()\n"
         "      !\n") in code
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "      ! Zero summation variables\n"
             "      !\n"
@@ -3013,7 +3117,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -3029,6 +3133,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()") in code
     else:
+        assert "loop0_stop = undf_aspc1_f1" in code
         assert (
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3037,7 +3142,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
@@ -3117,6 +3222,13 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
         "      nthreads = omp_get_max_threads()\n"
         "      !\n") in result
     if dist_mem:  # annexed can be True or False
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
+        if annexed:
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    in result)
+        else:
+            assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
         code = (
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3125,13 +3237,13 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -3153,10 +3265,10 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      DEALLOCATE (l_asum)\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
-        if not annexed:
-            code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
+        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop1_stop = undf_aspc1_f1" in result
         assert (
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3165,13 +3277,13 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop1_start,loop1_stop\n"
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -3236,6 +3348,8 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
             "      nthreads = omp_get_max_threads()\n"
             "      !\n") in result
         if dist_mem:  # annexed is False here
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3244,7 +3358,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
@@ -3269,6 +3383,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
+            assert "loop0_stop = undf_aspc1_f1" in result
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3277,7 +3392,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_aspc1_f1\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
@@ -3327,6 +3442,8 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
 
         assert "      INTEGER th_idx\n" in result
         if dist_mem:  # annexed is False here
+            assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    in result)
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3335,7 +3452,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)\n"
@@ -3360,6 +3477,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in result
         else:  # distmem is False. annexed can be True or False
+            assert "loop0_stop = undf_aspc1_f1" in result
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3368,7 +3486,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_aspc1_f1\n"
+                "      DO df=loop0_start,loop0_stop\n"
                 "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)\n"
@@ -3407,12 +3525,14 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
     assert "INTEGER th_idx\n" in code
     if dist_mem:
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
+        assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
+        assert "loop2_stop = f2_proxy%vspace%get_last_dof_owned()" in code
+
         for names in [
-                {"var": "asum", "lvar": "l_asum",
-                 "bounds": "f1_proxy%vspace%get_last_dof_owned()",
+                {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
                  "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
-                {"var": "bsum", "lvar": "l_bsum",
-                 "bounds": "f2_proxy%vspace%get_last_dof_owned()",
+                {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
                  "rhs": "f2_proxy%data(df)"}]:
             assert (
                 "      " + names["var"] + " = 0.0_r_def\n"
@@ -3422,7 +3542,8 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1," + names["bounds"] + "\n"
+                "      DO df=loop"+names["loop_idx"]+"_start,"
+                "loop"+names["loop_idx"]+"_stop\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
                 names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
                 "      END DO\n"
@@ -3440,13 +3561,15 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      " + names["var"] + " = "
                 "global_sum%get_sum()\n") in code
     else:
+        assert "loop0_stop = undf_aspc1_f1" in code
+        assert "loop1_stop = undf_aspc1_f1" in code
+        assert "loop2_stop = undf_aspc1_f2" in code
+
         for names in [
-                {"var": "asum", "lvar": "l_asum",
-                 "bounds": "undf_aspc1_f1",
+                {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
                  "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
                 {"var": "bsum", "lvar": "l_bsum",
-                 "bounds": "undf_aspc1_f2",
-                 "rhs": "f2_proxy%data(df)"}]:
+                 "loop_idx": "2", "rhs": "f2_proxy%data(df)"}]:
             assert (
                 "      " + names["var"] + " = 0.0_r_def\n"
                 "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
@@ -3455,7 +3578,8 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1," + names["bounds"] + "\n"
+                "      DO df=loop"+names["loop_idx"]+"_start,"
+                "loop"+ names["loop_idx"]+"_stop\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
                 names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
                 "      END DO\n"
@@ -3890,7 +4014,8 @@ def test_rc_continuous_depth():
                 format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=3)".
                 format(field_name)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      CALL f1_proxy%set_clean(2)") in result
 
@@ -3920,7 +4045,8 @@ def test_rc_continuous_no_depth():
                 "depth())) THEN\n"
                 "        CALL {0}_proxy%halo_exchange(depth=mesh%"
                 "get_halo_depth())".format(field_name)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      CALL f1_proxy%set_clean(mesh%get_halo_depth"
             "()-1)") in result
@@ -3955,7 +4081,8 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
         assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
                 "        CALL {0}_proxy%halo_exchange(depth=3)".
                 format(field_name)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL m2_proxy%set_dirty()\n"
             "      CALL m2_proxy%set_clean(3)") in result
 
@@ -3992,7 +4119,8 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
                 "get_halo_depth())".format(field_name)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+        assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert "CALL m2_proxy%set_dirty()" not in result
     assert "CALL m2_proxy%set_clean(mesh%get_halo_depth())" in result
 
@@ -4013,7 +4141,8 @@ def test_rc_all_discontinuous_depth(tmpdir):
     print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
-    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
@@ -4038,7 +4167,8 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_dep"
             "th())") in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -4063,7 +4193,8 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
                 format(idx)) in result
         assert ("CALL f2_proxy({0})%halo_exchange(depth=3)".
                 format(idx)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
@@ -4084,13 +4215,13 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     for idx in range(1, 4):
         assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_halo_depth"
                 "())) THEN".format(idx)) in result
         assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_halo"
                 "_depth())".format(idx)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
         assert ("CALL f1_proxy({0})%set_clean(mesh%get_halo_"
                 "depth())".format(idx)) in result
@@ -4145,7 +4276,8 @@ def test_rc_all_disc_prev_depend_no_depth():
             "THEN") not in result
     assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_halo_dept"
             "h())") in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     assert "CALL f3_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
@@ -4170,7 +4302,8 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
                 "3)) THEN".format(idx)) not in result
         assert ("CALL f1_proxy({0})%halo_exchange("
                 "depth=3)".format(idx)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+        assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
@@ -4198,7 +4331,8 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
     for idx in range(1, 4):
         assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
                 "depth())".format(idx)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
@@ -4232,7 +4366,8 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     for idx in range(1, 4):
         assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
                 "depth())".format(idx)) in result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
@@ -4259,7 +4394,8 @@ def test_rc_dofs_depth():
     for field in ["f1", "f2"]:
         assert "IF ({0}_proxy%is_dirty(depth=3)) THEN".format(field) in result
         assert "CALL {0}_proxy%halo_exchange(depth=3)".format(field) in result
-    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "DO df=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
@@ -4284,7 +4420,8 @@ def test_rc_dofs_no_depth():
             in result)
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())"
             in result)
-    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "DO df=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_dirty()" not in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
@@ -4333,7 +4470,8 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
                 ")".format(field_name)) in result
-    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "DO df=loop1_start,loop1_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
@@ -4364,7 +4502,8 @@ def test_rc_dofs_no_depth_prev_dep():
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
                 ")".format(field_name)) in result
-    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "DO df=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
@@ -6041,15 +6180,21 @@ def test_intergrid_colour(dist_mem):
       ncolour_fld_c = mesh_fld_c%get_ncolours()
       cmap_fld_c => mesh_fld_c%get_colour_map()'''
     assert expected in gen
+    assert "loop1_stop = ncolour_fld_m" in gen
+    assert "loop2_stop" not in gen
     if dist_mem:
+        assert ("last_edge_cell_all_colours_fld_m = "
+                "mesh_fld_m%get_last_halo_cells_all_colours()" in gen)
         expected = (
-            "      do colour=1,ncolour_fld_m\n"
-            "        do cell=1,mesh_fld_m%get_last_halo_cell_per_colour("
+            "      do colour=loop1_start,loop1_stop\n"
+            "        do cell=loop2_start,last_halo_cell_all_colours_fld_m"
             "colour,1)\n")
     else:
+        assert ("last_edge_cell_all_colours_fld_m = "
+                "mesh_fld_m%get_last_edge_cells_all_colours()" in gen)
         expected = (
-            "      do colour=1,ncolour_fld_m\n"
-            "        do cell=1,mesh_fld_m%get_last_edge_cell_per_colour("
+            "      do colour=loop1_start,loop1_stop\n"
+            "        do cell=loop2_start,last_edge_cell_all_colours_fld_m"
             "colour)\n")
     assert expected in gen
     expected = (

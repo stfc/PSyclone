@@ -761,14 +761,11 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      DO colour=loop2_start,loop2_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=loop3_start,loop3_stop\n"
+        "        DO cell=loop3_start,last_halo_cell_all_colours(colour,1)\n"
         "          !\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output
     assert "loop2_stop = ncolour_fld_m\n" in output
-    # Was mesh_fld_c%get_last_halo_cell_per_colour(colour,1)
-    if "loop3_stop = ARPDBG\n" not in output:
-        pytest.xfail("#451 colourmap lookup needs fixing")
     # Try to apply colouring to the second restrict kernel
     with pytest.raises(TransformationError) as excinfo:
         ctrans.apply(schedule.children[1])
