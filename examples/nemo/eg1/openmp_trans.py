@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,48 +32,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have psyclone installed, this script may be run by doing:
-
- >>> python runme_openmp.py
-
-This should generate a lot of output, ending with generated
-Fortran.
-'''
+''' PSyclone transformation script showing the introduction of OpenMP
+directives into Nemo code. '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import TransInfo
+from psyclone.nemo import NemoKern
 
-if __name__ == "__main__":
-    from psyclone.nemo import NemoKern
-    API = "nemo"
-    _, INVOKEINFO = parse("../code/tra_adv.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print(PSY.gen)
+
+def trans(psy):
+    ''' Add OpenMP Parallel Loop directives to Nemo loops over levels
+    in the provided PSy-layer.
+
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+    omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
 
     print("Invokes found:")
-    print(PSY.invokes.names)
+    for invoke in psy.invokes.invoke_list:
+        print(invoke.name)
+        for loop in invoke.schedule.loops():
+            kernels = loop.walk(NemoKern)
+            if kernels and loop.loop_type == "levels":
+                omp_trans.apply(loop)
 
-    SCHED = PSY.invokes.get('tra_adv').schedule
-    SCHED.view()
-
-    TRANS_INFO = TransInfo()
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
-
-    for loop in SCHED.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
-            OMP_TRANS.apply(loop)
-
-    SCHED.view()
-
-    PSY.invokes.get('tra_adv').schedule = SCHED
-    print(PSY.gen)
+    return psy
