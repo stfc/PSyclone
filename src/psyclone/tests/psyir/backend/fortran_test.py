@@ -44,7 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    get_fortran_operator, _reverse_map, is_fortran_intrinsic, precedence
+    FortranWriter, _reverse_map, is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
@@ -478,21 +478,21 @@ def test_reverse_map_duplicates():
                          [(UnaryOperation.Operator.SIN, "SIN"),
                           (BinaryOperation.Operator.MIN, "MIN"),
                           (NaryOperation.Operator.SUM, "SUM")])
-def test_get_fortran_operator(operator, result):
-    '''Check that the get_fortran_operator function returns the expected
+def test_get_operator(operator, result):
+    '''Check that the get_operator function returns the expected
     values when provided with valid unary, binary and nary operators.
 
     '''
-    assert result == get_fortran_operator(operator)
+    assert result == FortranWriter.get_operator(operator)
 
 
-def test_get_fortran_operator_error():
-    '''Check that the get_fortran_operator function raises the expected
+def test_get_operator_error():
+    '''Check that the get_operator function raises the expected
     exception when an unknown operator is provided.
 
     '''
     with pytest.raises(KeyError):
-        _ = get_fortran_operator(None)
+        _ = FortranWriter.get_operator(None)
 
 
 def test_is_fortran_intrinsic():

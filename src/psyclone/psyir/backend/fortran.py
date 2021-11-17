@@ -223,35 +223,6 @@ def _reverse_map(op_map):
     return mapping
 
 
-def get_fortran_operator(operator):
-    '''Determine the Fortran operator that is equivalent to the provided
-    PSyIR operator. This is achieved by reversing the Fparser2Reader
-    maps that are used to convert from Fortran operator names to PSyIR
-    operator names.
-
-    :param operator: a PSyIR operator.
-    :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
-
-    :returns: the Fortran operator.
-    :rtype: str
-
-    :raises KeyError: if the supplied operator is not known.
-
-    '''
-    unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
-    if operator in unary_mapping:
-        return unary_mapping[operator].upper()
-
-    binary_mapping = _reverse_map(Fparser2Reader.binary_operators)
-    if operator in binary_mapping:
-        return binary_mapping[operator].upper()
-
-    nary_mapping = _reverse_map(Fparser2Reader.nary_operators)
-    if operator in nary_mapping:
-        return nary_mapping[operator].upper()
-    raise KeyError()
-
-
 def is_fortran_intrinsic(fortran_operator):
     '''Determine whether the supplied Fortran operator is an intrinsic
     Fortran function or not.
@@ -405,6 +376,36 @@ class FortranWriter(LanguageWriter):
                                             indent_string,
                                             initial_indent_depth,
                                             check_global_constraints)
+
+    @staticmethod
+    def get_operator(operator):
+        '''Determine the Fortran operator that is equivalent to the provided
+        PSyIR operator. This is achieved by reversing the Fparser2Reader
+        maps that are used to convert from Fortran operator names to PSyIR
+        operator names.
+
+        :param operator: a PSyIR operator.
+        :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
+
+        :returns: the Fortran operator.
+        :rtype: str
+
+        :raises KeyError: if the supplied operator is not known.
+
+        '''
+
+        unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
+        if operator in unary_mapping:
+            return unary_mapping[operator].upper()
+
+        binary_mapping = _reverse_map(Fparser2Reader.binary_operators)
+        if operator in binary_mapping:
+            return binary_mapping[operator].upper()
+
+        nary_mapping = _reverse_map(Fparser2Reader.nary_operators)
+        if operator in nary_mapping:
+            return nary_mapping[operator].upper()
+        raise KeyError()
 
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
@@ -1010,6 +1011,7 @@ class FortranWriter(LanguageWriter):
                               node is empty or None.
 
         '''
+        # pylint: disable=too-many-branches
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
@@ -1116,14 +1118,14 @@ class FortranWriter(LanguageWriter):
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
-            fort_oper = get_fortran_operator(node.operator)
+            fort_oper = self.get_operator(node.operator)
             if is_fortran_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
                 return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
             parent = node.parent
             if isinstance(parent, Operation):
                 # We may need to enforce precedence
-                parent_fort_oper = get_fortran_operator(parent.operator)
+                parent_fort_oper = self.get_operator(parent.operator)
                 if not is_fortran_intrinsic(parent_fort_oper):
                     # We still may need to enforce precedence
                     if precedence(fort_oper) < precedence(parent_fort_oper):
@@ -1163,7 +1165,7 @@ class FortranWriter(LanguageWriter):
         for child in node.children:
             arg_list.append(self._visit(child))
         try:
-            fort_oper = get_fortran_operator(node.operator)
+            fort_oper = self.get_operator(node.operator)
             return "{0}({1})".format(fort_oper, ", ".join(arg_list))
         except KeyError as error:
             raise six.raise_from(VisitorError("Unexpected N-ary op '{0}'".
@@ -1223,6 +1225,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        # pylint: disable=too-many-branches
         precision = node.datatype.precision
 
         if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
@@ -1354,7 +1357,7 @@ class FortranWriter(LanguageWriter):
         '''
         content = self._visit(node.children[0])
         try:
-            fort_oper = get_fortran_operator(node.operator)
+            fort_oper = self.get_operator(node.operator)
             if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
                 return "{0}({1})".format(fort_oper, content)
@@ -1364,11 +1367,11 @@ class FortranWriter(LanguageWriter):
             # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
             parent = node.parent
             if isinstance(parent, UnaryOperation):
-                parent_fort_oper = get_fortran_operator(parent.operator)
+                parent_fort_oper = self.get_operator(parent.operator)
                 if not is_fortran_intrinsic(parent_fort_oper):
                     return "({0}{1})".format(fort_oper, content)
             if isinstance(parent, BinaryOperation):
-                parent_fort_oper = get_fortran_operator(parent.operator)
+                parent_fort_oper = self.get_operator(parent.operator)
                 if (not is_fortran_intrinsic(parent_fort_oper) and
                         node is parent.children[1]):
                     return "({0}{1})".format(fort_oper, content)
