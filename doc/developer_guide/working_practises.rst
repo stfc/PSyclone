@@ -327,7 +327,7 @@ and imports the Loop class, and the actual example uses this code.
 Many code snippets in python docstrings might try to parse a file,
 which typically cannot be found (unless the full path would be
 provided, which makes the example look ugly). One solution for this
-is use variable that is supposed to contain the filename, and then
+is to use a variable that is supposed to contain the filename, and then
 define this variable in the ``testsetup`` section. For example, the
 file ``transformation.py`` uses::
 
@@ -429,18 +429,18 @@ file.
 Currently there are three main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked;
+ 1. All links within all MarkDown files are checked.
 
- 2. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+ 2. All examples in the Developer Guide are checked for correctness by
+    running ``make doctest``.
+
+ 3. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 3. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
+ 4. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
     the compilation checks.
-
- 4. All examples in the Developer Guide are checked for correctness by
-    running ``make doctest``.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
