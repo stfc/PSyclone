@@ -44,7 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    FortranWriter, _reverse_map, is_fortran_intrinsic, precedence
+    FortranWriter, _reverse_map, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
@@ -500,9 +500,9 @@ def test_is_fortran_intrinsic():
     supplied operator is a fortran intrinsic and false otherwise.
 
     '''
-    assert is_fortran_intrinsic("SIN")
-    assert not is_fortran_intrinsic("+")
-    assert not is_fortran_intrinsic(None)
+    assert FortranWriter.is_intrinsic("SIN")
+    assert not FortranWriter.is_intrinsic("+")
+    assert not FortranWriter.is_intrinsic(None)
 
 
 def test_precedence():

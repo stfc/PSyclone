@@ -40,21 +40,12 @@
 
 from __future__ import print_function, absolute_import
 
-import os
 import pytest
-from sympy import simplify
-from sympy.parsing.sympy_parser import parse_expr
 
 from fparser.common.readfortran import FortranStringReader
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyGen import PSyFactory
-
-# Constants
-API = "nemo"
-# Location of the Fortran files associated with these tests
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files")
 
 
 def test_sym_maths_get():
@@ -243,39 +234,27 @@ def test_math_not_equal_structures(parser, expressions):
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),
                                          ("max(1, 3)", "max(1, 2, 3)")
                                          ])
-def test_math_functions_with_constants(parser, expressions):
+def test_math_functions_with_constants(fortran_reader, expressions):
     '''Test how known functions with constant values are handled.
     At this stage sympy can handle them, but the output format of
     the Fortran writer (all capitals, e.g. 'MAX') prevents this
     from working (sympy expects 'Max')
 
     '''
-    # First show that sympy itself can handle known functions with
-    # constant parameters, if they have the correct spelling:
-    str_exp1 = parse_expr(expressions[0].replace("max", "Max"))
-    str_exp2 = parse_expr(expressions[1].replace("max", "Max"))
-    assert simplify(str_exp1 == str_exp2)
 
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    use some_mod
-                                    integer :: i, j, k, x
-                                    type(my_mod_type) :: a, b
-                                    x = {0}
-                                    x = {1}
-                                    end program test_prog
-                                 '''.format(expressions[0],
-                                            expressions[1]))
+    source = '''program test_prog
+                 use some_mod
+                 integer :: i, j, k, x
+                 type(my_mod_type) :: a, b
+                 x = {0}
+                 x = {1}
+                 end program test_prog
+             '''.format(expressions[0], expressions[1])
+
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    # Note we cannot use 'is False', since sym_maths returns an
-    # instance of its own boolean type.
-    if not sym_maths.equal(schedule[0].rhs, schedule[1].rhs):
-        pytest.xfail("##### sympy does not yet handle known functions"
-                     "with constant parameters correctly.")
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)

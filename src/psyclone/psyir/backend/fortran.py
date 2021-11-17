@@ -223,19 +223,6 @@ def _reverse_map(op_map):
     return mapping
 
 
-def is_fortran_intrinsic(fortran_operator):
-    '''Determine whether the supplied Fortran operator is an intrinsic
-    Fortran function or not.
-
-    :param str fortran_operator: the supplied Fortran operator.
-
-    :returns: true if the supplied Fortran operator is a Fortran \
-        intrinsic and false otherwise.
-
-    '''
-    return fortran_operator in FORTRAN_INTRINSICS
-
-
 def precedence(fortran_operator):
     '''Determine the relative precedence of the supplied Fortran operator.
     Relative Operator precedence is taken from the Fortran 2008
@@ -376,6 +363,19 @@ class FortranWriter(LanguageWriter):
                                             indent_string,
                                             initial_indent_depth,
                                             check_global_constraints)
+
+    @staticmethod
+    def is_intrinsic(operator):
+        '''Determine whether the supplied operator is an intrinsic
+        Fortran function or not.
+
+        :param str fortran_operator: the supplied Fortran operator.
+
+        :returns: true if the supplied Fortran operator is a Fortran \
+            intrinsic and false otherwise.
+
+        '''
+        return operator in FORTRAN_INTRINSICS
 
     @staticmethod
     def get_operator(operator):
@@ -1119,14 +1119,14 @@ class FortranWriter(LanguageWriter):
         rhs = self._visit(node.children[1])
         try:
             fort_oper = self.get_operator(node.operator)
-            if is_fortran_intrinsic(fort_oper):
+            if self.is_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
                 return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
             parent = node.parent
             if isinstance(parent, Operation):
                 # We may need to enforce precedence
                 parent_fort_oper = self.get_operator(parent.operator)
-                if not is_fortran_intrinsic(parent_fort_oper):
+                if not self.is_intrinsic(parent_fort_oper):
                     # We still may need to enforce precedence
                     if precedence(fort_oper) < precedence(parent_fort_oper):
                         # We need brackets to enforce precedence
@@ -1358,7 +1358,7 @@ class FortranWriter(LanguageWriter):
         content = self._visit(node.children[0])
         try:
             fort_oper = self.get_operator(node.operator)
-            if is_fortran_intrinsic(fort_oper):
+            if self.is_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
                 return "{0}({1})".format(fort_oper, content)
             # It's not an intrinsic function so we need to consider the
@@ -1368,11 +1368,11 @@ class FortranWriter(LanguageWriter):
             parent = node.parent
             if isinstance(parent, UnaryOperation):
                 parent_fort_oper = self.get_operator(parent.operator)
-                if not is_fortran_intrinsic(parent_fort_oper):
+                if not self.is_intrinsic(parent_fort_oper):
                     return "({0}{1})".format(fort_oper, content)
             if isinstance(parent, BinaryOperation):
                 parent_fort_oper = self.get_operator(parent.operator)
-                if (not is_fortran_intrinsic(parent_fort_oper) and
+                if (not self.is_intrinsic(parent_fort_oper) and
                         node is parent.children[1]):
                     return "({0}{1})".format(fort_oper, content)
             return "{0}{1}".format(fort_oper, content)

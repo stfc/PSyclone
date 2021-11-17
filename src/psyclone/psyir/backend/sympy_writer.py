@@ -42,6 +42,7 @@ from __future__ import absolute_import
 
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import NaryOperation, BinaryOperation
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -49,20 +50,26 @@ class SymPyWriter(FortranWriter):
     '''Implements a PSyIR-to-sympy writer, used to create a representation
     of the PSyIR tree that can be understood by SymPy. Most Fortran
     expressions work as expected, this class implements special handling
-    for constants (which can have a precision attached: 2_4) and some
+    for constants (which can have a precision attached, e.g. 2_4) and some
     intrinsic functions (e.g. MAX, which SymPy expects to be Max).
 
     '''
 
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
-        tree.
+        tree. For SymPy we need to handle booleans (which are expected to
+        be capitalised: True). Real values work by just ignoring any precision
+        information (e.g. 2_4, 3.1_wp). Character constants are supported
+        and will raise an exception.
 
         :param node: a Literal PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: the SymPy representation for the literal.
         :rtype: str
+
+        :raises InternalError: if a character constant is found, which \
+            is not supported with SymPy.
 
         '''
         if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
@@ -77,3 +84,42 @@ class SymPyWriter(FortranWriter):
         # 'e' as specification, which SymPy accepts, and precision
         # information can be ignored.
         return node.value
+
+    @staticmethod
+    def get_operator(operator):
+        '''Determine the Fortran operator that is equivalent to the provided
+        PSyIR operator. This is achieved by reversing the Fparser2Reader
+        maps that are used to convert from Fortran operator names to PSyIR
+        operator names.
+
+        :param operator: a PSyIR operator.
+        :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
+
+        :returns: the Fortran operator.
+        :rtype: str
+
+        :raises KeyError: if the supplied operator is not known.
+
+        '''
+        if operator in [NaryOperation.Operator.MAX,
+                        BinaryOperation.Operator.MAX]:
+            return "Max"
+
+        return FortranWriter.get_operator(operator)
+
+    @staticmethod
+    def is_intrinsic(operator):
+        '''Determine whether the supplied operator is an intrinsic
+        function (i.e. needs to be used as `f(a,b)`) or not (i.e. used
+        as `a + b`)
+
+        :param str operator: the supplied operator.
+
+        :returns: true if the supplied operator is an \
+            intrinsic and false otherwise.
+
+        '''
+        if operator == "Max":
+            return True
+
+        return FortranWriter.is_intrinsic(operator)

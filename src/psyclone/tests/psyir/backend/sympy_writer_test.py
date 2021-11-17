@@ -116,3 +116,22 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
     lit = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     assert sympy_writer(lit) == expressions[1]
+
+
+@pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)")
+                                         ])
+def test_sym_writer_functions(fortran_reader, expressions):
+    '''Test that real constants are handled, including precision
+    specifications (either as int or as a name).
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = '''program test_prog
+                integer :: x
+                x = {0}
+                end program test_prog '''.format(expressions[0])
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    assert sympy_writer(lit) == expressions[1]
