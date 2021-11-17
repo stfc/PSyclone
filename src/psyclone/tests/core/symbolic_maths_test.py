@@ -42,10 +42,7 @@ from __future__ import print_function, absolute_import
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.core import SymbolicMaths
-from psyclone.psyGen import PSyFactory
 
 
 def test_sym_maths_get():
@@ -62,23 +59,21 @@ def test_sym_maths_get():
 @pytest.mark.parametrize("expressions", [(".true.", ".TRUE."),
                                          (".false.", ".FALSE."),
                                          ])
-def test_math_logicals(parser, expressions):
+def test_math_logicals(fortran_reader, expressions):
     '''Test that the sympy based comparison handles constant numbers,
     especially once using Fortran type specification
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    use some_mod
-                                    logical :: x
-                                    x = {0}
-                                    x = {1}
-                                    end program test_prog
-                                 '''.format(expressions[0],
-                                            expressions[1]))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
+    source = '''program test_prog
+                use some_mod
+                logical :: x
+                x = {0}
+                x = {1}
+                end program test_prog
+                '''.format(expressions[0], expressions[1])
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
@@ -103,25 +98,23 @@ def test_math_logicals(parser, expressions):
                                          ("i+j-2*k+3*j-2*i", "-i+4*j-2*k"),
                                          ("max(1, 2, 3)", "max(1, 2, 3)")
                                          ])
-def test_math_equal(parser, expressions):
+def test_math_equal(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
     expressions that are equal.
 
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    use some_mod
-                                    integer :: i, j, k, x
-                                    type(my_mod_type) :: a, b
-                                    x = {0}
-                                    x = {1}
-                                    end program test_prog
-                                 '''.format(expressions[0],
-                                            expressions[1]))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
+    source = '''program test_prog
+                use some_mod
+                integer :: i, j, k, x
+                type(my_mod_type) :: a, b
+                x = {0}
+                x = {1}
+                end program test_prog
+                '''.format(expressions[0], expressions[1])
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
@@ -139,24 +132,22 @@ def test_math_equal(parser, expressions):
                                           "a%b(a%b,a%b,a%b)"),
                                          ("a%b%c%d", "a%b%c%d")
                                          ])
-def test_math_equal_structures(parser, expressions):
+def test_math_equal_structures(fortran_reader, expressions):
     '''Test that the sympy based comparison handles structures as expected.
 
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    use some_mod
-                                    integer :: i, j, k
-                                    type(my_mod_type) :: a, b, c(:,:)
-                                    x = {0}
-                                    x = {1}
-                                    end program test_prog
-                                 '''.format(expressions[0],
-                                            expressions[1]))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
+    source = '''program test_prog
+                use some_mod
+                integer :: i, j, k
+                type(my_mod_type) :: a, b, c(:,:)
+                x = {0}
+                x = {1}
+                end program test_prog
+                '''.format(expressions[0], expressions[1])
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
@@ -169,29 +160,25 @@ def test_math_equal_structures(parser, expressions):
                                          ("i-j", "j-i"),
                                          ("max(1, 2)", "max(1, 2, 3)")
                                          ])
-def test_math_not_equal(parser, expressions):
+def test_math_not_equal(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
     expressions.
 
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    use some_mod
-                                    integer :: i, j, k, x
-                                    type(my_mod_type) :: a, b
-                                    x = {0}
-                                    x = {1}
-                                    end program test_prog
-                                 '''.format(expressions[0],
-                                            expressions[1]))
+    source = '''program test_prog
+                use some_mod
+                integer :: i, j, k, x
+                type(my_mod_type) :: a, b
+                x = {0}
+                x = {1}
+                end program test_prog
+                '''.format(expressions[0], expressions[1])
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
     # Note we cannot use 'is False', since sym_maths returns an
     # instance of its own boolean type.
     assert not sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
@@ -203,28 +190,25 @@ def test_math_not_equal(parser, expressions):
                                          ("a%b(i)%c(k)", "a%b(i)%c(k+1)"),
                                          ("a%b(i+1)%c(k)", "a%b(i)%c(k+1)"),
                                          ])
-def test_math_not_equal_structures(parser, expressions):
+def test_math_not_equal_structures(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
     expressions.
 
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    use some_mod
-                                    integer :: i, j, k, x
-                                    type(my_mod_type) :: a, b
-                                    x = {0}
-                                    x = {1}
-                                    end program test_prog
-                                 '''.format(expressions[0],
-                                            expressions[1]))
+    source = '''program test_prog
+                use some_mod
+                integer :: i, j, k, x
+                type(my_mod_type) :: a, b
+                x = {0}
+                x = {1}
+                end program test_prog
+                '''.format(expressions[0], expressions[1])
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
 
     # Note we cannot use 'is False', since sym_maths returns an
     # instance of its own boolean type.
