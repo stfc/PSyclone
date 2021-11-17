@@ -57,8 +57,6 @@ jobs:
   dev-doctest:
     # Check doctests of developer's guide
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
