@@ -41,7 +41,6 @@ from __future__ import absolute_import
 import tempfile
 
 import pytest
-import six
 
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
 from psyclone.errors import InternalError
@@ -83,15 +82,12 @@ def test_line_length_unicode():
     Note: This test failed with Python >3,<3.7 before explicit codecs
           were defined in the open(filename, ...) call.
     '''
-    kwargs = dict(encoding='utf8') if six.PY3 else {}
+    kwargs = dict(encoding='utf8')
     with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
         content = u'''
             ! A fortran comment with a unicode character "{}"
         '''.format(u"\u2014")
-        if six.PY3:
-            tmp_file.write(content)
-        else:
-            tmp_file.write(content.encode('utf8'))
+        tmp_file.write(content)
         tmp_file.flush()
 
         assert check_line_length(tmp_file.name) is None
