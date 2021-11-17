@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
     Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container, Range
+    Call, Routine, Container, Range, ArrayMember
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
@@ -184,10 +184,11 @@ def test_where_array_notation_rank():
     symbol = DataSymbol("my_array", array_type)
     my_array = ArrayReference(symbol)
     processor = Fparser2Reader()
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         processor._array_notation_rank(my_array)
-    assert ("Array reference in the PSyIR must have at least one child but "
-            "'my_array'" in str(err.value))
+    assert ("ArrayReference malformed or incomplete: must have one or more "
+            "children representing array-index expressions but 'my_array' has "
+            "none." in str(err.value))
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
@@ -324,7 +325,6 @@ def test_basic_where():
     assert len(loops) == 3
     for loop in loops:
         assert "was_where" in loop.annotations
-        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].children[0], Literal)
     assert isinstance(loops[0].children[1], BinaryOperation)
@@ -355,7 +355,6 @@ def test_where_array_subsections():
     assert len(loops) == 2
     for loop in loops:
         assert "was_where" in loop.annotations
-        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     ifblock = loops[1].loop_body[0]
     assert isinstance(ifblock, IfBlock)
@@ -396,7 +395,6 @@ def test_elsewhere():
     assert fake_parent.walk(CodeBlock) == []
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
-    assert isinstance(loop.ast, Fortran2003.Where_Construct)
     assert isinstance(loop, Loop)
     assert isinstance(loop.loop_body[0], Loop)
     assert isinstance(loop.loop_body[0].loop_body[0], Loop)
@@ -404,7 +402,6 @@ def test_elsewhere():
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
-    assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert ("ArrayReference[name:'ptsu']\n"
@@ -511,3 +508,30 @@ def test_where_ordering(parser):
     assert isinstance(result[1], Loop)
     assert isinstance(result[2], Call)
     assert isinstance(result[3], Loop)
+
+
+def test_where_derived_type(fortran_reader):
+    ''' Test that we handle the case where array members of a derived type
+    are accessed within a WHERE. '''
+    code = ("module my_mod\n"
+            " use some_mod\n"
+            "contains\n"
+            "subroutine my_sub()\n"
+            "  integer :: jl\n"
+            "  do jl = 1, 10\n"
+            "  where (my_type%var(:) > epsi20)\n"
+            "    my_type%array(:,jl) = 3.0\n"
+            "  end where\n"
+            "  end do\n"
+            "end subroutine my_sub\n"
+            "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 2
+    assert isinstance(loops[1].loop_body[0], IfBlock)
+    # All Range nodes should have been replaced
+    assert not loops[0].walk(Range)
+    # All ArrayMember accesses should now use the `widx1` loop variable
+    array_members = loops[0].walk(ArrayMember)
+    for member in array_members:
+        assert member.indices[0].symbol.name == "widx1"

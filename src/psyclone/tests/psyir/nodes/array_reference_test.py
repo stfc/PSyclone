@@ -441,15 +441,15 @@ def test_array_indices():
     array._children = [one.copy(), "hello"]
     with pytest.raises(InternalError) as err:
         _ = array.indices
-    assert ("ArrayReference malformed or incomplete: child 1 must by a "
-            "psyir.nodes.DataNode or Range representing an array-index "
+    assert ("ArrayReference malformed or incomplete: child 1 of 'test' must "
+            "be a psyir.nodes.DataNode or Range representing an array-index "
             "expression but found 'str'" in str(err.value))
     # Remove the children altogether
     array._children = []
     with pytest.raises(InternalError) as err:
         _ = array.indices
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but found none"
+            "children representing array-index expressions but 'test' has none"
             in str(err.value))
 
 

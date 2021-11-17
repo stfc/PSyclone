@@ -294,15 +294,16 @@ class ArrayMixin(object):
         if not self._children:
             raise InternalError(
                 "{0} malformed or incomplete: must have one or more "
-                "children representing array-index expressions but found "
-                "none.".format(type(self).__name__))
+                "children representing array-index expressions but '{1}' has "
+                "none.".format(type(self).__name__, self.name))
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child {1} must by a psyir."
-                    "nodes.DataNode or Range representing an array-index "
-                    "expression but found '{2}'".format(
-                        type(self).__name__, idx, type(child).__name__))
+                    "{0} malformed or incomplete: child {1} of '{2}' must be "
+                    "a psyir.nodes.DataNode or Range representing an array-"
+                    "index expression but found '{3}'".format(
+                        type(self).__name__, idx, self.name,
+                        type(child).__name__))
         return self.children
 
 

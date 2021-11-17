@@ -371,10 +371,11 @@ def test_array_notation_rank():
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
     array = ArrayReference(symbol, [])
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
-    assert ("An Array reference in the PSyIR must have at least one child but "
-            "'a' has none" in str(excinfo.value))
+    assert ("ArrayReference malformed or incomplete: must have one or more "
+            "children representing array-index expressions but 'a' has none"
+            in str(excinfo.value))
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension
