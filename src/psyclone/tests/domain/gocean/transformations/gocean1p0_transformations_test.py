@@ -585,54 +585,6 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_commutes_with_loop_trans(tmpdir):
-    ''' Test that the OpenMP PARALLEL region and (orphan) loop
-    transformations commute - i.e. we get the same result
-    independent of the order in which they are applied. '''
-    psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-
-    # Put an OpenMP do directive around each loop contained
-    # in the schedule
-    ompl = GOceanOMPLoopTrans()
-    for child in schedule.children:
-        ompl.apply(child)
-
-    # Now put an OpenMP parallel region around that set of
-    # loops
-    ompr = OMPParallelTrans()
-    ompr.apply(schedule.children)
-
-    loop_before_region_gen = str(psy.gen)
-
-    # Now we do it again but in the opposite order...
-    # ...we re-generate the original schedule here rather than
-    # keeping a (deep) copy of it from earlier as that can
-    # cause resource problems.
-    psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-
-    # Put all of the loops in the schedule within a single
-    # OpenMP region
-    ompr = OMPParallelTrans()
-    ompr.apply(schedule.children)
-
-    # Put an OpenMP do directive around each loop contained
-    # in the region
-    ompl = GOceanOMPLoopTrans()
-    for child in schedule.children[0].dir_body[:]:
-        ompl.apply(child)
-
-    # Store the results of applying this code transformation as
-    # a string
-    region_before_loop_gen = str(psy.gen)
-
-    assert region_before_loop_gen == loop_before_region_gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
 def test_omp_region_nodes_not_children_of_same_parent():
     ''' Test that we raise appropriate error if user attempts
     to put a region around nodes that are not children of
@@ -1006,13 +958,6 @@ def test_omp_do_schedule_guided(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_schedule_guided_with_empty_chunk():
-    ''' Test that we raise an appropriate error if we miss off
-    the chunksize '''
-    with pytest.raises(TransformationError):
-        _ = GOceanOMPLoopTrans(omp_schedule="guided, ")
-
-
 def test_omp_schedule_guided_with_chunk(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "guided,n" where n is some chunk size'''
@@ -1034,20 +979,6 @@ def test_omp_schedule_guided_with_chunk(tmpdir):
 
     assert '!$omp do schedule(guided,10)' in gen
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_omp_invalid_schedule():
-    ''' Test that we raise an appropriate error if we specify
-    an invalid omp schedule '''
-    with pytest.raises(TransformationError):
-        _ = GOceanOMPLoopTrans(omp_schedule="rubbish")
-
-
-def test_omp_schedule_auto_with_chunk():
-    ''' Test that we raise an appropriate error if we specify
-    the omp schedule as "auto" but try to provide a chunk size '''
-    with pytest.raises(TransformationError):
-        _ = GOceanOMPLoopTrans(omp_schedule="auto,4")
 
 
 def test_module_noinline_default(tmpdir):
