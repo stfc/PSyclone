@@ -257,9 +257,54 @@ def test_apply_existing_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_structure_of_arrays(tmpdir):
-    '''Check that the apply method works when the assingment expression contains
-    structure of arrays.
+def test_apply_non_existing_names(tmpdir):
+    '''Check that the apply method uses existing iterators appropriately
+    when their symbols are already defined.
+
+    '''
+    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    trans = NemoArrayRange2LoopTrans()
+
+    # This example will use non standard loop bounds, so the transformation
+    # will have to use LBOUND and UBOUND expressions when appropriate
+    symbol_table = schedule.symbol_table
+    symbol_table.rename_symbol(symbol_table.lookup("jpk"), "somethingelse")
+    symbol_table.rename_symbol(symbol_table.lookup("jpj"), "somethingelse1")
+    symbol_table.rename_symbol(symbol_table.lookup("jpi"), "somethingelse2")
+
+    # Create a new config instance and load a test config file with
+    # the bounds information set the way we want.
+    config = Config.get(do_not_load_file=True)
+    config.load(config_file=TEST_CONFIG)
+
+    # Apply the transformation
+    trans.apply(array_ref.children[2])
+    trans.apply(array_ref.children[1])
+    trans.apply(array_ref.children[0])
+
+    # Remove this config file so the next time the default one will be
+    # loaded (in case we affect other tests)
+    Config._instance = None
+
+    writer = FortranWriter()
+    result = writer(schedule)
+    assert (
+        "  do jk = LBOUND(umask, 3), 1, 1\n"
+        "    do jj = 1, UBOUND(umask, 2), 1\n"
+        "      do ji = LBOUND(umask, 1), 1, 1\n"
+        "        umask(ji,jj,jk) = 0.0d0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_apply_structure_of_arrays():
+    '''Check that the apply method works when the assignment expression
+    contain structure of arrays.
 
     '''
     _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
@@ -372,7 +417,7 @@ def test_apply_with_a_function_call():
             in str(info.value))
 
 
-def test_apply_with_array_with_hidden_accessor(fortran_writer):
+def test_apply_with_array_with_hidden_accessor():
     '''Check that the transformation is not applied if there is a RHS array
     (or UnknownType) with the accessor expression missing.
 

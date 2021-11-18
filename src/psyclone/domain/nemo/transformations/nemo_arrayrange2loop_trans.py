@@ -165,6 +165,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 _ = int(lower_bound_info)
                 lower_bound = Literal(lower_bound_info, INTEGER_TYPE)
             except ValueError:
+                # It's not a Literal, but is it an existing symbol?
                 try:
                     lower_bound = Reference(
                         symbol_table.lookup(lower_bound_info))
@@ -186,6 +187,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 _ = int(upper_bound_info)
                 upper_bound = Literal(upper_bound_info, INTEGER_TYPE)
             except ValueError:
+                # It's not a Literal, but is it an existing symbol?
                 try:
                     upper_bound = Reference(
                         symbol_table.lookup(upper_bound_info))
