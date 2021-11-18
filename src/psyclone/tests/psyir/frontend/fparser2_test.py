@@ -370,7 +370,7 @@ def test_array_notation_rank():
     '''
     int_one = Literal("1", INTEGER_TYPE)
     # Wrong type of argument
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(NotImplementedError) as err:
         Fparser2Reader._array_notation_rank(int_one)
     assert ("Expected either an ArrayReference, ArrayMember or a "
             "StructureReference but got 'Literal'" in str(err.value))

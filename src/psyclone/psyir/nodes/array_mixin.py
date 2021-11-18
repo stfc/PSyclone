@@ -211,6 +211,9 @@ class ArrayMixin(object):
         :rtype: bool
 
         '''
+        if not isinstance(node, (Member, Reference)):
+            return False
+
         if isinstance(self, Member):
             # This node is somewhere within a structure access so we need to
             # get the parent Reference and keep a record of how deep this node

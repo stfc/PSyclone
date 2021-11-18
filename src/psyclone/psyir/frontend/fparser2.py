@@ -2780,7 +2780,7 @@ class Fparser2Reader(object):
                 raise NotImplementedError(
                     "No array access found in node '{0}'".format(node.name))
         else:
-            raise InternalError(
+            raise NotImplementedError(
                 "Expected either an ArrayReference, ArrayMember or a "
                 "StructureReference but got '{0}'".format(type(node).__name__))
 
