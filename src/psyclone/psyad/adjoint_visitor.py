@@ -195,8 +195,9 @@ class AdjointVisitor(PSyIRVisitor):
         new loop is returned which iterates in the reverse order of
         the original loop and the body of the new loop is the result
         of processing the body of the original loop. If the loop does
-        not contain any active variables then an unmodified copy of
-        the loop and its descendants is returned.
+        not contain any active variables then an exception is raised
+        as this case should have been dealt with by the
+        schedule_node() method.
 
         :param node: a Loop PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -227,10 +228,11 @@ class AdjointVisitor(PSyIRVisitor):
                 "variable.".format(node.variable.name))
 
         if node_is_passive(node, self._active_variables):
-            self._logger.debug(
-                "Returning a copy of the original loop and its descendants "
-                "as it contains no active variables")
-            return node.copy()
+            raise VisitorError(
+                "A passive loop node should not be processed by the "
+                "loop_node() method within the AdjointVisitor() class, as "
+                "it should have been dealt with by the schedule_node() "
+                "method.")
 
         self._logger.debug("Transforming active loop")
 

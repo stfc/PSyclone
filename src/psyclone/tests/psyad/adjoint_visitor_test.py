@@ -46,8 +46,7 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop, \
-    Node
+from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.tests.utilities import Compile
 
@@ -494,26 +493,25 @@ def test_loop_node_bounds_error(fortran_reader):
             in str(info.value))
 
 
-def test_loop_node_inactive(fortran_reader, fortran_writer):
-    '''Test that the loop_node method returns an unchanged copy of the
-    loop and the loop body when there are no active variables within
-    the loop.
+def test_loop_node_passive(fortran_reader):
+    '''Test that the loop_node method raises an exception if there are no
+    active variables within the supplied loop node. This is because
+    the schedule node should have already dealt with this case.
 
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
     tl_loop = tl_psyir.walk(Loop)[0]
     assert isinstance(tl_loop, Loop)
     adj_visitor = AdjointVisitor(["d", "e"])
-    ad_psyir = adj_visitor(tl_psyir)
+    ad_psyir = adj_visitor._visit(tl_psyir)
     ad_loop = ad_psyir.walk(Loop)[0]
     assert isinstance(ad_loop, Loop)
-    # Check that tl_loop and ad_loop are equal but not identical
-    assert fortran_writer(ad_loop) == fortran_writer(tl_loop)
-    tl_nodes = tl_loop.walk(Node)
-    ad_nodes = ad_loop.walk(Node)
-    assert len(tl_nodes) == len(ad_nodes)
-    for idx, tl_node in enumerate(tl_nodes):
-        assert tl_node is not ad_nodes[idx]
+
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.loop_node(tl_loop)
+    assert ("A passive loop node should not be processed by the loop_node() "
+            "method within the AdjointVisitor() class, as it should have been "
+            "dealt with by the schedule_node() method." in str(info.value))
 
 
 @pytest.mark.parametrize("in_bounds,out_bounds", [
