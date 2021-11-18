@@ -40,12 +40,14 @@ transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 from __future__ import print_function
 import logging
 
+from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Schedule, Reference, Node
+from psyclone.psyir.nodes import Schedule, Reference, Node, BinaryOperation, \
+    CodeBlock, Literal
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -231,14 +233,47 @@ class AdjointVisitor(PSyIRVisitor):
             return node.copy()
 
         self._logger.debug("Transforming active loop")
-        # We only need to copy this node. Issue #1440 will address
-        # this.
+
+        # The approach taken is to swap the loop bounds and multiply
+        # the step by minus one. However, the loop step might not
+        # align with the loop stop and in this case an offset needs to
+        # be computed e.g. 1 to 4 step 2 gives 1,3, but 4 to 1 step -2
+        # gives 4,2, which is not correct. In this example the offset
+        # (hi-lo mod step) is 1, so we will have (4-1) to 1 step -2,
+        # giving the expected 3,1.
+
+        # Default to no offset required for the loop starting point
+        # (on the assumption that the step is unitary, which it is in
+        # most cases).
+        offset = None
+        if not(isinstance(node.step_expr, Literal) and
+               node.step_expr.value.strip() in ["1", "-1"]):
+            # The loop step might not be unitary so compute an offset:
+            # stop-start mod step
+            fortran_writer = FortranWriter()
+            hi_str = fortran_writer(node.stop_expr)
+            lo_str = fortran_writer(node.start_expr)
+            step_str = fortran_writer(node.step_expr)
+            # TODO: use language independent PSyIR, see issue #1345
+            ptree = Fortran2003.Intrinsic_Function_Reference(
+                "mod({0}-{1},{2})".format(hi_str, lo_str, step_str))
+            offset = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+
+        # We only need to copy this node and its bounds. Issue #1440
+        # will address this.
         new_node = node.copy()
+
         # Reverse loop order
         start_expr = new_node.start_expr.copy()
-        new_node.start_expr = new_node.stop_expr.copy()
+        if offset:
+            new_node.start_expr = BinaryOperation.create(
+                BinaryOperation.Operator.SUB, new_node.stop_expr.copy(),
+                offset)
+        else:
+            new_node.start_expr = new_node.stop_expr.copy()
         new_node.stop_expr = start_expr
         new_node.step_expr = negate_expr(new_node.step_expr.copy())
+
         # Determine the adjoint of the loop body
         new_node.children[3] = self._visit(node.children[3])
         return new_node

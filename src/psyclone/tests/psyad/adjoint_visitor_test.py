@@ -512,17 +512,25 @@ def test_loop_node_inactive(fortran_reader, fortran_writer):
     tl_nodes = tl_loop.walk(Node)
     ad_nodes = ad_loop.walk(Node)
     assert len(tl_nodes) == len(ad_nodes)
-    for idx in range(len(tl_nodes)):
-        assert tl_nodes[idx] is not ad_nodes[idx]
+    for idx, tl_node in enumerate(tl_nodes):
+        assert tl_node is not ad_nodes[idx]
 
 
-def test_loop_node_active(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("in_bounds,out_bounds", [
+    ("lo,hi", "hi, lo, -1"),
+    ("lo,hi,1", "hi, lo, -1"),
+    ("lo,hi,-1", "hi - MOD(hi - lo, - 1), lo, 1"),
+    ("lo,hi,step", "hi - MOD(hi - lo, step), lo, -1 * step")])
+def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
+                          out_bounds):
     '''Test that a loop_node containing active variables returns with its
     loop order reversed and its loop body processed by the adjoint
-    visitor.
+    visitor. Checks that appropriate offset code is generated when the
+    loop step is not, or might not be, 1.
 
     '''
-    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)
+    tl_psyir = fortran_reader.psyir_from_source(code)
     tl_loop = tl_psyir.walk(Loop)[0]
     assert isinstance(tl_loop, Loop)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
@@ -531,17 +539,17 @@ def test_loop_node_active(fortran_reader, fortran_writer):
     assert isinstance(ad_loop, Loop)
     result = fortran_writer(ad_loop)
     expected_result = (
-        "do i = hi, lo, -1 * step\n"
+        "do i = {0}\n"
         "  b(i) = b(i) + a(i)\n"
         "  c(i) = c(i) + a(i)\n"
         "  a(i) = 0.0\n"
-        "enddo\n")
+        "enddo\n".format(out_bounds))
     assert result == expected_result
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
                    "github actions.", strict=False)
-def test_loop_logger(fortran_reader, caplog, fortran_writer):
+def test_loop_logger(fortran_reader, caplog):
     '''Test that the logger writes the expected output if the loop_node
     method is called with an inactive node and an active node.
 
@@ -557,14 +565,14 @@ def test_loop_logger(fortran_reader, caplog, fortran_writer):
     # variables to be different which means they do not match in
     # subsequent calls. This only a problem for tests as we don't
     # normally call loop_node() or similar, directly.
-    result = adj_visitor._visit(tl_psyir)
+    _ = adj_visitor._visit(tl_psyir)
 
     # active loop
     with caplog.at_level(logging.INFO):
-        result = adj_visitor.loop_node(tl_loop)
+        _ = adj_visitor.loop_node(tl_loop)
     assert caplog.text == ""
     with caplog.at_level(logging.DEBUG):
-        result = adj_visitor.loop_node(tl_loop)
+        _ = adj_visitor.loop_node(tl_loop)
     assert "Transforming active loop" in caplog.text
 
     # Remove content for subsequent inactive loop code
