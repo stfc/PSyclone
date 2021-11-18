@@ -463,7 +463,7 @@ def test_array_matching_access():
     # Something other than a Reference won't match
     assert array._matching_access(one) is False
     # An ArrayReference should match
-    array2 = ArrayReference(test_sym, [two])
+    array2 = ArrayReference.create(test_sym, [two])
     assert array._matching_access(array2) is True
     # A Reference to the array symbol should also match
     bare_array = Reference(test_sym)

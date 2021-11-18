@@ -40,7 +40,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container, Return, KernelSchedule
+from psyclone.psyir.nodes import Container, Return, KernelSchedule, \
+    FileContainer
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -58,8 +59,8 @@ def test_container_init():
 
 def test_container_init_parent():
     '''Test that a container parent argument is stored as expected.'''
-    container = Container("test", parent="hello")
-    assert container.parent == "hello"
+    container = Container("test", parent=FileContainer("hello"))
+    assert container.parent.name == "hello"
 
 
 def test_container_name():
