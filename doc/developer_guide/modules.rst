@@ -53,8 +53,8 @@ Three different classes are provided to support the creation of
 variable declarations (for intrinsic, character and derived-type
 variables). An example of their use might be:
 
->>> from psyclone.f2pygen import ModuleGen, SubroutineGen, DeclGen, \
-CharDeclGen, TypeDeclGen
+>>> from psyclone.f2pygen import (ModuleGen, SubroutineGen, DeclGen,
+... CharDeclGen, TypeDeclGen)
 >>> module = ModuleGen(name="testmodule")
 >>> sub = SubroutineGen(module, name="testsubroutine")
 >>> module.add(sub)
