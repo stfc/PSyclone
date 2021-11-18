@@ -36,11 +36,12 @@
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
 
 from __future__ import absolute_import
-from psyclone.errors import PSycloneError
 
 import pkgutil
 import inspect
 import importlib
+
+from psyclone.errors import PSycloneError
 
 
 class DummyPSycloneError(PSycloneError):
@@ -71,7 +72,7 @@ def import_submodules(package, recursive=True):
     if isinstance(package, str):
         package = importlib.import_module(package)
     results = {}
-    for loader, name, is_pkg in pkgutil.walk_packages(package.__path__):
+    for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
         full_name = package.__name__ + '.' + name
         if "test" not in full_name:
             results[full_name] = importlib.import_module(full_name)
@@ -83,7 +84,7 @@ def import_submodules(package, recursive=True):
 def test_exception_repr():
     ''' Test the properties of Exception classes defined by Psyclone. '''
 
-    modules = dict()
+    modules = {}
 
     # Recursively walk through the psyclone module, importing sub-modules.
     # Store any class definitions we come across.

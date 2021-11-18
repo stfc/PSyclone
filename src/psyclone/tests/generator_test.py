@@ -915,7 +915,7 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_write_utf_file(tmpdir, monkeypatch):
+def test_write_utf_file(tmpdir):
     '''Unit tests for the write_unicode_file utility routine.'''
 
     # First for plain ASCII

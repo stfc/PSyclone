@@ -217,9 +217,11 @@ target machine. PSyclone is regularly tested with Python 3.5 and 3.8.
 (The last PSyclone release to support Python 2.7 was version 2.1.0.)
 
 PSyclone immediately relies on four external Python packages; ``six``,
-``configparser``, ``fparser`` and ``pyparsing``. The easiest way to satisfy
-the Python dependencies is to use the `PyPI installation
-<https://packaging.python.org/installing>`_ and ``pip``.
+``configparser``, ``fparser`` and ``pyparsing``. (Note that the
+use of ``six`` is being phased out now that Python 2.7 is not
+supported.) The easiest way to satisfy the Python dependencies is to
+use the `PyPI installation <https://packaging.python.org/installing>`_
+and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
 

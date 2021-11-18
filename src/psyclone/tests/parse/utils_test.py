@@ -84,9 +84,9 @@ def test_line_length_unicode():
     '''
     kwargs = dict(encoding='utf8')
     with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
-        content = u'''
+        content = '''
             ! A fortran comment with a unicode character "{}"
-        '''.format(u"\u2014")
+        '''.format("\u2014")
         tmp_file.write(content)
         tmp_file.flush()
 
@@ -116,9 +116,9 @@ def test_parsefp2_invalid_fortran(tmpdir):
 
     '''
     my_file = str(tmpdir.join("invalid.f90"))
-    ffile = open(my_file, "w")
-    ffile.write("invalid Fortran code")
-    ffile.close()
+    with open(my_file, "w", encoding="utf-8") as ffile:
+        ffile.write("invalid Fortran code")
+        ffile.close()
     with pytest.raises(ParseError) as excinfo:
         _ = parse_fp2(my_file)
     assert "Syntax error in file" in str(excinfo.value)
