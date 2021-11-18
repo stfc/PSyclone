@@ -55,7 +55,6 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     REAL_DOUBLE_TYPE, DeferredType, RoutineSymbol, Symbol, UnknownType, \
     UnknownFortranType, DataTypeSymbol, StructureType
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 from psyclone.psyGen import PSyFactory
@@ -452,7 +451,8 @@ def test_reverse_map():
     the expected behaviour
 
     '''
-    result = _reverse_map(OrderedDict([('+', 'PLUS')]))
+    result = {}
+    _reverse_map(result, OrderedDict([('+', 'PLUS')]))
     assert isinstance(result, dict)
     assert result['PLUS'] == '+'
 
@@ -463,14 +463,16 @@ def test_reverse_map_duplicates():
     the input ordered dictionary. It should use the first one found.
 
     '''
-    result = _reverse_map(OrderedDict([('==', 'EQUAL'), ('.eq.', 'EQUAL')]))
+    result = {}
+    _reverse_map(result, OrderedDict([('==', 'EQUAL'), ('.eq.', 'EQUAL')]))
     assert isinstance(result, dict)
     assert result['EQUAL'] == '=='
     assert len(result) == 1
 
-    result = _reverse_map(OrderedDict([('.eq.', 'EQUAL'), ('==', 'EQUAL')]))
+    result = {}
+    _reverse_map(result, OrderedDict([('.EQ.', 'EQUAL'), ('==', 'EQUAL')]))
     assert isinstance(result, dict)
-    assert result['EQUAL'] == '.eq.'
+    assert result['EQUAL'] == '.EQ.'
     assert len(result) == 1
 
 
@@ -483,7 +485,7 @@ def test_get_operator(operator, result):
     values when provided with valid unary, binary and nary operators.
 
     '''
-    assert result == FortranWriter.get_operator(operator)
+    assert result == FortranWriter().get_operator(operator)
 
 
 def test_get_operator_error():
@@ -492,7 +494,7 @@ def test_get_operator_error():
 
     '''
     with pytest.raises(KeyError):
-        _ = FortranWriter.get_operator(None)
+        _ = FortranWriter().get_operator(None)
 
 
 def test_is_fortran_intrinsic():
@@ -1423,7 +1425,8 @@ def test_fw_binaryoperator_unknown(fortran_reader, fortran_writer,
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
     # Remove sign() from the list of supported binary operators
-    monkeypatch.delitem(Fparser2Reader.binary_operators, "sign")
+    monkeypatch.delitem(fortran_writer._operator_2_str,
+                        BinaryOperation.Operator.SIGN)
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(schedule)
@@ -1558,7 +1561,8 @@ def test_fw_naryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
     # Remove max() from the list of supported nary operators
-    monkeypatch.delitem(Fparser2Reader.nary_operators, "max")
+    monkeypatch.delitem(fortran_writer._operator_2_str,
+                        NaryOperation.Operator.MAX)
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as err:
         _ = fortran_writer(schedule)
@@ -1848,7 +1852,8 @@ def test_fw_unaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
     # Remove sin() from the dict of unary operators
-    monkeypatch.delitem(Fparser2Reader.unary_operators, "sin")
+    monkeypatch.delitem(fortran_writer._operator_2_str,
+                        UnaryOperation.Operator.SIN)
     # Generate Fortran from the PSyIR schedule
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(schedule)
@@ -2040,6 +2045,7 @@ def test_fw_literal_node(fortran_writer):
     ''' Test the PSyIR literals are converted to the proper Fortran format
     when necessary. '''
 
+    # pylint: disable=too-many-statements
     # By default literals are not modified
     lit1 = Literal('a', CHARACTER_TYPE)
     result = fortran_writer(lit1)

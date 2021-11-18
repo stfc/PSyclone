@@ -198,7 +198,7 @@ def gen_datatype(datatype, name):
         "backend.".format(type(precision).__name__, name))
 
 
-def _reverse_map(op_map):
+def _reverse_map(reverse_dict, op_map):
     '''
     Reverses the supplied fortran2psyir mapping to make a psyir2fortran
     mapping.
@@ -212,15 +212,13 @@ def _reverse_map(op_map):
             keys and str values.
 
     '''
-    mapping = {}
     for operator in op_map:
         mapping_key = op_map[operator]
         mapping_value = operator
         # Only choose the first mapping value when there is more
         # than one.
-        if mapping_key not in mapping:
-            mapping[mapping_key] = mapping_value
-    return mapping
+        if mapping_key not in reverse_dict:
+            reverse_dict[mapping_key] = mapping_value.upper()
 
 
 def precedence(fortran_operator):
@@ -363,6 +361,12 @@ class FortranWriter(LanguageWriter):
                                             indent_string,
                                             initial_indent_depth,
                                             check_global_constraints)
+        # Reverse the Fparser2Reader maps that are used to convert from
+        # Fortran operator names to PSyIR operator names.
+        self._operator_2_str = {}
+        _reverse_map(self._operator_2_str, Fparser2Reader.unary_operators)
+        _reverse_map(self._operator_2_str, Fparser2Reader.binary_operators)
+        _reverse_map(self._operator_2_str, Fparser2Reader.nary_operators)
 
     @staticmethod
     def is_intrinsic(operator):
@@ -377,8 +381,7 @@ class FortranWriter(LanguageWriter):
         '''
         return operator in FORTRAN_INTRINSICS
 
-    @staticmethod
-    def get_operator(operator):
+    def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
         PSyIR operator. This is achieved by reversing the Fparser2Reader
         maps that are used to convert from Fortran operator names to PSyIR
@@ -393,19 +396,7 @@ class FortranWriter(LanguageWriter):
         :raises KeyError: if the supplied operator is not known.
 
         '''
-
-        unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
-        if operator in unary_mapping:
-            return unary_mapping[operator].upper()
-
-        binary_mapping = _reverse_map(Fparser2Reader.binary_operators)
-        if operator in binary_mapping:
-            return binary_mapping[operator].upper()
-
-        nary_mapping = _reverse_map(Fparser2Reader.nary_operators)
-        if operator in nary_mapping:
-            return nary_mapping[operator].upper()
-        raise KeyError()
+        return self._operator_2_str[operator]
 
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an

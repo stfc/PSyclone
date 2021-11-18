@@ -85,8 +85,7 @@ class SymPyWriter(FortranWriter):
         # information can be ignored.
         return node.value
 
-    @staticmethod
-    def get_operator(operator):
+    def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
         PSyIR operator. This is achieved by reversing the Fparser2Reader
         maps that are used to convert from Fortran operator names to PSyIR
@@ -105,7 +104,7 @@ class SymPyWriter(FortranWriter):
                         BinaryOperation.Operator.MAX]:
             return "Max"
 
-        return FortranWriter.get_operator(operator)
+        return super(SymPyWriter, self).get_operator(operator)
 
     @staticmethod
     def is_intrinsic(operator):
