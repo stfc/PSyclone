@@ -390,20 +390,21 @@ def test_apply_with_array_with_hidden_accessor(fortran_writer):
     assert isinstance(schedule.symbol_table.lookup("arg2").datatype,
                       UnknownType)
 
-    # The first one works because we have a datatype and we knwo it is an
-    # array wit sufficient number of dimentions
-    trans.apply(assignment1.lhs.children[2])
+    # The first one fails because we know the type of the RHS reference is
+    # an array but we don't have explicit dimensions.
+    with pytest.raises(TransformationError) as info:
+        trans.apply(assignment1.lhs.children[2])
+    assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
+            "'arg1' must be a scalar DataSymbol in order to successfully "
+            "apply the transformation." in str(info.value))
 
     # The second fails because its an UnknwonType and we don't know if its
-    # an scalar or an array
+    # an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
-    assert ("Error in NemoArrayRange2LoopTrans transformation."
-            in str(info.value))
-
-    # The resulting code has explicit array accessors in the lhs
-    result = fortran_writer(schedule)
-    assert "local1(:,:,jk) = arg1(:,:,jk)" in result
+    assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
+            "'arg2' must be a scalar DataSymbol in order to successfully "
+            "apply the transformation." in str(info.value))
 
 
 def test_apply_different_num_dims():

@@ -49,12 +49,11 @@ from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
-    UnknownType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType
 from psyclone.psyir.symbols.datatypes import ScalarType
-from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
-    Assignment, Literal, Operation, BinaryOperation, CodeBlock, ArrayMember, \
-    Loop, Routine, Call
+from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
+    Assignment, Literal, Operation, CodeBlock, ArrayMember, Loop, Routine, \
+    BinaryOperation, StructureReference, StructureMember
 from psyclone.nemo import NemoLoop
 from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
@@ -225,7 +224,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             idx = get_outer_index(array)
             array.children[idx] = Reference(loop_variable_symbol)
 
-        # Replace the assingment with the new explicit loop structure
+        # Replace the assignment with the new explicit loop structure
         position = assignment.position
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
                                upper_bound, step, [assignment.detach()])
@@ -328,33 +327,42 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "transformation does not support array assignments that "
                 "contain a Call anywhere in the expression.")
 
-        # For now don't attempt arrays without at least 1 range, as we need
-        # to check if they are a scalar or have the range expression missing
-        for array in assignment.walk((ArrayReference, ArrayMember)):
-            if not any(child for child in array.children if
-                       isinstance(child, Range)):
-                raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation. This "
-                    "transformation does not support assignments with rhs "
-                    "arrays that don't have a range.")
-
-        # We need all type info about all references (maybe not, see below)
         for reference in assignment.walk(Reference):
-            if not isinstance(reference.symbol, DataSymbol):
-                raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation.")
-            if isinstance(reference.symbol.datatype,
-                          (UnknownType, DeferredType)):
-                raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation.")
+            # As special case we always allow references to whole arrays as
+            # part of the LBOUND and UBOUND operations, regardless of the
+            # restrictions below (e.g. is a DeferredType reference).
+            if isinstance(reference.parent, Operation):
+                operator = reference.parent.operator
+                if operator is BinaryOperation.Operator.LBOUND:
+                    continue
+                if operator is BinaryOperation.Operator.UBOUND:
+                    continue
 
-        # FIXME: Do the same for ArrayMember
-        for array in assignment.walk(ArrayReference):
-            if len(array.symbol.datatype.shape) != len(array.children):
+            # We allow any references that are part of a structure syntax
+            if isinstance(reference, (StructureReference, StructureMember)):
+                continue
+
+            # We allow any references that have explicit array dimensions
+            if isinstance(reference, (ArrayReference, ArrayMember)):
+                # Arrays must have at least 1 range child in order to be
+                # converted to an explicit expression
+                if not any(child for child in reference.children if
+                           isinstance(child, Range)):
+                    raise TransformationError(
+                        "Error in NemoArrayRange2LoopTrans transformation. This "
+                        "transformation does not support assignments with rhs "
+                        "arrays that don't have a range.")
+                continue
+
+            # However, if it doesn't have array accessors or structure syntax,
+            # we must be sure that it represents a scalar.
+            if not isinstance(reference.symbol, DataSymbol) or \
+                    not isinstance(reference.symbol.datatype, ScalarType):
                 raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation. This "
-                    "transformation does not support arrays that done have all"
-                    "the access dimensions explicitly specified.")
+                    "Error in NemoArrayRange2LoopTrans transformation. "
+                    "Variable '{0}' must be a scalar DataSymbol in order to "
+                    "successfully apply the transformation."
+                    "".format(reference.symbol.name))
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
