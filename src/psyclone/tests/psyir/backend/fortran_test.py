@@ -44,7 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    FortranWriter, _reverse_map, precedence
+    FortranWriter, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
@@ -452,7 +452,7 @@ def test_reverse_map():
 
     '''
     result = {}
-    _reverse_map(result, OrderedDict([('+', 'PLUS')]))
+    FortranWriter._reverse_map(result, OrderedDict([('+', 'PLUS')]))
     assert isinstance(result, dict)
     assert result['PLUS'] == '+'
 
@@ -464,13 +464,15 @@ def test_reverse_map_duplicates():
 
     '''
     result = {}
-    _reverse_map(result, OrderedDict([('==', 'EQUAL'), ('.eq.', 'EQUAL')]))
+    FortranWriter._reverse_map(result, OrderedDict([('==', 'EQUAL'),
+                                                    ('.eq.', 'EQUAL')]))
     assert isinstance(result, dict)
     assert result['EQUAL'] == '=='
     assert len(result) == 1
 
     result = {}
-    _reverse_map(result, OrderedDict([('.EQ.', 'EQUAL'), ('==', 'EQUAL')]))
+    FortranWriter._reverse_map(result, OrderedDict([('.EQ.', 'EQUAL'),
+                                                    ('==', 'EQUAL')]))
     assert isinstance(result, dict)
     assert result['EQUAL'] == '.EQ.'
     assert len(result) == 1

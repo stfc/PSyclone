@@ -198,29 +198,6 @@ def gen_datatype(datatype, name):
         "backend.".format(type(precision).__name__, name))
 
 
-def _reverse_map(reverse_dict, op_map):
-    '''
-    Reverses the supplied fortran2psyir mapping to make a psyir2fortran
-    mapping.
-
-    :param op_map: mapping from string representation of operator to \
-                   enumerated type.
-    :type op_map: :py:class:`collections.OrderedDict`
-
-    :returns: a mapping from PSyIR operation to the equivalent Fortran string.
-    :rtype: dict with :py:class:`psyclone.psyir.nodes.Operation.Operator` \
-            keys and str values.
-
-    '''
-    for operator in op_map:
-        mapping_key = op_map[operator]
-        mapping_value = operator
-        # Only choose the first mapping value when there is more
-        # than one.
-        if mapping_key not in reverse_dict:
-            reverse_dict[mapping_key] = mapping_value.upper()
-
-
 def precedence(fortran_operator):
     '''Determine the relative precedence of the supplied Fortran operator.
     Relative Operator precedence is taken from the Fortran 2008
@@ -364,9 +341,39 @@ class FortranWriter(LanguageWriter):
         # Reverse the Fparser2Reader maps that are used to convert from
         # Fortran operator names to PSyIR operator names.
         self._operator_2_str = {}
-        _reverse_map(self._operator_2_str, Fparser2Reader.unary_operators)
-        _reverse_map(self._operator_2_str, Fparser2Reader.binary_operators)
-        _reverse_map(self._operator_2_str, Fparser2Reader.nary_operators)
+        self._reverse_map(self._operator_2_str,
+                          Fparser2Reader.unary_operators)
+        self._reverse_map(self._operator_2_str,
+                          Fparser2Reader.binary_operators)
+        self._reverse_map(self._operator_2_str,
+                          Fparser2Reader.nary_operators)
+
+    @staticmethod
+    def _reverse_map(reverse_dict, op_map):
+        '''
+        Reverses the supplied fortran2psyir mapping to make a psyir2fortran
+        mapping. Any key that does already exist in `reverse_dict`
+        is not overwritten, only new keys are added.
+
+        :param reverse_dict: the dictionary to which the new mapping of \
+            operator to string is added.
+        :type reverse_dict: dict from \
+            :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
+            :py:class:`psyclone.psyir.nodes.NaryOperation` or \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation` to str
+
+        :param op_map: mapping from string representation of operator to \
+                       enumerated type.
+        :type op_map: :py:class:`collections.OrderedDict`
+
+        '''
+        for operator in op_map:
+            mapping_key = op_map[operator]
+            mapping_value = operator
+            # Only choose the first mapping value when there is more
+            # than one.
+            if mapping_key not in reverse_dict:
+                reverse_dict[mapping_key] = mapping_value.upper()
 
     @staticmethod
     def is_intrinsic(operator):
