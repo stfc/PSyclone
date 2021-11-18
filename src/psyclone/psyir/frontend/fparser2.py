@@ -49,6 +49,8 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
     Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes.array_of_structures_mixin import \
+    ArrayOfStructuresMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -2730,7 +2732,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=bop, nodes=[node])
 
     @staticmethod
-    def _array_notation_rank(node):
+    def _array_notation_rank(node, lang_writer=None):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
         of the array that uses array notation. e.g. for a reference
@@ -2738,36 +2740,49 @@ class Fparser2Reader(object):
 
         :param node: the reference to check.
         :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
-                    :py:class:`psyclone.psyir.nodes.ArrayMember` or \
-                    :py:class:`psyclone.psyir.nodes.StructureReference`
+            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :param lang_writer: visitor to use when generating verbose error \
+            messages. Defaults to None in which case a FortranWriter is used.
 
         :returns: rank of the sub-section of the array.
         :rtype: int
 
         :raises NotImplementedError: if no ArrayMixin node with at least one \
                                      Range in its indices is found.
-
+        :raises NotImplementedError: if two or more part references in a \
+                                     structure reference contain ranges.
+        :raises InternalError: if the supplied node is not of the correct \
+                               type.
         '''
         if isinstance(node, (ArrayReference, ArrayMember)):
             array = node
         elif isinstance(node, StructureReference):
-            arrays = node.walk(ArrayMember)
-            if not arrays:
-                raise NotImplementedError("huh ARPDBG")
             array = None
+            arrays = node.walk((ArrayMember, ArrayOfStructuresMixin))
             for part_ref in arrays:
                 if any(isinstance(idx, Range) for idx in part_ref.indices):
                     if array:
                         # Cannot have two or more part references that contain
-                        # ranges.
-                        raise InternalError("ARPDBG2")
+                        # ranges - this is not valid Fortran.
+                        if not lang_writer:
+                            # pylint: disable=import-outside-toplevel
+                            from psyclone.psyir.backend.fortran import \
+                                FortranWriter
+                            lang_writer = FortranWriter()
+                        raise NotImplementedError(
+                            "Found a structure reference containing two or "
+                            "more part references that have ranges: '{0}'. "
+                            "This is not valid within a WHERE in Fortran.".
+                            format(lang_writer(node)))
                     array = part_ref
             if not array:
-                raise NotImplementedError("ARPDBG3")
+                raise NotImplementedError(
+                    "No array access found in node '{0}'".format(node.name))
         else:
-            raise NotImplementedError(
-                "Expected either an ArrayReference or a StructureReference "
-                "but got '{0}'".format(type(node).__name__))
+            raise InternalError(
+                "Expected either an ArrayReference, ArrayMember or a "
+                "StructureReference but got '{0}'".format(type(node).__name__))
 
         # Only array refs using basic colon syntax are currently
         # supported e.g. (a(:,:)).  Each colon is represented in the

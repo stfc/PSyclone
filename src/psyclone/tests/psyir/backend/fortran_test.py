@@ -1700,6 +1700,36 @@ def test_fw_range_structureref(fortran_writer):
                                               [Range.create(start, stop)])])
     result = fortran_writer(ref)
     assert result == "my_grid%data(:)"
+
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   Reference(array_symbol), one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  Reference(array_symbol), one.copy())
+    range2 = Range.create(start, stop)
+    result = fortran_writer(
+        ArrayOfStructuresReference.create(array_symbol, [range2],
+                                          [("data", [range2.copy()])]))
+    assert (result ==
+            "my_grids(:)%data(LBOUND(my_grids, 1):UBOUND(my_grids, 1))")
+
+    symbol = DataSymbol("field", DeferredType())
+    int_one = Literal("1", INTEGER_TYPE)
+    lbound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        StructureReference.create(symbol, ["first"]), int_one.copy())
+    ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        StructureReference.create(symbol, ["first"]), int_one.copy())
+    my_range = Range.create(lbound, ubound)
+    ref = ArrayOfStructuresReference.create(symbol, [my_range.copy()],
+                                            ["first",
+                                             ("second", [my_range.copy()])])
+    result = fortran_writer(ref)
+    assert (result ==
+            "field(LBOUND(field%first, 1):"
+            "UBOUND(field%first, 1))%first%second(LBOUND(field%first, 1):"
+            "UBOUND(field%first, 1))")
+
     data_ref = Reference(array_symbol)
     start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                    data_ref.copy(), two.copy())
