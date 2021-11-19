@@ -43,6 +43,11 @@
     from psyclone.psyir.tools import DependencyTools
     from psyclone.transformations import OMPLoopTrans
 
+    # Make sure we use nemo here, otherwise depending on order the
+    # wrong API might be set.
+    from psyclone.configuration import Config
+    Config.get().api = "nemo"
+
     code = '''subroutine sub()
     integer :: i, j, k, a(10, 10)
     a(i,j) = 1
