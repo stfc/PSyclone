@@ -99,15 +99,18 @@ class SymPyWriter(FortranWriter):
         return node.value
 
     def get_operator(self, operator):
-        '''Determine the Fortran operator that is equivalent to the provided
-        PSyIR operator. This is achieved by reversing the Fparser2Reader
-        maps that are used to convert from Fortran operator names to PSyIR
-        operator names.
+        '''Determine the operator that is equivalent to the provided
+        PSyIR operator. This implementation checks for certain functions
+        that SymPy supports: Max, Min, Mod. These functions must be
+        spelled with a capital first letter, otherwise SymPy will handle
+        them as unknown functions. If none of these special operators
+        are given, the base implementation is called (which will return
+        the Fortran syntax).
 
         :param operator: a PSyIR operator.
         :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
 
-        :returns: the Fortran operator.
+        :returns: the operator as string.
         :rtype: str
 
         :raises KeyError: if the supplied operator is not known.

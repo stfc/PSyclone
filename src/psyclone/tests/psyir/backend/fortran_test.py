@@ -504,9 +504,11 @@ def test_is_fortran_intrinsic():
     supplied operator is a fortran intrinsic and false otherwise.
 
     '''
-    assert FortranWriter.is_intrinsic("SIN")
-    assert not FortranWriter.is_intrinsic("+")
-    assert not FortranWriter.is_intrinsic(None)
+
+    writer = FortranWriter()
+    assert writer().is_intrinsic("SIN")
+    assert not writer().is_intrinsic("+")
+    assert not writer().is_intrinsic(None)
 
 
 def test_precedence():
