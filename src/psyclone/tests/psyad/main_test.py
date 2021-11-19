@@ -301,7 +301,9 @@ def test_main_keyerror(tmpdir, capsys):
 
 def test_main_not_implemented_error(tmpdir, capsys):
     ''' Test that a NotImplementedError is caught when generating an adjoint
-    test harness and that appropriate information is output to stdout. '''
+    test harness and that appropriate information is output to stdout. This
+    can be triggered when the set of active variables are not all of the
+    same type or precision. '''
     test_prog = (
         "module my_mod\n"
         "contains\n"

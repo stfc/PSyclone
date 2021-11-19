@@ -114,10 +114,7 @@ def main(args):
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
-    except KeyError as info:
-        print(str(info))
-        sys.exit(1)
-    except NotImplementedError as info:
+    except (KeyError, NotImplementedError) as info:
         print(str(info))
         sys.exit(1)
 
