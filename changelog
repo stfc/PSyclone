@@ -9,6 +9,14 @@
 
 	4) PR #1475 for #595. Remove memento and transformation return values.
 
+	5) PR #1470 for #1459. Refactor OMPLoopTrans to support OMPLoop 
+	directive and add OMPTargetTrans.
+
+	6) PR #1452 for #1451. Add doctest for the Dev Guide to GitHub Actions
+	and tidy the examples so that they work.
+
+	7) PR #1503 for #1502. Fix incorrect path in tutorial README.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
