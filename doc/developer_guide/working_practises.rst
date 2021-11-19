@@ -426,10 +426,12 @@ is a push to the repository. The work performed by the action is
 configured by the ``PSyclone/.github/workflows/python-package.yml``
 file.
 
-Currently there are three main checks performed, in order of increasing
+Currently there are four main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked.
+ 1. All links within all MarkDown files are checked. Those links to skip
+    (because they are e.g. password protected) are specified in the
+    ``PSyclone/mlc_config.json`` configuration file.
 
  2. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
