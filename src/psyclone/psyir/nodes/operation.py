@@ -43,7 +43,6 @@ import abc
 from enum import Enum
 import six
 
-from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -281,15 +280,6 @@ class BinaryOperation(Operation):
 
         '''
         return position in (0, 1) and isinstance(child, DataNode)
-
-    def math_equal(self, other):
-        ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`
-        :returns: True if the self has the same results as other.
-        :rtype: bool
-
-        '''
-        return SymbolicMaths.get().equal(self, other)
 
     @staticmethod
     def create(oper, lhs, rhs):

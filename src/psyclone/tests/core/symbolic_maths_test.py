@@ -98,7 +98,7 @@ def test_math_logicals(fortran_reader, expressions):
                                          ("i+j-2*k+3*j-2*i", "-i+4*j-2*k"),
                                          ("max(1, 2, 3)", "max(1, 2, 3)")
                                          ])
-def test_math_equal(fortran_reader, expressions):
+def test_symbolic_math_equal(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
     expressions that are equal.
 
@@ -132,7 +132,7 @@ def test_math_equal(fortran_reader, expressions):
                                           "a%b(a%b,a%b,a%b)"),
                                          ("a%b%c%d", "a%b%c%d")
                                          ])
-def test_math_equal_structures(fortran_reader, expressions):
+def test_symbolic_math_equal_structures(fortran_reader, expressions):
     '''Test that the sympy based comparison handles structures as expected.
 
     '''
@@ -160,7 +160,7 @@ def test_math_equal_structures(fortran_reader, expressions):
                                          ("i-j", "j-i"),
                                          ("max(1, 2)", "max(1, 2, 3)")
                                          ])
-def test_math_not_equal(fortran_reader, expressions):
+def test_symbolic_math_not_equal(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
     expressions.
 
@@ -190,7 +190,7 @@ def test_math_not_equal(fortran_reader, expressions):
                                          ("a%b(i)%c(k)", "a%b(i)%c(k+1)"),
                                          ("a%b(i+1)%c(k)", "a%b(i)%c(k+1)"),
                                          ])
-def test_math_not_equal_structures(fortran_reader, expressions):
+def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
     expressions.
 
@@ -224,14 +224,10 @@ def test_math_not_equal_structures(fortran_reader, expressions):
                                          ("MOD(7,2)", "1"),
                                          ("MOD(i,j)", "mod(2+i-2, j)")
                                          ])
-def test_math_functions_with_constants(fortran_reader, expressions):
+def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
     '''Test how known functions with constant values are handled.
-    At this stage sympy can handle them, but the output format of
-    the Fortran writer (all capitals, e.g. 'MAX') prevents this
-    from working (sympy expects 'Max')
 
     '''
-
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     source = '''program test_prog
@@ -245,6 +241,5 @@ def test_math_functions_with_constants(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
-
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
