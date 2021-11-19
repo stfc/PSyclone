@@ -355,10 +355,11 @@ is set to match that of the active variables in the supplied TL kernel.
 are found.)
 
 For simplicity, when computing the inner product in steps 3) and 5),
-both active and passive kernel arguments are included (since those
-that are only read by a kernel will remain constant for both the TL
-and adjoint kernel calls). It is likely that this will require refinement
-in future, e.g. for kernels that have non-numeric arguments.
+both active and passive kernel arguments are included (since the
+latter will remain constant for both the TL and adjoint kernel calls
+they can be included in the inner-product compuation without affecting the
+correctness test). It is likely that this will require refinement in future,
+e.g. for kernels that have non-numeric arguments.
 
 Comparing the Inner Products
 ----------------------------
