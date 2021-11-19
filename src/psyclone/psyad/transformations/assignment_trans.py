@@ -212,9 +212,18 @@ class AssignmentTrans(AdjointTransformation):
         # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
 
-            active_vars = [
-                ref for ref in rhs_term.walk(Reference) if ref.symbol
-                in self._active_variables]
+            # When searching for references to an active variable we must
+            # take care to exclude those cases where they are present as
+            # arguments to the L/UBOUND intrinsics (as they will be when
+            # array notation is used).
+            active_vars = []
+            lu_bound_ops = [BinaryOperation.Operator.LBOUND,
+                            BinaryOperation.Operator.UBOUND]
+            for ref in rhs_term.walk(Reference):
+                if (ref.symbol in self._active_variables and
+                        not (isinstance(ref.parent, BinaryOperation) and
+                             ref.parent.operator in lu_bound_ops)):
+                    active_vars.append(ref)
 
             if not active_vars:
                 # This term must contain an active variable

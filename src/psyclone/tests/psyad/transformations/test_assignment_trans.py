@@ -49,6 +49,13 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
 
+@pytest.fixture(name="index_str", params=["1", "i", ":", "2:3"])
+def index_str_fixture(request):
+    ''' Fixture that supplies a number of different types of Fortran
+    array-index expressions. Returns the contents of params in turn. '''
+    return request.param
+
+
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
                   tmpdir):
     '''Utility routine that takes tangent linear fortran code as input in
@@ -379,36 +386,39 @@ def test_increment_add(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_add_reorder(tmpdir):
+def test_increment_add_reorder(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read (and scaled (k)) on the rhs
     and there is another active variable (B) read on the
     rhs. Additionally, the active variable A is not the first term on
     the rhs (where we define terms as expressions separated by an
-    addition (or subtraction)).
+    addition (or subtraction)). Test for both individual array accesses
+    and array ranges.
 
     A=B+kA -> B*+=A*; A*=kA*
 
     '''
     tl_fortran = (
         "  real a(10), b(10)\n"
-        "  integer k\n"
-        "  a(1) = b(1)+k*a(1)\n")
+        "  integer i, k\n"
+        "  a({0}) = b({0})+k*a({0})\n".format(index_str))
     active_variables = ["a", "b"]
     ad_fortran = (
         "  real, dimension(10) :: a\n"
         "  real, dimension(10) :: b\n"
+        "  integer :: i\n"
         "  integer :: k\n\n"
-        "  b(1) = b(1) + a(1)\n"
-        "  a(1) = k * a(1)\n\n")
+        "  b({0}) = b({0}) + a({0})\n"
+        "  a({0}) = k * a({0})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_multi_add(tmpdir):
+def test_increment_multi_add(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read (and scaled (w)) on the rhs
     and there are many other active variables on the rhs (B, C, D),
-    which are also scaled.
+    which are also scaled. Test for both individual array accesses
+    and array ranges.
 
     A=wA+xB+yC+zD -> D*=D*+zA*; C*=C*+yA*; B*=B*+xA*; A*=wA*
 
@@ -416,25 +426,29 @@ def test_increment_multi_add(tmpdir):
     tl_fortran = (
         "  real a(10), b(10), c(10), d(10)\n"
         "  real w(10), x, y(10), z\n"
-        "  a(1) = w(1)*a(1)+x*b(1)+y(1)*c(1)+d(1)*z\n")
+        "  integer i\n"
+        "  a({0}) = w({0})*a({0})+x*b({0})+y({0})*c({0})+d({0})*z\n".format(
+            index_str))
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  real, dimension(10) :: w\n  real :: x\n"
-        "  real, dimension(10) :: y\n  real :: z\n\n"
-        "  b(1) = b(1) + x * a(1)\n"
-        "  c(1) = c(1) + y(1) * a(1)\n"
-        "  d(1) = d(1) + a(1) * z\n"
-        "  a(1) = w(1) * a(1)\n\n")
+        "  real, dimension(10) :: y\n  real :: z\n"
+        "  integer :: i\n\n"
+        "  b({0}) = b({0}) + x * a({0})\n"
+        "  c({0}) = c({0}) + y({0}) * a({0})\n"
+        "  d({0}) = d({0}) + a({0}) * z\n"
+        "  a({0}) = w({0}) * a({0})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_multi_increment(tmpdir):
+def test_multi_increment(tmpdir, index_str):
     '''Test the code works when the active variable that is written to on
     the lhs (A) is also read on the rhs, but is read more than once in
     different terms, some of which are scaled. The resultant adjoint
-    code has the same form as the tangent-linear code.
+    code has the same form as the tangent-linear code. Test for both
+    individual array accesses and array ranges.
 
     A=A+xA -> A=A+xA.
 
@@ -442,12 +456,14 @@ def test_multi_increment(tmpdir):
     tl_fortran = (
         "  real a(10)\n"
         "  real x\n"
-        "  a(1) = a(1)+x*a(1)\n")
+        "  integer i\n"
+        "  a({0}) = a({0})+x*a({0})\n".format(index_str))
     active_variables = ["a"]
     ad_fortran = (
         "  real, dimension(10) :: a\n"
-        "  real :: x\n\n"
-        "  a(1) = a(1) + x * a(1)\n\n")
+        "  real :: x\n"
+        "  integer :: i\n\n"
+        "  a({0}) = a({0}) + x * a({0})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -501,7 +517,7 @@ def test_multi_valued_sub(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_inc_sub(tmpdir):
+def test_inc_sub(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs is also read (and multiplied by -1) on the
     rhs. There are no other active variables on the rhs.
@@ -512,23 +528,24 @@ def test_inc_sub(tmpdir):
     tl_fortran = (
         "  real a(10)\n"
         "  integer :: i\n"
-        "  a(i) = -a(i)\n")
+        "  a({0}) = -a({0})\n".format(index_str))
     active_variables = ["a"]
     ad_fortran = (
         "  real, dimension(10) :: a\n"
         "  integer :: i\n\n"
-        "  a(i) = -a(i)\n\n")
+        "  a({0}) = -a({0})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_multi_inc_sub(tmpdir):
+def test_multi_inc_sub(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read multiple times from
     different terms on the rhs. The terms on the rhs combine the
     active variable with an inactive variable (or no inactive
     variable) in different supported combinations (multiplication,
     division, unary minus). The terms are also combined on the rhs
-    with both addition and subtraction.
+    with both addition and subtraction. Test for both individual array
+    accesses and array ranges.
 
     A=-A-xA+B+A/y -> B*=B*+A*; A*=A*(-1.0-x+1.0/y)
 
@@ -537,14 +554,14 @@ def test_multi_inc_sub(tmpdir):
         "  real a(10), b(10)\n"
         "  integer :: i\n"
         "  real :: x,y\n"
-        "  a(i) = -a(i)-x*a(i)+b(i)+a(i)/y\n")
+        "  a({0}) = -a({0})-x*a({0})+b({0})+a({0})/y\n".format(index_str))
     active_variables = ["a", "b"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: i\n"
         "  real :: x\n  real :: y\n\n"
-        "  b(i) = b(i) + a(i)\n"
-        "  a(i) = -a(i) - x * a(i) + a(i) / y\n\n")
+        "  b({0}) = b({0}) + a({0})\n"
+        "  a({0}) = -a({0}) - x * a({0}) + a({0}) / y\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
