@@ -165,6 +165,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 _ = int(lower_bound_info)
                 lower_bound = Literal(lower_bound_info, INTEGER_TYPE)
             except ValueError:
+                # It's not a Literal, but is it an existing symbol?
                 try:
                     lower_bound = Reference(
                         symbol_table.lookup(lower_bound_info))
@@ -186,6 +187,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 _ = int(upper_bound_info)
                 upper_bound = Literal(upper_bound_info, INTEGER_TYPE)
             except ValueError:
+                # It's not a Literal, but is it an existing symbol?
                 try:
                     upper_bound = Reference(
                         symbol_table.lookup(upper_bound_info))
@@ -300,25 +302,27 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "supplied node argument should be within an ArrayReference "
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
-        # Does the rhs of the assignment have any operations that
-        # return arrays as this is not currently supported?
+        # Does the rhs of the assignment have any operations that are not
+        # elemental?
         for operation in assignment.rhs.walk(Operation):
-            # At the moment the only array valued operator is matmul
-            # raise TransformationError("")
+            # Allow non elemental UBOUND and LBOUND
+            if operation.operator is BinaryOperation.Operator.LBOUND:
+                continue
+            if operation.operator is BinaryOperation.Operator.UBOUND:
+                continue
             if not operation.is_elemental():
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "
                     "transformation does not support array valued operations "
                     "on the rhs of the associated Assignment node, but found "
                     "'{0}'.".format(operation.operator.name))
-        # Do not allow to optimise expressions with CodeBlocks
+        # Do not allow to transform expressions with CodeBlocks
         if assignment.walk(CodeBlock):
             raise TransformationError(
                 "Error in NemoArrayRange2LoopTrans transformation. This "
                 "transformation does not support array assignments that "
                 "contain a CodeBlock anywhere in the expression.")
-
-        # Do not allow to optimise expressions with function calls (to allow
+        # Do not allow to transform expressions with function calls (to allow
         # this we need to differentiate between elemental and not elemental
         # functions as they have different semantics in array notation)
         if assignment.walk(Call):
@@ -349,9 +353,9 @@ class NemoArrayRange2LoopTrans(Transformation):
                 if not any(child for child in reference.children if
                            isinstance(child, Range)):
                     raise TransformationError(
-                        "Error in NemoArrayRange2LoopTrans transformation. This "
-                        "transformation does not support assignments with rhs "
-                        "arrays that don't have a range.")
+                        "Error in NemoArrayRange2LoopTrans transformation. "
+                        "This transformation does not support assignments "
+                        "with rhs arrays that don't have a range.")
                 continue
 
             # However, if it doesn't have array accessors or structure syntax,
