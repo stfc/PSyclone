@@ -212,7 +212,7 @@ class BinaryOperation(Operation):
         # Matrix and Vector Operators
         'MATMUL'
         ])
-    _non_elemental_names = ['POW', 'SUM', 'MATMUL', 'SIZE']
+    _non_elemental_names = ['SUM', 'MATMUL', 'SIZE', 'LBOUND', 'UBOUND']
     '''Arithmetic operators:
 
     .. function:: POW(arg0, arg1) -> type(arg0)

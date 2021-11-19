@@ -168,6 +168,28 @@ def test_binaryoperation_children_validation():
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
+def test_binaryoperation_is_elemental():
+    '''Test that the is_elemental method properly returns if an operation is
+    elemental in each BinaryOperation.
+
+    '''
+    # SUM, MATMUL, SIZE, LBOUND and UBOUND are not elemental
+    operation1 = BinaryOperation(BinaryOperation.Operator.SUM)
+    operation2 = BinaryOperation(BinaryOperation.Operator.SIZE)
+    operation3 = BinaryOperation(BinaryOperation.Operator.MATMUL)
+    operation4 = BinaryOperation(BinaryOperation.Operator.LBOUND)
+    operation5 = BinaryOperation(BinaryOperation.Operator.UBOUND)
+    assert not operation1.is_elemental()
+    assert not operation2.is_elemental()
+    assert not operation3.is_elemental()
+    assert not operation4.is_elemental()
+    assert not operation5.is_elemental()
+
+    # The rest are elemental
+    operation = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert operation.is_elemental()
+
+
 # Test UnaryOperation class
 def test_unaryoperation_initialization():
     ''' Check the initialization method of the UnaryOperation class works
@@ -263,6 +285,21 @@ def test_unaryoperation_children_validation():
             "format is: 'DataNode'.") in str(excinfo.value)
 
 
+def test_unaryoperation_is_elemental():
+    '''Test that the is_elemental method properly returns if an operation is
+    elemental in each UnaryOperation.
+
+    '''
+    # SUM is not elemental
+    operation1 = UnaryOperation(UnaryOperation.Operator.SUM)
+    assert not operation1.is_elemental()
+
+    # The rest are elemental
+    operation = UnaryOperation(UnaryOperation.Operator.MINUS)
+    assert operation.is_elemental()
+
+
+# Test NaryOperation class
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
@@ -346,6 +383,20 @@ def test_naryoperation_children_validation():
         nary.addchild(statement)
     assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
             "format is: '[DataNode]+'.") in str(excinfo.value)
+
+
+def test_naryoperation_is_elemental():
+    '''Test that the is_elemental method properly returns if an operation is
+    elemental in each NaryOperation.
+
+    '''
+    # SUM is not elemental
+    operation1 = NaryOperation(NaryOperation.Operator.SUM)
+    assert not operation1.is_elemental()
+
+    # The rest are elemental
+    operation = NaryOperation(NaryOperation.Operator.MAX)
+    assert operation.is_elemental()
 
 
 def test_operations_can_be_copied():

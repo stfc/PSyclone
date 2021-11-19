@@ -305,6 +305,11 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Does the rhs of the assignment have any operations that are not
         # elemental?
         for operation in assignment.rhs.walk(Operation):
+            # Allow non elemental UBOUND and LBOUND
+            if operation.operator is BinaryOperation.Operator.LBOUND:
+                continue
+            if operation.operator is BinaryOperation.Operator.UBOUND:
+                continue
             if not operation.is_elemental():
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "
