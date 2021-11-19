@@ -1,6 +1,7 @@
 program tracer_advection
   USE dl_timer, only: timer_init, timer_register, timer_start, timer_stop, timer_report
-  USE tra_adv_compute_mod, only: tra_adv_compute
+  !!!USE tra_adv_compute_mod, only: tra_adv_compute
+  use res_cpp, only: run_nemo_from_host_cpp
   implicit none
   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: tsn 
   REAL*8, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: pun, pvn, pwn
@@ -14,6 +15,7 @@ program tracer_advection
   CHARACTER(len=10)                             :: env
   !> Timer indexes, one for initialisation, one for the 'time-stepping'
   INTEGER :: init_timer, step_timer
+  REAL*8 :: tsn_sum
 
   CALL get_environment_variable("JPI", env)
   READ ( env, '(i10)' ) jpi
@@ -58,6 +60,7 @@ program tracer_advection
   !call random_number(r)
   !r = r*jpi*jpj*jpk
 
+  tsn_sum = 0.0
   DO jk = 1, jpk
      DO jj = 1, jpj
         DO ji = 1, jpi
@@ -68,11 +71,21 @@ program tracer_advection
            pwn(ji,jj,jk) =ji*jj*jk/r
            vmask(ji,jj,jk)= ji*jj*jk/r
            tsn(ji,jj,jk)= ji*jj*jk/r
+           tsn_sum = tsn_sum + tsn(ji,jj,jk)
            tmask(ji,jj,jk)= ji*jj*jk/r
         END DO
      END DO
   END DO
-
+  print *, jpi, jpj, jpk
+  print *, "TSN_SUM IS",tsn_sum
+  print *, "TSN 1,1,1 is",tsn(1,1,1)
+  print *, "TSN 130,1,1 is",tsn(130,1,1)
+  print *, "TSN 1,2,1 is",tsn(1,2,1)
+  print *, "TSN 130,2,1 is",tsn(130,2,1)
+  print *, "TSN 130,128,1 is",tsn(130,128,1)
+  print *, "TSN 130,129,1 is",tsn(130,129,1)
+  print *, "TSN 130,130,1 is",tsn(130,130,1)
+  print *, "TSN 130,130,31 is",tsn(130,130,31)
   r = jpi*jpj
   DO jj=1, jpj
      DO ji=1, jpi
@@ -91,8 +104,10 @@ program tracer_advection
   call timer_start(step_timer)
 
   do jt = 1, itn_count
-     call tra_adv_compute(ztfreez, pun, pvn, pwn, umask, vmask, tmask, rnfmsk, rnfmsk_z, upsmsk, mydomain, tsn, &
-          jpi, jpj, jpk, zslpx)
+     !!!call tra_adv_compute(ztfreez, pun, pvn, pwn, umask, vmask, tmask, rnfmsk, rnfmsk_z, upsmsk, mydomain, tsn, &
+     !!!    jpi, jpj, jpk, zslpx)
+     call run_nemo_from_host_cpp(jpi, jpj, jpk, ztfreez, pwn, vmask, rnfmsk, mydomain, tmask, umask, tsn, & 
+                pvn, rnfmsk_z, pun, upsmsk, zslpx)
   end do
 
   call timer_stop(step_timer)

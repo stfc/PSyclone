@@ -1,5 +1,5 @@
 #define DAWN_GENERATED 1
-#define GRIDTOOLS_DAWN_HALO_EXTENT 3
+#define GRIDTOOLS_DAWN_HALO_EXTENT 0
 #define GT_VECTOR_LIMIT_SIZE 30
 
 #undef FUSION_MAX_VECTOR_SIZE
@@ -28,6 +28,9 @@ void run_nemo_from_host_cpp(int isize, int jsize, int ksize,
   
   domain dom(isize, jsize, ksize); 
 
+  printf("domain isize %d\n",dom.isize());
+  printf("domain jsize %d\n",dom.jsize());
+  printf("domain ksize %d\n",dom.ksize());
   meta_data_ij_t meta_data_ij(dom.isize(), dom.jsize(), 1);
   meta_data_t meta_data_ijk(dom.isize(), dom.jsize(), dom.ksize());
   meta_data_k_t meta_data_k(1, 1, dom.ksize());  

@@ -16,7 +16,7 @@ implicit none
         umask,  &
         tsn,  &
         pvn, &
-	      rnfmask_z,  &
+	rnfmask_z,  &
         pun,  &
         upsmsk,  & 
         zslpx &
@@ -34,10 +34,10 @@ implicit none
         real(c_double), dimension(*), target :: umask 
         real(c_double), dimension(*), target :: tsn 
         real(c_double), dimension(*), target :: pvn
-	      real(c_double), dimension(*), target :: rnfmask_z 
+	real(c_double), dimension(*), target :: rnfmask_z 
         real(c_double), dimension(*), target :: pun 
         real(c_double), dimension(*), target :: upsmsk 
         real(c_double), dimension(*), target :: zslpx
     end subroutine
   end interface
-end module  
+end module

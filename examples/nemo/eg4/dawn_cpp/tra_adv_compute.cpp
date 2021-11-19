@@ -210,6 +210,8 @@ private:
       int jMax = m_dom.jsize() - m_dom.jplus() - 1;
       int kMin = m_dom.kminus();
       int kMax = m_dom.ksize() - m_dom.kplus() - 1;
+      printf("HELLO from cpp run method\n");
+      printf("%d %d %d %d %d %d\n",iMin,iMax,jMin,jMax,kMin,kMax);
       tmask_.sync();
       tsn_.sync();
       vmask_.sync();
@@ -306,14 +308,27 @@ private:
         std::array<int, 3> tmp_abs_offsets{0, 0, 0};
         gridtools::data_view<tmp_storage_t> zslpx_0 = gridtools::make_host_view(m_zslpx_0);
         std::array<int, 3> zslpx_0_offsets{0, 0, 0};
+	double tsn_sum;
+	tsn_sum = 0.0;
         for(int k = kMin + 0 + 0; k <= kMax + 0 + 0; ++k) {
-          for(int i = iMin + 0; i <= iMax + 0; ++i) {
             for(int j = jMin + 0; j <= jMax + 0; ++j) {
+          for(int i = iMin + 0; i <= iMax + 0; ++i) {
               if(checkOffset(stage2421GlobalIIndices[0], stage2421GlobalIIndices[1],
                              globalOffsets[0] + i) &&
                  checkOffset(stage2421GlobalJIndices[0], stage2421GlobalJIndices[1],
                              globalOffsets[1] + j)) {
                 ::dawn::float_type __local_zice_1228 = (::dawn::float_type)0.e0;
+		printf("%d %d %d\n",i,j,k);
+		printf("tsn 0,0,0 %.16f\n",tsn(0,0,0));
+		printf("tsn 129,0,0 %.16f\n",tsn(129,0,0));
+		printf("tsn 0,1,0 %.16f\n",tsn(0,1,0));
+		printf("tsn 129,1,0 %.16f\n",tsn(129,1,0));
+		printf("tsn 129,127,0 %.16f\n",tsn(129,127,0));
+		printf("tsn 129,128,0 %.16f\n",tsn(129,128,0));
+		printf("tsn 129,129,0 %.16f\n",tsn(129,129,0));
+		printf("tsn 129,129,30 %f\n",tsn(129,129,30));
+		exit(1);
+		tsn_sum += tsn(i,j,k);
                 if((tsn(i + 0, j + 0, k + 0) <=
                     (ztfreez(i + 0, j + 0, k + 0) + (::dawn::float_type)0.1e0))) {
                   __local_zice_1228 = (::dawn::float_type)1.e0;
@@ -336,6 +351,7 @@ private:
             }
           }
         }
+	printf("tsn_sum is %f\n",tsn_sum);
       }
       {
         gridtools::data_view<storage_ijk_t> tmask = gridtools::make_host_view(tmask_);
@@ -2996,10 +3012,14 @@ public:
     assert(dom.ksize() >= 1);
   }
 
-  void run(storage_ijk_t tmask, storage_ijk_t tsn, storage_ijk_t vmask, storage_ij_t upsmsk,
-           storage_ijk_t pwn, storage_ijk_t pvn, storage_k_t rnfmsk_z, storage_ijk_t pun,
-           storage_ij_t ztfreez, storage_ijk_t zslpx, storage_ij_t rnfmsk, storage_ijk_t mydomain,
-           storage_ijk_t umask) {
+  //  void run(storage_ijk_t tmask, storage_ijk_t tsn, storage_ijk_t vmask, storage_ij_t upsmsk,
+  //           storage_ijk_t pwn, storage_ijk_t pvn, storage_k_t rnfmsk_z, storage_ijk_t pun,
+  //           storage_ij_t ztfreez, storage_ijk_t zslpx, storage_ij_t rnfmsk, storage_ijk_t mydomain,
+  //           storage_ijk_t umask) {
+  void run(storage_ij_t ztfreez, storage_ijk_t pwn, storage_ijk_t vmask, storage_ij_t rnfmsk,
+           storage_ijk_t mydomain, storage_ijk_t tmask, storage_ijk_t umask, storage_ijk_t tsn,
+           storage_ijk_t pvn, storage_k_t rnfmsk_z, storage_ijk_t pun, storage_ij_t upsmsk,
+           storage_ijk_t zslpx) {
     m_stencil_1238.run(tmask, tsn, vmask, upsmsk, pwn, pvn, rnfmsk_z, pun, ztfreez, zslpx, rnfmsk,
                        mydomain, umask, m_zslpy_0, m_zslpx_1);
   }
