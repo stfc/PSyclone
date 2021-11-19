@@ -348,11 +348,11 @@ def test_no_code_blocks(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:1])
+        acc_trans.apply(schedule.children[0:1])
     assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[1:2])
+        acc_trans.apply(schedule.children[1:2])
     assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
             in str(err.value))
 
@@ -399,7 +399,7 @@ def test_no_enter_data(parser):
     directive = GOACCEnterDataDirective(children=[])
     schedule.children.insert(0, directive)
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children)
+        acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
             "contains an 'enter data' directive" in str(err.value))
 

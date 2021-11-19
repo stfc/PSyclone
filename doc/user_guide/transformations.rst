@@ -259,6 +259,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
@@ -266,7 +272,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule
+    :members: apply, omp_schedule, omp_worksharing
     :noindex:
 
 ####
@@ -284,6 +290,12 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -556,8 +568,8 @@ with the new one. For example::
     >>> ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    >>> new_schedule, memento = ol.apply(schedule.children[0])
-    >>> new_schedule.view()
+    >>> ol.apply(schedule.children[0])
+    >>> schedule.view()
 
     # Generate the Fortran code for the new PSy layer
     >> print(psy.gen)
@@ -618,8 +630,7 @@ below does the same thing as the example in the
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
-        new_schedule, _ = ol.apply(schedule.children[0])
-        invoke.schedule = new_schedule
+        ol.apply(schedule.children[0])
         return psy
 
 Of course the script may apply as many transformations as is required
@@ -640,7 +651,8 @@ OpenMP is added to a code by using transformations. The OpenMP
 transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
-* an **OpenMP Do** directive
+* an **OpenMP Target** directive
+* an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
 * an **OpenMP Taskloop** directive
