@@ -244,7 +244,7 @@ In order to test that you have a working Fortran compiler along with
 the necessary dependencies then doing:
 
 ```bash
-$ cd examples/lfric/full_example_netcdf
+$ cd examples/lfric/eg17/full_example_netcdf
 $ make
 ```
 

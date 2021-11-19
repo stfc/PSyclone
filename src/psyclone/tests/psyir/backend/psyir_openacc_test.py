@@ -229,7 +229,7 @@ def test_acc_loop(parser, fortran_writer):
     kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
-    _ = acc_trans.apply(loops[0], {"sequential": True})
+    acc_trans.apply(loops[0], {"sequential": True})
     result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop seq\n"

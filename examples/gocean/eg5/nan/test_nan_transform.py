@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,48 +31,47 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''A simple test script showing the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have psyclone installed, this script may be run by doing:
-
- >>> python runme_openmp.py
-
-This should generate a lot of output, ending with generated
-Fortran.
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a region are a valid number, i.e.
+not infinity or NAN.
 '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
 
-if __name__ == "__main__":
-    from psyclone.nemo import NemoKern
-    API = "nemo"
-    _, INVOKEINFO = parse("../code/tra_adv.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print(PSY.gen)
+from psyclone.psyir.transformations import NanTestTrans
 
-    print("Invokes found:")
-    print(PSY.invokes.names)
 
-    SCHED = PSY.invokes.get('tra_adv').schedule
-    SCHED.view()
+def trans(psy):
+    '''
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
 
-    TRANS_INFO = TransInfo()
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-    for loop in SCHED.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
-            SCHED, _ = OMP_TRANS.apply(loop)
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
-    SCHED.view()
+    '''
+    nan_test = NanTestTrans()
 
-    PSY.invokes.get('tra_adv').schedule = SCHED
-    print(PSY.gen)
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
+    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
+
+    # Enclose everything in a nan_test region
+    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
+
+    # newschedule.view()
+    return psy

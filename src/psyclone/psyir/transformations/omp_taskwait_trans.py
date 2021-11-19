@@ -396,8 +396,6 @@ class OMPTaskwaitTrans(Transformation):
                 result of this transformation is valid OpenMP code. Default \
                 is True
 
-        :returns: two-tuple of None and None.
-        :rtype: (None, None)
         '''
         self.validate(node, options=options)
 
@@ -488,6 +486,3 @@ class OMPTaskwaitTrans(Transformation):
                             for node1 in node_list):
                         task_region.dir_body.addchild(OMPTaskwaitDirective())
                         break
-
-        # TODO 595 return a tuple for now
-        return (None, None)

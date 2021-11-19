@@ -115,7 +115,7 @@ def test_kern_builtin_no_loop():
     # Test Kernel call
     kernel_call = schedule.children[0].loop_body[0].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = gocetrans.apply(kernel_call)
+        gocetrans.apply(kernel_call)
     assert "Error in GOceanExtractTrans: Application to a Kernel or a " \
            "Built-in call without its parent Loop is not allowed." \
            in str(excinfo.value)
@@ -133,7 +133,7 @@ def test_no_outer_loop_gocean1p0():
     # Try to extract the region between the outer and the inner Loop
     inner_loop = schedule[0].loop_body
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(inner_loop)
+        etrans.apply(inner_loop)
     assert "Error in GOceanExtractTrans: Application to an inner Loop " \
            "without its ancestor outer Loop is not allowed." \
            in str(excinfo.value)
@@ -165,7 +165,7 @@ def test_no_parent_accdirective():
 
     orphaned_directive = schedule.children[1].children[0]
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(orphaned_directive)
+        etrans.apply(orphaned_directive)
     assert "Error in GOceanExtractTrans: Application to Nodes enclosed " \
            "within a thread-parallel region is not allowed." \
            in str(excinfo.value)
