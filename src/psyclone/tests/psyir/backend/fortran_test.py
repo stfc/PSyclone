@@ -506,9 +506,9 @@ def test_is_fortran_intrinsic():
     '''
 
     writer = FortranWriter()
-    assert writer().is_intrinsic("SIN")
-    assert not writer().is_intrinsic("+")
-    assert not writer().is_intrinsic(None)
+    assert writer.is_intrinsic("SIN")
+    assert not writer.is_intrinsic("+")
+    assert not writer.is_intrinsic(None)
 
 
 def test_precedence():
