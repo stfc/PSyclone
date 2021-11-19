@@ -257,9 +257,9 @@ def test_apply_existing_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_non_existing_names(tmpdir):
-    '''Check that the apply method uses existing iterators appropriately
-    when their symbols are already defined.
+def test_apply_non_existing_bound_names(tmpdir):
+    '''Check that the apply method creates valid expressions when the bound
+    symbols are not defined in this scope.
 
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
