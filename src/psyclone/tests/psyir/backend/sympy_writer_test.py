@@ -118,11 +118,17 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
     assert sympy_writer(lit) == expressions[1]
 
 
-@pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)")
+@pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)"),
+                                         ("MIN(1,2)", "Min(1, 2)"),
+                                         ("MOD(1,2)", "Mod(1, 2)"),
+                                         ("LBOUND(1,2)", "LBOUND(1, 2)")
                                          ])
 def test_sym_writer_functions(fortran_reader, expressions):
-    '''Test that real constants are handled, including precision
-    specifications (either as int or as a name).
+    '''Test that certain standard functions are recognised and
+    converted into the equivalent SymPy syntax (capitalised first
+    letter). Note LBOUND is not defined in SymPy, and as such is
+    not converted.
+
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments

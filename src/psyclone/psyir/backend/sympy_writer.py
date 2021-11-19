@@ -55,6 +55,19 @@ class SymPyWriter(FortranWriter):
 
     '''
 
+    def __init__(self):
+        super(SymPyWriter, self).__init__()
+        self._intrinsic = set()
+        self._op_to_str = {}
+        for operator, op_str in [(NaryOperation.Operator.MAX, "Max"),
+                                 (BinaryOperation.Operator.MAX, "Max"),
+                                 (NaryOperation.Operator.MIN, "Min"),
+                                 (BinaryOperation.Operator.MIN, "Min"),
+                                 (BinaryOperation.Operator.REM, "Mod"),
+                                 ]:
+            self._intrinsic.add(op_str)
+            self._op_to_str[operator] = op_str
+
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree. For SymPy we need to handle booleans (which are expected to
@@ -100,17 +113,17 @@ class SymPyWriter(FortranWriter):
         :raises KeyError: if the supplied operator is not known.
 
         '''
-        if operator in [NaryOperation.Operator.MAX,
-                        BinaryOperation.Operator.MAX]:
-            return "Max"
 
-        return super(SymPyWriter, self).get_operator(operator)
+        try:
+            return self._op_to_str[operator]
+        except KeyError:
+            return super(SymPyWriter, self).get_operator(operator)
 
-    @staticmethod
-    def is_intrinsic(operator):
+    def is_intrinsic(self, operator):
         '''Determine whether the supplied operator is an intrinsic
         function (i.e. needs to be used as `f(a,b)`) or not (i.e. used
-        as `a + b`)
+        as `a + b`). This tests for known SymPy names of these functions
+        (e.g. Max), and otherwise calls the function in the base class.
 
         :param str operator: the supplied operator.
 
@@ -118,7 +131,7 @@ class SymPyWriter(FortranWriter):
             intrinsic and false otherwise.
 
         '''
-        if operator == "Max":
+        if operator in self._intrinsic:
             return True
 
-        return FortranWriter.is_intrinsic(operator)
+        return super(SymPyWriter, self).is_intrinsic(operator)

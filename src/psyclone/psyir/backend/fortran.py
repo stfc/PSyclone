@@ -375,8 +375,7 @@ class FortranWriter(LanguageWriter):
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
 
-    @staticmethod
-    def is_intrinsic(operator):
+    def is_intrinsic(self, operator):
         '''Determine whether the supplied operator is an intrinsic
         Fortran function or not.
 
@@ -386,6 +385,7 @@ class FortranWriter(LanguageWriter):
             intrinsic and false otherwise.
 
         '''
+        # pylint: disable=no-self-use
         return operator in FORTRAN_INTRINSICS
 
     def get_operator(self, operator):

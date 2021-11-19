@@ -216,7 +216,13 @@ def test_math_not_equal_structures(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),
-                                         ("max(1, 3)", "max(1, 2, 3)")
+                                         ("max(1, 3)", "3"),
+                                         ("max(1, 3)", "max(1, 2, 3)"),
+                                         ("min(3, 2, 1)", "min(1, 2, 3)"),
+                                         ("min(1, 3)", "min(1, 2, 3)"),
+                                         ("min(1, 2, 3)", "1"),
+                                         ("MOD(7,2)", "1"),
+                                         ("MOD(i,j)", "mod(2+i-2, j)")
                                          ])
 def test_math_functions_with_constants(fortran_reader, expressions):
     '''Test how known functions with constant values are handled.
