@@ -23,6 +23,9 @@
 	documentation, start removing Python2-specific code and start
 	using any pylint-suggested Python3-specific code constructs.
 
+	10) PR #1476 for #1456. Fix precision problems in the PSyAD harness
+	code generation and add harness documentation.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
