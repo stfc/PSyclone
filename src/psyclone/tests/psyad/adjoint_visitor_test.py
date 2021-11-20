@@ -447,12 +447,11 @@ def test_assignment_node(fortran_reader, fortran_writer):
 
 def test_loop_node_active_error(fortran_reader):
     '''Test that the loop_node method raises the expected exception
-    if no active variables are found.
+    if no active variables are specified.
 
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
     loop = tl_psyir.walk(Loop)[0]
-    assert isinstance(loop, Loop)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor.loop_node(loop)
@@ -501,11 +500,9 @@ def test_loop_node_passive(fortran_reader):
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
     tl_loop = tl_psyir.walk(Loop)[0]
-    assert isinstance(tl_loop, Loop)
     adj_visitor = AdjointVisitor(["d", "e"])
     ad_psyir = adj_visitor._visit(tl_psyir)
     ad_loop = ad_psyir.walk(Loop)[0]
-    assert isinstance(ad_loop, Loop)
 
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor.loop_node(tl_loop)
@@ -524,17 +521,18 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     '''Test that a loop_node containing active variables returns with its
     loop order reversed and its loop body processed by the adjoint
     visitor. Checks that appropriate offset code is generated when the
-    loop step is not, or might not be, 1.
+    loop step is not, or might not be, 1 or -1. Note that in the
+    PSyIR, -1 can be represented as a unitary minus containing a
+    literal with value 1 and that, in such a case, an offset will be
+    computed (see the 3rd parametrised case where this occurs).
 
     '''
     code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)
     tl_psyir = fortran_reader.psyir_from_source(code)
     tl_loop = tl_psyir.walk(Loop)[0]
-    assert isinstance(tl_loop, Loop)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     ad_psyir = adj_visitor(tl_psyir)
     ad_loop = ad_psyir.walk(Loop)[0]
-    assert isinstance(ad_loop, Loop)
     result = fortran_writer(ad_loop)
     expected_result = (
         "do i = {0}\n"
@@ -554,15 +552,18 @@ def test_loop_logger(fortran_reader, caplog):
     '''
     tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
     tl_loop = tl_psyir.walk(Loop)[0]
-    assert isinstance(tl_loop, Loop)
 
     adj_visitor = AdjointVisitor(["a", "b", "c"])
+
     # Need to use _visit() here rather than adj_visitor(tl_psyir) as
     # the latter takes a copy of the tree in case any lowering needs
     # to be done and that causes the stored symbols for active
     # variables to be different which means they do not match in
-    # subsequent calls. This only a problem for tests as we don't
+    # subsequent calls. This is only a problem for tests as we don't
     # normally call loop_node() or similar, directly.
+
+    # The _visit() method is called so that the active variables
+    # symbols are set up when calling the loop_node() method directly.
     _ = adj_visitor._visit(tl_psyir)
 
     # active loop
@@ -578,7 +579,11 @@ def test_loop_logger(fortran_reader, caplog):
 
     # inactive loop
     adj_visitor = AdjointVisitor(["d", "e"])
+
+    # The visitor is called so that the active variables symbols are
+    # set up when calling the loop_node() method directly.
     _ = adj_visitor(tl_psyir)
+
     with caplog.at_level(logging.INFO):
         _ = adj_visitor.loop_node(tl_loop)
     assert caplog.text == ""

@@ -49,6 +49,11 @@ adjoint form and tested with the harness generation.
 
 An LFRic tangent-linear kernel example which shows how much of this
 code PSyAD can currently translate. The kernel computes the
-tangent-linear for hydrostatic balance. It was taken from the LFRic
-repository and has any unsupported code commented out. The harness
-generation does not currently support this example.
+tangent-linear of the hydrostatic balance term. It was taken from the
+LFRic repository and has any unsupported code commented out.
+
+The harness generation does not currently support this example as it
+assumes all arguments are real arrays which can be filled with random
+real data, whereas LFRic arguments can include integer arrays and
+these integer arrays may act as lookups into other arrays and
+therefore require non-random integer values.

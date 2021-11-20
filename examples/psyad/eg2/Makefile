@@ -45,6 +45,9 @@ transform:
 	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad
 	@echo "Harness generation not yet supported"
 
+# It is not yet possible to compile the adjoint code into an object
+# file as the intents are incorrect (see issue #1429) and the metadata
+# code pointer is invalid (see issue #1453).
 compile: transform
 	@echo "Harness compilation not yet supported"
 

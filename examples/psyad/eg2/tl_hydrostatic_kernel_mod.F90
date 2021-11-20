@@ -215,7 +215,9 @@ subroutine tl_hydrostatic_code(nlayers,          &
       exner_e(df) = exner( map_w3(df) + k )
     end do
     do df = 1, ndf_wt
-      ! Issue #1491 Unsupported form of rhs expression
+      ! Issue #1491 Unsupported form of rhs expression (multiple
+      ! active terms multiplied by an inactive term, as PSyclone sees
+      ! this as a single term).
       !***    theta_v_e(df) = ls_theta_v_e(df) * &
       !***       ( theta( map_wt(df) + k ) /  ls_theta( map_wt(df) + k )  +               &
       !***         moist_dyn_gas( map_wt(df) + k ) / ls_moist_dyn_gas( map_wt(df) + k ) - &

@@ -96,6 +96,12 @@ def test_negate_expr(fortran_writer):
     result = negate_expr(minus)
     assert isinstance(result, Literal)
     assert fortran_writer(result) == "1"
+    # unary plus
+    minus = UnaryOperation.create(
+        UnaryOperation.Operator.PLUS, Literal("1", INTEGER_TYPE))
+    result = negate_expr(minus)
+    # assert isinstance(result, Literal)
+    assert fortran_writer(result) == "-1 * (+1)"
     # expression
     expr = Reference(DataSymbol("a", INTEGER_TYPE))
     result = negate_expr(expr)

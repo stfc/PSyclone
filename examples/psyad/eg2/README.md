@@ -19,7 +19,7 @@ make
 Alternatively, PSyAD may be run from the command line as:
 
 ```sh
-psyad tl_hydrostatic_kernel_mod.f90
+psyad tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad
 ```
 
 In both cases the adjoint of the tangent-linear kernel is written to
