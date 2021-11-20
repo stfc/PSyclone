@@ -64,26 +64,39 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
   use my_mod, only : kern
   use my_mod_adj, only : kern_adj
   integer, parameter :: array_extent = 20
-  double precision :: inner1
-  double precision :: inner2
-  double precision :: abs_diff
+  real, parameter :: overall_tolerance = 1500.0
+  real :: inner1
+  real :: inner2
   real :: field
   real :: field_input
+  real :: MachineTol
+  real :: relative_diff
 
+  ! Initialise the kernel arguments and keep copies of them
   CALL random_number(field)
   field_input = field
+  ! Call the tangent-linear kernel
   call kern(field)
+  ! Compute the inner product of the results of the tangent-linear kernel
   inner1 = 0.0
   inner1 = inner1 + field * field
+  ! Call the adjoint of the kernel
   call kern_adj(field)
+  ! Compute inner product of results of adjoint kernel with the original \
+inputs to the tangent-linear kernel
   inner2 = 0.0
   inner2 = inner2 + field * field_input
-  abs_diff = ABS(inner1 - inner2)
-  if (abs_diff > 1.0d-10) then
-    WRITE(*, *) 'Test of adjoint of ''kern'' failed: diff = ', abs_diff
-    return
+  ! Test the inner-product values for equality, allowing for the precision \
+of the active variables
+  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+  relative_diff = ABS(inner1 - inner2) / MachineTol
+  if (relative_diff < overall_tolerance) then
+    WRITE(*, *) 'Test of adjoint of ''kern'' PASSED: ', inner1, inner2, \
+relative_diff
+  else
+    WRITE(*, *) 'Test of adjoint of ''kern'' FAILED: ', inner1, inner2, \
+relative_diff
   end if
-  WRITE(*, *) 'Test of adjoint of ''kern'' passed: diff = ', abs_diff
 
 end program adj_test''')
 
@@ -222,12 +235,6 @@ def test_main_invalid_filename(capsys, caplog):
     file specified by filename does not exist.
 
     '''
-    # FileNotFoundError does not exist in Python2
-    try:
-        FileNotFoundError
-    except NameError:
-        # pylint: disable=redefined-builtin
-        FileNotFoundError = IOError
     with pytest.raises(SystemExit) as info:
         main(["-a", "var", "--", "does_not_exist.f90"])
     assert str(info.value) == "1"
@@ -238,7 +245,7 @@ def test_main_invalid_filename(capsys, caplog):
 
 
 # Exceptions in adjoint generation (TangentLinearError, TypeError,
-# KeyError)
+# KeyError, NotImplementedError)
 
 def test_main_tangentlinearerror(tmpdir, capsys):
     '''Test that a TangentLinearError exception is picked up when
@@ -284,6 +291,32 @@ def test_main_keyerror(tmpdir, capsys):
     output, error = capsys.readouterr()
     assert error == ""
     assert "Could not find 'doesnotexist' in the Symbol Table." in output
+
+
+def test_main_not_implemented_error(tmpdir, capsys):
+    ''' Test that a NotImplementedError is caught when generating an adjoint
+    test harness and that appropriate information is output to stdout. This
+    can be triggered when the set of active variables are not all of the
+    same type or precision. '''
+    test_prog = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "real :: a\n"
+        "integer :: b\n"
+        "a = b\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    filename = six.text_type(tmpdir.join("tl.f90"))
+    with open(filename, "w") as my_file:
+        my_file.write(test_prog)
+    with pytest.raises(SystemExit) as info:
+        main(["-a", "a", "b", "-t", "--", filename])
+    assert str(info.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert "'a' is of intrinsic type 'Intrinsic.REAL'" in output
+    assert "This is not currently supported" in output
 
 
 # writing to stdout
