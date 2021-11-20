@@ -235,12 +235,6 @@ def test_main_invalid_filename(capsys, caplog):
     file specified by filename does not exist.
 
     '''
-    # FileNotFoundError does not exist in Python2
-    try:
-        FileNotFoundError
-    except NameError:
-        # pylint: disable=redefined-builtin
-        FileNotFoundError = IOError
     with pytest.raises(SystemExit) as info:
         main(["-a", "var", "--", "does_not_exist.f90"])
     assert str(info.value) == "1"

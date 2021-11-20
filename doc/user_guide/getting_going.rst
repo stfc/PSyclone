@@ -212,16 +212,16 @@ PSyclone is currently not supported.
 Dependencies
 ------------
 
-PSyclone is written in Python so needs Python to be installed on the
-target machine. PSyclone has been tested under Python 2.7, 3.5, 3.6
-and 3.8.
+PSyclone is written in Python so needs Python 3 to be installed on the
+target machine. PSyclone is regularly tested with Python 3.5 and 3.8.
+(The last PSyclone release to support Python 2.7 was version 2.1.0.)
 
 PSyclone immediately relies on four external Python packages; ``six``,
-``configparser``, ``fparser`` and ``pyparsing``. There is also dependency
-on ``enum34`` for Python 2 support, however support for Python 2 will be
-dropped in future. The easiest way to satisfy the Python dependencies is
-to use the `PyPI installation
-<https://packaging.python.org/installing>`_ and ``pip``.
+``configparser``, ``fparser`` and ``pyparsing``. (Note that the
+use of ``six`` is being phased out now that Python 2.7 is not
+supported.) The easiest way to satisfy the Python dependencies is to
+use the `PyPI installation <https://packaging.python.org/installing>`_
+and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
 

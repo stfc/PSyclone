@@ -19,7 +19,11 @@
 
 	8) PR #1489 for #1488. Configure MD link checker to skip links to MO wiki.
 
-	8) PR #1476 for #1456. Fix precision problems in the PSyAD harness
+	9) PR #1501 for #1484. Remove Python2 validation, update
+	documentation, start removing Python2-specific code and start
+	using any pylint-suggested Python3-specific code constructs.
+
+	10) PR #1476 for #1456. Fix precision problems in the PSyAD harness
 	code generation and add harness documentation.
 
 release 2.1.0 3rd November 2021
