@@ -83,7 +83,8 @@ CLASSIFIERS = [
 # src/psyclone directory. Rather than importing it (which would require
 # that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
+          encoding="utf-8") as vfile:
     exec(vfile.read())  # pylint:disable=exec-used
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
@@ -111,8 +112,8 @@ if __name__ == '__main__':
                 rel_path = os.path.relpath(dirpath, directory)
                 files = []
                 for filename in filenames:
-                    if any([filename.endswith(suffix) for
-                            suffix in valid_suffixes]):
+                    if any(filename.endswith(suffix) for suffix in
+                           valid_suffixes):
                         files.append(
                             os.path.join(os.path.basename(install_path),
                                          rel_path, filename))
@@ -157,9 +158,9 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
+        # TODO #1507: remove dependence on 'six'
         install_requires=['pyparsing', 'fparser==0.0.13', 'configparser',
-                          'six', 'enum34 ; python_version < "3.0"',
-                          'jsonschema==3.0.2'],
+                          'six', 'jsonschema==3.0.2'],
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex < 2.0.0",
