@@ -5209,14 +5209,6 @@ class DynInvoke(Invoke):
                     unique_fs_names.append(fspace.mangled_name)
         return unique_fs
 
-    def is_coloured(self):
-        ''' Returns true if at least one of the loops in the
-        schedule of this invoke has been coloured '''
-        for loop in self.schedule.loops():
-            if loop.loop_type == "colours":
-                return True
-        return False
-
     @property
     def operates_on_dofs_only(self):
         '''
