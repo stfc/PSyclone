@@ -4611,8 +4611,9 @@ class DynBasisFunctions(DynCollection):
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if my_kind not in const_mod_list:
-                const_mod_list.append(my_kind)
+            # Default kind (r_def) will always already exist due to
+            # arrays associated with gh_shape, so there is no need to
+            # declare it here.
 
         # Compute the values for any basis arrays
         self._compute_basis_fns(parent)

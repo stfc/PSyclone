@@ -1668,6 +1668,13 @@ def test_dynkernelargument_idtp_reduction():
             "'x_innerproduct_y' specifies this argument should be a scalar "
             "of type 'real' but in the algorithm layer it is defined as a "
             "'integer'." in str(info.value))
+    # Only real datatypes supported. Need to modify the internal state
+    # and set use_alg_info to False to force this exception.
+    reduction._intrinsic_type = "integer"
+    with pytest.raises(NotImplementedError) as info:
+        reduction._init_data_type_properties(arg, use_alg_info=False)
+    assert ("Reductions for datatypes other than real are not yet supported "
+            "in PSyclone." in str(info.value))
 
 
 def test_dynkernelargument_idtp_real_field():
