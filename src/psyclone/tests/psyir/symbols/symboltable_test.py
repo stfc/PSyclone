@@ -1496,7 +1496,7 @@ def test_find_or_create():
     # If the given name exists, return the symbol
     assert symtab.find_or_create("existing") is existing_symbol
 
-    # If the given name does not exist, crate and return new symbol
+    # If the given name does not exist, create and return new symbol
     new1 = symtab.find_or_create("new1")
     assert isinstance(new1, Symbol)
     assert new1.name == "new1"
@@ -1516,8 +1516,8 @@ def test_find_or_create():
     assert new2.constant_value.value == "3"
     assert symtab.lookup_with_tag("mytag") is new2
 
-    # Check that it fails if the Symbol type is different than expected by
-    # the provided properties
+    # Check that it fails if the named Symbol exists but is not of the
+    # specified type.
     with pytest.raises(SymbolError) as err:
         symtab.find_or_create("new2", symbol_type=RoutineSymbol)
     assert ("Expected symbol with name 'new2' to be of type 'RoutineSymbol' "
