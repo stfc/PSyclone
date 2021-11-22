@@ -2271,6 +2271,8 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
+        # There is no need to check whether the default kind has been
+        # declared as it as it always will be by this point.
         my_kind = api_config.default_kind["real"]
         parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
