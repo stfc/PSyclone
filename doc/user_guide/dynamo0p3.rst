@@ -391,16 +391,59 @@ example Algorithm code given at the beginning of this Section.)
 Mixed Precision
 ---------------
 
-The LFRic API allows fields, scalars and operators to be declared in
-the algorithm layer with certain LFRic-specific precision symbols
-(such as r_def) as long as any associated kernels have been written so
-that they support the underlying precision that the symbols will
-represent (typically 32bit or 64bit). If a kernel needs to support
-data that can be stored with different precisions then appropriate
-precision-specific sub-kernels should be written. These
-precision-specific sub-kernels should be called via a generic
-interface (which lets Fortran choose the appropriate sub-kernel based
-on the precision of its argument(s).
+The LFRic API supports the ability to specify the precision required
+by the model via precision variables. To make use of this, the code
+developer must declare scalars, fields and operators in the algorithm
+layer with the required LFRic-supported precision. In the current
+implementation there are two supported precisions for `REAL` data and
+one each for `INTEGER` and `LOGICAL` data. The actual precision used in
+the code can be set in a configuration file. For example, INTEGER data
+could be set to be 32-bit precision. As REAL data has more than one
+supported precision, different parts of the code can be configured to
+have different precision.
+
+The table below gives the currently supported datatypes, their
+associated kernel metadata description and their precision:
+
+.. tabularcolumns:: |l|l|
+	
++--------------------------+------------------------+----------+
+| Data Type                | Kernel Metadata        |Precision |
++==========================+========================+==========+
+| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF    |
++--------------------------+------------------------+----------+	    
+| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF    |
++--------------------------+------------------------+----------+	    
+| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF    |
++--------------------------+------------------------+----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF    |
++--------------------------+------------------------+----------+	    
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF    |
++--------------------------+------------------------+----------+	    
+| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF    |
++--------------------------+------------------------+----------+	    
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER |
++--------------------------+------------------------+----------+	    
+
+As can be seen from the above table, the kernel metadata does not
+capture all of the precision options. In particular, from the metadata
+it is not possible to determine whether a `REAL` scalar, `REAL` field
+or `REAL` operator has precision `R_DEF` or `R_SOLVER`.
+
+If a scalar, field, or operator is specified with a particular
+precision in the algorithm layer then any associated kernels that it
+is passed to must have been written so that they support this
+precision. If a kernel needs to support data that can be stored with
+different precisions then appropriate precision-specific subroutines
+should be written. These precision-specific subroutine should be
+called via a generic interface (which lets Fortran choose the
+appropriate subroutine based on the precision of its argument(s).
 
 Below is a simple example of an algorithm code calling the same
 generic kernel twice with potentially different precision and for the
@@ -469,8 +512,8 @@ this is that PSyclone needs to be able to declare data with the
 correct precision information within the PSy-layer to ensure that
 the correct flavour of kernels are called.
 
-PSyclone must therefore parse the algorithm layer to determine this
-information. The rules for whether PSyclone requires information for
+PSyclone must therefore determine this information from the algorithm
+layer. The rules for whether PSyclone requires information for
 particular LFRic datatypes and what it does with or without this
 information is given below:
 
@@ -478,16 +521,15 @@ Fields
 ++++++
 
 PSyclone must be able to determine the datatype of a field from the
-algorithm layer declarations. If it is not able to do this an
-exception will be raised and PSyclone will stop with a message that
-indicates the problem.
+algorithm layer declarations. If it is not able to do this, PSyclone
+will abort with a message that indicates the problem.
 
 Supported field types are `field_type` (which contains `real` data
 with precision `r_def`), `r_solver_field_type` (which contains `real`
 data with precision `r_solver`) and `integer_field_type` (which
 contains `integer` data with precision `i_def`). If an unsupported
-field type is found then an exception will be raised and PSyclone will
-stop with a message that indicates the problem.
+field type is found then PSyclone will abort with a message that
+indicates the problem.
 
 Scalars
 +++++++
@@ -501,29 +543,28 @@ not directly visible.
 
 If the precision information for a scalar is found by PSyclone then
 this is used. If the scalar declaration is found and it contains no
-precision information then an exception is raised and PSyclone will
-stop with a message that indicates the problem. If no precision
-information is found then default precision values are used as
-specified in the PSyclone config file (`r_def` for real, `i_def` for
-integer and `l_def` for logical).
+precision information then PSyclone will abort with a message that
+indicates the problem. If no precision information is found then
+default precision values are used as specified in the PSyclone config
+file (`r_def` for real, `i_def` for integer and `l_def` for logical).
 
 Supported precisions are `r_def` and `r_solver` for real data, `i_def`
 for integer data and `l_def` for logical data. If an unsupported
-scalar precision is found then an exception will be raised and
-PSyclone will stop with a message that indicates the problem.
+scalar precision is found then PSyclone will abort with a message that
+indicates the problem.
 
 LMA Operators
 +++++++++++++
 
 PSyclone must be able to determine the datatype of an LMA operator.
-If it is not able to do this an exception will be raised and PSyclone
-will stop with a message that indicates the problem.
+If it is not able to do this, PSyclone will abort with a message that
+indicates the problem.
 
 Supported LMA Operator types are `operator_type` (which contains real
 data with precision `r_def`) and `r_solver_operator_type` (which
 contains real data with precision `r_solver`). If an unsupported LMA
-Operator type is found then an exception will be raised and PSyclone
-will stop with a message that indicates the problem.
+Operator type is found then PSyclone will abort with a message that
+indicates the problem.
 
 Columnwise Operators
 ++++++++++++++++++++
@@ -534,17 +575,16 @@ datatype is supported, a `columnwise_operator_type` which contains
 real data with precision `r_solver`. PSyclone can therefore simply add
 this datatype in the PSy-layer. However, if the datatype information
 is found in the algorithm layer then and it is not of the expected
-type then an exception will be raised and PSyclone will stop with a
-message that indicates the problem.
+type then PSyclone will abort with a message that indicates the
+problem.
 
 Consistency
 +++++++++++
 
 If PSyclone is able to determine the datatype of an LFRic datatype
 then PSyclone also checks that this datatype is consistent with the
-associated kernel metadata. If it is not consistent then an exception
-is raised and PSyclone will stop with a message that indicates the
-problem.
+associated kernel metadata. If it is not consistent then PSyclone will
+abort with a message that indicates the problem.
 
 .. _dynamo0.3-psy:
 

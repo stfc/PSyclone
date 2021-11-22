@@ -463,7 +463,7 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     # Check for the correct 'use' module statements
     output_mod = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE integer_field_mod, ONLY: integer_field_type,"
         " integer_field_proxy_type\n")
     assert output_mod in code
