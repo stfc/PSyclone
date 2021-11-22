@@ -66,20 +66,21 @@ class CreateNemoKernelTrans(Transformation):
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
     >>> psyir.view()
-    Routine[name:'sub']
-        0: Loop[type='None', field_space='None', it_space='None']
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: InlinedKern[]
-                    Schedule[]
-                        0: Assignment[]
-                            ArrayReference[name:'tmp']
-                                Reference[name:'ji']
-                            BinaryOperation[operator:'MUL']
-                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
-                                Reference[name:'ji']
+    FileContainer[None]
+        Routine[name:'sub']
+            0: Loop[type='None', field_space='None', it_space='None']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Schedule[]
+                    0: InlinedKern[]
+                        Schedule[]
+                            0: Assignment[]
+                                ArrayReference[name:'tmp']
+                                    Reference[name:'ji']
+                                BinaryOperation[operator:'MUL']
+                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                                    Reference[name:'ji']
 
     The resulting Schedule contains a NemoKern (displayed as an
     'InlinedKern' by the view() method).

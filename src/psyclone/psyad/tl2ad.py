@@ -45,20 +45,17 @@ from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
+    Call, Container, BinaryOperation, UnaryOperation, IfBlock, \
     CodeBlock, FileContainer, ArrayReference, Range
-from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
+from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, REAL_DOUBLE_TYPE
+    INTEGER_TYPE
 
 
 #: The tolerance applied to the comparison of the inner product values in
 #: the generated test-harness code.
 #: TODO #1346 this tolerance should be user configurable.
-INNER_PRODUCT_TOLERANCE = "1.0e-10"
-#: The type (and precision) of the variable used to accumulate the inner
-#: product in the generated test-harness code.
-INNER_PRODUCT_DATATYPE = REAL_DOUBLE_TYPE
+INNER_PRODUCT_TOLERANCE = 1500.0
 #: The suffix we will prepend to a routine and container name when generating
 #: its adjoint.
 ADJOINT_NAME_SUFFIX = "_adj"
@@ -108,7 +105,8 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     # Create test harness if requested
     test_fortran_str = ""
     if create_test:
-        test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+        test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
+                                           active_variables)
         test_fortran_str = writer(test_psyir)
         logger.debug(test_fortran_str)
 
@@ -153,6 +151,46 @@ def _find_container(psyir):
 
     raise NotImplementedError("The supplied PSyIR contains more than two "
                               "Containers. This is not supported.")
+
+
+def _get_active_variables_datatype(kernel, active_variables):
+    '''
+    Returns a ScalarType describing the type of the active variables in
+    the supplied kernel PSyIR.
+
+    :param kernel: the PSyIR of a tangent-linear kernel.
+    :type kernel: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+    :param active_variables: the names of the active variables.
+    :type active_variables: list of str
+
+    :returns: the type of the active variables.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
+
+    :raises InternalError: if no active variables are supplied.
+    :raises NotImplementedError: if the supplied active variables are not all \
+                                 of the same intrinsic type and precision.
+    '''
+    if not active_variables:
+        raise InternalError("No active variables have been supplied.")
+
+    precision = None
+    intrinsic = None
+    for var in active_variables:
+        sym = kernel.symbol_table.lookup(var)
+        if precision is None:
+            precision = sym.datatype.precision
+            intrinsic = sym.datatype.intrinsic
+        else:
+            if (precision != sym.datatype.precision or
+                    intrinsic != sym.datatype.intrinsic):
+                raise NotImplementedError(
+                    "Found active variables of different datatype: '{0}' is "
+                    "of intrinsic type '{1}' and precision '{2}' while '{3}' "
+                    "is of intrinsic type '{4}' and precision '{5}'. This is "
+                    "not currently supported.".format(
+                        active_variables[0], intrinsic, precision, sym.name,
+                        sym.datatype.intrinsic, sym.datatype.precision))
+    return ScalarType(intrinsic, precision)
 
 
 def generate_adjoint(tl_psyir, active_variables):
@@ -224,7 +262,8 @@ def generate_adjoint(tl_psyir, active_variables):
     return ad_psyir
 
 
-def generate_adjoint_test(tl_psyir, ad_psyir):
+def generate_adjoint_test(tl_psyir, ad_psyir,
+                          active_variables):
     '''
     Creates the PSyIR of a test harness for the supplied TL and adjoint
     kernels.
@@ -233,6 +272,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     :type tl_psyir: :py:class:`psyclone.psyir.Container`
     :param ad_psyir: PSyIR of the adjoint kernel code.
     :type ad_psyir: :py:class:`psyclone.psyir.Container`
+    :param list of str active_variables: list of active variable names.
 
     :returns: the PSyIR of the test harness.
     :rtype: :py:class:`psyclone.psyir.Routine`
@@ -304,6 +344,29 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         adjoint_kernel_name, symbol_type=RoutineSymbol,
         interface=ImportInterface(adj_container))
 
+    # Query the TL Kernel to find out the intrinsic type and precision of
+    # the active variables. The test-harness code will use this when
+    # computing inner products.
+    datatype = _get_active_variables_datatype(tl_kernel, active_variables)
+
+    # If the precision of the active variables is specified by another symbol
+    # then we must ensure that it is declared in the harness too.
+    if isinstance(datatype.precision, Symbol):
+        if datatype.precision.is_local:
+            symbol_table.add(datatype.precision.copy())
+        elif datatype.precision.is_import:
+            kind_contr = datatype.precision.interface.container_symbol.copy()
+            symbol_table.add(kind_contr)
+            kind_symbol = datatype.precision.copy()
+            kind_symbol.interface = ImportInterface(kind_contr)
+            symbol_table.add(kind_symbol)
+        else:
+            raise NotImplementedError(
+                "The active variables {0} have a precision specified by "
+                "symbol '{1}' which is not local or explicitly imported. This "
+                "is not supported.".format(active_variables,
+                                           datatype.precision.name))
+
     # Create a symbol to hold the extent of any test arrays. This is done here
     # to avoid any clashes with any of the container and kernel names.
     dim_size_sym = symbol_table.new_symbol("array_extent",
@@ -313,12 +376,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
-                                     datatype=INNER_PRODUCT_DATATYPE)
+                                     datatype=datatype)
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
-                                     datatype=INNER_PRODUCT_DATATYPE)
-    # Create symbol for result of the diff of the inner products
-    diff_sym = symbol_table.new_symbol("abs_diff", symbol_type=DataSymbol,
-                                       datatype=INNER_PRODUCT_DATATYPE)
+                                     datatype=datatype)
 
     # Identify any arguments to the kernel that are used to dimension other
     # arguments.
@@ -425,7 +485,6 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     statements = []
     # Initialise those variables and keep a copy of them.
-    # TODO #1247 we need to add comments to the generated code!
     for sym, sym_copy in zip(inputs, input_copies):
         # The PSyIR doesn't support the random_number Fortran intrinsic so we
         # create a CodeBlock for it. Happily, the intrinsic will initialise
@@ -437,50 +496,35 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
         statements.append(
             Assignment.create(Reference(sym_copy), Reference(sym)))
+    statements[0].preceding_comment = ("Initialise the kernel arguments and "
+                                       "keep copies of them")
 
     # Call the TL kernel
     statements.append(Call.create(tl_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
+    statements[-1].preceding_comment = "Call the tangent-linear kernel"
 
     # Compute the inner product of the result of the TL kernel
-    statements += _create_inner_product(inner1,
-                                        [(sym, sym) for sym in inputs])
+    stmt_list = _create_inner_product(inner1, [(sym, sym) for sym in inputs])
+    stmt_list[0].preceding_comment = ("Compute the inner product of the "
+                                      "results of the tangent-linear kernel")
+    statements.extend(stmt_list)
 
     # Call the adjoint kernel using the outputs of the TL kernel as input
     statements.append(Call.create(adj_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
+    statements[-1].preceding_comment = "Call the adjoint of the kernel"
 
     # Compute inner product of result of adjoint kernel with original inputs
-    statements += _create_inner_product(inner2,
-                                        zip(inputs, input_copies))
+    stmt_list = _create_inner_product(inner2, zip(inputs, input_copies))
+    stmt_list[0].preceding_comment = (
+        "Compute inner product of results of adjoint kernel with the "
+        "original inputs to the tangent-linear kernel")
+    statements.extend(stmt_list)
 
     # Compare the inner products.
-    tol_zero = Literal(INNER_PRODUCT_TOLERANCE, INNER_PRODUCT_DATATYPE)
-
-    diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                  Reference(inner1), Reference(inner2))
-    abs_diff = UnaryOperation.create(UnaryOperation.Operator.ABS, diff)
-    statements.append(Assignment.create(Reference(diff_sym), abs_diff))
-
-    # If the test fails then the harness will print a message and return early.
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' failed: diff = ', {1}".format(
-            tl_kernel.name, diff_sym.name))
-
-    statements.append(
-        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GT,
-                                              Reference(diff_sym),
-                                              tol_zero.copy()),
-                       [CodeBlock([ptree], CodeBlock.Structure.STATEMENT),
-                        Return()]))
-
-    # Otherwise the harness prints a message reporting that all is well.
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' passed: diff = ', {1}".format(
-            tl_kernel.name, diff_sym.name))
-    statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+    statements += _create_real_comparison(symbol_table, tl_kernel, inner1,
+                                          inner2)
 
     # Finally, create the driver program from the list of statements.
     routine = Routine.create(
@@ -513,7 +557,7 @@ def _create_inner_product(result, symbol_pairs):
     '''
     # Zero the variable used to accumulate the result
     statements = [Assignment.create(Reference(result),
-                                    Literal("0.0", INNER_PRODUCT_DATATYPE))]
+                                    Literal("0.0", result.datatype))]
 
     # Now generate code to compute the inner product of each pair of symbols
     for (sym1, sym2) in symbol_pairs:
@@ -617,6 +661,66 @@ def _create_array_inner_product(result, array1, array2):
         Reference(result),
         BinaryOperation.create(BinaryOperation.Operator.ADD,
                                Reference(result), inner))
+
+
+def _create_real_comparison(sym_table, kernel, var1, var2):
+    '''
+    Creates PSyIR that checks the values held by Symbols var1 and var2 for
+    equality, allowing for machine precision.
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: the PSyIR nodes that perform the check.
+    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    statements = []
+    mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
+                                datatype=var1.datatype)
+    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
+                                    datatype=var1.datatype)
+    overall_tol = sym_table.new_symbol("overall_tolerance",
+                                       symbol_type=DataSymbol,
+                                       datatype=var1.datatype,
+                                       constant_value=INNER_PRODUCT_TOLERANCE)
+    # TODO #1161 - the PSyIR does not support `SPACING`
+    ptree = Fortran2003.Assignment_Stmt(
+        "MachineTol = SPACING ( MAX( ABS({0}), ABS({1}) ) )".format(var1.name,
+                                                                    var2.name))
+    statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+    statements[-1].preceding_comment = (
+        "Test the inner-product values for equality, allowing for the "
+        "precision of the active variables")
+    sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                    Reference(var1), Reference(var2))
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
+    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                    abs_op, Reference(mtol))
+    statements.append(Assignment.create(Reference(rel_diff), div_op))
+
+    # TODO #1345 make this code language agnostic.
+    ptree1 = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' PASSED: ', {1}, {2}, {3}"
+        .format(kernel.name, var1.name, var2.name, rel_diff.name))
+    ptree2 = Fortran2003.Write_Stmt(
+        "write(*,*) 'Test of adjoint of ''{0}'' FAILED: ', {1}, {2}, {3}"
+        .format(kernel.name, var1.name, var2.name, rel_diff.name))
+
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
+                                              Reference(rel_diff),
+                                              Reference(overall_tol)),
+                       [CodeBlock([ptree1], CodeBlock.Structure.STATEMENT)],
+                       [CodeBlock([ptree2], CodeBlock.Structure.STATEMENT)]))
+
+    return statements
 
 
 # =============================================================================

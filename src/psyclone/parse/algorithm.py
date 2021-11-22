@@ -101,7 +101,7 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
     For example:
 
     >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("alg.f90")
+    >>> ast, info = parse(SOURCE_FILE)
 
     '''
     if kernel_paths is None:
@@ -134,8 +134,8 @@ class Parser(object):
     For example:
 
     >>> from psyclone.parse.algorithm import Parser
-    >>> parser = Parser()
-    >>> ast, info = parser.parse("alg.f90")
+    >>> parser = Parser(api="gocean1.0")
+    >>> ast, info = parser.parse(SOURCE_FILE)
 
     '''
 

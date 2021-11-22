@@ -101,8 +101,8 @@ def test_nan_test_options():
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     nan_test = NanTestTrans()
-    _, _ = nan_test.apply(invoke.schedule[0].loop_body[0],
-                          options={"region_name": ("a", "b")})
+    nan_test.apply(invoke.schedule[0].loop_body[0],
+                   options={"region_name": ("a", "b")})
     code = str(invoke.gen())
     assert 'CALL nan_test_psy_data%PreStart("a", "b", 4, 2)' in code
 
@@ -116,17 +116,17 @@ def test_invalid_apply():
                            "gocean1.0", idx=0)
     nan_test = NanTestTrans()
     omp = OMPParallelLoopTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
-        _, _ = nan_test.apply(invoke.schedule[0].dir_body[0],
-                              options={"region_name": ("a", "b")})
+        nan_test.apply(invoke.schedule[0].dir_body[0],
+                       options={"region_name": ("a", "b")})
 
     assert "Error in NanTestTrans: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
-        _, _ = nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
-                              options={"region_name": ("a", "b")})
+        nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
+                       options={"region_name": ("a", "b")})
 
     assert "Error in NanTestTrans: Application to Nodes enclosed within a "\
            "thread-parallel region is not allowed." in str(err.value)
@@ -144,7 +144,7 @@ def test_nan_test_psyir_visitor(fortran_writer):
                            "gocean1.0", idx=0, dist_mem=False)
 
     nan_test = NanTestTrans()
-    _, _ = nan_test.apply(invoke.schedule, options={"region_name": ("a", "b")})
+    nan_test.apply(invoke.schedule, options={"region_name": ("a", "b")})
 
     code = fortran_writer(invoke.schedule)
     # Test only some of the lines to keep this test short:
