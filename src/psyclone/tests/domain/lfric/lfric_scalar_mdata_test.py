@@ -337,6 +337,20 @@ def test_lfricscalars_call_err():
             "Supported types are ['real', 'integer', 'logical']." in test_str)
 
 
+def test_lfricscalarargs_mp():
+    '''Check that the precision of a new scalar integer datatype is
+    declared in the psy-layer.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.4_scalar_mixed_prec.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    code = str(psy.gen)
+    assert "USE constants_mod, ONLY: roo_def, i_def" in code
+
+
 def test_dyninvoke_uniq_declns_intent_scalar():
     ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_scalar' argument type. '''
