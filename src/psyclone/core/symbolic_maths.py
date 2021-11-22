@@ -45,9 +45,16 @@ class SymbolicMaths:
     '''A wrapper around the symbolic maths package 'sympy'. It
     provides convenience functions for PSyclone. It has a Singleton
     access, e.g.:
+
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.core import SymbolicMaths
     >>> sympy = SymbolicMaths.get()
-    >>> if sympy:
-    ...     print("Sympy found")
+    >>> # Assume lhs is the PSyIR of 'i+j', and rhs is 'j+i'
+    >>> if sympy.equal(lhs, rhs):
+    ...     writer = FortranWriter()
+    ...     print("'{0}' and '{1}' are equal."
+    ...           .format(writer(lhs), writer(rhs)))
+    'i + j' and 'j + i' are equal.
 
     '''
     # Keeps track if importing sympy has been tried.

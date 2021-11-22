@@ -47,18 +47,22 @@ from psyclone.psyir.symbols import ScalarType
 
 
 class SymPyWriter(FortranWriter):
-    '''Implements a PSyIR-to-sympy writer, used to create a representation
-    of the PSyIR tree that can be understood by SymPy. Most Fortran
-    expressions work as expected, this class implements special handling
-    for constants (which can have a precision attached, e.g. 2_4) and some
-    intrinsic functions (e.g. MAX, which SymPy expects to be Max).
+    '''Implements a PSyIR-to-sympy writer, which is used to create a
+    representation of the PSyIR tree that can be understood by SymPy. Most
+    Fortran expressions work as expected without modification. This class
+    implements special handling for constants (which can have a precision
+    attached, e.g. 2_4) and some intrinsic functions (e.g. MAX, which SymPy
+    expects to be Max).
 
     '''
 
     def __init__(self):
-        super(SymPyWriter, self).__init__()
+        super().__init__()
         self._intrinsic = set()
         self._op_to_str = {}
+
+        # Get the mapping of special operators/functions to the
+        # name SymPy expects.
         for operator, op_str in [(NaryOperation.Operator.MAX, "Max"),
                                  (BinaryOperation.Operator.MAX, "Max"),
                                  (NaryOperation.Operator.MIN, "Min"),
@@ -120,7 +124,7 @@ class SymPyWriter(FortranWriter):
         try:
             return self._op_to_str[operator]
         except KeyError:
-            return super(SymPyWriter, self).get_operator(operator)
+            return super().get_operator(operator)
 
     def is_intrinsic(self, operator):
         '''Determine whether the supplied operator is an intrinsic
@@ -137,4 +141,4 @@ class SymPyWriter(FortranWriter):
         if operator in self._intrinsic:
             return True
 
-        return super(SymPyWriter, self).is_intrinsic(operator)
+        return super().is_intrinsic(operator)
