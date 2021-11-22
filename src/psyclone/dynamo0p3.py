@@ -1961,46 +1961,6 @@ class LFRicMeshProperties(DynCollection):
                     "the MeshProperty Enum are permitted "
                     "({1}).".format(str(prop), list(MeshProperty)))
 
-        # We can only handle colouring at code-generation time since it
-        # is enabled/disabled through transformations.
-        # If any of the kernel calls have been coloured then we will need
-        # arrays giving us the last cell of each colour.
-        #if any(call.is_coloured() for call in self._calls):
-        for call in self._calls:
-            if not call.is_coloured():
-                continue
-            #import pdb; pdb.set_trace()
-            if Config.get().distributed_memory:
-                if call.is_intergrid:
-                    root_name = "hello"
-                else:
-                    root_name = "last_halo_cell_all_colours"
-                array_type = ArrayType(INTEGER_TYPE,
-                                       [ArrayType.Extent.DEFERRED,
-                                        ArrayType.Extent.DEFERRED])
-                last_halo_cell = self._symbol_table.new_symbol(
-                    root_name=root_name,
-                    tag=root_name,
-                    symbol_type=DataSymbol,
-                    datatype=array_type)
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_halo_cell.name+"(:,:)"]))
-            else:
-                root_name = "last_edge_cell_all_colours"
-                array_type = ArrayType(INTEGER_TYPE,
-                                       [ArrayType.Extent.DEFERRED])
-                last_edge_cell = self._symbol_table.new_symbol(
-                    root_name=root_name,
-                    tag=root_name,
-                    symbol_type=DataSymbol,
-                    datatype=array_type)
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_edge_cell.name+"(:)"]))
-
     def _stub_declarations(self, parent):
         '''
         Creates the necessary declarations for the variables needed in order
@@ -2059,9 +2019,21 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        needs_colour_limits = any(call.is_coloured() for call in self._calls)
+        colour_limits_set = {}
+        for call in self._calls:
+            if not call.is_coloured():
+                continue
+            if call.is_intergrid:
+                colour_limits_set[self._invoke.meshes.intergrid_kernels[
+                        call.name].last_cell_var] = "mesh_" + \
+                            self._invoke.meshes.intergrid_kernels[
+                                call.name].coarse.name
+            else:
+                colour_limits_set.add["last_cell_all_colours"] = "mesh"
 
-        if not self._properties and not needs_colour_limits:
+#        needs_colour_limits = any(call.is_coloured() for call in self._calls)
+
+        if not self._properties and not colour_limits_set: #needs_colour_limits:
             return
 
         parent.add(CommentGen(parent, ""))
@@ -2094,19 +2066,18 @@ class LFRicMeshProperties(DynCollection):
                     "MeshProperty Enum are permitted "
                     "({1})".format(str(prop), list(MeshProperty)))
 
-        if needs_colour_limits:
-            if Config.get().distributed_memory:
-                parent.add(
-                    AssignGen(parent,
-                              lhs=self._symbol_table.symbol_from_tag(
-                                  "last_halo_cell_all_colours").name,
-                              rhs=mesh+"%get_last_halo_cell_all_colours()"))
-            else:
-                parent.add(
-                    AssignGen(parent,
-                              lhs=self._symbol_table.symbol_from_tag(
-                                  "last_edge_cell_all_colours").name,
-                              rhs=mesh+"%get_last_edge_cell_all_colours()"))
+        if colour_limits_set:
+            for last_cell_tag, mesh_tag in colour_limits_set.items():
+                lhs = self._symbol_table.symbol_from_tag(last_cell_tag).name
+                mesh = self._symbol_table.symbol_from_tag(mesh_tag).name
+                if Config.get().distributed_memory:
+                    parent.add(
+                        AssignGen(parent, lhs=lhs,
+                                  rhs=mesh+"%get_last_halo_cell_all_colours()"))
+                else:
+                    parent.add(
+                        AssignGen(parent, lhs=lhs,
+                                  rhs=mesh+"%get_last_edge_cell_all_colours()"))
 
 
 class DynReferenceElement(DynCollection):
@@ -3825,6 +3796,7 @@ class DynMeshes(object):
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
+        self._symbol_table = self._schedule.symbol_table
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -3865,11 +3837,9 @@ class DynMeshes(object):
             # and store in our dictionary
             self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
-            # Create and store the names of the associated mesh objects
-            _name_set.add(self._schedule.symbol_table.symbol_from_tag(
-                "mesh_{0}".format(fine_arg.name)).name)
-            _name_set.add(self._schedule.symbol_table.symbol_from_tag(
-                "mesh_{0}".format(coarse_arg.name)).name)
+            # Store the tag names of the associated mesh objects
+            _name_set.add("mesh_{0}".format(fine_arg.name))
+            _name_set.add("mesh_{0}".format(coarse_arg.name))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
@@ -3890,11 +3860,25 @@ class DynMeshes(object):
         if not _name_set:
             if (requires_mesh or (Config.get().distributed_memory and
                                   not invoke.operates_on_dofs_only)):
-                _name_set.add(
-                    self._schedule.symbol_table.symbol_from_tag("mesh").name)
+                _name_set.add("mesh")
 
         # Convert the set of mesh names to a list and store
-        self._mesh_names = sorted(_name_set)
+        if _name_set:
+            const = LFRicConstants()
+            mmod = const.MESH_TYPE_MAP["mesh"]["module"]
+            mtype = const.MESH_TYPE_MAP["mesh"]["type"]
+            csym = self._symbol_table.symbol_from_tag(
+                mmod, symbol_type=ContainerSymbol)
+            mtype_sym = self._symbol_table.symbol_from_tag(
+                mtype, symbol_type=DataTypeSymbol,
+                datatype=DeferredType(),
+                interface=ImportInterface(csym))
+
+        name_list = []
+        for name in _name_set:
+            name_list.append(self._symbol_table.symbol_from_tag(
+                name, symbol_type=DataSymbol, datatype=mtype_sym).name)
+        self._mesh_names = sorted(name_list)
 
     def _colourmap_init(self):
         '''
@@ -3914,18 +3898,33 @@ class DynMeshes(object):
                 # mesh (since that determines the iteration space).
                 carg_name = self._ig_kernels[call.name].coarse.name
                 # Colour map
+                array_type = ArrayType(INTEGER_TYPE,
+                                       [ArrayType.Extent.DEFERRED,
+                                        ArrayType.Extent.DEFERRED])
                 base_name = "cmap_" + carg_name
-                colour_map = \
-                    self._schedule.symbol_table.symbol_from_tag(base_name).name
+                colour_map = self._schedule.symbol_table.symbol_from_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type).name
                 # No. of colours
                 base_name = "ncolour_" + carg_name
                 ncolours = \
-                    self._schedule.symbol_table.symbol_from_tag(base_name).name
+                    self._schedule.symbol_table.symbol_from_tag(
+                        base_name, symbol_type=DataSymbol,
+                        datatype=INTEGER_TYPE).name
                 # Array holding the last halo or edge cell of a given colour
                 # and halo depth.
                 base_name = "last_cell_all_colours_" + carg_name
+                if Config.get().distributed_memory:
+                    array_type = ArrayType(INTEGER_TYPE,
+                                           [ArrayType.Extent.DEFERRED,
+                                            ArrayType.Extent.DEFERRED])
+                else:
+                    array_type = ArrayType(INTEGER_TYPE,
+                                           [ArrayType.Extent.DEFERRED])
                 last_cell = \
-                    self._schedule.symbol_table.symbol_from_tag(base_name).name
+                    self._schedule.symbol_table.symbol_from_tag(
+                        base_name, symbol_type=DataSymbol,
+                        datatype=array_type).name
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
@@ -3938,6 +3937,18 @@ class DynMeshes(object):
             mesh_name = \
                 self._schedule.symbol_table.symbol_from_tag("mesh").name
             self._mesh_names.append(mesh_name)
+            root_name = "last_cell_all_colours"
+            if Config.get().distributed_memory:
+                array_type = ArrayType(INTEGER_TYPE,
+                                       [ArrayType.Extent.DEFERRED,
+                                        ArrayType.Extent.DEFERRED])
+            else:
+                array_type = ArrayType(INTEGER_TYPE,
+                                       [ArrayType.Extent.DEFERRED])
+            self._symbol_table.new_symbol(root_name=root_name,
+                                          tag=root_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=array_type)
 
     def declarations(self, parent):
         '''
@@ -3960,8 +3971,9 @@ class DynMeshes(object):
         mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
         mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
         if self._mesh_names:
+            name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
-                              funcnames=[mtype]))
+                              funcnames=[name]))
         if self._ig_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
@@ -4016,6 +4028,18 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
+            last_cell = self._symbol_table.symbol_from_tag(
+                "last_cell_all_colours")
+            if Config.get().distributed_memory:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_cell.name+"(:,:)"]))
+            else:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_cell.name+"(:)"]))
 
     def initialise(self, parent):
         '''
@@ -4153,6 +4177,12 @@ class DynMeshes(object):
                 parent.add(AssignGen(parent, lhs=dig.colourmap,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
+                if Config.get().distributed_memory:
+                    name = "%get_last_edge_cell_all_colours()"
+                else:
+                    name = "%get_last_halo_cell_all_colours()"
+                parent.add(AssignGen(parent, lhs=dig.last_cell_var,
+                                     rhs=coarse_mesh + name))
 
     @property
     def intergrid_kernels(self):
@@ -6853,8 +6883,7 @@ class DynLoop(Loop):
                     "The specified index '{0}' for this upper loop bound is "
                     "invalid".format(str(index)))
         self._upper_bound_name = name
-        self._upper_bound_halo_depth = index #Literal("{0}".format(index),
-                                             #  INTEGER_TYPE)
+        self._upper_bound_halo_depth = index
 
     @property
     def upper_bound_name(self):
@@ -6972,7 +7001,12 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag("last_cell_all_colours_"+self._field_name)
+            root_name = "last_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag(
+                root_name)
+
             return sym.name+"(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
@@ -6983,7 +7017,11 @@ class DynLoop(Loop):
                 # The colouring API provides a 2D array that holds the last
                 # halo cell for a given colour and halo depth.
                 depth = halo_index
-            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag("last_cell_all_colours_"+self._field_name)
+            root_name = "last_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag(
+                root_name)
             return sym.name+"(colour, {0})".format(depth)
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
@@ -7296,6 +7334,7 @@ class DynLoop(Loop):
                 parent_loop = self.ancestor(Loop)
                 colour_var = parent_loop.variable
 
+                asym = sym_table.lookup(self.kernel.last_cell_all_colours)
                 if Config.get().distributed_memory:
                     if self._upper_bound_halo_depth:
                         halo_depth = Literal(str(self._upper_bound_halo_depth),
@@ -7303,13 +7342,9 @@ class DynLoop(Loop):
                     else:
                         halo_depth = Literal("1", INTEGER_TYPE)
 
-                    asym = sym_table.lookup_with_tag(
-                        "last_halo_cell_all_colours")
                     self.stop_expr = ArrayReference.create(
                         asym, [Reference(colour_var), halo_depth])
                 else:
-                    asym = sym_table.lookup_with_tag(
-                        "last_edge_cell_all_colours")
                     self.stop_expr = ArrayReference.create(
                         asym, [Reference(colour_var)])
             else:
@@ -7778,6 +7813,32 @@ class DynKern(CodedKern):
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
         return cmap
+
+    @property
+    def last_cell_all_colours(self):
+        '''
+        Getter for the name of the array hold the index of the last cell of
+        each colour.
+
+        :return: name of the array
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
+                               colourmaps has not been constructed.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.ancestor(InvokeSchedule).invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            return invoke.meshes.intergrid_kernels[self.name].last_cell_var
+
+        return self.scope.symbol_table.lookup_with_tag(
+            "last_cell_all_colours").name
 
     @property
     def ncolours_var(self):

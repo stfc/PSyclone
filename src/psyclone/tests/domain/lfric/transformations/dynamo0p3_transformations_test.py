@@ -1225,9 +1225,9 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert "loop0_stop = ncolour" in code
 
     if dist_mem:
-        lookup = "last_halo_cell_all_colours(colour,1)"
+        lookup = "last_cell_all_colours(colour,1)"
     else:
-        lookup = "last_edge_cell_all_colours(colour)"
+        lookup = "last_cell_all_colours(colour)"
 
     output = (
         "      !\n"
