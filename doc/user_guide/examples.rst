@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 .. Modified by J. Henrichs, Bureau of Meteorology
 
@@ -185,10 +185,10 @@ Example 1: Loop transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examples of applying various transformations (loop fusion, OpenMP,
-OpenACC, OpenCL) to the semi-PSyKAl'd version of the Shallow
-benchmark. ("semi" because not all kernels are called from within
-invoke()'s.) Also includes an example of generating a DAG from an
-InvokeSchedule.
+OpenMP Taskloop, OpenACC, OpenCL) to the semi-PSyKAl'd version of
+the Shallow benchmark. ("semi" because not all kernels are called
+from within invoke()'s.) Also includes an example of generating a
+DAG from an InvokeSchedule.
 
 Example 2: OpenACC
 ^^^^^^^^^^^^^^^^^^
@@ -315,6 +315,35 @@ read-only variables:
     New value:         123.00000000000000     
     --------------------------------------
 
+.. _gocean_example_nan:
+
+Example 5.4: Valid Number Verification (NaN Test)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This example shows the use of valid number verification with PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based NaN-verification code.
+It uses the dl_esm_inf-specific nan_test library
+(``lib/nan_test/dl_esm_inf/``).
+
+.. note:: The ``update_field_mod`` subroutine contains code
+    that will trigger a division by 0 to create NaNs. If
+    the compiler should add floating point exception handling
+    code, this will take effect before the NaN testing is done
+    by the PSyData-based verification code.
+
+The ``Makefile`` in this example will link with the compiled
+nan_test library. You can execute the created
+binary and it will print five warnings about invalid numbers
+at the indices  1 1, ..., 5 5:
+
+.. code-block:: none
+
+    PSyData: Variable a_fld has the invalid value
+                     Infinity  at index/indices            1           1
+    mainupdate
+    ...
+
+
 Example 6: PSy-layer Code Creation using PSyIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This example informs the development of the code generation of PSy-layer
@@ -326,43 +355,48 @@ code using the PSyIR language backends.
 LFRic
 ------
 
-Examples 1 and 2 are for the (deprecated) Dynamo 0.1 API. The remaining
-examples are all for the Dynamo 0.3 API.
+These examples illustrate the functionality of PSyclone for the LFRic
+domain.
 
-Example 1
-^^^^^^^^^
+Example 1: Basic Operation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Basic operation of PSyclone with invoke()'s containing just one kernel
-for the Dynamo 0.1 API. Also includes an example of transforming for
-OpenMP.
+Basic operation of PSyclone with an ``invoke()`` containing two
+kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
+:ref:`Built-in <lfric-built-ins>`. Code is generated both with and
+without distributed-memory support. Also demonstrates the use of the
+``-d`` flag to specify where to search for user-supplied kernel code
+(see :ref:`psyclone_command` section for more details).
 
-Example 2
-^^^^^^^^^
+Example 2: Applying Transformations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A more complex example for the Dynamo 0.1 API containing multi-kernel
-invokes. Provides examples of OpenMP and loop fusion transformations.
+A more complex example showing the use of PSyclone
+:ref:`transformations <dynamo0.3-api-transformations>` to
+change the generated PSy-layer code. Provides examples of
+kernel-inlining and loop-fusion transformations.
 
-Example 3
-^^^^^^^^^
+Example 3: Distributed and Shared Memory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
 kernels. Also shows the use of ``Wchi`` function space metadata for
 coordinate fields in LFRic.
 
-Example 4
-^^^^^^^^^
+Example 4: Multiple Built-ins, Named Invokes and Boundary Conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of the special ``enforce_bc_kernel`` which
 PSyclone recognises as a boundary-condition kernel.
 
-Example 5
-^^^^^^^^^
+Example 5: Stencils
+^^^^^^^^^^^^^^^^^^^
 
 Example of kernels which require stencil information.
 
-Example 6
-^^^^^^^^^
+Example 6: Reductions
+^^^^^^^^^^^^^^^^^^^^^
 
 Example of applying OpenMP to an InvokeSchedule containing kernels
 that perform reduction operations. Two scripts are provided, one of
@@ -371,42 +405,42 @@ reproducible OpenMP reduction. (The default OpenMP reduction is not
 guaranteed to be reproducible from one run to the next on the same
 number of threads.)
 
-Example 7
-^^^^^^^^^
+Example 7: Column-Matrix Assembly Operators
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of kernels requiring Column-Matrix Assembly operators.
 
-Example 8
-^^^^^^^^^
+Example 8: Redundant Computation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of the use of the redundant-computation and move
 transformations to eliminate and re-order halo exchanges.
 
-Example 9
-^^^^^^^^^
+Example 9: Writing to Discontinuous Fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the behaviour of PSyclone for kernels that read and write
 quantities on horizontally-discontinuous function spaces. In addition,
 this example demonstrates how to write a PSyclone transformation script
 that only colours loops over continuous spaces.
 
-Example 10
-^^^^^^^^^^
+Example 10: Inter-grid Kernels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions), as well as the
 use of ``ANY_DISCONTINUOUS_SPACE`` function space metadata.
 
-Example 11
-^^^^^^^^^^
+Example 11: Asynchronous Halo Exchanges
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of the use of transformations to introduce redundant computation,
 split synchronous halo exchanges into asynchronous exchanges (start and
 stop) and move the starts of those exchanges in order to overlap them
 with computation.
 
-Example 12
-^^^^^^^^^^
+Example 12: Code Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example of applying code extraction to Nodes in an Invoke Schedule:
 
@@ -433,7 +467,7 @@ to the specified Kernel:
 
   > python find_kernel.py
 
-Example 13 : Kernel transformation
+Example 13 : Kernel Transformation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates how an LFRic kernel can be transformed. The example
@@ -496,6 +530,19 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 Fortran back-end).
 
+Example 16: Generating LFRic Code Using LFRic-specific PSyIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows how LFRic-specific PSyIR can be used to create
+LFRic kernel code. There is one Python script provided which when run:
+
+.. code-block:: bash
+
+   > python create.py
+
+will print out generated LFRic kernel code. The script makes use of
+LFRic-specific data symbols to simplify code generation.
+
 Example 17: Runnable Simplified Examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -548,6 +595,18 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
+Example 18: Incrementing a Continuous Field After Reading It
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of a ``GH_READINC`` access. A kernel with ``GH_READINC``
+access first reads the field data and then increments the field
+data. This contrasts with a ``GH_INC`` access which simply increments
+the field data. As an increment is effectively a read followed by
+a write, it may not be clear why we need to distinguish between these
+cases. The reason for distinguishing is that the ``GH_INC`` access is
+able to remove a halo exchange, or at least reduce its depth by one,
+in certain circumstances, whereas a ``GH_READINC`` is not able to take
+advantage of this optimisation.
 
 
 NEMO
@@ -559,7 +618,7 @@ Example 1: OpenMP parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of PSyclone to parallelise the loops over vertical levels
-in a NEMO tracer-advection benchmark using OpenMP.
+in a NEMO tracer-advection benchmark using OpenMP for CPUs and for GPUs.
 
 Example 2: OpenMP parallelisation of traldf_iso
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -586,10 +645,26 @@ optimised cuda, or gridtools code. Thus these simple Fortran examples
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
 
+Scripts
+^^^^^^^
+
+This contains examples of two different scripts that aid the use of PSyclone
+with the full NEMO model. The first, `process_nemo.py` is a simple wrapper
+script that allows a user to control which source files are transformed, which
+only have profiling instrumentation added and which are ignored altogether.
+The second, `kernels_trans.py` is a PSyclone transformation script which
+adds the largest possible OpenACC Kernels regions to the code being processed.
+
+For more details see the ``examples/nemo/README.md`` file.
+
+Note that these scripts are here to support the ongoing development of the
+NEMO API in PSyclone. They are *not* intended as 'turn-key' solutions but
+as a starting point.
+
 PSyIR
 -----
 
-Examples may all be found in the ``example/psyir`` directory. Read the
+Examples may all be found in the ``examples/psyir`` directory. Read the
 ``README.md`` file in this directory for full details.
 
 Example 1: Constructing PSyIR and Generating Code

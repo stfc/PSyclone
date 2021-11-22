@@ -310,13 +310,13 @@ def test_apply_inline_kern(tmpdir):
         "  end do\n"
         "end program test\n")
     expected_result = (
-        "do jj = 1, n, 1\n"
-        "  do ji = 1, n, 1\n"
-        "    do jk = jpk, jpk, 1\n"
-        "      a(ji,jj,jk) = 0.0e0\n"
+        "  do jj = 1, n, 1\n"
+        "    do ji = 1, n, 1\n"
+        "      do jk = jpk, jpk, 1\n"
+        "        a(ji,jj,jk) = 0.0e0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo\n")
+        "  enddo\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     assert not psyir.walk(NemoKern)
@@ -324,12 +324,8 @@ def test_apply_inline_kern(tmpdir):
     nemo_trans.apply(psyir)
     assert len(psyir.walk(NemoKern)) == 1
     index_node = psyir.walk(Assignment)[0].lhs.children[2]
-    # It is not possible to compile this code, as CreateNemoPSyTrans()
-    # adds a NemoInvokeSchedule which currently only outputs the
-    # content of a routine (i.e. the "program" and "end program"
-    # statements and declarations are not output (issue #430).
     trans_write_check(
-        psyir, index_node, expected_result, tmpdir, compiles=False)
+        psyir, index_node, expected_result, tmpdir, compiles=True)
 
 
 def test_inlined_kern(tmpdir):

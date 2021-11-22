@@ -40,7 +40,9 @@
 transformations and base classes.
 '''
 
+from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
+from psyclone.psyir.transformations.hoist_trans import HoistTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
@@ -53,6 +55,8 @@ from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
+from psyclone.psyir.transformations.intrinsics.max2code_trans import \
+    Max2CodeTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
@@ -63,11 +67,13 @@ from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ExtractTrans',
+__all__ = ['ChunkLoopTrans',
+           'ExtractTrans',
            'NanTestTrans',
            'ProfileTrans',
            'PSyDataTrans',
@@ -81,4 +87,6 @@ __all__ = ['ExtractTrans',
            'Sign2CodeTrans',
            'TransformationError',
            'ArrayRange2LoopTrans',
-           'FoldConditionalReturnExpressionsTrans']
+           'FoldConditionalReturnExpressionsTrans',
+           'HoistTrans',
+           'OMPTaskwaitTrans']

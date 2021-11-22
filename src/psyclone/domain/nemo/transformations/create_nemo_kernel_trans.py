@@ -67,20 +67,21 @@ class CreateNemoKernelTrans(Transformation):
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
     >>> psyir.view()
-    Routine[name:'sub']
-        0: Loop[type='None', field_space='None', it_space='None']
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: InlinedKern[]
-                    Schedule[]
-                        0: Assignment[]
-                            ArrayReference[name:'tmp']
-                                Reference[name:'ji']
-                            BinaryOperation[operator:'MUL']
-                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
-                                Reference[name:'ji']
+    FileContainer[None]
+        Routine[name:'sub']
+            0: Loop[type='None', field_space='None', it_space='None']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Schedule[]
+                    0: InlinedKern[]
+                        Schedule[]
+                            0: Assignment[]
+                                ArrayReference[name:'tmp']
+                                    Reference[name:'ji']
+                                BinaryOperation[operator:'MUL']
+                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                                    Reference[name:'ji']
 
     The resulting Schedule contains a NemoKern (displayed as an
     'InlinedKern' by the view() method).
@@ -127,10 +128,24 @@ class CreateNemoKernelTrans(Transformation):
                 "Error in NemoKernelTrans transformation. The supplied "
                 "Schedule must be within a Loop.")
 
+        # A kernel cannot contain loops, calls, other kernels or unrecognised
+        # code (including IO operations). We must also check for array
+        # assignments. Since this walk can be very expensive if a routine
+        # contains a lot of code, we do it just once and get it to stop early
+        # if it encounters one of the forbidden node types. In that case the
+        # last node in the returned list will be of a forbidden type.
+        nodes = node.walk((Assignment, CodeBlock, Loop, Call, NemoKern),
+                          stop_type=(CodeBlock, Loop, Call, NemoKern))
+        if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
+            raise TransformationError(
+                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
+                " contain a node of type: '{0}'".format(
+                    type(nodes[-1]).__name__))
+
         # Check for array assignments
-        nodes = [assign for assign in node.walk(Assignment)
-                 if assign.is_array_range]
-        if nodes:
+        assigns = [assign for assign in nodes if
+                   (isinstance(assign, Assignment) and assign.is_array_range)]
+        if assigns:
             fwriter = FortranWriter()
             # Using LazyString to improve performance when using
             # exceptions to skip invalid regions.
@@ -138,16 +153,6 @@ class CreateNemoKernelTrans(Transformation):
                 lambda: "A NEMO Kernel cannot contain array assignments "
                 "but found: {0}".format(
                     [fwriter(node).rstrip("\n") for node in nodes])))
-
-        # A kernel cannot contain loops, calls or unrecognised code (including
-        # IO operations. So if there is any node in the result of
-        # the walk, this node cannot be represented as a NEMO kernel.
-        nodes = node.walk((CodeBlock, Loop, Call))
-        if nodes:
-            raise TransformationError(
-                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain nodes of type: {0}".format(
-                    [type(node).__name__ for node in nodes]))
 
     def apply(self, sched, options=None):
         '''

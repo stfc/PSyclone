@@ -79,15 +79,15 @@ end subroutine basic_loop
     trans = CreateNemoLoopTrans()
     loops = psyir.walk(Loop)
     # Apply the transformation to the outermost loop
-    root, _ = trans.apply(loops[0])
-    outer_loop = root.walk(NemoLoop)[0]
+    trans.apply(loops[0])
+    outer_loop = psyir.walk(NemoLoop)[0]
     assert outer_loop.loop_type == "lat"
     # Check that the new loop is in the Schedule
     loops = psyir.walk(Loop)
     assert loops[0] is outer_loop
     # Apply the transformation to the inner loop
-    root, _ = trans.apply(loops[1])
-    inner_loop = root.walk(NemoLoop)[1]
+    trans.apply(loops[1])
+    inner_loop = psyir.walk(NemoLoop)[1]
     assert isinstance(inner_loop, NemoLoop)
     assert inner_loop.loop_type == "lon"
     assert isinstance(inner_loop.loop_body[0], Assignment)

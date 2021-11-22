@@ -78,6 +78,21 @@ def test_routinesymbol_init_error():
             "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
 
 
+def test_routinesymbol_specialise_and_process_arguments():
+    ''' Tests that a RoutineSymbol created from a specialisation instead of
+    the constructor deals with the arguments as expected.'''
+
+    # Try to make a RoutineSymbol without a datatype
+    sym1 = Symbol("symbol1")
+    sym1.specialise(RoutineSymbol)
+    assert isinstance(sym1.datatype, NoType)
+
+    # Include a datatype
+    sym2 = Symbol("symbol2")
+    sym2.specialise(RoutineSymbol, datatype=INTEGER_TYPE)
+    assert sym2.datatype is INTEGER_TYPE
+
+
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")

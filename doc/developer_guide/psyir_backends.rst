@@ -31,7 +31,7 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+   Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 
 
@@ -331,8 +331,7 @@ The SIR back-end is limited in a number of ways:
   of loops (lat/lon/levels) is currently assumed.
 - Fortran literals such as `0.0d0` are output directly in the
   generated code (but this could also be a frontend issue).
-- the only unary operator currently supported is '-' and the subject
-  of this unary operator must be a literal.
+- the only unary operator currently supported is '-'.
 
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
@@ -404,11 +403,5 @@ of Nodes that have a direct translation into target language concepts.
 .. image:: 2level_psyir.png
 
 .. note::
- Using the language backends to generate the PSy-layer code is still under
- development and not used by PSyclone by default.
- However, it is triggered manually by some PSyclone examples to inform
- its development, these are:
-
- - gocean/eg8
- - lfric/eg4 (backends target)
-
+ Using the language backends to generate the PSy-layer code is supported by
+ the Nemo and GOcean APIs. LFric support is still under development. See #1010.

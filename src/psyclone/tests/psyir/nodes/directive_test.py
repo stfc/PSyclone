@@ -107,18 +107,18 @@ def test_regiondirective_children_validation():
     datanode = Literal("1", INTEGER_TYPE)
     schedule = Schedule()
 
-    # TODO #1383 The error messages from RegionDirective and
+    # TODO #1388 The error messages from RegionDirective and
     # StandaloneDirective are unclear as they inherit from their parent class.
     # First child
     with pytest.raises(GenerationError) as excinfo:
         directive.children[0] = datanode
-    assert ("Item 'Literal' can't be child 0 of 'Directive'. The valid "
+    assert ("Item 'Literal' can't be child 0 of 'RegionDirective'. The valid "
             "format is: 'Schedule'." in str(excinfo.value))
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         directive.addchild(schedule)
-    assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid "
+    assert ("Item 'Schedule' can't be child 1 of 'RegionDirective'. The valid "
             "format is: 'Schedule'." in str(excinfo.value))
 
 
@@ -127,10 +127,10 @@ def test_standalonedirective_children_validation():
     cdir = StandaloneDirective()
     schedule = Schedule()
 
-    # TODO #1383 The error messages from RegionDirective and
+    # TODO #1388 The error messages from RegionDirective and
     # StandaloneDirective are unclear as they inherit from their parent class.
     # test adding child
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
-    assert("Item 'Schedule' can't be child 0 of 'Directive'. The "
+    assert("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
            "valid format is: 'None'." in str(excinfo.value))

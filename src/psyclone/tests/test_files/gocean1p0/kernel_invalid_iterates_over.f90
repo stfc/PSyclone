@@ -28,7 +28,7 @@ module compute_cu_mod
      ! A GOcean 1.0 kernel *must* specify ITERATES_OVER.
      ! This kernel is to test whether the parser raises
      ! an error when this field contains an invalid entry.
-     integer :: ITERATES_OVER = DOFS
+     integer :: ITERATES_OVER = GO_DOFS
 
      ! A GOcean1.0 kernel must specify the index_offset that
      ! it is expecting. 

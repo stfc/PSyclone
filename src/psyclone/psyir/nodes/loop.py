@@ -40,7 +40,6 @@
 
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
@@ -50,6 +49,7 @@ from psyclone.f2pygen import DoGen, DeclGen
 
 
 class Loop(Statement):
+    # pylint: disable=too-many-instance-attributes
     '''Node representing a loop within the PSyIR. It has 4 mandatory children:
     the first one represents the loop lower bound, the second one represents
     the loop upper bound, the third one represents the step value and the
@@ -78,7 +78,7 @@ class Loop(Statement):
                            without the 'was_where' annotation.
 
     '''
-    valid_annotations = ('was_where', 'was_single_stmt')
+    valid_annotations = ('was_where', 'was_single_stmt', 'chunked')
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"
@@ -309,6 +309,14 @@ class Loop(Statement):
         return name
 
     @property
+    def valid_loop_types(self):
+        '''
+        :returns: the (domain-specific) loop types allowed by this instance.
+        :rtype: list of str
+        '''
+        return self._valid_loop_types
+
+    @property
     def loop_type(self):
         '''
         :returns: the (domain-specific) type of this loop.
@@ -342,7 +350,7 @@ class Loop(Statement):
         :rtype: str
         '''
         return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
-                format(colored("Loop", self._colour),
+                format(self.coloured_name(self._colour),
                        self._loop_type, self._field_space,
                        self.iteration_space))
 
@@ -556,8 +564,9 @@ class Loop(Statement):
             zero_reduction_variables(calls, parent)
 
         invoke = self.ancestor(InvokeSchedule)
-        if invoke.opencl or (is_unit_literal(self.start_expr) and
-                             is_unit_literal(self.stop_expr)):
+        if (invoke and invoke.opencl) or (
+                is_unit_literal(self.start_expr) and
+                is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)

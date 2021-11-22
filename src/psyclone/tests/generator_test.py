@@ -55,7 +55,7 @@ import six
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.generator import generate, main, write_unicode_file
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -393,6 +393,16 @@ def test_script_trans():
     delete_module("loop_fuse_trans")
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
+
+
+def test_api_no_alg():
+    ''' Checks that generate works OK for an API (NEMO) which doesn't have
+    an Algorithm layer '''
+    alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
+                        api="nemo")
+    assert alg is None
+    assert isinstance(psy, six.string_types)
+    assert psy.startswith("program")
 
 
 def test_alg_lines_too_long_tested():
@@ -905,7 +915,7 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_write_utf_file(tmpdir, monkeypatch):
+def test_write_utf_file(tmpdir):
     '''Unit tests for the write_unicode_file utility routine.'''
 
     # First for plain ASCII
@@ -917,26 +927,13 @@ def test_write_utf_file(tmpdir, monkeypatch):
         content = infile.read()
         assert "This contains only ASCII" in content
     out_file2 = os.path.join(str(tmpdir), "out2.txt")
-    if six.PY2:
-        # pylint: disable=undefined-variable
-        test_str = u"This contains UTF: "+unichr(1200)
-        # pylint: enable=undefined-variable
-    else:
-        test_str = "This contains UTF: "+chr(1200)
+    test_str = "This contains UTF: "+chr(1200)
     encoding = {'encoding': 'utf-8'}
     write_unicode_file(test_str, out_file2)
 
     with io.open(out_file2, mode="r", **encoding) as infile:
         content = infile.read()
     assert test_str in content
-
-    # monkeypatch the six module so that the check on which Python
-    # version is being used fails.
-    monkeypatch.setattr(six, "PY2", value=None)
-    monkeypatch.setattr(six, "PY3", value=None)
-    with pytest.raises(InternalError) as err:
-        write_unicode_file("Some stuff", out_file2)
-    assert "Unrecognised Python version" in str(err.value)
 
 
 def test_utf_char(tmpdir):
@@ -955,3 +952,8 @@ def test_utf_char(tmpdir):
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg
+    # Check for NEMO API when processing existing Fortran
+    test_file = os.path.join(NEMO_BASE_PATH, "utf_char.f90")
+    tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
+    main(["-api", "nemo", "-opsy", tmp_file, test_file])
+    assert os.path.isfile(tmp_file)

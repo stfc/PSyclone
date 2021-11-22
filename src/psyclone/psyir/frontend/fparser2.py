@@ -43,8 +43,6 @@ from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
-    Data_Ref, If_Then_Stmt, Array_Section
 from fparser.two.utils import walk, BlockBase, StmtBase
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
@@ -200,14 +198,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
                     if not isinstance(sym, expected_type):
                         # The caller specified a sub-class so we need to
                         # specialise the existing symbol.
-                        # TODO Use the API developed in #1113 to specialise
-                        # the symbol.
-                        sym.specialise(expected_type)
-                        # TODO #1113 this is a workaround to ensure that the
-                        # interface is not set back to the default value.
-                        if "interface" not in kargs:
-                            kargs["interface"] = sym.interface
-                        sym.__init__(sym.name, **kargs)
+                        sym.specialise(expected_type, **kargs)
                 return sym
             except KeyError:
                 # The supplied name does not match any Symbols in
@@ -736,7 +727,7 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
-        name = str(routine.children[0].children[1])
+        name = str(routine.children[0].children[1]).lower()
         vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
@@ -952,7 +943,7 @@ class Fparser2Reader(object):
         # directives whose structure are in discussion. Therefore, for
         # the moment, an exception is raised if a directive is found
         # as a parent.
-        if isinstance(parent, Schedule):
+        if isinstance(parent, (Schedule, Container)):
             structure = CodeBlock.Structure.STATEMENT
         elif isinstance(parent, Directive):
             raise InternalError(
@@ -965,123 +956,6 @@ class Fparser2Reader(object):
         parent.addchild(code_block)
         del fp2_nodes[:]
         return code_block
-
-    @staticmethod
-    def get_inputs_outputs(nodes):
-        '''
-        Identify variables that are inputs and outputs to the section of
-        Fortran code represented by the supplied list of nodes in the
-        fparser2 parse tree. Loop variables are ignored.
-
-        :param nodes: list of Nodes in the fparser2 AST to analyse.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
-
-        :return: 3-tuple of list of inputs, list of outputs, list of in-outs
-        :rtype: (list of str, list of str, list of str)
-        '''
-        # pylint: disable=too-many-locals,too-many-nested-blocks
-        # pylint: disable=too-many-branches, too-many-statements
-        readers = set()
-        writers = set()
-        readwrites = set()
-        # A dictionary of all array accesses that we encounter - used to
-        # sanity check the readers and writers we identify.
-        all_array_refs = {}
-
-        # Loop over a flat list of all the nodes in the supplied region
-        for node in walk(nodes):
-
-            if isinstance(node, Assignment_Stmt):
-                # Found lhs = rhs
-                structure_name_str = None
-
-                lhs = node.items[0]
-                rhs = node.items[2]
-                # Do RHS first as we cull readers after writers but want to
-                # keep a = a + ... as the RHS is computed before assigning
-                # to the LHS
-                for node2 in walk(rhs):
-                    if isinstance(node2, Part_Ref):
-                        name = node2.items[0].string
-                        if structure_name_str:
-                            name = "{0}%{1}".format(structure_name_str, name)
-                            structure_name_str = None
-                        if name.upper() not in FORTRAN_INTRINSICS:
-                            if name not in writers:
-                                readers.add(name)
-                    if isinstance(node2, Data_Ref):
-                        structure_name_str = node2.items[0].string
-                        readers.add(structure_name_str)
-
-                # Now do LHS
-                if isinstance(lhs, Data_Ref):
-                    # This is a structure which contains an array access.
-                    structure_name_str = lhs.items[0].string
-                    writers.add(structure_name_str)
-                    lhs = lhs.items[1]
-                if isinstance(lhs, (Part_Ref, Array_Section)):
-                    # This is an array reference
-                    name_str = lhs.items[0].string
-                    if structure_name_str:
-                        # Array ref is part of a derived type
-                        name_str = "{0}%{1}".format(structure_name_str,
-                                                    name_str)
-                        structure_name_str = None
-                    writers.add(name_str)
-            elif isinstance(node, If_Then_Stmt):
-                # Check for array accesses in IF statements
-                array_refs = walk(node, Part_Ref)
-                for ref in array_refs:
-                    name = ref.items[0].string
-                    if name.upper() not in FORTRAN_INTRINSICS:
-                        if name not in writers:
-                            readers.add(name)
-            elif isinstance(node, Part_Ref):
-                # Keep a record of all array references to check that we
-                # haven't missed anything. Once #309 is done we should be
-                # able to get rid of this check.
-                name = node.items[0].string
-                if name.upper() not in FORTRAN_INTRINSICS and \
-                   name not in all_array_refs:
-                    all_array_refs[name] = node
-            elif node:
-                # TODO #309 handle array accesses in other contexts, e.g. as
-                # loop bounds in DO statements.
-                pass
-
-        # Sanity check that we haven't missed anything. To be replaced when
-        # #309 is done.
-        accesses = list(readers) + list(writers)
-        for name, node in all_array_refs.items():
-            if name not in accesses:
-                # A matching bare array access hasn't been found but it
-                # might have been part of a derived-type access so check
-                # for that.
-                found = False
-                for access in accesses:
-                    if "%"+name in access:
-                        found = True
-                        break
-                if not found:
-                    raise InternalError(
-                        "ArrayReference '{0}' present in source code ('{1}') "
-                        "but not identified as being read or written.".
-                        format(name, str(node)))
-        # Now we check for any arrays that are both read and written
-        readwrites = readers & writers
-        # Remove them from the readers and writers sets
-        readers = readers - readwrites
-        writers = writers - readwrites
-        # Convert sets to lists and sort so that we get consistent results
-        # between Python versions (for testing)
-        rlist = list(readers)
-        rlist.sort()
-        wlist = list(writers)
-        wlist.sort()
-        rwlist = list(readwrites)
-        rwlist.sort()
-
-        return (rlist, wlist, rwlist)
 
     @staticmethod
     def _create_schedule(name):
@@ -1233,12 +1107,6 @@ class Fparser2Reader(object):
         if container:
             container.children.append(new_schedule)
 
-        # Set pointer from schedule into fparser2 tree
-        # TODO #435 remove this line once fparser2 tree not needed
-        # pylint: disable=protected-access
-        new_schedule._ast = subroutine
-        # pylint: enable=protected-access
-
         try:
             sub_spec = _first_type_match(subroutine.content,
                                          Fortran2003.Specification_Part)
@@ -1331,12 +1199,7 @@ class Fparser2Reader(object):
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
-                        # TODO use the API developed in #1113 - currently the
-                        # specialise method does not set any additional
-                        # attributes possessed by the sub-class.
-                        sym.specialise(DataSymbol)
-                        sym.__init__(sym.name, DeferredType(),
-                                     interface=sym.interface)
+                        sym.specialise(DataSymbol, datatype=DeferredType())
                     elif isinstance(sym.datatype, (UnknownType,
                                                    DeferredType)):
                         # Allow symbols of Unknown/DeferredType.
@@ -1468,12 +1331,12 @@ class Fparser2Reader(object):
                 else:
                     default_visibility = Symbol.Visibility.PRIVATE
             else:
+                symbol_names = [child.string.lower() for child in
+                                stmt.children[1].children]
                 if public_stmt:
-                    explicit_public.update(
-                        [child.string for child in stmt.children[1].children])
+                    explicit_public.update(symbol_names)
                 else:
-                    explicit_private.update(
-                        [child.string for child in stmt.children[1].children])
+                    explicit_private.update(symbol_names)
         # Sanity check the lists of symbols (because fparser2 does not
         # currently do much validation)
         invalid_symbols = explicit_public.intersection(explicit_private)
@@ -1943,7 +1806,7 @@ class Fparser2Reader(object):
             or is not of DeferredType.
 
         '''
-        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
+        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
         # Create a new StructureType for this derived type
         dtype = StructureType()
 
@@ -1957,8 +1820,14 @@ class Fparser2Reader(object):
             default_compt_visibility = Symbol.Visibility.PUBLIC
 
         # The visibility of the symbol representing this derived type
-        dtype_symbol_vis = visibility_map.get(
-            name, parent.symbol_table.default_visibility)
+        if name in visibility_map:
+            dtype_symbol_vis = visibility_map[name]
+        else:
+            specs = walk(decl.children[0], Fortran2003.Access_Spec)
+            if specs:
+                dtype_symbol_vis = _process_access_spec(specs[0])
+            else:
+                dtype_symbol_vis = parent.symbol_table.default_visibility
 
         # We have to create the symbol for this type before processing its
         # components as they may refer to it (e.g. for a linked list).
@@ -2069,7 +1938,7 @@ class Fparser2Reader(object):
                     # the whole module containing this specification part
                     # being put into a CodeBlock.
                     raise NotImplementedError()
-                name = node.children[0].children[0].string
+                name = node.children[0].children[0].string.lower()
                 vis = visibility_map.get(
                     name, parent.symbol_table.default_visibility)
                 # A named interface block corresponds to a RoutineSymbol.
@@ -2103,8 +1972,21 @@ class Fparser2Reader(object):
                         # declares the current entity. `items` is a tuple and
                         # thus immutable so we create a new one.
                         node.children[2].items = (child,)
-                        symbol_name = str(child.children[0])
+                        symbol_name = str(child.children[0]).lower()
                         vis = visibility_map.get(symbol_name, decln_vis)
+
+                        # Check whether the symbol we're about to add
+                        # corresponds to the routine we're currently inside. If
+                        # it does then we remove the RoutineSymbol in order to
+                        # free the exact name for the DataSymbol.
+                        try:
+                            routine_sym = parent.symbol_table.lookup_with_tag(
+                                "own_routine_symbol")
+                            if routine_sym.name.lower() == symbol_name:
+                                parent.symbol_table.remove(routine_sym)
+                        except KeyError:
+                            pass
+
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
@@ -3736,11 +3618,6 @@ class Fparser2Reader(object):
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
-                # TODO #1113 - the above specialise() call does not yet
-                # support adding properties to the symbol so we have to
-                # manually set the datatype of the RoutineSymbol. As this is
-                # a call, it must be a subroutine which has no associated type.
-                routine_symbol.datatype = NoType()
             elif type(routine_symbol) is RoutineSymbol:
                 # This symbol is already the expected type
                 pass

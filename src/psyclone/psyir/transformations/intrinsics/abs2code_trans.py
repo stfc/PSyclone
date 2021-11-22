@@ -113,11 +113,9 @@ class Abs2CodeTrans(Operator2CodeTrans):
         # pylint: disable=too-many-locals
         self.validate(node)
 
-        schedule = node.root
-        symbol_table = schedule.symbol_table
-
-        oper_parent = node.parent
+        symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
+
         # Create two temporary variables.  There is an assumption here
         # that the ABS Operator returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
@@ -130,8 +128,7 @@ class Abs2CodeTrans(Operator2CodeTrans):
             "tmp_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_X).
-        oper_parent.children[node.position] = Reference(symbol_res_var,
-                                                        parent=oper_parent)
+        node.replace_with(Reference(symbol_res_var))
 
         # tmp_var=X
         lhs = Reference(symbol_tmp_var)

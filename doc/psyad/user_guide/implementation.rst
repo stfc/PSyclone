@@ -39,19 +39,19 @@
 Implementation
 ==============
 
-The approach taken is the line-by-line method, where the order of
-computation is reversed and each line of the tangent-linear code is
-transformed into its adjoint form.
+The approach taken to constructing the adjoint is the line-by-line
+method, where the order of computation is reversed and each line of
+the tangent-linear (TL) code is transformed into its adjoint form.
 
 This approach is implemented in PSyclone by parsing the tangent-linear
 code and transforming it into the PSyIR (the PSyclone Internal
-Representation). Transformations have been written that tranform the
-PSyIR representation into its adjoint form. These transformations are
-then applied to the PSyIR representation. Once this is complete, the PSyIR
-representation is then written back out as code.
+Representation). A PSyIR visitor has been written that visits each
+node in the PSyIR tree and transforms each node into its adjoint form. Once
+this is complete, the PSyIR representation is then written back out as
+code.
 
 
-Active variables
+Active Variables
 ++++++++++++++++
 
 When creating the adjoint of a tangent-linear code the active
@@ -75,8 +75,8 @@ As the line-by-line method is used then there are rules that must be
 followed for the different types of statements. This section goes
 through the rules for each supported statement type.
 
-Assignments
------------
+Assignment
+----------
 
 If a tangent-linear assigment statement contains no active variables
 then it is left unchanged when creating the adjoint code.
@@ -229,7 +229,7 @@ adjoint variable :math:`\hat{A}` must be set to zero:
 
     \hat{A} = 0
 
-Array accesses
+Array Accesses
 **************
 
 Active variables will typically be arrays that are accessed within a
@@ -278,3 +278,116 @@ Transformation
 
 .. autoclass:: psyclone.psyad.transformations.AssignmentTrans
       :members: apply
+
+Sequence of Statements (PSyIR Schedule)
+---------------------------------------
+
+The PSyIR captures a sequence of statements as children of a
+'Schedule' node. In PSyclone a sequence of statements in a tangent
+linear code are transformed to to their adjoint form by implementing
+the following rules:
+
+1) Each statement is examined to see whether it contains any active
+variables. A statement that contains one or more active variables is
+classed as an ``active statement`` and a statement that does not
+contain any active variables is classed as an ``inactive statement``.
+
+2) Any inactive statements are left unchanged and immediately output
+as PSyIR in the same order as they were found in the tangent linear
+code. Therefore the resulting sequence of statements in the adjoint
+code will contains all inactive statements before all active
+statements.
+
+3) The order of any active tangent-linear statements are then reversed
+and the rules associated with each statement type are applied
+individually to each statement and the resultant PSyIR returned.
+
+.. note:: At the moment the only statements supported within a
+          sequence of statements are assignments. If other types of
+          statement are found then an exception will be raised.
+
+.. warning:: The above rules are invalid if an inactive variable is
+             modified and that inactive variable is read both before
+             and after it is modified from within active
+             statements. This case is not checked in this version, see
+             issue #1458.
+
+Test Harness
+++++++++++++
+
+In addition to generating the adjoint of a tangent-linear kernel, PSyAD
+is also able to :ref:`generate <test_harness_gen>` a test harness for
+that kernel that verifies that the generated adjoint is mathematically
+correct.
+
+This test harness code must perform the following steps:
+
+1) Initialise all of the kernel arguments and keep copies of them;
+2) Call the tangent-linear kernel;
+3) Compute the inner product of the results of the kernel;
+4) Call the adjoint of the TL kernel, passing in the outputs of the TL
+   kernel call;
+5) Compute the inner product of the results of the adjoint kernel with
+   the original inputs to the TL kernel;
+6) Compare the two inner products for equality, allowing for machine
+   precision.
+
+Steps 1, 3, 5 and 6 are described in more detail below.
+
+Initialisation
+--------------
+
+All arguments to the TL kernel are initialised with pseudo-random numbers
+in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
+function.
+
+.. note:: this initialisation will not be correct when a kernel contains
+	  indirection and is passed a mapping array. In such cases the mapping
+	  array will need initialising with meaningful values. This is the
+	  subject of Issue #1496.
+
+Inner Products
+--------------
+
+The precision of the variables used to accumulate the inner-product values
+is set to match that of the active variables in the supplied TL kernel.
+(An exception is raised if active variables of different precision
+are found.)
+
+For simplicity, when computing the inner product in steps 3) and 5),
+both active and passive kernel arguments are included (since the
+latter will remain constant for both the TL and adjoint kernel calls
+they can be included in the inner-product compuation without affecting the
+correctness test). It is likely that this will require refinement in future,
+e.g. for kernels that have non-numeric arguments.
+
+Comparing the Inner Products
+----------------------------
+
+Performing the comparison of the two inner products while allowing for
+machine precision is implemented as follows:
+
+1) Find the smallest possible difference that can be represented by
+   calling the Fortran `spacing` intrinsic on the largest absolute value of
+   of the two inner products;
+
+2) Compute the *relative* difference between the two values by dividing
+   their absolute difference by this spacing;
+
+3) If this relative difference is less than the overall test tolerance
+   then the test has passed.
+
+By using the largest of the two inner product results in step 1), the
+resulting spacing value is guaranteed to be appropriate in the case where
+there is an error and one of the inner products is zero or less than
+`tiny(1.0)`.
+
+By default, the overall test tolerance is set to `1500.0`. This is
+currently set as a constant in the `psyclone.psyad.tl2ad` module but
+will eventually be exposed as a configuration option (this is the
+subject of issue #1346).  This value is the one arrived at over time
+by the Met Office in the current adjoint-testing code. In that code,
+the vector of variables can be of order 200M in length (since it
+involves values at all points of the 3D mesh) and therefore there is
+plenty of scope for numerical errors to accumulate. Whether this value
+is appropriate for LFRic kernels is yet to be determined.

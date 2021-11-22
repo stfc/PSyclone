@@ -65,17 +65,19 @@ def trans(psy):
     # cannot be instrumented, TODO #637
     # invoke = psy.invokes.get("invoke_initialise_fields")
     # schedule = invoke.schedule
-    # _, _ = extract.apply(schedule.children,
-    #                      {"create_driver": True,
-    #                       "region_name": ("main", "init")})
+    # extract.apply(schedule.children,
+    #               {"create_driver": True,
+    #                "region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_testkern_w0")
     schedule = invoke.schedule
 
+    # TODO #1392: ATM driver creation in LFRic is broken due to
+    # the changes in driver creation in #1288.
     # Enclose everything in a extract region
-    _, _ = extract.apply(schedule.children,
-                         {"create_driver": True,
-                          "region_name": ("main", "update")})
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "update")})
 
     schedule.view()
     return psy

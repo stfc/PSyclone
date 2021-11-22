@@ -46,12 +46,12 @@ import abc
 import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.core import AccessType, VariablesAccessInfo
 
 
@@ -86,11 +86,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         '''
         super(ACCRegionDirective, self).validate_global_constraints()
 
-        data_nodes = self.walk(PSyDataNode)
+        data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
             raise GenerationError(
-                "Cannot include calls to PSyData routines within OpenACC "
-                "regions but found {0} within a region enclosed "
+                "Cannot include CodeBlocks or calls to PSyData routines within"
+                " OpenACC regions but found {0} within a region enclosed "
                 "by an '{1}'".format(
                     [type(node).__name__ for node in data_nodes],
                     type(self).__name__))
@@ -101,10 +101,9 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
     ''' Base class for all standalone OpenACC directive statements. '''
 
 
-@six.add_metaclass(abc.ABCMeta)
 class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
-    Abstract class representing a "!$ACC enter data" OpenACC directive in
+    Class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
     in which fields are marked as being on the remote device is API-
     -dependent.
@@ -125,27 +124,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # _node_lowered flag is set to True, after that re-use the stored ones.
         self._variables_to_copy = []
         self._node_lowered = False
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC enter data]"
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_data_" + str(position)
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -245,11 +223,12 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
 
         return "acc enter data " + copy_in_str
 
-    @abc.abstractmethod
     def data_on_device(self, parent):
         '''
         Adds nodes into an InvokeSchedule to flag that the data required by the
-        kernels in the data region is now on the device.
+        kernels in the data region is now on the device. The generic
+        implementation doesn't add any node but this can be redefined in the
+        APIs if any infrastructure call is needed.
 
         :param parent: the node in the InvokeSchedule to which to add nodes
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -264,27 +243,6 @@ class ACCParallelDirective(ACCRegionDirective):
     a DataDirective.
 
     '''
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC Parallel]"
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_parallel_" + str(position)
-
     def validate_global_constraints(self):
         '''
         Check that the PSyIR tree containing this node is valid. Since we
@@ -400,31 +358,6 @@ class ACCParallelDirective(ACCRegionDirective):
                     fld_list.append(arg)
         return fld_list
 
-    @property
-    def scalars(self):
-        '''
-        Returns a list of the scalar quantities required by the Kernels in
-        this region.
-
-        :returns: list of names of scalar arguments.
-        :rtype: list of str
-        '''
-        scalars = []
-        for call in self.kernels():
-            for arg in call.arguments.scalars:
-                if arg not in scalars:
-                    scalars.append(arg)
-        return scalars
-
-    def update(self):
-        '''
-        Update the underlying fparser2 parse tree with nodes for the start
-        and end of this parallel region.
-        '''
-        self.validate_global_constraints()
-        self._add_region(start_text="PARALLEL", end_text="END PARALLEL",
-                         data_movement="present")
-
 
 class ACCLoopDirective(ACCRegionDirective):
     '''
@@ -447,15 +380,6 @@ class ACCLoopDirective(ACCRegionDirective):
         super(ACCLoopDirective, self).__init__(children=children,
                                                parent=parent)
 
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this Node in a DAG
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_loop_" + str(position)
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -466,14 +390,10 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        text = self.coloured_name(colour) + "[ACC Loop"
-        if self._sequential:
-            text += ", seq"
-        else:
-            if self._collapse:
-                text += ", collapse={0}".format(self._collapse)
-            if self._independent:
-                text += ", independent"
+        text = self.coloured_name(colour)
+        text += "[sequential={0},".format(self._sequential)
+        text += "collapse={0},".format(self._collapse)
+        text += "independent={0}".format(self._independent)
         text += "]"
         return text
 
@@ -518,21 +438,6 @@ class ACCLoopDirective(ACCRegionDirective):
 
         for child in self.children:
             child.gen_code(parent)
-
-    def update(self):
-        '''
-        Update the existing fparser2 parse tree with the code associated with
-        this ACC LOOP directive.
-
-        '''
-        self.validate_global_constraints()
-
-        # Use begin_string() to avoid code duplication although we have to
-        # put back the "loop" qualifier.
-        # TODO #435 remove this method altogether once the NEMO API is able to
-        # use the PSyIR backend.
-        self._add_region(
-            start_text="loop " + self.begin_string(leading_acc=False))
 
     def begin_string(self, leading_acc=True):
         ''' Returns the opening statement of this directive, i.e.
@@ -592,26 +497,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         super(ACCKernelsDirective, self).__init__(children=children,
                                                   parent=parent)
         self._default_present = default_present
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use for this node in a dag.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_kernels_" + str(position)
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC Kernels]"
 
     def gen_code(self, parent):
         '''
@@ -681,23 +566,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         # pylint: disable=no-self-use
         return "acc end kernels"
 
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this ACC kernels
-        directive.
-
-        TODO #435 remove this routine once the NEMO API is able to use the
-        PSyIR backend.
-
-        '''
-        self.validate_global_constraints()
-
-        data_movement = None
-        if self._default_present:
-            data_movement = "present"
-        self._add_region(start_text="KERNELS", end_text="END KERNELS",
-                         data_movement=data_movement)
-
 
 class ACCDataDirective(ACCRegionDirective):
     '''
@@ -705,48 +573,16 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in a dag for this node.
-        :rtype: str
-        '''
-        _, position = self._find_position(self.ancestor(Routine))
-        return "ACC_data_" + str(position)
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[ACC DATA]"
-
     def gen_code(self, _):
         '''
         :raises InternalError: the ACC data directive is currently only \
                                supported for the NEMO API and that uses the \
-                               update() method to alter the underlying \
+                               PSyIR backend to generate code.
                                fparser2 parse tree.
-
-        TODO #435 update above explanation when update() method is removed.
 
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
-
-    def update(self):
-        '''
-        Updates the fparser2 AST by inserting nodes for this OpenACC Data
-        directive.
-
-        '''
-        self.validate_global_constraints()
-        self._add_region(start_text="DATA", end_text="END DATA",
-                         data_movement="analyse")
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -756,24 +592,54 @@ class ACCDataDirective(ACCRegionDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises NotImplementedError: if the region contains one or more \
-                                     references to structures (TODO #1028).
+        TODO #1396 - remove this whole method in favour of having the
+        visitor backend generate the code.
 
         '''
-        result = "acc data"
+        def _create_access_list(signatures, var_accesses):
+            '''
+            Constructs a list of variables for inclusion in a data-access
+            clause.
 
-        struct_accesses = self.walk(StructureReference)
-        if struct_accesses:
-            # TODO #1028. Dependence analysis does not yet work for structure
-            # references.
-            # Have to import here to avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            fwriter = FortranWriter()
-            ref_list = [fwriter(ref) for ref in struct_accesses]
-            raise NotImplementedError(
-                "Structure (derived-type) references are not yet supported "
-                "within OpenACC data regions but found: {0}".format(ref_list))
+            :param signatures: the list of Signatures for which to create \
+                entries in the list.
+            :type signatures: list of :py:class:`psyclone.core.Signature`
+            :param var_accesses: object holding details on all variable \
+                accesses in the region to which the data-access clause applies.
+            :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+            :returns: list of variable accesses.
+            :rtype: list of str
+
+            '''
+            access_list = []
+            for sig in signatures:
+                if sig.is_structure:
+                    # We have to do a 'deep copy' of any structure access. This
+                    # means that if we have an access `a%b%c(i)` then we need
+                    # to copy `a`, `a%b` and then `a%b%c`.
+                    # Look up a PSyIR node that corresponds to this access.
+                    current = var_accesses[sig].all_accesses[0].node
+                    part_list = [current.name]
+                    if current.name not in access_list:
+                        access_list.append(current.name)
+                    while hasattr(current, "member"):
+                        current = current.member
+                        # Currently this is hardwired to generate Fortran (i.e.
+                        # we use '%' when accessing a component of a struct).
+                        # TODO #1386 a new StructureReference needs to be
+                        # created for 'current' and then given to an
+                        # appropriate backend.
+                        ref_string = "%".join(part_list[:]+[current.name])
+                        if ref_string not in access_list:
+                            access_list.append(ref_string)
+                else:
+                    ref_string = str(sig)
+                    if ref_string not in access_list:
+                        access_list.append(ref_string)
+            return access_list
+
+        result = "acc data"
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
@@ -782,11 +648,11 @@ class ACCDataDirective(ACCRegionDirective):
         readers = set()
         writers = set()
         for signature in var_accesses.all_signatures:
-            var = str(signature)
-            sym = table.lookup(var)
+            sym = table.lookup(signature.var_name)
             accesses = var_accesses[signature]
-            if not sym.is_array:
-                # We ignore scalars
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are passed by value when OpenACC
+                # kernels are launched.
                 continue
             if accesses.is_read():
                 readers.add(signature)
@@ -805,14 +671,14 @@ class ACCDataDirective(ACCRegionDirective):
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
         if readers_list:
-            str_readers = [str(sig) for sig in readers_list]
-            result += " copyin({0})".format(",".join(str_readers))
+            result += " copyin({0})".format(
+                ",".join(_create_access_list(readers_list, var_accesses)))
         if writers_list:
-            str_writers = [str(sig) for sig in writers_list]
-            result += " copyout({0})".format(",".join(str_writers))
+            result += " copyout({0})".format(
+                ",".join(_create_access_list(writers_list, var_accesses)))
         if readwrites_list:
-            str_readwrites = [str(sig) for sig in readwrites_list]
-            result += " copy({0})".format(",".join(str_readwrites))
+            result += " copy({0})".format(",".join(
+                _create_access_list(readwrites_list, var_accesses)))
 
         return result
 

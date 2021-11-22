@@ -60,7 +60,7 @@ from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.common.transformations import AlgTrans
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -185,10 +185,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         kernel code. Defaults to empty string.
     :param bool kern_naming: the scheme to use when re-naming transformed \
         kernels. Defaults to "multiple".
-    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
-        the psy code.
+    :return: 2-tuple containing the fparser1 AST for the algorithm code and \
+        the fparser1 AST or a string (for NEMO) of the psy code.
     :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
-             :py:class:`fparser.one.block_statements.Module`)
+             :py:class:`fparser.one.block_statements.Module`) or \
+            (:py:class:`fparser.one.block_statements.BeginSource`, str)
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
@@ -466,29 +467,12 @@ def main(args):
 
 def write_unicode_file(contents, filename):
     '''Wrapper routine that ensures that a string is encoded as unicode before
-    writing to file in both Python 2 and 3.
+    writing to file.
 
     :param str contents: string to write to file.
     :param str filename: the name of the file to create.
 
-    :raises InternalError: if an unrecognised Python version is found.
-
     '''
-    if six.PY2:
-        # In Python 2 a plain string must be encoded as unicode for the call
-        # to write() below. unicode() does not exist in Python 3 since all
-        # strings are unicode.
-        # pylint: disable=undefined-variable
-        if not isinstance(contents, unicode):
-            contents = unicode(contents, 'utf-8')
-        # pylint: enable=undefined-variable
-    elif not six.PY3:
-        raise InternalError("Unrecognised Python version!")
-
     encoding = {'encoding': 'utf-8'}
     with io.open(filename, mode='w', **encoding) as file_object:
         file_object.write(contents)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

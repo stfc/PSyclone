@@ -73,7 +73,7 @@ def trans(psy):
         # Ideally we would module-inline the kernel here (to save having to
         # rely on the compiler to do it) but this does not currently work
         # for the fparser2 AST (issue #229).
-        # _, _ = itrans.apply(kern)
+        # itrans.apply(kern)
 
     schedule.view()
     return psy

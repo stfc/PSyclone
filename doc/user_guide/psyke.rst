@@ -200,7 +200,7 @@ would be written as:
   schedule = invoke.schedule
 
   # Apply extract transformation to the selected Node
-  schedule, _ = etrans.apply(schedule.children[2])
+  etrans.apply(schedule.children[2])
   schedule.view()
 
 and called as:
@@ -277,7 +277,7 @@ of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
 .. code-block:: python
 
   # Apply extract transformation to the selected Nodes
-  schedule, _ = etrans.apply(schedule.children[1:3])
+  etrans.apply(schedule.children[1:3])
 
 This modifies the above Schedule as:
 
@@ -316,10 +316,10 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
   schedule = invoke.schedule
 
   # Add OMP PARALLEL DO directives
-  schedule, _ = otrans.apply(schedule.children[1])
-  schedule, _ = otrans.apply(schedule.children[2])
+  otrans.apply(schedule.children[1])
+  otrans.apply(schedule.children[2])
   # Apply extract transformation to the selected Nodes
-  schedule, _ = etrans.apply(schedule.children[1:3])
+  etrans.apply(schedule.children[1:3])
   schedule.view()
 
 The generated code is now:
@@ -398,9 +398,10 @@ and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
 The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` can automatically create a
-driver program which will read the NetCDF file and then call the
-instrumented region. In order to create this driver program, the
-options parameter ``create_driver`` must be set to true:
+driver program which will read the NetCDF file, call the
+instrumented region, and compare the results. In order to create
+this driver program, the options parameter ``create_driver`` must
+be set to true:
 
 .. code-block:: python
 
@@ -410,7 +411,12 @@ options parameter ``create_driver`` must be set to true:
                    "region_name": ("main", "init")})
 
 This will create a Fortran file called ``driver-main-init.f90``, which
-can then be compiled and executed.
+can then be compiled and executed. This stand-alone program will read
+the NetCDF file created during an execution of the actual program, call
+the kernel with all required input parameter, and compare the output
+variables with the original output variables. This can be used to create
+stand-alone test cases to reproduce a bug, or for performance
+optimisation of a stand-alone kernel.
 
 NetCDF Extraction for LFRic
 ++++++++++++++++++++++++++++
@@ -429,3 +435,8 @@ infrastructure located in a clone of PSyclone repository,
 However, this needs to be changed for any user (for instance with
 PSyclone installation). Please refer to the relevant ``README.md``
 documentation on how to build and link this library.
+
+.. note::
+
+  Driver creation in LFRic is not yet fully supported, and is
+  tracked in issue #1392.

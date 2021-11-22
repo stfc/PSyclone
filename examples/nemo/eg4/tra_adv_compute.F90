@@ -13,6 +13,7 @@ contains
     ! Not sure what to do with 2D and 1D arrays in the SIR backend
     !REAL*8, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
     !REAL*8, DIMENSION(:)       :: rnfmsk_z
+    REAL*8, DIMENSION(:,:,:)    :: rnfmsk, upsmsk, rnfmsk_z, zice
     
     ! local variables
     REAL*8, DIMENSION(jpi,jpj, jpk)               :: zslpx, zslpy, zwx, zwy, zind
@@ -20,7 +21,7 @@ contains
     REAL*8                                        :: zw, z0w
     INTEGER                                       :: ji, jj, jk
 
-    ! Not sure what to do with 2D and 1D arrays in the SIR backend
+    ! Mapping of 1D and 2D arrays not yet supported in the SIR backend
     !DO jk = 1, jpk
     !   DO jj = 1, jpj
     !      DO ji = 1, jpi
@@ -32,10 +33,25 @@ contains
     !            upsmsk(ji,jj)               ,      &
     !            zice                               &
     !            &                  ) * tmask(ji,jj,jk)
-    !         zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
     !      END DO
     !   END DO
     !END DO
+    
+    ! Create a temporary similar loop structure to the original
+    ! commented out version above to test out the MAX intrinsic
+    ! transformation.
+    DO jk = 1, jpk
+       DO jj = 1, jpj
+          DO ji = 1, jpi
+             zind(ji,jj,jk) = MAX (   &
+                rnfmsk(ji,jj,jk) * rnfmsk_z(ji,jj,jk),      & 
+                upsmsk(ji,jj,jk)               ,      &
+                zice(ji,jj,jk)                               &
+                &                  ) * tmask(ji,jj,jk)
+             zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
+          END DO
+       END DO
+    END DO
 
     zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
@@ -75,8 +91,7 @@ contains
     END DO
 
     DO jk = 1, jpk-1
-       ! SIR backend only supports perfectly nested triple loops
-       ! zdt  = 1
+       zdt  = 1
        DO jj = 2, jpj-1
           DO ji = 2, jpi-1
              z0u = SIGN( 0.5d0, pun(ji,jj,jk) )
@@ -104,10 +119,7 @@ contains
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
              zbtr = 1.
-             ! SIR backend does not like "-"
-             !ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
-             !     &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
+             ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
                   &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
              mydomain(ji,jj,jk) = mydomain(ji,jj,jk) + ztra
           END DO
@@ -164,9 +176,7 @@ contains
     DO jk = 1, jpk-1
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
-             ! SIR backend does not like "-"
-             ! ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
+             ztra = -zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
              mydomain(ji,jj,jk) = ztra
           END DO
        END DO

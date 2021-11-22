@@ -106,6 +106,10 @@ def test_object_index():
     with pytest.raises(InternalError) as err:
         _ = object_index(my_list, None)
     assert "Cannot search for None item in list" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        _ = object_index(my_list, "four")
+    assert "Item 'four' not found in list" in str(err.value)
+
 
 # PSyFactory class unit tests
 
@@ -131,14 +135,26 @@ def test_psyfactory_valid_return_object():
 
 
 def test_psyfactory_valid_dm_flag():
-    '''test that a PSyFactory instance raises an exception if the
+    ''' Test that a PSyFactory instance raises an exception if the
     optional distributed_memory flag is set to an invalid value
-    and does not if the value is valid '''
-    with pytest.raises(GenerationError) as excinfo:
+    and does not if the value is valid. '''
+    with pytest.raises(TypeError) as excinfo:
         _ = PSyFactory(distributed_memory="ellie")
     assert "distributed_memory flag" in str(excinfo.value)
     _ = PSyFactory(distributed_memory=True)
     _ = PSyFactory(distributed_memory=False)
+
+
+def test_psyfactory_create_error():
+    ''' Test that the create() method raises the expected error for an
+    unsupported API. '''
+    psy_factory = PSyFactory()
+    # Break the internal type of the factory
+    psy_factory._type = "wrong"
+    with pytest.raises(InternalError) as err:
+        psy_factory.create(None)
+    assert ("Unsupported API type 'wrong' found. Expected one of [" in
+            str(err.value))
 
 
 # Transformation class unit tests
@@ -657,20 +673,6 @@ def test_kern_coloured_text():
     assert colored("BuiltIn", bkern._colour) in ret_str
 
 
-def test_kern_abstract_methods():
-    ''' Check that the abstract methods of the Kern class raise the
-    NotImplementedError. '''
-    # We need to get a valid kernel object
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    with pytest.raises(NotImplementedError) as err:
-        super(DynKern, my_kern).gen_arg_setter_code(None)
-    assert ("gen_arg_setter_code must be implemented by sub-class"
-            in str(err.value))
-
-
 def test_kern_children_validation():
     '''Test that children added to Kern are validated. A Kern node does not
     accept any children.
@@ -727,10 +729,6 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.__str__()
-    assert "Kern.__str__ should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
@@ -2181,7 +2179,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kernels[0], {"number_of_layers": 100})
+    ktrans.apply(kernels[0], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     _ = str(psy.gen)
     filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")

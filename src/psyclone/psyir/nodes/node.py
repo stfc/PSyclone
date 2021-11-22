@@ -406,10 +406,9 @@ class Node(object):
         :rtype: str
         '''
         if not self._text_name:
-            raise NotImplementedError(
-                "_text_name is an abstract attribute which needs to be "
-                "given a string value in the concrete class '{0}'."
-                "".format(type(self).__name__))
+            name_string = type(self).__name__
+        else:
+            name_string = self._text_name
         if colour:
             if self._colour is None:
                 raise NotImplementedError(
@@ -417,14 +416,14 @@ class Node(object):
                     "a string value in the concrete class '{0}'."
                     "".format(type(self).__name__))
             try:
-                return colored(self._text_name, self._colour)
+                return colored(name_string, self._colour)
             except KeyError as info:
                 message = (
                     "The _colour attribute in class '{0}' has been set to a "
                     "colour ('{1}') that is not supported by the termcolor "
                     "package.".format(type(self).__name__, self._colour))
                 six.raise_from(InternalError(message), info)
-        return self._text_name
+        return name_string
 
     def node_str(self, colour=True):
         '''
@@ -624,8 +623,23 @@ class Node(object):
 
     @property
     def dag_name(self):
-        '''Return the base dag name for this node.'''
-        return "node_" + str(self.abs_position)
+        '''Return the dag name for this node. This includes the name of the
+        class and the index of its relative position to the parent Routine. If
+        no parent Routine is found, the index used is the absolute position
+        in the tree.
+
+        :returns: the dag name for this node.
+        :rtype: str
+
+        '''
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Routine
+        if self.ancestor(Routine):
+            _, position = self._find_position(self.ancestor(Routine))
+        else:
+            position = self.abs_position
+        return self.coloured_name(False) + "_" + str(position)
 
     @property
     def args(self):
@@ -1198,13 +1212,6 @@ class Node(object):
         for child in self.children[:]:
             child.lower_to_language_level()
 
-    def update(self):
-        ''' By default we assume there is no need to update the existing
-        fparser2 AST which this Node represents. We simply call the update()
-        method of any children. '''
-        for child in self._children:
-            child.update()
-
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
         just recurses down to all children.
@@ -1215,31 +1222,6 @@ class Node(object):
         '''
         for child in self._children:
             child.reference_accesses(var_accesses)
-
-    def _insert_schedule(self, children=None, ast=None):
-        '''
-        Utility method to insert a Schedule between this Node and the
-        supplied list of children.
-
-        :param children: nodes which will become children of the \
-                         new Schedule.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param ast: reference to fparser2 parse tree for associated \
-                    Fortran code.
-        :type ast: :py:class:`fparser.two.utils.Base`
-
-        :returns: the new Schedule node.
-        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
-        '''
-        from psyclone.psyir.nodes import Schedule
-        sched = Schedule(children=children, parent=self)
-        if children:
-            # If we have children then set the Schedule's AST pointer to
-            # point to the AST associated with them.
-            sched.ast = children[0].ast
-        else:
-            sched.ast = ast
-        return sched
 
     @property
     def scope(self):

@@ -79,7 +79,7 @@ def test_nemo_omp_parallel(fortran_reader):
 
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    correct = '''!$omp parallel private(a,i)
+    correct = '''!$omp parallel default(shared), private(a,i)
   do i = 1, 20, 2
     a = 2 * i
     b(i) = b(i) + a
@@ -89,7 +89,7 @@ def test_nemo_omp_parallel(fortran_reader):
 
     cvisitor = CWriter()
     result = cvisitor(schedule[0])
-    correct = '''#pragma omp parallel private(a,i)
+    correct = '''#pragma omp parallel default(shared), private(a,i)
 {
   for(i=1; i<=20; i+=2)
   {
@@ -130,7 +130,7 @@ def test_gocean_omp_parallel():
                            idx=0, dist_mem=False)
 
     omp = OMPParallelTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
@@ -141,7 +141,7 @@ def test_gocean_omp_parallel():
     # So only convert starting from the OMPParallelDirective
     fvisitor = FortranWriter()
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$omp parallel
+    correct = '''!$omp parallel default(shared)
 a = b
 !$omp end parallel'''
     assert correct in result
@@ -149,7 +149,7 @@ a = b
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
     result = cvisitor(invoke.schedule[0])
-    correct = '''#pragma omp parallel
+    correct = '''#pragma omp parallel default(shared)
 {
   a = b;
 }'''
@@ -220,7 +220,7 @@ def test_gocean_omp_do():
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     omp = OMPLoopTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
@@ -257,7 +257,7 @@ def test_gocean_omp_taskloop():
                            idx=0, dist_mem=False)
     omp = OMPTaskloopTrans()
     wait_dir = OMPTaskwaitDirective()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.

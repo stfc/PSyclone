@@ -77,9 +77,53 @@ class ExtractTrans(PSyDataTrans):
                            HaloExchange, GlobalSum)
 
     def __init__(self, node_class=ExtractNode):
+        # This function is required to provide the appropriate default
+        # node class.
         super(ExtractTrans, self).__init__(node_class=node_class)
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def determine_postfix(input_list, output_list, postfix="_post"):
+        '''
+        This function prevents any name clashes that can occur when adding
+        the postfix to output variable names. For example, if there is an
+        output variable 'a', the driver (and the output file) will contain
+        two variables: 'a' and 'a_post'. But if there is also another variable
+        called 'a_post', a name clash would occur (two identical keys in the
+        output file, and two identical local variables in the driver). In
+        order to avoid this, the suffix 'post' is changed (to 'post0',
+        'post1', ...) until any name clashes are avoided. This works for
+        structured and non-structured types.
+
+        :param input_list: list of all input variables.
+        :type input_list: list of :py:class:`psyclone.core.Signature`
+        :param output_list: list of all output variables.
+        :type output_list: list of :py:class:`psyclone.core.Signature`
+        :param str postfix: the postfix to append to each output variable.
+
+        :returns: a postfix that can be added to each output variable without
+            generating a name clash.
+        :rtype: str
+
+        '''
+        suffix = ""
+        # Create the a set of all input and output variables (to avoid
+        # checking input+output variables more than once)
+        all_vars = set(input_list) | set(output_list)
+        # The signatures in the input/output list need to be converted
+        # back to strings to easily append the suffix.
+        all_vars_string = [str(input_var) for input_var in all_vars]
+        while any(str(out_sig)+postfix+str(suffix) in all_vars_string
+                  for out_sig in output_list):
+            if suffix == "":
+                suffix = 0
+            else:
+                suffix += 1
+        return postfix+str(suffix)
+
+    # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):
+        # pylint: disable=arguments-differ
         '''Performs validation checks specific to extract-based
         transformations.
 

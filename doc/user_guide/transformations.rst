@@ -187,10 +187,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
     :members: apply
     :noindex:
-
-.. note:: The ArrayRange2LoopTrans will have no effect when using the
-          NEMO API until it is updated to use the PSyIR back-ends to
-          generate code (see #435).
   
 ####
 
@@ -203,6 +199,12 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.HoistTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -227,6 +229,17 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Max2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the MAX Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
       :noindex:
@@ -246,6 +259,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
@@ -253,7 +272,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule
+    :members: apply, omp_schedule, omp_worksharing
     :noindex:
 
 ####
@@ -264,7 +283,19 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -496,68 +527,52 @@ Interactive
 +++++++++++
 
 To apply a transformation interactively we first parse and analyse the
-code. This allows us to generate a "vanilla" PSy layer. For example ...
-::
+code. This allows us to generate a "vanilla" PSy layer. For example::
 
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
 
-    # This example uses version 0.1 of the Dynamo API
-    api = "dynamo0.1"
+    # This example uses the LFRic (Dynamo 0.3) API
+    >>> api = "dynamo0.3"
 
     # Parse the file containing the algorithm specification and
     # return the Abstract Syntax Tree and invokeInfo objects
-    ast, invokeInfo = parse("dynamo.F90", api=api)
+    >>> ast, invokeInfo = parse("dynamo.F90", api=api)
 
     # Create the PSy-layer object using the invokeInfo
-    psy = PSyFactory(api).create(invokeInfo)
+    >>> psy = PSyFactory(api).create(invokeInfo)
 
     # Optionally generate the vanilla PSy layer fortran
-    print psy.gen
+    >>> print(psy.gen)
 
 We then extract the particular schedule we are interested
-in. For example ...
-::
+in. For example::
 
     # List the various invokes that the PSy layer contains
-    print psy.invokes.names
+    >>> print(psy.invokes.names)
 
     # Get the required invoke
-    invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    >>> invoke = psy.invokes.get('invoke_0_v3_kernel_type')
 
     # Get the schedule associated with the required invoke
-    schedule = invoke.schedule
-    schedule.view()
+    >>> schedule = invoke.schedule
+    >>> schedule.view()
 
 
 Now we have the schedule we can create and apply a transformation to
 it to create a new schedule and then replace the original schedule
-with the new one. For example ...
-::
+with the new one. For example::
 
-    # Get the list of possible loop transformations
-    from psyclone.psyGen import TransInfo
-    t = TransInfo()
-    print t.list
-
-    # Create an OpenMPLoop-transformation
-    ol = t.get_trans_name('OMPParallelLoopTrans')
+    # Create an OpenMPParallelLoopTrans
+    >>> from psyclone.transformations import OMPParallelLoopTrans
+    >>> ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    new_schedule,memento = ol.apply(schedule.children[0])
-    new_schedule.view()
-
-    # Replace the original loop schedule of the selected invoke
-    # with the new, transformed schedule
-    invoke.schedule=new_schedule
+    >>> ol.apply(schedule.children[0])
+    >>> schedule.view()
 
     # Generate the Fortran code for the new PSy layer
-    print psy.gen
-
-More examples of use of the interactive application of transformations
-can be found in the runme*.py files within the examples/lfric/eg1 and
-examples/lfric/eg2 directories. Some simple examples of the use of
-transformations are also given in the previous section.
+    >> print(psy.gen)
 
 .. _sec_transformations_script:
 
@@ -615,8 +630,7 @@ below does the same thing as the example in the
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
-        new_schedule, _ = ol.apply(schedule.children[0])
-        invoke.schedule = new_schedule
+        ol.apply(schedule.children[0])
         return psy
 
 Of course the script may apply as many transformations as is required
@@ -637,10 +651,12 @@ OpenMP is added to a code by using transformations. The OpenMP
 transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
-* an **OpenMP Do** directive
+* an **OpenMP Target** directive
+* an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
-* an **OpenMP Taskloop** directive; and
+* an **OpenMP Taskloop** directive
+* multiple **OpenMP Taskwait** directives; and
 * an **OpenMP Parallel Do** directive.
 
 The generic versions of these transformations (i.e. ones that
@@ -698,6 +714,16 @@ region for a set of nodes that includes halo swaps or global sums will
 produce an error.  In such cases it may be possible to re-order the
 nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
 transformation.
+
+OpenMP Tasking
+++++++++++++++
+PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
+`OMPTaskwaitTrans` transformations. `OMPTaskloopTrans`
+transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
+operator is applied to an OpenMP Parallel Region, and computes the dependencies
+caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
+dependencies. An example of using OpenMP tasking is available in 
+`PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
 
 OpenCL
 ------
@@ -880,4 +906,7 @@ SIR
 It is currently not possible for PSyclone to output SIR code without
 using a script. Two examples of such scripts are given in example 4
 for the NEMO API, one of which includes transformations to remove
-PSyIR intrinsics (as the SIR does not support them).
+PSyIR intrinsics, hoist code out of a loop, translate array-index
+notation into explicit loops and translate a single access to an array
+dimension to a one-trip loop (to make the code suitable for the SIR
+backend).

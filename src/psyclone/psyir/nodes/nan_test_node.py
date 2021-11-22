@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by: R. W. Ford, STFC Daresbury Lab
+#              S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -68,26 +69,6 @@ class NanTestNode(PSyDataNode):
         '''
         return super(NanTestNode, self).psy_data_body
 
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of NanTestNode.
-        :rtype: str
-        '''
-        return "nan_test_" + str(self.position)
-
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be checked
-        have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
-        '''
-
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
@@ -118,6 +99,25 @@ class NanTestNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestEnd"))
         parent.add(CommentGen(parent, ""))
+
+    def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+        '''
+
+        # This cannot be moved to the top, it would cause a circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to check:
+        dep = DependencyTools()
+        input_list, output_list = dep.get_in_out_parameters(self)
+
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list}
+
+        return super(NanTestNode, self).lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation

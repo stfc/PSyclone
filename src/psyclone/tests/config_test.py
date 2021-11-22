@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -41,11 +42,17 @@ Module containing tests relating to PSyclone configuration handling.
 from __future__ import absolute_import
 import os
 import re
+import sys
+
 import six
 import pytest
-from psyclone.configuration import APISpecificConfig, ConfigurationError, \
-    Config
+
+from psyclone.configuration import (APISpecificConfig, ConfigurationError,
+                                    Config, VALID_KERNEL_NAMING_SCHEMES)
 from psyclone.core.access_type import AccessType
+from psyclone.domain.gocean import GOceanConstants
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.nemo import NemoConstants
 
 
 # constants
@@ -197,8 +204,9 @@ def test_search_path(monkeypatch, tmpdir):
     ''' Check that the search path for a configuration file is as
     expected. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
-    (see conftest.setup_psyclone_config).'''
-    import sys
+    (see conftest.setup_psyclone_config).
+
+    '''
     # Ensure that PSYCLONE_CONFIG is not set
     monkeypatch.delitem(os.environ, "PSYCLONE_CONFIG", raising=False)
     # We test the search path used by causing the find_file() method
@@ -546,16 +554,16 @@ def test_root_name_load(tmpdir, content, result):
 
 def test_kernel_naming_setter():
     ''' Check that the setter for the kernel-naming scheme rejects
-    unrecognised values. '''
-    from psyclone import configuration
+    unrecognised values.
+
+    '''
     config = Config()
     config.kernel_naming = "single"
     assert config.kernel_naming == "single"
     with pytest.raises(ValueError) as err:
         config.kernel_naming = "not-a-scheme"
     assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
-            format(configuration.VALID_KERNEL_NAMING_SCHEMES)
-            in str(err.value))
+            format(VALID_KERNEL_NAMING_SCHEMES) in str(err.value))
 
 
 def test_incl_path_errors(tmpdir):
@@ -688,3 +696,17 @@ def test_invalid_prefix(tmpdir):
                .format(prefix) in str(err.value)
         assert "The prefix must be valid for use as the start of a " \
                "Fortran variable name." in str(err.value)
+
+
+def test_get_constants():
+    '''Tests the API-independent version of get_constants in
+    the Config class.
+
+    '''
+    config = Config().get()
+    config.api = "dynamo0.3"
+    assert isinstance(config.get_constants(), LFRicConstants)
+    config.api = "gocean1.0"
+    assert isinstance(config.get_constants(), GOceanConstants)
+    config.api = "nemo"
+    assert isinstance(config.get_constants(), NemoConstants)

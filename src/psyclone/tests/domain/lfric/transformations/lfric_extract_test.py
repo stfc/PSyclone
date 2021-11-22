@@ -116,7 +116,7 @@ def test_distmem_error(monkeypatch):
     schedule = invoke.schedule
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(schedule.children[3])
+        etrans.apply(schedule.children[3])
     assert ("Error in LFRicExtractTrans: Distributed memory is "
             "not supported.") in str(excinfo.value)
 
@@ -126,7 +126,7 @@ def test_distmem_error(monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(schedule.children[2:4])
+        etrans.apply(schedule.children[2:4])
     assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
@@ -141,7 +141,7 @@ def test_distmem_error(monkeypatch):
     # will set it to true), otherwise an earlier test will be triggered
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(glob_sum)
+        etrans.apply(glob_sum)
 
     assert ("Nodes of type 'DynGlobalSum' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
@@ -160,7 +160,7 @@ def test_repeat_extract():
     etrans.apply(schedule.children[0])
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(schedule.children[0])
+        etrans.apply(schedule.children[0])
     assert ("Nodes of type 'ExtractNode' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
@@ -177,7 +177,7 @@ def test_kern_builtin_no_loop():
     # Test Built-in call
     builtin_call = schedule.children[1].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = dynetrans.apply(builtin_call)
+        dynetrans.apply(builtin_call)
     assert "Error in LFRicExtractTrans: Application to a Kernel or a " \
            "Built-in call without its parent Loop is not allowed." \
            in str(excinfo.value)
@@ -199,7 +199,7 @@ def test_loop_no_directive_dynamo0p3():
     loop = schedule.children[1].dir_body[0]
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(loop)
+        etrans.apply(loop)
     assert "Error in LFRicExtractTrans: Application to a Loop without its " \
            "parent Directive is not allowed." in str(excinfo.value)
 
@@ -227,7 +227,7 @@ def test_no_colours_loop_dynamo0p3():
     # Try to extract the region between the Loop over cells in a colour
     # and the exterior Loop over colours
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(directive)
+        etrans.apply(directive)
     assert ("Dynamo0.3 API: Extraction of a Loop over cells in a "
             "colour without its ancestor Loop over colours is not "
             "allowed.") in str(excinfo.value)
@@ -264,7 +264,7 @@ def test_extract_node_position():
 
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
-    class: view, dag_name and __str__ produce the correct results. '''
+    class: view  and __str__ produce the correct results. '''
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
@@ -278,9 +278,6 @@ def test_extract_node_representation(capsys):
     output, _ = capsys.readouterr()
     expected_output = colored("Extract", ExtractNode._colour)
     assert expected_output in output
-
-    # Test dag_name method
-    assert schedule.children[1].dag_name == "extract_1"
 
     # Test __str__ method
 

@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author:   A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' Module containing pytest tests for the ProfileNode. '''
@@ -39,9 +40,8 @@
 from __future__ import absolute_import
 import pytest
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import (Node, ProfileNode, Literal, Assignment,
-                                  Reference, Return, KernelSchedule, Loop,
-                                  CodeBlock)
+from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
+                                  Reference, Return, KernelSchedule, Loop)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
     ContainerSymbol, DataTypeSymbol, UnknownFortranType, ImportInterface
 from psyclone.profiler import Profiler
@@ -97,20 +97,6 @@ def test_profile_node_create():
             "type(profile_PSyDataType), save, target :: profile_psy_data")
 
 
-def test_malformed_profile_node(monkeypatch):
-    ''' Check that we raise the expected error if a ProfileNode does not have
-    a single Schedule node as its child. '''
-    pnode = ProfileNode()
-    monkeypatch.setattr(pnode, "_children", [])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-
-
 @pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
                                    ("a", []), ([], "a")])
 def test_profile_node_invalid_name(value):
@@ -149,8 +135,8 @@ def test_lower_to_lang_level_single_node():
     # The ProfileNode should have been replaced by two CodeBlocks with its
     # children inserted between them.
     assert isinstance(kschedule[0], CodeBlock)
-    # The first CodeBlock should have the "profile-start" annotation.
-    assert kschedule[0].annotations == ["profile-start"]
+    # The first CodeBlock should have the "psy-data-start" annotation.
+    assert kschedule[0].annotations == ["psy-data-start"]
     ptree = kschedule[0].get_ast_nodes
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
@@ -179,11 +165,11 @@ def test_lower_named_profile_node():
     Profiler.add_profile_nodes(kschedule, Loop)
     pnode = kschedule.walk(ProfileNode)[0]
     # Manually set the module and region names (to save using a transformation)
-    pnode._module_name = "my_mod"
-    pnode._region_name = "first"
+    pnode._module_name = 'my_mod'
+    pnode._region_name = 'first'
     kschedule.lower_to_language_level()
     cblocks = kschedule.walk(CodeBlock)
-    assert ("PreStart('my_mod', 'first', 0, 0)" in
+    assert ("PreStart(\"my_mod\", \"first\", 0, 0)" in
             str(cblocks[0].get_ast_nodes[0]))
 
 
@@ -207,11 +193,11 @@ def test_lower_to_lang_level_multi_node():
     cblocks = sched.walk(CodeBlock)
     ptree = cblocks[0].get_ast_nodes
     code = str(ptree[0]).lower()
-    assert "call profile_psy_data % prestart('invoke_0', 'r0'" in code
-    assert cblocks[0].annotations == ["profile-start"]
+    assert "call profile_psy_data % prestart(\"invoke_0\", \"r0\"" in code
+    assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
     ptree = cblocks[2].get_ast_nodes
     code = str(ptree[0]).lower()
-    assert "call profile_psy_data_1 % prestart('invoke_0', 'r1'" in code
-    assert cblocks[2].annotations == ["profile-start"]
+    assert "call profile_psy_data_1 % prestart(\"invoke_0\", \"r1\"" in code
+    assert cblocks[2].annotations == ["psy-data-start"]
     assert cblocks[3].annotations == []
