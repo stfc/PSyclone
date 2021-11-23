@@ -1052,6 +1052,9 @@ class SymbolTable(object):
             symbols in the symbol table.
         :type container_symbols: list of \
             :py:class:`psyclone.psyr.symbols.ContainerSymbol`
+
+        :raises SymbolError: if a symbol name clash is found between multiple \
+            imports or an import and a local symbol.
         '''
         # If no container_symbol is given, search in all the container symbols
         if container_symbols is None:
@@ -1091,16 +1094,16 @@ class SymbolTable(object):
                     elif isinstance(interface, ImportInterface):
                         if interface.container_symbol is not c_symbol:
                             raise SymbolError(
-                                f"Found a name clash with symbol "
-                                f"'{symbol.name}' when importing symbols from"
-                                f" container '{c_symbol.name}', this symbol "
-                                f"was already defined in "
-                                f"'{interface.container_symbol.name}'.")
+                                "Found a name clash with symbol '{0}' when "
+                                "importing symbols from container '{1}', "
+                                "this symbol was already defined in '{2}'."
+                                "".format(symbol.name, c_symbol.name,
+                                          interface.container_symbol.name))
                     else:
                         raise SymbolError(
-                            f"Found a name clash with symbol '{symbol.name}' "
-                            f"when importing symbols from container "
-                            f"'{c_symbol.name}'.")
+                            "Found a name clash with symbol '{0}' "
+                            "when importing symbols from container "
+                            "'{1}'.".format(symbol.name, c_symbol.name))
 
                     # Now copy the external symbol properties, but keep the
                     # interface and visibility as this are local properties
