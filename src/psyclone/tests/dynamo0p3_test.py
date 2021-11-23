@@ -1764,9 +1764,9 @@ def test_dynkernelargument_idtp_integer_field():
     arg = Arg("variable", None, None, ("field_type", None))
     with pytest.raises(GenerationError) as info:
         field_argument._init_data_type_properties(arg)
-        assert ("The metadata for argument 'f2' in kernel 'int_x' specifies "
-                "that this is an integer field, however it is declared as a "
-                "'field_type' in the algorithm code." in str(info.value))
+    assert ("The metadata for argument 'f2' in kernel 'int_x' specifies "
+            "that this is an integer field, however it is declared as a "
+            "'field_type' in the algorithm code." in str(info.value))
 
 
 def test_dynkernelargument_idtp_vector_field():
