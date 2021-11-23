@@ -45,7 +45,9 @@ import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
-    ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError
+    ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError, \
+    UnresolvedInterface
+from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.errors import InternalError
 
 
@@ -1063,6 +1065,45 @@ class SymbolTable(object):
                 # been found in the given include_path.
                 # TODO #11: It would be useful to log this.
                 continue
+
+            for symbol in external_container.symbol_table.symbols:
+                print(symbol.name)
+                if symbol.name in self:
+                    symbol_match = self.lookup(symbol.name)
+                    interface = symbol_match.interface
+                    visibility = symbol_match.visibility
+
+                    # If the import statement is not a wildcard import, the
+                    # matching symbol must have the appropriate interface
+                    # referring to this c_symbol
+                    if not c_symbol.wildcard_import:
+                        if not isinstance(interface, ImportInterface) or \
+                                interface.container_symbol is not c_symbol:
+                            continue  # It doesn't come from this import
+
+                    # Found a match, update the interface if necessary
+                    print(f"Found {symbol.name}")
+                    if not isinstance(interface, (UnresolvedInterface,
+                                                  ImportInterface)):
+                        raise SymbolError("name clash")
+                    if isinstance(interface, UnresolvedInterface):
+                        # Now we know where the symbol is coming from
+                        interface = ImportInterface(c_symbol)
+
+                    # Now copy the external symbol properties, but keep the
+                    # interface and visibility as this are local properties
+                    # pylint: disable=unidiomatic-typecheck
+                    if not type(symbol) == type(symbol_match):
+                        if isinstance(symbol, TypedSymbol):
+                            # All TypedSymbols have a mandatory datatype
+                            # argument
+                            symbol_match.specialise(type(symbol),
+                                                    datatype=symbol.datatype)
+                        else:
+                            symbol_match.specialise(type(symbol))
+                    symbol_match.copy_properties(symbol)
+                    symbol_match.interface = interface
+                    symbol_match.visibility = visibility
 
     def rename_symbol(self, symbol, name):
         '''

@@ -40,15 +40,17 @@
 
 from __future__ import absolute_import
 import re
+import os
 from collections import OrderedDict
 import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
-    Literal, Reference, Assignment
+    Literal, Reference, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol
+    SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol, \
+    UnknownFortranType
 from psyclone.errors import InternalError
 
 
@@ -1605,25 +1607,99 @@ def test_rename_symbol():
             "this symbol_table instance, but 'aRRay' does." in str(err.value))
 
 
-def test_resolve_imports(fortran_reader):
+def test_resolve_imports(fortran_reader, tmpdir):
     ''' Tests the SymbolTable resolve_imports method. '''
+    with open(os.path.join(tmpdir, "a_mod.f90"), "w") as module:
+        module.write('''
+        module a_mod
+            integer :: a_1, a_2
+        end module a_mod
+        ''')
+    with open(os.path.join(tmpdir, "b_mod.f90"), "w") as module:
+        module.write('''
+        module b_mod
+            integer, parameter :: b_1 = 10
+            integer, save, pointer :: b_2
+        end module b_mod
+        ''')
     psyir = fortran_reader.psyir_from_source('''
-        subroutine test()
-            use a, only: a_1
-            use b
-            use c
+        module test_mod
+            use a_mod, only: a_2
+            private :: a_2
+            contains
+            subroutine test()
+                use a_mod, only: a_1
+                use b_mod
+                use c_mod  ! This module is not found in INCLUDE_PATH
 
-            a_1 = b_1 + 1
-        end subroutine test
+                a_1 = b_1 + b_2
+            end subroutine test
+        end module test_mod
     ''')
 
-    subroutine = psyir.children[0]
-    assert isinstance(subroutine.symbol_table.lookup('a_1').interface,
-                      ImportInterface)
-    assert isinstance(subroutine.symbol_table.lookup('b_1').interface,
-                      UnresolvedInterface)
+    # After parsing the a_1, a_2, b_1 and b_2 will have incomplete information
+    # because the modules are not resolved
+    subroutine = psyir.walk(Routine)[0]
+    a_1 = subroutine.symbol_table.lookup('a_1')
+    a_2 = subroutine.symbol_table.lookup('a_2')
+    b_1 = subroutine.symbol_table.lookup('b_1')
+    b_2 = subroutine.symbol_table.lookup('b_2')
+    assert isinstance(a_1.interface, ImportInterface)
+    assert not isinstance(a_1, DataSymbol)
+    assert isinstance(a_2.interface, ImportInterface)
+    assert not isinstance(a_2, DataSymbol)
+    assert a_2.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(b_1.interface, UnresolvedInterface)
+    assert not isinstance(b_1, DataSymbol)
+    assert isinstance(b_2.interface, UnresolvedInterface)
+    assert not isinstance(b_2, DataSymbol)
 
     # Set up include_path to import the proper modules
-    Config.get()._include_paths = []
+    Config.get()._include_paths = [str(tmpdir)]
+
+    # Resolve symbols that are in a_mod inside the subroutine
+    subroutine.symbol_table.resolve_imports([
+            subroutine.symbol_table.lookup('a_mod')])
+
+    # This will resolve a_1 information
+    assert isinstance(a_1, DataSymbol)
+    assert a_1.datatype.intrinsic.name == 'INTEGER'
+    # but will keep the ImportInterface
+    assert isinstance(a_1.interface, ImportInterface)
+
+    # The other symbols (including a_2) are unchanged
+    assert isinstance(a_2.interface, ImportInterface)
+    assert not isinstance(a_2, DataSymbol)
+    assert isinstance(b_1.interface, UnresolvedInterface)
+    assert not isinstance(b_1, DataSymbol)
+    assert isinstance(b_2.interface, UnresolvedInterface)
+    assert not isinstance(b_2, DataSymbol)
+
+    # Now resolve all found containers (this will not fail for the
+    # unavailable c_mod)
     subroutine.symbol_table.resolve_imports()
+
+    # b_1 and b_2 should have relevant info now
+    assert isinstance(b_1, DataSymbol)
+    assert b_1.datatype.intrinsic.name == 'INTEGER'
+    assert b_1.constant_value.value == "10"
+    assert isinstance(b_2, DataSymbol)
+    assert isinstance(b_2.datatype, UnknownFortranType)
+    # Their interface is also updated
+    assert isinstance(b_1.interface, ImportInterface)
+    assert b_1.interface.container_symbol == \
+           subroutine.symbol_table.lookup('b_mod')
+    assert isinstance(b_2.interface, ImportInterface)
+    assert b_2.interface.container_symbol == \
+           subroutine.symbol_table.lookup('b_mod')
+
+    # a_2 is not yet resolved because if is from another symbol table,
+    # resolve that symbol table too
+    assert not isinstance(a_2, DataSymbol)
+    subroutine.parent.symbol_table.resolve_imports()
+    # In this case check that the visibility stays PRIVATE
+    assert isinstance(a_2, DataSymbol)
+    assert a_2.visibility == Symbol.Visibility.PRIVATE
+
+    # Clean up the config instance
     Config._instance = None
