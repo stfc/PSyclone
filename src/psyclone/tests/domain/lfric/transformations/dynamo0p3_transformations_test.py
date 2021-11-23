@@ -6279,7 +6279,8 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     else:
         assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
                 "cell_all_colours()" in gen)
-        assert ("DO cell=1,last_cell_all_colours_fld_c(colour)\n" in gen)
+        assert ("DO cell=loop5_start,last_cell_all_colours_fld_c(colour)\n"
+                in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6293,7 +6294,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
-    # Colour the first loop
+    # Colour the first loop (where 'fld_c' is the field on the coarse mesh)
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
@@ -6306,22 +6307,22 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     if dist_mem:
         assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
                 "cell_all_colours()" in gen)
-        upper_bound = "last_cell_all_colours(colour,1)"
+        upper_bound = "last_cell_all_colours_fld_c(colour,1)"
     else:
         assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
                 "cell_all_colours()\n" in gen)
         upper_bound = "last_cell_all_colours_fld_c(colour)"
-    assert "loop0_stop = ncolour_fld_m\n" in gen
+    assert "loop0_stop = ncolour_fld_c\n" in gen
     assert ("      DO colour=loop0_start,loop0_stop\n"
             "        !$omp parallel default(shared), private(cell)\n"
             "        !$omp do schedule(static)\n"
             "        DO cell=loop1_start,{0}\n"
             "          !\n"
             "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c_x, "
+            "(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
             "ncpc_fld_m_fld_c_y, ncell_fld_m, "
             "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
+            "undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
             "        END DO\n"
             "        !$omp end do\n"
             "        !$omp end parallel\n"
