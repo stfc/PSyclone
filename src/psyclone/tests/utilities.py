@@ -263,7 +263,12 @@ class Compile(object):
             arg_list.append("-c")
 
         # Attempt to execute it using subprocess
+
+        # Change to the temporary directory passed in to us from
+        # pytest. (This is a LocalPath object.)
+        old_pwd = self._tmpdir.chdir()
         try:
+
             build = subprocess.Popen(arg_list,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
@@ -271,8 +276,9 @@ class Compile(object):
         except OSError as err:
             print("Failed to run: {0}: ".format(" ".join(arg_list)),
                   file=sys.stderr)
-            print("Error was: ", str(err.value), file=sys.stderr)
-            raise CompileError(str(err.value))
+            raise CompileError(str(err)) from err
+        finally:
+            old_pwd.chdir()
 
         # Check the return code
         stat = build.returncode
