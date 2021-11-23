@@ -34,6 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. J. Voysey, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.
@@ -53,11 +54,25 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
+  dev-doctest:
+    # Check doctests of developer's guide
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        # Python 3.10 breaks sphinxcontrib-bibtex
+        # (from collections import MutableSet does not work anymore,
+        # must be from collections.abc ...), so switch to python 3.8
+        python-version: 3.8.10
+    - run: python -m pip install --upgrade pip
+    - run: pip install .[doc]
+    - run: cd doc/developer_guide; make doctest
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.8]
+        python-version: [3.5, 3.8]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -91,12 +106,9 @@ jobs:
         pip install .
     - name: Lint with flake8
       run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        # TODO cannot do this while we still support Python 2
-        # flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        # Name the required directories to avoid the fparser submodule
-        flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics src/psyclone examples tutorial
+        # Stop the build if there are Python syntax errors or undefined names.
+        # See PSyclone/setup.cfg for configuration of this check.
+        flake8 --count --select=E9,F63,F7,F82 --show-source --statistics src examples tutorial
     - name: Run examples
       run: |
         ( make -C examples transform > /dev/null )
