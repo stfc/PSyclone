@@ -1703,3 +1703,56 @@ def test_resolve_imports(fortran_reader, tmpdir):
 
     # Clean up the config instance
     Config._instance = None
+
+
+def test_resolve_imports_name_clashes(fortran_reader, tmpdir):
+    ''' Tests the SymbolTable resolve_imports method raises the appropriate
+    errors when it find name clashes. '''
+
+    with open(os.path.join(tmpdir, "a_mod.f90"), "w") as module:
+        module.write('''
+        module a_mod
+            integer :: name_clash1
+        end module a_mod
+        ''')
+    with open(os.path.join(tmpdir, "b_mod.f90"), "w") as module:
+        module.write('''
+        module b_mod
+            integer :: not_a_name_clash
+            integer :: name_clash1
+            integer :: name_clash2
+            private not_a_name_clash
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            contains
+            subroutine test()
+                use a_mod
+                use b_mod
+                integer :: not_a_name_clash ! because its private in the module
+                integer :: name_clash2
+
+                name_clash1 = name_clash2 + not_a_name_clash
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    Config.get()._include_paths = [str(tmpdir)]
+
+    with pytest.raises(SymbolError) as err:
+        symtab.resolve_imports([symtab.lookup('b_mod')])
+    assert ("Found a name clash with symbol 'name_clash2' when importing "
+            "symbols from container 'b_mod'." in str(err.value))
+
+    with pytest.raises(SymbolError) as err:
+        symtab.resolve_imports([symtab.lookup('a_mod')])
+    assert ("Found a name clash with symbol 'name_clash1' when importing "
+            "symbols from container 'a_mod', this symbol was already defined "
+            "in 'b_mod'." in str(err.value))
+
+    # Clean up the config instance
+    Config._instance = None

@@ -1067,7 +1067,9 @@ class SymbolTable(object):
                 continue
 
             for symbol in external_container.symbol_table.symbols:
-                print(symbol.name)
+                if symbol.visibility == Symbol.Visibility.PRIVATE:
+                    continue  # We must ignore this symbol
+
                 if symbol.name in self:
                     symbol_match = self.lookup(symbol.name)
                     interface = symbol_match.interface
@@ -1081,14 +1083,24 @@ class SymbolTable(object):
                                 interface.container_symbol is not c_symbol:
                             continue  # It doesn't come from this import
 
-                    # Found a match, update the interface if necessary
-                    print(f"Found {symbol.name}")
-                    if not isinstance(interface, (UnresolvedInterface,
-                                                  ImportInterface)):
-                        raise SymbolError("name clash")
+                    # Found a match, update the interface if necessary or raise
+                    # and error if it is an ambiguous match
                     if isinstance(interface, UnresolvedInterface):
                         # Now we know where the symbol is coming from
                         interface = ImportInterface(c_symbol)
+                    elif isinstance(interface, ImportInterface):
+                        if interface.container_symbol is not c_symbol:
+                            raise SymbolError(
+                                f"Found a name clash with symbol "
+                                f"'{symbol.name}' when importing symbols from"
+                                f" container '{c_symbol.name}', this symbol "
+                                f"was already defined in "
+                                f"'{interface.container_symbol.name}'.")
+                    else:
+                        raise SymbolError(
+                            f"Found a name clash with symbol '{symbol.name}' "
+                            f"when importing symbols from container "
+                            f"'{c_symbol.name}'.")
 
                     # Now copy the external symbol properties, but keep the
                     # interface and visibility as this are local properties
