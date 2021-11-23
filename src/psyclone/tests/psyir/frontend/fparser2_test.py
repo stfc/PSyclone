@@ -1579,6 +1579,34 @@ def test_use_stmt():
         == symtab.lookup("other_mod")
 
 
+def test_use_stmt_with_accessibility_statements(parser):
+    ''' Same than the previous test, but now from a module with a Fortran
+    accessibility statement. This will provide a visibility map to the
+    use statement processor so the imported symbols and modules end up with
+    the appropriate visibility attributes. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader('''
+        module test
+            use my_mod, only: some_var
+            use this_mod
+            use other_mod, only: var1, var2
+            private this_mod, var1
+        end module test
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+
+    symtab = psyir.symbol_table
+
+    assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("var1").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("other_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var2").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("my_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_use_stmt_error(monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
