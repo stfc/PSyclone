@@ -1609,13 +1609,13 @@ def test_rename_symbol():
 
 def test_resolve_imports(fortran_reader, tmpdir):
     ''' Tests the SymbolTable resolve_imports method. '''
-    with open(os.path.join(tmpdir, "a_mod.f90"), "w") as module:
+    with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
         module.write('''
         module a_mod
             integer :: a_1, a_2
         end module a_mod
         ''')
-    with open(os.path.join(tmpdir, "b_mod.f90"), "w") as module:
+    with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
         module.write('''
         module b_mod
             integer, parameter :: b_1 = 10
@@ -1709,13 +1709,13 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it find name clashes. '''
 
-    with open(os.path.join(tmpdir, "a_mod.f90"), "w") as module:
+    with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
         module.write('''
         module a_mod
             integer :: name_clash1
         end module a_mod
         ''')
-    with open(os.path.join(tmpdir, "b_mod.f90"), "w") as module:
+    with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
         module.write('''
         module b_mod
             integer :: not_a_name_clash
