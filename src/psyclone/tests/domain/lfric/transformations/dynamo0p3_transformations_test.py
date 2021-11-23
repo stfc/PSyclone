@@ -139,10 +139,10 @@ def test_colour_trans(tmpdir, dist_mem):
 
     if dist_mem:
         assert ("integer(kind=i_def), allocatable :: "
-                "last_halo_cell_all_colours(:,:)" in gen)
+                "last_cell_all_colours(:,:)" in gen)
     else:
         assert ("integer(kind=i_def), allocatable :: "
-                "last_edge_cell_all_colours(:)" in gen)
+                "last_cell_all_colours(:)" in gen)
 
     # Check that we're calling the API to get the no. of colours
     # and the generated loop bounds are correct
@@ -155,18 +155,18 @@ def test_colour_trans(tmpdir, dist_mem):
     assert "loop1_start = 1" in gen
 
     if dist_mem:
-        assert ("last_halo_cell_all_colours = mesh%get_last_halo_cell_all_"
+        assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_halo_cell_all_colours(colour,"
+            "        do cell=loop1_start,last_cell_all_colours(colour,"
             "1)\n")
     else:  # not dist_mem
-        assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
+        assert ("last_cell_all_colours = mesh%get_last_edge_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_edge_cell_all_colours(colour)\n")
+            "        do cell=loop1_start,last_cell_all_colours(colour)\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
@@ -249,9 +249,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
     gen = str(psy.gen)
 
     if dist_mem:
-        lookup = "last_halo_cell_all_colours(colour,1)"
+        lookup = "last_cell_all_colours(colour,1)"
     else:
-        lookup = "last_edge_cell_all_colours(colour)"
+        lookup = "last_cell_all_colours(colour)"
 
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
@@ -452,9 +452,9 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     assert ("      ncolour = mesh%get_ncolours()\n"
             "      cmap => mesh%get_colour_map()\n" in code)
     if dist_mem:
-        lookup = "last_halo_cell_all_colours(colour,1)"
+        lookup = "last_cell_all_colours(colour,1)"
     else:
-        lookup = "last_edge_cell_all_colours(colour)"
+        lookup = "last_cell_all_colours(colour)"
     output = (
         "      DO colour=loop0_start,loop0_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
@@ -4547,12 +4547,11 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     psy, _ = get_invoke("15.7.1_setval_c_builtin.f90", TEST_API,
                         idx=0, dist_mem=True)
     result = str(psy.gen)
-    print(result)
     assert "halo_exchange" not in result
     if annexed:
-        assert "DO df=1,f1_proxy%vspace%get_last_dof_annexed()" in result
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_annexed()" in result
     else:
-        assert "DO df=1,f1_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(" not in result
 
@@ -6183,19 +6182,19 @@ def test_intergrid_colour(dist_mem):
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
     if dist_mem:
-        assert ("last_edge_cell_all_colours_fld_m = "
-                "mesh_fld_m%get_last_halo_cells_all_colours()" in gen)
+        assert ("last_cell_all_colours_fld_m = "
+                "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
             "      do colour=loop1_start,loop1_stop\n"
-            "        do cell=loop2_start,last_halo_cell_all_colours_fld_m"
-            "colour,1)\n")
+            "        do cell=loop2_start,last_cell_all_colours_fld_m"
+            "(colour,1)\n")
     else:
-        assert ("last_edge_cell_all_colours_fld_m = "
-                "mesh_fld_m%get_last_edge_cells_all_colours()" in gen)
+        assert ("last_cell_all_colours_fld_m = "
+                "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
             "      do colour=loop1_start,loop1_stop\n"
-            "        do cell=loop2_start,last_edge_cell_all_colours_fld_m"
-            "colour)\n")
+            "        do cell=loop2_start,last_cell_all_colours_fld_m"
+            "(colour)\n")
     assert expected in gen
     expected = (
         "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
@@ -6266,15 +6265,21 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[2])
     otrans.apply(loops[5])
     gen = str(psy.gen)
-    assert ("      DO colour=1,ncolour_fld_c\n"
+    assert "loop4_stop = ncolour_fld_c" in gen
+
+    assert ("      DO colour=loop4_start,loop4_stop\n"
             "        !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)
+
     if dist_mem:
-        assert ("        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour("
-                "colour,1)\n" in gen)
+        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_cell_"
+                "all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_cell_all_colours_fld_c(colour,1)\n"
+                in gen)
     else:
-        assert ("        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
-                "colour)\n" in gen)
+        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
+                "cell_all_colours()" in gen)
+        assert ("DO cell=1,last_cell_all_colours_fld_c(colour)\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6299,13 +6304,18 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
-        upper_bound = "mesh_fld_c%get_last_halo_cell_per_colour(colour,1)"
+        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
+                "cell_all_colours()" in gen)
+        upper_bound = "last_cell_all_colours(colour,1)"
     else:
-        upper_bound = "mesh_fld_c%get_last_edge_cell_per_colour(colour)"
-    assert ("      DO colour=1,ncolour_fld_m\n"
+        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
+                "cell_all_colours()\n" in gen)
+        upper_bound = "last_cell_all_colours_fld_c(colour)"
+    assert "loop0_stop = ncolour_fld_m\n" in gen
+    assert ("      DO colour=loop0_start,loop0_stop\n"
             "        !$omp parallel default(shared), private(cell)\n"
             "        !$omp do schedule(static)\n"
-            "        DO cell=1,{0}\n"
+            "        DO cell=loop1_start,{0}\n"
             "          !\n"
             "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
             "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c_x, "
