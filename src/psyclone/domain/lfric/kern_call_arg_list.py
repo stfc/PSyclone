@@ -99,22 +99,22 @@ class KernCallArgList(ArgOrdering):
         fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = self._symtab.symbol_from_tag(base_name).name
+        map_name = self._symtab.find_or_create_tag(base_name).name
         # Add the cell map to our argument list
         self.append("{0}(:,:,{1})".format(map_name,
                                           self._cell_ref_name(var_accesses)),
                     var_accesses=var_accesses)
         # No. of fine cells per coarse cell in x
         base_name = "ncpc_{0}_{1}_x".format(farg.name, carg.name)
-        ncellpercellx = self._symtab.symbol_from_tag(base_name).name
+        ncellpercellx = self._symtab.find_or_create_tag(base_name).name
         self.append(ncellpercellx, var_accesses)
         # No. of fine cells per coarse cell in y
         base_name = "ncpc_{0}_{1}_y".format(farg.name, carg.name)
-        ncellpercelly = self._symtab.symbol_from_tag(base_name).name
+        ncellpercelly = self._symtab.find_or_create_tag(base_name).name
         self.append(ncellpercelly, var_accesses)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = self._symtab.symbol_from_tag(base_name).name
+        ncell_fine = self._symtab.find_or_create_tag(base_name).name
         self.append(ncell_fine, var_accesses)
 
     def mesh_height(self, var_accesses=None):
@@ -127,7 +127,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        nlayers_name = self._symtab.symbol_from_tag("nlayers").name
+        nlayers_name = self._symtab.find_or_create_tag("nlayers").name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
@@ -150,7 +150,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        name = self._symtab.symbol_from_tag("ncell_2d").name
+        name = self._symtab.find_or_create_tag("ncell_2d").name
         self.append(name, var_accesses)
 
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
@@ -164,7 +164,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        name = self._symtab.symbol_from_tag("ncell_2d_no_halos").name
+        name = self._symtab.find_or_create_tag("ncell_2d_no_halos").name
         self.append(name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -190,7 +190,7 @@ class KernCallArgList(ArgOrdering):
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = self._symtab.symbol_from_tag(
+            name = self._symtab.find_or_create_tag(
                 arg.name + "_" + component).name
             # Matrix is an output parameter, the rest are input
             if component == "matrix":
@@ -559,7 +559,7 @@ class KernCallArgList(ArgOrdering):
                        self._kern.name, farg.argument_type))
 
         base_name = "boundary_dofs_" + farg.name
-        name = self._symtab.symbol_from_tag(base_name).name
+        name = self._symtab.find_or_create_tag(base_name).name
         self.append(name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -579,7 +579,7 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_" + op_arg.name
-        name = self._symtab.symbol_from_tag(base_name).name
+        name = self._symtab.find_or_create_tag(base_name).name
         self.append(name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):

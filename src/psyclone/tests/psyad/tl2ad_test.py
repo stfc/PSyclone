@@ -45,13 +45,14 @@ from psyclone.errors import InternalError
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
 from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product
+    _create_array_inner_product, _get_active_variables_datatype
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation, Reference, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
-    INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface
+    INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface, \
+    ScalarType
 
 
 # 1: generate_adjoint_str function
@@ -107,32 +108,9 @@ def test_generate_adjoint_str_generate_harness():
     result, harness = generate_adjoint_str(
         tl_code, ["field"], create_test=True)
     assert "subroutine kern_adj(field)\n" in result
-    assert '''program adj_test
-  use my_mod, only : kern
-  use my_mod_adj, only : kern_adj
-  integer, parameter :: array_extent = 20
-  double precision :: inner1
-  double precision :: inner2
-  double precision :: abs_diff
-  real :: field
-  real :: field_input
-
-  CALL random_number(field)
-  field_input = field
-  call kern(field)
-  inner1 = 0.0
-  inner1 = inner1 + field * field
-  call kern_adj(field)
-  inner2 = 0.0
-  inner2 = inner2 + field * field_input
-  abs_diff = ABS(inner1 - inner2)
-  if (abs_diff > 1.0d-10) then
-    WRITE(*, *) 'Test of adjoint of ''kern'' failed: diff = ', abs_diff
-    return
-  end if
-  WRITE(*, *) 'Test of adjoint of ''kern'' passed: diff = ', abs_diff
-
-end program adj_test''' in harness
+    assert "program adj_test\n" in harness
+    assert "! Call the tangent-linear kernel\n" in harness
+    assert "end program adj_test\n" in harness
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
@@ -195,7 +173,73 @@ def test_find_container():
             "not supported." in str(err.value))
 
 
-# 3: generate_adjoint function
+# 3: _get_active_variables_datatype function
+
+def test_get_active_variables_datatype_error(fortran_reader):
+    ''' Test that the _get_active_variables_datatype raises the expected
+    errors if no active variables are supplied or if they are of different
+    type or precision. '''
+    tl_fortran_str = (
+        "program test\n"
+        "use kinds_mod, only: wp\n"
+        "real :: a, b\n"
+        "real(kind=wp) :: c\n"
+        "integer :: idx\n"
+        "a = b + c + idx\n"
+        "end program test\n")
+    prog_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    tl_psyir = prog_psyir.children[0]
+    with pytest.raises(InternalError) as err:
+        _get_active_variables_datatype(tl_psyir, [])
+    assert "No active variables have been supplied." in str(err.value)
+
+    with pytest.raises(NotImplementedError) as err:
+        _get_active_variables_datatype(tl_psyir, ["a", "c"])
+    assert ("active variables of different datatype: 'a' is of intrinsic "
+            "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
+            "'c' is of intrinsic type 'Intrinsic.REAL' and precision 'wp: "
+            in str(err.value))
+
+    with pytest.raises(NotImplementedError) as err:
+        _get_active_variables_datatype(tl_psyir, ["a", "idx"])
+    assert ("active variables of different datatype: 'a' is of intrinsic "
+            "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
+            "'idx' is of intrinsic type 'Intrinsic.INTEGER' and precision "
+            "'Precision.UNDEFINED'" in str(err.value))
+
+
+def test_get_active_variables_datatype(fortran_reader):
+    ''' Test that _get_active_variables_datatype() works as expected. '''
+    tl_fortran_str = (
+        "program test\n"
+        "use kind_mod, only: wp, i_def\n"
+        "real :: a, b, c\n"
+        "real(wp) :: d, e\n"
+        "integer(i_def) :: ii, jj, kk\n"
+        "a = b + c\n"
+        "d = 2.0*e\n"
+        "ii = jj + kk\n"
+        "end program test\n")
+    prog_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+    tl_psyir = prog_psyir.children[0]
+    # Real, default precision
+    atype = _get_active_variables_datatype(tl_psyir, ["a", "b"])
+    assert isinstance(atype, ScalarType)
+    assert atype.intrinsic == ScalarType.Intrinsic.REAL
+    assert atype.precision == ScalarType.Precision.UNDEFINED
+    # Real, specified KIND
+    atype = _get_active_variables_datatype(tl_psyir, ["d", "e"])
+    assert atype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(atype.precision, DataSymbol)
+    assert atype.precision.name == "wp"
+    # Integer, specified KIND
+    atype = _get_active_variables_datatype(tl_psyir, ["ii", "jj", "kk"])
+    assert atype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(atype.precision, DataSymbol)
+    assert atype.precision.name == "i_def"
+
+
+# 4: generate_adjoint function
 
 def test_generate_adjoint(fortran_reader):
     '''Test that the generate_adjoint() function works as expected.'''
@@ -208,6 +252,34 @@ def test_generate_adjoint(fortran_reader):
     expected_ad_fortran_str = (
         "program test_adj\n"
         "  real :: a\n  real :: b\n  real :: c\n\n"
+        "  b = b + a\n"
+        "  c = c + a\n"
+        "  a = 0.0\n\n"
+        "end program test_adj\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
+
+    ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
+
+    writer = FortranWriter()
+    ad_fortran_str = writer(ad_psyir)
+    assert ad_fortran_str in expected_ad_fortran_str
+
+
+def test_generate_adjoint_kind(fortran_reader):
+    '''Test that the generate_adjoint() function works as expected when
+    the active variables have a kind.'''
+
+    tl_fortran_str = (
+        "program test\n"
+        "use kinds_mod, only: r_def\n"
+        "real(kind=r_def) :: a, b, c\n"
+        "a = b + c\n"
+        "end program test\n")
+    expected_ad_fortran_str = (
+        "program test_adj\n"
+        "  use kinds_mod, only : r_def\n"
+        "  real(kind=r_def) :: a\n  real(kind=r_def) :: b\n  "
+        "real(kind=r_def) :: c\n\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
@@ -294,14 +366,14 @@ def test_generate_adjoint_logging(caplog):
     assert expected_ad_fortran_str in ad_fortran_str
 
 
-# 4: generate_adjoint_test
+# 5: generate_adjoint_test
 
 def test_generate_adjoint_test_errors():
     ''' Check that generate_adjoint_test() raises the expected exceptions if
     the input is not valid for test-harness generation. '''
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(FileContainer("test_file"),
-                              FileContainer("test_adj_file"))
+                              FileContainer("test_adj_file"), ['field'])
     assert ("Generation of a test harness is only supported for a TL kernel "
             "implemented as a subroutine within a module but failed to find "
             "enclosing module." in str(err.value))
@@ -311,14 +383,14 @@ def test_generate_adjoint_test_errors():
     cont.addchild(kern1)
     cont.addchild(Routine.create("my_kern2", SymbolTable(), [Return()]))
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_test(cont, cont.copy())
+        generate_adjoint_test(cont, cont.copy(), ['field'])
     assert ("The supplied Fortran must contain one and only one subroutine "
             "but found: ['my_kern1', 'my_kern2']" in str(err.value))
     cont.pop_all_children()
     kern1._is_program = True
     cont.addchild(kern1)
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_test(cont, cont.copy())
+        generate_adjoint_test(cont, cont.copy(), ['field'])
     assert ("Generation of a test harness for a kernel defined as a Program "
             "(as opposed to a Subroutine) is not currently supported. (Found "
             "'my_kern1' which is a Program.)" in str(err.value))
@@ -340,7 +412,7 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["field"])
-    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
     assert isinstance(test_psyir, Routine)
     assert test_psyir.is_program is True
     sym_table = test_psyir.symbol_table
@@ -357,13 +429,22 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  real, dimension(npts) :: field_input" in harness)
     assert ("  CALL random_number(field)\n"
             "  field_input = field\n"
+            "  ! Call the tangent-linear kernel\n"
             "  call kern(field, npts)\n"
+            "  ! Compute the inner product of the results of the tangent-"
+            "linear kernel\n"
             "  inner1 = 0.0\n"
             "  inner1 = inner1 + DOT_PRODUCT(field, field)\n"
+            "  ! Call the adjoint of the kernel\n"
             "  call kern_adj(field, npts)\n"
+            "  ! Compute inner product of results of adjoint kernel with "
+            "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
             "  inner2 = inner2 + DOT_PRODUCT(field, field_input)\n"
-            "  abs_diff = ABS(inner1 - inner2)\n" in harness)
+            "  ! Test the inner-product values for equality, allowing for "
+            "the precision of the active variables\n"
+            "  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))\n"
+            in harness)
     # Ideally we would test that the generated harness code compiles
     # but, since it depends on the TL and adjoint kernels, we can't
     # currently do that (see #284).
@@ -386,7 +467,8 @@ def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["field1", "field2"])
-    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
+                                       ["field1", "field2"])
     harness = fortran_writer(test_psyir)
     assert "integer, parameter :: array_extent = 20\n" in harness
     assert "real, dimension(array_extent) :: field1\n" in harness
@@ -416,7 +498,7 @@ def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["field1"])
-    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     prog = test_psyir.walk(Routine)[0]
     assert "array_extent" in prog.symbol_table
     assert "array_extent_1" in prog.symbol_table
@@ -445,7 +527,7 @@ def test_generate_harness_arg_name_clash(fortran_reader, fortran_writer):
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["array_extent"])
-    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["array_extent"])
     prog = test_psyir.walk(Routine)[0]
     assert "array_extent" in prog.symbol_table
     assert "array_extent_1" in prog.symbol_table
@@ -475,7 +557,7 @@ def test_generate_harness_routine_name_clash(fortran_reader, fortran_writer):
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["field1"])
-    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     harness = fortran_writer(test_psyir)
     assert "integer, parameter :: array_extent_1 = 20" in harness
     assert "integer, parameter :: extent = array_extent_1" in harness
@@ -497,7 +579,7 @@ def test_generate_harness_kernel_arg_static_shape(fortran_reader,
     )
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["field1"])
-    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     harness = fortran_writer(test_psyir)
     assert "integer, parameter :: npts = array_extent_1" in harness
     assert "real, dimension(10,npts) :: field1" in harness
@@ -520,7 +602,7 @@ def test_generate_harness_kernel_arg_shape_error(fortran_reader):
     tl_psyir = fortran_reader.psyir_from_source(tl_code)
     ad_psyir = generate_adjoint(tl_psyir, ["field1"])
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_test(tl_psyir, ad_psyir)
+        generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     assert ("Found argument 'field1' to kernel 'array_extent' which has a "
             "reference to 'npts' in its shape. However, 'npts' is not passed "
             "as an argument. This is not supported." in str(err.value))
@@ -549,20 +631,101 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
     fld_arg.datatype._shape[0] = ArrayType.ArrayBounds(
         lower=Return(), upper=fld_arg.datatype._shape[0].upper)
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_test(tl_psyir, ad_psyir)
+        generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     assert ("Found argument 'field1' to kernel 'kernel' which has an array "
             "bound specified by a 'Return' node. Only Literals or References "
             "are supported" in str(err.value))
     # Break the argument shape.
     fld_arg.datatype._shape = [1] + fld_arg.datatype._shape[1:]
     with pytest.raises(InternalError) as err:
-        generate_adjoint_test(tl_psyir, ad_psyir)
+        generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     assert ("Argument 'field1' to kernel 'kernel' contains a 'int' in its "
             "shape definition but expected an ArrayType.Extent or "
             "ArrayType.ArrayBound" in str(err.value))
 
 
-# 5: _create_inner_product and _create_array_inner_product
+def test_generate_harness_kind_import(fortran_reader, fortran_writer):
+    ''' Check that the test harness that is generated correctly declares
+    any imported kind parameter that is used to define the precision of the
+    active variable(s).
+    '''
+    tl_code = (
+        "module my_mod\n"
+        "  use kinds_mod, only: r_def\n"
+        "  contains\n"
+        "  subroutine kern(field, npts)\n"
+        "    integer, intent(in) :: npts\n"
+        "    real(kind=r_def), intent(inout) :: field(npts)\n"
+        "    field = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir, ["field"])
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
+    harness = fortran_writer(test_psyir)
+    assert ("  real(kind=r_def), dimension(npts) :: field\n"
+            "  real(kind=r_def), dimension(npts) :: field_input" in harness)
+    assert "real(kind=r_def) :: inner1\n" in harness
+    assert "use kinds_mod, only : r_def" in harness
+    assert ("real(kind=r_def), parameter :: overall_tolerance = "
+            "1500.0_r_def" in harness)
+
+
+def test_generate_harness_constant_kind(fortran_reader, fortran_writer):
+    ''' Check that the test harness that is generated correctly declares
+    a constant, local kind parameter that is used to define the precision
+    of the active variable(s).
+    '''
+    tl_code = (
+        "module my_mod\n"
+        "  integer, parameter :: r_def=8\n"
+        "  contains\n"
+        "  subroutine kern(field, npts)\n"
+        "    integer, intent(in) :: npts\n"
+        "    real(kind=r_def), intent(inout) :: field(npts)\n"
+        "    field = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir, ["field"])
+    test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
+    harness = fortran_writer(test_psyir)
+    assert ("  use my_mod_adj, only : kern_adj\n"
+            "  integer, parameter :: r_def = 8\n" in harness)
+    assert ("  real(kind=r_def), dimension(npts) :: field\n"
+            "  real(kind=r_def), dimension(npts) :: field_input" in harness)
+    assert "real(kind=r_def) :: inner1\n" in harness
+    assert ("real(kind=r_def), parameter :: overall_tolerance = "
+            "1500.0_r_def" in harness)
+
+
+def test_generate_harness_unknown_kind_error(fortran_reader):
+    ''' Check that generate_adjoint_test() raises the expected error if the
+    kind of the active variables is of an unsupported form.
+    '''
+    tl_code = (
+        "module my_mod\n"
+        "  use kinds_mod\n"
+        "  contains\n"
+        "  subroutine kern(field, npts)\n"
+        "    integer, intent(in) :: npts\n"
+        "    real(kind=r_def), intent(inout) :: field(npts)\n"
+        "    field = 0.0\n"
+        "  end subroutine kern\n"
+        "end module my_mod\n"
+    )
+    tl_psyir = fortran_reader.psyir_from_source(tl_code)
+    ad_psyir = generate_adjoint(tl_psyir, ["field"])
+    with pytest.raises(NotImplementedError) as err:
+        generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
+    assert ("active variables ['field'] have a precision specified by "
+            "symbol 'r_def' which is not local or explicitly imported" in
+            str(err.value))
+
+
+# 6: _create_inner_product and _create_array_inner_product
 
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected
