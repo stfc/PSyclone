@@ -26,6 +26,9 @@
 	10) PR #1476 for #1456. Fix precision problems in the PSyAD harness
 	code generation and add harness documentation.
 
+	11) PR #1482 for #1481. Renames symbol_from_tag->find_or_create_tag
+        and tidies its use.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
