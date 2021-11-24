@@ -280,7 +280,7 @@ class GOOpenCLTrans(Transformation):
         node.symbol_table.add(get_num_cmd_queues)
         node.symbol_table.add(get_cmd_queues)
         node.symbol_table.add(get_kernel_by_name)
-        clfortran = ContainerSymbol("clforntran")
+        clfortran = ContainerSymbol("clfortran")
         clfortran.wildcard_import = True
         node.symbol_table.add(clfortran)
         cl_finish = RoutineSymbol(

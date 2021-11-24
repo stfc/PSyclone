@@ -180,16 +180,18 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
     otrans = GOOpenCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
-    expected = "subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
+    expected = '''\
+    subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)
+      use fortcl, only: get_cmd_queues, get_kernel_by_name, get_num_cmd_queues
+      use clfortran
+      use iso_c_binding
+      '''
 
     # When in debug mode, import also the check_status function
     if debug_mode:
-        expected += "      use ocl_utils_mod, only: check_status\n"
+        expected += "use ocl_utils_mod, only: check_status"
 
-    expected += '''\
-      use fortcl, only: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
-      use clfortran
-      use iso_c_binding
+    expected += '''
       type(r2d_field), intent(inout), target :: cu_fld
       type(r2d_field), intent(inout), target :: p_fld
       type(r2d_field), intent(inout), target :: u_fld
@@ -211,7 +213,6 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
       '''
-    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
