@@ -45,10 +45,9 @@ import pytest
 
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Loop
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import LoopSwapTrans
+from psyclone.psyir.transformations import LoopSwapTrans
 
 
 def test_loop_swap_correct(tmpdir):
@@ -198,14 +197,3 @@ def test_loop_swap_wrong_loop_type():
                      "must be the outer loop of a loop nest but the first "
                      "inner statement is not a valid loop:",
                      str(error.value), re.S)
-
-    _, invoke_loop1 = get_invoke("test27_loop_swap.f90", "gocean1.0",
-                                 idx=1, dist_mem=False)
-    schedule = invoke_loop1.schedule
-    loop = schedule[0].loop_body[0]
-    assert isinstance(loop, Loop)
-    # Change the class of the inner loop so that it is not a GOLoop
-    loop.__class__ = Loop
-    with pytest.raises(TransformationError) as error:
-        swap.apply(schedule[0])
-    assert "is not a Loop, but an instance of 'Loop'" in str(error.value)

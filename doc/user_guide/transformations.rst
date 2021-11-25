@@ -220,7 +220,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.LoopSwapTrans
+.. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
    :members:
    :noindex:
 
