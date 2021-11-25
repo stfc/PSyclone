@@ -68,11 +68,11 @@ def test_chunkloop_trans_validate1():
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-constant increment
     routine = Routine("test_routine")
-    lvar = routine.symbol_table.symbol_from_tag(
+    lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    incvar = routine.symbol_table.symbol_from_tag(
+    incvar = routine.symbol_table.find_or_create_tag(
             "incvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
@@ -127,7 +127,7 @@ def test_chunkloop_trans_validate3():
     parent.addchild(Literal("1", INTEGER_TYPE))
     parent.addchild(Schedule())
     routine = Routine.create("test_routine", symbol_table, [parent])
-    lvar = routine.symbol_table.symbol_from_tag(
+    lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
@@ -156,7 +156,7 @@ def test_chunkloop_trans_validate4():
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
-    lvar = routine.symbol_table.symbol_from_tag(
+    lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
@@ -180,11 +180,11 @@ def test_chunkloop_trans_validate4():
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
-    lvar = routine.symbol_table.symbol_from_tag(
+    lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    ivar = routine.symbol_table.symbol_from_tag(
+    ivar = routine.symbol_table.find_or_create_tag(
             "ivar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
@@ -209,11 +209,11 @@ def test_chunkloop_trans_validate4():
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
-    lvar = routine.symbol_table.symbol_from_tag(
+    lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    ivar = routine.symbol_table.symbol_from_tag(
+    ivar = routine.symbol_table.find_or_create_tag(
             "ivar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
@@ -243,11 +243,11 @@ def test_chunkloop_trans_validate5():
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
-    lvar = routine.symbol_table.symbol_from_tag(
+    lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    ivar = routine.symbol_table.symbol_from_tag(
+    ivar = routine.symbol_table.find_or_create_tag(
             "ivar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
