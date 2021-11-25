@@ -367,14 +367,31 @@ def test_where_array_subsections():
 
 
 @pytest.mark.usefixtures("parser")
+@pytest.mark.parametrize("rhs", ["depth", "maxval(depth(:))"])
+def test_where_with_scalar_assignment(rhs):
+    ''' '''
+    fake_parent, _ = process_where(
+        f"WHERE (dry(1, :, :))\n"
+        f"  var1 = {rhs}\n"
+        f"  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
+        f"END WHERE\n", Fortran2003.Where_Construct,
+        ["dry", "z1_st", "depth", "ptsu", "var1"])
+    # We should have a doubly-nested loop with an IfBlock inside
+    loops = fake_parent.walk(Loop)
+    assert len(loops) == 2
+    for loop in loops:
+        assert "was_where" in loop.annotations
+    assert isinstance(loops[1].loop_body[0], IfBlock)
+
+
+@pytest.mark.usefixtures("parser")
 def test_elsewhere():
     ''' Check that a WHERE construct with two ELSEWHERE clauses is correctly
     translated into a canonical form in the PSyIR.
 
     '''
     fake_parent, _ = process_where("WHERE (ptsu(:, :, :) > 10._wp)\n"
-                                   "  zval = 1._wp\n"
-                                   "  z1_st(:, :, :) = zval / ptsu(:, :, :)\n"
+                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                    "ELSEWHERE (ptsu(:, :, :) < 0.0_wp)\n"
                                    "  z1_st(:, :, :) = -1._wp\n"
                                    "ELSEWHERE\n"

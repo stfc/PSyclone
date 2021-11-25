@@ -2820,10 +2820,15 @@ class Fparser2Reader(object):
                                      found.
         '''
         assigns = parent.walk(Assignment)
-        # Check that the LHS of any assignment uses recognised array
-        # notation.
-        #for assign in assigns:
-        #    _ = self._array_notation_rank(assign.lhs)
+        # Check that the LHS of any assignment that has Ranges on the RHS
+        # uses recognised array notation.
+        for assign in assigns:
+            ranges = assign.rhs.walk(Range)
+            if not ranges:
+                # No array ranges on the RHS of this assignment
+                continue
+            _ = self._array_notation_rank(assign.lhs)
+
         # TODO #717 if the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
         # identify it as a scalar and the code produced from the
@@ -2992,8 +2997,8 @@ class Fparser2Reader(object):
                 while orig_member is not first_array:
                     member = member.member
                     orig_member = orig_member.member
-                member.parent.children = [Member(first_array.name,
-                                                 parent=member.parent)]
+                member.parent.children[0] = Member(first_array.name,
+                                                   parent=member.parent)
             else:
                 # The array access is to a symbol of ArrayType
                 symbol = _find_or_create_imported_symbol(
