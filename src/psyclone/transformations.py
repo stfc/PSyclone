@@ -44,7 +44,6 @@
 from __future__ import absolute_import, print_function
 
 import abc
-import six
 
 from fparser.two.utils import walk
 from fparser.common.readfortran import FortranStringReader
@@ -143,12 +142,12 @@ class KernelTrans(Transformation):
             message = ("Failed to create PSyIR version of kernel code for "
                        "kernel '{0}'. Error reported is {1}."
                        "".format(kern.name, str(error.value)))
-            six.raise_from(TransformationError(message), error)
+            raise TransformationError(message) from error
         except SymbolError as err:
-            six.raise_from(TransformationError(
+            raise TransformationError(
                 "Kernel '{0}' contains accesses to data that are not captured "
                 "in the PSyIR Symbol Table(s) ({1}). Cannot transform such a "
-                "kernel.".format(kern.name, str(err.args[0]))), err)
+                "kernel.".format(kern.name, str(err.args[0]))) from err
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
@@ -157,15 +156,14 @@ class KernelTrans(Transformation):
                 var.scope.symbol_table.lookup(
                     var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except KeyError as err:
-                six.raise_from(TransformationError(
+                raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
                     "that are not captured in the PSyIR Symbol Table(s) "
                     "within KernelSchedule scope. Cannot transform such a "
-                    "kernel.".format(kern.name, var.name)), err)
+                    "kernel.".format(kern.name, var.name)) from err
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ParallelLoopTrans(LoopTrans):
+class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     '''
     Adds an orphaned directive to a loop indicating that it should be
     parallelised.
@@ -282,8 +280,6 @@ class ParallelLoopTrans(LoopTrans):
         if not options:
             options = {}
         self.validate(node, options=options)
-
-        schedule = node.root
 
         collapse = options.get("collapse", None)
 
@@ -754,7 +750,7 @@ class OMPLoopTrans(ParallelLoopTrans):
             schedule format.
         '''
 
-        if not isinstance(value, six.string_types):
+        if not isinstance(value, str):
             raise TypeError(
                 "The OMPLoopTrans.omp_schedule property must be a 'str'"
                 " but found a '{0}'.".format(type(value).__name__))
@@ -772,9 +768,8 @@ class OMPLoopTrans(ParallelLoopTrans):
             try:
                 int(value_parts[1].strip())
             except ValueError as err:
-                six.raise_from(
-                    ValueError("Supplied OpenMP schedule '{0}' has an "
-                               "invalid chunk-size.".format(value)), err)
+                raise ValueError("Supplied OpenMP schedule '{0}' has an "
+                                 "invalid chunk-size.".format(value)) from err
 
         self._omp_schedule = value
 
@@ -1038,8 +1033,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         '''
         self.validate(node, options=options)
 
-        schedule = node.root
-
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
         node_parent = node.parent
@@ -1257,8 +1250,6 @@ class ColourTrans(LoopTrans):
         '''
         self.validate(node, options=options)
 
-        schedule = node.root
-
         node_parent = node.parent
         node_position = node.position
 
@@ -1349,8 +1340,6 @@ class KernelModuleInlineTrans(KernelTrans):
 
         '''
         self.validate(node, options)
-
-        schedule = node.root
 
         if not options:
             options = {}
@@ -1460,8 +1449,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         ColourTrans.apply(self, node)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ParallelRegionTrans(RegionTrans):
+class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     '''
     Base class for transformations that create a parallel region.
 
@@ -1545,7 +1533,6 @@ class ParallelRegionTrans(RegionTrans):
         # position of the new !$omp parallel directive.
         node_parent = node_list[0].parent
         node_position = node_list[0].position
-        schedule = node_list[0].root
 
         # Create the parallel directive as a child of the
         # parent of the nodes being enclosed and with those nodes
@@ -2188,8 +2175,6 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             options = {}
         depth = options.get("depth")
 
-        schedule = loop.root
-
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
@@ -2251,8 +2236,6 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         '''
         self.validate(node, options)
-
-        schedule = node.root
 
         from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
         # add asynchronous start and end halo exchanges and initialise
@@ -2356,6 +2339,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         return "Dynamo0p3KernelConstTrans"
 
     def apply(self, node, options=None):
+        # pylint: disable=too-many-statements
         '''Transforms a kernel so that the values for the number of degrees of
         freedom (if a valid value for the element_order arg is
         provided), the number of quadrature points (if the quadrature
@@ -2419,11 +2403,12 @@ class Dynamo0p3KernelConstTrans(Transformation):
             arg_index = arg_position - 1
             try:
                 symbol = symbol_table.argument_list[arg_index]
-            except IndexError:
+            except IndexError as err:
                 raise TransformationError(
                     "The argument index '{0}' is greater than the number of "
-                    "arguments '{1}'.".format(arg_index,
-                                              len(symbol_table.argument_list)))
+                    "arguments '{1}'."
+                    .format(arg_index,
+                            len(symbol_table.argument_list))) from err
             # Perform some basic checks on the argument to make sure
             # it is the expected type
             if not isinstance(symbol.datatype, ScalarType):
@@ -2467,7 +2452,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
         number_of_layers = options.get("number_of_layers", None)
         quadrature = options.get("quadrature", False)
         element_order = options.get("element_order", None)
-        schedule = node.root
         kernel = node
 
         from psyclone.domain.lfric import KernCallArgList
@@ -2478,7 +2462,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         except NotImplementedError as excinfo:
             raise TransformationError(
                 "Failed to parse kernel '{0}'. Error reported was '{1}'."
-                "".format(kernel.name, str(excinfo)))
+                "".format(kernel.name, str(excinfo))) from excinfo
 
         symbol_table = kernel_schedule.symbol_table
         if number_of_layers:
@@ -2518,14 +2502,14 @@ class Dynamo0p3KernelConstTrans(Transformation):
                         ndofs = Dynamo0p3KernelConstTrans. \
                                 space_to_dofs[
                                     info.function_space](element_order)
-                    except KeyError:
+                    except KeyError as err:
                         raise InternalError(
                             "Error in Dynamo0p3KernelConstTrans "
                             "transformation. Unsupported function space "
                             "'{0}' found. Expecting one of {1}."
                             "".format(info.function_space,
                                       Dynamo0p3KernelConstTrans.
-                                      space_to_dofs.keys()))
+                                      space_to_dofs.keys())) from err
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
@@ -2908,7 +2892,6 @@ class ACCKernelsTrans(RegionTrans):
         self.validate(node_list, options)
 
         parent = node_list[0].parent
-        schedule = node_list[0].root
         start_index = node_list[0].position
 
         if not options:
@@ -3017,7 +3000,6 @@ class ACCDataTrans(RegionTrans):
         self.validate(node_list, options)
 
         parent = node_list[0].parent
-        schedule = node_list[0].root
         start_index = node_list[0].position
 
         # Create a directive containing the nodes in node_list and insert it.
@@ -3115,7 +3097,7 @@ class KernelImportsToArguments(Transformation):
         except SymbolError as err:
             raise TransformationError(
                 "Kernel '{0}' contains undeclared symbol: {1}".format(
-                    node.name, str(err.value)))
+                    node.name, str(err.value))) from err
 
         symtab = kernel.symbol_table
         for container in symtab.containersymbols:
