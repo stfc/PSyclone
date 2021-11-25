@@ -1119,6 +1119,15 @@ class SymbolTable(object):
                     symbol_match.copy_properties(symbol)
                     symbol_match.interface = interface
                     symbol_match.visibility = visibility
+                else:
+                    if c_symbol.wildcard_import:
+                        # This symbol is PUBLIC and inside a wildcard import,
+                        # so it needs to be declared in the symbol table.
+                        new_symbol = symbol.copy()
+                        new_symbol.interface = ImportInterface(c_symbol)
+                        new_symbol.visibility = self.default_visibility
+                        self.add(new_symbol)
+
 
     def rename_symbol(self, symbol, name):
         '''

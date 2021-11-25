@@ -1613,6 +1613,7 @@ def test_resolve_imports(fortran_reader, tmpdir):
         module.write('''
         module a_mod
             integer :: a_1, a_2
+            integer :: b_1  ! Name clash but it is not imported
         end module a_mod
         ''')
     with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
@@ -1753,6 +1754,62 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir):
     assert ("Found a name clash with symbol 'name_clash1' when importing "
             "symbols from container 'a_mod', this symbol was already defined "
             "in 'b_mod'." in str(err.value))
+
+    # Clean up the config instance
+    Config._instance = None
+
+
+def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
+    ''' Tests the SymbolTable resolve_imports method. '''
+    with open(os.path.join(str(tmpdir), "my_mod.f90"), "w") as module:
+        module.write('''
+        module my_mod
+            type my_type
+                integer :: field
+                integer, dimension(:,:) :: array
+            end type my_type
+            type(my_type) :: global1
+            type(my_type) :: global2
+        end module my_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            use my_mod
+            type(my_type) :: local1
+
+        end subroutine test
+    ''')
+
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+    # Add a generic definition of golbal1
+    symtab.add(Symbol("global1",
+                      interface=ImportInterface(symtab.lookup("my_mod"))))
+
+    # Before resolving import
+    assert not isinstance(symtab.lookup("global1"), DataSymbol)
+    # global2 doesn't exist because it is never mentioned
+    assert "global2" not in symtab
+    # Some symbols types / datatype are inferred
+    assert isinstance(symtab.lookup("my_type"), DataTypeSymbol)
+    assert symtab.lookup("local1").datatype == symtab.lookup("my_type")
+    # but we don't know anything about the imported type
+    assert isinstance(symtab.lookup("my_type").datatype, DeferredType)
+
+    # Set up include_path to import the proper modules
+    Config.get()._include_paths = [str(tmpdir)]
+    symtab.resolve_imports()
+    # The globals exist and are DataSymbols now
+    assert isinstance(symtab.lookup("global1"), DataSymbol)
+    assert isinstance(symtab.lookup("global2"), DataSymbol)
+
+    # All are of my_type type
+    assert symtab.lookup("local1").datatype.name == "my_type"
+    assert symtab.lookup("global1").datatype.name == "my_type"
+    assert symtab.lookup("global2").datatype.name == "my_type"
+
+    # Now the imported type "my_type" has more info
+    assert isinstance(symtab.lookup("my_type").datatype, DeferredType)
 
     # Clean up the config instance
     Config._instance = None
