@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import pytest
 import fparser
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
@@ -51,7 +52,7 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
+    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, DataTypeSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
     REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
@@ -1008,6 +1009,21 @@ def test_process_array_declarations():
     assert reference.name == "ddim"
     assert reference.symbol is ddim
     assert isinstance(reference.symbol.datatype, DeferredType)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_class_declarations():
+    ''' '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent.symbol_table.add(DataTypeSymbol("my_type",
+                                                DeferredType()))
+    processor = Fparser2Reader()
+
+    reader = FortranStringReader("class(my_type), intent(in) :: arg1")
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert 0
 
 
 @pytest.mark.usefixtures("f2008_parser")
