@@ -64,10 +64,6 @@ def trans(psy):
     for kern in sched.kernels():
         ktrans.apply(kern)
 
-    # Transform the Schedule
-    cltrans = GOOpenCLTrans()
-    cltrans.apply(sched, options={"end_barrier": True})
-
     # Provide kernel-specific OpenCL optimization options
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kern in sched.kernels():
@@ -76,5 +72,9 @@ def trans(psy):
         move_boundaries_trans.apply(kern)
         # Specify the OpenCL queue and workgroup size of the kernel
         kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
+
+    # Transform the Schedule
+    cltrans = GOOpenCLTrans()
+    cltrans.apply(sched, options={"end_barrier": True})
 
     return psy

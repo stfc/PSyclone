@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -62,18 +63,19 @@ class CreateNemoLoopTrans(Transformation):
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])
     >>> psyir.view()
-    Routine[name:'sub']
-        0: Loop[type='lon', field_space='None', it_space='None']
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: Assignment[]
-                    ArrayReference[name:'tmp']
-                        Reference[name:'ji']
-                    BinaryOperation[operator:'MUL']
-                        Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-                        Reference[name:'ji']
+    FileContainer[None]
+        Routine[name:'sub']
+            0: Loop[type='lon', field_space='None', it_space='None']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Schedule[]
+                    0: Assignment[]
+                        ArrayReference[name:'tmp']
+                            Reference[name:'ji']
+                        BinaryOperation[operator:'MUL']
+                            Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                            Reference[name:'ji']
 
     As shown above, the resulting Schedule now contains a NemoLoop, indicated
     by the "type='lon'" (for 'longitude') annotation for the Loop node.
@@ -125,12 +127,6 @@ class CreateNemoLoopTrans(Transformation):
             to None.
         :type options: dict of string:values or None
 
-        TODO #595 decide what this method should return.
-
-        :returns: 2-tuple containing the root of the modified PSyIR tree \
-            and None.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Node`, None)
-
         '''
         self.validate(loop, options=options)
 
@@ -146,8 +142,6 @@ class CreateNemoLoopTrans(Transformation):
         new_loop.loop_body._symbol_table = table
         new_loop.loop_body._symbol_table._node = new_loop.loop_body
         loop.replace_with(new_loop)
-
-        return (new_loop.root, None)
 
 
 # For AutoAPI documentation generation

@@ -1839,8 +1839,9 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
    is an ``integer`` of kind ``i_def`` and has intent ``in``.
 
-3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an ``integer`` of kind ``i_def`` with intent ``in``.
+3) Include the total number of cells in the 2D mesh (including halos),
+   ``ncell_2d``, which is an ``integer`` of kind ``i_def`` with
+   intent ``in``.
 
 4) Include the total number of cells, ``ncell_3d``, which is an ``integer``
    of kind ``i_def`` with intent ``in``.
@@ -1930,8 +1931,9 @@ The full set of rules is then:
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
 
-2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an ``integer`` of kind ``i_def`` with intent ``in``.
+2) Include the total number of cells in the 2D mesh (including halos),
+   ``ncell_2d``, which is an ``integer`` of kind ``i_def`` with
+   intent ``in``.
 
 3) For each argument in the ``meta_args`` metadata array:
 
@@ -1980,8 +1982,8 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
 
-2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
-   an ``integer`` of kind ``i_def`` with intent ``in``.
+2) Include the total number of cells in the 2D mesh (including halos),
+   ``ncell_2d``, which is an ``integer`` of kind ``i_def`` with intent ``in``.
 
 3) For each CMA operator or scalar argument specified in metadata:
 
@@ -2059,10 +2061,10 @@ identical to those for general-purpose kernels (described :ref:`above
 <dynamo0.3-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
-on the whole domain, the number of columns in the mesh (``ncell_2d``)
-must be passed in. This is provided as the second argument to the
-kernel (after ``nlayers``). ``ncell_2d`` is an ``integer`` of kind
-``i_def`` with intent ``in``.
+on the whole domain, the number of columns in the mesh excluding those
+in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
+as the second argument to the kernel (after ``nlayers``).
+``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
 

@@ -143,12 +143,9 @@ class NemoArrayAccess2LoopTrans(Transformation):
 
         # Look up the loop variable in the symbol table. If it does
         # not exist then create it.
-        try:
-            loop_variable_symbol = symbol_table.lookup(loop_variable_name)
-        except KeyError:
-            # Add loop variable as it does not already exist
-            loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
-            symbol_table.add(loop_variable_symbol)
+        loop_variable_symbol = symbol_table.find_or_create(
+                loop_variable_name, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Replace current access with loop variable.
         for array in assignment.walk(ArrayReference):

@@ -33,6 +33,22 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
+.. testsetup::
+
+    # TODO 1238: This is not necessary anymore once we can explicitly
+    #            disable colouring.
+    import psyclone.psyir.nodes.node
+    def new_colored(text, _):
+        return text
+
+    # Disable colouring in output to allow passing of tests
+    psyclone.psyir.nodes.node.colored = new_colored
+
+    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+
 Transformations
 ###############
 
@@ -332,3 +348,52 @@ issues:
    directly for a non-elementwise operation. Fixing this issue is the
    subject of #685. For the moment the test just checks for MATMUL as
    that is currently the only non-elementwise operation in the PSyiR.
+
+OpenMP Tasking
+==============
+OpenMP tasking is supported in PSyclone, currently by the combination
+of the `OMPTaskloopTrans` and the `OMPTaskwaitTrans`.
+Dependency analysis and handling is done by the `OMPTaskwaitTrans`,
+which uses its own `get_forward_dependence` function to compute them.
+
+get_forward_dependence
+------------------------
+This function searches through the current section of the PSyIR tree for
+the given taskloop's next forward dependency, using the dependency analysis
+tools provided in `psyclone.psyir.tools.dependency_tools`. It searches
+through the tree for all `Loop`, `OMPDoDirective`, `OMPTaskloopDirective`,
+and `OMPTaskwaitDirective`. It then iterates forward through these until it
+finds:
+
+1) A `Loop`, `OMPDoDirective`, or `OMPTaskloopDirective` which contains a 
+   Read-after-Write (RaW) or Write-after-Read (WaR) dependency, in which
+   case that node is returned as the next dependence if it is contained
+   within the same `OMPSerialDirective`. If it is not contained within
+   the same `OMPSerialDirective`, the taskloop's parent
+   `OMPSingleDirective` is returned instead, provided it has no
+   `nowait` clause associated with it.
+
+2) An `OMPTaskloopDirective` within the same `OMPSingleDirective`
+   provided the single region has no `nowait` clause associated with it.
+   If this criteria is satisfied the taskloop directive is returned.
+
+The forward dependency will never be a child node of the provided taskloop,
+and the dependency's `abs_position` will always be great than 
+`taskloop.abs_position`.
+
+The RaW and WaR dependencies are computed by gathering all of the variable
+accesses contained inside the relevant directive's subtrees (other than 
+loop variables which are ignored), and checking for collisions between the lists.
+If those collisions are not both read-only, then we know there must be a RaW or
+WaR dependency.
+
+If no dependency is found, then `None` is returned.
+
+If a taskloop has no `nogroup` clause associated, it will be skipped over
+during the `OMPTaskwaitTransformation.apply` call, as any solvable dependencies
+will be satisfied by the implicit taskgroup.
+
+These structures are the only way to satisfy dependencies between taskloops,
+and any other structures of dependendent taskloops will be caught by the
+`OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
+why the dependencies cannot be resolved.

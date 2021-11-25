@@ -259,6 +259,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
@@ -266,7 +272,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule
+    :members: apply, omp_schedule, omp_worksharing
     :noindex:
 
 ####
@@ -277,7 +283,19 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -550,8 +568,8 @@ with the new one. For example::
     >>> ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    >>> new_schedule, memento = ol.apply(schedule.children[0])
-    >>> new_schedule.view()
+    >>> ol.apply(schedule.children[0])
+    >>> schedule.view()
 
     # Generate the Fortran code for the new PSy layer
     >> print(psy.gen)
@@ -612,8 +630,7 @@ below does the same thing as the example in the
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
-        new_schedule, _ = ol.apply(schedule.children[0])
-        invoke.schedule = new_schedule
+        ol.apply(schedule.children[0])
         return psy
 
 Of course the script may apply as many transformations as is required
@@ -634,10 +651,12 @@ OpenMP is added to a code by using transformations. The OpenMP
 transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
-* an **OpenMP Do** directive
+* an **OpenMP Target** directive
+* an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
-* an **OpenMP Taskloop** directive; and
+* an **OpenMP Taskloop** directive
+* multiple **OpenMP Taskwait** directives; and
 * an **OpenMP Parallel Do** directive.
 
 The generic versions of these transformations (i.e. ones that
@@ -695,6 +714,16 @@ region for a set of nodes that includes halo swaps or global sums will
 produce an error.  In such cases it may be possible to re-order the
 nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
 transformation.
+
+OpenMP Tasking
+++++++++++++++
+PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
+`OMPTaskwaitTrans` transformations. `OMPTaskloopTrans`
+transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
+operator is applied to an OpenMP Parallel Region, and computes the dependencies
+caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
+dependencies. An example of using OpenMP tasking is available in 
+`PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
 
 OpenCL
 ------

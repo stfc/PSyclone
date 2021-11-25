@@ -673,20 +673,6 @@ def test_kern_coloured_text():
     assert colored("BuiltIn", bkern._colour) in ret_str
 
 
-def test_kern_abstract_methods():
-    ''' Check that the abstract methods of the Kern class raise the
-    NotImplementedError. '''
-    # We need to get a valid kernel object
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    with pytest.raises(NotImplementedError) as err:
-        super(DynKern, my_kern).gen_arg_setter_code(None)
-    assert ("gen_arg_setter_code must be implemented by sub-class"
-            in str(err.value))
-
-
 def test_kern_children_validation():
     '''Test that children added to Kern are validated. A Kern node does not
     accept any children.
@@ -2193,7 +2179,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kernels[0], {"number_of_layers": 100})
+    ktrans.apply(kernels[0], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     _ = str(psy.gen)
     filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")

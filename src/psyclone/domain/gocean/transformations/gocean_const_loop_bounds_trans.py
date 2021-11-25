@@ -186,10 +186,6 @@ class GOConstLoopBoundsTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dict of str:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
         self.validate(node, options=options)
 
@@ -267,5 +263,3 @@ class GOConstLoopBoundsTrans(Transformation):
             psyir = fortran_reader.psyir_from_expression(
                     stop_expr, node.symbol_table)
             loop.children[1].replace_with(psyir)
-
-        return node, None

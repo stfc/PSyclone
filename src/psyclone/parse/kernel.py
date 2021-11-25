@@ -35,6 +35,7 @@
 #          R. W. Ford and A. R. Porter STFC Daresbury Lab
 # Modified: C.M. Maynard, Met Office / University of Reading,
 #           I. Kavcic, Met Office
+#           J. Henrichs, Bureau of Meteorology
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -42,10 +43,12 @@ PSyclone-conformant kernel code.
 '''
 
 import os
-from pyparsing import ParseException
-import six
-import fparser
+import sys
 
+import six
+from pyparsing import ParseException
+
+import fparser
 from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -157,7 +160,12 @@ def get_kernel_parse_tree(filepath):
 
     '''
     parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable(fparser.logging.CRITICAL)
+
+    # If logging is disable during a sphinx doctest run, doctest will just
+    # stop working. So only disable logging if we are not running doctest.
+    if 'sphinx.ext.doctest' not in sys.modules:
+        fparser.logging.disable(fparser.logging.CRITICAL)
+
     try:
         parse_tree = fpapi.parse(filepath)
         # parse_tree includes an extra comment line which contains
@@ -165,10 +173,10 @@ def get_kernel_parse_tree(filepath):
         # length issues. Therefore set the information (name) to be
         # empty.
         parse_tree.name = ""
-    except Exception:
-        raise ParseError(
+    except Exception as err:
+        six.raise_from(ParseError(
             "Failed to parse kernel code '{0}'. Is the Fortran "
-            "correct?".format(filepath))
+            "correct?".format(filepath)), err)
     return parse_tree
 
 
@@ -234,22 +242,23 @@ class KernelTypeFactory(object):
         :raises ParseError: if the supplied API is not supported.
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynKernelType
             return DynKernelType(parse_tree, name=name)
-        elif self._type == "dynamo0.3":
+        if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)
-        elif self._type == "gocean0.1":
+        if self._type == "gocean0.1":
             from psyclone.gocean0p1 import GOKernelType
             return GOKernelType(parse_tree, name=name)
-        elif self._type == "gocean1.0":
+        if self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(parse_tree, name=name)
-        else:
-            raise ParseError(
-                "KernelTypeFactory:create: Unsupported kernel type '{0}' "
-                "found.".format(self._type))
+        raise ParseError(
+            "KernelTypeFactory:create: Unsupported kernel type '{0}' "
+            "found.".format(self._type))
 
 
 class BuiltInKernelTypeFactory(KernelTypeFactory):
@@ -303,10 +312,11 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             parsefortran.FortranParser.cache.clear()
             fparser.logging.disable(fparser.logging.CRITICAL)
             parse_tree = fpapi.parse(fname)
-        except Exception:
-            raise ParseError(
+        except Exception as err:
+            six.raise_from(ParseError(
                 "BuiltInKernelTypeFactory:create: Failed to parse the meta-"
-                "data for PSyclone built-ins in file '{0}'.".format(fname))
+                "data for PSyclone built-ins in file '{0}'.".format(fname)),
+                err)
 
         # Now we have the parse tree, call our parent class to create \
         # the object
@@ -382,11 +392,10 @@ def get_stencil(metadata, valid_types):
                 "the specified <type> '{0}' is a literal and therefore is "
                 "not one of the valid types '{1}'".
                 format(metadata.args[0], valid_types))
-        else:
-            raise ParseError(
-                "Internal error, expecting either FunctionVar or "
-                "str from the expression analyser but found {0}".
-                format(type(metadata.args[0])))
+        raise ParseError(
+            "Internal error, expecting either FunctionVar or "
+            "str from the expression analyser but found {0}".
+            format(type(metadata.args[0])))
     if metadata.args[0].args:
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
@@ -433,6 +442,7 @@ class Descriptor(object):
                               None if the argument is not supplied.
 
     '''
+    # pylint: disable=too-many-arguments
     def __init__(self, access, space, stencil=None, mesh=None,
                  argument_type=None):
         self._access = access
@@ -728,10 +738,10 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
             "'{1}': '{2}'.".format(var_name, name, str(ast).strip()))
     try:
         nargs = int(descs.shape[0])
-    except AttributeError:
-        raise ParseError(
+    except AttributeError as err:
+        six.raise_from(ParseError(
             "In kernel metadata '{0}': '{1}' variable must be an array.".
-            format(name, var_name))
+            format(name, var_name)), err)
     if len(descs.shape) != 1:
         raise ParseError(
             "In kernel metadata '{0}': '{1}' variable must be a 1 dimensional "
@@ -743,9 +753,9 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
             "'{0}', please use '(/.../)' instead.".format(var_name))
     try:
         inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
-    except ParseException:
-        raise ParseError("Kernel metadata has an invalid format {0}.".
-                         format(descs.init))
+    except ParseException as err:
+        six.raise_from(ParseError("Kernel metadata has an invalid format {0}.".
+                                  format(descs.init)), err)
     nargs = int(descs.shape[0])
     if len(inits) != nargs:
         raise ParseError(
@@ -754,7 +764,7 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
             "array ({2}).".format(var_name, len(inits), nargs))
     if var_type:
         # Check that each element in the list is of the correct type
-        if not all([init.name == var_type for init in inits]):
+        if not all(init.name == var_type for init in inits):
             raise ParseError(
                 "The '{0}' metadata must consist of an array of structure"
                 " constructors, all of type '{1}' but found: {2}.".format(

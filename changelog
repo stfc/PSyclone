@@ -1,4 +1,36 @@
 
+	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
+	checking functionality (in PSyData).
+
+	2) PR #1463 for #1461. VALID_LOOP_TYPES constant made consistent
+	across APIs to permit check on loop type in dependency tools.
+
+	3) PR #1473 for #1423. Adds the ChunkLoopTrans PSyIR transformation.
+
+	4) PR #1475 for #595. Remove memento and transformation return values.
+
+	5) PR #1470 for #1459. Refactor OMPLoopTrans to support OMPLoop
+	directive and add OMPTargetTrans.
+
+	6) PR #1452 for #1451. Add doctest for the Dev Guide to GitHub Actions
+	and tidy the examples so that they work.
+
+	7) PR #1503 for #1502. Fix incorrect path in tutorial README.
+
+	8) PR #1489 for #1488. Configure MD link checker to skip links to MO wiki.
+
+	9) PR #1501 for #1484. Remove Python2 validation, update
+	documentation, start removing Python2-specific code and start
+	using any pylint-suggested Python3-specific code constructs.
+
+	10) PR #1476 for #1456. Fix precision problems in the PSyAD harness
+	code generation and add harness documentation.
+
+	11) PR #1482 for #1481. Renames symbol_from_tag->find_or_create_tag
+        and tidies its use.
+
+release 2.1.0 3rd November 2021
+
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
 	by the LoopFusion transformation.
 
@@ -253,6 +285,20 @@
 
 	86) PR #1432 for #1168. Adds PSyIR lowering support for generic
 	PSyData nodes.
+
+	87) PR #1415 towards #1338. Adds the OMPTaskwaitTrans transformation
+	that resolves dependencies between task loops.
+
+	88) PR #1460 for #1454. Fix code generation to pass the number of
+	cells up to the last edge cell instead of the halo cells to the
+	'domain' kernels in the LFRic API.
+
+	89) PR #1438 towards #1134. Moves the creation of the OpenCL
+	set_args routines into the transformation.
+
+	90) PR #1480 for #1479 Makes PSyclone use the release version of
+	fparser (0.0.13) from pypi on installation (towards making a new
+	PSyclone release).
 
 release 2.0.0 28th April 2021
 

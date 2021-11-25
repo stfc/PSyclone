@@ -237,6 +237,15 @@ class OMPSingleDirective(OMPSerialDirective):
         super(OMPSingleDirective, self).__init__(children=children,
                                                  parent=parent)
 
+    @property
+    def nowait(self):
+        '''
+        :returns: whether the nowait clause is specified for this directive.
+        :rtype: bool
+
+        '''
+        return self._nowait
+
     def gen_code(self, parent):
         '''Generate the fortran OMP Single Directive and any associated
         code
@@ -591,6 +600,14 @@ class OMPTaskloopDirective(OMPRegionDirective):
         super(OMPTaskloopDirective, self).__init__(children=children,
                                                    parent=parent)
 
+    @property
+    def nogroup(self):
+        '''
+        :returns: the nogroup clause status of this node.
+        :rtype: bool
+        '''
+        return self._nogroup
+
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -931,6 +948,18 @@ class OMPTargetDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp target"
 
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end target". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end target"
+
 
 class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations
@@ -1009,12 +1038,22 @@ class OMPLoopDirective(OMPRegionDirective):
             string += " collapse({0})".format(str(self._collapse))
         return string
 
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end loop". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end loop"
+
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be
         done at code-generation time.
 
-        :raises GenerationError: if this OMPLoopDirective is not enclosed \
-            within some OMPParallelDirective region.
         :raises GenerationError: if this OMPLoopDirective has more than one \
             child in its associated schedule.
         :raises GenerationError: if the schedule associated with this \
@@ -1023,11 +1062,6 @@ class OMPLoopDirective(OMPRegionDirective):
             clause but it doesn't have the expected number of nested Loops.
 
         '''
-        if not self.ancestor(OMPParallelDirective):
-            raise GenerationError(
-                "OMPLoopDirective must have an OMPParallelDirective as an "
-                "ancestor.")
-
         if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "OMPLoopDirective must have exactly one child in its "

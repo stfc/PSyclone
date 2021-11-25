@@ -47,11 +47,11 @@ transform:
                  testkern_mod.f90 -a field1 field2
 
 compile: transform
-	$(F90) -c testkern_mod.f90
-	$(F90) -c testkernadj_mod.f90
-	$(F90) -c test_harness.f90
-	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o \
-                  test_harness.o
+	$(F90) $(F90FLAGS) -c testkern_mod.f90
+	$(F90) $(F90FLAGS) -c testkernadj_mod.f90
+	$(F90) $(F90FLAGS) -c test_harness.f90
+	$(F90) $(F90FLAGS) -o test_harness.exe testkern_mod.o \
+                  testkernadj_mod.o test_harness.o
 
 run: compile
 	@echo ""

@@ -151,11 +151,6 @@ class GOceanExtractTrans(ExtractTrans):
             should uniquely identify a region unless aggregate information \
             is required (and is supported by the runtime library).
 
-        :returns: Tuple of the modified schedule and a record of the \
-                  transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                :py:class:`psyclone.undoredo.Memento`)
-
         '''
         if options is None:
             my_options = {}
@@ -187,6 +182,4 @@ class GOceanExtractTrans(ExtractTrans):
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
 
-        result = super(GOceanExtractTrans, self).apply(nodes, my_options)
-
-        return result
+        super(GOceanExtractTrans, self).apply(nodes, my_options)

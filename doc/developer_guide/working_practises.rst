@@ -248,6 +248,116 @@ of checking for this is to run pylint on any modified test modules.
     without actually executing the tests.
 
 
+Documentation testing
+---------------------
+Any code snippet included in the documentation should be tested to make
+sure our examples and documentation work as expected.
+Therefore, all examples in the documentation should be specified using
+``testcode`` and ``testoutput`` directives, which allows
+these code snippets to be tested. For example::
+
+    .. testcode::
+
+    # access_info is an AccessInfo instance and contains one access. This
+    # could be as simple as `a(i,j)`, but also something more complicated
+    # like `a(i+2*j)%b%c(k, l)`.
+    for indx in access_info.component_indices.iterate():
+        # indx is a 2-tuple of (component_index, dimension_index)
+        psyir_index = access_info.component_indices[indx]
+
+    # Using enumerate:
+    for count, indx in enumerate(access_info.component_indices.iterate()):
+        psyir_index = access_info.component_indices[indx]
+        # fortran writer converts a PSyIR node to Fortran:
+        print("Index-id {0} of 'a(i,j)': {1}"
+              .format(count, fortran_writer(psyir_index)))
+
+  .. testoutput::
+
+      Index-id 0 of 'a(i,j)': i
+      Index-id 1 of 'a(i,j)': j
+
+Output should only be included if it is reasonably short. To avoid adding
+output to the manual, use the ``:hide:`` option of ``testoutput``::
+
+  .. testoutput::
+      :hide:
+
+      Index 'i' is used.
+
+
+The command `make doctest` will execute all tests marked in the documentation,
+and also any example code included in a docstring of a function or class
+that is documented in the manual (e.g. using ``automethod``).
+Some tests or examples will require data structure to be set up or
+modules to be imported. This can be done in a ``testsetup``
+section. For example, here an excerpt from ``dependency.rst``::
+
+    .. testsetup::
+
+        from psyclone.psyir.frontend.fortran import FortranReader
+        from psyclone.psyir.nodes import Loop
+
+        code = '''subroutine sub()
+        integer :: i, j, k, a(10, 10)
+        a(i,j) = 1
+        do i=1, 10
+           j = 3
+           a(i,i) = j + k
+        enddo
+        end subroutine sub
+        '''
+        psyir = FortranReader().psyir_from_source(code)
+        # Take the loop node:
+        loop = psyir.children[0][1]
+        loop_statements = [loop]
+
+    Here might be then be several paragraphs of documentation.
+    Then in an example code, anything prepared in the above
+    code can be used, for example:
+
+    .. testcode::
+
+        for statement in loop_statements:
+            if isinstance(statement, Loop):
+
+The ``testsetup`` section creates a variable ``loop_statements``
+and imports the Loop class, and the actual example uses this code.
+
+Many code snippets in python docstrings might try to parse a file,
+which typically cannot be found (unless the full path would be
+provided, which makes the example look ugly). One solution for this
+is to use a variable that is supposed to contain the filename, and then
+define this variable in the ``testsetup`` section. For example, the
+file ``transformation.py`` uses::
+
+    class ACCEnterDataTrans(Transformation):
+        '''
+        Adds an OpenACC "enter data" directive to a Schedule.
+        For example:
+
+        >>> from psyclone.parse.algorithm import parse
+        >>> api = "gocean1.0"
+        >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+        ...
+        >>> dtrans.apply(schedule)
+
+
+And the variable SOURCE_FILE is defined in the ``testsetup`` section
+of ``transformations.rst``::
+
+    .. testsetup::
+
+        # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+        SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+            "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+    ...
+
+    .. autoclass:: psyclone.transformations.ACCEnterDataTrans
+       :noindex:
+
+
 .. _compilation_testing:
 
 Compilation testing
@@ -312,24 +422,32 @@ Continuous Integration
 The PSyclone project uses GitHub Actions
 (https://psyclone.readthedocs.io/en/stable/examples.html#examples)
 for continuous integration. GitHub triggers an action whenever there
-is a push to the repository. The work performed by the action is
-configured by the ``PSyclone/.github/workflows/python-package.yml``
-file.
+is a push to a pull-request on the repository. The work performed by
+the action is configured in the
+``PSyclone/.github/workflows/python-package.yml`` file.
 
-Currently there are four main checks performed, in order of increasing
+Currently there are five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked;
+ 1. All links within all MarkDown files are checked. Those links to skip
+    (because they are e.g. password protected) are specified in the
+    ``PSyclone/mlc_config.json`` configuration file.
 
- 2. All links within the Sphinx documentation (rst files) are checked (see
+ 2. All examples in the Developer Guide are checked for correctness by
+    running ``make doctest``.
+
+ 3. The code base, examples and tutorials are lint'ed with flake8.
+    (Configuration of flake8 is performed in ``setup.cfg``.)
+
+ 3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 3. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+ 4. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 4. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
+ 5. The full test suite is run for Python versions 3.5 and 3.8 but without
     the compilation checks.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
@@ -366,7 +484,7 @@ and therefore the line described above must be commented out again
 before making a release.
 
 A single run of the test suite on GitHub Actions uses
-approximately 20 minutes of CPU time and we run the test suite on three
+approximately 20 minutes of CPU time and we run the test suite on two
 different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without

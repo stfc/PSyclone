@@ -185,10 +185,10 @@ Example 1: Loop transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examples of applying various transformations (loop fusion, OpenMP,
-OpenACC, OpenCL) to the semi-PSyKAl'd version of the Shallow
-benchmark. ("semi" because not all kernels are called from within
-invoke()'s.) Also includes an example of generating a DAG from an
-InvokeSchedule.
+OpenMP Taskloop, OpenACC, OpenCL) to the semi-PSyKAl'd version of
+the Shallow benchmark. ("semi" because not all kernels are called
+from within invoke()'s.) Also includes an example of generating a
+DAG from an InvokeSchedule.
 
 Example 2: OpenACC
 ^^^^^^^^^^^^^^^^^^
@@ -314,6 +314,35 @@ read-only variables:
     Original value:    1.0000000000000000     
     New value:         123.00000000000000     
     --------------------------------------
+
+.. _gocean_example_nan:
+
+Example 5.4: Valid Number Verification (NaN Test)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This example shows the use of valid number verification with PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based NaN-verification code.
+It uses the dl_esm_inf-specific nan_test library
+(``lib/nan_test/dl_esm_inf/``).
+
+.. note:: The ``update_field_mod`` subroutine contains code
+    that will trigger a division by 0 to create NaNs. If
+    the compiler should add floating point exception handling
+    code, this will take effect before the NaN testing is done
+    by the PSyData-based verification code.
+
+The ``Makefile`` in this example will link with the compiled
+nan_test library. You can execute the created
+binary and it will print five warnings about invalid numbers
+at the indices  1 1, ..., 5 5:
+
+.. code-block:: none
+
+    PSyData: Variable a_fld has the invalid value
+                     Infinity  at index/indices            1           1
+    mainupdate
+    ...
+
 
 Example 6: PSy-layer Code Creation using PSyIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -589,7 +618,7 @@ Example 1: OpenMP parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of PSyclone to parallelise the loops over vertical levels
-in a NEMO tracer-advection benchmark using OpenMP.
+in a NEMO tracer-advection benchmark using OpenMP for CPUs and for GPUs.
 
 Example 2: OpenMP parallelisation of traldf_iso
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

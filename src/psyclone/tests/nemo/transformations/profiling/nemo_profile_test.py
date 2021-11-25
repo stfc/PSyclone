@@ -278,8 +278,8 @@ def test_profile_single_line_if(parser):
     gen_code = str(psy.gen).lower()
     assert (
         "  if (do_this) then\n"
-        "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0, "
-        "0)\n"
+        "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
+        " 0)\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
         "  end if\n" in gen_code)
@@ -357,12 +357,12 @@ def test_profiling_case(parser):
             "        call profile_psy_data % postend\n"
             "      end if\n" in code)
     assert ("  if (cd_op == 'vol') then\n"
-            "    call profile_psy_data_1 % prestart(\"my_test\", \"r1\", 0, 0)\n"
-            in code)
+            "    call profile_psy_data_1 % prestart(\"my_test\", \"r1\", 0, 0)"
+            "\n" in code)
     assert ("    call profile_psy_data_1 % postend\n"
             "  else\n"
-            "    call profile_psy_data_2 % prestart(\"my_test\", \"r3\", 0, 0)\n"
-            in code)
+            "    call profile_psy_data_2 % prestart(\"my_test\", \"r3\", 0, 0)"
+            "\n" in code)
     assert ("    call profile_psy_data_2 % postend\n"
             "  end if\n"
             "  call profile_psy_data_3 % postend\n"
@@ -623,5 +623,6 @@ def test_profile_nemo_loop_imperfect_nest(parser):
     assert ("        enddo\n"
             "      enddo\n"
             "      call profile_psy_data % postend\n"
-            "      call profile_psy_data_1 % prestart(\"do_loop\", \"r1\", 0, 0)\n"
+            "      call profile_psy_data_1 % prestart(\"do_loop\", \"r1\", 0,"
+            " 0)\n"
             "      do ji = 1, jpi, 1" in code)

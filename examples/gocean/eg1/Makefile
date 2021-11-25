@@ -36,15 +36,47 @@
 
 include ../../common.mk
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
+GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl ompt_alg.f90 ompt_psy.f90
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-.PHONY: basic openmp mpi loop_fuse dag openacc opencl
+KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o \
+		compute_unew_mod.o compute_vnew_mod.o compute_pnew_mod.o time_smooth_mod.o \
+		infrastructure_mod.o
 
-transform: basic openmp mpi loop_fuse dag openacc opencl
+# Location of the infrastucture code (which is a submodule of the
+# PSyclone git repo).
+SHARED_DIR ?= ../../../external
+INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference
+INF_INC = ${INF_DIR}/src
+INF_LIB = ${INF_DIR}/src/lib_fd.a
+
+.PHONY: basic openmp mpi loop_fuse dag openacc opencl openmp_taskloop
+
+transform: basic openmp mpi loop_fuse dag openacc opencl openmp_taskloop
+
+# The dl_esm_inf library
+fd_lib:
+	${MAKE} -C ${INF_DIR} F90=${F90} fd_lib
+
+dm_fd_lib:
+	${MAKE} -C ${INF_DIR} F90=${F90} dm_fd_lib
+
+ompt_psy.f90 ompt_alg.f90: shallow_alg.f90
+	${PSYCLONE} -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 \
+		-opsy ompt_psy.f90 -oalg ompt_alg.f90 shallow_alg.f90
+
+openmp_taskloop: ompt_psy.f90 ompt_alg.f90
+
+# TODO: Cannot compile this example until #1474 is resolved.
+#compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} fd_lib
+#	${F90} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
+	${INF_LIB} -o shallow_ompt.exe
 
 compile: transform
-	@echo "No compilation targets for example gocean/eg1"
+	@echo "No compile targets for example gocean/eg1, see #1474"
+
+%.o: %.f90
+	${F90} ${LDFLAGS} -I${INF_INC} -c $<
 
 run: compile
 	@echo "No run targets for example gocean/eg1"
@@ -54,6 +86,7 @@ basic:
 
 openmp:
 	$(ENV) ${PYTHON} ./runme_openmp.py
+
 
 mpi:
 	${PSYCLONE} -api gocean1.0 shallow_alg.f90

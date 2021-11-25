@@ -1,6 +1,6 @@
 # PSyclone GOcean Example 1
 
-**Authors:** A. R. Porter, S. Siso, STFC Daresbury Lab
+**Authors:** A. R. Porter, S. Siso and A. B. G. Chalk, STFC Daresbury Lab
 
 These scripts and this version of PSyclone work with version 1.0 of GOcean.
 
@@ -14,8 +14,19 @@ executing, e.g.
 python ./runme.py
 ``` 
 
-Examine the runme*.py scripts themselves for further details.
+Examine the runme*.py scripts themselves for further details or see the
+Makefile.
 
+
+## OpenMP tasking transformation script
+
+The OpenMP tasking transformation is provided in the form of a PSyclone
+transformation script (`openmp_taskloop_trans.py`). This can be run
+using the PSyclone command:
+
+```sh
+psyclone -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 shallow_alg.f90
+```
 
 ## OpenCL PSyclone script
 
@@ -33,7 +44,7 @@ psyclone -s ./opencl_transformation.py -api gocean1.0 shallow_alg.f90
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2019, Science and Technology Facilities Council.
+Copyright (c) 2017-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

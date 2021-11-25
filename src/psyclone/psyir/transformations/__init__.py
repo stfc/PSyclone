@@ -40,6 +40,7 @@
 transformations and base classes.
 '''
 
+from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -66,11 +67,13 @@ from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ExtractTrans',
+__all__ = ['ChunkLoopTrans',
+           'ExtractTrans',
            'NanTestTrans',
            'ProfileTrans',
            'PSyDataTrans',
@@ -85,4 +88,5 @@ __all__ = ['ExtractTrans',
            'TransformationError',
            'ArrayRange2LoopTrans',
            'FoldConditionalReturnExpressionsTrans',
-           'HoistTrans']
+           'HoistTrans',
+           'OMPTaskwaitTrans']
