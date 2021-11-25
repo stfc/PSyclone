@@ -213,10 +213,8 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python 3 to be installed on the
-target machine. PSyclone is regularly tested with Python 3.6 and 3.10.0.
-Although older versions of Python 3 may work, using one of these two
-versions is recommended. (The last PSyclone release to support Python
-2.7 was version 2.1.0.)
+target machine. PSyclone is regularly tested with Python 3.6 and 3.8.
+(The last PSyclone release to support Python 2.7 was version 2.1.0.)
 
 PSyclone immediately relies on four external Python packages; ``six``,
 ``configparser``, ``fparser`` and ``pyparsing``. (Note that the
