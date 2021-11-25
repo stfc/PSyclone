@@ -48,9 +48,7 @@ github_pr_num = os.environ.get('GITHUB_PR_NUMBER')
 if github_pr_num:
     # Generate links to the documentation built by RTD for this specific
     # pull request.
-    apilinks_base = \
-        'https://psyclone-ref--{0}.org.readthedocs.build/en/{0}/'.format(
-            github_pr_num)
+    apilinks_base = 'http//0.0.0.0:8000/reference_guide/build/html/'
 else:
     # We link to the standard, latest version of the documentation
     apilinks_base = \
