@@ -1621,6 +1621,8 @@ def test_resolve_imports(fortran_reader, tmpdir):
         module b_mod
             integer, parameter :: b_1 = 10
             integer, save, pointer :: b_2
+            integer :: not_used1
+            integer :: not_used2
         end module b_mod
         ''')
     psyir = fortran_reader.psyir_from_source('''
@@ -1637,14 +1639,21 @@ def test_resolve_imports(fortran_reader, tmpdir):
             end subroutine test
         end module test_mod
     ''')
-
-    # After parsing the a_1, a_2, b_1 and b_2 will have incomplete information
-    # because the modules are not resolved
     subroutine = psyir.walk(Routine)[0]
+    # Add Generic unresolved reference to "not_used"
+    subroutine.symbol_table.add(
+            Symbol("not_used1", interface=ImportInterface(
+                subroutine.symbol_table.lookup("b_mod"))))
+
+    # After parsing the a_1, a_2, b_1, b_2, not_used1 and not_used2 will have#
+    # incomplete information because the modules are not resolved
     a_1 = subroutine.symbol_table.lookup('a_1')
     a_2 = subroutine.symbol_table.lookup('a_2')
     b_1 = subroutine.symbol_table.lookup('b_1')
     b_2 = subroutine.symbol_table.lookup('b_2')
+    not_used1 = subroutine.symbol_table.lookup('not_used1')
+    assert "not_used2" not in subroutine.symbol_table
+    assert not isinstance(not_used1, DataSymbol)
     assert isinstance(a_1.interface, ImportInterface)
     assert not isinstance(a_1, DataSymbol)
     assert isinstance(a_2.interface, ImportInterface)
@@ -1669,6 +1678,7 @@ def test_resolve_imports(fortran_reader, tmpdir):
     assert isinstance(a_1.interface, ImportInterface)
 
     # The other symbols (including a_2) are unchanged
+    assert "not_used2" not in subroutine.symbol_table
     assert isinstance(a_2.interface, ImportInterface)
     assert not isinstance(a_2, DataSymbol)
     assert isinstance(b_1.interface, UnresolvedInterface)
@@ -1693,6 +1703,9 @@ def test_resolve_imports(fortran_reader, tmpdir):
     assert isinstance(b_2.interface, ImportInterface)
     assert b_2.interface.container_symbol == \
            subroutine.symbol_table.lookup('b_mod')
+    # not_used1 and not_used2 exist and are DataSymbols now
+    assert isinstance(not_used1, DataSymbol)
+    assert isinstance(subroutine.symbol_table.lookup('not_used2'), DataSymbol)
 
     # a_2 is not yet resolved because if is from another symbol table,
     # resolve that symbol table too
