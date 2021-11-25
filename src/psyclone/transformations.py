@@ -57,7 +57,6 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
-from psyclone.gocean1p0 import GOLoop
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.psyir import nodes
@@ -2208,7 +2207,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         loop.update_halo_exchanges()
 
 
-class GOLoopSwapTrans(LoopTrans):
+class LoopSwapTrans(LoopTrans):
     ''' Provides a loop-swap transformation, e.g.:
 
     .. code-block:: fortran
@@ -2233,8 +2232,8 @@ class GOLoopSwapTrans(LoopTrans):
      >>> # Uncomment the following line to see a text view of the schedule
      >>> # schedule.view()
      >>>
-     >>> from psyclone.transformations import GOLoopSwapTrans
-     >>> swap = GOLoopSwapTrans()
+     >>> from psyclone.transformations import LoopSwapTrans
+     >>> swap = LoopSwapTrans()
      >>> swap.apply(schedule.children[0])
      >>> # Uncomment the following line to see a text view of the schedule
      >>> # schedule.view()
@@ -2258,16 +2257,10 @@ class GOLoopSwapTrans(LoopTrans):
                                      allow a loop swap to be done.
 
         '''
-        super(GOLoopSwapTrans, self).validate(node_outer, options=options)
-
-        if not isinstance(node_outer, GOLoop):
-            raise TransformationError("Error in GOLoopSwap transformation. "
-                                      "Given node '{0}' is not a GOLoop, but "
-                                      "an instance of '{1}."
-                                      .format(node_outer, type(node_outer)))
+        super().validate(node_outer, options=options)
 
         if not node_outer.loop_body or not node_outer.loop_body.children:
-            raise TransformationError("Error in GOLoopSwap transformation. "
+            raise TransformationError("Error in LoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have one "
                                       "inner loop, but this node does not "
@@ -2278,25 +2271,19 @@ class GOLoopSwapTrans(LoopTrans):
 
         # Check that the body of the outer loop is itself a Loop
         try:
-            super(GOLoopSwapTrans, self).validate(node_inner, options=options)
+            super().validate(node_inner, options=options)
         except TransformationError as err:
             six.raise_from(
-                TransformationError("Error in GOLoopSwap transformation. "
+                TransformationError("Error in LoopSwap transformation. "
                                     "Supplied node '{0}' must be the outer "
                                     "loop of a loop nest but the first "
                                     "inner statement is not a valid loop:\n"
                                     "{1}.".format(node_outer, str(err.value))),
                 err)
 
-        if not isinstance(node_inner, GOLoop):
-            raise TransformationError(
-                "Error in GOLoopSwap transformation. Inner loop of supplied "
-                "loop nest ({0}) is not a GOLoop, but an instance of '{1}'."
-                .format(node_outer, type(node_inner).__name__))
-
         if len(node_outer.loop_body.children) > 1:
             raise TransformationError(
-                "Error in GOLoopSwap transformation. Supplied node '{0}' must"
+                "Error in LoopSwap transformation. Supplied node '{0}' must"
                 " be the outer loop of a loop nest and must have exactly one "
                 "inner loop, but this node has {1} inner statements, the "
                 "first two being '{2}' and '{3}'"
@@ -2319,7 +2306,6 @@ class GOLoopSwapTrans(LoopTrans):
         '''
         self.validate(outer, options=options)
 
-        schedule = outer.root
         inner = outer.loop_body[0]
 
         # Detach the inner code
@@ -3364,7 +3350,7 @@ __all__ = ["KernelTrans",
            "ACCParallelTrans",
            "MoveTrans",
            "Dynamo0p3RedundantComputationTrans",
-           "GOLoopSwapTrans",
+           "LoopSwapTrans",
            "Dynamo0p3AsyncHaloExchangeTrans",
            "Dynamo0p3KernelConstTrans",
            "ACCEnterDataTrans",
