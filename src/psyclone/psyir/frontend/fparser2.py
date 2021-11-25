@@ -2822,8 +2822,8 @@ class Fparser2Reader(object):
         assigns = parent.walk(Assignment)
         # Check that the LHS of any assignment uses recognised array
         # notation.
-        for assign in assigns:
-            _ = self._array_notation_rank(assign.lhs)
+        #for assign in assigns:
+        #    _ = self._array_notation_rank(assign.lhs)
         # TODO #717 if the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
         # identify it as a scalar and the code produced from the
@@ -2837,6 +2837,11 @@ class Fparser2Reader(object):
             # all arrays are of the same rank
             rank = len([child for child in array.indices if
                         isinstance(child, Range)])
+            if rank == 0:
+                # This is an array reference without any ranges so we can
+                # ignore it.
+                continue
+
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
@@ -2941,9 +2946,16 @@ class Fparser2Reader(object):
             raise NotImplementedError("Only WHERE constructs using explicit "
                                       "array notation (e.g. my_array(:, :)) "
                                       "are supported.")
+        for array in arrays:
+            if any(isinstance(idx, Range) for idx in array.indices):
+                first_array = array
+                break
+        else:
+            raise NotImplementedError("ARPDBG")
+
         # All array sections in a Fortran WHERE must have the same rank so
         # just look at the first array.
-        rank = self._array_notation_rank(arrays[0])
+        rank = self._array_notation_rank(first_array)
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
@@ -2969,11 +2981,26 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            symbol = _find_or_create_imported_symbol(
-                size_node, arrays[0].name, symbol_type=DataSymbol,
-                datatype=DeferredType())
 
-            size_node.addchild(Reference(symbol))
+            # Create the first argument to the SIZE operator
+            if isinstance(first_array, Member):
+                # The array access is a member of some derived type
+                parent_ref = first_array.ancestor(Reference)
+                new_ref = parent_ref.copy()
+                orig_member = parent_ref.member
+                member = new_ref.member
+                while orig_member is not first_array:
+                    member = member.member
+                    orig_member = orig_member.member
+                member.parent.children = [Member(first_array.name,
+                                                 parent=member.parent)]
+            else:
+                # The array access is to a symbol of ArrayType
+                symbol = _find_or_create_imported_symbol(
+                    size_node, first_array.name, symbol_type=DataSymbol,
+                    datatype=DeferredType())
+                new_ref = Reference(symbol)
+            size_node.addchild(new_ref)
             size_node.addchild(Literal(str(idx), integer_type,
                                        parent=size_node))
             # Add loop increment
@@ -2995,7 +3022,6 @@ class Fparser2Reader(object):
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
         new_parent.addchild(ifblock)
-        ifblock.ast = node  # Point back to the original WHERE construct
 
         # We construct the conditional expression from the original
         # logical-array-expression of the WHERE. We process_nodes() a

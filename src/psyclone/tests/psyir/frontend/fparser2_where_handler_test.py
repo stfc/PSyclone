@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
     Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container, Range, ArrayMember
+    Call, Routine, Container, Range, ArrayMember, StructureReference
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
@@ -373,7 +373,8 @@ def test_elsewhere():
 
     '''
     fake_parent, _ = process_where("WHERE (ptsu(:, :, :) > 10._wp)\n"
-                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   "  zval = 1._wp\n"
+                                   "  z1_st(:, :, :) = zval / ptsu(:, :, :)\n"
                                    "ELSEWHERE (ptsu(:, :, :) < 0.0_wp)\n"
                                    "  z1_st(:, :, :) = -1._wp\n"
                                    "ELSEWHERE\n"
@@ -383,6 +384,7 @@ def test_elsewhere():
     # This should become:
     #
     # if ptsu(ji,jj,jk) > 10._wp)then
+    #   zval = ...
     #   z1_st(ji,jj,jk) = ...
     # else
     #   if ptsu(ji,jj,jk) < 0.0_wp)then
@@ -510,24 +512,32 @@ def test_where_ordering(parser):
     assert isinstance(result[3], Loop)
 
 
-def test_where_derived_type(fortran_reader):
+@pytest.mark.parametrize(
+    "code, size_arg",
+    [("where (my_type%var(:) > epsi20)\n"
+      "my_type%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%block(jl)%var(:) > epsi20)\n"
+      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var")])
+def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     ''' Test that we handle the case where array members of a derived type
     are accessed within a WHERE. '''
-    code = ("module my_mod\n"
-            " use some_mod\n"
-            "contains\n"
-            "subroutine my_sub()\n"
-            "  integer :: jl\n"
-            "  do jl = 1, 10\n"
-            "  where (my_type%var(:) > epsi20)\n"
-            "    my_type%array(:,jl) = 3.0\n"
-            "  end where\n"
-            "  end do\n"
-            "end subroutine my_sub\n"
-            "end module my_mod\n")
+    code = (f"module my_mod\n"
+            f" use some_mod\n"
+            f"contains\n"
+            f"subroutine my_sub()\n"
+            f"  integer :: jl\n"
+            f"  do jl = 1, 10\n"
+            f"{code}"
+            f"    end where\n"
+            f"  end do\n"
+            f"end subroutine my_sub\n"
+            f"end module my_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 2
+    assert isinstance(loops[1].stop_expr, BinaryOperation)
+    assert isinstance(loops[1].stop_expr.children[0], StructureReference)
+    assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
