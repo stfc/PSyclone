@@ -1808,8 +1808,12 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
     assert symtab.lookup("global1").datatype.name == "my_type"
     assert symtab.lookup("global2").datatype.name == "my_type"
 
-    # Now the imported type "my_type" has more info
-    assert isinstance(symtab.lookup("my_type").datatype, DeferredType)
+    # And now the imported "my_type" type has more info
+    my_type = symtab.lookup("my_type").datatype
+    assert isinstance(my_type, StructureType)
+    assert "field" in my_type.components
+    assert "array" in my_type.components
+    assert my_type.components["field"].datatype.intrinsic.name == "INTEGER"
 
     # Clean up the config instance
     Config._instance = None
