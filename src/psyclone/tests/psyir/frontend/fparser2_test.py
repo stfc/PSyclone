@@ -1012,21 +1012,6 @@ def test_process_array_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_process_class_declarations():
-    ''' '''
-    fake_parent = KernelSchedule("dummy_schedule")
-    fake_parent.symbol_table.add(DataTypeSymbol("my_type",
-                                                DeferredType()))
-    processor = Fparser2Reader()
-
-    reader = FortranStringReader("class(my_type), intent(in) :: arg1")
-    reader.set_format(FortranFormat(True, True))
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert 0
-
-
-@pytest.mark.usefixtures("f2008_parser")
 def test_process_not_supported_declarations():
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
@@ -1045,6 +1030,16 @@ def test_process_not_supported_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
                       UnknownFortranType)
+
+    reader = FortranStringReader("class(my_type), intent(in) :: carg")
+    # Set reader to free format (otherwise this is a comment in fixed format)
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("carg")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert (sym.datatype.declaration.lower() ==
+            "class(my_type), intent(in) :: carg")
 
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
