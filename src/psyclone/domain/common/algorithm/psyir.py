@@ -32,10 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
+from __future__ import absolute_import
+
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
@@ -65,8 +68,7 @@ class AlgorithmInvokeCall(Call):
     _colour = "green"
 
     def __init__(self, invoke_routine_symbol, index, parent=None):
-        super(AlgorithmInvokeCall, self).__init__(
-            invoke_routine_symbol, parent=parent)
+        super().__init__(invoke_routine_symbol, parent=parent)
 
         if not isinstance(index, int):
             raise TypeError(
@@ -82,6 +84,7 @@ class AlgorithmInvokeCall(Call):
 
     @classmethod
     def create(cls, routine, arguments, index):
+        # pylint: disable=arguments-differ
         '''Create an instance of the calling class given valid instances of a
         routine symbol, a list of child nodes for its arguments and an
         index.
@@ -178,7 +181,8 @@ class AlgorithmInvokeCall(Call):
                     # Literals are not passed by argument.
                     pass
                 elif isinstance(arg, (Reference, ArrayReference)):
-                    # TODO #753 use a better check for equivalence (math_equal)
+                    # TODO #753 use a better check for equivalence
+                    # (symbolic maths)
                     if str(arg).lower() not in arguments_str:
                         arguments_str.append(str(arg).lower())
                         arguments.append(arg.copy())
@@ -211,8 +215,7 @@ class KernelFunctor(Reference):
     _text_name = "KernelFunctor"
 
     def __init__(self, symbol, parent=None):
-        # pylint: disable=super-with-arguments
-        super(KernelFunctor, self).__init__(symbol, parent=parent)
+        super().__init__(symbol, parent=parent)
 
         if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(
