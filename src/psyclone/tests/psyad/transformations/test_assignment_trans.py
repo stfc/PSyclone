@@ -31,6 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 #
 '''Module to test the psyad assignment transformation.'''
 
@@ -290,8 +291,6 @@ def test_single_valued_assign(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(reason="issue #1332 literal math_equal() does "
-                   "Not work properly.")
 def test_multi_add(tmpdir):
     '''Test the transformation works when there are many active variables
     on the rhs (B,C,D) with some of them being multipled by a factor
@@ -311,7 +310,7 @@ def test_multi_add(tmpdir):
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  integer :: i\n  integer :: j\n  integer :: n\n\n"
-        "  b(j) = b(j) + a(i + 2) * (3 / n)\n"
+        "  b(j) = b(j) + 3 / n * a(i + 2)\n"
         "  c(1) = c(1) + a(i + 2) / (2 * n)\n"
         "  d(n) = d(n) + a(i + 2)\n"
         "  a(i + 2) = 0.0\n\n")
