@@ -1111,6 +1111,7 @@ class SymbolTable():
                     if not c_symbol.wildcard_import:
                         if not isinstance(interface, ImportInterface) or \
                                 interface.container_symbol is not c_symbol:
+                            raise SymbolError("PANIC")
                             continue  # It doesn't come from this import
 
                     # Found a match, update the interface if necessary or raise
