@@ -77,10 +77,9 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
-    input_code = ("subroutine test()\n{0}end subroutine test\n"
-                  "".format(tl_fortran))
-    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
-                            "".format(expected_ad_fortran))
+    input_code = f"subroutine test()\n{tl_fortran}end subroutine test\n"
+    expected_output_code = (f"subroutine test()\n{expected_ad_fortran}end "
+                            f"subroutine test\n")
 
     # Translate the tangent linear code to PSyIR.
     reader = FortranReader()
@@ -399,17 +398,17 @@ def test_increment_add_reorder(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10)\n"
-        "  integer i, k\n"
-        "  a({0}) = b({0})+k*a({0})\n".format(index_str))
+        f"  real a(10), b(10)\n"
+        f"  integer i, k\n"
+        f"  a({index_str}) = b({index_str})+k*a({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  integer :: i\n"
-        "  integer :: k\n\n"
-        "  b({0}) = b({0}) + a({0})\n"
-        "  a({0}) = k * a({0})\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n"
+        f"  real, dimension(10) :: b\n"
+        f"  integer :: i\n"
+        f"  integer :: k\n\n"
+        f"  b({index_str}) = b({index_str}) + a({index_str})\n"
+        f"  a({index_str}) = k * a({index_str})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -454,16 +453,16 @@ def test_multi_increment(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10)\n"
-        "  real x\n"
-        "  integer i\n"
-        "  a({0}) = a({0})+x*a({0})\n".format(index_str))
+        f"  real a(10)\n"
+        f"  real x\n"
+        f"  integer i\n"
+        f"  a({index_str}) = a({index_str})+x*a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real :: x\n"
-        "  integer :: i\n\n"
-        "  a({0}) = a({0}) + x * a({0})\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n"
+        f"  real :: x\n"
+        f"  integer :: i\n\n"
+        f"  a({index_str}) = a({index_str}) + x * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -526,14 +525,14 @@ def test_inc_sub(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10)\n"
-        "  integer :: i\n"
-        "  a({0}) = -a({0})\n".format(index_str))
+        f"  real a(10)\n"
+        f"  integer :: i\n"
+        f"  a({index_str}) = -a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  integer :: i\n\n"
-        "  a({0}) = -a({0})\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n"
+        f"  integer :: i\n\n"
+        f"  a({index_str}) = -a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
