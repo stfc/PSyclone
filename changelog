@@ -26,6 +26,14 @@
 	10) PR #1476 for #1456. Fix precision problems in the PSyAD harness
 	code generation and add harness documentation.
 
+	11) PR #1482 for #1481. Renames symbol_from_tag->find_or_create_tag
+	and tidies its use.
+
+	12) PR #1521 for #1193. Update python 3.5 to 3.6 in the GitHubActions CI.
+
+	13) PR #1512 for #1511 and #1516. Fix silent compilation test failures,
+	and make sure all files are compiled in tmpdir.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

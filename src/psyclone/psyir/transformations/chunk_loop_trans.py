@@ -206,11 +206,11 @@ class ChunkLoopTrans(LoopTrans):
         chunk_size = options.get("chunksize", 32)
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
-        end_inner_loop = routine.symbol_table.symbol_from_tag(
+        end_inner_loop = routine.symbol_table.find_or_create_tag(
                 "{0}_el_inner".format(node.variable.name),
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
-        outer_loop_variable = routine.symbol_table.symbol_from_tag(
+        outer_loop_variable = routine.symbol_table.find_or_create_tag(
                 "{0}_out_var".format(node.variable.name),
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
