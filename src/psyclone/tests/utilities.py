@@ -368,8 +368,8 @@ class Compile(object):
                 # Not all modules need to be found, for example API
                 # infrastructure modules will be provided already built.
                 print("File {0} not found for compilation.".format(fort_file))
-                print("It was search in: {0}".format([self.base_path,
-                                                      str(self._tmpdir)]))
+                print("It was searched in: {0}".format([self.base_path,
+                                                        str(self._tmpdir)]))
             except CompileError:
                 # Failed to compile one of the files
                 success = False
