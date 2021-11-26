@@ -533,25 +533,26 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: aX_plus_Y (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        aX_plus_Y Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply one element of field f1 (3rd arg) by a real scalar
-        # (2nd arg), add it to the corresponding element of a second
-        # field (4th arg)  and write the value to the corresponding
-        # element of field f3 (1st arg) (real-valed fields).
-        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = scalar_name + "*" + field_name1 + " + " + field_name2
-        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar*proxy1%data(df) + proxy2%data(df)
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         scalar_args[0], arg_refs[1])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     mult_op, arg_refs[2])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
@@ -562,24 +563,27 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: inc_aX_plus_Y (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_aX_plus_Y Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply one element of field f1 (2nd arg) by a real scalar
-        # (1st arg), add it to the corresponding element of a second
-        # field (3rd arg) and write the value back into the element
-        # of field f1 (real-valued fields).
-        scalar_name = self._arguments.args[0].name
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = scalar_name + "*" + field_name1 + " + " + field_name2
-        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar*proxy0%data(df) + proxy1%data(df)
+        lhs = arg_refs[0]
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         scalar_args[0], lhs.copy())
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     mult_op, arg_refs[1])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
@@ -590,24 +594,27 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: inc_X_plus_bY (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_X_plus_bY Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply one element of field f2 (3rd arg) by a real scalar
-        # (2nd arg), add it to the corresponding element of a first field
-        # f1 (1st arg) and write the value back into the element of field
-        # f1 (real-valued fields).
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = field_name1 + " + " + scalar_name + "*" + field_name2
-        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) + bscalar*proxy1%data(df)
+        lhs = arg_refs[0]
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         scalar_args[0], arg_refs[1])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), mult_op)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
@@ -618,28 +625,29 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: aX_plus_bY (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        aX_plus_bY Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply one element of field f1 (3rd arg) by the first, real,
-        # scalar (2nd arg), add it to the product of the corresponding
-        # element of a second field (5th arg) with the second, real, scalar
-        # (4th arg) and write the value to the corresponding element of
-        # field f3 (1st arg) (real-valued fields).
-        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name1 = self._arguments.args[1].name
-        scalar_name2 = self._arguments.args[3].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[4].proxy_name)
-        rhs_expr = (scalar_name1 + "*" + field_name1 + " + " +
-                    scalar_name2 + "*" + field_name2)
-        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar*proxy1%data(df) +
+        #                        bscalar*proxy2%data(df)
+        mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                           scalar_args[0], arg_refs[1])
+        mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                           scalar_args[1], arg_refs[2])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     mult_op_a, mult_op_b)
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
@@ -650,27 +658,30 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: inc_aX_plus_bY (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_aX_plus_bY Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply one element of field f1 (2nd arg) by the first, real,
-        # scalar (1st arg), add it to the product of the corresponding
-        # element of a second field (4th arg) with the second, real, scalar
-        # (4rd arg) and write the value back into the element of field f1
-        # (real-valued fields).
-        scalar_name1 = self._arguments.args[0].name
-        scalar_name2 = self._arguments.args[2].name
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = (scalar_name1 + "*" + field_name1 + " + " +
-                    scalar_name2 + "*" + field_name2)
-        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar*proxy0%data(df) +
+        #                        bscalar*proxy1%data(df)
+        lhs = arg_refs[0]
+        mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                           scalar_args[0], lhs.copy())
+        mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                           scalar_args[1], arg_refs[1])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     mult_op_a, mult_op_b)
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
@@ -681,26 +692,26 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: aX_plus_aY (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        aX_plus_aY Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We add each element of field f1 (3rd arg) to the corresponding
-        # element of field f2 (4th arg), multiply the sum by a real
-        # scalar (2nd arg) and write the value to the corresponding
-        # element of field f3 (1st arg) (real-valued fields).
-        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = (scalar_name + " * (" + field_name1 + " + " +
-                    field_name2 + ")")
-        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar*(proxy1%data(df) + proxy2%data(df))
+        add_op = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                        arg_refs[1], arg_refs[2])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     scalar_args[0], add_op)
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
