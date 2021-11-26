@@ -545,7 +545,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*proxy1%data(df) + proxy2%data(df)
+        #      proxy0%data(df) = ascalar * proxy1%data(df) + proxy2%data(df)
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -575,7 +575,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*proxy0%data(df) + proxy1%data(df)
+        #      proxy0%data(df) = ascalar * proxy0%data(df) + proxy1%data(df)
         lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], lhs.copy())
@@ -606,7 +606,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = proxy0%data(df) + bscalar*proxy1%data(df)
+        #      proxy0%data(df) = proxy0%data(df) + bscalar * proxy1%data(df)
         lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
@@ -637,8 +637,8 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*proxy1%data(df) +
-        #                        bscalar*proxy2%data(df)
+        #      proxy0%data(df) = ascalar * proxy1%data(df) +
+        #                        bscalar  *proxy2%data(df)
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], arg_refs[1])
         mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
@@ -670,8 +670,8 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*proxy0%data(df) +
-        #                        bscalar*proxy1%data(df)
+        #      proxy0%data(df) = ascalar * proxy0%data(df) +
+        #                        bscalar * proxy1%data(df)
         lhs = arg_refs[0]
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], lhs.copy())
@@ -704,7 +704,7 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*(proxy1%data(df) + proxy2%data(df))
+        #      proxy0%data(df) = ascalar * (proxy1%data(df) + proxy2%data(df))
         add_op = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                         arg_refs[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
@@ -849,7 +849,7 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*proxy1%data(df) - proxy2%data(df)
+        #      proxy0%data(df) = ascalar * proxy1%data(df) - proxy2%data(df)
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
@@ -879,7 +879,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = proxy1%data(df) - bscalar*proxy2%data(df)
+        #      proxy0%data(df) = proxy1%data(df) - bscalar * proxy2%data(df)
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
@@ -909,7 +909,7 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = proxy0%data(df) - bscalar*proxy1%data(df)
+        #      proxy0%data(df) = proxy0%data(df) - bscalar * proxy1%data(df)
         lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
@@ -940,8 +940,8 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         scalar_args = self.get_scalar_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = ascalar*proxy1%data(df) -
-        #                        bscalar*proxy2%data(df)
+        #      proxy0%data(df) = ascalar * proxy1%data(df) -
+        #                        bscalar * proxy2%data(df)
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], arg_refs[1])
         mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
