@@ -54,8 +54,8 @@ def test_sym_maths_get():
     sym_maths2 = SymbolicMaths.get()
     assert sym_maths is sym_maths2
 
-    assert not sym_maths.equal(None, 1)
-    assert not sym_maths.equal(2, None)
+    assert sym_maths.equal(None, 1) is False
+    assert sym_maths.equal(2, None) is False
 
 
 @pytest.mark.parametrize("expressions", [(".true.", ".TRUE."),
@@ -77,7 +77,7 @@ def test_math_logicals(fortran_reader, expressions):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
 
 
 @pytest.mark.parametrize("expressions", [("i", "i"),
@@ -117,7 +117,7 @@ def test_symbolic_math_equal(fortran_reader, expressions):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
 
 
 @pytest.mark.parametrize("expressions", [("a%b", "a%b"),
@@ -150,7 +150,7 @@ def test_symbolic_math_equal_structures(fortran_reader, expressions):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
 
 
 @pytest.mark.parametrize("expressions", [("i", "0"),
@@ -179,9 +179,7 @@ def test_symbolic_math_not_equal(fortran_reader, expressions):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    # Note we cannot use 'is False', since sym_maths returns an
-    # instance of its own boolean type.
-    assert not sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is False
 
 
 @pytest.mark.parametrize("expressions", [("a%b", "a%c"),
@@ -210,9 +208,7 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
 
     sym_maths = SymbolicMaths.get()
 
-    # Note we cannot use 'is False', since sym_maths returns an
-    # instance of its own boolean type.
-    assert not sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is False
 
 
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),
@@ -243,4 +239,4 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()
-    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True

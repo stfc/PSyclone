@@ -37,7 +37,7 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-from sympy import simplify
+from sympy import simplify, true
 from sympy.parsing.sympy_parser import parse_expr
 
 
@@ -99,6 +99,10 @@ class SymbolicMaths:
         :param exp2: the first expression to be compared.
         :type exp2: py:class:`psyclone.psyir.nodes.Node` or None
 
+        :returns: whether the two expressions are mathematically \
+            identical.
+        :rtype: bool
+
         '''
         # Some tests provide a None as parameters
         if exp1 is None or exp2 is None:
@@ -108,4 +112,7 @@ class SymbolicMaths:
         str_exp2 = parse_expr(self._writer(exp2))
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
-        return simplify(str_exp1 == str_exp2)
+        result = simplify(str_exp1 == str_exp2)
+
+        # Convert SymPy boolean to python boolean.
+        return result is true
