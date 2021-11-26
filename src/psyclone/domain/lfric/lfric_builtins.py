@@ -1018,23 +1018,27 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: inc_aX_times_Y (real-valued fields)"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_aX_times_Y Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # We multiply a real scalar (1st arg) by a DoF-wise product of
-        # (real-valued) fields f1 (2nd arg) and f2 (3rd arg) and write
-        # the value back into the element of field f1.
-        scalar_name = self._arguments.args[0].name
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = scalar_name + " * " + field_name1 + " * " + field_name2
-        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = ascalar * proxy0%data(df) * proxy1%data(df)
+        lhs = arg_refs[0]
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         scalar_args[0], lhs.copy())
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                     mult_op, arg_refs[1])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #
