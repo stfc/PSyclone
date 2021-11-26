@@ -295,27 +295,30 @@ active then the loop statement is considered to be active. In this case:
 
 1) the order of the loop is reversed. This can be naively implemented
    by swapping the loop's upper and lower bounds and multiplying the
-   loop step by minus one. However, if we consider the following loop:
-   ``start=1, stop=4, step=4``, the iteration values would be ``1``
-   and ``3``. If this loop is reversed in the naive way then we get
-   the following loop: ``start=4, stop=1, step=-2``, which gives the
-   iteration values ``4`` and ``2``. Therefore it can be seen that the
-   naive approach does not work correctly in this case. What is
-   required is an offset correction which can be computed as:
-   ``stop-start mod step``. The adjoint loop start then becomes
-   ``stop - ((stop-start) mod step)``. With this change the iteration
-   values in the above example are ``3`` and ``1`` as expected.
+   loop step by :math:`-1`. However, if we consider the following
+   loop: :math:`start=1`, :math:`stop=4`, :math:`step=2`, the
+   iteration values would be :math:`1` and :math:`3`. If this loop is
+   reversed in the naive way then we get the following loop:
+   :math:`start=4`, :math:`stop=1`, :math:`step=-2`, which gives the
+   iteration values :math:`4` and :math:`2`. Therefore it can be seen
+   that the naive approach does not work correctly in this case. What
+   is required is an offset correction which can be computed as:
+   :math:`(stop-start) \mod(step)`. The adjoint loop start then
+   becomes :math:`stop - ((stop-start) \mod(step))`. With this change
+   the iteration values in the above example are :math:`3` and
+   :math:`1` as expected.
 
 2) the body of the loop comprises a schedule which will contain a
    sequence of statements. The rules associated with the schedule are
    followed and the loop body translated accordingly (see the
    following section).
 
-.. note:: if PSyclone is able to determine that the loop step is ``1``
-          or ``-1`` then there is no need to compute an offset, as the
-          offset will always be ``0``. As a step of ``1`` (or ``-1``)
-          is a common case PSyclone will therefore avoid generating
-          any loop-bound offset code in this case.
+.. note:: if PSyclone is able to determine that the loop step is
+          :math:`1` or :math:`-1` then there is no need to compute an
+          offset, as the offset will always be :math:`0`. As a step of
+          :math:`1` (or :math:`-1`) is a common case PSyclone will
+          therefore avoid generating any loop-bound offset code in
+          this case.
 
 Sequence of Statements (PSyIR Schedule)
 ---------------------------------------
