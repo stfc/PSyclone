@@ -381,8 +381,9 @@ class FortranWriter(LanguageWriter):
 
         :param str fortran_operator: the supplied Fortran operator.
 
-        :returns: true if the supplied Fortran operator is a Fortran \
-            intrinsic and false otherwise.
+        :returns: True if the supplied Fortran operator is a Fortran \
+            intrinsic and False otherwise.
+        :rtype: bool
 
         '''
         # pylint: disable=no-self-use

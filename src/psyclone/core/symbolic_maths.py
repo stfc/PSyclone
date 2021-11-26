@@ -67,8 +67,8 @@ class SymbolicMaths:
     # -------------------------------------------------------------------------
     @staticmethod
     def get():
-        '''Static function that if necessary creates and returns the singleton
-        SymbolicMaths instance.
+        '''Static function that creates (if necessary) and returns the
+        singleton SymbolicMaths instance.
 
         :returns: the instance of the symbolic maths class.
         :rtype: :py:class:`psyclone.core.SymbolicMaths.`
@@ -81,7 +81,6 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     def __init__(self):
-
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -107,4 +106,6 @@ class SymbolicMaths:
 
         str_exp1 = parse_expr(self._writer(exp1))
         str_exp2 = parse_expr(self._writer(exp2))
+        # Simplify triggers a set of SymPy algorithms to simplify
+        # the expression.
         return simplify(str_exp1 == str_exp2)

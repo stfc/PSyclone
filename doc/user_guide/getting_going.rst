@@ -358,7 +358,7 @@ you can instruct ``pip`` to do a user-local install:
 
    > pip install --user sympy
 
-Alternatively, you could follow on the `SymPy web page
+Alternatively, you could follow the instructions on the `SymPy web page
 <https://docs.sympy.org/latest/install.html>`_.
 
 Graphviz

@@ -58,7 +58,6 @@ def test_sym_writer_boolean():
 def test_sym_writer_character():
     '''Test that characters are rejected.
     '''
-
     sympy_writer = SymPyWriter()
     lit = Literal("bla", CHARACTER_TYPE)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
 
 
-''' Module containing py.test tests for dependency analysis.'''
+''' Module containing py.test tests for the symbolic maths class.'''
 
 from __future__ import print_function, absolute_import
 
@@ -52,6 +50,10 @@ def test_sym_maths_get():
     sym_maths = SymbolicMaths.get()
     assert sym_maths is not None
 
+    # Make sure we get the indeed the same instance:
+    sym_maths2 = SymbolicMaths.get()
+    assert sym_maths is sym_maths2
+
     assert not sym_maths.equal(None, 1)
     assert not sym_maths.equal(2, None)
 
@@ -60,13 +62,12 @@ def test_sym_maths_get():
                                          (".false.", ".FALSE."),
                                          ])
 def test_math_logicals(fortran_reader, expressions):
-    '''Test that the sympy based comparison handles constant numbers,
-    especially once using Fortran type specification
+    '''Test that the sympy based comparison handles logical constants
+    as expected.
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     source = '''program test_prog
-                use some_mod
                 logical :: x
                 x = {0}
                 x = {1}
@@ -95,8 +96,7 @@ def test_math_logicals(fortran_reader, expressions):
                                          ("i+j", "j+i"),
                                          ("i+j+k", "i+k+j"),
                                          ("i+i", "2*i"),
-                                         ("i+j-2*k+3*j-2*i", "-i+4*j-2*k"),
-                                         ("max(1, 2, 3)", "max(1, 2, 3)")
+                                         ("i+j-2*k+3*j-2*i", "-i+4*j-2*k")
                                          ])
 def test_symbolic_math_equal(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
@@ -162,7 +162,7 @@ def test_symbolic_math_equal_structures(fortran_reader, expressions):
                                          ])
 def test_symbolic_math_not_equal(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
-    expressions.
+    expressions that are not equal.
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -192,7 +192,7 @@ def test_symbolic_math_not_equal(fortran_reader, expressions):
                                          ])
 def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
     '''Test that the sympy based comparison handles complex
-    expressions.
+    expressions that are not equal.
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -225,7 +225,8 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
                                          ("MOD(i,j)", "mod(2+i-2, j)")
                                          ])
 def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
-    '''Test how known functions with constant values are handled.
+    '''Test that recognised functions with constant values as arguments are
+    handled correctly."
 
     '''
     # A dummy program to easily create the PSyIR for the

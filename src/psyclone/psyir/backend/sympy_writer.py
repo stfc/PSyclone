@@ -61,7 +61,7 @@ class SymPyWriter(FortranWriter):
         self._intrinsic = set()
         self._op_to_str = {}
 
-        # Get the mapping of special operators/functions to the
+        # Create the mapping of special operators/functions to the
         # name SymPy expects.
         for operator, op_str in [(NaryOperation.Operator.MAX, "Max"),
                                  (BinaryOperation.Operator.MAX, "Max"),
@@ -76,7 +76,7 @@ class SymPyWriter(FortranWriter):
         '''This method is called when a Literal instance is found in the PSyIR
         tree. For SymPy we need to handle booleans (which are expected to
         be capitalised: True). Real values work by just ignoring any precision
-        information (e.g. 2_4, 3.1_wp). Character constants are supported
+        information (e.g. 2_4, 3.1_wp). Character constants are not supported
         and will raise an exception.
 
         :param node: a Literal PSyIR node.
