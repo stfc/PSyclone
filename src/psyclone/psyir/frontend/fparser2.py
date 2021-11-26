@@ -505,7 +505,7 @@ def _copy_full_base_reference(node):
         "or Member but got '{0}'.".format(type(node).__name__))
 
 
-def _kind_symbol_from_name(name, symbol_table):
+def _kind_find_or_create(name, symbol_table):
     '''
     Utility method that returns a Symbol representing the named KIND
     parameter. If the supplied Symbol Table (or one of its ancestors)
@@ -701,7 +701,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             six.raise_from(InternalError(
                 "Failed to find a symbol table to which to add the kind "
                 "symbol '{0}'.".format(precision_name)), err)
-        return _kind_symbol_from_name(precision_name, symbol_table)
+        return _kind_find_or_create(precision_name, symbol_table)
 
 
 def _process_routine_symbols(module_ast, symbol_table, visibility_map):
@@ -2171,7 +2171,7 @@ class Fparser2Reader(object):
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
 
-        return _kind_symbol_from_name(str(kind_names[0]), symbol_table)
+        return _kind_find_or_create(str(kind_names[0]), symbol_table)
 
     def process_nodes(self, parent, nodes):
         '''
