@@ -1143,7 +1143,7 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Subtracting (scaled) real fields ---------------------------- #
 
 
-def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXMinusYKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Z = X - Y where Z, X and Y are real-valued fields. Test with and without
@@ -1182,6 +1182,15 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f3, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
@@ -1202,7 +1211,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - Y where X and Y are real-valued fields. Test with and
@@ -1240,6 +1249,15 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      ! Call kernels and communication routines\n"
@@ -1673,7 +1691,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Multiplying (scaled) real fields ---------------------------- #
 
 
-def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXTimesYKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Z = X*Y where Z, X and Y are real-valued fields. Test with and without
@@ -1720,6 +1738,15 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f3, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      ! Call kernels and communication routines\n"
@@ -1738,7 +1765,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X*Y where X and Y are real-valued fields. Test with and
@@ -1777,6 +1804,15 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output_dm_2 = (
             "      !\n"
@@ -2014,7 +2050,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 # ------------- Dividing real fields ---------------------------------------- #
 
 
-def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X/Y where Z, X and Y are fields real-valued. Test with and
@@ -2053,6 +2089,15 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f3, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
@@ -2073,7 +2118,8 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
+                          fortran_writer):
     ''' Test that 1) the str method of LFRicIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X/Y where X and Y are real-valued fields. Test with and
@@ -2111,6 +2157,15 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output_dm_2 = (
             "      !\n"
@@ -2266,7 +2321,8 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
 # ------------- Raising a real field to a scalar ---------------------------- #
 
 
-def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
+                         fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
@@ -2301,6 +2357,18 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n")
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar power
+        scalar = loop.scope.symbol_table.lookup("a_scalar")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
+                "enddo") in code
     else:
         output = (
             "      ! Call kernels and communication routines\n"
@@ -2320,7 +2388,8 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
                 in code)
 
 
-def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
+                        fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
@@ -2357,6 +2426,18 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n")
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar power
+        scalar = loop.scope.symbol_table.lookup("i_scalar")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
+                "enddo") in code
     else:
         output = (
             "      ! Call kernels and communication routines\n"
@@ -2381,7 +2462,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Setting real field elements to a real value ----------------- #
 
 
-def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
+def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicSetvalCKern returns the expected
     string and 2) we generate correct code for the built-in operation
     X = c where 'c' is a real constant scalar value and X is a real-valued
@@ -2428,6 +2509,18 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = c\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar
+        scalar = loop.scope.symbol_table.lookup("c")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  f1_proxy%data(df) = c\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
@@ -2447,7 +2540,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicSetvalXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = X where X and Y are real-valued fields. Also test with and without
@@ -2493,6 +2586,14 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
