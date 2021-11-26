@@ -1823,7 +1823,9 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
                 integer, dimension(:,:) :: array
             end type my_type
             type(my_type) :: global1
-            type(my_type) :: global2
+            type other_type
+                type(my_type) :: value1
+            end type other_type
         end module my_mod
         ''')
     psyir = fortran_reader.psyir_from_source('''
@@ -1836,31 +1838,33 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
 
     subroutine = psyir.walk(Routine)[0]
     symtab = subroutine.symbol_table
-    # Add a generic definition of golbal1
-    symtab.add(Symbol("global1",
+    # Add a generic Symbol definition of other_type
+    symtab.add(Symbol("other_type",
                       interface=ImportInterface(symtab.lookup("my_mod"))))
 
     # Before resolving import
-    assert not isinstance(symtab.lookup("global1"), DataSymbol)
-    # global2 doesn't exist because it is never mentioned
-    assert "global2" not in symtab
+    # global1 doesn't exist because it is never mentioned
+    assert "global1" not in symtab
     # Some symbols types / datatype are inferred
     assert isinstance(symtab.lookup("my_type"), DataTypeSymbol)
     assert symtab.lookup("local1").datatype == symtab.lookup("my_type")
     # but we don't know anything about the imported type
     assert isinstance(symtab.lookup("my_type").datatype, DeferredType)
+    assert not isinstance(symtab.lookup("other_type"), DataTypeSymbol)
 
-    # Set up include_path to import the proper modules
+    # Set up include_path to import the proper modules and resolve symbols
     Config.get()._include_paths = [str(tmpdir)]
     symtab.resolve_imports()
-    # The globals exist and are DataSymbols now
-    assert isinstance(symtab.lookup("global1"), DataSymbol)
-    assert isinstance(symtab.lookup("global2"), DataSymbol)
 
-    # All are of my_type type
+    # The global1 exist and is DataSymbols now
+    assert isinstance(symtab.lookup("global1"), DataSymbol)
+
+    # All symbols are of my_type type
     assert symtab.lookup("local1").datatype.name == "my_type"
     assert symtab.lookup("global1").datatype.name == "my_type"
-    assert symtab.lookup("global2").datatype.name == "my_type"
+    assert isinstance(symtab.lookup("other_type"), DataTypeSymbol)
+    value1 = symtab.lookup("other_type").datatype.components["value1"]
+    assert value1.datatype.name == "my_type"
 
     # And now the imported "my_type" type has more info
     my_type = symtab.lookup("my_type").datatype
