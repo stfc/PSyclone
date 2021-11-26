@@ -422,11 +422,11 @@ Continuous Integration
 The PSyclone project uses GitHub Actions
 (https://psyclone.readthedocs.io/en/stable/examples.html#examples)
 for continuous integration. GitHub triggers an action whenever there
-is a push to the repository. The work performed by the action is
-configured by the ``PSyclone/.github/workflows/python-package.yml``
-file.
+is a push to a pull-request on the repository. The work performed by
+the action is configured in the
+``PSyclone/.github/workflows/python-package.yml`` file.
 
-Currently there are four main checks performed, in order of increasing
+Currently there are five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked. Those links to skip
@@ -436,12 +436,15 @@ computational cost (so that we 'fail fast'):
  2. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
 
- 3. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+ 3. The code base, examples and tutorials are lint'ed with flake8.
+    (Configuration of flake8 is performed in ``setup.cfg``.)
+
+ 4. All of the examples are tested (for Python versions 3.6 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 4. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
+ 5. The full test suite is run for Python versions 3.6 and 3.8 but without
     the compilation checks.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
@@ -467,7 +470,7 @@ and therefore the line described above must be commented out again
 before making a release.
 
 A single run of the test suite on GitHub Actions uses
-approximately 20 minutes of CPU time and we run the test suite on three
+approximately 20 minutes of CPU time and we run the test suite on two
 different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without
