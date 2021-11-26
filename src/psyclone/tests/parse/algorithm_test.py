@@ -39,7 +39,6 @@ tests for code that is not covered there.'''
 
 from __future__ import absolute_import
 import os
-import six
 
 import pytest
 
@@ -723,8 +722,6 @@ def test_createvarname_error1():
 
     '''
     name = "class"
-    if six.PY2:
-        name = "type"
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
     assert ("algorithm.py:create_var_name unrecognised structure "
@@ -738,8 +735,6 @@ def test_createvarname_error2(monkeypatch):
 
     '''
     name = "class"
-    if six.PY2:
-        name = "type"
     content = Data_Ref("a%b")
     monkeypatch.setattr(content, "items", ["invalid", "invalid"])
     with pytest.raises(InternalError) as excinfo:

@@ -1350,7 +1350,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        return self._symbol_table.symbol_from_tag(unique, root_name).name
+        return self._symbol_table.find_or_create_tag(unique, root_name).name
 
     @staticmethod
     def dofmap_name(symtab, arg):
@@ -1369,7 +1369,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        return symtab.symbol_from_tag(unique, root_name).name
+        return symtab.find_or_create_tag(unique, root_name).name
 
     @staticmethod
     def dofmap_size_name(symtab, arg):
@@ -1388,7 +1388,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
-        return symtab.symbol_from_tag(unique, root_name).name
+        return symtab.find_or_create_tag(unique, root_name).name
 
     @staticmethod
     def max_branch_length_name(symtab, arg):
@@ -1409,7 +1409,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_max_branch_length"
         unique = DynStencils.stencil_unique_str(arg, "length")
-        return symtab.symbol_from_tag(unique, root_name).name
+        return symtab.find_or_create_tag(unique, root_name).name
 
     def _unique_max_branch_length_vars(self):
         '''
@@ -1461,7 +1461,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name+"_direction"
         unique = DynStencils.stencil_unique_str(arg, "direction")
-        return symtab.symbol_from_tag(unique, root_name).name
+        return symtab.find_or_create_tag(unique, root_name).name
 
     @property
     def _unique_extent_vars(self):
@@ -1833,7 +1833,7 @@ class LFRicMeshProperties(DynCollection):
 
         # Store properties in symbol table
         for prop in self._properties:
-            self._symbol_table.symbol_from_tag(prop.name.lower())
+            self._symbol_table.find_or_create_tag(prop.name.lower())
 
     def kern_args(self, stub=False, var_accesses=None):
         '''
@@ -1875,14 +1875,14 @@ class LFRicMeshProperties(DynCollection):
                     OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                     in self._kernel.reference_element.properties)
                 if not has_nfaces:
-                    name = self._symbol_table.symbol_from_tag(
+                    name = self._symbol_table.find_or_create_tag(
                         "nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(Signature(name),
                                                 AccessType.READ, self._kernel)
 
-                adj_face = self._symbol_table.symbol_from_tag(
+                adj_face = self._symbol_table.find_or_create_tag(
                     "adjacent_face").name
                 if var_accesses is not None:
                     # TODO #1320 Replace [1]
@@ -1938,19 +1938,19 @@ class LFRicMeshProperties(DynCollection):
             # The DynMeshes class will have created a mesh object so we
             # don't need to do that here.
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.symbol_from_tag(
+                adj_face = self._symbol_table.find_or_create_tag(
                     "adjacent_face").name + "(:,:) => null()"
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.symbol_from_tag(
+                name = self._symbol_table.find_or_create_tag(
                     "ncell_2d_no_halos").name
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    entity_decls=[name]))
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                name = self._symbol_table.find_or_create_tag("ncell_2d").name
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    entity_decls=[name]))
@@ -1984,7 +1984,7 @@ class LFRicMeshProperties(DynCollection):
 
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.symbol_from_tag(
+                adj_face = self._symbol_table.find_or_create_tag(
                     "adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
@@ -1992,15 +1992,15 @@ class LFRicMeshProperties(DynCollection):
                     DeclGen(
                         parent, datatype="integer",
                         kind=api_config.default_kind["integer"],
-                        dimension=self._symbol_table.symbol_from_tag(
+                        dimension=self._symbol_table.find_or_create_tag(
                             "nfaces_re_h").name,
                         intent="in", entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D:
-                ncell_2d = self._symbol_table.symbol_from_tag("ncell_2d").name
+                ncell_2d = self._symbol_table.find_or_create_tag("ncell_2d")
                 parent.add(
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
-                            intent="in", entity_decls=[ncell_2d]))
+                            intent="in", entity_decls=[ncell_2d.name]))
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
@@ -2026,23 +2026,23 @@ class LFRicMeshProperties(DynCollection):
         parent.add(CommentGen(parent, " Initialise mesh properties"))
         parent.add(CommentGen(parent, ""))
 
-        mesh = self._symbol_table.symbol_from_tag("mesh").name
+        mesh = self._symbol_table.find_or_create_tag("mesh").name
 
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.symbol_from_tag(
+                adj_face = self._symbol_table.find_or_create_tag(
                     "adjacent_face").name
                 parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
                                      rhs=mesh+"%get_adjacent_face()"))
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.symbol_from_tag(
+                name = self._symbol_table.find_or_create_tag(
                     "ncell_2d_no_halos").name
                 parent.add(AssignGen(parent, lhs=name,
                                      rhs=mesh+"%get_last_edge_cell()"))
 
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                name = self._symbol_table.find_or_create_tag("ncell_2d").name
                 parent.add(AssignGen(parent, lhs=name,
                                      rhs=mesh+"%get_ncells_2d()"))
             else:
@@ -2097,7 +2097,8 @@ class DynReferenceElement(DynCollection):
         symtab = self._symbol_table
 
         # Create and store a name for the reference element object
-        self._ref_elem_name = symtab.symbol_from_tag("reference_element").name
+        self._ref_elem_name = \
+            symtab.find_or_create_tag("reference_element").name
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
@@ -2125,19 +2126,19 @@ class DynReferenceElement(DynCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 self._nfaces_h_required):
-            self._nfaces_h_name = symtab.symbol_from_tag("nfaces_re_h").name
+            self._nfaces_h_name = symtab.find_or_create_tag("nfaces_re_h").name
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_name = symtab.symbol_from_tag("nfaces_re_v").name
+            self._nfaces_v_name = symtab.find_or_create_tag("nfaces_re_v").name
         # Provide no. of all faces if required
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_name = symtab.symbol_from_tag("nfaces_re").name
+            self._nfaces_name = symtab.find_or_create_tag("nfaces_re").name
 
         # Now the arrays themselves, in the order specified in the
         # kernel metadata (in the case of a kernel stub)
@@ -2146,7 +2147,7 @@ class DynReferenceElement(DynCollection):
             if prop == \
                RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
                 self._horiz_face_normals_name = \
-                    symtab.symbol_from_tag("normals_to_horiz_faces").name
+                    symtab.find_or_create_tag("normals_to_horiz_faces").name
                 if self._horiz_face_normals_name not in self._arg_properties:
                     self._arg_properties[self._horiz_face_normals_name] = \
                          self._nfaces_h_name
@@ -2154,7 +2155,8 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
                 self._horiz_face_out_normals_name = \
-                    symtab.symbol_from_tag("out_normals_to_horiz_faces").name
+                    symtab.find_or_create_tag("out_normals_to_horiz_faces") \
+                          .name
                 if self._horiz_face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._horiz_face_out_normals_name] = \
@@ -2162,7 +2164,7 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_normals_name = \
-                    symtab.symbol_from_tag("normals_to_vert_faces").name
+                    symtab.find_or_create_tag("normals_to_vert_faces").name
                 if self._vert_face_normals_name not in self._arg_properties:
                     self._arg_properties[self._vert_face_normals_name] = \
                          self._nfaces_v_name
@@ -2170,7 +2172,7 @@ class DynReferenceElement(DynCollection):
             elif prop == (RefElementMetaData.Property.
                           OUTWARD_NORMALS_TO_VERTICAL_FACES):
                 self._vert_face_out_normals_name = \
-                    symtab.symbol_from_tag("out_normals_to_vert_faces").name
+                    symtab.find_or_create_tag("out_normals_to_vert_faces").name
                 if self._vert_face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._vert_face_out_normals_name] = \
@@ -2178,14 +2180,14 @@ class DynReferenceElement(DynCollection):
             # Provide normals to all faces
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
                 self._face_normals_name = \
-                    symtab.symbol_from_tag("normals_to_faces").name
+                    symtab.find_or_create_tag("normals_to_faces").name
                 if self._face_normals_name not in self._arg_properties:
                     self._arg_properties[self._face_normals_name] = \
                         self._nfaces_name
             # Provide vertical normals to all "outward" faces
             elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
                 self._face_out_normals_name = \
-                    symtab.symbol_from_tag("out_normals_to_faces").name
+                    symtab.find_or_create_tag("out_normals_to_faces").name
                 if self._face_out_normals_name not in \
                    self._arg_properties:
                     self._arg_properties[self._face_out_normals_name] = \
@@ -2275,7 +2277,7 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
         scalars = list(self._arg_properties.values())
-        nfaces_h = self._symbol_table.symbol_from_tag("nfaces_re_h").name
+        nfaces_h = self._symbol_table.find_or_create_tag("nfaces_re_h").name
         if self._nfaces_h_required and nfaces_h not in scalars:
             scalars.append(nfaces_h)
 
@@ -2310,7 +2312,7 @@ class DynReferenceElement(DynCollection):
                        " Get the reference element and query its properties"))
         parent.add(CommentGen(parent, ""))
 
-        mesh_obj_name = self._symbol_table.symbol_from_tag("mesh").name
+        mesh_obj_name = self._symbol_table.find_or_create_tag("mesh").name
         parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
                              rhs=mesh_obj_name+"%get_reference_element()"))
 
@@ -3169,7 +3171,8 @@ class DynCellIterators(DynCollection):
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
 
-        self._nlayers_name = self._symbol_table.symbol_from_tag("nlayers").name
+        self._nlayers_name = \
+            self._symbol_table.find_or_create_tag("nlayers").name
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -3564,14 +3567,14 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
             # matrix
-            cma_name = self._symbol_table.symbol_from_tag(
+            cma_name = self._symbol_table.find_or_create_tag(
                 op_name+"_matrix").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
-                param_name = self._symbol_table.symbol_from_tag(
+                param_name = self._symbol_table.find_or_create_tag(
                     op_name+"_"+param).name
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
@@ -3614,7 +3617,7 @@ class DynCMAOperators(DynCollection):
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
-            cma_name = self._symbol_table.symbol_from_tag(
+            cma_name = self._symbol_table.find_or_create_tag(
                 op_name+"_matrix").name
             cma_dtype = self._cma_ops[op_name]["datatype"]
             cma_kind = self._cma_ops[op_name]["kind"]
@@ -3624,7 +3627,7 @@ class DynCMAOperators(DynCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                param_names.append(self._symbol_table.symbol_from_tag(
+                param_names.append(self._symbol_table.find_or_create_tag(
                     op_name+"_"+param).name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -3659,7 +3662,7 @@ class DynCMAOperators(DynCollection):
             # get upset if this ordering is not followed)
             _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = symtab.symbol_from_tag(op_name+"_"+param).name
+                param_name = symtab.find_or_create_tag(op_name+"_"+param).name
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -3751,9 +3754,9 @@ class DynMeshes(object):
             self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
-            _name_set.add(self._schedule.symbol_table.symbol_from_tag(
+            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
                 "mesh_{0}".format(fine_arg.name)).name)
-            _name_set.add(self._schedule.symbol_table.symbol_from_tag(
+            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
                 "mesh_{0}".format(coarse_arg.name)).name)
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
@@ -3775,8 +3778,8 @@ class DynMeshes(object):
         if not _name_set:
             if (requires_mesh or (Config.get().distributed_memory and
                                   not invoke.operates_on_dofs_only)):
-                _name_set.add(
-                    self._schedule.symbol_table.symbol_from_tag("mesh").name)
+                _name_set.add(self._schedule.symbol_table.find_or_create_tag(
+                    "mesh").name)
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -3801,11 +3804,13 @@ class DynMeshes(object):
                 # Colour map
                 base_name = "cmap_" + carg_name
                 colour_map = \
-                    self._schedule.symbol_table.symbol_from_tag(base_name).name
+                    self._schedule.symbol_table.find_or_create_tag(base_name) \
+                                               .name
                 # No. of colours
                 base_name = "ncolour_" + carg_name
                 ncolours = \
-                    self._schedule.symbol_table.symbol_from_tag(base_name).name
+                    self._schedule.symbol_table.find_or_create_tag(base_name)\
+                                               .name
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
@@ -3815,7 +3820,7 @@ class DynMeshes(object):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             mesh_name = \
-                self._schedule.symbol_table.symbol_from_tag("mesh").name
+                self._schedule.symbol_table.find_or_create_tag("mesh").name
             self._mesh_names.append(mesh_name)
 
     def declarations(self, parent):
@@ -3882,11 +3887,11 @@ class DynMeshes(object):
             # colourmap information
             base_name = "cmap"
             colour_map = \
-                self._schedule.symbol_table.symbol_from_tag(base_name).name
+                self._schedule.symbol_table.find_or_create_tag(base_name).name
             # No. of colours
             base_name = "ncolour"
             ncolours = \
-                self._schedule.symbol_table.symbol_from_tag(base_name).name
+                self._schedule.symbol_table.find_or_create_tag(base_name).name
             # Add declarations for these variables
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -3926,10 +3931,11 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                colour_map = self._schedule.symbol_table.symbol_from_tag(
+                colour_map = self._schedule.symbol_table.find_or_create_tag(
                     "cmap").name
                 ncolour = \
-                    self._schedule.symbol_table.symbol_from_tag("ncolour").name
+                    self._schedule.symbol_table.find_or_create_tag("ncolour")\
+                                               .name
                 # Get the number of colours
                 parent.add(AssignGen(
                     parent, lhs=ncolour,
@@ -3952,9 +3958,9 @@ class DynMeshes(object):
         # Loop over the DynInterGrid objects in our dictionary
         for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
-            fine_mesh = self._schedule.symbol_table.symbol_from_tag(
+            fine_mesh = self._schedule.symbol_table.find_or_create_tag(
                 "mesh_{0}".format(dig.fine.name)).name
-            coarse_mesh = self._schedule.symbol_table.symbol_from_tag(
+            coarse_mesh = self._schedule.symbol_table.find_or_create_tag(
                 "mesh_{0}".format(dig.coarse.name)).name
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
@@ -4065,20 +4071,20 @@ class DynInterGrid(object):
         # Generate name for inter-mesh map
         base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
                                                coarse_arg.name)
-        self.mmap = symtab.symbol_from_tag(base_mmap_name).name
+        self.mmap = symtab.find_or_create_tag(base_mmap_name).name
 
         # Generate name for ncell variables
-        self.ncell_fine = symtab.symbol_from_tag(
+        self.ncell_fine = symtab.find_or_create_tag(
             "ncell_{0}".format(fine_arg.name)).name
         # No. of fine cells per coarse cell in x
-        self.ncellpercellx = symtab.symbol_from_tag(
+        self.ncellpercellx = symtab.find_or_create_tag(
             "ncpc_{0}_{1}_x".format(fine_arg.name, coarse_arg.name)).name
         # No. of fine cells per coarse cell in y
-        self.ncellpercelly = symtab.symbol_from_tag(
+        self.ncellpercelly = symtab.find_or_create_tag(
             "ncpc_{0}_{1}_y".format(fine_arg.name, coarse_arg.name)).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
-        self.cell_map = symtab.symbol_from_tag(base_name).name
+        self.cell_map = symtab.find_or_create_tag(base_name).name
 
         # We have no colourmap information when first created
         self.colourmap = ""
@@ -4422,7 +4428,8 @@ class DynBasisFunctions(DynCollection):
                 var_names = []
                 for var in self._qr_vars[shape]:
                     var_names.append(
-                        self._symbol_table.symbol_from_tag(var+"_proxy").name)
+                        self._symbol_table.find_or_create_tag(var+"_proxy")
+                                          .name)
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -4774,21 +4781,21 @@ class DynBasisFunctions(DynCollection):
             # of quadrature points by appending the name of the quadrature
             # argument
             decl_list = [
-                symbol_table.symbol_from_tag(name+"_"+qr_arg_name).name
+                symbol_table.find_or_create_tag(name+"_"+qr_arg_name).name
                 for name in self.qr_dim_vars[qr_type]]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=decl_list))
 
             decl_list = [
-                symbol_table.symbol_from_tag(name+"_"+qr_arg_name).name
+                symbol_table.find_or_create_tag(name+"_"+qr_arg_name).name
                 + "(:,:) => null()" for name in self.qr_weight_vars[qr_type]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind=api_config.default_kind["real"],
                         entity_decls=decl_list))
             # Get the quadrature proxy
-            proxy_name = symbol_table.symbol_from_tag(
+            proxy_name = symbol_table.find_or_create_tag(
                 qr_arg_name+"_proxy").name
             parent.add(
                 AssignGen(parent, lhs=proxy_name,
@@ -5202,14 +5209,6 @@ class DynInvoke(Invoke):
                     unique_fs_names.append(fspace.mangled_name)
         return unique_fs
 
-    def is_coloured(self):
-        ''' Returns true if at least one of the loops in the
-        schedule of this invoke has been coloured '''
-        for loop in self.schedule.loops():
-            if loop.loop_type == "colours":
-                return True
-        return False
-
     @property
     def operates_on_dofs_only(self):
         '''
@@ -5397,7 +5396,7 @@ class DynGlobalSum(GlobalSum):
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # GlobalSums in the Invoke.
         sum_name = self.ancestor(InvokeSchedule).symbol_table.\
-            symbol_from_tag("global_sum").name
+            find_or_create_tag("global_sum").name
         sum_type = self._scalar.data_type
         sum_mod = self._scalar.module_name
         parent.add(UseGen(parent, name=sum_mod, only=True,
@@ -6789,7 +6788,7 @@ class DynLoop(Loop):
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # Loops in the Invoke.
         mesh_obj_name = self.ancestor(InvokeSchedule).symbol_table.\
-            symbol_from_tag("mesh").name
+            find_or_create_tag("mesh").name
         return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
             + prev_space_index_str + ")+1"
 
@@ -6823,7 +6822,7 @@ class DynLoop(Loop):
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # Loops in the Invoke.
         mesh = self.ancestor(InvokeSchedule).symbol_table.\
-            symbol_from_tag(mesh_name).name
+            find_or_create_tag(mesh_name).name
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -7521,7 +7520,7 @@ class DynKern(CodedKern):
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
                 qr_name = self.ancestor(InvokeSchedule).symbol_table.\
-                    symbol_from_tag(tag, qr_arg.varname).name
+                    find_or_create_tag(tag, qr_arg.varname).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -8253,7 +8252,7 @@ class DynKernelArguments(Arguments):
                     # symbol_table.
                     tag = "AlgArgs_" + arg.stencil.extent_arg.text
                     root = arg.stencil.extent_arg.varname
-                    new_name = symtab.symbol_from_tag(tag, root).name
+                    new_name = symtab.find_or_create_tag(tag, root).name
                     arg.stencil.extent_arg.varname = new_name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
@@ -8264,7 +8263,7 @@ class DynKernelArguments(Arguments):
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    new_name = symtab.symbol_from_tag(tag, root).name
+                    new_name = symtab.find_or_create_tag(tag, root).name
                     arg.stencil.direction_arg.varname = new_name
 
         self._dofs = []
@@ -9066,21 +9065,14 @@ class DynKernelArgument(KernelArgument):
             :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
             '''
-            try:
-                arg_type = symbol_table.lookup(type_name)
-            except KeyError:
-                # TODO Once #1258 is done we should already have symbols for
-                # the various types at this point.
-                try:
-                    arg_mod_container = symbol_table.lookup(mod_name)
-                except KeyError:
-                    arg_mod_container = ContainerSymbol(mod_name)
-                    root_table.add(arg_mod_container)
-                arg_type = DataTypeSymbol(
-                    type_name, DeferredType(),
-                    interface=ImportInterface(arg_mod_container))
-                root_table.add(arg_type)
-            return arg_type
+            return root_table.find_or_create(
+                    type_name,
+                    symbol_type=DataTypeSymbol,
+                    datatype=DeferredType(),
+                    interface=ImportInterface(root_table.find_or_create(
+                        mod_name,
+                        symbol_type=ContainerSymbol)
+                        ))
 
         if self.is_scalar:
 
