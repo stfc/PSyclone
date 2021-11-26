@@ -40,7 +40,6 @@
 # pylint: disable=too-many-lines
 from __future__ import absolute_import
 
-from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import NaryOperation, BinaryOperation
 from psyclone.psyir.symbols import ScalarType
@@ -85,7 +84,7 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the literal.
         :rtype: str
 
-        :raises InternalError: if a character constant is found, which \
+        :raises TypeError: if a character constant is found, which \
             is not supported with SymPy.
 
         '''
@@ -94,8 +93,8 @@ class SymPyWriter(FortranWriter):
             return node.value.capitalize()
 
         if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            raise InternalError("SymPy cannot handle strings like '{0}'."
-                                .format(node.value))
+            raise TypeError("SymPy cannot handle strings like '{0}'."
+                            .format(node.value))
         # All real (single, double precision) and integer work by just
         # using the node value. Single and double precision both use
         # 'e' as specification, which SymPy accepts, and precision

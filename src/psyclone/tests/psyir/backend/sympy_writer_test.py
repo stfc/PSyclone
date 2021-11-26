@@ -39,7 +39,6 @@ from __future__ import print_function, absolute_import
 
 import pytest
 
-from psyclone.errors import InternalError
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
@@ -61,7 +60,7 @@ def test_sym_writer_character():
     sympy_writer = SymPyWriter()
     lit = Literal("bla", CHARACTER_TYPE)
 
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         sympy_writer(lit)
 
     assert "SymPy cannot handle strings like 'bla'." in str(err.value)
