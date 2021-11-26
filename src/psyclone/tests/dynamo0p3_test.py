@@ -1790,14 +1790,41 @@ def test_dynkernelargument_idtp_vector_field():
     assert field_argument._proxy_data_type == "field_proxy_type"
     assert field_argument._module_name == "field_mod"
 
-# TODO. Write down rules in user guide.
-# TODO. add tests to check expected code is being generated when
-#       datatype information is overidden (real_field and scalars).
-# TODO. An actual example (in examples dir) that have algorithm
-#       metadata and generate psy-layer code to make sure it works.
-#       Need scalar, field and operator examples. Need mixed
-#       r_solver_field, field to check declarations work.
 
+def test_dynkernelargument_idtp_r_solver_operator():
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class for an r_solver_operator.
+
+    '''
+    # Use one of the examples to create an instance of
+    # DynKernelArgument that describes an r_solver_operator.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.2_mixed_precision_self.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    operator_argument = psy.invokes.invoke_list[0].schedule.args[0]
+    assert operator_argument.is_operator
+    assert operator_argument._precision == "r_solver"
+    assert operator_argument._data_type == "r_solver_operator_type"
+    assert operator_argument._proxy_data_type == "r_solver_operator_proxy_type"
+    assert operator_argument._module_name == "operator_mod"
+
+    # No algorithm information - raise exception
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(None)
+        assert ("It was not possible to determine the operator type from the "
+                "algorithm layer for argument 'self_mm_w0' in kernel "
+                "'testkern_operator_code'.")
+
+    # Inconsistent datatype
+    arg = Arg("variable", None, None, ("columnwise_operator_type", None))
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(arg)
+    assert ("The metadata for argument 'self_mm_w0' in kernel "
+            "'testkern_operator_code' specifies that this is an operator, "
+            "however it is declared as a 'columnwise_operator_type' in the "
+            "algorithm code." in str(info.value))
+    
+# TBA ignore use default
 
 def test_dynkernelargument_idtp_operator():
     '''Test the _init_data_type_properties method in the DynKernelArgument

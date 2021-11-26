@@ -560,6 +560,7 @@ class KernelProcedure(object):
                 # We support either:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
+                ### print ("Statement: ",statement)
                 if statement.bname:
                     if statement.name.lower() != "code":
                         raise ParseError(
@@ -570,6 +571,7 @@ class KernelProcedure(object):
                 else:
                     bname = statement.name.lower()
                 break
+        ### print ("FOUND "+bname)
         if bname is None:
             # If no type-bound procedure found, search for an explicit
             # interface that has module procedures.

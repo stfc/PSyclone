@@ -8889,14 +8889,27 @@ class DynKernelArgument(KernelArgument):
             # metadata and algorithm type are consistent and that the
             # metadata specifies a supported operator type.
             if self.argument_type == "gh_operator":
-                if use_alg_info and alg_datatype and \
-                   alg_datatype != "operator_type":
+                if not use_alg_info:
+                    # Use the default as we are ignoring any algorithm info
+                    argytype = "operator"
+                elif not alg_datatype:
+                    # Raise an exception as we require algorithm
+                    # information to determine the precision of the
+                    # operator
+                    raise GenerationError(
+                        "It was not possible to determine the operator type from "
+                        "the algorithm layer for argument '{0}' in kernel '{1}'."
+                        "".format(self.name, self._call.name, alg_datatype))
+                elif alg_datatype == "operator_type":
+                    argtype = "operator"
+                elif alg_datatype == "r_solver_operator_type":
+                    argtype = "r_solver_operator"
+                else:
                     raise GenerationError(
                         "The metadata for argument '{0}' in kernel '{1}' "
                         "specifies that this is an operator, however it is "
                         "declared as a '{2}' in the algorithm code."
                         "".format(self.name, self._call.name, alg_datatype))
-                argtype = "operator"
             elif self.argument_type == "gh_columnwise_operator":
                 if use_alg_info and alg_datatype and \
                    alg_datatype != "columnwise_operator_type":

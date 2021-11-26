@@ -405,8 +405,8 @@ have different precision.
 The table below gives the currently supported datatypes, their
 associated kernel metadata description and their precision:
 
-.. tabularcolumns:: |l|l|
-	
+.. tabularcolumns:: |l|l|l|
+
 +--------------------------+------------------------+----------+
 | Data Type                | Kernel Metadata        |Precision |
 +==========================+========================+==========+
