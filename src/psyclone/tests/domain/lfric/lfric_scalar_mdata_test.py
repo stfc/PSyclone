@@ -67,7 +67,7 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(7) =                              &
+     type(arg_type) :: meta_args(7) =                            &
           (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
              arg_type(gh_field,    gh_real,    gh_inc,  w1),     &
              arg_type(gh_field,    gh_real,    gh_read, w2),     &
