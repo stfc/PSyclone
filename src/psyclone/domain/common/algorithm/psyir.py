@@ -39,6 +39,7 @@
 '''
 from __future__ import absolute_import
 
+from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
@@ -175,15 +176,17 @@ class AlgorithmInvokeCall(Call):
 
         arguments = []
         arguments_str = []
+        sym_maths = SymbolicMaths.get()
         for kern in self.children:
             for arg in kern.children:
                 if isinstance(arg, Literal):
                     # Literals are not passed by argument.
                     pass
                 elif isinstance(arg, (Reference, ArrayReference)):
-                    # TODO #753 use a better check for equivalence
-                    # (symbolic maths)
-                    if str(arg).lower() not in arguments_str:
+                    for existing_arg in arguments:
+                        if sym_maths.equal(arg, existing_arg):
+                            break
+                    else:
                         arguments_str.append(str(arg).lower())
                         arguments.append(arg.copy())
                 else:
