@@ -46,7 +46,7 @@ from __future__ import absolute_import
 from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Node, Operation, BinaryOperation
+    Assignment, Operation, BinaryOperation
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -79,34 +79,6 @@ class ArrayRange2LoopTrans(Transformation):
     >>> schedule.view()
 
     '''
-    @staticmethod
-    def string_compare(node1, node2):
-        '''Utility function to determine whether two node hierarchies are the
-        same by comparing their string representations.
-
-        :param node1: the first node involved in the comparison.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
-        :param node2: the second node involved in the comparison.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: True if the string representations are the same and \
-            False otherwise.
-        :rtype: bool
-
-        :raises: TypeError if the arguments are the wrong type.
-
-        '''
-        if not isinstance(node1, Node):
-            raise TypeError(
-                "The first argument to the string_compare method should be a "
-                "Node but found '{0}'.".format(type(node1).__name__))
-        if not isinstance(node2, Node):
-            raise TypeError(
-                "The second argument to the string_compare method should be a "
-                "Node but found '{0}'.".format(type(node2).__name__))
-        node1_str = "".join([str(node) for node in node1.walk(Node)])
-        node2_str = "".join([str(node) for node in node2.walk(Node)])
-        return node1_str == node2_str
 
     @staticmethod
     def same_range(array1, idx1, array2, idx2):
