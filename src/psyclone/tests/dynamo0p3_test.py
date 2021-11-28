@@ -1823,12 +1823,11 @@ def test_dynkernelargument_idtp_r_solver_operator():
             "'testkern_operator_code' specifies that this is an operator, "
             "however it is declared as a 'columnwise_operator_type' in the "
             "algorithm code." in str(info.value))
-    
-# TBA ignore use default
+
 
 def test_dynkernelargument_idtp_operator():
     '''Test the _init_data_type_properties method in the DynKernelArgument
-    class for an operator.
+    class for an operator of type operator_type.
 
     '''
     # Use one of the examples to create an instance of
@@ -1843,12 +1842,12 @@ def test_dynkernelargument_idtp_operator():
     assert operator_argument._proxy_data_type == "operator_proxy_type"
     assert operator_argument._module_name == "operator_mod"
 
-    # No algorithm information - use default
-    operator_argument._init_data_type_properties(None)
-    assert operator_argument._precision == "r_def"
-    assert operator_argument._data_type == "operator_type"
-    assert operator_argument._proxy_data_type == "operator_proxy_type"
-    assert operator_argument._module_name == "operator_mod"
+    # No algorithm information - raise exception
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(None)
+    assert ("It was not possible to determine the operator type from the "
+            "algorithm layer for argument 'mm_w0' in kernel "
+            "'testkern_operator_code'." in str(info.value))
 
     # Algorithm information - same as default
     arg = Arg("variable", None, None, ("operator_type", None))
@@ -1888,7 +1887,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     operator_argument = psy.invokes.invoke_list[0].schedule.args[2]
     assert operator_argument.is_operator
-    assert operator_argument._precision == "r_def"
+    assert operator_argument._precision == "r_solver"
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
@@ -1896,7 +1895,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
 
     # No algorithm information - use default
     operator_argument._init_data_type_properties(None)
-    assert operator_argument._precision == "r_def"
+    assert operator_argument._precision == "r_solver"
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
@@ -1905,7 +1904,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     # Algorithm information - same as default
     arg = Arg("variable", None, None, ("columnwise_operator_type", None))
     operator_argument._init_data_type_properties(arg)
-    assert operator_argument._precision == "r_def"
+    assert operator_argument._precision == "r_solver"
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")

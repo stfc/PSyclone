@@ -557,10 +557,10 @@ class KernelProcedure(object):
         # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
             if isinstance(statement, fparser1.statements.SpecificBinding):
-                # We support either:
+                # We support:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
-                ### print ("Statement: ",statement)
+                # or nothing, if there is an explicit interface
                 if statement.bname:
                     if statement.name.lower() != "code":
                         raise ParseError(
@@ -571,7 +571,6 @@ class KernelProcedure(object):
                 else:
                     bname = statement.name.lower()
                 break
-        ### print ("FOUND "+bname)
         if bname is None:
             # If no type-bound procedure found, search for an explicit
             # interface that has module procedures.

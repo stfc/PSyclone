@@ -273,22 +273,6 @@ def test_multi_deref_derived_type_args():
         in gen)
 
 
-def test_op_and_scalar_and_qr_derived_type_args():
-    ''' Test the case where the operator, scalar and qr arguments to a
-    kernel are all supplied by de-referencing derived types. '''
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
-                     "10.6.1_operator_no_field_scalar_deref.f90"),
-        api="dynamo0.3")
-    gen = str(alg)
-
-    assert (
-        "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox % my_mapping, box % b(1), qr % init_quadrature_symmetrical"
-        "(3_i_def, qrl_gauss))" in gen)
-
-
 def test_single_stencil():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Laboratory
 
 '''
 Module containing pytest tests for the mesh-property support in the kernel-stub
@@ -107,7 +108,7 @@ def test_mesh_prop_stub_gen():
         "    contains\n"
         "    subroutine testkern_mesh_prop_code(nlayers, rscalar_1, "
         "field_2_w1, ndf_w1, undf_w1, map_w1, nfaces_re_h, adjacent_face)\n"
-        "      use constants_mod, only: r_def, i_def\n"
+        "      use constants_mod\n"
         "      implicit none\n"
         "      integer(kind=i_def), intent(in) :: nlayers\n"
         "      integer(kind=i_def), intent(in) :: ndf_w1\n"

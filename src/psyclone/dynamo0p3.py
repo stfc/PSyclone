@@ -7847,12 +7847,10 @@ class DynKern(CodedKern):
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
-        # Add "use" statement with kinds (precisions) of all arguments
+        # Add "use" statement with supported argument kinds (precisions)
         sub_stub.add(
             UseGen(sub_stub,
-                   name=const.UTILITIES_MOD_MAP["constants"]["module"],
-                   only=True, funcnames=sorted(list(self._argument_kinds),
-                                               reverse=True)))
+                   name=const.UTILITIES_MOD_MAP["constants"]["module"]))
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)
@@ -8843,19 +8841,19 @@ class DynKernelArgument(KernelArgument):
             # check the metadata and algorithm type are consistent and
             # that the metadata specifies a supported intrinsic type.
             if self.intrinsic_type == "real":
-                if use_alg_info and alg_datatype == "r_solver_field_type":
+                if not use_alg_info:
+                    # Use the default as we are ignoring any algorithm info
+                    argtype = "field"
+                elif alg_datatype == "field_type":
+                    argtype = "field"
+                elif alg_datatype == "r_solver_field_type":
                     argtype = "r_solver_field"
-                elif use_alg_info and alg_datatype != "field_type":
+                else:
                     raise GenerationError(
                         "The metadata for argument '{0}' in kernel '{1}' "
                         "specifies that this is a real field, however it is "
                         "declared as a '{2}' in the algorithm code."
                         "".format(self.name, self._call.name, alg_datatype))
-                else:
-                    # alg_info specifies "field_type" or the algorithm
-                    # information is being ignored so the default
-                    # "field_type" is assumed.
-                    argtype = "field"
 
             elif self.intrinsic_type == "integer":
                 if use_alg_info and alg_datatype != "integer_field_type":
@@ -8872,17 +8870,7 @@ class DynKernelArgument(KernelArgument):
                     format(const.VALID_FIELD_INTRINSIC_TYPES,
                            self.intrinsic_type))
 
-            if use_alg_info and alg_datatype:
-                # Use the algorithm datatype as it is available and
-                # not being ignored.
-                self._data_type = alg_datatype
-            else:
-                # Use the datatype infered from the kernel metadata as
-                # the algorithm datatype is either not available or
-                # is being ignored.
-                self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-
-            # Use information infered from the metadata.
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
@@ -8898,7 +8886,7 @@ class DynKernelArgument(KernelArgument):
             if self.argument_type == "gh_operator":
                 if not use_alg_info:
                     # Use the default as we are ignoring any algorithm info
-                    argytype = "operator"
+                    argtype = "operator"
                 elif not alg_datatype:
                     # Raise an exception as we require algorithm
                     # information to determine the precision of the
@@ -8933,17 +8921,7 @@ class DynKernelArgument(KernelArgument):
                     "argument type but found '{0}'.".
                     format(self.argument_type))
 
-            if use_alg_info and alg_datatype:
-                # Use the algorithm datatype as it is available and
-                # not being ignored.
-                self._data_type = alg_datatype
-            else:
-                # Use the datatype infered from the kernel metadata as
-                # the algorithm datatype is either not available or
-                # is being ignored.
-                self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-
-            # Use information infered from the metadata.
+            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]

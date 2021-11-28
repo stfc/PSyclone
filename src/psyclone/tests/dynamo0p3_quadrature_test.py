@@ -782,7 +782,7 @@ def test_qr_basis_stub():
         "ndf_w2htrace, undf_w2htrace, map_w2htrace, basis_w2htrace_qr_xyoz, "
         "ndf_w2vtrace, basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
