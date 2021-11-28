@@ -55,6 +55,7 @@ contains
     type(field_type) :: p_tmp, u_v_in, u_v_out, u_v_out_cma
     type(columnwise_operator_type) :: grad_v_cma, div_v_cma
     type(columnwise_operator_type) :: grad_v_div_v_cma
+    type(operator_type) :: grad_v
     real(kind=r_def), parameter :: tolerance=1.0E-12
     character(len=32) :: label = "multiply D_v^T.D_v"
 
@@ -73,15 +74,15 @@ contains
                  ! Apply combined CMA operator A = D_v^T.D_v
                  columnwise_op_app_kernel_type( u_v_out_cma,        &
                                                 u_v_in,             &
-                                                grad_v_div_v_cma ), &
+                                                div_v_cma ),        &
                  ! Manually apply boundary conditions
-                 matrix_vector_kernel_type( p_tmp,  &
-                                            u_v_in, &
-                                            div_v ),                &
+                 matrix_vector_kernel_type( p_tmp,                  &
+                                            u_v_in,                 &
+                                            grad_v ),               &
                  ! Successively apply divergence and gradient operators:
                  ! first D_v, then D_v^T
-                 matrix_vector_kernel_type( u_v_out, &
-                                            p_tmp,   &
+                 matrix_vector_kernel_type( u_v_out,                &
+                                            p_tmp,                  &
                                             grad_v ) )
 
   end subroutine test_cma_multiply_grad_v_div_v
