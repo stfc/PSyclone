@@ -3131,15 +3131,26 @@ class DynProxies(DynCollection):
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
-        op_proxy_decs = [arg.proxy_declaration_name for arg in op_args]
-        if op_proxy_decs:
-            op_type = op_args[0].proxy_data_type
-            op_mod = op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=op_proxy_decs))
+        # Filter operators by their proxy datatype
+        operators_datatype_map = OrderedDict()
+        for op_arg in op_args:
+            try:
+                operators_datatype_map[op_arg.proxy_data_type].append(op_arg)
+            except KeyError:
+                # This proxy datatype has not been seen before so
+                # create new entry
+                operators_datatype_map[op_arg.proxy_data_type] = [op_arg]
+        # Declare the operator proxies
+        for operator_datatype in operators_datatype_map:
+            operators_list = operators_datatype_map[operator_datatype]
+            operators_names = [arg.proxy_declaration_name for
+                               arg in operators_list]
+            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
+                                   entity_decls=operators_names,
+                                   intent="in"))
+            op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+             add(operator_datatype))
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
@@ -3416,19 +3427,29 @@ class LFRicScalarArgs(DynCollection):
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                dtype = self._real_scalars[intent][0].intrinsic_type
-                dkind = self._real_scalars[intent][0].precision
-                real_scalar_names = [arg.declaration_name for arg
-                                     in self._real_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=real_scalar_names,
-                            intent=intent))
-                if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
+                # Filter scalars based on precision
+                real_scalars_precision_map = OrderedDict()
+                for real_scalar in self._real_scalars[intent]:
+                    try:
+                        real_scalars_precision_map[real_scalar.precision].append(real_scalar)
+                    except KeyError:
+                        # This precision has not been seen before so create a new entry
+                        real_scalars_precision_map[real_scalar.precision] = [real_scalar]
+                # Declare scalars
+                for real_scalar_kind in real_scalars_precision_map:
+                    real_scalars_list = real_scalars_precision_map[real_scalar_kind]
+                    real_scalar_type = real_scalars_list[0].intrinsic_type
+                    real_scalar_names = [arg.declaration_name for arg
+                                         in real_scalars_list]
+                    parent.add(
+                        DeclGen(parent, datatype=real_scalar_type, kind=real_scalar_kind,
+                                entity_decls=real_scalar_names,
+                                intent=intent))
+                    if self._invoke:
+                        if real_scalar_kind not in const_mod_list:
+                            const_mod_list.append(real_scalar_kind)
+                    elif self._kernel:
+                        self._kernel.argument_kinds.add(real_scalar_kind)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3515,16 +3536,24 @@ class DynLMAOperators(DynCollection):
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
-        # Create a list of operator names
-        op_arg_list = [arg.declaration_name for arg in op_args]
-        if op_arg_list:
-            op_type = op_args[0].data_type
-            op_mod = op_args[0].module_name
-            parent.add(TypeDeclGen(parent, datatype=op_type,
-                                   entity_decls=op_arg_list,
+        # Filter operators by their datatype
+        operators_datatype_map = OrderedDict()
+        for op_arg in op_args:
+            try:
+                operators_datatype_map[op_arg.data_type].append(op_arg)
+            except KeyError:
+                # This datatype has not been seen before so create new entry
+                operators_datatype_map[op_arg.data_type] = [op_arg]
+        # Declare the operators
+        for operator_datatype in operators_datatype_map:
+            operators_list = operators_datatype_map[operator_datatype]
+            operators_names = [arg.declaration_name for arg in operators_list]
+            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
+                                   entity_decls=operators_names,
                                    intent="in"))
+            op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+             add(operator_datatype))
 
 
 class DynCMAOperators(DynCollection):
