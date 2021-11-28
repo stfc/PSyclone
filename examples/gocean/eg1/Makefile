@@ -36,7 +36,7 @@
 
 include ../../common.mk
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
+GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl ompt_alg.f90 ompt_psy.f90
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
 KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o \
