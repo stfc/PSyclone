@@ -34,6 +34,9 @@
 	13) PR #1512 for #1511 and #1516. Fix silent compilation test failures,
 	and make sure all files are compiled in tmpdir.
 
+	14) PR #1531. Fixes incorrect imports of OMPTaskwaitTrans in examples
+	in class docstrings.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
