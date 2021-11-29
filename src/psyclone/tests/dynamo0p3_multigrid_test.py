@@ -470,43 +470,43 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         "      ! Look-up mesh objects and loop limits for inter-grid "
         "kernels\n"
         "      !\n"
-        "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
         "      mesh_fld_m => fld_m_proxy%vspace%get_mesh()\n"
-        "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
-        "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n")
+        "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
+        "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
+        "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n")
 
     assert expected in output
 
     if dist_mem:
         expected = (
-            "      ncell_fld_f = mesh_fld_f%get_last_halo_cell(depth=2)\n"
-            "      ncpc_fld_f_fld_m_x = mmap_fld_f_fld_m%"
-            "get_ntarget_cells_per_source_x()\n"
-            "      ncpc_fld_f_fld_m_y = mmap_fld_f_fld_m%"
-            "get_ntarget_cells_per_source_y()\n"
-            "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
-            "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
-            "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n"
             "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
             "      ncpc_fld_m_fld_c_x = mmap_fld_m_fld_c%"
             "get_ntarget_cells_per_source_x()\n"
             "      ncpc_fld_m_fld_c_y = mmap_fld_m_fld_c%"
-            "get_ntarget_cells_per_source_y()\n")
-    else:
-        expected = (
-            "      ncell_fld_f = fld_f_proxy%vspace%get_ncell()\n"
+            "get_ntarget_cells_per_source_y()\n"
+            "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
+            "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
+            "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n"
+            "      ncell_fld_f = mesh_fld_f%get_last_halo_cell(depth=2)\n"
             "      ncpc_fld_f_fld_m_x = mmap_fld_f_fld_m%"
             "get_ntarget_cells_per_source_x()\n"
             "      ncpc_fld_f_fld_m_y = mmap_fld_f_fld_m%"
-            "get_ntarget_cells_per_source_y()\n"
-            "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
-            "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
-            "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n"
+            "get_ntarget_cells_per_source_y()\n")
+    else:
+        expected = (
             "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
             "      ncpc_fld_m_fld_c_x = mmap_fld_m_fld_c%get_ntarget_cells_"
             "per_source_x()\n"
             "      ncpc_fld_m_fld_c_y = mmap_fld_m_fld_c%get_ntarget_cells_"
-            "per_source_y()\n")
+            "per_source_y()\n"
+            "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
+            "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
+            "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n"
+            "      ncell_fld_f = fld_f_proxy%vspace%get_ncell()\n"
+            "      ncpc_fld_f_fld_m_x = mmap_fld_f_fld_m%"
+            "get_ntarget_cells_per_source_x()\n"
+            "      ncpc_fld_f_fld_m_y = mmap_fld_f_fld_m%"
+            "get_ntarget_cells_per_source_y()\n")
     assert expected in output
 
     # Check that we haven't got duplicated output
@@ -761,11 +761,11 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      DO colour=loop2_start,loop2_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=loop3_start,last_halo_cell_all_colours(colour,1)\n"
+        "        DO cell=loop3_start,last_cell_all_colours_fld_c(colour,1)\n"
         "          !\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output
-    assert "loop2_stop = ncolour_fld_m\n" in output
+    assert "loop2_stop = ncolour_fld_c\n" in output
     # Try to apply colouring to the second restrict kernel
     with pytest.raises(TransformationError) as excinfo:
         ctrans.apply(schedule.children[1])

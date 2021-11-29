@@ -2068,16 +2068,16 @@ class LFRicMeshProperties(DynCollection):
 
         if colour_limits_set:
             for last_cell_tag, mesh_tag in colour_limits_set.items():
-                lhs = self._symbol_table.symbol_from_tag(last_cell_tag).name
-                mesh = self._symbol_table.symbol_from_tag(mesh_tag).name
+                lhs = self._symbol_table.find_or_create_tag(last_cell_tag).name
+                mesh = self._symbol_table.find_or_create_tag(mesh_tag).name
                 if Config.get().distributed_memory:
-                    parent.add(
-                        AssignGen(parent, lhs=lhs,
-                                  rhs=mesh+"%get_last_halo_cell_all_colours()"))
+                    parent.add(AssignGen(
+                        parent, lhs=lhs,
+                        rhs=mesh+"%get_last_halo_cell_all_colours()"))
                 else:
-                    parent.add(
-                        AssignGen(parent, lhs=lhs,
-                                  rhs=mesh+"%get_last_edge_cell_all_colours()"))
+                    parent.add(AssignGen(
+                        parent, lhs=lhs,
+                        rhs=mesh+"%get_last_edge_cell_all_colours()"))
 
 
 class DynReferenceElement(DynCollection):
@@ -3842,10 +3842,8 @@ class DynMeshes(object):
             self._ig_kernels[call] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
-            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(fine_arg.name)).name)
-            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(coarse_arg.name)).name)
+            _name_set.add("mesh_{0}".format(fine_arg.name))
+            _name_set.add("mesh_{0}".format(coarse_arg.name))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
@@ -3866,13 +3864,17 @@ class DynMeshes(object):
         if not _name_set:
             if (requires_mesh or (Config.get().distributed_memory and
                                   not invoke.operates_on_dofs_only)):
-                _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                    "mesh").name)
+                _name_set.add("mesh")
 
         self._mesh_names = self._add_mesh_symbols(list(_name_set))
 
     def _add_mesh_symbols(self, meshes):
         '''
+        Add DataSymbols for the supplied list of mesh names.
+
+        :param meshes:
+        :type meshes: list of str
+
         '''
         if not meshes:
             return []
@@ -3882,17 +3884,17 @@ class DynMeshes(object):
         mmod = const.MESH_TYPE_MAP["mesh"]["module"]
         mtype = const.MESH_TYPE_MAP["mesh"]["type"]
         # Create a Container symbol for the module
-        csym = self._symbol_table.symbol_from_tag(
+        csym = self._symbol_table.find_or_create_tag(
             mmod, symbol_type=ContainerSymbol)
         # Create a TypeSymbol for the mesh type
-        mtype_sym = self._symbol_table.symbol_from_tag(
+        mtype_sym = self._symbol_table.find_or_create_tag(
             mtype, symbol_type=DataTypeSymbol,
             datatype=DeferredType(),
             interface=ImportInterface(csym))
 
         name_list = []
         for name in meshes:
-            name_list.append(self._symbol_table.symbol_from_tag(
+            name_list.append(self._symbol_table.find_or_create_tag(
                 name, symbol_type=DataSymbol, datatype=mtype_sym).name)
         return sorted(name_list)
 
@@ -3939,12 +3941,12 @@ class DynMeshes(object):
             base_name = "last_cell_all_colours_" + carg_name
             if Config.get().distributed_memory:
                 last_cell = \
-                    self._schedule.symbol_table.symbol_from_tag(
+                    self._schedule.symbol_table.find_or_create_tag(
                         base_name, symbol_type=DataSymbol,
                         datatype=array_type_2d).name
             else:
                 last_cell = \
-                    self._schedule.symbol_table.symbol_from_tag(
+                    self._schedule.symbol_table.find_or_create_tag(
                         base_name, symbol_type=DataSymbol,
                         datatype=array_type_1d).name
             # Add these names into the dictionary entry for this
@@ -4057,7 +4059,7 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
-            last_cell = self._symbol_table.symbol_from_tag(
+            last_cell = self._symbol_table.find_or_create_tag(
                 "last_cell_all_colours")
             if Config.get().distributed_memory:
                 parent.add(DeclGen(parent, datatype="integer",
@@ -7027,24 +7029,26 @@ class DynLoop(Loop):
             root_name = "last_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
-            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag(
-                root_name)
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
 
             return sym.name+"(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
-            depth = "1"
             if halo_index:
                 # The colouring API provides a 2D array that holds the last
                 # halo cell for a given colour and halo depth.
                 depth = halo_index
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = f"{mesh_name}%get_halo_depth()"
             root_name = "last_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
-            sym = self.ancestor(InvokeSchedule).symbol_table.symbol_from_tag(
-                root_name)
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
             return sym.name+"(colour, {0})".format(depth)
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
