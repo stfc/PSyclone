@@ -263,7 +263,12 @@ class Compile(object):
             arg_list.append("-c")
 
         # Attempt to execute it using subprocess
+
+        # Change to the temporary directory passed in to us from
+        # pytest. (This is a LocalPath object.)
+        old_pwd = self._tmpdir.chdir()
         try:
+
             build = subprocess.Popen(arg_list,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
@@ -271,17 +276,18 @@ class Compile(object):
         except OSError as err:
             print("Failed to run: {0}: ".format(" ".join(arg_list)),
                   file=sys.stderr)
-            print("Error was: ", str(err.value), file=sys.stderr)
-            raise CompileError(str(err.value))
+            raise CompileError(str(err)) from err
+        finally:
+            old_pwd.chdir()
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
             print("Compiling: {0}".format(" ".join(arg_list)), file=sys.stderr)
-            print(output, file=sys.stderr)
+            print(output.decode("utf-8"), file=sys.stderr)
             if error:
                 print("=========", file=sys.stderr)
-                print(error, file=sys.stderr)
+                print(error.decode("utf-8"), file=sys.stderr)
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
@@ -344,26 +350,33 @@ class Compile(object):
             if module not in build_list:
                 build_list.append(module)
 
-        try:
-            # Build the dependencies and then the kernels. We allow kernels
-            # to also be located in the temporary directory that we have
-            # been passed.
-            for fort_file in build_list:
+        # Build the dependencies and then the kernels. We allow kernels
+        # to also be located in the temporary directory that we have
+        # been passed.
+        for fort_file in build_list:
 
-                # Skip file if it is not Fortran. TODO #372: Add support
-                # for C/OpenCL compiling as part of the test suite.
-                if fort_file.endswith(".cl"):
-                    continue
+            # Skip file if it is not Fortran. TODO #372: Add support
+            # for C/OpenCL compiling as part of the test suite.
+            if fort_file.endswith(".cl"):
+                continue
 
+            try:
                 name = self.find_fortran_file([self.base_path,
                                                str(self._tmpdir)], fort_file)
                 self.compile_file(name)
-            # Finally, we can build the psy file we have generated
+            except IOError:
+                # Not all modules need to be found, for example API
+                # infrastructure modules will be provided already built.
+                print("File {0} not found for compilation.".format(fort_file))
+                print("It was searched in: {0}".format([self.base_path,
+                                                        str(self._tmpdir)]))
+            except CompileError:
+                # Failed to compile one of the files
+                success = False
+
+        # Finally, we can build the psy file we have generated
+        try:
             self.compile_file(psy_filename)
-        except IOError:
-            # Not all modules need to be found, for example API infrastructure
-            # modules will be provided already built.
-            pass
         except CompileError:
             # Failed to compile one of the files
             success = False
@@ -439,7 +452,7 @@ class Compile(object):
 
 # =============================================================================
 def get_base_path(api):
-    '''Get the absolute base path for the specified API relateive to the
+    '''Get the absolute base path for the specified API relative to the
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
 

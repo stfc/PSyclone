@@ -131,13 +131,13 @@ Sometimes, we have no way of knowing if a symbol we need has already been
 defined. In this case we can use a try/catch around
 the `lookup_with_tag` method and if a KeyError is raised (the tag was not
 found), then proceed to declare the symbol. As this situation occurs frequently
-the Symbol Table provides the `symbol_from_tag` helper method that encapsulates
+the Symbol Table provides the `find_or_create_tag` helper method that encapsulates
 the described behaviour and declares symbols when needed.
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.symbol_from_tag
+.. automethod:: psyclone.psyir.symbols.SymbolTable.find_or_create_tag
 
 By default the `get_symbol`, `new_symbol`, `add`, `lookup`,
-`lookup_with_tag`, and `symbol_from_tag` methods in a symbol table will also
+`lookup_with_tag`, and `find_or_create_tag` methods in a symbol table will also
 take into account the symbols in any ancestor symbol tables. Ancestor symbol
 tables are symbol tables attached to nodes that are ancestors of the
 node that the current symbol table is attached to. These are found in order

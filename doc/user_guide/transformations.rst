@@ -272,7 +272,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members: apply, omp_schedule
+    :members: apply, omp_schedule, omp_worksharing
     :noindex:
 
 ####
@@ -290,6 +290,12 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -645,7 +651,8 @@ OpenMP is added to a code by using transformations. The OpenMP
 transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
-* an **OpenMP Do** directive
+* an **OpenMP Target** directive
+* an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
 * an **OpenMP Taskloop** directive
