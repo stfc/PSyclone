@@ -2718,7 +2718,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 # ------------- Inner product of real fields -------------------------------- #
 
 
-def test_X_innerproduct_Y(tmpdir, dist_mem):
+def test_X_innerproduct_Y(tmpdir, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of real-valued fields X and Y
@@ -2762,10 +2762,18 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm = (
             "      !\n"
@@ -2777,7 +2785,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2788,7 +2796,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
         assert "      TYPE(scalar_type) global_sum\n" in code
 
 
-def test_X_innerproduct_X(tmpdir, dist_mem):
+def test_X_innerproduct_X(tmpdir, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of a real-valued field X by
@@ -2831,10 +2839,18 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  asum = asum + f1_proxy%data(df) * f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm = (
             "      !\n"
@@ -2846,7 +2862,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f1_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2860,7 +2876,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
 # ------------- Sum real field elements ------------------------------------- #
 
 
-def test_sum_X(tmpdir, dist_mem):
+def test_sum_X(tmpdir, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicSumXKern returns the expected
     string and 2) we generate correct code for the built-in operation which
     sums elements of a real-valued field X as sumfld = sum(X(:)).
@@ -2902,6 +2918,14 @@ def test_sum_X(tmpdir, dist_mem):
             "        asum = asum + f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f1, 1\n"
+                "  asum = asum + f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      !\n"
@@ -2961,10 +2985,6 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         # Test the lower_to_language_level() method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
-        # Check the type of the scalar
-        scalar = loop.scope.symbol_table.lookup("a")
-        assert isinstance(scalar.datatype, ScalarType)
-        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
         assert ("do df = 1, undf_aspc1_f2, 1\n"
                 "  f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
@@ -3610,7 +3630,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -3655,7 +3675,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"

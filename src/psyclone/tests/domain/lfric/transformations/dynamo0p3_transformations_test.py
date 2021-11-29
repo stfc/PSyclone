@@ -200,7 +200,6 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     # Store the results of applying this code transformation as a
     # string
     gen = str(psy.gen)
-    print(gen)
 
     # check the first argument is a colourmap lookup
     assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
@@ -770,8 +769,6 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     # a string
     code = str(psy.gen)
 
-    print(code)
-
     omp_do_idx = -1
     omp_para_idx = -1
     cell_loop_idx = -1
@@ -952,8 +949,8 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[index],
-                                schedule.children[index+1],
-                                {"same_space": same_space})
+                         schedule.children[index+1],
+                         {"same_space": same_space})
 
         if same_space:
             assert ("The 'same_space' flag was set, but does not apply "
@@ -1791,7 +1788,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1802,7 +1799,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -1830,7 +1827,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -1841,7 +1838,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in code
@@ -1873,7 +1870,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1886,7 +1883,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1898,7 +1895,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -1909,7 +1906,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -2127,7 +2124,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
@@ -2150,7 +2147,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
@@ -2205,7 +2202,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-            "f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2245,7 +2242,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-            "f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2350,7 +2347,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2377,7 +2374,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2423,7 +2420,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2451,7 +2448,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
@@ -2498,7 +2495,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2529,7 +2526,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2584,7 +2581,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n"
@@ -2605,7 +2602,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n")
@@ -2657,7 +2654,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -2679,7 +2676,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df) * f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -2985,8 +2982,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
-            "*f2_proxy%data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df) "
+            "* f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3009,8 +3006,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
-            "*f2_proxy%data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df) "
+            "* f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3097,8 +3094,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
-            "*f2_proxy%data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df) "
+            "* f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -3137,8 +3134,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
-            "*f2_proxy%data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df) "
+            "* f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -3217,7 +3214,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-                "f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "f1_proxy%data(df) * f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3250,7 +3247,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_aspc1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-                "f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "f1_proxy%data(df) * f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3381,7 +3378,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
         for names in [
                 {"var": "asum", "lvar": "l_asum",
                  "bounds": "f1_proxy%vspace%get_last_dof_owned()",
-                 "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
+                 "rhs": "f1_proxy%data(df) * f2_proxy%data(df)"},
                 {"var": "bsum", "lvar": "l_bsum",
                  "bounds": "f2_proxy%vspace%get_last_dof_owned()",
                  "rhs": "f2_proxy%data(df)"}]:
@@ -3414,7 +3411,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
         for names in [
                 {"var": "asum", "lvar": "l_asum",
                  "bounds": "undf_aspc1_f1",
-                 "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
+                 "rhs": "f1_proxy%data(df) * f2_proxy%data(df)"},
                 {"var": "bsum", "lvar": "l_bsum",
                  "bounds": "undf_aspc1_f2",
                  "rhs": "f2_proxy%data(df)"}]:
@@ -3921,7 +3918,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
                 "        CALL {0}_proxy%halo_exchange(depth=3)".
@@ -3957,7 +3953,6 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
@@ -3981,7 +3976,6 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4004,7 +3998,6 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_dep"
@@ -4028,7 +4021,6 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for idx in range(1, 4):
         assert ("IF (f2_proxy({0})%is_dirty(depth=3)) THEN".
                 format(idx)) in result
@@ -4055,7 +4047,6 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     for idx in range(1, 4):
         assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_halo_depth"
                 "())) THEN".format(idx)) in result
@@ -4085,7 +4076,6 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     loop = schedule.children[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f1_proxy%is_dirty(depth=3)) THEN" not in result
     assert "CALL f1_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4110,7 +4100,6 @@ def test_rc_all_disc_prev_depend_no_depth():
     loop = schedule.children[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     assert "CALL f1_proxy%set_dirty()" in result
     assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") not in result
@@ -4135,7 +4124,6 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
     loop = schedule.children[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for idx in range(1, 4):
         assert ("IF (f1_proxy({0})%is_dirty(depth="
                 "3)) THEN".format(idx)) not in result
@@ -4164,7 +4152,6 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
     loop = schedule.children[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     assert "is_dirty" not in result
     for idx in range(1, 4):
         assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
@@ -4192,7 +4179,6 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     loop = schedule.children[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
     # f3 has readwrite access so need to check the halos
     for idx in range(1, 4):
         assert ("IF (f3_proxy({0})%is_dirty(depth=mesh%get_halo_"
@@ -4347,7 +4333,6 @@ def test_continuous_no_set_clean():
     psy, _ = get_invoke("1_single_invoke.f90",
                         TEST_API, idx=0, dist_mem=True)
     result = str(psy.gen)
-    print(result)
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(" not in result
@@ -4360,7 +4345,6 @@ def test_discontinuous_no_set_clean():
     psy, _ = get_invoke("1_single_invoke_w3.f90", TEST_API,
                         idx=0, dist_mem=True)
     result = str(psy.gen)
-    print(result)
     assert "DO cell=1,mesh%get_last_edge_cell()" in result
     assert "CALL m2_proxy%set_dirty()" in result
     assert "CALL m2_proxy%set_clean(" not in result
@@ -4379,7 +4363,6 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     psy, _ = get_invoke("15.7.1_setval_c_builtin.f90", TEST_API,
                         idx=0, dist_mem=True)
     result = str(psy.gen)
-    print(result)
     assert "halo_exchange" not in result
     if annexed:
         assert "DO df=1,f1_proxy%vspace%get_last_dof_annexed()" in result
@@ -6973,7 +6956,7 @@ def test_kern_const_apply(capsys, monkeypatch):
     # element_order, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
-                                  "quadrature": True})
+                           "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected
