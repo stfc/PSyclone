@@ -1433,22 +1433,24 @@ class LFRicSignXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Sign of a real-valued field"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        sign_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
         '''
-        # Return the sign of all the elements of a real-valued field
-        # applied to the supplied real scalar.
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._arguments.args[1].name
-        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = ("sign(" + scalar_name + ", " + field_name1 + ")")
-        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = SIGN(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SIGN,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
 
 
 # ------------------------------------------------------------------- #

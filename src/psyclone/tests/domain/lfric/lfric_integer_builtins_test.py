@@ -1055,7 +1055,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 # ------------- Sign of integer field elements ------------------------------ #
 
 
-def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntSignXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = sign(a, X) where 'a' is an integer scalar and Y and X
@@ -1083,18 +1083,26 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f2\n"
-            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = 1, undf_aspc1_f2, 1\n"
+                "  f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
-            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
