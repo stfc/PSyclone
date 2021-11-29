@@ -858,8 +858,8 @@ def test_lfric_acc():
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
 
     # Find the first kernel:
     kern = invoke.schedule.walk(CodedKern)[0]
@@ -891,8 +891,8 @@ def test_lfric_acc_operator():
     _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
 
     # Find the first kernel:
     kern = invoke.schedule.walk(CodedKern)[0]
@@ -915,8 +915,8 @@ def test_lfric_stencil():
     _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
 
     # Find the first kernel:
     kern = invoke.schedule.walk(CodedKern)[0]

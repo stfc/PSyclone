@@ -55,7 +55,7 @@ import six
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.generator import generate, main, write_unicode_file
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -915,7 +915,7 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_write_utf_file(tmpdir, monkeypatch):
+def test_write_utf_file(tmpdir):
     '''Unit tests for the write_unicode_file utility routine.'''
 
     # First for plain ASCII
@@ -927,26 +927,13 @@ def test_write_utf_file(tmpdir, monkeypatch):
         content = infile.read()
         assert "This contains only ASCII" in content
     out_file2 = os.path.join(str(tmpdir), "out2.txt")
-    if six.PY2:
-        # pylint: disable=undefined-variable
-        test_str = u"This contains UTF: "+unichr(1200)
-        # pylint: enable=undefined-variable
-    else:
-        test_str = "This contains UTF: "+chr(1200)
+    test_str = "This contains UTF: "+chr(1200)
     encoding = {'encoding': 'utf-8'}
     write_unicode_file(test_str, out_file2)
 
     with io.open(out_file2, mode="r", **encoding) as infile:
         content = infile.read()
     assert test_str in content
-
-    # monkeypatch the six module so that the check on which Python
-    # version is being used fails.
-    monkeypatch.setattr(six, "PY2", value=None)
-    monkeypatch.setattr(six, "PY3", value=None)
-    with pytest.raises(InternalError) as err:
-        write_unicode_file("Some stuff", out_file2)
-    assert "Unrecognised Python version" in str(err.value)
 
 
 def test_utf_char(tmpdir):

@@ -37,6 +37,14 @@
 
 .. _psy_data:
 
+.. testsetup::
+
+    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    # This disables output in included code snippets from source files.
+    DEBUG = False
+
 PSyData API
 ===========
 PSyclone provides transformations that will insert callbacks to

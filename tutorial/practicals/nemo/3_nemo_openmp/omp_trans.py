@@ -46,7 +46,7 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelLoopTrans, TransformationError
+from psyclone.transformations import OMPParallelLoopTrans
 
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
@@ -69,7 +69,7 @@ def trans(psy):
 
     for child in sched.children:
         if isinstance(child, Loop) and child.loop_type == "levels":
-            _ = OMP_TRANS.apply(child)
+            OMP_TRANS.apply(child)
 
     # Display the transformed PSyIR
     sched.view()

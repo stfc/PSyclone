@@ -2179,7 +2179,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
     ktrans = Dynamo0p3KernelConstTrans()
-    _, _ = ktrans.apply(kernels[0], {"number_of_layers": 100})
+    ktrans.apply(kernels[0], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     _ = str(psy.gen)
     filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
