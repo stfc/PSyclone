@@ -5598,9 +5598,12 @@ def test_rc_then_colour(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=3)\n"
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
+    assert "loop0_stop = ncolour" in result
+    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
+            in result)
     assert (
-        "      DO colour=1,ncolour\n"
-        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,3)\n"
+        "      DO colour=loop0_start,loop0_stop\n"
+        "        DO cell=loop1_start,last_cell_all_colours(colour,3)\n"
         "          !\n"
         "          CALL testkern_code(nlayers, a, f1_proxy%data,"
         " f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
@@ -5631,10 +5634,10 @@ def test_rc_then_colour2(tmpdir):
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
     # Apply redundant computation to the loop to the full halo depth
-    rc_trans.apply(schedule.children[4])
+    rc_trans.apply(schedule[4])
 
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
@@ -5653,9 +5656,12 @@ def test_rc_then_colour2(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
+    assert "loop0_stop = ncolour" in result
+    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
+            in result)
     assert (
-        "      DO colour=1,ncolour\n"
-        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        "      DO colour=loop0_start,loop0_stop\n"
+        "        DO cell=loop1_start,last_cell_all_colours(colour,mesh%get_halo_depth())\n"
         in result)
 
     assert (

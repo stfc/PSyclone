@@ -3793,7 +3793,7 @@ class DynMeshes(object):
         # names.
         self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
-        self._mesh_names = []
+        self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
@@ -3866,18 +3866,25 @@ class DynMeshes(object):
                                   not invoke.operates_on_dofs_only)):
                 _name_set.add("mesh")
 
-        self._mesh_names = self._add_mesh_symbols(list(_name_set))
+        self._mesh_tag_names = self._add_mesh_symbols(list(_name_set))
 
     def _add_mesh_symbols(self, meshes):
         '''
-        Add DataSymbols for the supplied list of mesh names.
+        Add DataSymbols for the supplied list of mesh names. A ContainerSymbol
+        is created for the LFRic mesh module and a TypeSymbol for the mesh
+        type. If distributed memory is enabled then a DataSymbol to hold the
+        maximum halo depth is created for each mesh.
 
-        :param meshes:
+        :param meshes: tag names for every mesh object required.
         :type meshes: list of str
+
+        :returns: the sorted list of tags.
+        :rtype: list of str
 
         '''
         if not meshes:
             return []
+
         # Look up the names of the module and type for the mesh object
         # from the LFRic constants class.
         const = LFRicConstants()
@@ -3896,7 +3903,15 @@ class DynMeshes(object):
         for name in meshes:
             name_list.append(self._symbol_table.find_or_create_tag(
                 name, symbol_type=DataSymbol, datatype=mtype_sym).name)
-        return sorted(name_list)
+
+        if Config.get().distributed_memory:
+            # If distributed memory is enabled then we require a variable
+            # holding the maximum halo depth for each mesh.
+            for name in meshes:
+                self._symbol_table.find_or_create_tag(f"max_halo_depth_{name}",
+                                                      symbol_type=DataSymbol,
+                                                      datatype=INTEGER_TYPE)
+        return sorted(meshes)
 
     def _colourmap_init(self):
         '''
@@ -3958,7 +3973,7 @@ class DynMeshes(object):
         if have_non_intergrid and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
-            self._mesh_names = self._add_mesh_symbols(["mesh"])
+            self._mesh_tag_names = self._add_mesh_symbols(["mesh"])
             colour_map = self._schedule.symbol_table.find_or_create_tag(
                 "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
             # No. of colours
@@ -3996,17 +4011,26 @@ class DynMeshes(object):
         mmod = const.MESH_TYPE_MAP["mesh"]["module"]
         mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
         mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
-        if self._mesh_names:
+        if self._mesh_tag_names:
             name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
                               funcnames=[name]))
         if self._ig_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
-        # Declare the mesh object(s)
-        for name in self._mesh_names:
+        # Declare the mesh object(s) and associated halo depths
+        for tag_name in self._mesh_tag_names:
+            name = self._symbol_table.lookup_with_tag(tag_name).name
             parent.add(TypeDeclGen(parent, pointer=True, datatype=mtype,
                                    entity_decls=[name + " => null()"]))
+            # For each mesh we also need the maximum halo depth.
+            if Config.get().distributed_memory:
+                name = self._symbol_table.lookup_with_tag(
+                    f"max_halo_depth_{tag_name}").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
+
         # Declare the inter-mesh map(s) and cell map(s)
         for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
@@ -4083,20 +4107,21 @@ class DynMeshes(object):
         # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
-        if len(self._mesh_names) == 0:
+        if len(self._mesh_tag_names) == 0:
             return
 
         parent.add(CommentGen(parent, ""))
 
-        if len(self._mesh_names) == 1:
+        if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
             # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = "%".join([self._first_var.proxy_name_indexed,
                             self._first_var.ref_name(), "get_mesh()"])
-            parent.add(AssignGen(parent, pointer=True,
-                                 lhs=self._mesh_names[0], rhs=rhs))
+            name = self._symbol_table.lookup_with_tag(
+                self._mesh_tag_names[0]).name
+            parent.add(AssignGen(parent, pointer=True, lhs=name, rhs=rhs))
             if self._needs_colourmap:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
@@ -4109,12 +4134,10 @@ class DynMeshes(object):
                                                .name
                 # Get the number of colours
                 parent.add(AssignGen(
-                    parent, lhs=ncolour,
-                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                    parent, lhs=ncolour, rhs=f"{name}%get_ncolours()"))
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                     rhs=self._mesh_names[0] +
-                                     "%get_colour_map()"))
+                                     rhs=name + "%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -7070,8 +7093,7 @@ class DynLoop(Loop):
             return result
         if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
-                return "{0}%get_last_halo_cell({1})".format(mesh,
-                                                            halo_index)
+                return f"{mesh}%get_last_halo_cell({halo_index})"
             raise GenerationError(
                 "'cell_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -7368,7 +7390,14 @@ class DynLoop(Loop):
                         halo_depth = Literal(str(self._upper_bound_halo_depth),
                                              INTEGER_TYPE)
                     else:
-                        halo_depth = Literal("1", INTEGER_TYPE)
+                        # We need to go to the full depth of the halo.
+                        root_name = "mesh"
+                        if self.kernels()[0].is_intergrid:
+                            root_name += f"_{self._field_name}"
+                        mesh_name = sym_table.lookup_with_tag(root_name).name
+                        # TODO ARPDBG
+                        halo_depth = Literal(f"{mesh_name}%get_halo_depth()",
+                                             INTEGER_TYPE)
 
                     self.stop_expr = ArrayReference.create(
                         asym, [Reference(colour_var), halo_depth])
@@ -7378,7 +7407,7 @@ class DynLoop(Loop):
             else:
                 # This isn't a 'colour' loop so we have already set-up a
                 # variable that holds the upper bound.
-                ubound = sym_table.lookup_with_tag("loop{0}_stop".format(posn))
+                ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
                 self.stop_expr = Reference(ubound)
 
             super(DynLoop, self).gen_code(parent)
