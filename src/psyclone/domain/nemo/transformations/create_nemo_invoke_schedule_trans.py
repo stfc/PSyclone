@@ -63,22 +63,21 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoInvokeScheduleTrans()
-    >>> sched, _ = trans.apply(psyir)
-    >>> sched.view()
-    NemoInvokeSchedule[name:'sub']
-        0: Loop[type='None', field_space='None', it_space='None']
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: InlinedKern[]
-                    Schedule[]
-                        0: Assignment[]
-                            ArrayReference[name:'tmp']
-                                Reference[name:'ji']
-                            BinaryOperation[operator:'MUL']
-                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
-                                Reference[name:'ji']
+    >>> trans.apply(psyir.children[0])
+    >>> psyir.view()
+    FileContainer[None]
+        NemoInvokeSchedule[invoke='sub']
+            0: Loop[type='None', field_space='None', it_space='None']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Schedule[]
+                    0: Assignment[]
+                        ArrayReference[name:'tmp']
+                            Reference[name:'ji']
+                        BinaryOperation[operator:'MUL']
+                            Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                            Reference[name:'ji']
 
     The root node of this example has been transformed from a Routine into a
     NemoInvokeSchedule.
@@ -134,12 +133,6 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             to None.
         :type options: dict of str:values or None
 
-        TODO #595 - transformation should return nothing.
-
-        :returns: 2-tuple containing the root node of the modified PSyIR tree \
-            and None.
-        :rtype: (:py:class:`psyclone.nemo.NemoInvokeSchedule`, NoneType)
-
         '''
         self.validate(routine, options=options)
 
@@ -151,8 +144,6 @@ class CreateNemoInvokeScheduleTrans(Transformation):
         # tree that we've been passed.
         if routine.parent:
             routine.replace_with(new_node)
-
-        return (new_node.root, None)
 
 
 # For AutoAPI documentation generation

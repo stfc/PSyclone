@@ -106,7 +106,7 @@ these scripts should serve as a useful starting point.
 
 ## Example 1
 
-OpenMP parallelisation of tra_adv over levels.
+OpenMP parallelisation (for CPU and GPU) of tra_adv over levels.
 
 ## Example 2
 

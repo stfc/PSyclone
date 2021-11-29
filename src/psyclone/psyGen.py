@@ -1268,7 +1268,7 @@ class Kern(Statement):
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
         name = self.ancestor(InvokeSchedule).symbol_table.\
-            symbol_from_tag(tag, "l_" + tag).name
+            find_or_create_tag(tag, "l_" + tag).name
         return name
 
     def zero_reduction_variable(self, parent, position=None):
@@ -1387,7 +1387,7 @@ class Kern(Statement):
         symtab = self.scope.symbol_table
         if self.reprod_reduction:
             idx_name = symtab.lookup_with_tag("omp_thread_index").name
-            local_name = symtab.symbol_from_tag(name, "l_" + name).name
+            local_name = symtab.find_or_create_tag(name, "l_" + name).name
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -2492,7 +2492,7 @@ class Argument(object):
                 argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
-                new_argument = symtab.symbol_from_tag(
+                new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(),
                     interface=ArgumentInterface(argument_access))
@@ -3054,15 +3054,7 @@ class Transformation(object):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
         '''
-        # pylint: disable=no-self-use
-        schedule = None
-        memento = None
-        return schedule, memento
 
     def validate(self, node, options=None):
         '''Method that validates that the input data is correct.
@@ -3103,7 +3095,7 @@ class DummyTransformation(Transformation):
         return
 
     def apply(self, node, options=None):
-        return None, None
+        pass
 
 
 # For Sphinx AutoAPI documentation generation
