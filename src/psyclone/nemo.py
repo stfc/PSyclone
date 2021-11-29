@@ -94,8 +94,8 @@ class NemoInvokes(Invokes):
         # Transform the language-level PSyIR into NEMO-specific PSyIR
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
-        container, _ = CreateNemoPSyTrans().apply(psyir)
-        routines = container.walk(Routine)
+        CreateNemoPSyTrans().apply(psyir)
+        routines = psyir.walk(Routine)
 
         # Create an Invoke for each routine we've found
         for subroutine in routines:

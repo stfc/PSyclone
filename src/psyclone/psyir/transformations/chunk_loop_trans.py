@@ -198,8 +198,6 @@ class ChunkLoopTrans(LoopTrans):
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
-        :returns: Tuple of None and None
-        :rtype: (None, None)
         '''
 
         self.validate(node, options)
@@ -208,11 +206,11 @@ class ChunkLoopTrans(LoopTrans):
         chunk_size = options.get("chunksize", 32)
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
-        end_inner_loop = routine.symbol_table.symbol_from_tag(
+        end_inner_loop = routine.symbol_table.find_or_create_tag(
                 "{0}_el_inner".format(node.variable.name),
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
-        outer_loop_variable = routine.symbol_table.symbol_from_tag(
+        outer_loop_variable = routine.symbol_table.find_or_create_tag(
                 "{0}_out_var".format(node.variable.name),
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
@@ -269,5 +267,3 @@ class ChunkLoopTrans(LoopTrans):
         node.replace_with(outerloop)
         # Add the loop to the innerloop's schedule
         outerloop.children[3].addchild(node)
-
-        return None, None
