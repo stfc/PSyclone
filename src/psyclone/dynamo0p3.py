@@ -3857,13 +3857,17 @@ class DynMeshes(object):
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
-        # more kernels that operate on cell-columns. We also require a mesh
+        # more kernels that operate on cell-columns or are doing redundant
+        # computation for a kernel that operates on dofs. Since the latter
+        # condition comes about through the application of a transformation,
+        # we don't yet know whether or not a mesh is required. Therefore,
+        # the only solution is to assume that a mesh object is required if
+        # distributed memory is enabled. We also require a mesh
         # object if any of the kernels require properties of either the
         # reference element or the mesh. (Colourmaps also require a mesh
         # object but that is handled in _colourmap_init().)
         if not _name_set:
-            if (requires_mesh or (Config.get().distributed_memory and
-                                  not invoke.operates_on_dofs_only)):
+            if requires_mesh or Config.get().distributed_memory:
                 _name_set.add("mesh")
 
         self._mesh_tag_names = self._add_mesh_symbols(list(_name_set))
@@ -4119,9 +4123,16 @@ class DynMeshes(object):
             parent.add(CommentGen(parent, ""))
             rhs = "%".join([self._first_var.proxy_name_indexed,
                             self._first_var.ref_name(), "get_mesh()"])
-            name = self._symbol_table.lookup_with_tag(
+            mesh_name = self._symbol_table.lookup_with_tag(
                 self._mesh_tag_names[0]).name
-            parent.add(AssignGen(parent, pointer=True, lhs=name, rhs=rhs))
+            parent.add(AssignGen(parent, pointer=True, lhs=mesh_name, rhs=rhs))
+            if Config.get().distributed_memory:
+                # If distributed memory is enabled then we need the maximum
+                # halo depth.
+                depth_name = self._symbol_table.lookup_with_tag(
+                    f"max_halo_depth_{self._mesh_tag_names[0]}").name
+                parent.add(AssignGen(parent, lhs=depth_name,
+                                     rhs=f"{mesh_name}%get_halo_depth()"))
             if self._needs_colourmap:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
@@ -4134,10 +4145,10 @@ class DynMeshes(object):
                                                .name
                 # Get the number of colours
                 parent.add(AssignGen(
-                    parent, lhs=ncolour, rhs=f"{name}%get_ncolours()"))
+                    parent, lhs=ncolour, rhs=f"{mesh_name}%get_ncolours()"))
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                     rhs=name + "%get_colour_map()"))
+                                     rhs=f"{mesh_name}%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -5613,7 +5624,7 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
-def _create_depth_list(halo_info_list):
+def _create_depth_list(halo_info_list, sym_table):
     '''Halo exchanges may have more than one dependency. This method
     simplifies multiple dependencies to remove duplicates and any
     obvious redundancy. For example, if one dependency is for depth=1
@@ -5627,6 +5638,9 @@ def _create_depth_list(halo_info_list):
     :param halo_info_list: a list containing halo access information \
         derived from all read fields dependent on this halo exchange.
     :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+    :param sym_table: the symbol table of the enclosing InvokeSchedule.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
     :returns: a list containing halo depth information derived from \
         the halo access information.
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
@@ -5648,7 +5662,7 @@ def _create_depth_list(halo_info_list):
             annexed_only = False
             break
     if annexed_only:
-        depth_info = HaloDepth()
+        depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=1, annexed_only=True,
                                 max_depth_m1=False)
@@ -5662,7 +5676,7 @@ def _create_depth_list(halo_info_list):
             if halo_info.needs_clean_outer:
                 # found a max_depth access so we only need one
                 # HaloDepth entry
-                depth_info = HaloDepth()
+                depth_info = HaloDepth(sym_table)
                 depth_info.set_by_value(max_depth=True, var_depth="",
                                         literal_depth=0, annexed_only=False,
                                         max_depth_m1=False)
@@ -5672,7 +5686,7 @@ def _create_depth_list(halo_info_list):
 
     if max_depth_m1:
         # we have at least one max_depth-1 access.
-        depth_info = HaloDepth()
+        depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=0, annexed_only=False,
                                 max_depth_m1=True)
@@ -5706,7 +5720,7 @@ def _create_depth_list(halo_info_list):
         if not match:
             # no matches were found with existing entries so
             # create a new one
-            depth_info = HaloDepth()
+            depth_info = HaloDepth(sym_table)
             depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                     literal_depth=literal_depth,
                                     annexed_only=False, max_depth_m1=False)
@@ -5813,7 +5827,8 @@ class DynHaloExchange(HaloExchange):
         # get our halo information
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
-        depth_info_list = _create_depth_list(halo_info_list)
+        depth_info_list = _create_depth_list(halo_info_list,
+                                             self._symbol_table)
         return depth_info_list
 
     def _compute_halo_read_info(self, ignore_hex_dep=False):
@@ -5881,8 +5896,8 @@ class DynHaloExchange(HaloExchange):
             raise InternalError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange.")
-        return [HaloReadAccess(read_dependency) for read_dependency
-                in read_dependencies]
+        return [HaloReadAccess(read_dependency, self._symbol_table) for
+                read_dependency in read_dependencies]
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
@@ -5904,7 +5919,7 @@ class DynHaloExchange(HaloExchange):
                 "Internal logic error. There should be at most one write "
                 "dependence for a halo exchange. Found "
                 "'{0}'".format(str(len(write_dependencies))))
-        return HaloWriteAccess(write_dependencies[0])
+        return HaloWriteAccess(write_dependencies[0], self._symbol_table)
 
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required
@@ -6294,9 +6309,13 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
 class HaloDepth(object):
     '''Determines how much of the halo a read to a field accesses (the
-    halo depth)
+    halo depth).
+
+    :param sym_table: the symbol table of the enclosing InvokeSchedule.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
     '''
-    def __init__(self):
+    def __init__(self, sym_table):
         # literal_depth is used to store any known (literal) component
         # of the depth of halo that is accessed. It may not be the
         # full depth as there may also be an additional var_depth
@@ -6321,6 +6340,9 @@ class HaloDepth(object):
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
+        # Keep a reference to the symbol table so that we can look-up
+        # variables holding the maximum halo depth.
+        self._symbol_table = sym_table
 
     @property
     def annexed_only(self):
@@ -6416,9 +6438,16 @@ class HaloDepth(object):
         as a string'''
         depth_str = ""
         if self.max_depth:
-            depth_str += "mesh%get_halo_depth()"
+            # ARPDBG TODO lookup max_halo_depth_mesh from SymbolTable
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            #depth_str += "mesh%get_halo_depth()"
+            depth_str += max_depth.name
         elif self.max_depth_m1:
-            depth_str += "mesh%get_halo_depth()-1"
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            #depth_str += "mesh%get_halo_depth()-1"
+            depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:
                 depth_str += self.var_depth
@@ -6480,14 +6509,14 @@ class HaloWriteAccess(HaloDepth):
     particular loop nest
 
     '''
-    def __init__(self, field):
+    def __init__(self, field, sym_table):
         '''
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
 
-        HaloDepth.__init__(self)
+        HaloDepth.__init__(self, sym_table)
         self._compute_from_field(field)
 
     @property
@@ -6562,13 +6591,13 @@ class HaloReadAccess(HaloDepth):
     accessed in a particular kernel within a particular loop nest
 
     '''
-    def __init__(self, field):
+    def __init__(self, field, sym_table):
         '''
         :param field: the field that we want to get information on
         :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         '''
-        HaloDepth.__init__(self)
+        HaloDepth.__init__(self, sym_table)
         self._stencil_type = None
         self._needs_clean_outer = None
         self._compute_from_field(field)
@@ -7066,7 +7095,8 @@ class DynLoop(Loop):
                 depth = halo_index
             else:
                 # If no depth is specified then we go to the full halo depth
-                depth = f"{mesh_name}%get_halo_depth()"
+                depth = self.ancestor(InvokeSchedule).symbol_table.\
+                    find_or_create_tag(f"max_halo_depth_{mesh_name}").name
             root_name = "last_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
@@ -7394,10 +7424,10 @@ class DynLoop(Loop):
                         root_name = "mesh"
                         if self.kernels()[0].is_intergrid:
                             root_name += f"_{self._field_name}"
-                        mesh_name = sym_table.lookup_with_tag(root_name).name
+                        depth_name = sym_table.lookup_with_tag(
+                            f"max_halo_depth_{root_name}").name
                         # TODO ARPDBG
-                        halo_depth = Literal(f"{mesh_name}%get_halo_depth()",
-                                             INTEGER_TYPE)
+                        halo_depth = Literal(depth_name, INTEGER_TYPE)
 
                     self.stop_expr = ArrayReference.create(
                         asym, [Reference(colour_var), halo_depth])
@@ -7441,13 +7471,16 @@ class DynLoop(Loop):
                         # set_dirty() and set_clean() with OpenMP Master
                         parent.add(DirectiveGen(parent, "omp", "begin",
                                                 "master", ""))
+
+                sym_table = self.ancestor(InvokeSchedule).symbol_table
+
                 # first set all of the halo dirty unless we are
                 # subsequently going to set all of the halo clean
                 for field in fields:
                     # The HaloWriteAccess class provides information
                     # about how the supplied field is accessed within
                     # its parent loop
-                    hwa = HaloWriteAccess(field)
+                    hwa = HaloWriteAccess(field, sym_table)
                     if not hwa.max_depth or hwa.dirty_outer:
                         # output set dirty as some of the halo will
                         # not be set to clean
@@ -7469,7 +7502,7 @@ class DynLoop(Loop):
                     # The HaloWriteAccess class provides information
                     # about how the supplied field is accessed within
                     # its parent loop
-                    hwa = HaloWriteAccess(field)
+                    hwa = HaloWriteAccess(field, sym_table)
                     if hwa.literal_depth:
                         # halo access(es) is/are to a fixed depth
                         halo_depth = hwa.literal_depth
@@ -7498,7 +7531,10 @@ class DynLoop(Loop):
                     elif hwa.max_depth:
                         # halo accesses(s) is/are to the full halo
                         # depth (-1 if continuous)
-                        halo_depth = "mesh%get_halo_depth()"
+                        # TODO 'mesh' should not be hardwired below
+                        halo_depth = sym_table.lookup_with_tag(
+                            "max_halo_depth_mesh").name
+                        #halo_depth = "mesh%get_halo_depth()"
                         if hwa.dirty_outer:
                             # a continuous field iterating over
                             # cells leaves the outermost halo

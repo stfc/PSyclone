@@ -2856,7 +2856,7 @@ def test_HaloReadAccess_input_field():
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
     with pytest.raises(GenerationError) as excinfo:
-        _ = HaloReadAccess(None)
+        _ = HaloReadAccess(None, None)
     assert (
         "Generation Error: HaloInfo class expects an argument of type "
         "DynArgument, or equivalent, on initialisation, but found, "
@@ -2877,7 +2877,7 @@ def test_HaloReadAccess_field_in_call():
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
     with pytest.raises(GenerationError) as excinfo:
-        _ = HaloReadAccess(field)
+        _ = HaloReadAccess(field, None)
     assert ("field 'f1' should be from a call but found "
             "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
             in str(excinfo.value))
@@ -2899,7 +2899,7 @@ def test_HaloReadAccess_field_not_reader():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as excinfo:
-        _ = HaloReadAccess(argument)
+        _ = HaloReadAccess(argument, None)
     assert (
         "In HaloInfo class, field 'f1' should be one of ['gh_read', "
         "'gh_readwrite', 'gh_inc', 'gh_readinc'], but found 'gh_write'"
@@ -2942,7 +2942,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     loop = schedule.children[0]
     kernel = loop.loop_body[0]
     arg = kernel.arguments.args[1]
-    halo_access = HaloReadAccess(arg)
+    halo_access = HaloReadAccess(arg, schedule.symbol_table)
     assert not halo_access.max_depth
     assert halo_access.var_depth is None
     assert halo_access.literal_depth == 0
@@ -3659,6 +3659,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     expected_code1 = (
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(in) :: f3, f1, f2\n")
     assert expected_code1 in generated_code
     expected_code2 = (
@@ -3674,7 +3675,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
         "ield 'f3' is on a read-only function space but is modified by kernel"
         " 'x_plus_y'.\", LOG_LEVEL_ERROR)\n"        "      END IF\n"
         "      !\n"
-        "      ! Set-up all of the loop bounds\n")
+        "      ! Create a mesh object\n")
     assert expected_code2 in generated_code
 
 
