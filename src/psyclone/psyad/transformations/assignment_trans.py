@@ -31,6 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains a transformation that replaces a PSyIR
 assignment node with its adjoint form.
@@ -38,6 +39,7 @@ assignment node with its adjoint form.
 '''
 from __future__ import absolute_import
 
+from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal, UnaryOperation
 from psyclone.psyir.symbols import REAL_TYPE
@@ -74,6 +76,7 @@ class AssignmentTrans(AdjointTransformation):
                        BinaryOperation.Operator.SUB])
 
         deferred_inc = []
+        sym_maths = SymbolicMaths.get()
         # For each term
         for rhs_term in rhs_terms:
 
@@ -88,7 +91,7 @@ class AssignmentTrans(AdjointTransformation):
             for ref in new_rhs_term.walk(Reference):
                 if ref.symbol in self._active_variables:
                     active_var = ref
-                    if ref.math_equal(node.lhs):
+                    if sym_maths.equal(ref, node.lhs):
                         increment = True
                     if ref.parent:
                         ref.replace_with(node.lhs.copy())
