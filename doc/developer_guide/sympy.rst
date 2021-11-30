@@ -152,3 +152,8 @@ considered to be equal:
 6. Since all arguments of the ``Mod`` function are identical,
    SymPy will report these two functions to be the same, which
    is the expected outcome.
+
+All Fortran names will be declared as SymPy symbols. Because
+of the handling of structures, all members of a structure will be
+declared individually, e.g. ``a%b`` will declare two SymPy symbols ``a``
+and ``b``.
