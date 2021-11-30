@@ -527,6 +527,7 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert decl_output in generated_code
     output = (
@@ -545,6 +546,7 @@ def test_operator_different_spaces(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => mapping_proxy%fs_from%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"

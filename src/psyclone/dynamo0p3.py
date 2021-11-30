@@ -4162,11 +4162,12 @@ class DynMeshes(object):
 
         # Loop over the DynInterGrid objects in our dictionary
         for dig in self._ig_kernels.values():
-            # We need pointers to both the coarse and the fine mesh
+            # We need pointers to both the coarse and the fine mesh as well
+            # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(dig.fine.name)).name
+                f"mesh_{dig.fine.name}").name
             coarse_mesh = self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(dig.coarse.name)).name
+                f"mesh_{dig.coarse.name}").name
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
@@ -4175,7 +4176,13 @@ class DynMeshes(object):
                               rhs="%".join([dig.fine.proxy_name_indexed,
                                             dig.fine.ref_name(),
                                             "get_mesh()"])))
+                if Config.get().distributed_memory:
+                    max_halo_f_mesh = (
+                        self._schedule.symbol_table.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.fine.name}").name)
 
+                    parent.add(AssignGen(parent, lhs=max_halo_f_mesh,
+                                         rhs=f"{fine_mesh}%get_halo_depth()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
@@ -4184,6 +4191,13 @@ class DynMeshes(object):
                               rhs="%".join([dig.coarse.proxy_name_indexed,
                                             dig.coarse.ref_name(),
                                             "get_mesh()"])))
+                if Config.get().distributed_memory:
+                    max_halo_c_mesh = (
+                        self._schedule.symbol_table.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.coarse.name}").name)
+                    parent.add(AssignGen(
+                        parent, lhs=max_halo_c_mesh,
+                        rhs=f"{coarse_mesh}%get_halo_depth()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
