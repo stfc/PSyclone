@@ -47,7 +47,6 @@ from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     ScalarType
 from psyclone.psyir.transformations import TransformationError
-from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import Compile
 
 
@@ -108,7 +107,7 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     assert ad_fortran == expected_output_code
 
     # Check that the code produced will compile.
-    assert LFRicBuild(tmpdir).string_compiles(ad_fortran)
+    assert Compile(tmpdir).string_compiles(ad_fortran)
 
 # apply() method
 
@@ -671,7 +670,8 @@ def test_different_structures(tmpdir):
         try:
             check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
         except AssertionError:
-            pytest.xfail("#1530: compilation fails")
+            pytest.xfail("#1530: compilation fails, needs to define "
+                         "field_type, not rely on import.")
     else:
         check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
