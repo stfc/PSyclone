@@ -37,7 +37,7 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-from sympy import simplify, true
+from sympy import simplify, true, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 
@@ -88,7 +88,29 @@ class SymbolicMaths:
         self._writer = SymPyWriter()
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def get_all_symbols(local_dict, exp):
+        '''Declares all references in the PSyIR expression `exp` as SymPy
+        symbols. Structures ('a%b') will get all members declared as
+        individual symbols ('a', 'b'), since SymPy convers a structure
+        access 'a%b' into 'MOD(a,b)' (see
+        https://psyclone-dev.readthedocs.io/en/stable/ for details).
 
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+
+        for ref in exp.walk(Reference):
+            # Use the signature of the variable to easily get access
+            # to its components. We don't need the indices
+            sig, _ = ref.get_signature_and_indices()
+
+            # Loop over all components of the Reference and add them
+            for name in sig:
+                local_dict[name] = Symbol(name)
+
+    # -------------------------------------------------------------------------
     def equal(self, exp1, exp2):
         '''Test if the two PSyIR operations are identical. This is
         done by converting the operations to the equivalent Fortran
@@ -108,8 +130,16 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        str_exp1 = parse_expr(self._writer(exp1))
-        str_exp2 = parse_expr(self._writer(exp2))
+        # Get all the symbols used in the two expressions, so the
+        # SymPy parser recognise them as symbols (and not e.g. as
+        # internal SymPy names)
+        local_dict = {}
+        self.get_all_symbols(local_dict, exp1)
+        self.get_all_symbols(local_dict, exp2)
+
+        str_exp1 = parse_expr(self._writer(exp1), local_dict=local_dict)
+        str_exp2 = parse_expr(self._writer(exp2), local_dict=local_dict)
+
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         result = simplify(str_exp1 == str_exp2)
