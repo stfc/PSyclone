@@ -40,8 +40,9 @@ variable access information.
 from psyclone.core.access_info import AccessInfo, SingleVariableAccessInfo, \
     VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.core.signature import Signature
 from psyclone.core.component_indices import ComponentIndices
+from psyclone.core.signature import Signature
+from psyclone.core.symbolic_maths import SymbolicMaths
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -52,4 +53,5 @@ __all__ = [
         'ComponentIndices',
         'Signature',
         'SingleVariableAccessInfo',
+        'SymbolicMaths',
         'VariablesAccessInfo']
