@@ -5716,11 +5716,14 @@ def test_loop_fuse_then_rc(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
+    assert "loop0_stop = ncolour" in result
+    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
+            in result)
+    assert "max_halo_depth_mesh = mesh%get_halo_depth()" in result
     assert (
-        "      DO colour=1,ncolour\n"
-        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
-        in result)
-
+        "      DO colour=loop0_start,loop0_stop\n"
+        "        DO cell=loop1_start,get_last_cell_all_colours(colour,"
+        "max_halo_depth_mesh)\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
