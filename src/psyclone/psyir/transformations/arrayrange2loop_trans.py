@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Module providing a transformation from a PSyIR Array Range to a
 PSyIR Loop. This could be useful for e.g. performance reasons, to
@@ -41,12 +42,14 @@ not support array ranges.
 '''
 
 from __future__ import absolute_import
+
+from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
+    Assignment, Operation, BinaryOperation
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Node, Operation, BinaryOperation
 
 
 class ArrayRange2LoopTrans(Transformation):
@@ -76,34 +79,6 @@ class ArrayRange2LoopTrans(Transformation):
     >>> schedule.view()
 
     '''
-    @staticmethod
-    def string_compare(node1, node2):
-        '''Utility function to determine whether two node hierarchies are the
-        same by comparing their string representations.
-
-        :param node1: the first node involved in the comparison.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
-        :param node2: the second node involved in the comparison.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: True if the string representations are the same and \
-            False otherwise.
-        :rtype: bool
-
-        :raises: TypeError if the arguments are the wrong type.
-
-        '''
-        if not isinstance(node1, Node):
-            raise TypeError(
-                "The first argument to the string_compare method should be a "
-                "Node but found '{0}'.".format(type(node1).__name__))
-        if not isinstance(node2, Node):
-            raise TypeError(
-                "The second argument to the string_compare method should be a "
-                "Node but found '{0}'.".format(type(node2).__name__))
-        node1_str = "".join([str(node) for node in node1.walk(Node)])
-        node2_str = "".join([str(node) for node in node2.walk(Node)])
-        return node1_str == node2_str
 
     @staticmethod
     def same_range(array1, idx1, array2, idx2):
@@ -134,6 +109,7 @@ class ArrayRange2LoopTrans(Transformation):
             wrong type.
 
         '''
+        # pylint: disable=too-many-branches
         if not isinstance(array1, ArrayReference):
             raise TypeError(
                 "The first argument to the same_range() method should be an "
@@ -178,6 +154,7 @@ class ArrayRange2LoopTrans(Transformation):
         range1 = array1.children[idx1]
         range2 = array2.children[idx2]
 
+        sym_maths = SymbolicMaths.get()
         # compare lower bounds
         if array1.is_lower_bound(idx1) and array2.is_lower_bound(idx2):
             # Both array1 and array2 use the lbound() intrinsic to
@@ -193,14 +170,11 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not ArrayRange2LoopTrans.string_compare(
-                range1.start, range2.start):
+        elif not sym_maths.equal(range1.start, range2.start):
             # Neither array1 nor array2 use the lbound() intrinsic to
             # specify the lower bound of the array dimension. Try to
             # determine if they are the same by matching the
-            # text. Some form of symbolic matching would be better
-            # here, or at least something similar to the math_equal
-            # approach.
+            # text. Use symbolic maths to do the comparison.
             return False
 
         # compare upper bounds
@@ -218,17 +192,14 @@ class ArrayRange2LoopTrans(Transformation):
             # dimension. In this case assume that the ranges are
             # different (although they could potentially be the same).
             return False
-        elif not ArrayRange2LoopTrans.string_compare(range1.stop, range2.stop):
+        elif not sym_maths.equal(range1.stop, range2.stop):
             # Neither array1 nor array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. Try to
-            # determine if they are the same by matching the
-            # text. Some form of symbolic matching would be better
-            # here, or at least something similar to the math_equal
-            # approach.
+            # specify the upper bound of the array dimension. Use
+            # symbolic maths to check if they are equal.
             return False
 
         # compare steps
-        if not ArrayRange2LoopTrans.string_compare(range1.step, range2.step):
+        if not sym_maths.equal(range1.step, range2.step):
             return False
 
         # Everything matches.
