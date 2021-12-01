@@ -71,6 +71,7 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformation.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
@@ -99,4 +100,5 @@ __all__ = ['ChunkLoopTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistTrans',
            'OMPTaskwaitTrans',
-           'LoopTiling2DTrans']
+           'LoopTiling2DTrans',
+           'OMPTaskTrans']

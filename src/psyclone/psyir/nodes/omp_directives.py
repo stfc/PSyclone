@@ -639,6 +639,254 @@ class OMPParallelDirective(OMPRegionDirective):
             #                       "not what you want.")
 
 
+class OMPTaskDirective(OMPRegionDirective):
+    '''
+    Class representing an OpenMP TASK directive in the PSyIR
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    '''
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskDirective is not \
+                                 enclosed within an OpenMP serial region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). A taskloop
+        # directive, we must have an OMPSerialDirective as an
+        # ancestor back up the tree.
+        if not self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                "OMPTaskDirective must be inside an OMP Serial region "
+                "but could not find an ancestor node")
+
+        # FIXME Move to transformation
+        if node.walk(CodeBlock) != []:
+            raise GenerationError(
+                "OMPTaskDirective cannot be applied to a region containing "
+                "a code block")
+
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP
+        taskloop directive.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        self.validate_global_constraints()
+        clause_list = []
+        private_list = []
+        firstprivate_list = []
+        shared_list = []
+        in_list = []
+        out_list = []
+
+        # TODO Generate extra clauses
+        # Find the parent Loop node
+        parent = self.ancestor(Loop)
+
+        # Find the parent OMPParallelDirective
+        parallel_directive = self.ancestor(OMPParallelDirective)
+        parallel_private = parent._get_private_list()
+
+        # Find our loop initialisation, variable and bounds
+        loop_var = node.variable
+        init_val = node.children[0]
+        stop_val = node.children[1]
+        step_val = node.children[2]
+        schedule = node.children[3]
+
+        # FIXME Disallow transformation is init/stop/step include array references
+        # FIXME Handle reduction variables
+
+        # Loop variable is private
+        private_list.append(loop_var.name)
+
+        # Any variables used in init_val, stop_val or step_val are firstprivate
+        # Get the References used for initialisation
+        init_val_refs = init_val.walk(Reference)
+        # For all non-array accesses we make them firstprivate
+        for ref in init_val_refs:
+            firstprivate_list.append(ref.name)
+
+        stop_val_refs = stop_val.walk(Reference)
+        for sig in stop_val_refs:
+            firstprivate_list.append(ref.name)
+
+        
+        step_val_refs = step_val.walk(Reference)
+        for sig in step_val_sigs:
+            firstprivate_list.append(ref.name)
+
+        # Look through the schedule and work out data sharing clauses.
+        statements = schedule.walk((Assignment, IfBlock, Loops))
+        for statement in statements:
+            if isinstance(statement, Assignment):
+                lhs = statement.children[0]
+                rhs = statement.children[1]
+                # check if lhs is array access
+                if isinstance(lhs, ArrayReference):
+                    # FIXME Resolve ArrayReference
+                    # We write to this reference, so it is shared and depend
+                    # out on array(variable:end) and other depending on + or -
+                    # in the indexing
+                    sig, indices = lhs.get_signature_and_indices()
+                    name = str(sig)
+                    index_strings = []
+                    #FIXME Do something with indices
+                    for index in indices:
+                        if isinstance(index, Literal):
+                            # Literals are just value
+                            value = index.value
+                            index_strings.append(value)
+                        elif isinstance(index, Reference):
+                            #FIXME Refrences also just treated as values
+                            pass
+                        elif isinstance(index, BinaryOp):
+                            #FIXME BinaryOp have sums, this can be complex
+                            pass
+
+                    pass
+                elif isinstance(lhs, ArrayOfStructureReference):
+                    # FIXME ArrayOfStructureReference
+                    pass
+                elif isinstance(lhs, StructureReference):
+                    #FIXME StructureReference
+                    pass
+                elif isinstance(lhs, Reference):
+                    #FIXME Resolve reference
+                    pass
+                # FIXME Resolve assignment
+                
+                # FIXME Do something for rhs
+            elif isinstance(statement, IfBlock):
+                # FIXME Resolve IfBlock
+                # We only need to look at the If condition (DataNode, child[0])
+                # The other statements will be covered by Assignment or Loop
+                condition = statement.children[0]
+                # Find all the References
+                references = condition.walk(Reference)
+                for ref in references:
+                    if isinstance(ref, ArrayReference):
+                        # FIXME Resolve ArrayReference
+                        pass
+                    elif isinstance(ref, ArrayOfStructureReference):
+                        # FIXME ArrayOfStructureReference
+                        pass
+                    elif isinstance(ref, StructureReference):
+                        #FIXME StructureReference
+                        pass
+                    elif isinstance(ref, Reference):
+                        #FIXME Resolve reference
+                        pass
+            elif isinstance(statement, Loop):
+                # FIXME Resolve Loop
+                start = statement.children[0]
+                stop = statement.children[1]
+                end = statement.children[2]
+                # Don't need to worry about schedule, anything inside that will
+                # be caught by the outer walk.
+                for ref in start.walk(Reference):
+                    if isinstance(ref, ArrayReference):
+                        # FIXME Resolve ArrayReference
+                        pass
+                    elif isinstance(ref, ArrayOfStructureReference):
+                        # FIXME ArrayOfStructureReference
+                        pass
+                    elif isinstance(ref, StructureReference):
+                        #FIXME StructureReference
+                        pass
+                    elif isinstance(ref, Reference):
+                        #FIXME Resolve reference
+                        pass
+                for ref in stop.walk(Reference):
+                    if isinstance(ref, ArrayReference):
+                        # FIXME Resolve ArrayReference
+                        pass
+                    elif isinstance(ref, ArrayOfStructureReference):
+                        # FIXME ArrayOfStructureReference
+                        pass
+                    elif isinstance(ref, StructureReference):
+                        #FIXME StructureReference
+                        pass
+                    elif isinstance(ref, Reference):
+                        #FIXME Resolve reference
+                        pass
+                for ref in end.walk(Reference):
+                    if isinstance(ref, ArrayReference):
+                        # FIXME Resolve ArrayReference
+                        pass
+                    elif isinstance(ref, ArrayOfStructureReference):
+                        # FIXME ArrayOfStructureReference
+                        pass
+                    elif isinstance(ref, StructureReference):
+                        #FIXME StructureReference
+                        pass
+                    elif isinstance(ref, Reference):
+                        #FIXME Resolve reference
+                        pass
+        # FIXME
+
+        # Build up the extra clauses.
+        if len(private_list) != 0:
+            clause_list.append("private({0})".format(", ".join(private_list)))
+        if len(shared_list) != 0:
+            clause_list.append("shared({0})".format(", ".join(shared_list)))
+        if len(firstprivate_list) != 0:
+            clause_list.append("firstprivate({0})".format(", ".join(firstprivate_list)))
+        if len(in_list) != 0:
+            clause_list.append("depend(in: {0} )".format(", ".join(in_list)))
+        if len(out_list) != 0:
+            clause_list.append("depend(out: {0} )".format(", ".join(out_list)))
+
+
+        # Generate the string containing the required clauses
+        extra_clauses = ", ".join(clause_list)
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "task",
+                                extra_clauses))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "task", ""),
+                   position=["after", position])
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp task ...". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        # TODO additional clauses
+        return "omp task"
+
+    def end_string(self):
+        '''Returns the end (or closing) statement of this directive, i.e.
+        "omp end task". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the end statement for this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp end task"
+
 class OMPTaskloopDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP TASKLOOP directive in the PSyIR.
