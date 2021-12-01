@@ -6,8 +6,8 @@ program simple
   integer :: jpi,jpj,jpk
   REAL*8 :: tsn_sum
   jpi=2
-  jpj=2
-  jpk=2
+  jpj=3
+  jpk=4
   ALLOCATE(tsn(jpi,jpj,jpk))
 
   tsn_sum = 0.0
@@ -22,11 +22,11 @@ program simple
   print *, jpi, jpj, jpk
   print *, "TSN_SUM IS",tsn_sum
   DO jk = 1, jpk
-  DO jj = 1, jpj
-     DO ji = 1, jpi
-        print *, ji,jj,jk,tsn(ji,jj,jk)
+     DO jj = 1, jpj
+        DO ji = 1, jpi
+           print *, ji,jj,jk,tsn(ji,jj,jk)
+        end do
      end do
-  end do
   end do
      
   do jt = 1, 1

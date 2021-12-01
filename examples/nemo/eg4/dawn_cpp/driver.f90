@@ -77,15 +77,20 @@ program tracer_advection
      END DO
   END DO
   print *, jpi, jpj, jpk
-  print *, "TSN_SUM IS",tsn_sum
+  !print *, "TSN_SUM IS",tsn_sum
   print *, "TSN 1,1,1 is",tsn(1,1,1)
+  print *, "TSN 2,1,1 is",tsn(2,1,1)
+  print *, "TSN 3,1,1 is",tsn(3,1,1)
+  print *, "TSN 127,1,1 is",tsn(127,1,1)
+  print *, "TSN 128,1,1 is",tsn(128,1,1)
+  print *, "TSN 129,1,1 is",tsn(129,1,1)
   print *, "TSN 130,1,1 is",tsn(130,1,1)
-  print *, "TSN 1,2,1 is",tsn(1,2,1)
-  print *, "TSN 130,2,1 is",tsn(130,2,1)
-  print *, "TSN 130,128,1 is",tsn(130,128,1)
-  print *, "TSN 130,129,1 is",tsn(130,129,1)
-  print *, "TSN 130,130,1 is",tsn(130,130,1)
-  print *, "TSN 130,130,31 is",tsn(130,130,31)
+  !print *, "TSN 1,2,1 is",tsn(1,2,1)
+  !print *, "TSN 130,2,1 is",tsn(130,2,1)
+  !print *, "TSN 130,128,1 is",tsn(130,128,1)
+  !print *, "TSN 130,129,1 is",tsn(130,129,1)
+  !print *, "TSN 130,130,1 is",tsn(130,130,1)
+  !print *, "TSN 130,130,31 is",tsn(130,130,31)
   r = jpi*jpj
   DO jj=1, jpj
      DO ji=1, jpi

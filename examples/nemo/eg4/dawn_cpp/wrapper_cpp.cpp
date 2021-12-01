@@ -32,7 +32,7 @@ void run_nemo_from_host_cpp(int isize, int jsize, int ksize,
   printf("domain jsize %d\n",dom.jsize());
   printf("domain ksize %d\n",dom.ksize());
   meta_data_ij_t meta_data_ij(dom.isize(), dom.jsize(), 1);
-  meta_data_t meta_data_ijk(dom.isize(), dom.jsize(), dom.ksize());
+  meta_data_t meta_data_ijk({isize, jsize, ksize},{isize*jsize, jsize, 1});
   meta_data_k_t meta_data_k(1, 1, dom.ksize());  
 
   // gridtools storages from raw ptrs

@@ -8,7 +8,7 @@
 #define BOOST_NO_CXX11_DECLTYPE 1
 #endif
 #ifndef GRIDTOOLS_DAWN_HALO_EXTENT
-#define GRIDTOOLS_DAWN_HALO_EXTENT 3
+#define GRIDTOOLS_DAWN_HALO_EXTENT 0
 #endif
 #ifndef BOOST_PP_VARIADICS
 #define BOOST_PP_VARIADICS 1
@@ -311,8 +311,8 @@ private:
 	double tsn_sum;
 	tsn_sum = 0.0;
         for(int k = kMin + 0 + 0; k <= kMax + 0 + 0; ++k) {
-            for(int j = jMin + 0; j <= jMax + 0; ++j) {
           for(int i = iMin + 0; i <= iMax + 0; ++i) {
+            for(int j = jMin + 0; j <= jMax + 0; ++j) {
               if(checkOffset(stage2421GlobalIIndices[0], stage2421GlobalIIndices[1],
                              globalOffsets[0] + i) &&
                  checkOffset(stage2421GlobalJIndices[0], stage2421GlobalJIndices[1],
@@ -320,13 +320,19 @@ private:
                 ::dawn::float_type __local_zice_1228 = (::dawn::float_type)0.e0;
 		printf("%d %d %d\n",i,j,k);
 		printf("tsn 0,0,0 %.16f\n",tsn(0,0,0));
+		printf("tsn 1,0,0 %.16f\n",tsn(1,0,0));
+		printf("tsn 2,0,0 %.16f\n",tsn(2,0,0));
+		printf("tsn 126,0,0 %.16f\n",tsn(126,0,0));
+		printf("tsn 127,0,0 %.16f\n",tsn(127,0,0));
+		printf("tsn 128,0,0 %.16f\n",tsn(128,0,0));
 		printf("tsn 129,0,0 %.16f\n",tsn(129,0,0));
-		printf("tsn 0,1,0 %.16f\n",tsn(0,1,0));
-		printf("tsn 129,1,0 %.16f\n",tsn(129,1,0));
-		printf("tsn 129,127,0 %.16f\n",tsn(129,127,0));
-		printf("tsn 129,128,0 %.16f\n",tsn(129,128,0));
-		printf("tsn 129,129,0 %.16f\n",tsn(129,129,0));
-		printf("tsn 129,129,30 %f\n",tsn(129,129,30));
+		//printf("tsn 129,0,0 %.16f\n",tsn(129,0,0));
+		//printf("tsn 0,1,0 %.16f\n",tsn(0,1,0));
+		//printf("tsn 129,1,0 %.16f\n",tsn(129,1,0));
+		//printf("tsn 129,127,0 %.16f\n",tsn(129,127,0));
+		//printf("tsn 129,128,0 %.16f\n",tsn(129,128,0));
+		//printf("tsn 129,129,0 %.16f\n",tsn(129,129,0));
+		//printf("tsn 129,129,30 %f\n",tsn(129,129,30));
 		exit(1);
 		tsn_sum += tsn(i,j,k);
                 if((tsn(i + 0, j + 0, k + 0) <=
