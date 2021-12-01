@@ -1811,9 +1811,9 @@ def test_dynkernelargument_idtp_r_solver_operator():
     # No algorithm information - raise exception
     with pytest.raises(GenerationError) as info:
         operator_argument._init_data_type_properties(None)
-        assert ("It was not possible to determine the operator type from the "
-                "algorithm layer for argument 'self_mm_w0' in kernel "
-                "'testkern_operator_code'.")
+    assert ("It was not possible to determine the operator type from the "
+            "algorithm layer for argument 'self_mm_w0' in kernel "
+            "'testkern_operator_code'.")
 
     # Inconsistent datatype
     arg = Arg("variable", None, None, ("columnwise_operator_type", None))
