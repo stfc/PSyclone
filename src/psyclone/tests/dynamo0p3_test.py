@@ -4221,3 +4221,43 @@ def test_read_only_fields_hex(tmpdir):
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")
     assert expected in generated_code
+
+
+def test_mixed_precision_args():
+    '''Test that correct code is generated for the PSy-layer when there
+    are scalars, fields and operators with different precision
+    declared in the algorithm layer.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    expected = (
+        "    USE constants_mod, ONLY: r_solver, r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE r_solver_field_mod, ONLY: r_solver_field_type, "
+        "r_solver_field_proxy_type\n"
+        "    USE operator_mod, ONLY: r_solver_operator_type, "
+        "r_solver_operator_proxy_type, operator_type, operator_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0(scalar_r_def, field_r_def, operator_r_def, "
+        "scalar_r_solver, field_r_solver, operator_r_solver)\n"
+        "      USE mixed_mod, ONLY: mixed_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
+        "      REAL(KIND=r_solver), intent(in) :: scalar_r_solver\n"
+        "      TYPE(field_type), intent(in) :: field_r_def\n"
+        "      TYPE(r_solver_field_type), intent(in) :: field_r_solver\n"
+        "      TYPE(operator_type), intent(in) :: operator_r_def\n"
+        "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
+        "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
+        "      TYPE(r_solver_field_proxy_type) field_r_solver_proxy\n"
+        "      TYPE(field_proxy_type) field_r_def_proxy\n"
+        "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w0\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n")
+    assert expected in generated_code
