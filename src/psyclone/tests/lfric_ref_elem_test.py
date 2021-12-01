@@ -339,11 +339,10 @@ def test_refelem_no_rdef(tmpdir):
     field of type r_solver.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "23.5_ref_elem_mixed_prec.f90"),
-                           api=TEST_API)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "23.5_ref_elem_mixed_prec.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    print (gen)
     assert "use constants_mod, only: r_def, i_def" in gen

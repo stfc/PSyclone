@@ -110,10 +110,9 @@ def test_lfricfields_stub_err():
     with pytest.raises(InternalError) as err:
         LFRicFields(kernel)._stub_declarations(sub_stub)
     const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_type' in "
-            "kernel stub declarations for the field argument 'field_2'. "
-            "Supported types are {0}.".
-            format(const.VALID_FIELD_DATA_TYPES)
+    assert (f"Found an unsupported data type 'gh_invalid_type' in "
+            f"kernel stub declarations for the field argument 'field_2'. "
+            f"Supported types are {const.VALID_FIELD_DATA_TYPES}."
             in str(err.value))
 
 

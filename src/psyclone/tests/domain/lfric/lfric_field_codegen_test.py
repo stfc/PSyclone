@@ -780,10 +780,10 @@ def test_int_real_field_invalid(monkeypatch):
     const = LFRicConstants()
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("Field argument(s) ['n1'] in Invoke "
-            "'invoke_integer_and_real_field' have different metadata for "
-            "data type ({0}) in different kernels. This is invalid.".
-            format(const.VALID_FIELD_DATA_TYPES) in str(err.value))
+    assert (f"Field argument(s) ['n1'] in Invoke "
+            f"'invoke_integer_and_real_field' have different metadata for "
+            f"data type ({const.VALID_FIELD_DATA_TYPES}) in different "
+            f"kernels. This is invalid." in str(err.value))
 
 
 def test_int_real_field_fs(dist_mem, tmpdir):

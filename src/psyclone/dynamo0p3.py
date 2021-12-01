@@ -3430,18 +3430,23 @@ class LFRicScalarArgs(DynCollection):
                 real_scalars_precision_map = OrderedDict()
                 for real_scalar in self._real_scalars[intent]:
                     try:
-                        real_scalars_precision_map[real_scalar.precision].append(real_scalar)
+                        real_scalars_precision_map[
+                            real_scalar.precision].append(real_scalar)
                     except KeyError:
-                        # This precision has not been seen before so create a new entry
-                        real_scalars_precision_map[real_scalar.precision] = [real_scalar]
+                        # This precision has not been seen before so
+                        # create a new entry
+                        real_scalars_precision_map[
+                            real_scalar.precision] = [real_scalar]
                 # Declare scalars
                 for real_scalar_kind in real_scalars_precision_map:
-                    real_scalars_list = real_scalars_precision_map[real_scalar_kind]
+                    real_scalars_list = real_scalars_precision_map[
+                        real_scalar_kind]
                     real_scalar_type = real_scalars_list[0].intrinsic_type
                     real_scalar_names = [arg.declaration_name for arg
                                          in real_scalars_list]
                     parent.add(
-                        DeclGen(parent, datatype=real_scalar_type, kind=real_scalar_kind,
+                        DeclGen(parent, datatype=real_scalar_type,
+                                kind=real_scalar_kind,
                                 entity_decls=real_scalar_names,
                                 intent=intent))
                     if self._invoke:
@@ -3702,7 +3707,7 @@ class DynCMAOperators(DynCollection):
                 infrastructure_modules[const_mod]
             if cma_kind not in const_mod_list:
                 const_mod_list.append(cma_kind)
-            
+
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
@@ -4453,7 +4458,7 @@ class DynBasisFunctions(DynCollection):
                                entity_decls=[basis]))
 
         const = LFRicConstants()
-        
+
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             if shape == "gh_quadrature_xyoz":
@@ -4810,8 +4815,8 @@ class DynBasisFunctions(DynCollection):
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
             const = LFRicConstants()
-            datatype = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"] \
-                ["intrinsic"]
+            datatype = \
+                const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             parent.add(
                 DeclGen(parent, datatype=datatype, kind=kind,
@@ -8783,21 +8788,20 @@ class DynKernelArgument(KernelArgument):
             # Check the type of scalar defined in the metadata is supported.
             if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
                 raise InternalError(
-                    "Expected one of {0} intrinsic types for a scalar "
-                    "argument but found '{1}'.".
-                    format(const.VALID_INTRINSIC_TYPES, self.intrinsic_type))
+                    f"Expected one of {const.VALID_INTRINSIC_TYPES} intrinsic "
+                    f"types for a scalar argument but found "
+                    f"'{self.intrinsic_type}'.")
 
             # Check the metadata and algorithm types are consistent if
             # the algorithm information is available and is not being ignored.
             if use_alg_info and alg_datatype and \
                alg_datatype != self.intrinsic_type:
                 raise GenerationError(
-                    "The kernel metadata for argument '{0}' in kernel '{1}' "
-                    "specifies this argument should be a scalar of type "
-                    "'{2}' but in the algorithm layer it is defined as a "
-                    "'{3}'.".format(
-                        self.name, self._call.name, self.intrinsic_type,
-                        alg_datatype))
+                    f"The kernel metadata for argument '{self.name}' in "
+                    f"kernel '{self._call.name}' specifies this argument "
+                    f"should be a scalar of type '{self.intrinsic_type}' but "
+                    f"in the algorithm layer it is defined as a "
+                    f"'{alg_datatype}'.")
 
             # If the algorithm information is not being ignored and
             # the datatype is known in the algorithm layer and it is
@@ -8805,9 +8809,9 @@ class DynKernelArgument(KernelArgument):
             if use_alg_info and alg_datatype and not alg_precision and \
                not self.is_literal:
                 raise GenerationError(
-                    "Scalars must have their precision defined in the "
-                    "algorithm layer but '{0}' in '{1}' does not."
-                    "".format(self.name, self._call.name))
+                    f"Scalars must have their precision defined in the "
+                    f"algorithm layer but '{self.name}' in "
+                    f"'{self._call.name}' does not.")
 
             if self.access in AccessType.get_valid_reduction_modes():
                 # Treat reductions separately to other scalars as it
@@ -8830,10 +8834,10 @@ class DynKernelArgument(KernelArgument):
                 if use_alg_info and alg_precision and \
                    alg_precision != expected_precision:
                     raise GenerationError(
-                        "This scalar is a reduction which assumes precision "
-                        "of type '{0}' but the algorithm declares this "
-                        "scalar with precision '{1}'."
-                        "".format(expected_precision, alg_precision))
+                        f"This scalar is a reduction which assumes precision "
+                        f"of type '{expected_precision}' but the algorithm "
+                        f"declares this scalar with precision "
+                        f"'{alg_precision}'.")
 
                 # Use the default 'real' scalar reduction properties.
                 self._precision = expected_precision
@@ -8861,9 +8865,9 @@ class DynKernelArgument(KernelArgument):
             # it must be available.
             if use_alg_info and not alg_datatype:
                 raise GenerationError(
-                    "It was not possible to determine the field type from "
-                    "the algorithm layer for argument '{0}' in kernel '{1}'."
-                    "".format(self.name, self._call.name, alg_datatype))
+                    f"It was not possible to determine the field type from "
+                    f"the algorithm layer for argument '{self.name}' in "
+                    f"kernel '{self._call.name}'.")
 
             # If the algorithm information is not being ignored then
             # check the metadata and algorithm type are consistent and
@@ -8878,25 +8882,24 @@ class DynKernelArgument(KernelArgument):
                     argtype = "r_solver_field"
                 else:
                     raise GenerationError(
-                        "The metadata for argument '{0}' in kernel '{1}' "
-                        "specifies that this is a real field, however it is "
-                        "declared as a '{2}' in the algorithm code."
-                        "".format(self.name, self._call.name, alg_datatype))
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is a real "
+                        f"field, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
 
             elif self.intrinsic_type == "integer":
                 if use_alg_info and alg_datatype != "integer_field_type":
                     raise GenerationError(
-                        "The metadata for argument '{0}' in kernel '{1}' "
-                        "specifies that this is an integer field, however it "
-                        "is declared as a '{2}' in the algorithm code."
-                        "".format(self.name, self._call.name, alg_datatype))
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is an "
+                        f"integer field, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
                 argtype = "integer_field"
             else:
                 raise InternalError(
-                    "Expected one of {0} intrinsic types for a field "
-                    "argument but found '{1}'.".
-                    format(const.VALID_FIELD_INTRINSIC_TYPES,
-                           self.intrinsic_type))
+                    f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} "
+                    f"intrinsic types for a field argument but found "
+                    f"'{self.intrinsic_type}'.")
 
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
@@ -8920,34 +8923,32 @@ class DynKernelArgument(KernelArgument):
                     # information to determine the precision of the
                     # operator
                     raise GenerationError(
-                        "It was not possible to determine the operator type from "
-                        "the algorithm layer for argument '{0}' in kernel '{1}'."
-                        "".format(self.name, self._call.name, alg_datatype))
+                        f"It was not possible to determine the operator type "
+                        f"from the algorithm layer for argument '{self.name}' "
+                        f"in kernel '{self._call.name}'.")
                 elif alg_datatype == "operator_type":
                     argtype = "operator"
                 elif alg_datatype == "r_solver_operator_type":
                     argtype = "r_solver_operator"
                 else:
                     raise GenerationError(
-                        "The metadata for argument '{0}' in kernel '{1}' "
-                        "specifies that this is an operator, however it is "
-                        "declared as a '{2}' in the algorithm code."
-                        "".format(self.name, self._call.name, alg_datatype))
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is an "
+                        f"operator, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
             elif self.argument_type == "gh_columnwise_operator":
                 if use_alg_info and alg_datatype and \
                    alg_datatype != "columnwise_operator_type":
                     raise GenerationError(
-                        "The metadata for argument '{0}' in kernel '{1}' "
-                        "specifies that this is a columnwise operator, "
-                        "however it is declared as a '{2}' in the algorithm "
-                        "code.".format(
-                            self.name, self._call.name, alg_datatype))
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is a "
+                        f"columnwise operator, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
                 argtype = "columnwise_operator"
             else:
                 raise InternalError(
-                    "Expected 'gh_operator' or 'gh_columnwise_operator' "
-                    "argument type but found '{0}'.".
-                    format(self.argument_type))
+                    f"Expected 'gh_operator' or 'gh_columnwise_operator' "
+                    f"argument type but found '{self.argument_type}'.")
 
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]

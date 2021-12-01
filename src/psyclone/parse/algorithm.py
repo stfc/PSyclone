@@ -661,15 +661,15 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     # pylint: disable=too-many-branches
     if not isinstance(parse_tree, (Part_Ref, Structure_Constructor)):
         raise InternalError(
-            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
-            "or Structure_Constructor) but found instance of '{0}'."
-            "".format(type(parse_tree)))
+            f"algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
+            f"or Structure_Constructor) but found instance of "
+            f"'{type(parse_tree)}'.")
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:get_kernel: Expected Part_Ref or "
-            "Structure_Constructor to have 2 children "
-            "but found {0}.".format(len(parse_tree.items)))
+            f"algorithm.py:get_kernel: Expected Part_Ref or "
+            f"Structure_Constructor to have 2 children "
+            f"but found {len(parse_tree.items)}.")
 
     kernel_name = str(parse_tree.items[0])
 
@@ -733,19 +733,18 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                     # Data_Ref otherwise always has a Name on the rhs
                     # (3rd argument).
                     raise InternalError(
-                        "The third argument to to a Proc_Component_Ref is "
-                        "expected to be a Name, but found '{0}'."
-                        "".format(type(argument.children[2]).__name__))
+                        f"The third argument to to a Proc_Component_Ref is "
+                        f"expected to be a Name, but found "
+                        f"'{type(argument.children[2]).__name__}'.")
             elif isinstance(argument, Data_Ref):
                 rhs_node = argument.children[-1]
                 if isinstance(rhs_node, Part_Ref):
                     rhs_node = rhs_node.children[0]
                 if not isinstance(rhs_node, Name):
                     raise InternalError(
-                        "The last child of a Data_Ref is expected to be "
-                        "a Name or a Part_Ref whose first child is a "
-                        "Name, but found '{0}'."
-                        "".format(type(rhs_node).__name__))
+                        f"The last child of a Data_Ref is expected to be "
+                        f"a Name or a Part_Ref whose first child is a "
+                        f"Name, but found '{type(rhs_node).__name__}'.")
                 arg = rhs_node.string.lower()
             datatype = arg_type_defns.get(arg)
             full_text = argument.tostr().lower()
@@ -793,25 +792,24 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                         candidate_datatype = datatype
                     elif candidate_datatype != datatype:
                         raise NotImplementedError(
-                            "Found two non-matching literals within an "
-                            "expression passed into an invoke from the "
-                            "algorithm layer. '{0}' and '{1}' do not match. "
-                            "This is not supported in PSyclone."
-                            "".format(datatype, candidate_datatype))
+                            f"Found two non-matching literals within an "
+                            f"expression passed into an invoke from the "
+                            f"algorithm layer. '{datatype}' and "
+                            f"'{candidate_datatype}' do not match. "
+                            f"This is not supported in PSyclone.")
                 arguments.append(Arg('literal', argument.tostr().lower(),
                                  datatype=datatype))
             else:
                 raise NotImplementedError(
-                    "algorithm.py:get_kernel: Expressions containing "
-                    "variables are not yet supported '{0}', value '{1}', "
-                    "kernel '{2}' in file '{3}'.".format(
-                        type(argument), str(argument), parse_tree,
-                        alg_filename))
+                    f"algorithm.py:get_kernel: Expressions containing "
+                    f"variables are not yet supported '{type(argument)}', "
+                    f"value '{str(argument)}', kernel '{parse_tree}' in "
+                    f"file '{alg_filename}'.")
         else:
             raise InternalError(
-                "algorithm.py:get_kernel: Unsupported argument structure "
-                "'{0}', value '{1}', kernel '{2}' in file '{3}'.".format(
-                    type(argument), str(argument), parse_tree, alg_filename))
+                f"algorithm.py:get_kernel: Unsupported argument structure "
+                f"'{type(argument)}', value '{str(argument)}', kernel "
+                f"'{parse_tree}' in file '{alg_filename}'.")
 
     return kernel_name, arguments
 
@@ -1117,16 +1115,16 @@ class Arg(object):
         self._varname = varname
         if form not in Arg.form_options:
             raise InternalError(
-                "algorithm.py:Alg:__init__: Unknown arg type provided. "
-                "Expected one of {0} but found "
-                "'{1}'.".format(str(Arg.form_options), form))
+                f"algorithm.py:Alg:__init__: Unknown arg type provided. "
+                f"Expected one of {str(Arg.form_options)} but found "
+                f"'{form}'.")
         # A tuple containing information about the datatype and
         # precision of this argument, or None if there is none.
         self._datatype = datatype
 
     def __str__(self):
-        return "Arg(form='{0}',text='{1}',varname='{2}')". \
-            format(self._form, self._text, str(self._varname))
+        return (f"Arg(form='{self._form}',text='{self._text}',"
+                f"varname='{self._varname}')")
 
     @property
     def form(self):

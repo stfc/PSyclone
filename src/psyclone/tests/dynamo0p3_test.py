@@ -1583,17 +1583,17 @@ def test_dynkernelargument_idtp_scalar():
     # No algorithm information - use default precision
     scalar_argument._init_data_type_properties(None)
     assert scalar_argument._precision == "r_def"
-    assert scalar_argument._data_type == None
-    assert scalar_argument._proxy_data_type == None
-    assert scalar_argument._module_name == None
+    assert scalar_argument._data_type is None
+    assert scalar_argument._proxy_data_type is None
+    assert scalar_argument._module_name is None
 
     # Algorithm information - use supplied precision
     arg = Arg("variable", None, None, ("real", "roo_def"))
     scalar_argument._init_data_type_properties(arg)
     assert scalar_argument._precision == "roo_def"
-    assert scalar_argument._data_type == None
-    assert scalar_argument._proxy_data_type == None
-    assert scalar_argument._module_name == None
+    assert scalar_argument._data_type is None
+    assert scalar_argument._proxy_data_type is None
+    assert scalar_argument._module_name is None
 
     # Inconsistent datatype
     arg = Arg("variable", None, None, ("integer", "i_def"))
@@ -1608,9 +1608,9 @@ def test_dynkernelargument_idtp_scalar():
     arg = Arg("variable", None, None, ("integer", "roo_def"))
     scalar_argument._init_data_type_properties(arg, use_alg_info=False)
     assert scalar_argument._precision == "r_def"
-    assert scalar_argument._data_type == None
-    assert scalar_argument._proxy_data_type == None
-    assert scalar_argument._module_name == None
+    assert scalar_argument._data_type is None
+    assert scalar_argument._proxy_data_type is None
+    assert scalar_argument._module_name is None
 
     # Algorithm information - no precision
     arg = Arg("variable", None, None, ("real", None))
@@ -1641,7 +1641,7 @@ def test_dynkernelargument_idtp_reduction():
     reduction._init_data_type_properties(None)
     assert reduction._precision == "r_def"
     assert reduction._data_type == "scalar_type"
-    assert reduction._proxy_data_type == None
+    assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
 
     # Consistent algorithm information
@@ -1649,7 +1649,7 @@ def test_dynkernelargument_idtp_reduction():
     reduction._init_data_type_properties(arg)
     assert reduction._precision == "r_def"
     assert reduction._data_type == "scalar_type"
-    assert reduction._proxy_data_type == None
+    assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
 
     # Scalar reduction with inconsistent precision (expects 'r_def')
@@ -1936,6 +1936,7 @@ def test_initdatatypeproperties_unknown_field_type():
             "algorithm layer for argument 'box_chi' in kernel "
             "'testkern_coord_w0_code'." in str(info.value))
 
+
 # Functional tests
 
 def test_r_solver(tmpdir):
@@ -1953,7 +1954,8 @@ def test_r_solver(tmpdir):
         "  MODULE r_solver_example_psy\n"
         "    USE constants_mod, ONLY: r_solver, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
-        "    USE r_solver_field_mod, ONLY: r_solver_field_type, r_solver_field_proxy_type\n"
+        "    USE r_solver_field_mod, ONLY: r_solver_field_type, "
+        "r_solver_field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, f3, f4)\n"

@@ -227,14 +227,14 @@ class LFRicConstants(object):
         # discontinuous). The number of 'ANY_SPACE' spaces is set in the
         # PSyclone configuration file.
         LFRicConstants.VALID_ANY_SPACE_NAMES = [
-            "any_space_{0}".format(x+1) for x in
+            f"any_space_{x+1}" for x in
             range(api_config.num_any_space)]
 
         # Valid any_discontinuous_space metadata (general FS known to be
         # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
         # set in the PSyclone configuration file.
         LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
-            "any_discontinuous_space_{0}".format(x+1) for x in
+            f"any_discontinuous_space_{x+1}" for x in
             range(api_config.num_any_discontinuous_space)]
 
         # Valid discontinuous FS names (for optimisation purposes)
@@ -314,11 +314,12 @@ class LFRicConstants(object):
                          "intrinsic": "real",
                          "kind": "r_def"},
             # 'real'-valued operator with data of kind 'r_solver'
-            "r_solver_operator": {"module": "operator_mod",
-                         "type": "r_solver_operator_type",
-                         "proxy_type": "r_solver_operator_proxy_type",
-                         "intrinsic": "real",
-                         "kind": "r_solver"},
+            "r_solver_operator": {
+                "module": "operator_mod",
+                "type": "r_solver_operator_type",
+                "proxy_type": "r_solver_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_solver"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "operator_mod",
