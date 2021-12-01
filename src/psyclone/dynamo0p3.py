@@ -3146,8 +3146,7 @@ class DynProxies(DynCollection):
             operators_names = [arg.proxy_declaration_name for
                                arg in operators_list]
             parent.add(TypeDeclGen(parent, datatype=operator_datatype,
-                                   entity_decls=operators_names,
-                                   intent="in"))
+                                   entity_decls=operators_names))
             op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(operator_datatype))
