@@ -36,12 +36,12 @@
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
 
 from __future__ import absolute_import
-from psyclone.errors import PSycloneError
 
-import sys
 import pkgutil
 import inspect
 import importlib
+
+from psyclone.errors import PSycloneError
 
 
 class DummyPSycloneError(PSycloneError):
@@ -72,7 +72,7 @@ def import_submodules(package, recursive=True):
     if isinstance(package, str):
         package = importlib.import_module(package)
     results = {}
-    for loader, name, is_pkg in pkgutil.walk_packages(package.__path__):
+    for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
         full_name = package.__name__ + '.' + name
         if "test" not in full_name:
             results[full_name] = importlib.import_module(full_name)
@@ -84,7 +84,7 @@ def import_submodules(package, recursive=True):
 def test_exception_repr():
     ''' Test the properties of Exception classes defined by Psyclone. '''
 
-    modules = dict()
+    modules = {}
 
     # Recursively walk through the psyclone module, importing sub-modules.
     # Store any class definitions we come across.
@@ -122,11 +122,8 @@ def test_exception_repr():
         assert psy_except.__str__ is not Exception.__str__
         assert psy_except.__repr__ is not Exception.__repr__
 
-        # Simulate argements to the exception constructor
-        if sys.version_info[0] == 3:
-            arglist = list(inspect.getfullargspec(psy_except).args)
-        else:
-            arglist = list(inspect.getargspec(psy_except.__init__).args)
+        # Simulate arguments to the exception constructor
+        arglist = list(inspect.getfullargspec(psy_except).args)
         args = [None for arg in arglist if arg != 'self']
 
         # Check that the _str__ & __repr__ do not return the same string, and

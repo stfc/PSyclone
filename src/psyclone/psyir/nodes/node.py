@@ -443,30 +443,6 @@ class Node(object):
     def __str__(self):
         return self.node_str(False)
 
-    def math_equal(self, other):
-        '''Returns True if the self has the same results as other. The
-        implementation in the base class just confirms that the type is the
-        same, and the number of children as well.
-
-        :param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`.
-
-        :returns: whether self has the same result as other.
-        :rtype: bool
-        '''
-
-        # pylint: disable=unidiomatic-typecheck
-        if type(self) != type(other):
-            return False
-
-        if len(self.children) != len(other.children):
-            return False
-
-        for i, entity in enumerate(self.children):
-            if not entity.math_equal(other.children[i]):
-                return False
-        return True
-
     @property
     def ast(self):
         '''

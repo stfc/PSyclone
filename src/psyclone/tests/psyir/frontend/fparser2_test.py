@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type, _kind_symbol_from_name, \
+    default_integer_type, default_real_type, _kind_find_or_create, \
     _first_type_match
 
 
@@ -1312,7 +1312,7 @@ def test_wrong_type_kind_param():
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
     r_def.__class__ = RoutineSymbol
     with pytest.raises(TypeError) as err:
-        _kind_symbol_from_name("r_def", fake_parent.symbol_table)
+        _kind_find_or_create("r_def", fake_parent.symbol_table)
     assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
             str(err.value))
     # Repeat but declare r_def as real

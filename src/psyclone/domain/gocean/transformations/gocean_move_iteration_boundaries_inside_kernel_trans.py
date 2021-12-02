@@ -127,16 +127,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         cursor = outer_loop.position
 
         # Make sure the boundary symbols in the PSylayer exist
-        inv_xstart = invoke_st.symbol_from_tag(
+        inv_xstart = invoke_st.find_or_create_tag(
             "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
-        inv_xstop = invoke_st.symbol_from_tag(
+        inv_xstop = invoke_st.find_or_create_tag(
             "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
-        inv_ystart = invoke_st.symbol_from_tag(
+        inv_ystart = invoke_st.find_or_create_tag(
             "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
-        inv_ystop = invoke_st.symbol_from_tag(
+        inv_ystop = invoke_st.find_or_create_tag(
             "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
 
