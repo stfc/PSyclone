@@ -371,9 +371,9 @@ class LFRicBuiltIn(BuiltIn):
         # The symbol representing the loop index is created in the DynLoop
         # constructor.
         # TODO #696 - 'df' should have KIND i_def.
-        return table.symbol_from_tag(tag="dof_loop_idx", root_name="df",
-                                     symbol_type=DataSymbol,
-                                     datatype=INTEGER_SINGLE_TYPE)
+        return table.find_or_create_tag(tag="dof_loop_idx", root_name="df",
+                                        symbol_type=DataSymbol,
+                                        datatype=INTEGER_SINGLE_TYPE)
 
     def get_indexed_field_argument_references(self):
         '''

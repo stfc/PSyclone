@@ -42,8 +42,9 @@ sub-classes.'''
 import abc
 from enum import Enum
 import six
-from psyclone.psyir.nodes.datanode import DataNode
+
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.datanode import DataNode
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -292,30 +293,6 @@ class BinaryOperation(Operation):
 
         '''
         return position in (0, 1) and isinstance(child, DataNode)
-
-    def math_equal(self, other):
-        ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`
-        :returns: True if the self has the same results as other.
-        :rtype: bool
-        '''
-        if not super(BinaryOperation, self).math_equal(other):
-            # Support some commutative law, unfortunately we now need
-            # to repeat some tests already done in super(), since we
-            # don't know why the above test failed
-            # TODO #533 for documenting restrictions
-            # pylint: disable=unidiomatic-typecheck
-            if type(self) != type(other):
-                return False
-            if self.operator != other.operator:
-                return False
-            if self.operator not in [self.Operator.ADD, self.Operator.MUL,
-                                     self.Operator.AND, self.Operator.OR,
-                                     self.Operator.EQ]:
-                return False
-            return self._children[0].math_equal(other.children[1]) and \
-                self._children[1].math_equal(other.children[0])
-        return self.operator == other.operator
 
     @staticmethod
     def create(oper, lhs, rhs):

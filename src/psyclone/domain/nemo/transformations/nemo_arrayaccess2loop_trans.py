@@ -44,6 +44,7 @@ array index should be transformed.
 from __future__ import absolute_import
 
 from psyclone.configuration import Config
+from psyclone.core import SymbolicMaths
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
     import CreateNemoKernelTrans
 from psyclone.nemo import NemoLoop, NemoKern
@@ -143,12 +144,9 @@ class NemoArrayAccess2LoopTrans(Transformation):
 
         # Look up the loop variable in the symbol table. If it does
         # not exist then create it.
-        try:
-            loop_variable_symbol = symbol_table.lookup(loop_variable_name)
-        except KeyError:
-            # Add loop variable as it does not already exist
-            loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
-            symbol_table.add(loop_variable_symbol)
+        loop_variable_symbol = symbol_table.find_or_create(
+                loop_variable_name, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Replace current access with loop variable.
         for array in assignment.walk(ArrayReference):
@@ -278,12 +276,13 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # Indices on lhs and rhs array accesses are not the same
         index_pos = node.position
         assignment = node.parent.parent
+        sym_maths = SymbolicMaths.get()
         for array_reference in assignment.rhs.walk(ArrayReference):
             if array_reference.ancestor(ArrayReference):
                 # skip validation as this is an array reference within
                 # an array reference.
                 continue
-            if not array_reference.children[index_pos].math_equal(node):
+            if not sym_maths.equal(array_reference.children[index_pos], node):
                 raise TransformationError(
                     "Expected index '{0}' for rhs array '{1}' to be the same "
                     "as that for the lhs array '{2}', but they differ in "

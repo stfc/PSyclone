@@ -41,10 +41,9 @@
 
 from __future__ import absolute_import, print_function
 
-import six
-
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import (AccessType, Signature, SymbolicMaths,
+                           VariablesAccessInfo)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -80,11 +79,7 @@ class DependencyTools(object):
             constants = config.get_constants()
             for loop_type in loop_types_to_parallelise:
                 if loop_type not in constants.VALID_LOOP_TYPES:
-                    if six.PY2:
-                        out_list = [str(l_type) for l_type in
-                                    constants.VALID_LOOP_TYPES]
-                    else:
-                        out_list = constants.VALID_LOOP_TYPES
+                    out_list = constants.VALID_LOOP_TYPES
                     raise TypeError("Invalid loop type '{0}' specified "
                                     "in DependencyTools. Valid values for "
                                     "API '{1}' are {2}."
@@ -361,9 +356,11 @@ class DependencyTools(object):
         # b(j) = a(j-1) + a(j+1)
         # a(j) = c(j)
 
+        sym_maths = SymbolicMaths.get()
+
         first_index = all_indices[0]
         for index in all_indices[1:]:
-            if not first_index.math_equal(index):
+            if not sym_maths.equal(first_index, index):
                 self._add_warning("Variable '{0}' is written and is accessed "
                                   "using indices '{1}' and '{2}' and can "
                                   "therefore not be parallelised."

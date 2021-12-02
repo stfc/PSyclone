@@ -36,7 +36,7 @@
 '''This module contains the NEMO-specific loop fusion transformation.
 '''
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 
@@ -67,17 +67,19 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # LoopFuseTrans:
         super(NemoLoopFuseTrans, self).validate(node1, node2, options)
 
-        if not node1.start_expr.math_equal(node2.start_expr):
+        sym_maths = SymbolicMaths.get()
+
+        if not sym_maths.equal(node1.start_expr, node2.start_expr):
             raise TransformationError("Lower loop bounds must be identical, "
                                       "but are '{0}'' and '{1}'"
                                       .format(node1.start_expr,
                                               node2.start_expr))
-        if not node1.stop_expr.math_equal(node2.stop_expr):
+        if not sym_maths.equal(node1.stop_expr, node2.stop_expr):
             raise TransformationError("Upper loop bounds must be identical, "
                                       "but are '{0}'' and '{1}'"
                                       .format(node1.stop_expr,
                                               node2.stop_expr))
-        if not node1.step_expr.math_equal(node2.step_expr):
+        if not sym_maths.equal(node1.step_expr, node2.step_expr):
             raise TransformationError("Step size in loops must be identical, "
                                       "but are '{0}'' and '{1}'"
                                       .format(node1.step_expr,
