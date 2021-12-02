@@ -27,7 +27,19 @@
 	code generation and add harness documentation.
 
 	11) PR #1482 for #1481. Renames symbol_from_tag->find_or_create_tag
-        and tidies its use.
+	and tidies its use.
+
+	12) PR #1521 for #1193. Update python 3.5 to 3.6 in the GitHubActions CI.
+
+	13) PR #1512 for #1511 and #1516. Fix silent compilation test failures,
+	and make sure all files are compiled in tmpdir.
+
+	14) PR #1531. Fixes incorrect imports of OMPTaskwaitTrans in examples
+	in class docstrings.
+
+	15) PR #1498 for #533. Adds the use of SymPy for comparing expressions
+	for equality. Removes math_equal() and 
+	ArrayRange2LoopTrans.string_compare() methods.
 
 release 2.1.0 3rd November 2021
 
