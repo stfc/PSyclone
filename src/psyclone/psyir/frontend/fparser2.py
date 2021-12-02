@@ -1529,12 +1529,12 @@ class Fparser2Reader(object):
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
-            if type_spec.children[0].lower() == "class":
+            if type_spec.children[0].lower() != "type":
                 # We don't yet support declarations that use 'class'
                 # TODO #1504 extend the PSyIR for this variable type.
                 raise NotImplementedError(
-                    f"Could not process {str(type_spec)} - declarations "
-                    f"using 'class' are not yet supported.")
+                    f"Could not process {type_spec} - declarations "
+                    f"other than 'type' are not yet supported.")
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)

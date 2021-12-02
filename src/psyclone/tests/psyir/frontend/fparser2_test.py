@@ -52,9 +52,9 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, DataTypeSymbol,
-    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
+    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
