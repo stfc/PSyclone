@@ -38,7 +38,7 @@
 
 ''' This module provides the loop swap transformation.'''
 
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Call, CodeBlock, Schedule
 from psyclone.psyir.transformations import LoopTrans, TransformationError
 
 
@@ -74,6 +74,9 @@ class LoopSwapTrans(LoopTrans):
      >>> # schedule.view()
 
     '''
+
+    excluded_node_types = (Call, CodeBlock)
+
     def __str__(self):
         return "Exchange the order of two nested loops: inner becomes " + \
                "outer and vice versa"
@@ -121,7 +124,7 @@ class LoopSwapTrans(LoopTrans):
                 "Error in LoopSwap transformation. Supplied node '{0}' must"
                 " be the outer loop of a loop nest and must have exactly one "
                 "inner loop, but this node has {1} inner statements, the "
-                "first two being '{2}' and '{3}'"
+                "first two being '{2}' and '{3}'."
                 "".format(node_outer, len(node_outer.loop_body.children),
                           node_outer.loop_body[0], node_outer.loop_body[1]))
 
@@ -150,7 +153,6 @@ class LoopSwapTrans(LoopTrans):
         outer.replace_with(inner.detach())
         inner.addchild(Schedule())
         inner.loop_body.addchild(outer)
-
         # Insert again the inner code in the new inner loop
         outer.loop_body.replace_with(inner_loop_body)
 
