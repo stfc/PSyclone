@@ -256,9 +256,9 @@ def _check_args(array, dim):
     '''
     if not isinstance(array, ArrayMixin):
         raise TypeError(
-            "method _check_args 'array' argument should be an "
-            "ArrayReference type but found '{0}'.".format(
-                type(array).__name__))
+            f"method _check_args 'array' argument should be some sort of "
+            f"array access (i.e. a sub-class of ArrayMixin) but found "
+            f"'{type(array).__name__}'.")
 
     if not isinstance(dim, int):
         raise TypeError(
@@ -278,9 +278,8 @@ def _check_args(array, dim):
     # dimension (dim 1), so we need to reduce dim by 1.
     if not isinstance(array.indices[dim-1], Range):
         raise TypeError(
-            "method _check_args 'array' argument index '{0}' "
-            "should be a Range type but found '{1}'."
-            "".format(dim-1, type(array.indices[dim-1]).__name__))
+            f"method _check_args 'array' argument index '{dim-1}' should be a "
+            f"Range type but found '{type(array.indices[dim-1]).__name__}'.")
 
 
 def _is_bound_full_extent(array, dim, operator):
@@ -351,13 +350,9 @@ def _is_bound_full_extent(array, dim, operator):
             literal.value != str(dim)):
         return False
 
-    if isinstance(reference, StructureReference):
-        if array._matching_access(reference):
-            return True
-    elif isinstance(reference, Reference):
-        if reference.symbol is array.symbol:
-            return True
-    # pylint: enable=too-many-boolean-expressions
+    if isinstance(reference, Reference) and array._matching_access(reference):
+        return True
+
     return False
 
 
@@ -2752,8 +2747,8 @@ class Fparser2Reader(object):
                                      Range in its indices is found.
         :raises NotImplementedError: if two or more part references in a \
                                      structure reference contain ranges.
-        :raises InternalError: if the supplied node is not of the correct \
-                               type.
+        :raises InternalError: if the supplied node is not of the correct type.
+
         '''
         if isinstance(node, (ArrayReference, ArrayMember)):
             array = node
@@ -2894,7 +2889,8 @@ class Fparser2Reader(object):
 
         :raises InternalError: if the parse tree does not have the expected \
                                structure.
-
+        :raises NotImplementedError: if the logical mask of the WHERE does \
+                                     not use array notation.
         '''
         if isinstance(node, Fortran2003.Where_Stmt):
             # We have a Where statement. Check that the parse tree has the
@@ -2948,15 +2944,18 @@ class Fparser2Reader(object):
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
             # TODO #717. Look-up the shape of the array in the SymbolTable.
-            raise NotImplementedError("Only WHERE constructs using explicit "
-                                      "array notation (e.g. my_array(:, :)) "
-                                      "are supported.")
+            raise NotImplementedError(
+                f"Only WHERE constructs using explicit array notation (e.g. "
+                f"my_array(:,:)) are supported but found '{logical_expr}'.")
         for array in arrays:
             if any(isinstance(idx, Range) for idx in array.indices):
                 first_array = array
                 break
         else:
-            raise NotImplementedError("ARPDBG")
+            raise NotImplementedError(
+                f"Only WHERE constructs using explicit array notation "
+                f"including ranges (e.g. my_array(1,:) are supported but "
+                f"found '{logical_expr}'")
 
         # All array sections in a Fortran WHERE must have the same rank so
         # just look at the first array.

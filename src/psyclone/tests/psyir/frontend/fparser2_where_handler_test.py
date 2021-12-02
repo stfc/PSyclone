@@ -138,14 +138,15 @@ def test_elsewhere_broken_tree():
 
 
 @pytest.mark.usefixtures("parser")
-def test_missing_array_notation_expr():
+@pytest.mark.parametrize("mask", ["ptsu", "ptsu(1,1)"])
+def test_missing_array_notation_expr(mask):
     ''' Check that we get a code block if the WHERE does not use explicit
-    array syntax in the logical expression.
+    array syntax (with range(s)) in the logical expression.
 
     '''
-    fake_parent, _ = process_where("WHERE (ptsu /= 0._wp)\n"
-                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct,
+    fake_parent, _ = process_where(f"WHERE ({mask} /= 0._wp)\n"
+                                   f"z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   f"END WHERE\n", Fortran2003.Where_Construct,
                                    ["ptsu", "wp", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 

@@ -121,8 +121,9 @@ def test_check_args():
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(None, None)
-    assert ("'array' argument should be an ArrayReference type but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("'array' argument should be some sort of array access (i.e. a "
+            "sub-class of ArrayMixin) but found 'NoneType'." in
+            str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -156,8 +157,9 @@ def test_is_bound_full_extent():
     # Check that _is_bound_full_extent calls the check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(None, None, None)
-    assert ("'array' argument should be an ArrayReference type but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("'array' argument should be some sort of array access (i.e. "
+            "a sub-class of ArrayMixin) but found 'NoneType'." in
+            str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -241,8 +243,9 @@ def test_is_array_range_literal():
     # Check that _is_array_range_literal calls the _check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(None, None, None, None)
-    assert ("'array' argument should be an ArrayReference type but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("'array' argument should be some sort of array access (i.e. a "
+            "sub-class of ArrayMixin) but found 'NoneType'." in
+            str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
