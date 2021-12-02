@@ -1071,7 +1071,7 @@ class SymbolTable():
 
     def resolve_imports(self, container_symbols=None):
         ''' Try to resolve deferred and unknown information from imported
-        symbols in this symbol table by searching for its definitions in
+        symbols in this symbol table by searching for their definitions in
         referred external container.
 
         :param container_symbols: list of container symbols to search in
@@ -1096,10 +1096,12 @@ class SymbolTable():
                 # TODO #11: It would be useful to log this.
                 continue
 
+            # Examine all Symbols defined within this external container
             for symbol in external_container.symbol_table.symbols:
                 if symbol.visibility == Symbol.Visibility.PRIVATE:
                     continue  # We must ignore this symbol
 
+                # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:
                     symbol_match = self.lookup(symbol.name)
                     interface = symbol_match.interface
@@ -1114,26 +1116,26 @@ class SymbolTable():
                             continue  # It doesn't come from this import
 
                     # Found a match, update the interface if necessary or raise
-                    # and error if it is an ambiguous match
+                    # an error if it is an ambiguous match
                     if isinstance(interface, UnresolvedInterface):
                         # Now we know where the symbol is coming from
                         interface = ImportInterface(c_symbol)
                     elif isinstance(interface, ImportInterface):
                         if interface.container_symbol is not c_symbol:
                             raise SymbolError(
-                                "Found a name clash with symbol '{0}' when "
-                                "importing symbols from container '{1}', "
-                                "this symbol was already defined in '{2}'."
-                                "".format(symbol.name, c_symbol.name,
-                                          interface.container_symbol.name))
+                                f"Found a name clash with symbol "
+                                f"'{symbol.name}' when importing symbols from "
+                                f"container '{c_symbol.name}', this symbol was"
+                                f" already defined in "
+                                f"'{interface.container_symbol.name}'.")
                     else:
                         raise SymbolError(
-                            "Found a name clash with symbol '{0}' "
-                            "when importing symbols from container "
-                            "'{1}'.".format(symbol.name, c_symbol.name))
+                            f"Found a name clash with symbol '{symbol.name}' "
+                            f"when importing symbols from container "
+                            f"'{c_symbol.name}'.")
 
                     # Now copy the external symbol properties, but keep the
-                    # interface and visibility as this are local properties
+                    # interface and visibility as these are local properties
                     # pylint: disable=unidiomatic-typecheck
                     if not type(symbol) == type(symbol_match):
                         if isinstance(symbol, TypedSymbol):
@@ -1144,6 +1146,8 @@ class SymbolTable():
                         else:
                             symbol_match.specialise(type(symbol))
                     symbol_match.copy_properties(symbol)
+                    # Restore the interface and visibility as this are local
+                    # (not imported) properties
                     symbol_match.interface = interface
                     symbol_match.visibility = visibility
                 else:
@@ -1154,7 +1158,6 @@ class SymbolTable():
                         new_symbol.interface = ImportInterface(c_symbol)
                         new_symbol.visibility = self.default_visibility
                         self.add(new_symbol)
-
 
     def rename_symbol(self, symbol, name):
         '''

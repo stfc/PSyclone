@@ -1648,7 +1648,7 @@ def test_rename_symbol():
             "this symbol_table instance, but 'aRRay' does." in str(err.value))
 
 
-def test_resolve_imports(fortran_reader, tmpdir):
+def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method. '''
     with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
         module.write('''
@@ -1686,7 +1686,7 @@ def test_resolve_imports(fortran_reader, tmpdir):
             Symbol("not_used1", interface=ImportInterface(
                 subroutine.symbol_table.lookup("b_mod"))))
 
-    # After parsing the a_1, a_2, b_1, b_2, not_used1 and not_used2 will have#
+    # After parsing the a_1, a_2, b_1, b_2, not_used1 and not_used2 will have
     # incomplete information because the modules are not resolved
     a_1 = subroutine.symbol_table.lookup('a_1')
     a_2 = subroutine.symbol_table.lookup('a_2')
@@ -1706,7 +1706,7 @@ def test_resolve_imports(fortran_reader, tmpdir):
     assert not isinstance(b_2, DataSymbol)
 
     # Set up include_path to import the proper modules
-    Config.get()._include_paths = [str(tmpdir)]
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
 
     # Resolve symbols that are in a_mod inside the subroutine
     subroutine.symbol_table.resolve_imports([
@@ -1756,13 +1756,10 @@ def test_resolve_imports(fortran_reader, tmpdir):
     assert isinstance(a_2, DataSymbol)
     assert a_2.visibility == Symbol.Visibility.PRIVATE
 
-    # Clean up the config instance
-    Config._instance = None
 
-
-def test_resolve_imports_name_clashes(fortran_reader, tmpdir):
+def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
-    errors when it find name clashes. '''
+    errors when it finds name clashes. '''
 
     with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
         module.write('''
@@ -1796,7 +1793,7 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir):
     symtab = subroutine.symbol_table
 
     # Set up include_path to import the proper modules
-    Config.get()._include_paths = [str(tmpdir)]
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
 
     with pytest.raises(SymbolError) as err:
         symtab.resolve_imports([symtab.lookup('b_mod')])
@@ -1809,11 +1806,70 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir):
             "symbols from container 'a_mod', this symbol was already defined "
             "in 'b_mod'." in str(err.value))
 
-    # Clean up the config instance
-    Config._instance = None
+def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
+    ''' Tests the SymbolTable resolve_imports method raises the appropriate
+    errors when it finds name clashes. '''
+
+    with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
+        module.write('''
+        module a_mod
+            integer :: name_public1
+            integer, private :: name_clash
+        end module a_mod
+        ''')
+    with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
+        module.write('''
+        module b_mod
+            use a_mod
+            ! The imported a_mod::name_public is private here, also name_clash
+            private
+            integer :: name_clash
+            integer :: other_private
+            integer, public :: name_public2
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            use a_mod
+            private name_public1
+
+            contains
+
+            subroutine test()
+                use b_mod
+                integer :: name_clash
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    # name_public1 exists before importing as a generic Symbol because it
+    # is mentioned by the accessibility statement
+    public1 = symtab.lookup("name_public1")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(public1) == Symbol
+
+    # This should succeed because all name clashes are protected by proper
+    # private accessibility
+    subroutine.parent.symbol_table.resolve_imports()
+    symtab.resolve_imports()
+
+    # Now we now that 'name_public1' is a DataSymbol
+    assert isinstance(public1, DataSymbol)
+
+    # name_public2 also has been imported because it is a public symbol ...
+    assert "name_public2" in symtab
+    # .. even though we capture that other symbols are private by default
+    assert symtab.lookup("b_mod").container.symbol_table.default_visibility \
+            == Symbol.Visibility.PRIVATE
+    assert "other_private" not in symtab
 
 
-def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
+def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method. '''
     with open(os.path.join(str(tmpdir), "my_mod.f90"), "w") as module:
         module.write('''
@@ -1853,7 +1909,7 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
     assert not isinstance(symtab.lookup("other_type"), DataTypeSymbol)
 
     # Set up include_path to import the proper modules and resolve symbols
-    Config.get()._include_paths = [str(tmpdir)]
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
     symtab.resolve_imports()
 
     # The global1 exist and is DataSymbols now
@@ -1872,6 +1928,3 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir):
     assert "field" in my_type.components
     assert "array" in my_type.components
     assert my_type.components["field"].datatype.intrinsic.name == "INTEGER"
-
-    # Clean up the config instance
-    Config._instance = None

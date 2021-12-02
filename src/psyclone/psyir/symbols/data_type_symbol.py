@@ -118,8 +118,8 @@ class DataTypeSymbol(Symbol):
 
         '''
         if not isinstance(symbol_in, DataTypeSymbol):
-            raise TypeError("Argument should be of type 'DataTypeSymbol' but "
-                            "found '{0}'.".format(type(symbol_in).__name__))
+            raise TypeError(f"Argument should be of type 'DataTypeSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 

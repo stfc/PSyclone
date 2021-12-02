@@ -1587,7 +1587,7 @@ def test_process_use_stmts_with_default_visibility():
 
 
 def test_process_use_stmts_with_accessibility_statements(parser):
-    ''' Same than the previous test, but now from a module with a Fortran
+    ''' Same as the previous test, but now from a module with a Fortran
     accessibility statement. This will provide a visibility map to the
     use statement processor so the imported symbols and modules end up with
     the appropriate visibility attributes. '''
