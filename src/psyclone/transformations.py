@@ -68,8 +68,10 @@ from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, Schedule, \
     OMPTargetDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
+
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -252,6 +254,14 @@ class ParallelLoopTrans(LoopTrans):
                 raise TransformationError(
                     "Cannot apply COLLAPSE({0}) clause to a loop nest "
                     "containing only {1} loops".format(collapse, loop_count))
+
+        # Check that there are no loop-carried dependencies
+        dep_tools = DependencyTools(["levels", "lat"])
+
+        if not dep_tools.can_loop_be_parallelised(node,
+                                                  only_nested_loops=False):
+            raise TransformationError(
+                    "Dependency analysis can_loop_be_parallelised failed!")
 
     def apply(self, node, options=None):
         '''
