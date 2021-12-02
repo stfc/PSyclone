@@ -157,3 +157,17 @@ All Fortran names will be declared as SymPy symbols. Because
 of the handling of structures, all members of a structure will be
 declared individually, e.g. ``a%b`` will declare two SymPy symbols ``a``
 and ``b``.
+
+A variable that is using an array access will be declared as a SymPy
+function. This results in the correct behaviour that SymPy will
+look at the function parameters when testing if two expressions
+are equal, which are the array indices. Any non-array variable
+access will result in a declaration as a SymPy Symbol.
+
+.. important:: Due to the way that structures are handled, some
+    valid Fortran expressions cannot be converted to SymPy. For
+    example, the expression ``a%b(b)`` will result in declaring
+    a symbol ``a``, then a function ``b()`` for the member ``a%b``
+    as described above. But the scalar expression ``b`` used as
+    index in ``a%b(b)`` would result in a declaration as symbol.
+    An exception will be raised in this case.

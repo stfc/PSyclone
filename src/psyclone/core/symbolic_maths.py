@@ -37,7 +37,9 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-from sympy import simplify, true, Symbol
+
+from sympy import Function, simplify, Symbol, true
+from sympy.core.function import UndefinedFunction
 from sympy.parsing.sympy_parser import parse_expr
 
 
@@ -90,11 +92,14 @@ class SymbolicMaths:
     # -------------------------------------------------------------------------
     @staticmethod
     def get_all_symbols(local_dict, exp):
-        '''Declares all references in the PSyIR expression `exp` as SymPy
-        symbols. Structures ('a%b') will get all members declared as
+        '''Declares all references in the PSyIR expression `exp` either
+        as SymPy functions (if they are array, i.e. use '(...)', or symbols
+        (for scalar accesses without '(...)').
+        Structures ('a%b') will get all members declared as
         individual symbols ('a', 'b'), since SymPy convers a structure
         access 'a%b' into 'MOD(a,b)' (see
-        https://psyclone-dev.readthedocs.io/en/stable/ for details).
+        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
+        for details).
 
         '''
         # Avoid circular import
@@ -103,12 +108,34 @@ class SymbolicMaths:
 
         for ref in exp.walk(Reference):
             # Use the signature of the variable to easily get access
-            # to its components. We don't need the indices
-            sig, _ = ref.get_signature_and_indices()
+            # to its components. We need the indices to know as what
+            # type to declare the symbol: array accesses will need to be
+            # declared as SymPy functions, scalar accesses as SymPy symbols.
+            sig, indices = ref.get_signature_and_indices()
 
             # Loop over all components of the Reference and add them
-            for name in sig:
-                local_dict[name] = Symbol(name)
+            for ind, name in enumerate(sig):
+                access_is_array = len(indices[ind]) > 0
+
+                # If the name is already declared, make sure the type
+                # is consistent:
+                if name in local_dict:
+                    if (access_is_array and isinstance(local_dict[name],
+                                                       Symbol)):
+                        raise TypeError("The symbol '{0}' was first used as "
+                                        "scalar, but also as array, which is "
+                                        "not supported.".format(name))
+                    if not access_is_array and isinstance(local_dict[name],
+                                                          UndefinedFunction):
+                        raise TypeError("The symbol '{0}' was first used as "
+                                        "array, but also as scalar, which is "
+                                        "not supported.".format(name))
+
+                if access_is_array:
+                    # Arrays need to be defined as functions
+                    local_dict[name] = Function(name)
+                else:
+                    local_dict[name] = Symbol(name)
 
     # -------------------------------------------------------------------------
     def equal(self, exp1, exp2):
