@@ -914,44 +914,44 @@ class OMPTaskDirective(OMPRegionDirective):
                                             "OMPTaskDirective".format(
                                                 type(index.children[1]).
                                                 __name__))
-                                    # FIXME Have Reference +/- Literal, analyse
+                                    # Have Reference +/- Literal, analyse
                                     # and create clause appropriately
                                     index_name = writer(index.children[0]
                                                         .symbol)
                                     index_private = (index_name in 
                                                      parallel_private)
                                     if index_private:
-                                        if name in private_list:
+                                        if index_name in private_list:
                                             raise GenerationError(
                                                     "Private variable access "
                                                     "used as an index inside "
                                                     "an OMPTaskDirective which"
                                                     " is not supported.")
-                                        elif name in firstprivate_list:
+                                        elif index_name in firstprivate_list:
                                             # name +/- stop-start
                                             if index.operator is \
                                                 BinaryOperator.ADD:
-                                                name = name + ("+({0} - {1})"
+                                                index_name = index_name + ("+({0} - {1})"
                                                        .format(writer(stop_val)
                                                            ,writer(start_val)))
                                             else:
-                                                name = name + ("-({0} - {1})"
+                                                index_name = index_name + ("-({0} - {1})"
                                                        .format(writer(stop_val)
                                                            ,writer(start_val)))
-                                            index_list.append(name)
+                                            index_list.append(index_name)
                                         else:
-                                            firstprivate_list.append(name)
+                                            firstprivate_list.append(index_name)
                                             # name +/- stop-start 
                                             if index.operator is \
                                                 BinaryOperator.ADD:
-                                                name = name + ("+({0} - {1})"
+                                                index_name = index_name + ("+({0} - {1})"
                                                        .format(writer(stop_val)
                                                            ,writer(start_val)))
                                             else:
-                                                name = name + ("-({0} - {1})"
+                                                index_name = index_name + ("-({0} - {1})"
                                                        .format(writer(stop_val)
                                                            ,writer(start_val)))
-                                            index_list.append(name)
+                                            index_list.append(index_name)
                                     else:
                                         raise GenerationError(
                                                 "Shared variable access used "
@@ -966,8 +966,9 @@ class OMPTaskDirective(OMPRegionDirective):
                                             "expression inside an "
                                             "OMPTaskDirective.".format(
                                                 type(index).__name__)
-                                # FIXME Do something with index_list and
-                                # add to depend clause
+                        # Add to in_list: name(index1, index2)
+                        dclause = name + "(" + ",".join(index_list) + ")"
+                        in_list.append(dclause)
 
                     elif isinstance(ref, StructureReference):
                         # Read access variable. Find the string representing
