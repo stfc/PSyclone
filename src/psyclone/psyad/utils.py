@@ -36,8 +36,9 @@
 '''Utilities for the PSyclone Adjoint (PSyAD) functionality.
 
 '''
-
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
+    BinaryOperation
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 def node_is_active(node, active_variables):
@@ -76,7 +77,36 @@ def node_is_passive(node, active_variables):
     return not node_is_active(node, active_variables)
 
 
+def negate_expr(orig_expr):
+    '''Takes a PSyIR expression and negates it by multiplying it by minus
+    one. it is assumed that the expression returns an integer.
+
+    :param orig_expr: the PSyIR expression to negate.
+    :type orig_expr: :py:class:`psyclone.psyir.nodes.DataNode`
+
+    :returns: the expression multiplied by minus one.
+    :rytpe: :py:class:`psyclone.psyir.nodes.DataNode`
+
+    '''
+    expr = orig_expr.copy()
+    # TODO, this would be better using sympy see #1497
+    if isinstance(expr, Literal):
+        if expr.value.lstrip()[0] == "-":
+            # The literal has a negative value so make it positive.
+            # pylint: disable=protected-access
+            expr._value = expr.value.lstrip()[1:]
+            return expr
+        # Negate the literal with a unary minus.
+        return UnaryOperation.create(
+            UnaryOperation.Operator.MINUS, expr)
+    if (isinstance(expr, UnaryOperation) and
+            expr.operator == UnaryOperation.Operator.MINUS):
+        return expr.children[0].detach()
+    return BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Literal("-1", INTEGER_TYPE), expr)
+
+
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
 # generate documentation for (see https://psyclone-ref.readthedocs.io).
-__all__ = ["node_is_active", "node_is_passive"]
+__all__ = ["node_is_active", "node_is_passive", "negate_expr"]
