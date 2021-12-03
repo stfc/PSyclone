@@ -113,17 +113,6 @@ class Reference(DataNode):
     def __str__(self):
         return self.node_str(False)
 
-    def math_equal(self, other):
-        ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: True if the self has the same results as other.
-        :rtype: bool
-        '''
-        if not super(Reference, self).math_equal(other):
-            return False
-        return self.name == other.name
-
     def get_signature_and_indices(self):
         ''':returns: the Signature of this reference, and \
             an empty list of lists as 'indices' since this reference does \
