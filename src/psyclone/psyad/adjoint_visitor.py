@@ -43,7 +43,7 @@ import logging
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Schedule, Node
+from psyclone.psyir.nodes import Routine, Schedule, Node
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -154,16 +154,21 @@ class AdjointVisitor(PSyIRVisitor):
         # accessed within the code. If any of the active variables are
         # subroutine arguments then we must update the access property of
         # the associated ArgumentInterface.
+
         # Since a piece of code could contain many Schedules, ensure we are
-        # currently handling the outermost one.
-        if not node.ancestor(Schedule):
+        # currently handling the one representing the routine.
+        if isinstance(node, Routine):
             dtools = DependencyTools()
-            # 'input' parameters are those whose first access is a read
-            # 'output' parameters are those that are written to at some point
+            # Input signatures ('in_sigs') are those whose first access is a
+            # read.
+            # Output signatures ('out_sigs') are those that are written to at
+            # some point.
             in_sigs, out_sigs = dtools.get_in_out_parameters(
                 node_copy.children)
+            # Get the variable name associated with each of these signatures.
             in_names = [sig.var_name for sig in in_sigs]
             out_names = [sig.var_name for sig in out_sigs]
+
             # We must update the symbols in the table of the new tree
             adj_table = node_copy.symbol_table
 
