@@ -42,6 +42,7 @@ from __future__ import absolute_import
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal, UnaryOperation
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
 
@@ -91,8 +92,29 @@ class AssignmentTrans(AdjointTransformation):
             for ref in new_rhs_term.walk(Reference):
                 if ref.symbol in self._active_variables:
                     active_var = ref
-                    if sym_maths.equal(ref, node.lhs):
-                        increment = True
+                    # Identify whether this reference on the RHS matches the
+                    # one on the LHS - if so we have an increment.
+                    if node.is_array_range and isinstance(ref, ArrayMixin):
+                        # We have an array range on the LHS so we cannot just
+                        # use sym_maths.equal().
+                        # TODO #1537 - remove this code once sym_maths.equal()
+                        # has been extended to support array ranges.
+                        if node.lhs.symbol is ref.symbol:
+                            for pos, idx in enumerate(ref.indices):
+                                lhs_idx = node.lhs.indices[pos]
+                                if type(idx) != type(lhs_idx):
+                                    break
+                                if (not sym_maths.equal(idx.start,
+                                                        lhs_idx.start) or
+                                        not sym_maths.equal(idx.stop,
+                                                            lhs_idx.stop) or
+                                        not sym_maths.equal(idx.step,
+                                                            lhs_idx.step)):
+                                    break
+                                increment = True
+                    else:
+                        if sym_maths.equal(ref, node.lhs):
+                            increment = True
                     if ref.parent:
                         ref.replace_with(node.lhs.copy())
                     else:
