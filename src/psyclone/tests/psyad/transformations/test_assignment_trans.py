@@ -43,9 +43,9 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Literal, UnaryOperation
+    Literal, UnaryOperation, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    ScalarType
+    ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -121,7 +121,7 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 def test_zero(tmpdir):
     '''Test the adjoint transformation with an assignment of the form A =
     0. This is the only valid value that an active variable can be set
-    to in a tangent linear code and represents multiplying an active
+    to in a tangent-linear code and represents multiplying an active
     variable by zero on the rhs. Scalars, directly addressed arrays,
     indirectly addressed arrays and structure array accesses are
     tested.
@@ -161,6 +161,28 @@ def test_zero(tmpdir):
         "  real, dimension(n) :: a\n"
         "  integer, dimension(n) :: b\n\n"
         "  a(b(n)) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n)\n"
+        "  a(:) = 0.0\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n\n"
+        "  a(:) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range with limits
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n)\n"
+        "  a(2:n-2) = 0.0\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n\n"
+        "  a(2:n - 2) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -239,6 +261,32 @@ def test_single_assign(tmpdir):
         "  integer, dimension(n) :: lookup\n\n"
         "  b(lookup(n) + 1) = b(lookup(n) + 1) + a(lookup(2 * i))\n"
         "  a(lookup(2 * i)) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n),b(n)\n"
+        "  a(:) = b(:)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
+        "  b(:) = b(:) + a(:)\n"
+        "  a(:) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range with limits
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n),b(n)\n"
+        "  a(2:n) = b(1:n-1)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
+        "  b(1:n - 1) = b(1:n - 1) + a(2:n)\n"
+        "  a(2:n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -323,7 +371,7 @@ def test_multi_add(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment(tmpdir):
+def test_increment(tmpdir, index_str):
     '''Test the adjoint transformation with an assignment of the form
     A = A.
 
@@ -333,9 +381,10 @@ def test_increment(tmpdir):
 
     '''
     tl_fortran = (
-        "  integer, parameter :: n=2\n"
-        "  real a(n)\n"
-        "  a(n) = a(n)\n")
+        f"  integer, parameter :: n=3\n"
+        f"  integer :: i\n"
+        f"  real a(n)\n"
+        f"  a({index_str}) = a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
         "  integer, parameter :: n = 2\n"
@@ -343,7 +392,7 @@ def test_increment(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_mult(tmpdir):
+def test_increment_mult(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read (and scaled (x)) on the rhs
     and there are no other active variables on the rhs. Also test
@@ -353,18 +402,19 @@ def test_increment_mult(tmpdir):
 
     '''
     tl_fortran = (
-        "  integer, parameter :: n=4\n"
-        "  real a(n)\n"
-        "  A(n) = 5*A(n)\n")
+        f"  integer, parameter :: n=4\n"
+        f"  integer :: i\n"
+        f"  real a(n)\n"
+        f"  A({index_str}) = 5*A({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 4\n"
-        "  real, dimension(n) :: a\n\n"
-        "  a(n) = 5 * a(n)\n\n")
+        f"  integer, parameter :: n = 4\n"
+        f"  real, dimension(n) :: a\n\n"
+        f"  a({index_str}) = 5 * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_add(tmpdir):
+def test_increment_add(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read on the rhs and there is a
     another active variable (B) read on the rhs. Also test mixed-case
@@ -374,13 +424,14 @@ def test_increment_add(tmpdir):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10)\n"
-        "  a(1) = A(1)+B(1)\n")
+        f"  real a(10), b(10)\n  integer :: i\n"
+        f"  a({index_str}) = A({index_str})+B({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n\n"
-        "  b(1) = b(1) + a(1)\n\n")
+        f"  real, dimension(10) :: a\n"
+        f"  real, dimension(10) :: b\n"
+        f"  integer :: i\n\n"
+        f"  b({index_str}) = b({index_str}) + a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -1121,6 +1172,30 @@ def test_validate_unaryop():
     assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must be "
             "linear with respect to the active variable, but found 'SQRT(b)'."
             in str(info.value))
+
+
+def test_validate_mismatched_array_ranges():
+    ''' Check that we reject a tangent-linear assignment if it references
+    different ranges of the same active variable, e.g:
+                      a(2:5) = x*a(1)
+
+    '''
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    lhs_symbol = DataSymbol("a", array_type)
+    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol), ArrayReference.create(lhs_symbol,
+                                               [Literal("1", INTEGER_TYPE)]))
+    lhs = ArrayReference.create(lhs_symbol,
+                                [Range.create(Literal("2", INTEGER_TYPE),
+                                              Literal("5", INTEGER_TYPE))])
+    assign = Assignment.create(lhs, multiply)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(TangentLinearError) as err:
+        trans.validate(assign)
+    assert "Hohoho" in str(err.value)
+
 
 # _split_nodes() method
 
