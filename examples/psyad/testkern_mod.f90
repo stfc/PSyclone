@@ -42,22 +42,27 @@ module testkern_mod
 
 contains
 
-  subroutine testkern_code(ascalar, field1, field2, npts)
+  subroutine testkern_code(ascalar, field1, field2, field3, npts)
     real, intent(in) :: ascalar
     integer, intent(in) :: npts
     real, intent(inout), dimension(npts) :: field2
     ! Deliberately leave off the intent for 'field1' to demonstrate that
     ! it is correctly set in the generated adjoint code.
     real, dimension(npts) :: field1
+    ! This argument must be made intent(inout) in the adjoint
+    real, intent(in), dimension(npts) :: field3
+    ! Locals
     real :: tmp, tmp2
 
     ! issue #1430. Array notation does not work with the assignment
     ! transformation so temporarily change the assignment to a single
-    ! index, e.g. previously field1(:) = ascalar*field1(:) + field2(:)
+    ! index, e.g. previously we had:
+    !    field1(:) = ascalar*field1(:) + field2(:) + field3(:)
     tmp = ascalar*ascalar
-    field1(1) = tmp*field1(1) + field2(1)
+    field1(1) = tmp*field1(1) + field2(1) + field3(1)
     tmp2 = tmp*3.0
     field2(1) = field2(1) + field1(1)/tmp2
+
   end subroutine testkern_code
   
 end module testkern_mod
