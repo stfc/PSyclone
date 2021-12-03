@@ -63,15 +63,15 @@ Active Variables
 ++++++++++++++++
 
 When creating the adjoint of a tangent-linear code the active
-variables must be specified. The remaining variables are inactive (or
+variables must be specified. The remaining variables are passive (or
 trajectory) variables. The active variables are the ones that are
-transformed and reversed, whereas the inactive (trajectory) variables
+transformed and reversed, whereas the passive (trajectory) variables
 remain unchanged.
 
 .. Note:: it should be possisble to only need to specify global
 	  variables (ones with a lifetime beyond the code i.e. passed
 	  in via argument, modules etc.) as local variables will
-	  inherit being active or inactive based on how they are
+	  inherit being active or passive based on how they are
 	  used. However, this logic has not yet been implemented so at
 	  the moment all variables (local and global) must be
 	  specified.
@@ -300,12 +300,12 @@ the following rules:
 1) Each statement is examined to see whether it contains any active
 variables. A statement that contains one or more active variables is
 classed as an ``active statement`` and a statement that does not
-contain any active variables is classed as an ``inactive statement``.
+contain any active variables is classed as a ``passive statement``.
 
-2) Any inactive statements are left unchanged and immediately output
+2) Any passive statements are left unchanged and immediately output
 as PSyIR in the same order as they were found in the tangent linear
 code. Therefore the resulting sequence of statements in the adjoint
-code will contains all inactive statements before all active
+code will contains all passive statements before all active
 statements.
 
 3) The order of any active tangent-linear statements are then reversed
@@ -313,14 +313,56 @@ and the rules associated with each statement type are applied
 individually to each statement and the resultant PSyIR returned.
 
 .. note:: At the moment the only statements supported within a
-          sequence of statements are assignments. If other types of
-          statement are found then an exception will be raised.
+          sequence of statements are assignments and loops. If other
+          types of statement are found then an exception will be
+          raised.
 
-.. warning:: The above rules are invalid if an inactive variable is
-             modified and that inactive variable is read both before
-             and after it is modified from within active
-             statements. This case is not checked in this version, see
+.. warning:: The above rules are invalid if a passive variable is
+             modified and that passive variable is read both before
+             and after it is modified from within active statements or
+             loops. This case is not checked in this version, see
              issue #1458.
+
+Loop
+----
+
+The loop variable and any variables used in the loop bounds should be
+passive. If they are not then an exception will be raised.
+
+If all of the variables used within the body of the loop are passive
+then this loop statement and its contents is considered to be passive and
+treated in the same way as any other passive node, i.e. left unchanged
+when creating the adjoint code.
+
+If one or more of the variables used within the body of the loop are
+active then the loop statement is considered to be active. In this case:
+
+1) the order of the loop is reversed. This can be naively implemented
+   by swapping the loop's upper and lower bounds and multiplying the
+   loop step by :math:`-1`. However, if we consider the following
+   loop: :math:`start=1`, :math:`stop=4`, :math:`step=2`, the
+   iteration values would be :math:`1` and :math:`3`. If this loop is
+   reversed in the naive way then we get the following loop:
+   :math:`start=4`, :math:`stop=1`, :math:`step=-2`, which gives the
+   iteration values :math:`4` and :math:`2`. Therefore it can be seen
+   that the naive approach does not work correctly in this case. What
+   is required is an offset correction which can be computed as:
+   :math:`(stop-start) \mod(step)`. The adjoint loop start then
+   becomes :math:`stop - ((stop-start) \mod(step))`. With this change
+   the iteration values in the above example are :math:`3` and
+   :math:`1` as expected.
+
+2) the body of the loop comprises a schedule which will contain a
+   sequence of statements. The rules associated with the schedule are
+   followed and the loop body translated accordingly (see the
+   following section).
+
+.. note:: if PSyclone is able to determine that the loop step is
+          :math:`1` or :math:`-1` then there is no need to compute an
+          offset, as the offset will always be :math:`0`. As a step of
+          :math:`1` (or :math:`-1`) is a common case PSyclone will
+          therefore avoid generating any loop-bound offset code in
+          this case.
 
 Test Harness
 ++++++++++++

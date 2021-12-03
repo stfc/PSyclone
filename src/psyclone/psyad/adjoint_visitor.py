@@ -40,10 +40,14 @@ transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 from __future__ import print_function
 import logging
 
+from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
-from psyclone.psyad.utils import node_is_passive
+from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Routine, Schedule, Node
+from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
+                                  CodeBlock, BinaryOperation)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -54,19 +58,28 @@ class AdjointVisitor(PSyIRVisitor):
 
     :param active_variable_names: a list of the active variables.
     :type active_variable_names: list of str
+    :param writer: the writer to use when outputting PSyIR in error or \
+        logging messages. Defaults to FortranWriter.
+    :type writer: \
+        :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
     :raises ValueError: if no active variables are supplied.
 
     '''
-    def __init__(self, active_variable_names):
+    def __init__(self, active_variable_names, writer=FortranWriter()):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
             raise ValueError(
                 "There should be at least one active variable supplied to "
                 "an AdjointVisitor.")
+        if not isinstance(writer, LanguageWriter):
+            raise TypeError(
+                "The writer argument should be a subclass of LanguageWriter "
+                "but found '{0}'.".format(type(writer).__name__))
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
+        self._writer = writer
 
     def container_node(self, node):
         '''This method is called if the visitor finds a Container node. A copy
@@ -140,15 +153,10 @@ class AdjointVisitor(PSyIRVisitor):
             "Processing active code and adding results into new schedule")
         for child in active_nodes:
             result = self._visit(child)
-            # The else clause below can not be exercised until nodes
-            # in a schedule other than assignment are supported, see
-            # issue #1457. Therefore, for the moment simply assume
-            # that the result is a list.
-            node_copy.children.extend(result)
-            # if isinstance(result, list):
-            #     node_copy.children.extend(result)
-            # else:
-            #     node_copy.children.append(result)
+            if isinstance(result, list):
+                node_copy.children.extend(result)
+            else:
+                node_copy.children.append(result)
 
         # Creating the adjoint may have altered the way variables are
         # accessed within the code. If any of the active variables are
@@ -217,6 +225,97 @@ class AdjointVisitor(PSyIRVisitor):
         dummy_schedule.children.append(new_node)
         assign_trans.apply(new_node)
         return dummy_schedule.pop_all_children()
+
+    def loop_node(self, node):
+        '''This method is called if the visitor finds a Loop node. If the loop
+        (including any descendants) contains active variables then a
+        new loop is returned which iterates in the reverse order of
+        the original loop and the body of the new loop is the result
+        of processing the body of the original loop. If the loop does
+        not contain any active variables then an exception is raised
+        as this case should have been dealt with by the
+        schedule_node() method.
+
+        :param node: a Loop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its descendants.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        '''
+        if self._active_variables is None:
+            raise VisitorError(
+                "A loop node should not be visited before a schedule, "
+                "as the latter sets up the active variables.")
+
+        # Check that variables in loop bounds and the iterator are passive.
+        for expr, description in [(node.start_expr, "lower bound"),
+                                  (node.stop_expr, "upper bound"),
+                                  (node.step_expr, "step")]:
+            if node_is_active(expr, self._active_variables):
+                raise VisitorError(
+                    "The {0} of a loop should not contain active "
+                    "variables, but found '{1}'".format(
+                        description, self._writer(expr)))
+
+        if node_is_active(Reference(node.variable), self._active_variables):
+            raise VisitorError(
+                "The loop iterator '{0}' should not be an active "
+                "variable.".format(node.variable.name))
+
+        if node_is_passive(node, self._active_variables):
+            raise VisitorError(
+                "A passive loop node should not be processed by the "
+                "loop_node() method within the AdjointVisitor() class, as "
+                "it should have been dealt with by the schedule_node() "
+                "method.")
+
+        self._logger.debug("Transforming active loop")
+
+        # The approach taken is to swap the loop bounds and multiply
+        # the step by minus one. However, the loop step might not
+        # align with the loop stop and in this case an offset needs to
+        # be computed e.g. 1 to 4 step 2 gives 1,3, but 4 to 1 step -2
+        # gives 4,2, which is not correct. In this example the offset
+        # (hi-lo mod step) is 1, so we will have (4-1) to 1 step -2,
+        # giving the expected 3,1.
+
+        # Default to no offset required for the loop starting point
+        # (on the assumption that the step is unitary, which it is in
+        # most cases).
+        offset = None
+        if not(isinstance(node.step_expr, Literal) and
+               node.step_expr.value.strip() in ["1", "-1"]):
+            # The loop step might not be unitary so compute an offset:
+            # stop-start mod step
+            fortran_writer = FortranWriter()
+            hi_str = fortran_writer(node.stop_expr)
+            lo_str = fortran_writer(node.start_expr)
+            step_str = fortran_writer(node.step_expr)
+            # TODO: use language independent PSyIR, see issue #1345
+            ptree = Fortran2003.Intrinsic_Function_Reference(
+                "mod({0}-{1},{2})".format(hi_str, lo_str, step_str))
+            offset = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+
+        # We only need to copy this node and its bounds. Issue #1440
+        # will address this.
+        new_node = node.copy()
+
+        # Reverse loop order
+        start_expr = new_node.start_expr.copy()
+        if offset:
+            new_node.start_expr = BinaryOperation.create(
+                BinaryOperation.Operator.SUB, new_node.stop_expr.copy(),
+                offset)
+        else:
+            new_node.start_expr = new_node.stop_expr.copy()
+        new_node.stop_expr = start_expr
+        new_node.step_expr = negate_expr(new_node.step_expr.copy())
+
+        # Determine the adjoint of the loop body
+        new_node.children[3] = self._visit(node.children[3])
+        return new_node
 
     def _copy_and_process(self, node):
         '''Utility function to return a copy the current node containing the

@@ -43,8 +43,10 @@ import pytest
 
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.backend.c import CWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import FileContainer, Schedule, Assignment
+from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop
 from psyclone.psyir.symbols import Symbol, ArgumentInterface
 from psyclone.tests.utilities import Compile
 
@@ -60,6 +62,18 @@ EXPECTED_ADJ_CODE = (
     "  c = c + a\n"
     "  a = 0.0\n\n"
     "end program test\n"
+)
+TL_LOOP_CODE = (
+    "subroutine test(lo, hi, step)\n"
+    "  integer, intent(in) :: lo, hi, step\n"
+    "  real :: a(10), b(10), c(10)\n"
+    "  real :: d, e\n"
+    "  integer :: i\n"
+    "  do i=lo,hi,step\n"
+    "    a(i) = b(i) + c(i)\n"
+    "  end do\n"
+    "  d = d - e\n"
+    "end subroutine test\n"
 )
 
 
@@ -127,9 +141,14 @@ def test_create():
     assert adj_visitor._active_variable_names == ["dummy"]
     assert adj_visitor._active_variables is None
     assert isinstance(adj_visitor._logger, logging.Logger)
+    assert isinstance(adj_visitor._writer, FortranWriter)
+    # Optional writer argument
+    c_writer = CWriter()
+    adj_visitor = AdjointVisitor(["dummy"], writer=c_writer)
+    assert adj_visitor._writer == c_writer
 
 
-def test_create_error():
+def test_create_error_active():
     '''Test that an AdjointVisitor raises an exception if no active
     variables are provided.
 
@@ -138,6 +157,17 @@ def test_create_error():
         _ = AdjointVisitor([])
     assert ("There should be at least one active variable supplied to an "
             "AdjointVisitor." in str(info.value))
+
+
+def test_create_error_writer():
+    '''Test that an AdjointVisitor raises an exception if an invalid
+    writer argument is supplied.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        _ = AdjointVisitor(["dummy"], writer=None)
+    assert ("The writer argument should be a subclass of LanguageWriter but "
+            "found 'NoneType'." in str(info.value))
 
 
 # AdjointVisitor.container_node()
@@ -438,6 +468,156 @@ def test_assignment_node(fortran_reader, fortran_writer):
     assert fortran_writer(adj_assignment_psyir_nodes[0]) == "b = b + a\n"
     assert fortran_writer(adj_assignment_psyir_nodes[1]) == "c = c + a\n"
     assert fortran_writer(adj_assignment_psyir_nodes[2]) == "a = 0.0\n"
+
+
+# AdjointVisitor.loop_node()
+
+def test_loop_node_active_error(fortran_reader):
+    '''Test that the loop_node method raises the expected exception
+    if no active variables are specified.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    loop = tl_psyir.walk(Loop)[0]
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.loop_node(loop)
+    assert ("A loop node should not be visited before a schedule, as "
+            "the latter sets up the active variables." in str(info.value))
+
+
+def test_loop_node_bounds_error(fortran_reader):
+    '''Test that the loop_node method raises the expected exception if an
+    active variable is found in a loop bound (lower, upper or step) or
+    the iterator is an active variable.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    # lower bound
+    adj_visitor = AdjointVisitor(["a", "b", "c", "lo"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The lower bound of a loop should not contain active variables, "
+            "but found 'lo'" in str(info.value))
+    # upper bound
+    adj_visitor = AdjointVisitor(["a", "b", "c", "hi"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The upper bound of a loop should not contain active variables, "
+            "but found 'hi'" in str(info.value))
+    # step
+    adj_visitor = AdjointVisitor(["a", "b", "c", "step"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The step of a loop should not contain active variables, "
+            "but found 'step'" in str(info.value))
+    # loop variable
+    adj_visitor = AdjointVisitor(["a", "b", "c", "i"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor(tl_psyir)
+    assert ("The loop iterator 'i' should not be an active variable."
+            in str(info.value))
+
+
+def test_loop_node_passive(fortran_reader):
+    '''Test that the loop_node method raises an exception if there are no
+    active variables within the supplied loop node. This is because
+    the schedule node should have already dealt with this case.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    tl_loop = tl_psyir.walk(Loop)[0]
+    adj_visitor = AdjointVisitor(["d", "e"])
+    ad_psyir = adj_visitor._visit(tl_psyir)
+    ad_loop = ad_psyir.walk(Loop)[0]
+
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.loop_node(tl_loop)
+    assert ("A passive loop node should not be processed by the loop_node() "
+            "method within the AdjointVisitor() class, as it should have been "
+            "dealt with by the schedule_node() method." in str(info.value))
+
+
+@pytest.mark.parametrize("in_bounds,out_bounds", [
+    ("lo,hi", "hi, lo, -1"),
+    ("lo,hi,1", "hi, lo, -1"),
+    ("lo,hi,-1", "hi - MOD(hi - lo, - 1), lo, 1"),
+    ("lo,hi,step", "hi - MOD(hi - lo, step), lo, -1 * step")])
+def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
+                          out_bounds):
+    '''Test that a loop_node containing active variables returns with its
+    loop order reversed and its loop body processed by the adjoint
+    visitor. Checks that appropriate offset code is generated when the
+    loop step is not, or might not be, 1 or -1. Note that in the
+    PSyIR, -1 can be represented as a unitary minus containing a
+    literal with value 1 and that, in such a case, an offset will be
+    computed (see the 3rd parametrised case where this occurs).
+
+    '''
+    code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)
+    tl_psyir = fortran_reader.psyir_from_source(code)
+    tl_loop = tl_psyir.walk(Loop)[0]
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    ad_psyir = adj_visitor(tl_psyir)
+    ad_loop = ad_psyir.walk(Loop)[0]
+    result = fortran_writer(ad_loop)
+    expected_result = (
+        "do i = {0}\n"
+        "  b(i) = b(i) + a(i)\n"
+        "  c(i) = c(i) + a(i)\n"
+        "  a(i) = 0.0\n"
+        "enddo\n".format(out_bounds))
+    assert result == expected_result
+
+
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_loop_logger(fortran_reader, caplog):
+    '''Test that the logger writes the expected output if the loop_node
+    method is called with an inactive node and an active node.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
+    tl_loop = tl_psyir.walk(Loop)[0]
+
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+
+    # Need to use _visit() here rather than adj_visitor(tl_psyir) as
+    # the latter takes a copy of the tree in case any lowering needs
+    # to be done and that causes the stored symbols for active
+    # variables to be different which means they do not match in
+    # subsequent calls. This is only a problem for tests as we don't
+    # normally call loop_node() or similar, directly.
+
+    # The _visit() method is called so that the active variables
+    # symbols are set up when calling the loop_node() method directly.
+    _ = adj_visitor._visit(tl_psyir)
+
+    # active loop
+    with caplog.at_level(logging.INFO):
+        _ = adj_visitor.loop_node(tl_loop)
+    assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG):
+        _ = adj_visitor.loop_node(tl_loop)
+    assert "Transforming active loop" in caplog.text
+
+    # Remove content for subsequent inactive loop code
+    caplog.clear()
+
+    # inactive loop
+    adj_visitor = AdjointVisitor(["d", "e"])
+
+    # The visitor is called so that the active variables symbols are
+    # set up when calling the loop_node() method directly.
+    _ = adj_visitor(tl_psyir)
+
+    with caplog.at_level(logging.INFO):
+        _ = adj_visitor.loop_node(tl_loop)
+    assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG):
+        _ = adj_visitor.loop_node(tl_loop)
+    assert ("Returning a copy of the original loop and its descendants as it "
+            "contains no active variables" in caplog.text)
 
 
 # AdjointVisitor._copy_and_process()

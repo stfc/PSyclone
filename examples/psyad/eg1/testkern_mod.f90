@@ -52,16 +52,21 @@ contains
     ! This argument must be made intent(inout) in the adjoint
     real, intent(in), dimension(npts) :: field3
     ! Locals
-    real :: tmp, tmp2
+    real :: tmp, tmp2, tmp3
+    integer :: i
 
     ! issue #1430. Array notation does not work with the assignment
     ! transformation so temporarily change the assignment to a single
     ! index, e.g. previously we had:
     !    field1(:) = ascalar*field1(:) + field2(:) + field3(:)
     tmp = ascalar*ascalar
-    field1(1) = tmp*field1(1) + field2(1) + field3(1)
-    tmp2 = tmp*3.0
-    field2(1) = field2(1) + field1(1)/tmp2
+    do i=1,npts
+       tmp2 = tmp*i
+       field1(i) = tmp*field1(i) + field2(i) + field3(i)
+       tmp3 = tmp2*3.0
+       field2(i) = field2(i) + field1(i)/tmp2
+    end do
+    field2(npts) = field2(npts) + field1(1)   
 
   end subroutine testkern_code
   
