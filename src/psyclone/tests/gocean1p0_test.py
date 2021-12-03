@@ -1519,6 +1519,7 @@ def test_gokernelargument_infer_datatype():
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar' but found 'incompatible'." in str(excinfo.value))
 
+
 def test_gokernelargument_intrinsic_type():
     ''' Check that the GOcean specialisation of the intrinsic_type returns the
     expected values. '''
