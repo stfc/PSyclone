@@ -505,7 +505,7 @@ def _copy_full_base_reference(node):
         "or Member but got '{0}'.".format(type(node).__name__))
 
 
-def _kind_symbol_from_name(name, symbol_table):
+def _kind_find_or_create(name, symbol_table):
     '''
     Utility method that returns a Symbol representing the named KIND
     parameter. If the supplied Symbol Table (or one of its ancestors)
@@ -701,7 +701,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             six.raise_from(InternalError(
                 "Failed to find a symbol table to which to add the kind "
                 "symbol '{0}'.".format(precision_name)), err)
-        return _kind_symbol_from_name(precision_name, symbol_table)
+        return _kind_find_or_create(precision_name, symbol_table)
 
 
 def _process_routine_symbols(module_ast, symbol_table, visibility_map):
@@ -1506,11 +1506,11 @@ class Fparser2Reader(object):
             try:
                 data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
             except KeyError as err:
-                six.raise_from(NotImplementedError(
+                raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'double "
                     "precision', 'integer', 'logical' and 'character' "
                     "intrinsic types are supported."
-                    "".format(str(type_spec))), err)
+                    "".format(str(type_spec))) from err
             if fort_type == "double precision":
                 # Fortran double precision is equivalent to a REAL
                 # intrinsic with precision DOUBLE in the PSyIR.
@@ -1529,6 +1529,12 @@ class Fparser2Reader(object):
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
+            if type_spec.children[0].lower() != "type":
+                # We don't yet support declarations that use 'class'
+                # TODO #1504 extend the PSyIR for this variable type.
+                raise NotImplementedError(
+                    f"Could not process {type_spec} - declarations "
+                    f"other than 'type' are not yet supported.")
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)
@@ -2171,7 +2177,7 @@ class Fparser2Reader(object):
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
 
-        return _kind_symbol_from_name(str(kind_names[0]), symbol_table)
+        return _kind_find_or_create(str(kind_names[0]), symbol_table)
 
     def process_nodes(self, parent, nodes):
         '''

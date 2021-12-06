@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import pytest
 import fparser
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
@@ -51,14 +52,14 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
-    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
+    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type, _kind_symbol_from_name, \
+    default_integer_type, default_real_type, _kind_find_or_create, \
     _first_type_match
 
 
@@ -1030,6 +1031,16 @@ def test_process_not_supported_declarations():
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
                       UnknownFortranType)
 
+    reader = FortranStringReader("class(my_type), intent(in) :: carg")
+    # Set reader to free format (otherwise this is a comment in fixed format)
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("carg")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert (sym.datatype.declaration.lower() ==
+            "class(my_type), intent(in) :: carg")
+
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
     reader = FortranStringReader("integer, allocatable :: l10(5)")
@@ -1268,7 +1279,7 @@ def test_wrong_type_kind_param():
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
     r_def.__class__ = RoutineSymbol
     with pytest.raises(TypeError) as err:
-        _kind_symbol_from_name("r_def", fake_parent.symbol_table)
+        _kind_find_or_create("r_def", fake_parent.symbol_table)
     assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
             str(err.value))
     # Repeat but declare r_def as real

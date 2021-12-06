@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,28 +30,26 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# ------------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''This module provides access to various classes used in determining
-variable access information.
-'''
+include ../../common.mk
 
-from psyclone.core.access_info import AccessInfo, SingleVariableAccessInfo, \
-    VariablesAccessInfo
-from psyclone.core.access_type import AccessType
-from psyclone.core.component_indices import ComponentIndices
-from psyclone.core.signature import Signature
-from psyclone.core.symbolic_maths import SymbolicMaths
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += 
 
+# The first command will write the adjoint kernel to stdout. The
+# second, if supported, would write both it and the corresponding test
+# harness to separate files.
+transform:
+	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad
+	@echo "Harness generation not yet supported"
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.core import Signature'
-__all__ = [
-        'AccessInfo',
-        'AccessType',
-        'ComponentIndices',
-        'Signature',
-        'SingleVariableAccessInfo',
-        'SymbolicMaths',
-        'VariablesAccessInfo']
+# It is not yet possible to compile the adjoint code into an object
+# file as the intents are incorrect (see issue #1429) and the metadata
+# code pointer is invalid (see issue #1453).
+compile: transform
+	@echo "Harness compilation not yet supported"
+
+run: compile
+	@echo "Harness running not yet supported"

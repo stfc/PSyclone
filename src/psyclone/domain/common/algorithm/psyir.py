@@ -32,13 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
 from __future__ import absolute_import
-import six
 
+from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine, FileContainer
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
@@ -70,10 +71,8 @@ class AlgorithmInvokeCall(Call):
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
 
-    def __init__(self, invoke_routine_symbol, index, parent=None,
-                 description=None):
-        super(AlgorithmInvokeCall, self).__init__(
-            invoke_routine_symbol, parent=parent)
+    def __init__(self, invoke_routine_symbol, index, parent=None, description=None):
+        super().__init__(invoke_routine_symbol, parent=parent)
 
         if not isinstance(index, int):
             raise TypeError(
@@ -101,6 +100,7 @@ class AlgorithmInvokeCall(Call):
 
     @classmethod
     def create(cls, routine, arguments, index, description=None):
+        # pylint: disable=arguments-differ
         '''Create an instance of the calling class given valid instances of a
         routine symbol, a list of child nodes for its arguments, an
         index and an optional description.
@@ -223,14 +223,17 @@ class AlgorithmInvokeCall(Call):
 
         arguments = []
         arguments_str = []
+        sym_maths = SymbolicMaths.get()
         for kern in self.children:
             for arg in kern.children:
                 if isinstance(arg, Literal):
                     # Literals are not passed by argument.
                     pass
                 elif isinstance(arg, (Reference, ArrayReference)):
-                    # TODO #753 use a better check for equivalence (math_equal)
-                    if str(arg).lower() not in arguments_str:
+                    for existing_arg in arguments:
+                        if sym_maths.equal(arg, existing_arg):
+                            break
+                    else:
                         arguments_str.append(str(arg).lower())
                         arguments.append(arg.copy())
                 else:
@@ -273,8 +276,7 @@ class KernelFunctor(Reference):
     _text_name = "KernelFunctor"
 
     def __init__(self, symbol, parent=None):
-        # pylint: disable=super-with-arguments
-        super(KernelFunctor, self).__init__(symbol, parent=parent)
+        super().__init__(symbol, parent=parent)
 
         if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(

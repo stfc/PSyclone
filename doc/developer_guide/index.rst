@@ -51,6 +51,7 @@
    APIs
    modules
    dependency
+   sympy
    transformations
    psy_data
    system_specific_setup

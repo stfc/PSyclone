@@ -1317,7 +1317,6 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
         "Schedule:\n"
         "kern call: compute_cu_code\n")
     assert expected_sched in str(schedule)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test06_kernel_invalid_access():
@@ -1519,6 +1518,7 @@ def test_gokernelargument_infer_datatype():
         _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar' but found 'incompatible'." in str(excinfo.value))
+
 
 def test_gokernelargument_intrinsic_type():
     ''' Check that the GOcean specialisation of the intrinsic_type returns the

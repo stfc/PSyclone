@@ -1905,7 +1905,7 @@ class GOKernelArgument(KernelArgument):
         if self.argument_type == "field":
             # r2d_field can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
-            type_symbol = self._call.root.symbol_table.symbol_from_tag(
+            type_symbol = self._call.root.symbol_table.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
                 datatype=DeferredType(), interface=UnresolvedInterface())
             return type_symbol
@@ -1913,7 +1913,7 @@ class GOKernelArgument(KernelArgument):
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
-                go_wp = self._call.root.symbol_table.symbol_from_tag(
+                go_wp = self._call.root.symbol_table.find_or_create_tag(
                     "go_wp", symbol_type=DataSymbol, datatype=DeferredType(),
                     interface=UnresolvedInterface())
                 return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
@@ -2025,7 +2025,7 @@ class GOKernelGridArgument(Argument):
         # Find field from which to access grid properties
         base_field = self._call.arguments.find_grid_access().name
         tag = "AlgArgs_" + base_field
-        symbol = self._call.scope.symbol_table.symbol_from_tag(tag)
+        symbol = self._call.scope.symbol_table.find_or_create_tag(tag)
 
         # Get aggregate grid type accessors without the base name
         access = self.dereference(base_field).split('%')[1:]

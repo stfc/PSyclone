@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by S. Siso, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Module containing tests for the AlgorithmInvokeCall and
 KernelFunctor algorithm-layer-specific nodes. The tests include
@@ -302,7 +303,8 @@ def test_aic_lowertolanguagelevel_error():
             in str(info.value))
 
 
-@pytest.mark.xfail(reason="Issue #753: expression comparisons need improving")
+@pytest.mark.xfail(reason="Issue #1523: field is a SymPy function "
+                          "causing parsing errors")
 def test_aic_lowertolanguagelevel_expr():
     '''Check that the lower_to_language_level method deals correctly with
     simple associative expresssions, i.e. i+1 is the same as 1+i.

@@ -439,12 +439,12 @@ computational cost (so that we 'fail fast'):
  3. The code base, examples and tutorials are lint'ed with flake8.
     (Configuration of flake8 is performed in ``setup.cfg``.)
 
- 4. All of the examples are tested (for Python versions 3.5 and 3.8)
+ 4. All of the examples are tested (for Python versions 3.6 and 3.8)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
 
- 5. The full test suite is run for Python versions 3.5 and 3.8 but without
+ 5. The full test suite is run for Python versions 3.6 and 3.8 but without
     the compilation checks.
 
 Since we try to be good 'open-source citizens' we do not do any compilation
