@@ -1515,11 +1515,11 @@ class Fparser2Reader(object):
             try:
                 data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
             except KeyError as err:
-                six.raise_from(NotImplementedError(
+                raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'double "
                     "precision', 'integer', 'logical' and 'character' "
                     "intrinsic types are supported."
-                    "".format(str(type_spec))), err)
+                    "".format(str(type_spec))) from err
             if fort_type == "double precision":
                 # Fortran double precision is equivalent to a REAL
                 # intrinsic with precision DOUBLE in the PSyIR.
@@ -1538,6 +1538,12 @@ class Fparser2Reader(object):
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
+            if type_spec.children[0].lower() != "type":
+                # We don't yet support declarations that use 'class'
+                # TODO #1504 extend the PSyIR for this variable type.
+                raise NotImplementedError(
+                    f"Could not process {type_spec} - declarations "
+                    f"other than 'type' are not yet supported.")
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)
