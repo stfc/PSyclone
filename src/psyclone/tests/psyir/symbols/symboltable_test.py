@@ -1761,13 +1761,15 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
 
-    with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
             integer :: name_clash1
         end module a_mod
         ''')
-    with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
             integer :: not_a_name_clash
@@ -1806,18 +1808,21 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
             "symbols from container 'a_mod', this symbol was already defined "
             "in 'b_mod'." in str(err.value))
 
+
 def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
 
-    with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
             integer :: name_public1
             integer, private :: name_clash
         end module a_mod
         ''')
-    with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
             use a_mod
@@ -1861,22 +1866,23 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     # Now we now that 'name_public1' is a DataSymbol
     assert isinstance(public1, DataSymbol)
 
-    # name_public2 also has been imported because it is a public symbol ...
+    # name_public2 also has been imported because it is a public symbol
     assert "name_public2" in symtab
-    # .. even though we capture that other symbols are private by default
-    assert symtab.lookup("b_mod").container.symbol_table.default_visibility \
-            == Symbol.Visibility.PRIVATE
+    # even though we capture that other symbols are private by default
+    assert symtab.lookup("b_mod").container.symbol_table \
+        .default_visibility == Symbol.Visibility.PRIVATE
     assert "other_private" not in symtab
 
 
 def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method. '''
-    with open(os.path.join(str(tmpdir), "my_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "my_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module my_mod
             type my_type
                 integer :: field
-                integer, dimension(:,:) :: array
+                integer, dimension(10,10) :: array
             end type my_type
             type(my_type) :: global1
             type other_type
@@ -1912,7 +1918,7 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
     symtab.resolve_imports()
 
-    # The global1 exist and is DataSymbols now
+    # The global1 exist and is a DataSymbol now
     assert isinstance(symtab.lookup("global1"), DataSymbol)
 
     # All symbols are of my_type type
@@ -1928,3 +1934,4 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     assert "field" in my_type.components
     assert "array" in my_type.components
     assert my_type.components["field"].datatype.intrinsic.name == "INTEGER"
+    assert my_type.components["array"].datatype.shape[1].upper.value == "10"
