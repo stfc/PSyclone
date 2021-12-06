@@ -66,10 +66,10 @@ def check_invoke(call, kern_info, description=None):
 
     '''
     assert isinstance(call, LFRicAlgorithmInvokeCall)
-    if call._description:
-        assert call._description == "'{0}'".format(description)
+    if call._name:
+        assert call._name == f"'{description}'"
     else:
-        assert call._description is None
+        assert call._name is None
     assert len(call.children) == len(kern_info)
     for index, (kern_type, kern_name) in enumerate(kern_info):
         assert isinstance(call.children[index], kern_type)

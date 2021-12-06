@@ -115,8 +115,8 @@ def test_lfricalgorithminvokecall_create(cls):
     '''
     routine = RoutineSymbol("hello")
     klc = LFRicKernelFunctor.create(DataTypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], 0, description="describing an invoke")
-    assert call._description == "describing an invoke"
+    call = cls.create(routine, [klc], 0, name="describing an invoke")
+    assert call._name == "describing an invoke"
     assert call.routine is routine
     # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
@@ -124,14 +124,14 @@ def test_lfricalgorithminvokecall_create(cls):
     assert call.children[0] == klc
 
 
-def test_lfricalgorithminvokecall_create_nodescription():
+def test_lfricalgorithminvokecall_create_noname():
     '''Check that the LFRicAlgorithmInvokeCall create method sets
-    description to None if it is not provided.
+    name to None if it is not provided.
 
     '''
     routine = RoutineSymbol("hello")
     call = LFRicAlgorithmInvokeCall.create(routine, [], 0)
-    assert call._description is None
+    assert call._name is None
 
 
 def test_lfricalgorithminvoke_call_root_name():

@@ -59,7 +59,7 @@ class InvokeCallTrans(Transformation):
     '''
     def __init__(self):
         super(InvokeCallTrans, self).__init__()
-        self._call_description = None
+        self._call_name = None
 
     @staticmethod
     def _parse_args(code_block, fp2_node):
@@ -151,13 +151,13 @@ class InvokeCallTrans(Transformation):
                     "Error in {0} transformation. If there is a named "
                     "argument, it must take the form name='str', but found "
                     "'{1}'.".format(self.name, str(fp2_node)))
-            if self._call_description:
+            if self._call_name:
                 raise TransformationError(
                     "Error in {0} transformation. There should be at most one "
                     "named argument in an invoke, but there are at least two: "
-                    "{1} and {2}.".format(self.name, self._call_description,
+                    "{1} and {2}.".format(self.name, self._call_name,
                                           fp2_node.children[1].string))
-            self._call_description = fp2_node.children[1].string
+            self._call_name = fp2_node.children[1].string
         else:
             raise TransformationError(
                 "Error in {0} transformation. Expecting an algorithm invoke "
@@ -183,7 +183,7 @@ class InvokeCallTrans(Transformation):
             PSyIR ArrayReference or CodeBlock.
 
         '''
-        self._call_description = None
+        self._call_name = None
 
         if not isinstance(call, Call):
             raise TransformationError(
@@ -222,7 +222,7 @@ class InvokeCallTrans(Transformation):
         '''
         self.validate(call, options=options)
 
-        call_description = None
+        call_name = None
         calls = []
         for call_arg in call.children:
 
@@ -236,7 +236,7 @@ class InvokeCallTrans(Transformation):
                 for fp2_node in call_arg._fp2_nodes:
                     if isinstance(fp2_node, Actual_Arg_Spec):
                         # This child is a named argument.
-                        call_description = fp2_node.children[1].string
+                        call_name = fp2_node.children[1].string
                     else:
                         # This child is a kernel
                         type_symbol = InvokeCallTrans._get_symbol(
@@ -253,7 +253,7 @@ class InvokeCallTrans(Transformation):
             # No need to try to resolve the invoke call
             symbol._interface = LocalInterface()
         invoke_call = AlgorithmInvokeCall.create(
-            call.routine, calls, index, description=call_description)
+            call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
     @property

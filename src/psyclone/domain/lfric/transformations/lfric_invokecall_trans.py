@@ -68,7 +68,7 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
         '''
         self.validate(call, options=options)
 
-        call_description = None
+        call_name = None
         calls = []
         for call_arg in call.children:
 
@@ -88,7 +88,7 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                 for fp2_node in call_arg._fp2_nodes:
                     if isinstance(fp2_node, Actual_Arg_Spec):
                         # This child is a named argument
-                        call_description = fp2_node.children[1].string
+                        call_name = fp2_node.children[1].string
                     else:
                         # This child is a kernel or builtin
                         name = fp2_node.children[0].string
@@ -106,7 +106,7 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                 calls.append(node_type.create(type_symbol, args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
-            call.routine, calls, index, description=call_description)
+            call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
     @property

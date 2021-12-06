@@ -102,7 +102,7 @@ def test_init():
     invoke_trans = InvokeCallTrans()
     assert invoke_trans.name == "InvokeCallTrans"
     assert isinstance(invoke_trans, InvokeCallTrans)
-    assert invoke_trans._call_description is None
+    assert invoke_trans._call_name is None
 
 
 def test_parse_args_get_symbol(fortran_reader):
@@ -235,7 +235,7 @@ def test_multi_named_arg_error():
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
-    invoke_trans._call_description = None
+    invoke_trans._call_name = None
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply(invoke, 0)
     assert ("Error in InvokeCallTrans transformation. There should be at "
@@ -428,7 +428,7 @@ def test_apply_codeblocks(fortran_reader):
 
     invoke = subroutine.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._description == "'an invoke'"
+    assert invoke._name == "'an invoke'"
     assert invoke._index == 3
     assert len(invoke.children) == 2
     check_literal(invoke.children[0], "kern", "0.0")
@@ -513,9 +513,9 @@ def test_apply_expr(fortran_reader):
     assert isinstance(arg, BinaryOperation)
 
 
-def test_multi_description():
-    '''Check that the expected exception is raised if a description is
-    provided more than once.
+def test_multi_name():
+    '''Check that the expected exception is raised if a name is provided
+    more than once.
 
     '''
     code = (

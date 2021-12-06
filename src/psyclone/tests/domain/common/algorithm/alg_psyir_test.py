@@ -127,14 +127,14 @@ def test_algorithminvokecall():
     assert call.psylayer_container_root_name is None
     assert call._index == 2
     assert call.parent is None
-    assert call._description is None
+    assert call._name is None
 
-    description = "description"
+    name = "description"
     parent = Container("container")
     call = AlgorithmInvokeCall(
-        routine, 2, parent=parent, description=description)
+        routine, 2, parent=parent, name=name)
     assert call.parent is parent
-    assert call._description == description
+    assert call._name == name
 
 
 def test_algorithminvokecall_error():
@@ -154,8 +154,8 @@ def test_algorithminvokecall_error():
             "integer but found -1." in str(info.value))
 
     with pytest.raises(TypeError) as info:
-        AlgorithmInvokeCall(routine, 1, description=routine)
-    assert ("AlgorithmInvokeCall description argument should be a str but "
+        AlgorithmInvokeCall(routine, 1, name=routine)
+    assert ("AlgorithmInvokeCall name argument should be a str but "
             "found 'RoutineSymbol'." in str(info.value))
 
 
@@ -171,12 +171,12 @@ def test_aic_create():
     assert aic.children[0] is kernel_functor
     assert aic._routine is routine
     assert aic._index == index
-    assert aic._description is None
+    assert aic._name is None
 
-    description = "description"
+    name = "description"
     aic = AlgorithmInvokeCall.create(
-        routine, [kernel_functor.detach()], index, description=description)
-    assert aic._description == description
+        routine, [kernel_functor.detach()], index, name=name)
+    assert aic._name == name
 
     with pytest.raises(GenerationError) as info:
         AlgorithmInvokeCall.create(routine, kernel_functor, index)
@@ -227,8 +227,8 @@ def test_aic_node_str():
     '''
     routine = RoutineSymbol("hello")
     call = AlgorithmInvokeCall.create(
-        routine, [], 0, description="describing an invoke")
-    assert ("AlgorithmInvokeCall[description=\"describing an invoke\"]"
+        routine, [], 0, name="describing an invoke")
+    assert ("AlgorithmInvokeCall[name=\"describing an invoke\"]"
             in call.node_str(colour=False))
 
 
@@ -251,7 +251,7 @@ def test_aic_defroutinerootname():
 
     for name in [" a  description ", "' a__description '",
                  "\" a  description \""]:
-        call._description = name
+        call._name = name
         assert call._def_routine_root_name() == "a__description"
 
 

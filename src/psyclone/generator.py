@@ -259,17 +259,14 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 alg_trans = AlgTrans()
                 alg_trans.apply(psyir)
 
-                # issue #753
+                # TODO: issue #753
                 # 1) call to algorithm optimisation script will go here
                 # 2) psygen creation and symbol generation will go here
                 #    (+ algorithm processing could go here, which would
                 #    include the removal of the invoke symbol).
                 # 3) psygen optimisation script will go here
 
-                # Process and lower to language-level PSyIR
-                psyir.lower_to_language_level()
-
-                # Create Fortran from language-level PSyIR
+                # Create Fortran from Algorithm PSyIR
                 writer = FortranWriter()
                 alg_gen = writer(psyir)
             else:

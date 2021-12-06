@@ -38,7 +38,7 @@
 
 '''
 from __future__ import absolute_import
-import six
+
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine, FileContainer
@@ -59,9 +59,10 @@ class AlgorithmInvokeCall(Call):
         to None.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node` \
         or NoneType
-    :param description: an optional description of the \
+    :param name: an optional name, describing the \
         AlgorithmInvokeCall. Defaults to None.
-    :type description: str or NoneType
+
+    :type name: str or NoneType
 
     :raises TypeError: if the index argument is not an integer.
     :raises ValueError: if the index argument is negative.
@@ -71,7 +72,7 @@ class AlgorithmInvokeCall(Call):
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
 
-    def __init__(self, invoke_routine_symbol, index, parent=None, description=None):
+    def __init__(self, invoke_routine_symbol, index, parent=None, name=None):
         super().__init__(invoke_routine_symbol, parent=parent)
 
         if not isinstance(index, int):
@@ -82,28 +83,21 @@ class AlgorithmInvokeCall(Call):
             raise ValueError(
                 "AlgorithmInvokeCall index argument should be a non-negative "
                 "integer but found {0}.".format(index))
-
-        # In Python2 description may be unicode or str so check for
-        # both (in a way that Python3 is happy with).
-        if description and not isinstance(description, (str, six.text_type)):
+        if name and not isinstance(name, str):
             raise TypeError(
-                "AlgorithmInvokeCall description argument should be a str but "
-                "found '{0}'.".format(type(description).__name__))
-
-        if description:
-            # Avoid unicode issues with Python2
-            description = str(description)
+                f"AlgorithmInvokeCall name argument should be a str but "
+                f"found '{type(name).__name__}'.")
         self._index = index
         self.psylayer_routine_root_name = None
         self.psylayer_container_root_name = None
-        self._description = description
+        self._name = name
 
     @classmethod
-    def create(cls, routine, arguments, index, description=None):
+    def create(cls, routine, arguments, index, name=None):
         # pylint: disable=arguments-differ
         '''Create an instance of the calling class given valid instances of a
         routine symbol, a list of child nodes for its arguments, an
-        index and an optional description.
+        index and an optional name.
 
         :param routine: the routine that the calling class calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -112,11 +106,11 @@ class AlgorithmInvokeCall(Call):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
-        :param description: a string describing the purpose of the \
-            invoke or None if one is not provided. This is used to \
-            create the name of the routine that replaces the \
-            invoke. Defaults to None.
-        :type description: str or NoneType
+        :param name: a string describing the purpose of the invoke or \
+            None if one is not provided. This is used to create the \
+            name of the routine that replaces the invoke. Defaults to \
+            None.
+        :type name: str or NoneType
 
         :raises GenerationError: if the arguments argument is not a \
             list.
@@ -131,7 +125,7 @@ class AlgorithmInvokeCall(Call):
                 "AlgorithmInvokeCall create arguments argument should be a "
                 "list but found '{0}'.".format(type(arguments).__name__))
 
-        call = cls(routine, index, description=description)
+        call = cls(routine, index, name=name)
         call.children = arguments
         return call
 
@@ -151,7 +145,7 @@ class AlgorithmInvokeCall(Call):
     def node_str(self, colour=True):
         '''Construct a text representation of this node, optionally
         containing colour control codes. Specialise as this node has
-        an additional description argument.
+        an additional name argument.
 
         :param bool colour: whether or not to include colour control \
             codes. Optional argument that defaults to True.
@@ -160,8 +154,7 @@ class AlgorithmInvokeCall(Call):
         :rtype: str
 
         '''
-        return "{0}[description=\"{1}\"]".format(self.coloured_name(colour),
-                                                 self._description)
+        return f"{self.coloured_name(colour)}[name=\"{self._name}\"]"
 
     def _def_routine_root_name(self):
         '''Internal method that returns the proposed language-level routine
@@ -171,8 +164,8 @@ class AlgorithmInvokeCall(Call):
         :rtype: str
 
         '''
-        if self._description:
-            routine_root_name = self._description.lower().strip()
+        if self._name:
+            routine_root_name = self._name.lower().strip()
             if routine_root_name[0] == '"' and routine_root_name[-1] == '"' \
                or \
                routine_root_name[0] == "'" and routine_root_name[-1] == "'":
