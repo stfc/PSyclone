@@ -221,7 +221,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
-   :members:
+   :members: apply
    :noindex:
 
 ####
