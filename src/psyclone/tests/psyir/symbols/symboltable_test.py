@@ -1649,7 +1649,9 @@ def test_rename_symbol():
 
 
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
-    ''' Tests the SymbolTable resolve_imports method. '''
+    ''' Tests that the SymbolTable resolve_imports method works as expected
+    when importing symbol information from external containers and respects
+    the method optional keywords. '''
     with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
         module.write('''
         module a_mod
@@ -1810,8 +1812,8 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
 
 
 def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
-    ''' Tests the SymbolTable resolve_imports method raises the appropriate
-    errors when it finds name clashes. '''
+    ''' Tests the SymbolTable resolve_imports respects the accessibility statements
+    when importing symbol information from external containers. '''
 
     filename = os.path.join(str(tmpdir), "a_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
@@ -1875,7 +1877,8 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
 
 
 def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
-    ''' Tests the SymbolTable resolve_imports method. '''
+    ''' Tests that the SymbolTable resolve_imports method work as expected when
+    we are importing user-defined/derived types from an external container. '''
     filename = os.path.join(str(tmpdir), "my_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
