@@ -1069,23 +1069,52 @@ class SymbolTable():
                         " tag '{1}' is already used by another symbol."
                         "".format(imported_var, tag))
 
-    def resolve_imports(self, container_symbols=None):
+    def resolve_imports(self, container_symbols=None, symbol_target=None):
         ''' Try to resolve deferred and unknown information from imported
         symbols in this symbol table by searching for their definitions in
-        referred external container.
+        referred external container. A single symbol to resolve can be
+        specified for a more targeted import.
 
         :param container_symbols: list of container symbols to search in
             order to resolve imported symbols. Defaults to all container \
             symbols in the symbol table.
         :type container_symbols: list of \
-            :py:class:`psyclone.psyr.symbols.ContainerSymbol`
+            :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :param symbol_target: If a symbol is given, this method will just \
+            resolve information for the given symbol. Otherwise it will \
+            resolve all possible symbols information. Defaults to None.
+        :type symbol_target: :py:class:`psyclone.psyir.symbols.Symbol` \
+            or NoneType
 
         :raises SymbolError: if a symbol name clash is found between multiple \
             imports or an import and a local symbol.
+        :raises TypeError: if the provided container_symbols is not a list of \
+            ContainerSymbols.
+        :raises TypeError: if the provided symbol_target is not a Symbol.
+        :raises KeyError: if a symbol_target has been specified but this has \
+            not been found in any of the searched containers.
+
         '''
-        # If no container_symbol is given, search in all the container symbols
-        if container_symbols is None:
+        if container_symbols is not None:
+            if not isinstance(container_symbols, list):
+                raise TypeError(
+                    f"The resolve_imports container_symbols argument must be a"
+                    f" list but found '{type(container_symbols).__name__}' "
+                    f"instead.")
+            for item in container_symbols:
+                if not isinstance(item, ContainerSymbol):
+                    raise TypeError(
+                        f"The resolve_imports container_symbols argument list "
+                        f"elements must be ContainerSymbols, but found a "
+                        f"'{type(item).__name__}' instead.")
+        else:
+            # If no container_symbol is given, search in all the containers
             container_symbols = self.containersymbols
+
+        if symbol_target and not isinstance(symbol_target, Symbol):
+            raise TypeError(
+                f"The resolve_imports symbol_target argument must be a Symbol "
+                f"but found '{type(symbol_target).__name__}' instead.")
 
         for c_symbol in container_symbols:
             try:
@@ -1101,8 +1130,14 @@ class SymbolTable():
                 if symbol.visibility == Symbol.Visibility.PRIVATE:
                     continue  # We must ignore this symbol
 
+                # If we are just resolving a single specific symbol we don't
+                # need to process this symbol unless the name matches.
+                if symbol_target and symbol.name != symbol_target.name:
+                    continue
+
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:
+
                     symbol_match = self.lookup(symbol.name)
                     interface = symbol_match.interface
                     visibility = symbol_match.visibility
@@ -1150,6 +1185,11 @@ class SymbolTable():
                     # (not imported) properties
                     symbol_match.interface = interface
                     symbol_match.visibility = visibility
+
+                    if symbol_target:
+                        # If we were looking just for this symbol we don't need
+                        # to continue searching
+                        return
                 else:
                     if c_symbol.wildcard_import:
                         # This symbol is PUBLIC and inside a wildcard import,
@@ -1158,6 +1198,12 @@ class SymbolTable():
                         new_symbol.interface = ImportInterface(c_symbol)
                         new_symbol.visibility = self.default_visibility
                         self.add(new_symbol)
+
+        if symbol_target:
+            raise KeyError(
+                f"The target symbol '{symbol_target.name}' was not found in "
+                f"any of the searched containers: "
+                f"{[cont.name for cont in container_symbols]}.")
 
     def rename_symbol(self, symbol, name):
         '''

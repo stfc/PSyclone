@@ -1652,6 +1652,10 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
     the method optional keywords. '''
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
     with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
         module.write('''
         module a_mod
@@ -1707,50 +1711,83 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert isinstance(b_2.interface, UnresolvedInterface)
     assert not isinstance(b_2, DataSymbol)
 
-    # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    # Try with incorrect argument types
+    with pytest.raises(TypeError) as err:
+        subroutine.symbol_table.resolve_imports(symbol_target="a_1")
+    assert ("The resolve_imports symbol_target argument must be a Symbol but "
+            "found 'str' instead." in str(err.value))
 
-    # Resolve symbols that are in a_mod inside the subroutine
+    with pytest.raises(TypeError) as err:
+        subroutine.symbol_table.resolve_imports(container_symbols="my_mod")
+    assert ("The resolve_imports container_symbols argument must be a list "
+            "but found 'str' instead." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        subroutine.symbol_table.resolve_imports(container_symbols=["my_mod"])
+    assert ("The resolve_imports container_symbols argument list elements "
+            "must be ContainerSymbols, but found a 'str' instead."
+            in str(err.value))
+
+    # Try to resolve a symbol that is not in the provided container
+    with pytest.raises(KeyError) as err:
+        subroutine.symbol_table.resolve_imports(
+                container_symbols=[subroutine.symbol_table.lookup('a_mod')],
+                symbol_target=subroutine.symbol_table.lookup('b_1'))
+    assert ("The target symbol 'b_1' was not found in any of the searched "
+            "containers: ['a_mod']." in str(err.value))
+    # We still haven't resolved anything inside a_mod or the b_1 symbol
+    assert not isinstance(a_1, DataSymbol)
+    assert not isinstance(b_1, DataSymbol)
+
+    # Resolve only b_2 symbol info
+    subroutine.symbol_table.resolve_imports(
+            symbol_target=subroutine.symbol_table.lookup('b_2'))
+    assert isinstance(b_2, DataSymbol)
+    assert isinstance(b_2.datatype, UnknownFortranType)
+    assert isinstance(b_2.interface, ImportInterface)
+    assert b_2.interface.container_symbol == \
+           subroutine.symbol_table.lookup('b_mod')
+    # We still haven't resolved anything about a_mod or other b_mod symbols
+    assert not isinstance(a_1, DataSymbol)
+    assert not isinstance(b_1, DataSymbol)
+
+    # Resolve all symbols that are in a_mod inside the subroutine
     subroutine.symbol_table.resolve_imports([
             subroutine.symbol_table.lookup('a_mod')])
-
     # This will resolve a_1 information
     assert isinstance(a_1, DataSymbol)
     assert a_1.datatype.intrinsic.name == 'INTEGER'
-    # but will keep the ImportInterface
     assert isinstance(a_1.interface, ImportInterface)
 
-    # The other symbols (including a_2) are unchanged
+    # The other symbols (including a_2 because it is not from this symbol
+    # table) are unchanged. a_mod::b_1 is not resolved to the local b_1
+    # because it knows that a_mod imports are not using a wildcard import
+    # and therefore it must come from somewhere else.
     assert "not_used2" not in subroutine.symbol_table
     assert isinstance(a_2.interface, ImportInterface)
     assert not isinstance(a_2, DataSymbol)
     assert isinstance(b_1.interface, UnresolvedInterface)
     assert not isinstance(b_1, DataSymbol)
-    assert isinstance(b_2.interface, UnresolvedInterface)
-    assert not isinstance(b_2, DataSymbol)
 
     # Now resolve all found containers (this will not fail for the
     # unavailable c_mod)
     subroutine.symbol_table.resolve_imports()
 
-    # b_1 and b_2 should have relevant info now
+    # b_1 have all relevant info now
     assert isinstance(b_1, DataSymbol)
     assert b_1.datatype.intrinsic.name == 'INTEGER'
     assert b_1.constant_value.value == "10"
-    assert isinstance(b_2, DataSymbol)
-    assert isinstance(b_2.datatype, UnknownFortranType)
-    # Their interface is also updated
+    # The interface is also updated updated now because we know where it comes
+    # from
     assert isinstance(b_1.interface, ImportInterface)
     assert b_1.interface.container_symbol == \
            subroutine.symbol_table.lookup('b_mod')
-    assert isinstance(b_2.interface, ImportInterface)
-    assert b_2.interface.container_symbol == \
-           subroutine.symbol_table.lookup('b_mod')
-    # not_used1 and not_used2 exist and are DataSymbols now
-    assert isinstance(not_used1, DataSymbol)
+    # not_used1 and not_used2 should now also exist and have all its properties
+    # because the b_mod wildcard import imports them
+    assert isinstance(subroutine.symbol_table.lookup('not_used1'), DataSymbol)
     assert isinstance(subroutine.symbol_table.lookup('not_used2'), DataSymbol)
 
-    # a_2 is not yet resolved because if is from another symbol table,
+    # a_2 is not yet resolved because it comes from another symbol table,
     # resolve that symbol table too
     assert not isinstance(a_2, DataSymbol)
     subroutine.parent.symbol_table.resolve_imports()
