@@ -50,7 +50,7 @@ from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import get_invoke
 
 
-def test_loop_swap_correct(tmpdir):
+def test_loop_swap_apply(tmpdir):
     ''' Testing correct loop swapping transform. Esp. try first, middle, and
     last invokes to make sure the inserting of the inner loop happens at
     the right place.'''
@@ -131,7 +131,7 @@ def test_loop_swap_correct(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_loop_swap_errors():
+def test_loop_swap_validate():
     ''' Test loop swapping transform with incorrect parameters. '''
 
     psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", "gocean1.0",
@@ -183,7 +183,7 @@ def test_loop_swap_errors():
                      str(error.value), re.S) is not None
 
 
-def test_loop_swap_wrong_loop_type():
+def test_loop_swap_validate_loop_type():
     '''
     Test loop swapping transform when supplied loops are not Loops.
     '''
@@ -199,7 +199,7 @@ def test_loop_swap_wrong_loop_type():
                      str(error.value), re.S)
 
 
-def test_loop_swap_invalid_nodes_in_loop(fortran_reader):
+def test_loop_swap_validate_nodes_in_loop(fortran_reader):
     '''
     Tests that loops containing calls or codeblocks are not swapped.
     '''
