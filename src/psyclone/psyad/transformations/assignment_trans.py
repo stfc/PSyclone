@@ -102,15 +102,16 @@ class AssignmentTrans(AdjointTransformation):
                         if node.lhs.symbol is ref.symbol:
                             for pos, idx in enumerate(ref.indices):
                                 lhs_idx = node.lhs.indices[pos]
-                                if type(idx) != type(lhs_idx):
+                                if not (type(idx) == type(lhs_idx) and
+                                        sym_maths.equal(idx.start,
+                                                        lhs_idx.start) and
+                                        sym_maths.equal(idx.stop,
+                                                        lhs_idx.stop) and
+                                        sym_maths.equal(idx.step,
+                                                        lhs_idx.step)):
+                                    increment = False
                                     break
-                                if (not sym_maths.equal(idx.start,
-                                                        lhs_idx.start) or
-                                        not sym_maths.equal(idx.stop,
-                                                            lhs_idx.stop) or
-                                        not sym_maths.equal(idx.step,
-                                                            lhs_idx.step)):
-                                    break
+                            else:
                                 increment = True
                     else:
                         if sym_maths.equal(ref, node.lhs):
@@ -194,6 +195,8 @@ class AssignmentTrans(AdjointTransformation):
             Assignment.
         :raises TangentLinearError: if the assignment does not conform \
             to the required tangent-linear structure.
+        :raises NotImplementedError: if accesses to different ranges of the \
+            same active array are found on the LHS and RHS.
 
         '''
         # Check node argument is an assignment node
@@ -316,6 +319,35 @@ class AssignmentTrans(AdjointTransformation):
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent
+
+            # If the LHS of the assignment is an array range then we only
+            # support accesses of the same variable on the RHS if they have
+            # the same range.
+            if (node.is_array_range and active_variable.symbol is
+                    node.lhs.symbol):
+                if not isinstance(active_variable, ArrayMixin):
+                    raise TangentLinearError(
+                        f"Assignment is to an array range but found a "
+                        f"reference to the LHS variable "
+                        f"'{node.lhs.symbol.name}' without array notation"
+                        f" on the RHS: '{self._writer(node)}'")
+
+                sym_maths = SymbolicMaths.get()
+
+                for pos, idx in enumerate(active_variable.indices):
+                    lhs_idx = node.lhs.indices[pos]
+                    if not (type(idx) == type(lhs_idx) and
+                            sym_maths.equal(idx.start,
+                                            lhs_idx.start) and
+                            sym_maths.equal(idx.stop,
+                                            lhs_idx.stop) and
+                            sym_maths.equal(idx.step,
+                                            lhs_idx.step)):
+                        raise NotImplementedError(
+                            f"Different sections of the same active array "
+                            f"'{node.lhs.symbol.name}' are "
+                            f"accessed on the LHS and RHS of an assignment: "
+                            f"'{self._writer(node)}'. This is not supported.")
 
     @staticmethod
     def _split_nodes(node, binary_operator_list):

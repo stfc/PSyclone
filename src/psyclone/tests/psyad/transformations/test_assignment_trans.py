@@ -387,7 +387,8 @@ def test_increment(tmpdir, index_str):
         f"  a({index_str}) = a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 2\n"
+        "  integer, parameter :: n = 3\n"
+        "  integer :: i\n"
         "  real, dimension(n) :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -409,6 +410,7 @@ def test_increment_mult(tmpdir, index_str):
     active_variables = ["a"]
     ad_fortran = (
         f"  integer, parameter :: n = 4\n"
+        f"  integer :: i\n"
         f"  real, dimension(n) :: a\n\n"
         f"  a({index_str}) = 5 * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -1192,10 +1194,34 @@ def test_validate_mismatched_array_ranges():
                                               Literal("5", INTEGER_TYPE))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(NotImplementedError) as err:
+        trans.validate(assign)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'"
+            in str(err.value))
+
+
+def test_validate_missing_array_indices():
+    ''' Check that we reject a tangent-linear assignment if the LHS is an
+    array access but the same symbol is referenced on the RHS without array
+    notation. (The PSyIR permits this since arrays can be arguments to
+    query functions.) '''
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    lhs_symbol = DataSymbol("a", array_type)
+    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(rhs_symbol),
+        Reference(lhs_symbol))
+    lhs = ArrayReference.create(lhs_symbol,
+                                [Range.create(Literal("2", INTEGER_TYPE),
+                                              Literal("5", INTEGER_TYPE))])
+    assign = Assignment.create(lhs, multiply)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as err:
         trans.validate(assign)
-    assert "Hohoho" in str(err.value)
-
+    assert ("Assignment is to an array range but found a reference to the LHS "
+            "variable 'a' without array notation on the RHS: "
+            "'a(2:5) = x * a\n'" in str(err.value))
 
 # _split_nodes() method
 
