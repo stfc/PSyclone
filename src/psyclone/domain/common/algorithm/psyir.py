@@ -38,7 +38,7 @@
 
 '''
 from __future__ import absolute_import
-
+import six
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine, FileContainer
