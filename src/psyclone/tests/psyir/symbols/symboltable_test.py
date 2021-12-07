@@ -1656,14 +1656,17 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # Set up include_path to import the proper modules
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
 
-    with open(os.path.join(str(tmpdir), "a_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
+            use other_mod
             integer :: a_1, a_2
             integer :: b_1  ! Name clash but it is not imported
         end module a_mod
         ''')
-    with open(os.path.join(str(tmpdir), "b_mod.f90"), "w") as module:
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
             integer, parameter :: b_1 = 10
@@ -1758,6 +1761,10 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert isinstance(a_1, DataSymbol)
     assert a_1.datatype.intrinsic.name == 'INTEGER'
     assert isinstance(a_1.interface, ImportInterface)
+    # ContainerSymbol names are not brought into the local scope
+    assert "other_mod" not in subroutine.symbol_table
+    # TODO #1540: And neither the nested symbol declarations inside
+    # another wildcard import, but this could be processed.
 
     # The other symbols (including a_2 because it is not from this symbol
     # table) are unchanged. a_mod::b_1 is not resolved to the local b_1

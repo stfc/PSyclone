@@ -1130,6 +1130,12 @@ class SymbolTable():
                 if symbol.visibility == Symbol.Visibility.PRIVATE:
                     continue  # We must ignore this symbol
 
+                if isinstance(symbol, ContainerSymbol):
+                    # TODO #1540: We also skip other ContainerSymbols but in
+                    # reality if this is a wildcard import we would have to
+                    # process the nested external container.
+                    continue
+
                 # If we are just resolving a single specific symbol we don't
                 # need to process this symbol unless the name matches.
                 if symbol_target and symbol.name != symbol_target.name:
