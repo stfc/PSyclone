@@ -38,7 +38,7 @@
 
 ''' This module provides the loop swap transformation.'''
 
-from psyclone.psyir.nodes import Call, CodeBlock, Schedule
+from psyclone.psyir.nodes import Call, CodeBlock
 from psyclone.psyir.transformations import LoopTrans, TransformationError
 
 
@@ -143,18 +143,16 @@ class LoopSwapTrans(LoopTrans):
 
         '''
         self.validate(outer, options=options)
-
         inner = outer.loop_body[0]
-
         # Detach the inner code
         inner_loop_body = inner.loop_body.detach()
 
         # Swap the loops
         outer.replace_with(inner.detach())
-        inner.addchild(Schedule())
+        inner.addchild(outer.loop_body.detach())
         inner.loop_body.addchild(outer)
         # Insert again the inner code in the new inner loop
-        outer.loop_body.replace_with(inner_loop_body)
+        outer.addchild(inner_loop_body)
 
 
 # For Sphinx AutoAPI documentation generation

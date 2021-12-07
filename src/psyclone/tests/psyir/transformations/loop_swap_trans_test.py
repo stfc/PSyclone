@@ -235,3 +235,45 @@ def test_loop_swap_validate_nodes_in_loop(fortran_reader):
         swap.apply(schedule[1])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a LoopSwapTrans "
             "transformation" in str(err.value))
+
+
+def test_loop_swap_schedule_is_kept():
+    ''' Testing that the existing schedules remain in place (since they could
+    contain annotations).
+    '''
+
+    psy, _ = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=0,
+                        dist_mem=False)
+    invoke = psy.invokes.get("invoke_loop1")
+    schedule = invoke.schedule
+    schedule_str = str(schedule)
+
+    # First make sure to throw an early error if the source file
+    # test27_loop_swap.f90 should have been changed
+    expected = (
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_ssh_code.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_u_code .*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_v_code")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
+
+    # Save the old schedules
+    outer_sched_old = schedule.children[0].loop_body
+    inner_sched_old = outer_sched_old.children[0].loop_body
+    # Now swap the first loops
+    swap = LoopSwapTrans()
+    swap.apply(schedule.children[0])
+
+    # Get the schedules after swapping
+    outer_sched_new = schedule.children[0].loop_body
+    inner_sched_new = outer_sched_new.children[0].loop_body
+
+    # Make sure we still have the same schedule.
+    assert outer_sched_old is outer_sched_new
+    assert inner_sched_old is inner_sched_new
