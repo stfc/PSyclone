@@ -134,8 +134,14 @@ class LoopTiling2DTrans(LoopTrans):
         if options is None:
             options = {}
         tilesize = options.get("tilesize", 32)
+        parent = node.parent
+        position = node.position
         outer_loop = node
         inner_loop = node.loop_body.children[0]
 
         ChunkLoopTrans().apply(outer_loop, options={'chuncksize': tilesize})
         ChunkLoopTrans().apply(inner_loop, options={'chuncksize': tilesize})
+
+        from psyclone.psyir.transformations import LoopSwapTrans
+        loops = parent[position].walk(Loop)[1]
+        LoopSwapTrans().apply(loops)

@@ -42,7 +42,6 @@ import pytest
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError, \
     LoopTiling2DTrans
-from psyclone.tests.utilities import Compile
 
 
 def test_loop_tiling_2d_trans():
@@ -85,7 +84,7 @@ def test_loop_tiling_2d_trans_validation1(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    with pytest.raises(NoMatchError) as err:
+    with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().validate(outer_loop)
 
 
@@ -102,7 +101,7 @@ def test_loop_tiling_2d_trans_validation2(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    with pytest.raises(NoMatchError) as err:
+    with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().validate(outer_loop)
 
 
@@ -122,8 +121,9 @@ def test_loop_tiling_2d_trans_validation3(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    with pytest.raises(NoMatchError) as err:
+    with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().validate(outer_loop)
+
 
 def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
     ''' Validation passes when found a 2D nested loop construct. '''
@@ -140,11 +140,21 @@ def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    LoopTiling2DTrans().validate(outer_loop)
+    LoopTiling2DTrans().apply(outer_loop)
 
     outer_loop = psyir.walk(Loop)[0]
     result = fortran_writer(outer_loop)
     print(result)
-    assert False
-
-
+    expected = '''\
+do i_out_var = 1, 100, 32
+  i_el_inner = MIN(i_out_var + 32, 100)
+  do j_out_var = 1, 100, 32
+    do i = i_out_var, i_el_inner, 1
+      j_el_inner = MIN(j_out_var + 32, 100)
+      do j = j_out_var, j_el_inner, 1
+        tmp(i,j) = 2 * tmp(i,j)
+      enddo
+    enddo
+  enddo
+enddo'''
+    assert expected in result
