@@ -92,8 +92,10 @@ class LoopSwapTrans(LoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
 
-        :raises TransformationError: if the supplied node does not\
+        :raises TransformationError: if the supplied node does not \
                                      allow a loop swap to be done.
+        :raises TransformationError: if either the inner or outer loop \
+                                     has a symbol table.
 
         '''
         super().validate(node_outer, options=options)
@@ -127,6 +129,20 @@ class LoopSwapTrans(LoopTrans):
                 "first two being '{2}' and '{3}'."
                 "".format(node_outer, len(node_outer.loop_body.children),
                           node_outer.loop_body[0], node_outer.loop_body[1]))
+
+        outer_sched = node_outer.loop_body
+        if outer_sched.symbol_table and \
+                not outer_sched.symbol_table.is_empty():
+            raise TransformationError(
+                "Error in LoopSwap transformation: The outer loop "
+                "has a non-empty symbol table.")
+
+        inner_sched = outer_sched[0].loop_body
+        if inner_sched.symbol_table and \
+                not inner_sched.symbol_table.is_empty():
+            raise TransformationError(
+                "Error in LoopSwap transformation: The inner loop "
+                "has a non-empty symbol table.")
 
     def apply(self, outer, options=None):
         # pylint: disable=arguments-differ

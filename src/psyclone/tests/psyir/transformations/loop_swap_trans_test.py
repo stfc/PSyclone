@@ -45,6 +45,7 @@ import pytest
 
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.utilities import get_invoke
@@ -277,3 +278,54 @@ def test_loop_swap_schedule_is_kept():
     # Make sure we still have the same schedule.
     assert outer_sched_old is outer_sched_new
     assert inner_sched_old is inner_sched_new
+
+
+def test_loop_swap_abort_if_symbols():
+    ''' Testing that the transformation aborts if the symbol table for
+    either the inner or outer loop contains a non-empty symbol table.
+    '''
+
+    psy, _ = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=0,
+                        dist_mem=False)
+    invoke = psy.invokes.get("invoke_loop1")
+    schedule = invoke.schedule
+    schedule_str = str(schedule)
+
+    # First make sure to throw an early error if the source file
+    # test27_loop_swap.f90 should have been changed
+    expected = (
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_ssh_code.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_u_code .*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_v_code")
+
+    assert re.search(expected, schedule_str.replace("\n", " "))
+
+    # Save the old schedules
+    outer_sched = schedule.children[0].loop_body
+    sym = ContainerSymbol("my_mod")
+    outer_sched.symbol_table.add(sym)
+
+    swap = LoopSwapTrans()
+    # Test if outer loop has a symbol table
+    with pytest.raises(TransformationError) as err:
+        swap.apply(schedule.children[0])
+
+    assert ("Error in LoopSwap transformation: The outer loop has a "
+            "non-empty symbol table." in str(err.value))
+    outer_sched.symbol_table.remove(sym)
+
+    # Test for symbol table in inner loop
+    inner_sched = outer_sched.children[0].loop_body
+    inner_sched.symbol_table.add(sym)
+
+    with pytest.raises(TransformationError) as err:
+        swap.apply(schedule.children[0])
+
+    assert ("Error in LoopSwap transformation: The inner loop has a "
+            "non-empty symbol table." in str(err.value))
