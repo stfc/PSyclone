@@ -145,6 +145,23 @@ def test_parent_symbol_table():
             str(err.value))
 
 
+def test_symboltable_is_empty():
+    '''Test that a symbol table is correctly flagged as empty/non-empty.
+
+    '''
+    sym_table = SymbolTable()
+    assert sym_table.is_empty() is True
+
+    # Add a symbol so the table is now not empty anymore
+    sym = ContainerSymbol("my_mod")
+    sym_table.add(sym)
+    assert sym_table.is_empty() is False
+
+    # Now remove the symbol again, the table should be empty
+    sym_table.remove(sym)
+    assert sym_table.is_empty() is True
+
+
 def test_next_available_name_1():
     '''Test that the next_available_name method returns names that are not
     already in the symbol table.
@@ -534,6 +551,7 @@ def test_swap_symbol():
 
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
+    # pylint: disable=too-many-statements
 
     symbol1 = DataSymbol("var1", INTEGER_TYPE, constant_value=7)
     symbol2 = DataSymbol("dim1", INTEGER_TYPE,
