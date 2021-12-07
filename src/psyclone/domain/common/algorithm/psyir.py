@@ -39,6 +39,7 @@
 '''
 from __future__ import absolute_import
 
+from fparser.two import pattern_tools
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine, FileContainer
@@ -88,6 +89,9 @@ class AlgorithmInvokeCall(Call):
                 f"AlgorithmInvokeCall name argument should be a str but "
                 f"found '{type(name).__name__}'.")
         self._index = index
+        # Keep the root names as these will also be needed by the
+        # PSy-layer to use as tags to pull out the actual names from
+        # the algorithm symbol table, once issue #753 is complete.
         self.psylayer_routine_root_name = None
         self.psylayer_container_root_name = None
         self._name = name
@@ -172,10 +176,16 @@ class AlgorithmInvokeCall(Call):
                 # fparser2 (issue #295) currently includes quotes as
                 # part of a string, so strip them out.
                 routine_root_name = routine_root_name[1:-1].strip()
-
             routine_root_name = routine_root_name.replace(" ", "_")
+            # Check that the name is a valid routine name
+            if not pattern_tools.abs_name.match(routine_root_name):
+                raise TypeError(
+                    f"AlgorithmInvokeCall:_def_routine_root_name() the "
+                    f"(optional) name of an invoke must be a string "
+                    f"containing a valid name (with any spaces replaced by "
+                    f"underscores) but found '{routine_root_name}'.")
         else:
-            routine_root_name = "invoke_{0}".format(self._index)
+            routine_root_name = f"invoke_{self._index}"
             if len(self.children) == 1:
                 # Add the name of the kernel if there is only one call
                 routine_root_name += "_" + self.children[0].name
@@ -205,7 +215,7 @@ class AlgorithmInvokeCall(Call):
         node = nodes[0]
         if isinstance(node, FileContainer):
             node = nodes[1]
-        self.psylayer_container_root_name = "psy_{0}".format(node.name)
+        self.psylayer_container_root_name = "time_smooth" # "psy_{0}".format(node.name)
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
@@ -215,7 +225,6 @@ class AlgorithmInvokeCall(Call):
         self.create_psylayer_symbol_root_names()
 
         arguments = []
-        arguments_str = []
         sym_maths = SymbolicMaths.get()
         for kern in self.children:
             for arg in kern.children:
@@ -227,7 +236,6 @@ class AlgorithmInvokeCall(Call):
                         if sym_maths.equal(arg, existing_arg):
                             break
                     else:
-                        arguments_str.append(str(arg).lower())
                         arguments.append(arg.copy())
                 else:
                     raise GenerationError(
