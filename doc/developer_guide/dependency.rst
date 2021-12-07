@@ -591,17 +591,11 @@ Dependency Tools
 
 PSyclone contains a class that builds upon the data-dependency functionality
 to provide useful tools for dependency analaysis. It especially provides
-messages for the user to indicate why parallelisation was not possible.
+messages for the user to indicate why parallelisation was not possible. It
+uses `SymPy` internally to compare expressions symbolically.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
     :members:
-
-.. note:: There is limited support for detecting index expression that are
-    identical because of the commutative law, e.g. `i+k` and `k+i` would be
-    considered equal. But this only applies if two items are switched that
-    are part of the same PSyIR node. An expression like `i+k+1` is stored as
-    `(i+k)+1`, so if it is compared with `i+1+k` they are not considered to
-    be equal, because `i+1` and `i+k` are not the same. See issue #533.
 
 
 An example of how to use this class is shown below. It takes a list of statements

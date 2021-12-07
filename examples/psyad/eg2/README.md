@@ -1,4 +1,39 @@
-<!--
+# PSyclone PSyAD Example 2: creating an LFRic adjoint kernel and test harness.
+
+**Authors:** A. R. Porter and R. W. Ford, STFC Daresbury Lab
+
+In order to use PSyclone you must first install it, ideally with pip.
+See `../../../README.md` for more details.
+
+This example demonstrates the use of PSyAD to create the adjoint of an
+LFRic tangent-linear kernel (contained in
+`tl_hydrostatic_kernel_mod.f90`). Test harness generation is currently
+not supported for LFRic kernels.
+
+PSyAD can be run in the directory containing this file by executing:
+
+```sh
+make
+```
+
+Alternatively, PSyAD may be run from the command line as:
+
+```sh
+psyad tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad
+```
+
+In both cases the adjoint of the tangent-linear kernel is written to
+`stdout`.
+
+The Makefile `compile` and `run` targets will eventually build the
+kernel, its adjoint and the test harness and then run the resultant
+code. However, at the moment, the harness generation does not support
+LFRic tangent-linear kernels so these targets do nothing.
+
+## Licence
+
+-----------------------------------------------------------------------------
+
 BSD 3-Clause License
 
 Copyright (c) 2021, Science and Technology Facilities Council.
@@ -31,29 +66,4 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author: R. W. Ford, STFC Daresbury Lab
--->
-
-# PSyAD Examples
-
-This directory contains various examples of the use of PSyAD to
-transform tangent linear code to its adjoint. See the READMEs in the
-individual example directories for further details.
-
-## Example 1
-
-Simple generic tangent linear example which is translated to its
-adjoint form and tested with the harness generation.
-
-## Example 2
-
-An LFRic tangent-linear kernel example which shows how much of this
-code PSyAD can currently translate. The kernel computes the
-tangent-linear of the hydrostatic balance term. It was taken from the
-LFRic repository and has any unsupported code commented out.
-
-The harness generation does not currently support this example as it
-assumes all arguments are real arrays which can be filled with random
-real data, whereas LFRic arguments can include integer arrays and
-these integer arrays may act as lookups into other arrays and
-therefore require non-random integer values.
+------------------------------------------------------------------------------

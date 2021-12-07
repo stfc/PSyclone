@@ -142,6 +142,23 @@ def test_parent_symbol_table():
             str(err.value))
 
 
+def test_symboltable_is_empty():
+    '''Test that a symbol table is correctly flagged as empty/non-empty.
+
+    '''
+    sym_table = SymbolTable()
+    assert sym_table.is_empty() is True
+
+    # Add a symbol so the table is now not empty anymore
+    sym = ContainerSymbol("my_mod")
+    sym_table.add(sym)
+    assert sym_table.is_empty() is False
+
+    # Now remove the symbol again, the table should be empty
+    sym_table.remove(sym)
+    assert sym_table.is_empty() is True
+
+
 def test_next_available_name_1():
     '''Test that the next_available_name method returns names that are not
     already in the symbol table.
@@ -531,6 +548,7 @@ def test_swap_symbol():
 
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
+    # pylint: disable=too-many-statements
 
     symbol1 = DataSymbol("var1", INTEGER_TYPE, constant_value=7)
     symbol2 = DataSymbol("dim1", INTEGER_TYPE,
@@ -1486,18 +1504,59 @@ def test_new_symbol():
             " one of its sub-classes but found" in str(err.value))
 
 
-def test_symbol_from_tag():
-    ''' Tests the SymbolTable symbol_from_tag method '''
+def test_find_or_create():
+    ''' Tests the SymbolTable find_or_create method find existing symbols or
+    otherwise creates a new symbol with the given properties. '''
+    symtab = SymbolTable()
+    existing_symbol = Symbol("existing")
+    symtab.add(existing_symbol, tag="tag1")
+
+    # If the given name exists, return the symbol
+    assert symtab.find_or_create("existing") is existing_symbol
+
+    # If the given name does not exist, create and return new symbol
+    new1 = symtab.find_or_create("new1")
+    assert isinstance(new1, Symbol)
+    assert new1.name == "new1"
+    assert new1 is symtab.find_or_create("new1")  # Which then is found
+
+    # Creating symbols can have parameters passed to the new_symbol method
+    new2 = symtab.find_or_create("new2",
+                                 tag="mytag",
+                                 symbol_type=DataSymbol,
+                                 datatype=INTEGER_TYPE,
+                                 visibility=Symbol.Visibility.PRIVATE,
+                                 constant_value=3)
+    assert new2.name == "new2"
+    assert isinstance(new2, DataSymbol)
+    assert new2.datatype is INTEGER_TYPE
+    assert new2.visibility is Symbol.Visibility.PRIVATE
+    assert new2.constant_value.value == "3"
+    assert symtab.lookup_with_tag("mytag") is new2
+
+    # Check that it fails if the named Symbol exists but is not of the
+    # specified type.
+    with pytest.raises(SymbolError) as err:
+        symtab.find_or_create("new2", symbol_type=RoutineSymbol)
+    assert ("Expected symbol with name 'new2' to be of type 'RoutineSymbol' "
+            "but found type 'DataSymbol'." in str(err.value))
+
+    # TODO #1057: It should also fail the symbol is found but the properties
+    # are different than the requested ones.
+
+
+def test_find_or_create_tag():
+    ''' Tests the SymbolTable find_or_create_tag method '''
     # pylint: disable=unidiomatic-typecheck
     symtab = SymbolTable()
     existing_symbol = Symbol("existing")
     symtab.add(existing_symbol, tag="tag1")
 
     # If the given tag exists, return the symbol name
-    assert symtab.symbol_from_tag("tag1") is existing_symbol
+    assert symtab.find_or_create_tag("tag1") is existing_symbol
 
     # If the tag does not exist, create a new symbol with the tag
-    tag2 = symtab.symbol_from_tag("tag2")
+    tag2 = symtab.find_or_create_tag("tag2")
     assert isinstance(tag2, Symbol)
     assert symtab.lookup_with_tag("tag2") is tag2
     # By default it is a generic symbol with the same name as the tag
@@ -1505,15 +1564,15 @@ def test_symbol_from_tag():
     assert tag2.name == "tag2"
 
     # If the operation is repeated it returns the already created symbol
-    tag2b = symtab.symbol_from_tag("tag2")
+    tag2b = symtab.find_or_create_tag("tag2")
     assert tag2b is tag2
 
     # It can be given additional new_symbol parameters
-    tag3 = symtab.symbol_from_tag("tag3",
-                                  symbol_type=DataSymbol,
-                                  datatype=INTEGER_TYPE,
-                                  visibility=Symbol.Visibility.PRIVATE,
-                                  constant_value=3)
+    tag3 = symtab.find_or_create_tag("tag3",
+                                     symbol_type=DataSymbol,
+                                     datatype=INTEGER_TYPE,
+                                     visibility=Symbol.Visibility.PRIVATE,
+                                     constant_value=3)
     assert symtab.lookup_with_tag("tag3") is tag3
     assert type(tag3) == DataSymbol
     assert tag3.visibility is Symbol.Visibility.PRIVATE
@@ -1521,19 +1580,19 @@ def test_symbol_from_tag():
     assert tag3.constant_value is not None
 
     # It can be given a different root_name
-    tag4 = symtab.symbol_from_tag("tag4", root_name="var")
+    tag4 = symtab.find_or_create_tag("tag4", root_name="var")
     assert symtab.lookup_with_tag("tag4") is tag4
     assert symtab.lookup_with_tag("tag4").name == "var"
 
     # If the given suggested name of an already created tag is different it
     # doesn't matter.
-    tag4b = symtab.symbol_from_tag("tag4", root_name="anothername")
+    tag4b = symtab.find_or_create_tag("tag4", root_name="anothername")
     assert tag4 is tag4b
     assert tag4b.name == "var"
 
     # Check that it fails if the Symbol type is different than expected
     with pytest.raises(SymbolError) as err:
-        symtab.symbol_from_tag("tag3", symbol_type=RoutineSymbol)
+        symtab.find_or_create_tag("tag3", symbol_type=RoutineSymbol)
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
             "but found type 'DataSymbol'." in str(err.value))
 

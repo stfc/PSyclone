@@ -38,18 +38,19 @@
 
 ''' This module contains the SymbolTable implementation. '''
 
+# pylint: disable=too-many-lines
+
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
 import copy
-import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
     ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError
 from psyclone.errors import InternalError
 
 
-class SymbolTable(object):
+class SymbolTable():
     # pylint: disable=too-many-public-methods
     '''Encapsulates the symbol table and provides methods to add new
     symbols and look up existing symbols. Nested scopes are supported
@@ -128,6 +129,14 @@ class SymbolTable(object):
 
         '''
         return self._node
+
+    def is_empty(self):
+        '''
+        :returns: True if the symbol table is empty, and False otherwise.
+        :rtype: bool
+
+        '''
+        return len(self._symbols) == 0
 
     def parent_symbol_table(self, scope_limit=None):
         '''If this symbol table is enclosed in another scope, return the
@@ -339,7 +348,36 @@ class SymbolTable(object):
         self.add(symbol, tag)
         return symbol
 
-    def symbol_from_tag(self, tag, root_name=None, **new_symbol_args):
+    def find_or_create(self, name, **new_symbol_args):
+        ''' Lookup a symbol by its name, if it doesn't exist create a new
+        symbol with the given properties.
+
+        :param str name: name of the symbol to lookup or create.
+        :param new_symbol_args: arguments to create a new symbol.
+        :type new_symbol_args: unwrapped Dict[str, object]
+
+        :raises SymbolError: if the symbol already exists but the type_symbol \
+                             argument does not match the type of the symbol \
+                             found.
+
+        '''
+        try:
+            symbol = self.lookup(name)
+            # Check that the symbol found matches the requested description
+            if 'symbol_type' in new_symbol_args:
+                symbol_type = new_symbol_args['symbol_type']
+                if not isinstance(symbol, new_symbol_args['symbol_type']):
+                    raise SymbolError(
+                        "Expected symbol with name '{0}' to be of type '{1}' "
+                        "but found type '{2}'.".format(
+                            name, symbol_type.__name__, type(symbol).__name__))
+            # TODO #1057: If the symbol is found and some unmatching arguments
+            # were given it should also fail here.
+            return symbol
+        except KeyError:
+            return self.new_symbol(name, **new_symbol_args)
+
+    def find_or_create_tag(self, tag, root_name=None, **new_symbol_args):
         ''' Lookup a tag, if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
         root of the symbol name. Optionally, a different root_name or any of
@@ -417,7 +455,7 @@ class SymbolTable(object):
             symbols = self.get_symbols()
 
         if root_name is not None:
-            if not isinstance(root_name, six.string_types):
+            if not isinstance(root_name, str):
                 raise TypeError(
                     "Argument root_name should be of type str or NoneType but "
                     "found '{0}'.".format(type(root_name).__name__))
@@ -552,7 +590,7 @@ class SymbolTable(object):
         :raises KeyError: if the given name is not in the Symbol Table.
 
         '''
-        if not isinstance(name, six.string_types):
+        if not isinstance(name, str):
             raise TypeError(
                 "Expected the name argument to the lookup() method to be "
                 "a str but found '{0}'."
@@ -585,8 +623,8 @@ class SymbolTable(object):
                             name, symbol.visibility.name, vis_names))
             return symbol
         except KeyError as err:
-            six.raise_from(KeyError("Could not find '{0}' in the Symbol Table."
-                                    "".format(name)), err)
+            raise KeyError("Could not find '{0}' in the Symbol Table."
+                           "".format(name)) from err
 
     def lookup_with_tag(self, tag, scope_limit=None):
         '''Look up a symbol by its tag. The lookup can be limited by
@@ -607,7 +645,7 @@ class SymbolTable(object):
         :raises KeyError: if the given tag is not in the Symbol Table.
 
         '''
-        if not isinstance(tag, six.string_types):
+        if not isinstance(tag, str):
             raise TypeError(
                 "Expected the tag argument to the lookup_with_tag() method "
                 "to be a str but found '{0}'.".format(type(tag).__name__))
@@ -615,9 +653,8 @@ class SymbolTable(object):
         try:
             return self.get_tags(scope_limit)[tag]
         except KeyError as err:
-            six.raise_from(
-                KeyError("Could not find the tag '{0}' in the Symbol Table."
-                         "".format(tag)), err)
+            raise KeyError("Could not find the tag '{0}' in the Symbol Table."
+                           "".format(tag)) from err
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
@@ -780,7 +817,7 @@ class SymbolTable(object):
         except ValueError as err:
             # If the SymbolTable is inconsistent at this point then
             # we have an InternalError.
-            six.raise_from(InternalError(str(err.args)), err)
+            raise InternalError(str(err.args)) from err
         return self._argument_list
 
     @staticmethod
