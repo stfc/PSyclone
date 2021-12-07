@@ -1489,6 +1489,24 @@ def test_new_symbol():
             " one of its sub-classes but found" in str(err.value))
 
 
+def test_new_symbol_with_private_default_visibility():
+    '''Test that the new_symbol method creates method with the appropriate
+    visibility if the symbol table has a PRIVATE default visibility. '''
+
+    symtab = SymbolTable()
+    symtab.default_visibility = Symbol.Visibility.PRIVATE
+
+    # If nothing is specified, use the default symbol table visibility
+    sym = symtab.new_symbol("generic")
+    assert symtab.lookup("generic") is sym
+    assert symtab.lookup("generic").visibility == Symbol.Visibility.PRIVATE
+
+    # If visibility is specified, use the provide value
+    sym = symtab.new_symbol("generic_2", visibility=Symbol.Visibility.PUBLIC)
+    assert symtab.lookup("generic_2") is sym
+    assert symtab.lookup("generic_2").visibility == Symbol.Visibility.PUBLIC
+
+
 def test_find_or_create():
     ''' Tests the SymbolTable find_or_create method find existing symbols or
     otherwise creates a new symbol with the given properties. '''

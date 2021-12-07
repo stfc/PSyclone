@@ -335,6 +335,11 @@ class SymbolTable():
         else:
             symbol_type = Symbol
 
+        # If no visibility parameter has been provided use this symbol's table
+        # default visibility
+        if "visibility" not in symbol_init_args:
+            symbol_init_args["visibility"] = self.default_visibility
+
         available_name = self.next_available_name(root_name, shadowing)
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
@@ -1119,9 +1124,11 @@ class SymbolTable():
         for c_symbol in container_symbols:
             try:
                 external_container = c_symbol.container
-            except SymbolError:
+            # pylint: disable=broad-except
+            except Exception:
                 # Ignore this container if the associated module file has not
-                # been found in the given include_path.
+                # been found in the given include_path or any issue has arised
+                # during parsing.
                 # TODO #11: It would be useful to log this.
                 continue
 
@@ -1162,7 +1169,7 @@ class SymbolTable():
                         # Now we know where the symbol is coming from
                         interface = ImportInterface(c_symbol)
                     elif isinstance(interface, ImportInterface):
-                        if interface.container_symbol is not c_symbol:
+                        if interface.container_symbol.name != c_symbol.name:
                             raise SymbolError(
                                 f"Found a name clash with symbol "
                                 f"'{symbol.name}' when importing symbols from "
