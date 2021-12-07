@@ -131,7 +131,8 @@ class SymbolTable():
         return self._node
 
     def is_empty(self):
-        ''':returns: True if the symbol table is empty, and False otherwise.
+        '''
+        :returns: True if the symbol table is empty, and False otherwise.
         :rtype: bool
 
         '''
