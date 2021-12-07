@@ -78,12 +78,12 @@ class AlgorithmInvokeCall(Call):
 
         if not isinstance(index, int):
             raise TypeError(
-                "AlgorithmInvokeCall index argument should be an int but "
-                "found '{0}'.".format(type(index).__name__))
+                f"AlgorithmInvokeCall index argument should be an int but "
+                f"found '{type(index).__name__}'.")
         if index < 0:
             raise ValueError(
-                "AlgorithmInvokeCall index argument should be a non-negative "
-                "integer but found {0}.".format(index))
+                f"AlgorithmInvokeCall index argument should be a non-negative "
+                f"integer but found {index}.")
         if name and not isinstance(name, str):
             raise TypeError(
                 f"AlgorithmInvokeCall name argument should be a str but "
@@ -126,8 +126,8 @@ class AlgorithmInvokeCall(Call):
         '''
         if not isinstance(arguments, list):
             raise GenerationError(
-                "AlgorithmInvokeCall create arguments argument should be a "
-                "list but found '{0}'.".format(type(arguments).__name__))
+                f"AlgorithmInvokeCall create arguments argument should be a "
+                f"list but found '{type(arguments).__name__}'.")
 
         call = cls(routine, index, name=name)
         call.children = arguments
@@ -166,6 +166,8 @@ class AlgorithmInvokeCall(Call):
 
         :returns: the proposed processed routine name for this invoke.
         :rtype: str
+
+        :raises TypeError: if the name is not valid.
 
         '''
         if self._name:
@@ -215,7 +217,7 @@ class AlgorithmInvokeCall(Call):
         node = nodes[0]
         if isinstance(node, FileContainer):
             node = nodes[1]
-        self.psylayer_container_root_name = "time_smooth" # "psy_{0}".format(node.name)
+        self.psylayer_container_root_name = f"psy_{node.name}"
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
@@ -239,9 +241,9 @@ class AlgorithmInvokeCall(Call):
                         arguments.append(arg.copy())
                 else:
                     raise GenerationError(
-                        "Expected Algorithm-layer kernel arguments to be "
-                        "a literal, reference or array reference, but "
-                        "found '{0}'.".format(type(arg).__name__))
+                        f"Expected Algorithm-layer kernel arguments to be "
+                        f"a literal, reference or array reference, but "
+                        f"found '{type(arg).__name__}'.")
 
         symbol_table = self.scope.symbol_table
 
@@ -281,8 +283,8 @@ class KernelFunctor(Reference):
 
         if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(
-                "KernelFunctor symbol argument should be a DataTypeSymbol but "
-                "found '{0}'.".format(type(symbol).__name__))
+                f"KernelFunctor symbol argument should be a DataTypeSymbol "
+                f"but found '{type(symbol).__name__}'.")
 
     @classmethod
     def create(cls, symbol, arguments):
@@ -302,13 +304,12 @@ class KernelFunctor(Reference):
         '''
         if not isinstance(symbol, DataTypeSymbol):
             raise GenerationError(
-                "KernelFunctor create() symbol argument should be a "
-                "DataTypeSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
+                f"KernelFunctor create() symbol argument should be a "
+                f"DataTypeSymbol but found '{type(symbol).__name__}'.")
         if not isinstance(arguments, list):
             raise GenerationError(
-                "KernelFunctor create() arguments argument should be a list "
-                "but found '{0}'.".format(type(arguments).__name__))
+                f"KernelFunctor create() arguments argument should be a list "
+                f"but found '{type(arguments).__name__}'.")
 
         call = cls(symbol)
         call.children = arguments
@@ -338,8 +339,7 @@ class KernelFunctor(Reference):
         :rtype: str
 
         '''
-        return "{0}[name='{1}']".format(
-            self.coloured_name(colour), self.symbol.name)
+        return f"{self.coloured_name(colour)}[name='{self.symbol.name}']"
 
 
 __all__ = [

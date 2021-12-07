@@ -58,7 +58,7 @@ class InvokeCallTrans(Transformation):
 
     '''
     def __init__(self):
-        super(InvokeCallTrans, self).__init__()
+        super().__init__()
         self._call_name = None
 
     @staticmethod
@@ -148,29 +148,28 @@ class InvokeCallTrans(Transformation):
                     fp2_node.children[0].string.lower() == "name" and
                     isinstance(fp2_node.children[1], Char_Literal_Constant)):
                 raise TransformationError(
-                    "Error in {0} transformation. If there is a named "
-                    "argument, it must take the form name='str', but found "
-                    "'{1}'.".format(self.name, str(fp2_node)))
+                    f"Error in {self.name} transformation. If there is a "
+                    f"named argument, it must take the form name='str', but "
+                    f"found '{str(fp2_node)}'.")
             if self._call_name:
                 raise TransformationError(
-                    "Error in {0} transformation. There should be at most one "
-                    "named argument in an invoke, but there are at least two: "
-                    "{1} and {2}.".format(self.name, self._call_name,
-                                          fp2_node.children[1].string))
+                    f"Error in {self.name} transformation. There should be at "
+                    f"most one named argument in an invoke, but there are at "
+                    f"least two: {self._call_name} and "
+                    f"{fp2_node.children[1].string}.")
             self._call_name = fp2_node.children[1].string
         else:
             raise TransformationError(
-                "Error in {0} transformation. Expecting an algorithm invoke "
-                "codeblock to contain either Structure-Constructor or "
-                "actual-arg-spec, but found '{1}'."
-                "".format(self.name, type(fp2_node).__name__))
+                f"Error in {self.name} transformation. Expecting an algorithm "
+                f"invoke codeblock to contain either Structure-Constructor or "
+                f"actual-arg-spec, but found '{type(fp2_node).__name__}'.")
 
-    def validate(self, call, options=None):
-        '''Validate the call argument.
+    def validate(self, node, options=None):
+        '''Validate the node argument.
 
-        :param call: a PSyIR call node capturing an invoke call in \
+        :param node: a PSyIR call node capturing an invoke call in \
             generic PSyIR.
-        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -185,17 +184,17 @@ class InvokeCallTrans(Transformation):
         '''
         self._call_name = None
 
-        if not isinstance(call, Call):
+        if not isinstance(node, Call):
             raise TransformationError(
-                "Error in {0} transformation. The supplied call argument "
-                "should be a `Call` node but found '{1}'."
-                "".format(self.name, type(call).__name__))
-        if not call.routine.name.lower() == "invoke":
+                f"Error in {self.name} transformation. The supplied call "
+                f"argument should be a `Call` node but found "
+                f"'{type(node).__name__}'.")
+        if not node.routine.name.lower() == "invoke":
             raise TransformationError(
-                "Error in {0} transformation. The supplied call argument "
-                "should be a `Call` node with name 'invoke' but found '{1}'."
-                "".format(self.name, call.routine.name))
-        for arg in call.children:
+                f"Error in {self.name} transformation. The supplied call "
+                f"argument should be a `Call` node with name 'invoke' but "
+                f"found '{node.routine.name}'.")
+        for arg in node.children:
             if isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
@@ -203,10 +202,9 @@ class InvokeCallTrans(Transformation):
                     self._validate_fp2_node(fp2_node)
             else:
                 raise TransformationError(
-                    "Error in {0} transformation. The arguments to this "
-                    "invoke call are expected to be a CodeBlock or an "
-                    "ArrayReference, but found '{1}'."
-                    "".format(self.name, type(arg).__name__))
+                    f"Error in {self.name} transformation. The arguments to "
+                    f"this invoke call are expected to be a CodeBlock or an "
+                    f"ArrayReference, but found '{type(arg).__name__}'.")
 
     def apply(self, call, index, options=None):
         ''' Apply the transformation to the supplied node.

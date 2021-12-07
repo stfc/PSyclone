@@ -243,11 +243,10 @@ def test_aic_defroutinerootname():
     index = 3
     call = AlgorithmInvokeCall(routine, index)
     call.children = [kernel_functor]
-    assert call._def_routine_root_name() == "invoke_{0}_{1}".format(
-        index, symbol_name)
+    assert call._def_routine_root_name() == f"invoke_{index}_{symbol_name}"
 
     call.children.append(kernel_functor.copy())
-    assert call._def_routine_root_name() == "invoke_{0}".format(index)
+    assert call._def_routine_root_name() == f"invoke_{index}"
 
     for name in [" a  description ", "' a__description '",
                  "\" a  description \""]:

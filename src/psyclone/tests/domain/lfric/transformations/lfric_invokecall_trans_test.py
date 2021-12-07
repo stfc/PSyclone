@@ -136,10 +136,10 @@ def test_named_arg_error(string, fortran_reader):
 
     '''
     code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke({0})\n"
-        "end subroutine alg\n".format(string))
+        f"subroutine alg()\n"
+        f"  use kern_mod\n"
+        f"  call invoke({string})\n"
+        f"end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
@@ -147,16 +147,16 @@ def test_named_arg_error(string, fortran_reader):
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
-            "named argument, it must take the form name='str', but found "
-            "'{0}'.".format(string) in str(info.value))
+    assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
+            f"named argument, it must take the form name='str', but found "
+            f"'{string}'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans._validate_fp2_node(
             subroutine[0].children[0]._fp2_nodes[0])
-    assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
-            "named argument, it must take the form name='str', but found "
-            "'{0}'.".format(string) in str(info.value))
+    assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
+            f"named argument, it must take the form name='str', but found "
+            f"'{string}'." in str(info.value))
 
 
 def test_multi_named_arg_error(fortran_reader):

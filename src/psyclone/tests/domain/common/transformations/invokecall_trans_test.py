@@ -188,10 +188,10 @@ def test_named_arg_error(string):
 
     '''
     code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke({0})\n"
-        "end subroutine alg\n".format(string))
+        f"subroutine alg()\n"
+        f"  use kern_mod\n"
+        f"  call invoke({string})\n"
+        f"end subroutine alg\n")
 
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
@@ -200,16 +200,16 @@ def test_named_arg_error(string):
     invoke = psyir.children[0][0]
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert ("Error in InvokeCallTrans transformation. If there is a "
-            "named argument, it must take the form name='str', but found "
-            "'{0}'.".format(string) in str(info.value))
+    assert (f"Error in InvokeCallTrans transformation. If there is a "
+            f"named argument, it must take the form name='str', but found "
+            f"'{string}'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         invoke_trans._validate_fp2_node(
             invoke.children[0]._fp2_nodes[0])
-    assert ("Error in InvokeCallTrans transformation. If there is a "
-            "named argument, it must take the form name='str', but found "
-            "'{0}'.".format(string) in str(info.value))
+    assert (f"Error in InvokeCallTrans transformation. If there is a "
+            f"named argument, it must take the form name='str', but found "
+            f"'{string}'." in str(info.value))
 
 
 def test_multi_named_arg_error():

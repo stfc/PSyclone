@@ -44,14 +44,14 @@ PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Node, Reference
-from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, REAL_TYPE
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
     LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
+    StructureType, REAL_TYPE
 
 
 def create_alg_psyir(code):
@@ -90,7 +90,7 @@ def test_lfricalgorithminvokecall():
 
 def test_validate_child():
     '''Check that the _validate_child method behaves as expected.'''
-    
+
     lfric_kernel_functor = LFRicKernelFunctor(
         DataTypeSymbol("dummy1", REAL_TYPE))
     lfric_builtin_functor = LFRicBuiltinFunctor(
