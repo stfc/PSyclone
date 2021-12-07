@@ -254,6 +254,33 @@ def test_aic_defroutinerootname():
         assert call._def_routine_root_name() == "a__description"
 
 
+def test_aic_defroutineroot_name_error():
+    '''Check that the _def_routine_root_name() internal method raises the
+    expected exception if the supplied name is invalid.
+
+    '''
+    symbol_name = "dummy"
+    kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
+    routine = RoutineSymbol("hello")
+    index = 3
+    call = AlgorithmInvokeCall(routine, index)
+    call.children = [kernel_functor]
+    assert call._def_routine_root_name() == f"invoke_{index}_{symbol_name}"
+
+    call.children.append(kernel_functor.copy())
+    assert call._def_routine_root_name() == f"invoke_{index}"
+
+    for name in ["1name", "name!", "nameʑ", "ʒʓʔʕʗʘʙʚʛʜʝʞ"]:
+        call._name = name
+        with pytest.raises(TypeError) as info:
+            _ = call._def_routine_root_name()
+        print(name)
+        assert (f"AlgorithmInvokeCall:_def_routine_root_name() the (optional) "
+                f"name of an invoke must be a string containing a valid name "
+                f"(with any spaces replaced by underscores) but found "
+                f"'{name}'." in str(info.value))
+
+
 def test_aic_createpsylayersymbolrootnames():
     '''Check that the create_psylayer_symbol_root_names method behaves in
     the expected way, i.e. creates and stores a root name for a

@@ -38,11 +38,11 @@
 
 '''
 from __future__ import absolute_import
+import re
 
-from fparser.two import pattern_tools
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference, Routine, FileContainer
+    ArrayReference, Routine
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
     ImportInterface, RoutineSymbol
 from psyclone.errors import GenerationError
@@ -180,7 +180,8 @@ class AlgorithmInvokeCall(Call):
                 routine_root_name = routine_root_name[1:-1].strip()
             routine_root_name = routine_root_name.replace(" ", "_")
             # Check that the name is a valid routine name
-            if not pattern_tools.abs_name.match(routine_root_name):
+            pattern = re.compile(r"^[a-zA-Z]\w*$", re.ASCII)
+            if not pattern.match(routine_root_name):
                 raise TypeError(
                     f"AlgorithmInvokeCall:_def_routine_root_name() the "
                     f"(optional) name of an invoke must be a string "
@@ -215,8 +216,6 @@ class AlgorithmInvokeCall(Call):
         # the closest ancestor routine instead.
         nodes = self.root.walk(Routine)
         node = nodes[0]
-        if isinstance(node, FileContainer):
-            node = nodes[1]
         self.psylayer_container_root_name = f"psy_{node.name}"
 
     def lower_to_language_level(self):
