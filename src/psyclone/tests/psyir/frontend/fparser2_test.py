@@ -1265,6 +1265,13 @@ def test_process_declarations_kind_use():
     assert fake_parent.symbol_table.lookup("r_def") is \
         var2_var.datatype.precision
 
+    # If we change the symbol_table default visibility, this is respected
+    # by new kind symbols
+    fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    _kind_find_or_create("i_def", fake_parent.symbol_table)
+    assert fake_parent.symbol_table.lookup("i_def").visibility \
+            is Symbol.Visibility.PRIVATE
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_wrong_type_kind_param():

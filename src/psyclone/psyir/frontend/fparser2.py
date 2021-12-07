@@ -576,6 +576,7 @@ def _kind_find_or_create(name, symbol_table):
         # so create one. We specify an UnresolvedInterface as we don't
         # currently know how this symbol is brought into scope.
         kind_symbol = DataSymbol(lower_name, default_integer_type(),
+                                 visibility=symbol_table.default_visibility,
                                  interface=UnresolvedInterface())
         symbol_table.add(kind_symbol)
     return kind_symbol
