@@ -7157,7 +7157,7 @@ def test_kern_const_apply(capsys, monkeypatch):
     # element_order, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
-                                  "quadrature": True})
+                           "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected
