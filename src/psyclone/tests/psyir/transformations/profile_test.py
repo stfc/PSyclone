@@ -603,14 +603,16 @@ def test_multi_prefix_profile(monkeypatch):
             "      CALL tool1_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r0\", 0, 0)\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
+    assert "loop0_stop = mesh%get_last_halo_cell(1)\n"
+    assert "loop2_stop = mesh%get_last_halo_cell(1)\n"
     assert ("      CALL tool1_psy_data%PostEnd\n"
             "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)" in result)
+            "      DO cell=loop0_start,loop0_stop\n" in result)
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      CALL profile_psy_data%PostEnd\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)" in result)
+            "      DO cell=loop2_start,loop2_stop\n" in result)
 
 
 # -----------------------------------------------------------------------------

@@ -1026,7 +1026,10 @@ class HaloExchange(Statement):
         self._vector_index = vector_index
         # Keep a reference to the SymbolTable associated with the
         # InvokeSchedule.
-        self._symbol_table = self.ancestor(InvokeSchedule).symbol_table
+        self._symbol_table = None
+        isched = self.ancestor(InvokeSchedule)
+        if isched:
+            self._symbol_table = isched.symbol_table
 
     @property
     def vector_index(self):

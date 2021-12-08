@@ -127,6 +127,7 @@ def test_field_xyoz(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -323,6 +324,7 @@ def test_face_qr(tmpdir, dist_mem):
         init_output += ("      ! Create a mesh object\n"
                         "      !\n"
                         "      mesh => f1_proxy%vspace%get_mesh()\n"
+                        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
                         "      !\n")
     init_output += (
         "      ! Look-up dofmaps for each function space\n"

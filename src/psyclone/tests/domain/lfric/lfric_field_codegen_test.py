@@ -318,6 +318,7 @@ def test_field_fs(tmpdir):
         "ndf_w2trace, undf_w2trace, ndf_w2htrace, undf_w2htrace, "
         "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
         "undf_any_w2\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -344,6 +345,7 @@ def test_field_fs(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -627,6 +629,7 @@ def test_int_field_fs(tmpdir):
         "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
         "undf_any_w2, ndf_aspc1_f8, undf_aspc1_f8, ndf_adspc1_m7, "
         "undf_adspc1_m7\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -655,6 +658,7 @@ def test_int_field_fs(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -997,6 +1001,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "      ! Create a mesh object\n"
             "      !\n"
             "      mesh => i1_proxy%vspace%get_mesh()\n"
+            "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
             "      !\n")
     output += (
         "      ! Look-up dofmaps for each function space\n"

@@ -182,7 +182,9 @@ def test_loop_gen_code():
 
     # By default DynLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "loop0_start = 1" in gen
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
+    assert "DO cell=loop0_start,loop0_stop" in gen
 
     # Change step to 2
     loop = psy.invokes.get('invoke_important_invoke').schedule[4]
@@ -190,7 +192,7 @@ def test_loop_gen_code():
 
     # Now it is printed in the Fortran DO with the expression  ",2" at the end
     gen = str(psy.gen)
-    assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
+    assert "DO cell=loop0_start,loop0_stop,2" in gen
 
 
 def test_invalid_loop_annotations():
