@@ -64,6 +64,14 @@ class Reference(DataNode):
         super(Reference, self).__init__(parent=parent)
         self.symbol = symbol
 
+    def is_array(self):
+        ''':returns: if this reference is an array.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return False
+
     @property
     def symbol(self):
         ''' Return the referenced symbol.

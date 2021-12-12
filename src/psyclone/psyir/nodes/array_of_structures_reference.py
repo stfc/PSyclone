@@ -129,6 +129,13 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             ref.addchild(child)
         return ref
 
+    def is_array(self):
+        ''':returns: if this reference is an array.
+        :rtype: bool
+
+        '''
+        return True
+
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayOfStructuresReference']

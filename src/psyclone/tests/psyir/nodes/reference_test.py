@@ -104,6 +104,13 @@ def test_reference_children_validation():
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
+def test_reference_is_array():
+    '''Test that a non-array reference is marked as not an array.
+    '''
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    assert reference.is_array() is False
+
+
 def test_reference_accesses():
     '''Test that the reference_accesses method behaves as expected in the
     usual case (see the next test for the unusual case).

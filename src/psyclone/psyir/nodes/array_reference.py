@@ -103,6 +103,13 @@ class ArrayReference(ArrayMixin, Reference):
             result += str(entity) + "\n"
         return result
 
+    def is_array(self):
+        ''':returns: if this reference is an array.
+        :rtype: bool
+
+        '''
+        return True
+
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayReference']
