@@ -766,10 +766,16 @@ class OMPTaskDirective(OMPRegionDirective):
                 if isinstance(lhs, ArrayReference):
                     # FIXME Resolve ArrayReference
                     # We write to this reference, so it is shared and depend
-                    # out on array(variable:end) and other depending on + or -
+                    # out on array(variable) and other depending on + or -
                     # in the indexing
                     sig, indices = lhs.get_signature_and_indices()
                     name = writer(sig)
+                    # Check if this is private in the parent parallel
+                    # region
+                    is_private = (name in parallel_private)
+                    if is_private:
+                        #FIXME Think about what happens if this is declared private
+                        assert False
                     index_strings = []
                     loop_reference = False
                     #FIXME Do something with indices
@@ -780,26 +786,258 @@ class OMPTaskDirective(OMPRegionDirective):
                             index_strings.append(value)
                         elif isinstance(index, Reference):
                             # Refrences also just treated as values
-                            index_strings.append(writer)
+                            index_strings.append(writer(index))
                             if index.symbol == loop_val.symbol:
                                 loop_reference = True
                         elif isinstance(index, BinaryOp):
                             #FIXME BinaryOp have sums, this can be complex
+                            assert False
                             pass
-
-                    pass
+                    # So we have a list of indices [index1, index2, index3] so convert these
+                    # to a depend clause
+                    depend_clause = name + "(" + index_strings.join(", ") + ")"
+                    shared_list.append(name)
+                    out_list.append(depend_clause)
                 elif isinstance(lhs, ArrayOfStructureReference):
                     # FIXME ArrayOfStructureReference
-                    pass
+                    # We write to this reference, so it is shared and depend out on
+                    # array(variable) and other depending on +  or - in the indexing
+                    sig, indices = lhs.get_signature_and_indices()
+                    name = writer(sig)
+                    # Check if this is private in the parent parallel
+                    # region
+                    is_private = (name in parallel_private)
+                    if is_private:
+                        #FIXME Think about what happens if this is declared private
+                        assert False
+                    index_strings = []
+                    loop_reference = False
+                    #FIXME Do something with indices
+                    for index in indices:
+                        if isinstance(index, Literal):
+                            # Literals are just value
+                            value = writer(index)
+                            index_strings.append(value)
+                        elif isinstance(index, Reference):
+                            # Refrences also just treated as values
+                            index_strings.append(writer(index))
+                            if index.symbol == loop_val.symbol:
+                                loop_reference = True
+                        elif isinstance(index, BinaryOp):
+                            #FIXME BinaryOp have sums, this can be complex
+                            assert False
+                            pass
+                    # So we have a list of indices [index1, index2, index3] so convert these
+                    # to a depend clause
+                    depend_clause = name + "(" + index_strings.join(", ") + ")"
+                    shared_list.append(name)
+                    out_list.append(depend_clause)
                 elif isinstance(lhs, StructureReference):
                     #FIXME StructureReference
-                    pass
+                    # We only need the Structure name, this is probably wrong
+                    name = writer(lhs)
+                    is_private = (name in parallel_private)
+                    if not is_private:
+                        shared_list.append(name)
+                        out_list.append(name)
                 elif isinstance(lhs, Reference):
-                    #FIXME Resolve reference
-                    pass
-                # FIXME Resolve assignment
-                
-                # FIXME Do something for rhs
+                    #Resolve reference
+                    name = writer(lhs)
+                    is_private = (name in parallel_private)
+                    if not is_private:
+                        shared_list.append(name)
+                        out_list.append(name)
+
+                # Handle rhs References
+                references = rhs.walk(Reference)
+                for ref in references:
+                    if isinstance(ref, (ArrayReference,
+                                        ArrayOfStructureReference)):
+                        # Resolve ArrayReference (AoSReference)
+                        # Read access array. Find the string representing this
+                        # array
+                        name = writer(ref.symbol)
+                        index_list = []
+                        # Check if this is private in the parent parallel
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # The reference is shared. Since it is an array,
+                            # we need to check the following restrictions:
+                            # 1. No ArrayReference or ArrayOfStructureReference
+                            # or StructureReference appear in the indexing.
+                            # 2. Each index is a firstprivate variable, or a 
+                            # private parent variable that has not yet been
+                            # declared (in which case we declare it as 
+                            # firstprivate). Alternatively each index is
+                            # a BinaryOperation whose children are a
+                            # Reference to a firstprivate variable and a
+                            # Literal, with operator of ADD or SUB
+                            for index in ref.indices:
+                                if type(index) is Reference:
+                                    # Check this is a firstprivate var
+                                    index_name = writer(index.symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif name in firstprivate_list:
+                                            index_list.append(name)
+                                        else:
+                                            firstprivate_list.append(name)
+                                            index_list.append(name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                elif type(index) is BinaryOperation:
+                                    # FIXME Binary Operation check
+                                    if index.operator is not \
+                                       BinaryOperation.ADD and \
+                                       index.operator is not \
+                                       BinaryOperation.SUB:
+                                        raise GenerationError(
+                                            "Binary Operator of type {0} used "
+                                            "as in index inside an "
+                                            "OMPTaskDirective which is not "
+                                            "supported".format(
+                                                index.operator)
+                                    # We have ADD or SUB BinaryOperation
+                                    if type(index.children[0]) is not\
+                                       Reference:
+                                        raise GenerationError(
+                                            "Child 0 of BinaryOperation is of "
+                                            "type {0}, expected Reference when"
+                                            " used as an index inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index.children[0]).
+                                                __name__))
+                                    if type(index.children[1]) is not\
+                                       Literal:
+                                        raise GenerationError(
+                                            "Child 1 of BinaryOperation is of "
+                                            "type {0}, expected Literal when "
+                                            "used as an index inside an "
+                                            "OMPTaskDirective".format(
+                                                type(index.children[1]).
+                                                __name__))
+                                    # Have Reference +/- Literal, analyse
+                                    # and create clause appropriately
+                                    index_name = writer(index.children[0]
+                                                        .symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if index_name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif index_name in firstprivate_list:
+                                            # name +/- stop-start
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                        else:
+                                            firstprivate_list.append(index_name)
+                                            # name +/- stop-start 
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                else:
+                                    # Not allowed type appears
+                                    raise GenerationError(
+                                            "{0} object is not allowed to "
+                                            "appear in an Array Index "
+                                            "expression inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index).__name__)
+                        # Add to in_list: name(index1, index2)
+                        dclause = name + "(" + ",".join(index_list) + ")"
+                        in_list.append(dclause)
+                    elif isinstance(ref, StructureReference):
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
+                    elif isinstance(ref, Reference):
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list.
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
+
             elif isinstance(statement, IfBlock):
                 # FIXME Resolve IfBlock
                 # We only need to look at the If condition (DataNode, child[0])
@@ -808,18 +1046,193 @@ class OMPTaskDirective(OMPRegionDirective):
                 # Find all the References
                 references = condition.walk(Reference)
                 for ref in references:
-                    if isinstance(ref, ArrayReference):
-                        # FIXME Resolve ArrayReference
-                        pass
-                    elif isinstance(ref, ArrayOfStructureReference):
-                        # FIXME ArrayOfStructureReference
-                        pass
+                    if isinstance(ref, (ArrayReference,
+                                        ArrayOfStructureReference)):
+                        # FIXME Resolve ArrayReference (AoSReference)
+                        # Read access array. Find the string representing this
+                        # array
+                        name = writer(ref.symbol)
+                        index_list = []
+                        # Check if this is private in the parent parallel
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # The reference is shared. Since it is an array,
+                            # we need to check the following restrictions:
+                            # 1. No ArrayReference or ArrayOfStructureReference
+                            # or StructureReference appear in the indexing.
+                            # 2. Each index is a firstprivate variable, or a 
+                            # private parent variable that has not yet been
+                            # declared (in which case we declare it as 
+                            # firstprivate). Alternatively each index is
+                            # a BinaryOperation whose children are a
+                            # Reference to a firstprivate variable and a
+                            # Literal, with operator of ADD or SUB
+                            for index in ref.indices:
+                                if type(index) is Reference:
+                                    # Check this is a firstprivate var
+                                    index_name = writer(index.symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif name in firstprivate_list:
+                                            index_list.append(name)
+                                        else:
+                                            firstprivate_list.append(name)
+                                            index_list.append(name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                elif type(index) is BinaryOperation:
+                                    # FIXME Binary Operation check
+                                    if index.operator is not \
+                                       BinaryOperation.ADD and \
+                                       index.operator is not \
+                                       BinaryOperation.SUB:
+                                        raise GenerationError(
+                                            "Binary Operator of type {0} used "
+                                            "as in index inside an "
+                                            "OMPTaskDirective which is not "
+                                            "supported".format(
+                                                index.operator)
+                                    # We have ADD or SUB BinaryOperation
+                                    if type(index.children[0]) is not\
+                                       Reference:
+                                        raise GenerationError(
+                                            "Child 0 of BinaryOperation is of "
+                                            "type {0}, expected Reference when"
+                                            " used as an index inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index.children[0]).
+                                                __name__))
+                                    if type(index.children[1]) is not\
+                                       Literal:
+                                        raise GenerationError(
+                                            "Child 1 of BinaryOperation is of "
+                                            "type {0}, expected Litearl when "
+                                            "used as an index inside an "
+                                            "OMPTaskDirective".format(
+                                                type(index.children[1]).
+                                                __name__))
+                                    # Have Reference +/- Literal, analyse
+                                    # and create clause appropriately
+                                    index_name = writer(index.children[0]
+                                                        .symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if index_name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif index_name in firstprivate_list:
+                                            # name +/- stop-start
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                        else:
+                                            firstprivate_list.append(index_name)
+                                            # name +/- stop-start 
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                else:
+                                    # Not allowed type appears
+                                    raise GenerationError(
+                                            "{0} object is not allowed to "
+                                            "appear in an Array Index "
+                                            "expression inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index).__name__)
+                        # Add to in_list: name(index1, index2)
+                        dclause = name + "(" + ",".join(index_list) + ")"
+                        in_list.append(dclause)
+
                     elif isinstance(ref, StructureReference):
-                        #FIXME StructureReference
-                        pass
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
                     elif isinstance(ref, Reference):
-                        #FIXME Resolve reference
-                        pass
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list.
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
             elif isinstance(statement, Loop):
                 # FIXME Resolve Loop
                 # FIXME Handle Loop variable
@@ -1017,31 +1430,381 @@ class OMPTaskDirective(OMPRegionDirective):
                             if name not in in_list:
                                 in_list.append(name)
                 for ref in stop.walk(Reference):
-                    if isinstance(ref, ArrayReference):
-                        # FIXME Resolve ArrayReference
-                        pass
-                    elif isinstance(ref, ArrayOfStructureReference):
-                        # FIXME ArrayOfStructureReference
-                        pass
+                    if isinstance(ref, (ArrayReference,
+                                        ArrayOfStructureReference)):
+                        # FIXME Resolve ArrayReference (AoSReference)
+                        # Read access array. Find the string representing this
+                        # array
+                        name = writer(ref.symbol)
+                        index_list = []
+                        # Check if this is private in the parent parallel
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # The reference is shared. Since it is an array,
+                            # we need to check the following restrictions:
+                            # 1. No ArrayReference or ArrayOfStructureReference
+                            # or StructureReference appear in the indexing.
+                            # 2. Each index is a firstprivate variable, or a 
+                            # private parent variable that has not yet been
+                            # declared (in which case we declare it as 
+                            # firstprivate). Alternatively each index is
+                            # a BinaryOperation whose children are a
+                            # Reference to a firstprivate variable and a
+                            # Literal, with operator of ADD or SUB
+                            for index in ref.indices:
+                                if type(index) is Reference:
+                                    # Check this is a firstprivate var
+                                    index_name = writer(index.symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif name in firstprivate_list:
+                                            index_list.append(name)
+                                        else:
+                                            firstprivate_list.append(name)
+                                            index_list.append(name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                elif type(index) is BinaryOperation:
+                                    # FIXME Binary Operation check
+                                    if index.operator is not \
+                                       BinaryOperation.ADD and \
+                                       index.operator is not \
+                                       BinaryOperation.SUB:
+                                        raise GenerationError(
+                                            "Binary Operator of type {0} used "
+                                            "as in index inside an "
+                                            "OMPTaskDirective which is not "
+                                            "supported".format(
+                                                index.operator)
+                                    # We have ADD or SUB BinaryOperation
+                                    if type(index.children[0]) is not\
+                                       Reference:
+                                        raise GenerationError(
+                                            "Child 0 of BinaryOperation is of "
+                                            "type {0}, expected Reference when"
+                                            " used as an index inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index.children[0]).
+                                                __name__))
+                                    if type(index.children[1]) is not\
+                                       Literal:
+                                        raise GenerationError(
+                                            "Child 1 of BinaryOperation is of "
+                                            "type {0}, expected Litearl when "
+                                            "used as an index inside an "
+                                            "OMPTaskDirective".format(
+                                                type(index.children[1]).
+                                                __name__))
+                                    # Have Reference +/- Literal, analyse
+                                    # and create clause appropriately
+                                    index_name = writer(index.children[0]
+                                                        .symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if index_name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif index_name in firstprivate_list:
+                                            # name +/- stop-start
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                        else:
+                                            firstprivate_list.append(index_name)
+                                            # name +/- stop-start 
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                else:
+                                    # Not allowed type appears
+                                    raise GenerationError(
+                                            "{0} object is not allowed to "
+                                            "appear in an Array Index "
+                                            "expression inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index).__name__)
+                        # Add to in_list: name(index1, index2)
+                        dclause = name + "(" + ",".join(index_list) + ")"
+                        in_list.append(dclause)
+
                     elif isinstance(ref, StructureReference):
-                        #FIXME StructureReference
-                        pass
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
                     elif isinstance(ref, Reference):
-                        #FIXME Resolve reference
-                        pass
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list.
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
                 for ref in end.walk(Reference):
-                    if isinstance(ref, ArrayReference):
-                        # FIXME Resolve ArrayReference
-                        pass
-                    elif isinstance(ref, ArrayOfStructureReference):
-                        # FIXME ArrayOfStructureReference
-                        pass
+                    if isinstance(ref, (ArrayReference,
+                                        ArrayOfStructureReference)):
+                        # FIXME Resolve ArrayReference (AoSReference)
+                        # Read access array. Find the string representing this
+                        # array
+                        name = writer(ref.symbol)
+                        index_list = []
+                        # Check if this is private in the parent parallel
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # The reference is shared. Since it is an array,
+                            # we need to check the following restrictions:
+                            # 1. No ArrayReference or ArrayOfStructureReference
+                            # or StructureReference appear in the indexing.
+                            # 2. Each index is a firstprivate variable, or a 
+                            # private parent variable that has not yet been
+                            # declared (in which case we declare it as 
+                            # firstprivate). Alternatively each index is
+                            # a BinaryOperation whose children are a
+                            # Reference to a firstprivate variable and a
+                            # Literal, with operator of ADD or SUB
+                            for index in ref.indices:
+                                if type(index) is Reference:
+                                    # Check this is a firstprivate var
+                                    index_name = writer(index.symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif name in firstprivate_list:
+                                            index_list.append(name)
+                                        else:
+                                            firstprivate_list.append(name)
+                                            index_list.append(name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                elif type(index) is BinaryOperation:
+                                    # FIXME Binary Operation check
+                                    if index.operator is not \
+                                       BinaryOperation.ADD and \
+                                       index.operator is not \
+                                       BinaryOperation.SUB:
+                                        raise GenerationError(
+                                            "Binary Operator of type {0} used "
+                                            "as in index inside an "
+                                            "OMPTaskDirective which is not "
+                                            "supported".format(
+                                                index.operator)
+                                    # We have ADD or SUB BinaryOperation
+                                    if type(index.children[0]) is not\
+                                       Reference:
+                                        raise GenerationError(
+                                            "Child 0 of BinaryOperation is of "
+                                            "type {0}, expected Reference when"
+                                            " used as an index inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index.children[0]).
+                                                __name__))
+                                    if type(index.children[1]) is not\
+                                       Literal:
+                                        raise GenerationError(
+                                            "Child 1 of BinaryOperation is of "
+                                            "type {0}, expected Litearl when "
+                                            "used as an index inside an "
+                                            "OMPTaskDirective".format(
+                                                type(index.children[1]).
+                                                __name__))
+                                    # Have Reference +/- Literal, analyse
+                                    # and create clause appropriately
+                                    index_name = writer(index.children[0]
+                                                        .symbol)
+                                    index_private = (index_name in 
+                                                     parallel_private)
+                                    if index_private:
+                                        if index_name in private_list:
+                                            raise GenerationError(
+                                                    "Private variable access "
+                                                    "used as an index inside "
+                                                    "an OMPTaskDirective which"
+                                                    " is not supported.")
+                                        elif index_name in firstprivate_list:
+                                            # name +/- stop-start
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                        else:
+                                            firstprivate_list.append(index_name)
+                                            # name +/- stop-start 
+                                            if index.operator is \
+                                                BinaryOperator.ADD:
+                                                index_name = index_name + ("+({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            else:
+                                                index_name = index_name + ("-({0} - {1})"
+                                                       .format(writer(stop_val)
+                                                           ,writer(start_val)))
+                                            index_list.append(index_name)
+                                    else:
+                                        raise GenerationError(
+                                                "Shared variable access used "
+                                                "as an index inside an "
+                                                "OMPTaskDirective which is not "
+                                                "supported.")
+                                else:
+                                    # Not allowed type appears
+                                    raise GenerationError(
+                                            "{0} object is not allowed to "
+                                            "appear in an Array Index "
+                                            "expression inside an "
+                                            "OMPTaskDirective.".format(
+                                                type(index).__name__)
+                        # Add to in_list: name(index1, index2)
+                        dclause = name + "(" + ",".join(index_list) + ")"
+                        in_list.append(dclause)
+
                     elif isinstance(ref, StructureReference):
-                        #FIXME StructureReference
-                        pass
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list).
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
                     elif isinstance(ref, Reference):
-                        #FIXME Resolve reference
-                        pass
+                        # Read access variable. Find the string representing
+                        # this reference
+                        name = writer(ref.symbol)
+                        # Check if this is private in the parent parallel 
+                        # region
+                        is_private = (name in parallel_private)
+                        # If the reference is private in the parent parallel,
+                        # then it is added to the firstprivate clause for this
+                        # task if it has not yet been written to (i.e. is not
+                        # yet in the private clause list.
+                        if is_private:
+                            if name not in private_list and name not in \
+                                    firstprivate_list:
+                                firstprivate_list.append(name)
+                        else:
+                            # Otherwise it was a shared variable. Its not an
+                            # array so we just add the name to the in_list
+                            # if not already there. If its already in out_list
+                            # we still add it as this is the same as an inout
+                            # dependency
+                            if name not in in_list:
+                                in_list.append(name)
         # FIXME
 
         # Build up the extra clauses.
