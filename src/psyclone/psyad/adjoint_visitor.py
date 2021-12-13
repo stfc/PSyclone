@@ -184,6 +184,12 @@ class AdjointVisitor(PSyIRVisitor):
                 sym = adj_table.lookup(vname)
                 if not sym.is_argument:
                     continue
+                # Ensure that the interface we modify is private to this
+                # symbol.
+                # TODO #1544 how do we ensure that an interface is only
+                # referred to by one symbol?
+                new_interface = sym.interface.copy()
+                sym.interface = new_interface
                 if vname in in_names:
                     if vname in out_names:
                         sym.interface.access = \
