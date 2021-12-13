@@ -51,7 +51,7 @@ this is complete, the PSyIR representation is then written back out as
 code.
 
 If the supplied tangent-linear code contains active variables that are
-passed by argument the the intent of those arguments may change when
+passed by argument then the intent of those arguments may change when
 translating to their adjoint form. The new intents are determined as a
 final step in the visitor for a PSyIR :ref:`Schedule <psyir_schedule>`
 node: dependence analysis is used to identify the way in which each

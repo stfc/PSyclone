@@ -35,7 +35,7 @@
 ! Modified by: R. W. Ford, STFC Daresbury Lab
 
 ! Example module containing a very simple kernel subroutine that
-! contains only assignments.
+! contains assignments within a loop over array elements.
 
 module testkern_mod
   implicit none
