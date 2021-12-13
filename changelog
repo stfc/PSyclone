@@ -41,6 +41,18 @@
 	for equality. Removes math_equal() and 
 	ArrayRange2LoopTrans.string_compare() methods.
 
+	16) PR #1492 for #1457. Adds support for the transformation of Loops	
+	when taking the adjoint of a code.
+
+	17) PR #1520 towards #1504. The Fortran frontend marks class type
+	definitions as UnknownFortranType in the PSyIR.
+
+	18) PR #1522 for #1519. Make the LoopSwapTransformation generic and
+	move it to the psyir.transformations module.
+
+	19) PR #1539 for #1524. Re-enable a previously deleted compilation test
+	due to a compilation error now fixed.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

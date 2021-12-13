@@ -38,6 +38,8 @@
 
 ''' This module contains the SymbolTable implementation. '''
 
+# pylint: disable=too-many-lines
+
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
@@ -127,6 +129,14 @@ class SymbolTable():
 
         '''
         return self._node
+
+    def is_empty(self):
+        '''
+        :returns: True if the symbol table is empty, and False otherwise.
+        :rtype: bool
+
+        '''
+        return len(self._symbols) == 0
 
     def parent_symbol_table(self, scope_limit=None):
         '''If this symbol table is enclosed in another scope, return the
