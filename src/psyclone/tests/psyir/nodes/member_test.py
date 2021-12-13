@@ -46,6 +46,7 @@ def test_member_constructor():
     mem = nodes.Member("fred")
     assert mem.name == "fred"
     assert mem.children == []
+    assert str(mem) == "Member[name:'fred']"
 
 
 def test_member_constructor_errors():
@@ -71,3 +72,17 @@ def test_member_can_be_copied():
     member1._component_name = "name2"
     assert member1.name == "name2"
     assert member.name == "name1"
+
+
+def test_member_is_array():
+    ''' Test that we can check if a member is an array. '''
+    mem = nodes.Member("fred")
+    assert mem.is_array() is False
+
+
+def test_member_get_signature():
+    ''' Test that we can check if a member is an array. '''
+    mem = nodes.Member("fred")
+    signature, indices = mem.get_signature_and_indices()
+    assert str(signature) == "fred"
+    assert indices == [[]]

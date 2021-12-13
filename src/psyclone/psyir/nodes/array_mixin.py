@@ -73,6 +73,14 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
+    def is_array(self):
+        ''':returns: if this instance indicates an array access.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return True
+
     def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the

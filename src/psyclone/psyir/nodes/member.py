@@ -106,6 +106,14 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
+    def is_array(self):
+        ''':returns: if this member is an array.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return False
+
     def get_signature_and_indices(self):
         ''':returns: the Signature of this member access, and a list \
         of list of the indices used for each component, which is empty \
