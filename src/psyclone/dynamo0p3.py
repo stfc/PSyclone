@@ -6449,15 +6449,12 @@ class HaloDepth(object):
         as a string'''
         depth_str = ""
         if self.max_depth:
-            # ARPDBG TODO lookup max_halo_depth_mesh from SymbolTable
             max_depth = self._symbol_table.lookup_with_tag(
                 "max_halo_depth_mesh")
-            #depth_str += "mesh%get_halo_depth()"
             depth_str += max_depth.name
         elif self.max_depth_m1:
             max_depth = self._symbol_table.lookup_with_tag(
                 "max_halo_depth_mesh")
-            #depth_str += "mesh%get_halo_depth()-1"
             depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:

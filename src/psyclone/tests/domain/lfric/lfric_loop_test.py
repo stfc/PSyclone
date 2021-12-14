@@ -51,7 +51,8 @@ from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import (Dynamo0p3ColourTrans,
+                                      Dynamo0p3RedundantComputationTrans)
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -225,6 +226,12 @@ def test_upper_bound_ncolour(monkeypatch, dist_mem):
         assert loops[1]._upper_bound_name == "colour_halo"
         assert (loops[1]._upper_bound_fortran() ==
                 "last_cell_all_colours(colour, 1)")
+        # Apply redundant computation to increase the depth of the access
+        # to the halo.
+        rtrans = Dynamo0p3RedundantComputationTrans()
+        rtrans.apply(loops[1])
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours(colour, max_halo_depth_mesh)")
     else:
         assert loops[1]._upper_bound_name == "ncolour"
         assert (loops[1]._upper_bound_fortran() ==
@@ -248,6 +255,14 @@ def test_upper_bound_ncolour_intergrid(monkeypatch, dist_mem):
         assert loops[1]._upper_bound_name == "colour_halo"
         assert (loops[1]._upper_bound_fortran() ==
                 "last_cell_all_colours_field1(colour, 1)")
+        # We can't apply redundant computation to increase the depth of the
+        # access to the halo as it is not supported for inter-grid kernels.
+        # Therefore we manually unset the upper bound halo depth to indicate
+        # that we access the full depth.
+        loops[1]._upper_bound_halo_depth = None
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours_field1(colour, "
+                "max_halo_depth_mesh_field1)")
     else:
         assert loops[1]._upper_bound_name == "ncolour"
         assert (loops[1]._upper_bound_fortran() ==
