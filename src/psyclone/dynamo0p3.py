@@ -7036,7 +7036,8 @@ class DynLoop(Loop):
             + prev_space_index_str + ")+1"
 
     def _upper_bound_fortran(self):
-        ''' Create the associated fortran code for the type of upper bound
+        ''' Create the Fortran code that gives the appropriate upper bound
+        value for this type of loop.
 
         :return: Fortran code for the upper bound of this loop
         :rtype: str
@@ -7382,71 +7383,86 @@ class DynLoop(Loop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
+    @property
+    def start_expr(self):
+        '''
+        :returns: the PSyIR for the lower bound of this loop.
+        :rtype: :py:class:`psyclone.psyir.Node`
+
+        '''
+        inv_sched = self.ancestor(InvokeSchedule)
+        sym_table = inv_sched.symbol_table
+        loops = inv_sched.loops()
+        posn = loops.index(self)
+        lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
+        return Reference(lbound)
+
+    @property
+    def stop_expr(self):
+        '''
+        :returns: the PSyIR for the upper bound of this loop.
+        :rtype: :py:class:`psyclone.psyir.Node`
+
+        '''
+        inv_sched = self.ancestor(InvokeSchedule)
+        sym_table = inv_sched.symbol_table
+
+        if self._loop_type == "colour":
+            # If this loop is over all cells of a given colour then we
+            # must lookup the loop bound as it depends on the current
+            # colour.
+            parent_loop = self.ancestor(Loop)
+            colour_var = parent_loop.variable
+
+            asym = sym_table.lookup(self.kernel.last_cell_all_colours)
+
+            if Config.get().distributed_memory:
+                if self._upper_bound_halo_depth:
+                    # TODO: #696 Add kind (precision) once the
+                    # DynInvokeSchedule constructor has been extended to
+                    # create the necessary symbols.
+                    halo_depth = Literal(str(self._upper_bound_halo_depth),
+                                         INTEGER_TYPE)
+                else:
+                    # We need to go to the full depth of the halo.
+                    root_name = "mesh"
+                    if self.kernels()[0].is_intergrid:
+                        root_name += f"_{self._field_name}"
+                    depth_sym = sym_table.lookup_with_tag(
+                        f"max_halo_depth_{root_name}")
+                    halo_depth = Reference(depth_sym)
+
+                return ArrayReference.create(asym, [Reference(colour_var),
+                                                    halo_depth])
+            return ArrayReference.create(asym, [Reference(colour_var)])
+        else:
+            # This isn't a 'colour' loop so we have already set-up a
+            # variable that holds the upper bound.
+            loops = inv_sched.loops()
+            posn = loops.index(self)
+            ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
+            return Reference(ubound)
+
     def gen_code(self, parent):
-        '''Work out the appropriate loop bounds and variable name
-        depending on the loop type and then call the base class to
-        generate the code.
+        ''' Call the base class to generate the code and then add any
+        required halo exchanges.
 
         :param parent: an f2pygen object that will be the parent of \
-            f2pygen objects created in this method
+            f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         :raises GenerationError: if a loop over colours is within an \
-            OpenMP parallel region (as it must be serial)
+            OpenMP parallel region (as it must be serial).
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over "
-                                  "colours within an OpenMP "
-                                  "parallel region.")
+            raise GenerationError("Cannot have a loop over colours within an "
+                                  "OpenMP parallel region.")
 
         if self._loop_type != "null":
-            # Generate the upper and lower loop bounds
-            # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
-            # TODO: Issue #696. Add kind (precision) when the support in the
-            #                   Literal class is implemented.
-            inv_sched = self.ancestor(InvokeSchedule)
-            sym_table = inv_sched.symbol_table
-            loops = inv_sched.loops()
-            posn = loops.index(self)
-            lbound = sym_table.lookup_with_tag("loop{0}_start".format(posn))
-            self.start_expr = Reference(lbound)
-
-            if self._loop_type == "colour":
-                # If this loop is over all cells of a given colour then we
-                # must lookup the loop bound as it depends on the current
-                # colour.
-                parent_loop = self.ancestor(Loop)
-                colour_var = parent_loop.variable
-
-                asym = sym_table.lookup(self.kernel.last_cell_all_colours)
-
-                if Config.get().distributed_memory:
-                    if self._upper_bound_halo_depth:
-                        halo_depth = Literal(str(self._upper_bound_halo_depth),
-                                             INTEGER_TYPE)
-                    else:
-                        # We need to go to the full depth of the halo.
-                        root_name = "mesh"
-                        if self.kernels()[0].is_intergrid:
-                            root_name += f"_{self._field_name}"
-                        depth_sym = sym_table.lookup_with_tag(
-                            f"max_halo_depth_{root_name}")
-                        halo_depth = Reference(depth_sym)
-
-                    self.stop_expr = ArrayReference.create(
-                        asym, [Reference(colour_var), halo_depth])
-                else:
-                    self.stop_expr = ArrayReference.create(
-                        asym, [Reference(colour_var)])
-            else:
-                # This isn't a 'colour' loop so we have already set-up a
-                # variable that holds the upper bound.
-                ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
-                self.stop_expr = Reference(ubound)
-
             super(DynLoop, self).gen_code(parent)
         else:
             # This is a 'null' loop and therefore we do not actually generate
@@ -7454,124 +7470,103 @@ class DynLoop(Loop):
             for child in self.loop_body.children:
                 child.gen_code(parent)
 
-        # pylint: disable=too-many-nested-blocks
-        if Config.get().distributed_memory and self._loop_type != "colour":
-            # Set halo clean/dirty for all fields that are modified
-            fields = self.unique_modified_args("gh_field")
+        if not (Config.get().distributed_memory and
+                self._loop_type != "colour"):
+            # No need to add halo exchanges so we are done.
+            return
 
-            if fields:
-                parent.add(CommentGen(parent, ""))
-                if self._loop_type != "null":
-                    prev_node_name = "loop"
+        # Set halo clean/dirty for all fields that are modified
+        fields = self.unique_modified_args("gh_field")
+
+        if not fields:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        if self._loop_type != "null":
+            prev_node_name = "loop"
+        else:
+            prev_node_name = "kernel"
+        parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
+                              f"modified in the above {prev_node_name}"))
+        parent.add(CommentGen(parent, ""))
+        use_omp_master = False
+        if self.is_openmp_parallel():
+            if not self.ancestor(OMPParallelDoDirective):
+                use_omp_master = True
+                # I am within an OpenMP Do directive so protect
+                # set_dirty() and set_clean() with OpenMP Master
+                parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
+
+        sym_table = self.ancestor(InvokeSchedule).symbol_table
+
+        # first set all of the halo dirty unless we are
+        # subsequently going to set all of the halo clean
+        for field in fields:
+            # The HaloWriteAccess class provides information about how the
+            # supplied field is accessed within its parent loop
+            hwa = HaloWriteAccess(field, sym_table)
+            if not hwa.max_depth or hwa.dirty_outer:
+                # output set dirty as some of the halo will not be set to clean
+                if field.vector_size > 1:
+                    # the range function below returns values from 1 to the
+                    # vector size which is what we require in our Fortran code
+                    for index in range(1, field.vector_size+1):
+                        parent.add(CallGen(parent, name=field.proxy_name +
+                                           f"({index})%set_dirty()"))
                 else:
-                    prev_node_name = "kernel"
-                parent.add(
-                    CommentGen(parent, " Set halos dirty/clean for fields "
-                               "modified in the above {0}".format(
-                                   prev_node_name)))
-                parent.add(CommentGen(parent, ""))
-                use_omp_master = False
-                if self.is_openmp_parallel():
-                    if not self.ancestor(OMPParallelDoDirective):
-                        use_omp_master = True
-                        # I am within an OpenMP Do directive so protect
-                        # set_dirty() and set_clean() with OpenMP Master
-                        parent.add(DirectiveGen(parent, "omp", "begin",
-                                                "master", ""))
+                    parent.add(CallGen(parent, name=field.proxy_name +
+                                       "%set_dirty()"))
+        # now set appropriate parts of the halo clean where
+        # redundant computation has been performed
+        for field in fields:
+            # The HaloWriteAccess class provides information about how the
+            # supplied field is accessed within its parent loop
+            hwa = HaloWriteAccess(field, sym_table)
+            if hwa.literal_depth:
+                # halo access(es) is/are to a fixed depth
+                halo_depth = hwa.literal_depth
+                if hwa.dirty_outer:
+                    halo_depth -= 1
+                if halo_depth > 0:
+                    if field.vector_size > 1:
+                        # The range function below returns values from 1 to the
+                        # vector size, as required in our Fortran code.
+                        for index in range(1, field.vector_size+1):
+                            parent.add(CallGen(
+                                parent, name=f"{field.proxy_name}({index})%"
+                                f"set_clean({halo_depth})"))
+                    else:
+                        parent.add(CallGen(
+                            parent, name=f"{field.proxy_name}%set_clean("
+                            f"{halo_depth})"))
+            elif hwa.max_depth:
+                # halo accesses(s) is/are to the full halo
+                # depth (-1 if continuous)
+                halo_depth = sym_table.lookup_with_tag(
+                    "max_halo_depth_mesh").name
 
-                sym_table = self.ancestor(InvokeSchedule).symbol_table
+                if hwa.dirty_outer:
+                    # a continuous field iterating over cells leaves the
+                    # outermost halo dirty
+                    halo_depth += "-1"
+                if field.vector_size > 1:
+                    # the range function below returns values from 1 to the
+                    # vector size which is what we require in our Fortran code
+                    for index in range(1, field.vector_size+1):
+                        call = CallGen(parent,
+                                       name=f"{field.proxy_name}({index})%"
+                                       f"set_clean({halo_depth})")
+                        parent.add(call)
+                else:
+                    call = CallGen(parent, name=f"{field.proxy_name}%"
+                                   f"set_clean({halo_depth})")
+                    parent.add(call)
 
-                # first set all of the halo dirty unless we are
-                # subsequently going to set all of the halo clean
-                for field in fields:
-                    # The HaloWriteAccess class provides information
-                    # about how the supplied field is accessed within
-                    # its parent loop
-                    hwa = HaloWriteAccess(field, sym_table)
-                    if not hwa.max_depth or hwa.dirty_outer:
-                        # output set dirty as some of the halo will
-                        # not be set to clean
-                        if field.vector_size > 1:
-                            # the range function below returns values from
-                            # 1 to the vector size which is what we
-                            # require in our Fortran code
-                            for index in range(1, field.vector_size+1):
-                                parent.add(CallGen(parent,
-                                                   name=field.proxy_name +
-                                                   "(" + str(index) +
-                                                   ")%set_dirty()"))
-                        else:
-                            parent.add(CallGen(parent, name=field.proxy_name +
-                                               "%set_dirty()"))
-                # now set appropriate parts of the halo clean where
-                # redundant computation has been performed
-                for field in fields:
-                    # The HaloWriteAccess class provides information
-                    # about how the supplied field is accessed within
-                    # its parent loop
-                    hwa = HaloWriteAccess(field, sym_table)
-                    if hwa.literal_depth:
-                        # halo access(es) is/are to a fixed depth
-                        halo_depth = hwa.literal_depth
-                        if hwa.dirty_outer:
-                            halo_depth -= 1
-                        if halo_depth > 0:
-                            if field.vector_size > 1:
-                                # the range function below returns
-                                # values from 1 to the vector size
-                                # which is what we require in our
-                                # Fortran code
-                                for index in range(1, field.vector_size+1):
-                                    parent.add(
-                                        CallGen(parent,
-                                                name="{0}({1})%set_clean"
-                                                "({2})".format(
-                                                    field.proxy_name,
-                                                    str(index),
-                                                    halo_depth)))
-                            else:
-                                parent.add(
-                                    CallGen(parent,
-                                            name="{0}%set_clean({1})".
-                                            format(field.proxy_name,
-                                                   halo_depth)))
-                    elif hwa.max_depth:
-                        # halo accesses(s) is/are to the full halo
-                        # depth (-1 if continuous)
-                        # TODO 'mesh' should not be hardwired below
-                        halo_depth = sym_table.lookup_with_tag(
-                            "max_halo_depth_mesh").name
-                        #halo_depth = "mesh%get_halo_depth()"
-                        if hwa.dirty_outer:
-                            # a continuous field iterating over
-                            # cells leaves the outermost halo
-                            # dirty
-                            halo_depth += "-1"
-                        if field.vector_size > 1:
-                            # the range function below returns
-                            # values from 1 to the vector size
-                            # which is what we require in our
-                            # Fortran code
-                            for index in range(1, field.vector_size+1):
-                                call = CallGen(parent,
-                                               name="{0}({1})%set_clean("
-                                               "{2})".format(
-                                                   field.proxy_name,
-                                                   str(index),
-                                                   halo_depth))
-                                parent.add(call)
-                        else:
-                            call = CallGen(parent, name="{0}%set_clean("
-                                           "{1})".format(field.proxy_name,
-                                                         halo_depth))
-                            parent.add(call)
-
-                if use_omp_master:
-                    # I am within an OpenMP Do directive so protect
-                    # set_dirty() and set_clean() with OpenMP Master
-                    parent.add(DirectiveGen(parent, "omp", "end",
-                                            "master", ""))
-                parent.add(CommentGen(parent, ""))
+        if use_omp_master:
+            # I am within an OpenMP Do directive so protect
+            # set_dirty() and set_clean() with OpenMP Master
+            parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
+        parent.add(CommentGen(parent, ""))
 
 
 class DynKern(CodedKern):
