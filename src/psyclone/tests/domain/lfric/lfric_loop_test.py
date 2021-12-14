@@ -51,6 +51,7 @@ from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.transformations import Dynamo0p3ColourTrans
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -206,6 +207,51 @@ def test_upper_bound_inner(monkeypatch):
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
     ubound = my_loop._upper_bound_fortran()
     assert ubound == "mesh%get_last_inner_cell(1)"
+
+
+def test_upper_bound_ncolour(monkeypatch, dist_mem):
+    ''' Check that we get the correct Fortran for the upper bound of a
+    coloured loop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    loops = sched.walk(DynLoop)
+    if dist_mem:
+        assert loops[1]._upper_bound_name == "colour_halo"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours(colour, 1)")
+    else:
+        assert loops[1]._upper_bound_name == "ncolour"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours(colour)")
+
+
+def test_upper_bound_ncolour_intergrid(monkeypatch, dist_mem):
+    ''' Check that we get the correct Fortran for a coloured loop's upper bound
+    if it contains an inter-grid kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    loops = sched.walk(DynLoop)
+    if dist_mem:
+        assert loops[1]._upper_bound_name == "colour_halo"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours_field1(colour, 1)")
+    else:
+        assert loops[1]._upper_bound_name == "ncolour"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours_field1(colour)")
 
 
 def test_dynloop_load_unexpected_func_space():

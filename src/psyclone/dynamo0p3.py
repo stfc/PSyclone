@@ -2031,9 +2031,7 @@ class LFRicMeshProperties(DynCollection):
             else:
                 colour_limits_set["last_cell_all_colours"] = "mesh"
 
-#        needs_colour_limits = any(call.is_coloured() for call in self._calls)
-
-        if not self._properties and not colour_limits_set: #needs_colour_limits:
+        if not self._properties and not colour_limits_set:
             return
 
         parent.add(CommentGen(parent, ""))
@@ -3272,7 +3270,6 @@ class LFRicLoopBounds(DynCollection):
     Handles all variables required for specifying loop limits.
 
     '''
-
     def initialise(self, parent):
         '''
         Updates the f2pygen AST so that all of the variables holding the lower
@@ -7438,10 +7435,9 @@ class DynLoop(Loop):
                         root_name = "mesh"
                         if self.kernels()[0].is_intergrid:
                             root_name += f"_{self._field_name}"
-                        depth_name = sym_table.lookup_with_tag(
-                            f"max_halo_depth_{root_name}").name
-                        # TODO ARPDBG
-                        halo_depth = Literal(depth_name, INTEGER_TYPE)
+                        depth_sym = sym_table.lookup_with_tag(
+                            f"max_halo_depth_{root_name}")
+                        halo_depth = Reference(depth_sym)
 
                     self.stop_expr = ArrayReference.create(
                         asym, [Reference(colour_var), halo_depth])
