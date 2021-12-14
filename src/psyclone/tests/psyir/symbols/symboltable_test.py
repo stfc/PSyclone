@@ -1847,29 +1847,20 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
-            integer :: name_clash1
-        end module a_mod
-        ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
-    with open(filename, "w", encoding='UTF-8') as module:
-        module.write('''
-        module b_mod
             integer :: not_a_name_clash
-            integer :: name_clash1
-            integer :: name_clash2
+            integer :: name_clash
             private not_a_name_clash
-        end module b_mod
+        end module a_mod
         ''')
     psyir = fortran_reader.psyir_from_source('''
         module test_mod
             contains
             subroutine test()
                 use a_mod
-                use b_mod
                 integer :: not_a_name_clash ! because its private in the module
-                integer :: name_clash2
+                integer :: name_clash
 
-                name_clash1 = name_clash2 + not_a_name_clash
+                name_clash = name_clash + not_a_name_clash
             end subroutine test
         end module test_mod
     ''')
@@ -1880,20 +1871,14 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
 
     with pytest.raises(SymbolError) as err:
-        symtab.resolve_imports([symtab.lookup('b_mod')])
-    assert ("Found a name clash with symbol 'name_clash2' when importing "
-            "symbols from container 'b_mod'." in str(err.value))
-
-    with pytest.raises(SymbolError) as err:
         symtab.resolve_imports([symtab.lookup('a_mod')])
-    assert ("Found a name clash with symbol 'name_clash1' when importing "
-            "symbols from container 'a_mod', this symbol was already defined "
-            "in 'b_mod'." in str(err.value))
+    assert ("Found a name clash with symbol 'name_clash' when importing "
+            "symbols from container 'a_mod'." in str(err.value))
 
 
 def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
-    ''' Tests the SymbolTable resolve_imports respects the accessibility statements
-    when importing symbol information from external containers. '''
+    ''' Tests the SymbolTable resolve_imports respects the accessibility
+    statements when importing symbol information from external containers. '''
 
     filename = os.path.join(str(tmpdir), "a_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
@@ -2018,3 +2003,43 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     assert "array" in my_type.components
     assert my_type.components["field"].datatype.intrinsic.name == "INTEGER"
     assert my_type.components["array"].datatype.shape[1].upper.value == "10"
+
+
+@pytest.mark.parametrize('dependency_order', [['a_mod', 'b_mod'],
+                                              ['b_mod', 'a_mod']])
+def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
+                                       dependency_order):
+    ''' Tests the SymbolTable resolve_imports accepts symbols with the same
+    name coming from different dependency paths and keeps the most specific
+    information regardless of the import order. '''
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: common_import
+        end module a_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module b_mod
+            use a_mod, only: common_import
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            use a_mod
+            use b_mod
+
+            common_import = common_import + 1
+        end subroutine test
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    for dependency in dependency_order:
+        symtab.resolve_imports([symtab.lookup(dependency)])
+    assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"

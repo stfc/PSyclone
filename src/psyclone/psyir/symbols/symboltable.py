@@ -1179,35 +1179,34 @@ class SymbolTable():
                         # Now we know where the symbol is coming from
                         interface = ImportInterface(c_symbol)
                     elif isinstance(interface, ImportInterface):
-                        if interface.container_symbol.name != c_symbol.name:
-                            raise SymbolError(
-                                f"Found a name clash with symbol "
-                                f"'{symbol.name}' when importing symbols from "
-                                f"container '{c_symbol.name}', this symbol was"
-                                f" already defined in "
-                                f"'{interface.container_symbol.name}'.")
+                        # If it is already an ImportInterface we don't need
+                        # to update the interface information
+                        pass
                     else:
                         raise SymbolError(
                             f"Found a name clash with symbol '{symbol.name}' "
                             f"when importing symbols from container "
                             f"'{c_symbol.name}'.")
 
-                    # Now copy the external symbol properties, but keep the
-                    # interface and visibility as these are local properties
-                    # pylint: disable=unidiomatic-typecheck
-                    if not type(symbol) == type(symbol_match):
-                        if isinstance(symbol, TypedSymbol):
-                            # All TypedSymbols have a mandatory datatype
-                            # argument
-                            symbol_match.specialise(type(symbol),
-                                                    datatype=symbol.datatype)
-                        else:
-                            symbol_match.specialise(type(symbol))
-                    symbol_match.copy_properties(symbol)
-                    # Restore the interface and visibility as this are local
-                    # (not imported) properties
-                    symbol_match.interface = interface
-                    symbol_match.visibility = visibility
+                    # If the external symbol is a subclass of the local
+                    # symbol_match, copy the external symbol properties,
+                    # otherwise ignore this step.
+                    if isinstance(symbol, type(symbol_match)):
+                        # pylint: disable=unidiomatic-typecheck
+                        if type(symbol) != type(symbol_match):
+                            if isinstance(symbol, TypedSymbol):
+                                # All TypedSymbols have a mandatory datatype
+                                # argument
+                                symbol_match.specialise(
+                                    type(symbol), datatype=symbol.datatype)
+                            else:
+                                symbol_match.specialise(type(symbol))
+
+                        symbol_match.copy_properties(symbol)
+                        # Restore the interface and visibility as this are
+                        # local (not imported) properties
+                        symbol_match.interface = interface
+                        symbol_match.visibility = visibility
 
                     if symbol_target:
                         # If we were looking just for this symbol we don't need
