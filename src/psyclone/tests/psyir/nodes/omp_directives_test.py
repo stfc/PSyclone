@@ -133,6 +133,12 @@ def test_directive_get_private(monkeypatch):
     rtrans.apply(schedule.children[0])
     directive = schedule.children[0]
     assert isinstance(directive, OMPParallelDirective)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot generate the list of
+    # private variables until that is under way. Ultimately this will be
+    # replaced by a `lower_to_language_level` call.
+    # pylint: disable=useless-statement
+    psy.gen
     # Now check that _get_private_list returns what we expect
     pvars = directive._get_private_list()
     assert pvars == ['cell']
