@@ -40,9 +40,12 @@
 # pylint: disable=too-many-lines
 from __future__ import absolute_import
 
+from sympy import Function, Symbol
+
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import NaryOperation, BinaryOperation
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
+                                  Reference)
+from psyclone.psyir.symbols import ScalarType, SymbolTable
 
 
 class SymPyWriter(FortranWriter):
@@ -55,8 +58,26 @@ class SymPyWriter(FortranWriter):
 
     '''
 
-    def __init__(self):
+    def __init__(self, list_of_expressions=None):
         super().__init__()
+
+        self._symbol_table = SymbolTable()
+        if list_of_expressions is None:
+            list_of_expressions = []
+        # This directory keeps track of which expression
+        # are arrays (--> must be declared as a SymPy
+        # function) or non-array (--> must be declared
+        # as a SymPy symbol).
+        self._sympy_type = {}
+        for expr in list_of_expressions:
+            for ref in expr.walk(Reference):
+                name = ref.name
+                self._symbol_table.find_or_create_tag(tag=name, root_name=name)
+                if ref.is_array():
+                    self._sympy_type[name] = Function(name)
+                else:
+                    self._sympy_type[name] = Symbol(name)
+
         self._intrinsic = set()
         self._op_to_str = {}
 
@@ -70,6 +91,54 @@ class SymPyWriter(FortranWriter):
                                  ]:
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str
+
+    def get_sympy_types(self):
+        ''':returns: returns the mapping of symbols in the written
+            PSyIR expressions to SymPy types (Function or Symbol).
+        :rtype: dict of string to SymPy.Symbol or SymPy.Function
+
+        '''
+        return self._sympy_type
+
+    def member_node(self, node):
+        '''In SymPy a structure access `a%b` is handled as the 'MOD'
+        function `MOD(a, b)`. We have therefore make sure that a member
+        access is unique (e.g. `b` could already be a scalar variable).
+        This is done by creating a new name, which replaces the `%`
+        with an `_`. So `a%b` becomes `MOD(a, a_b)`. This makes it easier
+        to see where the function names come from.
+        Additionally, we still need to avoid a name clash, e.g. there
+        could already be a variable `a_b`. This is done by using a symbol
+        table, which was prefilled with all references (`a` in the example
+        above) in the constructor. We use the string with '%' as unique
+        tag and get a new, unqiue symbol from the symbol table based on the
+        new name using `_`. . For example, `a(i)%b` would get the tag
+        `a%b` and might get a symbol name like `a_b`, `a_b_1`, ...
+        '''
+
+        # We need to find the parent reference in order to make a new
+        # name (a%b%c --> a_b_c)
+        parent = node
+        tag = [node.name]
+        while not isinstance(parent, Reference):
+            parent = parent.parent
+            tag.insert(0, parent.name)
+        root_name = "_".join(tag)
+        sig_name = "%".join(tag)
+        new_sym = self._symbol_table.find_or_create_tag(tag=sig_name,
+                                                        root_name=root_name)
+        new_name = new_sym.name
+        if node.is_array():
+            self._sympy_type[new_name] = Function(new_name)
+        else:
+            self._sympy_type[new_name] = Symbol(new_name)
+
+        # Now get the original string that this node produces:
+        original_name = super().member_node(node)
+
+        # And replace the `node.name` (which must be at the beginning since
+        # it is a member) with the new name from the symbol table:
+        return new_name + original_name[len(node.name):]
 
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR

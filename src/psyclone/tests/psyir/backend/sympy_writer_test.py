@@ -37,6 +37,8 @@
 
 from __future__ import print_function, absolute_import
 
+from sympy import Function, Symbol
+
 import pytest
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -136,6 +138,74 @@ def test_sym_writer_functions(fortran_reader, expressions):
                 end program test_prog '''.format(expressions[0])
 
     psyir = fortran_reader.psyir_from_source(source)
-    lit = psyir.children[0].children[0].rhs
+    function = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
-    assert sympy_writer(lit) == expressions[1]
+    assert sympy_writer(function) == expressions[1]
+
+
+@pytest.mark.parametrize("expressions", [("a%x", "a%a_x"),
+                                         ("b(i)%x", "b(i)%b_x"),
+                                         ("a%x(i)", "a%a_x(i)"),
+                                         ("b(j)%x(i)", "b(j)%b_x(i)"),
+                                         ("b(i)%c(b_c)", "b(i)%b_c_1(b_c)"),
+                                         ("a_c + a%c(i)", "a_c + a%a_c_1(i)"),
+                                         ("b(b_c)%c(i)", "b(b_c)%b_c_1(i)"),
+                                         ("b(b_c)%c(i)", "b(b_c)%b_c_1(i)"),
+                                         ("a_b_c + a_b_c_1 + a%b%c",
+                                          "a_b_c + a_b_c_1 + a%a_b%a_b_c_2"),
+                                         ])
+def test_sym_writer_rename_members(fortran_reader, expressions):
+    '''Test that members are converted and get a unique name that
+    does not clash with any other variable used in the expression.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = '''program test_prog
+                use my_mod
+                type(my_type) :: a, b(10)
+                integer :: i, j, x, a_c, b_c, a_b_c, a_b_c_1
+                x = {0}
+                end program test_prog '''.format(expressions[0])
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter(list_of_expressions=[expr])
+    assert sympy_writer(expr) == expressions[1]
+
+
+@pytest.mark.parametrize("expressions", [("a%x", {"a": Symbol("a"),
+                                                  "a_x": Symbol("a_x")}),
+                                         ("a%x(i)", {"a": Symbol("a"),
+                                                     "a_x": Function("a_x"),
+                                                     "i": Symbol("i")}),
+                                         ("b(i)%x(i)", {"b": Function("b"),
+                                                        "b_x": Function("b_x"),
+                                                        "i": Symbol("i")}),
+                                         ("b(b_c)%c(i)",
+                                          {"b": Function("b"),
+                                           "b_c": Symbol("b_c"),
+                                           "b_c_1": Function("b_c_1"),
+                                           "i": Symbol("i")}),
+                                         ])
+def test_sym_writer_symbol_types(fortran_reader, expressions):
+    '''Tests that arrays are detected as SymPy functions, and scalars
+    as SymPy symbols. The expressions parameter contains as first
+    element the expression to parse, and as second element the
+    expected mapping of names to SymPy functions or symbols.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = '''program test_prog
+                use my_mod
+                type(my_type) :: a, b(10)
+                integer :: i, j, x, a_c, b_c, a_b_c, a_b_c_1
+                x = {0}
+                end program test_prog '''.format(expressions[0])
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter(list_of_expressions=[expr])
+    _ = sympy_writer(expr)
+    assert sympy_writer.get_sympy_types() == expressions[1]
