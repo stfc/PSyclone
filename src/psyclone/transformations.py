@@ -2769,7 +2769,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
@@ -2782,6 +2782,9 @@ class ACCEnterDataTrans(Transformation):
                 AccEnterDataDir
         elif isinstance(sched, DynInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
+                AccEnterDataDir
+        elif isinstance(sched, NemoInvokeSchedule):
+            from psyclone.nemo import NemoACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that validate() has done its job
@@ -2802,25 +2805,17 @@ class ACCEnterDataTrans(Transformation):
         :param sched: Schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
-        :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
         super(ACCEnterDataTrans, self).validate(sched, options)
 
         if not isinstance(sched, nodes.Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
-
-        if not isinstance(sched, (GOInvokeSchedule, DynInvokeSchedule)):
-            raise NotImplementedError(
-                "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
-                "a schedule of type {0}".format(type(sched)))
 
         # Check that we don't already have a data region of any sort
         directives = sched.walk(Directive)

@@ -49,7 +49,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Loop, Schedule, Routine
+from psyclone.psyir.nodes import Loop, Schedule, Routine, ACCEnterDataDirective
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import GenerationError
 
@@ -332,3 +332,14 @@ class NemoLoop(Loop):
                     "{0}".format(len(kernels)))
             return kernels[0]
         return None
+
+
+class NemoACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    '''
+    @property
+    def ref_list(self):
+        '''
+        '''
+        variables = []
+        return variables
