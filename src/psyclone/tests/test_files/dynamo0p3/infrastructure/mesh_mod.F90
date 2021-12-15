@@ -272,11 +272,13 @@ module mesh_mod
 
     procedure, public :: get_last_inner_cell
     procedure, public :: get_last_inner_cell_per_colour
+    procedure, public :: get_last_inner_cell_all_colours
 
     procedure, public :: get_num_cells_edge
 
     procedure, public :: get_last_edge_cell
     procedure, public :: get_last_edge_cell_per_colour
+    procedure, public :: get_last_edge_cell_all_colours
 
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
@@ -284,14 +286,17 @@ module mesh_mod
     procedure, public :: get_last_halo_cell_any
     procedure, public :: get_last_halo_cell_deepest
     generic           :: get_last_halo_cell => &
-                            get_last_halo_cell_any, &
-                            get_last_halo_cell_deepest
+                           get_last_halo_cell_any, &
+                           get_last_halo_cell_deepest
 
     procedure, public :: get_last_halo_cell_per_colour_any
     procedure, public :: get_last_halo_cell_per_colour_deepest
     generic           :: get_last_halo_cell_per_colour => &
                             get_last_halo_cell_per_colour_any, &
                             get_last_halo_cell_per_colour_deepest
+
+    procedure, public :: get_last_halo_cell_all_colours
+    procedure, public :: get_last_halo_cell_all_colours_deepest
 
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
@@ -1728,6 +1733,26 @@ contains
 
   end function get_last_inner_cell_per_colour
 
+  !> @brief  Gets the number of cells of all colours for each inner halo
+  !> @return last_inner_cell An array of indices holding the number of cells of each colour
+  !>                         in the partition, up to the specified inner halo
+  !============================================================================
+  function get_last_inner_cell_all_colours( self ) &
+                                           result ( last_inner_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    character(len=*),parameter :: function_name = &
+                                    'get_last_inner_cell_all_colours'
+    integer(i_def), allocatable    :: last_inner_cell(:,:)
+
+    allocate( last_inner_cell( self%ncolours, self%get_inner_depth() ) )
+
+    last_inner_cell = self%last_inner_cell_per_colour
+
+  end function get_last_inner_cell_all_colours
+
   !> Get the number of edge cells from the partition object
   !> @return edge_cells The total number of edge cells on the
   !> local partition
@@ -1781,6 +1806,25 @@ contains
     last_edge_cell = self%last_edge_cell_per_colour(colour)
 
   end function get_last_edge_cell_per_colour
+
+  !> @brief  Gets the indices of the last edge cell in a 2d slice on the local
+  !>         partition for all colours
+  !> @return last_edge_cell An array of indices of the last of "edge" cell on
+  !>         the local partition for all colours
+  !============================================================================
+  function get_last_edge_cell_all_colours( self ) &
+                                        result ( last_edge_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), allocatable :: last_edge_cell(:)
+
+    allocate( last_edge_cell( self%ncolours ) )
+
+    last_edge_cell = self%last_edge_cell_per_colour
+
+  end function get_last_edge_cell_all_colours
 
   !> @details Returns the maximum depth of the halo from the partition object
   !> @return  The maximum depth of halo cells
@@ -1867,6 +1911,26 @@ contains
 
   end function get_last_halo_cell_per_colour_any
 
+  !> @brief  Gets the number of cells of each colour for all halos
+  !> @return ncells_colour The number cells in the partition up
+  !>         to each halo depth for all colours
+  !============================================================================
+  function get_last_halo_cell_all_colours( self ) &
+                                          result ( ncells )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    character(len=*),parameter :: function_name = &
+                                    'get_last_halo_cell_all_colours'
+    integer(i_def),allocatable :: ncells(:,:)
+
+    allocate( ncells( self%ncolours, self%get_halo_depth() ) )
+
+    ncells = self%last_halo_cell_per_colour
+
+  end function get_last_halo_cell_all_colours
+
   !> @brief  Gets the number of cells of a given colour in the partition
   !> @param[in] colour Colour of cells to return number of
   !> @return ncells_colour The number of this coloured cells in the partition
@@ -1888,6 +1952,23 @@ contains
     ncells_colour = self%ncells_per_colour(colour)
 
   end function get_last_halo_cell_per_colour_deepest
+
+  !> @brief  Gets the number of cells of each colour in the partition
+  !> @return ncells_colour The number of cells in the partition for each colour
+  !============================================================================
+  function get_last_halo_cell_all_colours_deepest( self ) &
+                                            result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), allocatable    :: ncells_colour(:)
+
+    allocate( ncells_colour( self%ncolours ) )
+
+    ncells_colour = self%ncells_per_colour
+
+  end function get_last_halo_cell_all_colours_deepest
 
   !> @brief  Initialises the index of the last cell in various specified regions
   !>         for each colour

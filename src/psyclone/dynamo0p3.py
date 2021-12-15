@@ -2019,19 +2019,13 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        colour_limits_set = {}
+        need_colour_limits = False
         for call in self._calls:
-            if not call.is_coloured():
-                continue
-            if call.is_intergrid:
-                colour_limits_set[self._invoke.meshes.intergrid_kernels[
-                        call].last_cell_var] = "mesh_" + \
-                            self._invoke.meshes.intergrid_kernels[
-                                call].coarse.name
-            else:
-                colour_limits_set["last_cell_all_colours"] = "mesh"
+            if call.is_coloured() and not call.is_intergrid:
+                need_colour_limits = True
+                break
 
-        if not self._properties and not colour_limits_set:
+        if not self._properties and not need_colour_limits:
             return
 
         parent.add(CommentGen(parent, ""))
@@ -2064,18 +2058,14 @@ class LFRicMeshProperties(DynCollection):
                     "MeshProperty Enum are permitted "
                     "({1})".format(str(prop), list(MeshProperty)))
 
-        if colour_limits_set:
-            for last_cell_tag, mesh_tag in colour_limits_set.items():
-                lhs = self._symbol_table.find_or_create_tag(last_cell_tag).name
-                mesh = self._symbol_table.find_or_create_tag(mesh_tag).name
-                if Config.get().distributed_memory:
-                    parent.add(AssignGen(
-                        parent, lhs=lhs,
-                        rhs=mesh+"%get_last_halo_cell_all_colours()"))
-                else:
-                    parent.add(AssignGen(
-                        parent, lhs=lhs,
-                        rhs=mesh+"%get_last_edge_cell_all_colours()"))
+        if need_colour_limits:
+            lhs = self._symbol_table.find_or_create_tag(
+                "last_cell_all_colours").name
+            if Config.get().distributed_memory:
+                rhs = mesh + "%get_last_halo_cell_all_colours()"
+            else:
+                rhs = mesh + "%get_last_edge_cell_all_colours()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
 class DynReferenceElement(DynCollection):
@@ -3948,23 +3938,20 @@ class DynMeshes(object):
                 datatype=array_type_2d).name
             # No. of colours
             base_name = "ncolour_" + carg_name
-            ncolours = \
-                self._schedule.symbol_table.find_or_create_tag(
-                    base_name, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE).name
+            ncolours = self._schedule.symbol_table.find_or_create_tag(
+                base_name, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE).name
             # Array holding the last halo or edge cell of a given colour
             # and halo depth.
             base_name = "last_cell_all_colours_" + carg_name
             if Config.get().distributed_memory:
-                last_cell = \
-                    self._schedule.symbol_table.find_or_create_tag(
-                        base_name, symbol_type=DataSymbol,
-                        datatype=array_type_2d).name
+                last_cell = self._schedule.symbol_table.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type_2d).name
             else:
-                last_cell = \
-                    self._schedule.symbol_table.find_or_create_tag(
-                        base_name, symbol_type=DataSymbol,
-                        datatype=array_type_1d).name
+                last_cell = self._schedule.symbol_table.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type_1d).name
             # Add these names into the dictionary entry for this
             # inter-grid kernel
             self._ig_kernels[call].colourmap = colour_map
@@ -3980,17 +3967,13 @@ class DynMeshes(object):
             # No. of colours
             ncolours = self._schedule.symbol_table.find_or_create_tag(
                 "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-            root_name = "last_cell_all_colours"
             if Config.get().distributed_memory:
-                self._symbol_table.new_symbol(root_name=root_name,
-                                              tag=root_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=array_type_2d)
+                dtype = array_type_2d
             else:
-                self._symbol_table.new_symbol(root_name=root_name,
-                                              tag=root_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=array_type_1d)
+                dtype = array_type_1d
+            self._symbol_table.find_or_create_tag("last_cell_all_colours",
+                                                  symbol_type=DataSymbol,
+                                                  datatype=dtype)
 
     def declarations(self, parent):
         '''
@@ -4060,11 +4043,17 @@ class DynMeshes(object):
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var]))
+                decln = kern.last_cell_var
+                if Config.get().distributed_memory:
+                    # If DM is enabled then the cell-count array is 2D because
+                    # it has a halo-depth dimension.
+                    decln += "(:,:)"
+                else:
+                    decln += "(:)"
                 parent.add(
-                    DeclGen(parent, datatype="integer",
-                            allocatable=True,
+                    DeclGen(parent, datatype="integer", allocatable=True,
                             kind=api_config.default_kind["integer"],
-                            entity_decls=[kern.last_cell_var+"(:,:)"]))
+                            entity_decls=[decln]))
 
         if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
@@ -4255,9 +4244,9 @@ class DynMeshes(object):
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
                 if Config.get().distributed_memory:
-                    name = "%get_last_edge_cell_all_colours()"
-                else:
                     name = "%get_last_halo_cell_all_colours()"
+                else:
+                    name = "%get_last_edge_cell_all_colours()"
                 parent.add(AssignGen(parent, lhs=dig.last_cell_var,
                                      rhs=coarse_mesh + name))
 
@@ -7408,9 +7397,8 @@ class DynLoop(Loop):
         sym_table = inv_sched.symbol_table
 
         if self._loop_type == "colour":
-            # If this loop is over all cells of a given colour then we
-            # must lookup the loop bound as it depends on the current
-            # colour.
+            # If this loop is over all cells of a given colour then we must
+            # lookup the loop bound as it depends on the current colour.
             parent_loop = self.ancestor(Loop)
             colour_var = parent_loop.variable
 
