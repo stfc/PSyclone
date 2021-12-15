@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import pytest
 import fparser
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
@@ -51,9 +52,9 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
-    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
+    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
@@ -1029,6 +1030,16 @@ def test_process_not_supported_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
                       UnknownFortranType)
+
+    reader = FortranStringReader("class(my_type), intent(in) :: carg")
+    # Set reader to free format (otherwise this is a comment in fixed format)
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("carg")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert (sym.datatype.declaration.lower() ==
+            "class(my_type), intent(in) :: carg")
 
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
