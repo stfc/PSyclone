@@ -1508,7 +1508,7 @@ def test_new_symbol():
 
 
 def test_new_symbol_with_private_default_visibility():
-    '''Test that the new_symbol method creates method with the appropriate
+    '''Test that the new_symbol method creates a symbol with the appropriate
     visibility if the symbol table has a PRIVATE default visibility. '''
 
     symtab = SymbolTable()

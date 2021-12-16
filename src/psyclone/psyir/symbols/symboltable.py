@@ -345,7 +345,7 @@ class SymbolTable():
         else:
             symbol_type = Symbol
 
-        # If no visibility parameter has been provided use this symbol's table
+        # If no visibility parameter has been provided use this symbol table's
         # default visibility
         if "visibility" not in symbol_init_args:
             symbol_init_args["visibility"] = self.default_visibility
@@ -1090,7 +1090,7 @@ class SymbolTable():
         referred external container. A single symbol to resolve can be
         specified for a more targeted import.
 
-        :param container_symbols: list of container symbols to search in
+        :param container_symbols: list of container symbols to search in \
             order to resolve imported symbols. Defaults to all container \
             symbols in the symbol table.
         :type container_symbols: list of \
