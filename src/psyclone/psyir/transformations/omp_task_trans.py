@@ -39,8 +39,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop, Schedule, \
-    OMPDoDirective, OMPTaskloopDirective, OMPSerialDirective, \
-    OMPTaskwaitDirective, OMPSingleDirective, OMPParallelDirective
+    OMPDoDirective, OMPTaskDirective, OMPSerialDirective, \
+    OMPSingleDirective, OMPParallelDirective
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
@@ -53,12 +53,16 @@ class OMPTaskTrans(Transformation):
         '''
         Validity checks for input arguments.
 
-        :param node: the OMPParallelDirective node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
+        :param node: the Loop node to validate.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
         '''
-        # TODO
+        # Disallow CodeBlocks inside the region
+        if node.walk(CodeBlock) != []:
+            raise GenerationError(
+                "OMPTaskDirective cannot be applied to a region containing "
+                "a code block")
         super(Transformation).validate(node, options)
 
     def _directive(self, children):
@@ -74,7 +78,8 @@ class OMPTaskTrans(Transformation):
         :rtype: :py:class:`psyclone.psyGen.OMPTaskDirective`
 
         '''
-        pass
+        _directive = OMPTaskDirective(children=children)
+        return _directive
 
     def apply(self, node, options=None):
         '''Apply the OMPTaskTrans to the specified node in a Schedule.
@@ -101,4 +106,6 @@ class OMPTaskTrans(Transformation):
                         and validation.
         :type options: dictionary of string:values or None
         '''
-        pass
+        if not options:
+            options = {}
+        super(OMPTaskTrans, self).apply(node, options)
