@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''

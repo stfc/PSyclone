@@ -103,12 +103,11 @@ class LoopSwapTrans(LoopTrans):
         super().validate(node_outer, options=options)
 
         if not node_outer.loop_body or not node_outer.loop_body.children:
-            raise TransformationError("Error in LoopSwap transformation. "
-                                      "Supplied node '{0}' must be the outer "
-                                      "loop of a loop nest and must have one "
-                                      "inner loop, but this node does not "
-                                      "have any statements inside."
-                                      .format(node_outer))
+            raise TransformationError(
+                f"Error in LoopSwap transformation. Supplied node "
+                f"'{node_outer}' must be the outer loop of a loop nest and "
+                f"must have one inner loop, but this node does not have any "
+                f"statements inside.")
 
         node_inner = node_outer.loop_body[0]
 
@@ -116,21 +115,20 @@ class LoopSwapTrans(LoopTrans):
         try:
             super().validate(node_inner, options=options)
         except TransformationError as err:
-            raise TransformationError("Error in LoopSwap transformation. "
-                                      "Supplied node '{0}' must be the outer "
-                                      "loop of a loop nest but the first "
-                                      "inner statement is not a valid loop:\n"
-                                      "{1}.".format(node_outer,
-                                                    str(err.value))) from err
+            raise TransformationError(
+                f"Error in LoopSwap transformation. Supplied node "
+                f"'{node_outer}' must be the outer loop of a loop nest but "
+                f"the first inner statement is not a valid loop:\n"
+                f"{err.value}.") from err
 
         if len(node_outer.loop_body.children) > 1:
             raise TransformationError(
-                "Error in LoopSwap transformation. Supplied node '{0}' must"
-                " be the outer loop of a loop nest and must have exactly one "
-                "inner loop, but this node has {1} inner statements, the "
-                "first two being '{2}' and '{3}'."
-                "".format(node_outer, len(node_outer.loop_body.children),
-                          node_outer.loop_body[0], node_outer.loop_body[1]))
+                f"Error in LoopSwap transformation. Supplied node "
+                f"'{node_outer}' must be the outer loop of a loop nest and "
+                f"must have exactly one inner loop, but this node has "
+                f"{len(node_outer.loop_body.children)} inner statements, the "
+                f"first two being '{node_outer.loop_body[0]}' and "
+                f"'{node_outer.loop_body[1]}'.")
 
         outer_sched = node_outer.loop_body
         if outer_sched.symbol_table and \

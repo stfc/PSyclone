@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
@@ -75,7 +76,7 @@ class ChunkLoopTrans(LoopTrans):
             integer :: ji_el_inner
             integer :: ji_out_var
             do ji_out_var = 1, 100, 32
-                ji_el_inner = MIN(ji_out_var + 32, 100)
+                ji_el_inner = MIN(ji_out_var + (32 - 1), 100)
                 do ji = ji_out_var, ji_el_inner, 1
                     tmp(ji) = 2 * ji
                 enddo
@@ -116,26 +117,22 @@ class ChunkLoopTrans(LoopTrans):
             options = {}
         if not isinstance(node.children[2], nodes.Literal):
             # If step is a variable we don't support it.
-            raise TransformationError("Cannot apply a ChunkLoopTrans to "
-                                      "a loop with a non-literal step size, "
-                                      "but a step expression node of type "
-                                      "'{0}' was found."
-                                      .format(type(node).__name__))
+            raise TransformationError(
+                f"Cannot apply a ChunkLoopTrans to a loop with a non-literal "
+                f"step size, but a step expression node of type "
+                f"'{type(node).__name__}' was found.")
         if node.children[2].datatype.intrinsic is not \
            ScalarType.Intrinsic.INTEGER:
-            raise TransformationError("Cannot apply a ChunkLoopTrans to a "
-                                      "loop with a non-integer step size, "
-                                      "but a step expression of type '{0}' "
-                                      "was found."
-                                      .format(node.children[2].
-                                              datatype.intrinsic.name))
+            raise TransformationError(
+                f"Cannot apply a ChunkLoopTrans to a loop with a non-integer "
+                f"step size, but a step expression of type "
+                f"'{node.children[2].datatype.intrinsic.name}' was found.")
         chunk_size = options.get("chunksize", 32)
         if abs(int(node.children[2].value)) > abs(chunk_size):
-            raise TransformationError("Cannot apply a ChunkLoopTrans to "
-                                      "a loop with larger step size ({0}) "
-                                      "than the chosen chunk size ({1})."
-                                      .format(node.children[2].value,
-                                              chunk_size))
+            raise TransformationError(
+                f"Cannot apply a ChunkLoopTrans to a loop with larger step "
+                f"size ({node.children[2].value}) than the chosen chunk size "
+                f"({chunk_size}).")
         if 'chunked' in node.annotations:
             raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "an already chunked loop.")
@@ -179,11 +176,10 @@ class ChunkLoopTrans(LoopTrans):
 
             # If access2 is a write then we write to a loop variable
             if access2.is_written():
-                raise TransformationError("Cannot apply a ChunkLoopTrans "
-                                          "to this loop because the boundary "
-                                          "variable '{0}' is written to "
-                                          "inside the loop body.".format(
-                                              access2.signature.var_name))
+                raise TransformationError(
+                    f"Cannot apply a ChunkLoopTrans to this loop because "
+                    f"the boundary variable '{access2.signature.var_name}' "
+                    f"is written to inside the loop body.")
 
     def apply(self, node, options=None):
         '''
@@ -207,11 +203,11 @@ class ChunkLoopTrans(LoopTrans):
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
         end_inner_loop = routine.symbol_table.find_or_create_tag(
-                "{0}_el_inner".format(node.variable.name),
+                f"{node.variable.name}_el_inner",
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
         outer_loop_variable = routine.symbol_table.find_or_create_tag(
-                "{0}_out_var".format(node.variable.name),
+                f"{node.variable.name}_out_var",
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
         # We currently don't allow ChunkLoops to be ancestors of ChunkLoop
@@ -262,7 +258,7 @@ class ChunkLoopTrans(LoopTrans):
         outerloop = Loop(variable=outer_loop_variable,
                          valid_loop_types=node.valid_loop_types)
         outerloop.children = [start, stop,
-                              Literal("{0}".format(chunk_size),
+                              Literal(f"{chunk_size}",
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
                                        children=[inner_loop_end])]
