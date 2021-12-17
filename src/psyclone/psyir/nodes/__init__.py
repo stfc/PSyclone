@@ -83,7 +83,8 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
-    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective
+    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
+    OMPTaskDirective
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause
@@ -152,6 +153,7 @@ __all__ = [
         'OMPSingleDirective',
         'OMPMasterDirective',
         'OMPTaskloopDirective',
+        'OMPTaskDirective',
         'OMPDoDirective',
         'OMPParallelDoDirective',
         'OMPTaskwaitDirective',

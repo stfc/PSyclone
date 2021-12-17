@@ -51,7 +51,10 @@ from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
-from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Reference, Assignment, IfBlock, Loop, \
+                                 ArrayReference, ArrayOfStructuresReference, \
+                                 StructureReference, Literal
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
@@ -666,17 +669,11 @@ class OMPTaskDirective(OMPRegionDirective):
                 "OMPTaskDirective must be inside an OMP Serial region "
                 "but could not find an ancestor node")
 
-        # FIXME Move to transformation
-        if node.walk(CodeBlock) != []:
-            raise GenerationError(
-                "OMPTaskDirective cannot be applied to a region containing "
-                "a code block")
-
     @classmethod
     def handle_readonly_reference(ref, firstprivate_list, private_list,
                                   shared_list, in_list, out_list,
                                   parallel_private, start_val, stop_val,
-                                  step_val)
+                                  step_val):
         '''
         Process a read-only reference inside the OMP Task Region. Adds the
         Reference str to the appropriate lists for building up clauses.
@@ -710,8 +707,9 @@ class OMPTaskDirective(OMPRegionDirective):
 
         FIXME Raises docstring
         '''
+        from psyclone.psyir.backend.fortran import FortranWriter
         if isinstance(ref, (ArrayReference,
-                            ArrayOfStructureReference)):
+                            ArrayOfStructuresReference)):
             # Resolve ArrayReference (AoSReference)
             # Read access array. Find the string representing this
             # array
@@ -731,7 +729,7 @@ class OMPTaskDirective(OMPRegionDirective):
             else:
                 # The reference is shared. Since it is an array,
                 # we need to check the following restrictions:
-                # 1. No ArrayReference or ArrayOfStructureReference
+                # 1. No ArrayReference or ArrayOfStructuresReference
                 # or StructureReference appear in the indexing.
                 # 2. Each index is a firstprivate variable, or a 
                 # private parent variable that has not yet been
@@ -777,7 +775,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                 "appear in an Array Index "
                                 "expression inside an "
                                 "OMPTaskDirective.".format(
-                                    type(index).__name__)
+                                    type(index).__name__))
             # Add to in_list: name(index1, index2)
             dclause = name + "(" + ",".join(index_list) + ")"
             in_list.append(dclause)
@@ -863,6 +861,7 @@ class OMPTaskDirective(OMPRegionDirective):
         :raises GenerationError: If the child Reference is a private variable.
         :raises GenerationError: If the child Reference is a shared variable.
         '''
+        from psyclone.psyir.backend.fortran import FortranWriter
         # Binary Operation check
         if node.operator is not \
            BinaryOperation.ADD and \
@@ -873,10 +872,10 @@ class OMPTaskDirective(OMPRegionDirective):
                 "as in index inside an "
                 "OMPTaskDirective which is not "
                 "supported".format(
-                    node.operator)
+                    node.operator))
         # We have ADD or SUB BinaryOperation
-        if not (type(node.children[0]) is \
-           Reference and type(node.children[1] is\
+        if not( (type(node.children[0]) is \
+           Reference and type(node.children[1]) is\
            Literal) or (type(node.children[0])\
            is Literal and type(node.children[1])\
            is Reference)):
@@ -942,18 +941,11 @@ class OMPTaskDirective(OMPRegionDirective):
                     "OMPTaskDirective which is not "
                     "supported.")
 
-    def gen_code(self, parent):
+    def compute_clauses(self):
         '''
-        Generate the f2pygen AST entries in the Schedule for this OpenMP
-        taskloop directive.
-
-        :param parent: the parent Node in the Schedule to which to add our \
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-
+        TODO
         '''
-        self.validate_global_constraints()
-        clause_list = []
+        from psyclone.psyir.backend.fortran import FortranWriter
         private_list = []
         firstprivate_list = []
         shared_list = []
@@ -966,11 +958,13 @@ class OMPTaskDirective(OMPRegionDirective):
 
         # TODO Generate extra clauses
         # Find the parent Loop node
-        parent = self.ancestor(Loop)
+        parent_loop = self.ancestor(Loop)
 
         # Find the parent OMPParallelDirective
         parallel_directive = self.ancestor(OMPParallelDirective)
         parallel_private = parallel_directive._get_private_list()
+
+        node = self.children[0].children[0]
 
         # Find our loop initialisation, variable and bounds
         loop_var = node.variable
@@ -983,7 +977,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # FIXME Handle reduction variables
 
         # Loop variable is private
-        private_list.append(writer(loop_var))
+        private_list.append(loop_var.name)
 
         # Any variables used in start_val, stop_val or step_val are firstprivate
         # Get the References used for initialisation
@@ -993,7 +987,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # TODO Do we worry about array references here? For now we don't allow
         # array references or ArrayOfStruct references
         for ref in start_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructureReference)):
+            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError("{0} not yet supported in the start "
                                       "variable of the primary Loop in a "
                                       "OMPTaskDirective node.".format(
@@ -1004,7 +998,7 @@ class OMPTaskDirective(OMPRegionDirective):
 
         stop_val_refs = stop_val.walk(Reference)
         for sig in stop_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructureReference)):
+            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError("{0} not yet supported in the stop "
                                       "variable of the primary Loop in a "
                                       "OMPTaskDirective node.".format(
@@ -1015,8 +1009,8 @@ class OMPTaskDirective(OMPRegionDirective):
 
         
         step_val_refs = step_val.walk(Reference)
-        for sig in step_val_sigs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructureReference)):
+        for sig in step_val_refs:
+            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError("{0} not yet supported in the step "
                                       "variable of the primary Loop in a "
                                       "OMPTaskDirective node.".format(
@@ -1026,7 +1020,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 firstprivate_list.append(name)
 
         # Look through the schedule and work out data sharing clauses.
-        statements = schedule.walk((Assignment, IfBlock, Loops))
+        statements = schedule.walk((Assignment, IfBlock, Loop))
         for statement in statements:
             if isinstance(statement, Assignment):
                 lhs = statement.children[0]
@@ -1038,7 +1032,7 @@ class OMPTaskDirective(OMPRegionDirective):
                     # out on array(variable) and other depending on + or -
                     # in the indexing
                     sig, indices = lhs.get_signature_and_indices()
-                    name = writer(sig)
+                    name = str(sig)
                     # Check if this is private in the parent parallel
                     # region
                     is_private = (name in parallel_private)
@@ -1058,7 +1052,7 @@ class OMPTaskDirective(OMPRegionDirective):
                             index_strings.append(writer(index))
                             if index.symbol == loop_val.symbol:
                                 loop_reference = True
-                        elif isinstance(index, BinaryOp):
+                        elif isinstance(index, BinaryOperation):
                             OMPTaskDirective.handle_binary_op(index,
                                     index_strings, firstprivate_list,
                                     private_list, parallel_private,
@@ -1070,14 +1064,14 @@ class OMPTaskDirective(OMPRegionDirective):
                                     "appear in an Array Index "
                                     "expression inside an "
                                     "OMPTaskDirective.".format(
-                                        type(index).__name__)
+                                        type(index).__name__))
                     # So we have a list of indices [index1, index2, index3] so convert these
                     # to a depend clause
                     depend_clause = name + "(" + index_strings.join(", ") + ")"
                     shared_list.append(name)
                     out_list.append(depend_clause)
-                elif isinstance(lhs, ArrayOfStructureReference):
-                    # ArrayOfStructureReference
+                elif isinstance(lhs, ArrayOfStructuresReference):
+                    # ArrayOfStructuresReference
                     # We write to this reference, so it is shared and depend out on
                     # array(variable) and other depending on +  or - in the indexing
                     sig, indices = lhs.get_signature_and_indices()
@@ -1101,7 +1095,7 @@ class OMPTaskDirective(OMPRegionDirective):
                             index_strings.append(writer(index))
                             if index.symbol == loop_val.symbol:
                                 loop_reference = True
-                        elif isinstance(index, BinaryOp):
+                        elif isinstance(index, BinaryOperation):
                             # Binary Operation check
                             OMPTaskDirective.handle_binary_op(index,
                                     index_strings, firstprivate_list,
@@ -1114,7 +1108,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                     "appear in an Array Index "
                                     "expression inside an "
                                     "OMPTaskDirective.".format(
-                                        type(index).__name__)
+                                        type(index).__name__))
                     # So we have a list of indices [index1, index2, index3] so convert these
                     # to a depend clause
                     depend_clause = name + "(" + index_strings.join(", ") + ")"
@@ -1179,6 +1173,24 @@ class OMPTaskDirective(OMPRegionDirective):
                             in_list, out_list, parallel_private, start_val,
                             stop_val, step_val)
 
+        return (private_list, firstprivate_list, shared_list,
+                in_list, out_list)
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP
+        taskloop directive.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        self.validate_global_constraints()
+        clause_list = []
+        private_list, firstprivate_list, shared_list, in_list, out_list = \
+                self.compute_clauses()
+
         # Build up the extra clauses.
         if len(private_list) != 0:
             clause_list.append("private({0})".format(", ".join(private_list)))
@@ -1194,7 +1206,6 @@ class OMPTaskDirective(OMPRegionDirective):
 
         # Generate the string containing the required clauses
         extra_clauses = ", ".join(clause_list)
-
         parent.add(DirectiveGen(parent, "omp", "begin", "task",
                                 extra_clauses))
 
@@ -1216,230 +1227,8 @@ class OMPTaskDirective(OMPRegionDirective):
 
         '''
         clause_list = []
-        private_list = []
-        firstprivate_list = []
-        shared_list = []
-        in_list = []
-        out_list = []
-
-        # Create a FortranWriter to convert nodes to strings
-        # TODO: Create issue - support non-Fortran backends
-        writer = FortranWriter()
-
-        # TODO Generate extra clauses
-        # Find the parent Loop node
-        parent = self.ancestor(Loop)
-
-        # Find the parent OMPParallelDirective
-        parallel_directive = self.ancestor(OMPParallelDirective)
-        parallel_private = parallel_directive._get_private_list()
-
-        # Find our loop initialisation, variable and bounds
-        loop_var = node.variable
-        start_val = node.children[0]
-        stop_val = node.children[1]
-        step_val = node.children[2]
-        schedule = node.children[3]
-
-        # FIXME Disallow transformation if init/stop/step include array references
-        # FIXME Handle reduction variables
-
-        # Loop variable is private
-        private_list.append(writer(loop_var))
-
-        # Any variables used in start_val, stop_val or step_val are firstprivate
-        # Get the References used for initialisation
-        start_val_refs = start_val.walk(Reference)
-        # For all non-array accesses we make them firstprivate
-
-        # TODO Do we worry about array references here? For now we don't allow
-        # array references or ArrayOfStruct references
-        for ref in start_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructureReference)):
-                raise GenerationError("{0} not yet supported in the start "
-                                      "variable of the primary Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
-            name = writer(ref)
-            if ref not in firstprivate_list:
-                firstprivate_list.append(name)
-
-        stop_val_refs = stop_val.walk(Reference)
-        for sig in stop_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructureReference)):
-                raise GenerationError("{0} not yet supported in the stop "
-                                      "variable of the primary Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
-            name = writer(ref)
-            if ref not in firstprivate_list:
-                firstprivate_list.append(name)
-
-        
-        step_val_refs = step_val.walk(Reference)
-        for sig in step_val_sigs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructureReference)):
-                raise GenerationError("{0} not yet supported in the step "
-                                      "variable of the primary Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
-            name = writer(ref)
-            if ref not in firstprivate_list:
-                firstprivate_list.append(name)
-
-        # Look through the schedule and work out data sharing clauses.
-        statements = schedule.walk((Assignment, IfBlock, Loops))
-        for statement in statements:
-            if isinstance(statement, Assignment):
-                lhs = statement.children[0]
-                rhs = statement.children[1]
-                # check if lhs is array access
-                if isinstance(lhs, ArrayReference):
-                    # Resolve ArrayReference
-                    # We write to this reference, so it is shared and depend
-                    # out on array(variable) and other depending on + or -
-                    # in the indexing
-                    sig, indices = lhs.get_signature_and_indices()
-                    name = writer(sig)
-                    # Check if this is private in the parent parallel
-                    # region
-                    is_private = (name in parallel_private)
-                    if is_private:
-                        #FIXME Think about what happens if this is declared private
-                        assert False
-                    index_strings = []
-                    loop_reference = False
-                    # Do something with indices
-                    for index in indices:
-                        if isinstance(index, Literal):
-                            # Literals are just value
-                            value = writer(index)
-                            index_strings.append(value)
-                        elif isinstance(index, Reference):
-                            # Refrences also just treated as values
-                            index_strings.append(writer(index))
-                            if index.symbol == loop_val.symbol:
-                                loop_reference = True
-                        elif isinstance(index, BinaryOp):
-                            OMPTaskDirective.handle_binary_op(index,
-                                    index_strings, firstprivate_list,
-                                    private_list, parallel_private,
-                                    start_val, stop_val)
-                        else:
-                            # Not allowed type appears
-                            raise GenerationError(
-                                    "{0} object is not allowed to "
-                                    "appear in an Array Index "
-                                    "expression inside an "
-                                    "OMPTaskDirective.".format(
-                                        type(index).__name__)
-                    # So we have a list of indices [index1, index2, index3] so convert these
-                    # to a depend clause
-                    depend_clause = name + "(" + index_strings.join(", ") + ")"
-                    shared_list.append(name)
-                    out_list.append(depend_clause)
-                elif isinstance(lhs, ArrayOfStructureReference):
-                    # ArrayOfStructureReference
-                    # We write to this reference, so it is shared and depend out on
-                    # array(variable) and other depending on +  or - in the indexing
-                    sig, indices = lhs.get_signature_and_indices()
-                    name = writer(sig.symbol.name)
-                    # Check if this is private in the parent parallel
-                    # region
-                    is_private = (name in parallel_private)
-                    if is_private:
-                        #FIXME Think about what happens if this is declared private
-                        assert False
-                    index_strings = []
-                    loop_reference = False
-                    # Do something with indices
-                    for index in indices:
-                        if isinstance(index, Literal):
-                            # Literals are just value
-                            value = writer(index)
-                            index_strings.append(value)
-                        elif isinstance(index, Reference):
-                            # Refrences also just treated as values
-                            index_strings.append(writer(index))
-                            if index.symbol == loop_val.symbol:
-                                loop_reference = True
-                        elif isinstance(index, BinaryOp):
-                            # Binary Operation check
-                            OMPTaskDirective.handle_binary_op(index,
-                                    index_strings, firstprivate_list,
-                                    private_list, parallel_private,
-                                    start_val, stop_val)
-                        else:
-                            # Not allowed type appears
-                            raise GenerationError(
-                                    "{0} object is not allowed to "
-                                    "appear in an Array Index "
-                                    "expression inside an "
-                                    "OMPTaskDirective.".format(
-                                        type(index).__name__)
-                    # So we have a list of indices [index1, index2, index3] so convert these
-                    # to a depend clause
-                    depend_clause = name + "(" + index_strings.join(", ") + ")"
-                    shared_list.append(name)
-                    out_list.append(depend_clause)
-                elif isinstance(lhs, StructureReference):
-                    # Resolve StructureReference
-                    # We only need the Structure name, this is probably wrong
-                    name = writer(lhs.symbol.name)
-                    is_private = (name in parallel_private)
-                    if not is_private:
-                        shared_list.append(name)
-                        out_list.append(name)
-                elif isinstance(lhs, Reference):
-                    #Resolve reference
-                    name = writer(lhs)
-                    is_private = (name in parallel_private)
-                    if not is_private:
-                        shared_list.append(name)
-                        out_list.append(name)
-
-                # Handle rhs References
-                references = rhs.walk(Reference)
-                for ref in references:
-                    OMPTaskDirective.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-            elif isinstance(statement, IfBlock):
-                # Resolve IfBlock
-                # We only need to look at the If condition (DataNode, child[0])
-                # The other statements will be covered by Assignment or Loop
-                condition = statement.children[0]
-                # Find all the References
-                references = condition.walk(Reference)
-                for ref in references:
-                    OMPTaskDirective.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-            elif isinstance(statement, Loop):
-                # Resolve Loop
-                # FIXME Handle Loop variable
-                start = statement.children[0]
-                stop = statement.children[1]
-                end = statement.children[2]
-                # Don't need to worry about schedule, anything inside that will
-                # be caught by the outer walk.
-                for ref in start.walk(Reference):
-                    OMPTaskDirective.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-                for ref in stop.walk(Reference):
-                    OMPTaskDirective.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-                for ref in end.walk(Reference):
-                    OMPTaskDirective.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
+        private_list, firstprivate_list, shared_list, in_list, out_list = \
+                self.compute_clauses()
 
         # Build up the extra clauses.
         if len(private_list) != 0:

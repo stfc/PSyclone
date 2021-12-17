@@ -51,7 +51,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
-    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
+    Reference, OMPTaskDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
@@ -755,3 +756,39 @@ def test_omploop_equality():
 
     omploop1.collapse = 2
     assert omploop1 != omploop2
+
+
+def test_omp_task_directive_validate_global_constraints(fortran_reader, fortran_writer):
+    ''' Test the validate_global_constraints method of the 
+    OMPTaskDirective'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(parent.children)
+    ptrans.apply(parent.children)
+    print(fortran_writer(tree))
+    assert False
