@@ -271,6 +271,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :noindex:
