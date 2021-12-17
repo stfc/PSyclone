@@ -74,10 +74,10 @@ class LoopTiling2DTrans(LoopTrans):
             integer :: ji_el_inner
             integer :: ji_out_var
             do i_out_var = 1, 100, 32
+              i_el_inner = MIN(i_out_var + (32 - 1), 100)
               do j_out_var = 1, 100, 32
-                i_el_inner = MIN(i_out_var + 32, 100)
-                j_el_inner = MIN(j_out_var + 32, 100)
                 do i = i_out_var, i_el_inner, 1
+                  j_el_inner = MIN(j_out_var + (32 - 1), 100)
                   do j = j_out_var, j_el_inner, 1
                     tmp(i, j) = 2 * tmp(i, j)
                   enddo
@@ -101,24 +101,25 @@ class LoopTiling2DTrans(LoopTrans):
         :type options: dict of str:values or None
         :param int options["tilesize"]: The size to tile size for this \
                 transformation. If not specified, the value 32 is used.
+
         '''
         if options is None:
             options = {}
         super(LoopTiling2DTrans, self).validate(node, options=options)
         tilesize = options.get("tilesize", 32)
 
+        # Even though the loops that ultimately will be swapped are the ones
+        # resulting from the ChunkLoopTrans, these have the same validation
+        # constrains as swapping the two original loops. This already
+        # guarantees that we have a 2 loop construct with only one loop
+        # statement inside the outer loop.
+        LoopSwapTrans().validate(node)
+
+        # Check that we can chunk both loops
         outer_loop = node
-        if len(node.loop_body.children) != 1:
-            raise TransformationError("")
-
-        if not isinstance(node.loop_body.children[0], Loop):
-            raise TransformationError("")
-
         inner_loop = node.loop_body.children[0]
-
         ChunkLoopTrans().validate(outer_loop, options={'chuncksize': tilesize})
         ChunkLoopTrans().validate(inner_loop, options={'chuncksize': tilesize})
-        LoopSwapTrans().validate(outer_loop)
 
     def apply(self, node, options=None):
         '''

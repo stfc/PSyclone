@@ -86,6 +86,8 @@ def test_loop_tiling_2d_trans_validation1(fortran_reader):
     outer_loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().validate(outer_loop)
+    assert ("must be a sub-class of Loop but got 'Assignment'."
+            in str(err.value))
 
 
 def test_loop_tiling_2d_trans_validation2(fortran_reader):
@@ -103,6 +105,8 @@ def test_loop_tiling_2d_trans_validation2(fortran_reader):
     outer_loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().validate(outer_loop)
+    assert ("must be a sub-class of Loop but got 'Assignment'."
+            in str(err.value))
 
 
 def test_loop_tiling_2d_trans_validation3(fortran_reader):
@@ -123,6 +127,8 @@ def test_loop_tiling_2d_trans_validation3(fortran_reader):
     outer_loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().validate(outer_loop)
+    assert ("Nodes of type 'Call' cannot be enclosed by a LoopSwapTrans "
+            "transformation" in str(err.value))
 
 
 def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
