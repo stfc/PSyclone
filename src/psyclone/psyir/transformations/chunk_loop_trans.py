@@ -222,22 +222,30 @@ class ChunkLoopTrans(LoopTrans):
         start = node.children[0]
         stop = node.children[1]
 
-        # For positive steps we do el_inner = min(out_var+chunk_size, el_outer)
-        # For negative steps we do el_inner = max(out_var-chunk_size, el_outer)
+        # For positive steps we do:
+        #     el_inner = min(out_var+chunk_size-1, el_outer)
         if int(node.children[2].value) > 0:
-            add = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                         Reference(outer_loop_variable),
-                                         Literal("{0}".format(chunk_size),
-                                                 node.variable.datatype))
+            add = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    Reference(outer_loop_variable),
+                    BinaryOperation.create(
+                        BinaryOperation.Operator.SUB,
+                        Literal(f"{chunk_size}", node.variable.datatype),
+                        Literal("1", node.variable.datatype)))
             minop = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
                                            stop.copy())
             inner_loop_end = Assignment.create(Reference(end_inner_loop),
                                                minop)
+        # For negative steps we do:
+        #     el_inner = max(out_var-chunk_size+1, el_outer)
         elif int(node.children[2].value) < 0:
-            sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                         Reference(outer_loop_variable),
-                                         Literal("{0}".format(chunk_size),
-                                                 node.variable.datatype))
+            sub = BinaryOperation.create(
+                    BinaryOperation.Operator.SUB,
+                    Reference(outer_loop_variable),
+                    BinaryOperation.create(
+                        BinaryOperation.Operator.ADD,
+                        Literal(f"{chunk_size}", node.variable.datatype),
+                        Literal("1", node.variable.datatype)))
             maxop = BinaryOperation.create(BinaryOperation.Operator.MAX, sub,
                                            stop.copy())
             inner_loop_end = Assignment.create(Reference(end_inner_loop),

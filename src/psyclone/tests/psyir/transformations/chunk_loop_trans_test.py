@@ -306,7 +306,7 @@ def test_chunkloop_trans_apply_pos():
     code = str(psy.gen)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-        j_el_inner = MIN(j_out_var + 32, cu_fld%internal%ystop)
+        j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
         DO j = j_out_var, j_el_inner, 1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
@@ -332,7 +332,7 @@ def test_chunkloop_trans_apply_neg():
     code = str(psy.gen)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-        j_el_inner = MAX(j_out_var - 32, cu_fld%internal%ystop)
+        j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
         DO j = j_out_var, j_el_inner, -1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
@@ -380,10 +380,10 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
 
     correct = \
         '''do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + 32, end)
+    i_el_inner = MIN(i_out_var + (32 - 1), end)
     do i = i_out_var, i_el_inner, 1
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + 32, end)
+        j_el_inner = MIN(j_out_var + (32 - 1), end)
         do j = j_out_var, j_el_inner, 1
           ai(i,j) = 1
         enddo
@@ -391,10 +391,10 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     enddo
   enddo
   do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + 32, end)
+    i_el_inner = MIN(i_out_var + (32 - 1), end)
     do i = i_out_var, i_el_inner, 2
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + 32, end)
+        j_el_inner = MIN(j_out_var + (32 - 1), end)
         do j = j_out_var, j_el_inner, 2
           aj(i,j) = 1
         enddo

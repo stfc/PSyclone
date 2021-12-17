@@ -147,10 +147,10 @@ def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
     print(result)
     expected = '''\
 do i_out_var = 1, 100, 32
-  i_el_inner = MIN(i_out_var + 32, 100)
+  i_el_inner = MIN(i_out_var + (32 - 1), 100)
   do j_out_var = 1, 100, 32
     do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + 32, 100)
+      j_el_inner = MIN(j_out_var + (32 - 1), 100)
       do j = j_out_var, j_el_inner, 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo

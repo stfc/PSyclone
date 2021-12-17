@@ -38,7 +38,9 @@
 construct into a tiled implementation of the construct.'''
 
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import LoopTrans, ChunkLoopTrans
+from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
+from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
@@ -116,6 +118,7 @@ class LoopTiling2DTrans(LoopTrans):
 
         ChunkLoopTrans().validate(outer_loop, options={'chuncksize': tilesize})
         ChunkLoopTrans().validate(inner_loop, options={'chuncksize': tilesize})
+        LoopSwapTrans().validate(outer_loop)
 
     def apply(self, node, options=None):
         '''
@@ -142,6 +145,5 @@ class LoopTiling2DTrans(LoopTrans):
         ChunkLoopTrans().apply(outer_loop, options={'chuncksize': tilesize})
         ChunkLoopTrans().apply(inner_loop, options={'chuncksize': tilesize})
 
-        from psyclone.psyir.transformations import LoopSwapTrans
         loops = parent[position].walk(Loop)[1]
         LoopSwapTrans().apply(loops)

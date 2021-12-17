@@ -38,8 +38,10 @@
 
 ''' This module provides the loop swap transformation.'''
 
-from psyclone.psyir.nodes import Call, CodeBlock
-from psyclone.psyir.transformations import LoopTrans, TransformationError
+from psyclone.psyir.nodes import Call, CodeBlock, Reference
+from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.transformation_error import \
+        TransformationError
 
 
 class LoopSwapTrans(LoopTrans):
@@ -143,6 +145,24 @@ class LoopSwapTrans(LoopTrans):
             raise TransformationError(
                 "Error in LoopSwap transformation: The inner loop "
                 "has a non-empty symbol table.")
+
+        for node in node_outer.children[0:3]:
+            symbols = [ref.symbol for ref in node.walk(Reference)]
+            if node_inner.variable in symbols:
+                raise TransformationError(
+                    f"Error in LoopSwap transformation: The inner loop "
+                    f"iteration variable '{node_inner.variable}' is part "
+                    f"of the outer loop boundary expressions, so their order "
+                    f"can not be swapped.")
+
+        for node in node_inner.children[0:3]:
+            symbols = [ref.symbol for ref in node.walk(Reference)]
+            if node_outer.variable in symbols:
+                raise TransformationError(
+                    f"Error in LoopSwap transformation: The outer loop "
+                    f"iteration variable '{node_inner.variable}' is part "
+                    f"of the inner loop boundary expressions, so their order "
+                    f"can not be swapped.")
 
     def apply(self, outer, options=None):
         # pylint: disable=arguments-differ
