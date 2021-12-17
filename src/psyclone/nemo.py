@@ -338,3 +338,39 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
         '''
         variables = []
         return variables
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language level
+        PSyIR constructs.
+
+        '''
+        from psyclone.psyGen import InvokeSchedule
+        from psyclone.psyir.tools import DependencyTools
+        if not self._node_lowered:
+            idx = self.position + 1
+            dep_tools = DependencyTools()
+            inputs, outputs = dep_tools.get_in_out_parameters(
+                self.parent.children[idx:])
+            # We must generate a list of all of the fields accessed by
+            # OpenACC kernels (calls within an OpenACC parallel or kernels
+            # directive)
+            # 1. Find all parallel and kernels directives. We store this list
+            # for later use in any sub-class.
+            self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                    (ACCParallelDirective, ACCKernelsDirective))
+            # 2. For each directive, loop over each of the fields used by
+            #    the kernels it contains (this list is given by ref_list)
+            #    and add it to our list if we don't already have it
+            self._variables_to_copy = []
+            # TODO grid properties are effectively duplicated in this list (but
+            # the OpenACC deep-copy support should spot this).
+            for pdir in self._acc_dirs:
+                inputs, outputs = dep_tools.get_in_out_parameters(
+                    pdir.children)
+                for var in pdir.ref_list:
+                    if var not in self._variables_to_copy:
+                        self._variables_to_copy.append(var)
+            self._node_lowered = True
+
+        super(ACCEnterDataDirective, self).lower_to_language_level()
