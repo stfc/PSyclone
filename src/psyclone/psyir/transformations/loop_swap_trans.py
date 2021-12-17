@@ -146,21 +146,21 @@ class LoopSwapTrans(LoopTrans):
                 "Error in LoopSwap transformation: The inner loop "
                 "has a non-empty symbol table.")
 
-        for node in node_outer.children[0:3]:
+        for node in node_outer.children[0:2]:
             symbols = [ref.symbol for ref in node.walk(Reference)]
             if node_inner.variable in symbols:
                 raise TransformationError(
                     f"Error in LoopSwap transformation: The inner loop "
-                    f"iteration variable '{node_inner.variable}' is part "
+                    f"iteration variable '{node_inner.variable.name}' is part "
                     f"of the outer loop boundary expressions, so their order "
                     f"can not be swapped.")
 
-        for node in node_inner.children[0:3]:
+        for node in node_inner.children[0:2]:
             symbols = [ref.symbol for ref in node.walk(Reference)]
             if node_outer.variable in symbols:
                 raise TransformationError(
                     f"Error in LoopSwap transformation: The outer loop "
-                    f"iteration variable '{node_inner.variable}' is part "
+                    f"iteration variable '{node_outer.variable.name}' is part "
                     f"of the inner loop boundary expressions, so their order "
                     f"can not be swapped.")
 
