@@ -101,10 +101,10 @@ for info in GENERIC_SCALAR_DATATYPES:
     # Create the specific symbol
     exec(
         "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__(self, name, precision=None, interface=None):\n"
-        "        super({0}DataSymbol, self).__init__(\n"
+        "    def __init__(self, name, precision=None, **kwargs):\n"
+        "        super().__init__(\n"
         "            name, {0}DataType(precision=precision),\n"
-        "            interface=interface)\n"
+        "            **kwargs)\n"
         "".format(NAME))
 
 
@@ -160,7 +160,7 @@ SPECIFIC_SCALAR_DATATYPES = [
 for info in SPECIFIC_SCALAR_DATATYPES:
     NAME = "".join(info.name.title().split())
     TYPE = "".join(info.generic_type.title().split())
-    ARGS = ["self", "name"] + info.properties + ["interface=None"]
+    ARGS = ["self", "name"] + info.properties
     VARS = ["        self.{0} = {0}".format(var) for var in info.properties]
     # Create the specific datatype
     exec(
@@ -170,10 +170,9 @@ for info in SPECIFIC_SCALAR_DATATYPES:
     # Create the specific symbol
     exec(
         "class {0}DataSymbol({1}DataSymbol):\n"
-        "    def __init__({2}):\n"
+        "    def __init__({2}, **kwargs):\n"
         "{3}\n"
-        "        super({0}DataSymbol, self).__init__(\n"
-        "            name, interface=interface)\n"
+        "        super().__init__(name, **kwargs)\n"
         "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS)))
 
 # Define LFRic field datatypes and symbols
@@ -257,8 +256,7 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     DIMS = array_type.dims
     SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
-    ARGS = (["self", "name", "dims"] + array_type.properties +
-            ["interface=None"])
+    ARGS = (["self", "name", "dims"] + array_type.properties)
     VARS = ["        self.{0} = {0}".format(var) for var in
             array_type.properties]
     # Create the specific datatype
@@ -276,10 +274,9 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
     # Create the specific symbol
     exec(
         "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__({1}):\n"
+        "    def __init__({1}, **kwargs):\n"
         "{2}\n"
-        "        super({0}DataSymbol, self).__init__(\n"
-        "            name, {0}DataType(dims), interface=interface)\n"
+        "        super().__init__(name, {0}DataType(dims),  **kwargs)\n"
         "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols

@@ -952,8 +952,8 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[index],
-                                schedule.children[index+1],
-                                {"same_space": same_space})
+                         schedule.children[index+1],
+                         {"same_space": same_space})
 
         if same_space:
             assert ("The 'same_space' flag was set, but does not apply "
@@ -6973,7 +6973,7 @@ def test_kern_const_apply(capsys, monkeypatch):
     # element_order, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
-                                  "quadrature": True})
+                           "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected

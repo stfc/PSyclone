@@ -40,14 +40,17 @@
 
 from __future__ import absolute_import
 import re
+import os
 from collections import OrderedDict
 import pytest
+from psyclone.configuration import Config
 from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
-    Literal, Reference, Assignment
+    Literal, Reference, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol
+    SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol, \
+    UnknownFortranType
 from psyclone.errors import InternalError
 
 
@@ -140,6 +143,23 @@ def test_parent_symbol_table():
         _ = inner_symbol_table.parent_symbol_table(scope_limit=2)
     assert ("The scope_limit argument '2', is not of type `Node`." in
             str(err.value))
+
+
+def test_symboltable_is_empty():
+    '''Test that a symbol table is correctly flagged as empty/non-empty.
+
+    '''
+    sym_table = SymbolTable()
+    assert sym_table.is_empty() is True
+
+    # Add a symbol so the table is now not empty anymore
+    sym = ContainerSymbol("my_mod")
+    sym_table.add(sym)
+    assert sym_table.is_empty() is False
+
+    # Now remove the symbol again, the table should be empty
+    sym_table.remove(sym)
+    assert sym_table.is_empty() is True
 
 
 def test_next_available_name_1():
@@ -531,6 +551,7 @@ def test_swap_symbol():
 
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
+    # pylint: disable=too-many-statements
 
     symbol1 = DataSymbol("var1", INTEGER_TYPE, constant_value=7)
     symbol2 = DataSymbol("dim1", INTEGER_TYPE,
@@ -1486,6 +1507,24 @@ def test_new_symbol():
             " one of its sub-classes but found" in str(err.value))
 
 
+def test_new_symbol_with_private_default_visibility():
+    '''Test that the new_symbol method creates a symbol with the appropriate
+    visibility if the symbol table has a PRIVATE default visibility. '''
+
+    symtab = SymbolTable()
+    symtab.default_visibility = Symbol.Visibility.PRIVATE
+
+    # If nothing is specified, use the default symbol table visibility
+    sym = symtab.new_symbol("generic")
+    assert symtab.lookup("generic") is sym
+    assert symtab.lookup("generic").visibility == Symbol.Visibility.PRIVATE
+
+    # If visibility is specified, use the provide value
+    sym = symtab.new_symbol("generic_2", visibility=Symbol.Visibility.PUBLIC)
+    assert symtab.lookup("generic_2") is sym
+    assert symtab.lookup("generic_2").visibility == Symbol.Visibility.PUBLIC
+
+
 def test_find_or_create():
     ''' Tests the SymbolTable find_or_create method find existing symbols or
     otherwise creates a new symbol with the given properties. '''
@@ -1643,3 +1682,364 @@ def test_rename_symbol():
         schedule_symbol_table.rename_symbol(symbol, "aRRay")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'aRRay' does." in str(err.value))
+
+
+def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
+    ''' Tests that the SymbolTable resolve_imports method works as expected
+    when importing symbol information from external containers and respects
+    the method optional keywords. '''
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            use other_mod
+            integer :: a_1, a_2
+            integer :: b_1  ! Name clash but it is not imported
+        end module a_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module b_mod
+            integer, parameter :: b_1 = 10
+            integer, save, pointer :: b_2
+            integer :: not_used1
+            integer :: not_used2
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            use a_mod, only: a_2
+            private :: a_2
+            contains
+            subroutine test()
+                use a_mod, only: a_1
+                use b_mod
+                use c_mod  ! This module is not found in INCLUDE_PATH
+
+                a_1 = b_1 + b_2
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    # Add Generic unresolved reference to "not_used"
+    subroutine.symbol_table.add(
+            Symbol("not_used1", interface=ImportInterface(
+                subroutine.symbol_table.lookup("b_mod"))))
+
+    # After parsing the a_1, a_2, b_1, b_2, not_used1 and not_used2 will have
+    # incomplete information because the modules are not resolved
+    a_1 = subroutine.symbol_table.lookup('a_1')
+    a_2 = subroutine.symbol_table.lookup('a_2')
+    b_1 = subroutine.symbol_table.lookup('b_1')
+    b_2 = subroutine.symbol_table.lookup('b_2')
+    not_used1 = subroutine.symbol_table.lookup('not_used1')
+    assert "not_used2" not in subroutine.symbol_table
+    assert not isinstance(not_used1, DataSymbol)
+    assert isinstance(a_1.interface, ImportInterface)
+    assert not isinstance(a_1, DataSymbol)
+    assert isinstance(a_2.interface, ImportInterface)
+    assert not isinstance(a_2, DataSymbol)
+    assert a_2.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(b_1.interface, UnresolvedInterface)
+    assert not isinstance(b_1, DataSymbol)
+    assert isinstance(b_2.interface, UnresolvedInterface)
+    assert not isinstance(b_2, DataSymbol)
+
+    # Try with incorrect argument types
+    with pytest.raises(TypeError) as err:
+        subroutine.symbol_table.resolve_imports(symbol_target="a_1")
+    assert ("The resolve_imports symbol_target argument must be a Symbol but "
+            "found 'str' instead." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        subroutine.symbol_table.resolve_imports(container_symbols="my_mod")
+    assert ("The resolve_imports container_symbols argument must be a list "
+            "but found 'str' instead." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        subroutine.symbol_table.resolve_imports(container_symbols=["my_mod"])
+    assert ("The resolve_imports container_symbols argument list elements "
+            "must be ContainerSymbols, but found a 'str' instead."
+            in str(err.value))
+
+    # Try to resolve a symbol that is not in the provided container
+    with pytest.raises(KeyError) as err:
+        subroutine.symbol_table.resolve_imports(
+                container_symbols=[subroutine.symbol_table.lookup('a_mod')],
+                symbol_target=subroutine.symbol_table.lookup('b_1'))
+    assert ("The target symbol 'b_1' was not found in any of the searched "
+            "containers: ['a_mod']." in str(err.value))
+    # We still haven't resolved anything inside a_mod or the b_1 symbol
+    assert not isinstance(a_1, DataSymbol)
+    assert not isinstance(b_1, DataSymbol)
+
+    # Resolve only b_2 symbol info
+    subroutine.symbol_table.resolve_imports(
+            symbol_target=subroutine.symbol_table.lookup('b_2'))
+    assert isinstance(b_2, DataSymbol)
+    assert isinstance(b_2.datatype, UnknownFortranType)
+    assert isinstance(b_2.interface, ImportInterface)
+    assert b_2.interface.container_symbol == \
+           subroutine.symbol_table.lookup('b_mod')
+    # We still haven't resolved anything about a_mod or other b_mod symbols
+    assert not isinstance(a_1, DataSymbol)
+    assert not isinstance(b_1, DataSymbol)
+
+    # Resolve all symbols that are in a_mod inside the subroutine
+    subroutine.symbol_table.resolve_imports([
+            subroutine.symbol_table.lookup('a_mod')])
+    # This will resolve a_1 information
+    assert isinstance(a_1, DataSymbol)
+    assert a_1.datatype.intrinsic.name == 'INTEGER'
+    assert isinstance(a_1.interface, ImportInterface)
+    # ContainerSymbol names are not brought into the local scope
+    assert "other_mod" not in subroutine.symbol_table
+    # TODO #1540: And neither the nested symbol declarations inside
+    # another wildcard import, but this could be processed.
+
+    # The other symbols (including a_2 because it is not from this symbol
+    # table) are unchanged. a_mod::b_1 is not resolved to the local b_1
+    # because it knows that a_mod imports are not using a wildcard import
+    # and therefore it must come from somewhere else.
+    assert "not_used2" not in subroutine.symbol_table
+    assert isinstance(a_2.interface, ImportInterface)
+    assert not isinstance(a_2, DataSymbol)
+    assert isinstance(b_1.interface, UnresolvedInterface)
+    assert not isinstance(b_1, DataSymbol)
+
+    # Now resolve all found containers (this will not fail for the
+    # unavailable c_mod)
+    subroutine.symbol_table.resolve_imports()
+
+    # b_1 have all relevant info now
+    assert isinstance(b_1, DataSymbol)
+    assert b_1.datatype.intrinsic.name == 'INTEGER'
+    assert b_1.constant_value.value == "10"
+    # The interface is also updated updated now because we know where it comes
+    # from
+    assert isinstance(b_1.interface, ImportInterface)
+    assert b_1.interface.container_symbol == \
+           subroutine.symbol_table.lookup('b_mod')
+    # not_used1 and not_used2 should now also exist and have all its properties
+    # because the b_mod wildcard import imports them
+    assert isinstance(subroutine.symbol_table.lookup('not_used1'), DataSymbol)
+    assert isinstance(subroutine.symbol_table.lookup('not_used2'), DataSymbol)
+
+    # a_2 is not yet resolved because it comes from another symbol table,
+    # resolve that symbol table too
+    assert not isinstance(a_2, DataSymbol)
+    subroutine.parent.symbol_table.resolve_imports()
+    # In this case check that the visibility stays PRIVATE
+    assert isinstance(a_2, DataSymbol)
+    assert a_2.visibility == Symbol.Visibility.PRIVATE
+
+
+def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
+    ''' Tests the SymbolTable resolve_imports method raises the appropriate
+    errors when it finds name clashes. '''
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: not_a_name_clash
+            integer :: name_clash
+            private not_a_name_clash
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            contains
+            subroutine test()
+                use a_mod
+                integer :: not_a_name_clash ! because its private in the module
+                integer :: name_clash
+
+                name_clash = name_clash + not_a_name_clash
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    with pytest.raises(SymbolError) as err:
+        symtab.resolve_imports([symtab.lookup('a_mod')])
+    assert ("Found a name clash with symbol 'name_clash' when importing "
+            "symbols from container 'a_mod'." in str(err.value))
+
+
+def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
+    ''' Tests the SymbolTable resolve_imports respects the accessibility
+    statements when importing symbol information from external containers. '''
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: name_public1
+            integer, private :: name_clash
+        end module a_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module b_mod
+            use a_mod
+            ! The imported a_mod::name_public is private here, also name_clash
+            private
+            integer :: name_clash
+            integer :: other_private
+            integer, public :: name_public2
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            use a_mod
+            private name_public1
+
+            contains
+
+            subroutine test()
+                use b_mod
+                integer :: name_clash
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    # name_public1 exists before importing as a generic Symbol because it
+    # is mentioned by the accessibility statement
+    public1 = symtab.lookup("name_public1")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(public1) == Symbol
+
+    # This should succeed because all name clashes are protected by proper
+    # private accessibility
+    subroutine.parent.symbol_table.resolve_imports()
+    symtab.resolve_imports()
+
+    # Now we now that 'name_public1' is a DataSymbol
+    assert isinstance(public1, DataSymbol)
+
+    # name_public2 also has been imported because it is a public symbol
+    assert "name_public2" in symtab
+    # even though we capture that other symbols are private by default
+    assert symtab.lookup("b_mod").container.symbol_table \
+        .default_visibility == Symbol.Visibility.PRIVATE
+    assert "other_private" not in symtab
+
+
+def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
+    ''' Tests that the SymbolTable resolve_imports method work as expected when
+    we are importing user-defined/derived types from an external container. '''
+    filename = os.path.join(str(tmpdir), "my_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module my_mod
+            type my_type
+                integer :: field
+                integer, dimension(10,10) :: array
+            end type my_type
+            type(my_type) :: global1
+            type other_type
+                type(my_type) :: value1
+            end type other_type
+        end module my_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            use my_mod
+            type(my_type) :: local1
+
+        end subroutine test
+    ''')
+
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+    # Add a generic Symbol definition of other_type
+    symtab.add(Symbol("other_type",
+                      interface=ImportInterface(symtab.lookup("my_mod"))))
+
+    # Before resolving import
+    # global1 doesn't exist because it is never mentioned
+    assert "global1" not in symtab
+    # Some symbols types / datatype are inferred
+    assert isinstance(symtab.lookup("my_type"), DataTypeSymbol)
+    assert symtab.lookup("local1").datatype == symtab.lookup("my_type")
+    # but we don't know anything about the imported type
+    assert isinstance(symtab.lookup("my_type").datatype, DeferredType)
+    assert not isinstance(symtab.lookup("other_type"), DataTypeSymbol)
+
+    # Set up include_path to import the proper modules and resolve symbols
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    symtab.resolve_imports()
+
+    # The global1 exist and is a DataSymbol now
+    assert isinstance(symtab.lookup("global1"), DataSymbol)
+
+    # All symbols are of my_type type
+    assert symtab.lookup("local1").datatype.name == "my_type"
+    assert symtab.lookup("global1").datatype.name == "my_type"
+    assert isinstance(symtab.lookup("other_type"), DataTypeSymbol)
+    value1 = symtab.lookup("other_type").datatype.components["value1"]
+    assert value1.datatype.name == "my_type"
+
+    # And now the imported "my_type" type has more info
+    my_type = symtab.lookup("my_type").datatype
+    assert isinstance(my_type, StructureType)
+    assert "field" in my_type.components
+    assert "array" in my_type.components
+    assert my_type.components["field"].datatype.intrinsic.name == "INTEGER"
+    assert my_type.components["array"].datatype.shape[1].upper.value == "10"
+
+
+@pytest.mark.parametrize('dependency_order', [['a_mod', 'b_mod'],
+                                              ['b_mod', 'a_mod']])
+def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
+                                       dependency_order):
+    ''' Tests the SymbolTable resolve_imports accepts symbols with the same
+    name coming from different dependency paths and keeps the most specific
+    information regardless of the import order. '''
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: common_import
+        end module a_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module b_mod
+            use a_mod, only: common_import
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            use a_mod
+            use b_mod
+
+            common_import = common_import + 1
+        end subroutine test
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    for dependency in dependency_order:
+        symtab.resolve_imports([symtab.lookup(dependency)])
+    assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"

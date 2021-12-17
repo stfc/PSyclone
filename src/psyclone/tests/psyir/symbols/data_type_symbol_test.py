@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, Symbol, \
-    UnresolvedInterface
+    UnresolvedInterface, ArrayType, REAL_SINGLE_TYPE
 
 
 def test_create_datatypesymbol():
@@ -72,3 +72,22 @@ def test_datatypesymbol_copy():
     assert isinstance(new_symbol.datatype, DeferredType)
     assert new_symbol.visibility == Symbol.Visibility.PRIVATE
     assert isinstance(new_symbol.interface, UnresolvedInterface)
+
+
+def test_data_type_symbol_copy_properties():
+    ''' Check that the copy_properties() method works as expected. '''
+    symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE, [1, 2]))
+    new_sym = DataTypeSymbol("new_name", DeferredType())
+
+    new_sym.copy_properties(symbol)
+
+    # new_sym name should be unchanged, but its datatype should be updated
+    assert new_sym.name == "new_name"
+    assert new_sym.datatype == symbol.datatype
+    assert isinstance(new_sym.datatype, ArrayType)
+    assert new_sym.datatype.intrinsic.name == "REAL"
+
+    with pytest.raises(TypeError) as err:
+        new_sym.copy_properties(REAL_SINGLE_TYPE)
+    assert ("Argument should be of type 'DataTypeSymbol' but found "
+            "'ScalarType'" in str(err.value))
