@@ -38,8 +38,7 @@
 functions.'''
 
 
-from sympy import Function, simplify, Symbol, true
-from sympy.core.function import UndefinedFunction
+from sympy import simplify, true
 from sympy.parsing.sympy_parser import parse_expr
 
 
@@ -82,63 +81,8 @@ class SymbolicMaths:
         return SymbolicMaths._instance
 
     # -------------------------------------------------------------------------
-    def __init__(self):
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.sympy_writer import SymPyWriter
-
-        self._writer = SymPyWriter()
-
-    # -------------------------------------------------------------------------
     @staticmethod
-    def get_all_symbols(local_dict, exp):
-        '''Declares all references in the PSyIR expression `exp` either
-        as SymPy functions (if they are array, i.e. use '(...)', or symbols
-        (for scalar accesses without '(...)').
-        Structures ('a%b') will get all members declared as
-        individual symbols ('a', 'b'), since SymPy convers a structure
-        access 'a%b' into 'MOD(a,b)' (see
-        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
-        for details).
-
-        '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Reference
-
-        for ref in exp.walk(Reference):
-            # Use the signature of the variable to easily get access
-            # to its components. We need the indices to know as what
-            # type to declare the symbol: array accesses will need to be
-            # declared as SymPy functions, scalar accesses as SymPy symbols.
-            sig, indices = ref.get_signature_and_indices()
-
-            # Loop over all components of the Reference and add them
-            for ind, name in enumerate(sig):
-                access_is_array = len(indices[ind]) > 0
-
-                # If the name is already declared, make sure the type
-                # is consistent:
-                if name in local_dict:
-                    if (access_is_array and isinstance(local_dict[name],
-                                                       Symbol)):
-                        raise TypeError("The symbol '{0}' was first used as "
-                                        "scalar, but also as array, which is "
-                                        "not supported.".format(name))
-                    if not access_is_array and isinstance(local_dict[name],
-                                                          UndefinedFunction):
-                        raise TypeError("The symbol '{0}' was first used as "
-                                        "array, but also as scalar, which is "
-                                        "not supported.".format(name))
-
-                if access_is_array:
-                    # Arrays need to be defined as functions
-                    local_dict[name] = Function(name)
-                else:
-                    local_dict[name] = Symbol(name)
-
-    # -------------------------------------------------------------------------
-    def equal(self, exp1, exp2):
+    def equal(exp1, exp2):
         '''Test if the two PSyIR operations are identical. This is
         done by converting the operations to the equivalent Fortran
         representation, which can be fed into sympy for evaluation.
@@ -157,15 +101,21 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        # Get all the symbols used in the two expressions, so the
-        # SymPy parser recognise them as symbols (and not e.g. as
-        # internal SymPy names)
-        local_dict = {}
-        self.get_all_symbols(local_dict, exp1)
-        self.get_all_symbols(local_dict, exp2)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
-        str_exp1 = parse_expr(self._writer(exp1), local_dict=local_dict)
-        str_exp2 = parse_expr(self._writer(exp2), local_dict=local_dict)
+        # Create a new writer, and pre-fill its internal symbol table
+        # with all references (so we do not rename any symbols, only
+        # members will be renamed)
+        writer = SymPyWriter(list_of_expressions=[exp1, exp2])
+        str_exp1 = writer(exp1)
+        str_exp2 = writer(exp2)
+
+        # Get the sympy declaration directory, and pass it to SymPy
+        local_dict = writer.get_sympy_types()
+        str_exp1 = parse_expr(str_exp1, local_dict=local_dict)
+        str_exp2 = parse_expr(str_exp2, local_dict=local_dict)
 
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.

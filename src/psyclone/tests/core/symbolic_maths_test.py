@@ -242,6 +242,11 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
 
 @pytest.mark.parametrize("expressions", [("field(1+i)", "field(i+1)"),
                                          ("a%field(b+1)", "a%field(1+b)"),
+                                         ("a%b%c(a_b+1)", "a%b%c(1+a_b)"),
+                                         ("a%field(field+1)",
+                                          "a%field(1+field)"),
+                                         ("b+a%b(a%c,a%c,a%c)",
+                                          "b+a%b(a%c,a%c,a%c)")
                                          ])
 def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     '''Test that reserved names are handled as expected. The SymPy parser
@@ -264,39 +269,3 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
-
-
-@pytest.mark.parametrize("expressions", [("a%b(b+1)", "a%b(1+b)", "b"),
-                                         ("a%field(field+1)",
-                                          "a%field(1+field)", "field"),
-                                         ("b+a%b(a%b,a%b,a%b)",
-                                          "b+a%b(a%b,a%b,a%b)", "b"),
-
-                                         ])
-def test_symbolic_math_unsupported_expressions(fortran_reader, expressions):
-    '''Test that reserved names are handled as expected. The SymPy parser
-    uses 'eval' internally, so if a Fortran variable name should be the
-    same as a SymPy function (e.g. 'field'), parsing will fail.
-
-    '''
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
-                 use some_mod
-                 integer :: field(10), i
-                 type(my_mod_type) :: a, b
-                 x = {0}
-                 x = {1}
-                 end program test_prog
-             '''.format(expressions[0], expressions[1])
-    psyir = fortran_reader.psyir_from_source(source)
-    schedule = psyir.children[0]
-    sym_maths = SymbolicMaths.get()
-    with pytest.raises(TypeError) as err:
-        sym_maths.equal(schedule[0].rhs, schedule[1].rhs)
-
-    assert ("The symbol '{0}' was first used as array, but also as scalar, "
-            "which is not supported.".format(expressions[2]) in
-            str(err.value) or
-            "The symbol '{0}' was first used as scalar, but also as array, "
-            "which is not supported.".format(expressions[2]) in str(err.value))
