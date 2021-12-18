@@ -959,11 +959,11 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      ierr = clEnqueueNDRangeKernel'''
+      ! Launch the kernel'''
 
     haloexbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      CALL cu_fld % halo_exchange(depth = 1)'''
+      CALL cu_fld%halo_exchange(1)'''
 
     if dist_mem:
         # In distributed memory the command_queue synchronisation happens
@@ -1261,10 +1261,8 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
     otrans = GOOpenCLTrans()
     # We skip validation as in this test we purposefully want to have the issue
     monkeypatch.setattr(otrans, "validate", lambda x, y: None)
-    otrans.apply(sched)
-
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+        otrans.apply(sched)
     assert ("Boundary symbol tag 'xstop_compute_cu_code' not found while "
             "generating the OpenCL code for kernel 'compute_cu_code'. Make "
             "sure to apply the GOMoveIterationBoundariesInsideKernelTrans "

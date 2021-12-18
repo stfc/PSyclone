@@ -41,7 +41,8 @@ import six
 from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
-from psyclone.psyGen import Transformation, args_filter, InvokeSchedule
+from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
+    HaloExchange
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
@@ -438,6 +439,11 @@ class GOOpenCLTrans(Transformation):
         node.children.insert(cursor, first_time_block)
         cursor = cursor + 1
 
+        # We will just mark the nodes we are replacing as deleting them inside
+        # the loop would break the PSy-layer backward_dependency method in the
+        # following iterations. We will detach all this nodes after the loop.
+        nodes_to_detach = []
+
         for kern in node.coded_kernels():
 
             outerloop = kern.ancestor(GOLoop).ancestor(GOLoop)
@@ -500,9 +506,9 @@ class GOOpenCLTrans(Transformation):
                         # another queue we add a barrier to make sure the
                         # previous kernel has finished before this one starts.
                         barrier = Assignment.create(
-                                    flag,
+                                    Reference(flag),
                                     Call.create(cl_finish, [
-                                        Call.create(qlist, [
+                                        ArrayReference.create(qlist, [
                                             Literal(str(previous_queue),
                                                     INTEGER_TYPE)])]))
                         node.children.insert(outerloop.position, barrier)
@@ -512,10 +518,10 @@ class GOOpenCLTrans(Transformation):
             # barrier if this kernel is not on queue _OCL_MANAGEMENT_QUEUE.
             if dependency and not dependency.coded_kernels() and \
                     queue_number != self._OCL_MANAGEMENT_QUEUE:
-                assig = Assignment.create(
+                barrier = Assignment.create(
                             Reference(flag),
                             Call.create(cl_finish, [
-                                Call.create(qlist, [
+                                ArrayReference.create(qlist, [
                                     Literal(str(self._OCL_MANAGEMENT_QUEUE),
                                             INTEGER_TYPE)])]))
                 node.children.insert(outerloop.position, barrier)
@@ -583,11 +589,32 @@ class GOOpenCLTrans(Transformation):
                 check = Call.create(check_status, [message, Reference(flag)])
                 node.children.insert(outerloop.position, check)
 
-            #FIXME: Does this break the dependency analysis? If it does move
-            # after all kernels have been transformed
-            outerloop.detach()
+            nodes_to_detach.append(outerloop)
 
-        if 'end_barrier' in options or True:
+        # If we execute the kernels asynchronously, we need to add wait
+        # statements before the PSy-layer operations that depend on them
+        for possible_dependent_node in node.walk(HaloExchange):
+            dependency = possible_dependent_node.backward_dependence()
+            if dependency:
+                for kernel_dep in dependency.coded_kernels():
+                    previous_queue = kernel_dep.opencl_options['queue_number']
+                    if previous_queue != self._OCL_MANAGEMENT_QUEUE:
+                        # If the backward dependency is being executed in
+                        # another queue we add a barrier to make sure the
+                        # previous kernel has finished before this one starts.
+                        barrier = Assignment.create(
+                                    Reference(flag),
+                                    Call.create(cl_finish, [
+                                        ArrayReference.create(qlist, [
+                                            Literal(str(previous_queue),
+                                                    INTEGER_TYPE)])]))
+                        pos = possible_dependent_node.position
+                        node.children.insert(pos, barrier)
+
+        for node_to_detach in nodes_to_detach:
+            node_to_detach.detach()
+
+        if 'end_barrier' in options:
             # We need a clFinish for each of the queues in the implementation
             added_comment = False
             for num in range(1, self._max_queue_number + 1):
@@ -689,6 +716,7 @@ class GOOpenCLTrans(Transformation):
             if node.lhs.symbol.name in boundaries:
                 call_block.addchild(node.copy())
 
+        api_config = Config.get().api_conf("gocean1.0")
         # Prepare the argument list for the set_args routine
         arguments = [Reference(kernelsym)]
         for arg in kernel.arguments.args:
@@ -716,7 +744,12 @@ class GOOpenCLTrans(Transformation):
             elif arg.argument_type == "grid_property":
                 garg = kernel.arguments.find_grid_access()
                 if arg.is_scalar:
-                    arguments.append(arg.dereference(garg.name))
+                    arguments.append(
+                        StructureReference.create(
+                            symtab.lookup(garg.name),
+                            api_config.grid_properties[arg._property_name]
+                            .fortran.split('%')
+                        ))
                 else:
                     # Cast grid buffer to cl_mem type expected by OpenCL
                     device_grid_property = arg.name + "_device"
