@@ -6,7 +6,7 @@
 !-------------------------------------------------------------------------------
 ! Author A. Porter STFC Daresbury Lab
 ! Funded by the GOcean project
-module compute_cu_mod
+module kernel_invalid_iterates_over
   use argument_mod
   use field_mod
   use grid_mod
@@ -114,4 +114,4 @@ contains
 
   end subroutine compute_cu_code
 
-end module compute_cu_mod
+end module kernel_invalid_iterates_over

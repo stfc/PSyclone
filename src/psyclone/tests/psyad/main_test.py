@@ -114,15 +114,16 @@ def test_main_h_option(capsys):
     assert error == ""
     # The name of the executable is replaced with either pytest or -c
     # when using pytest, therefore we split this test into sections.
-    expected1 = "usage: "
+    assert "usage: " in output
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
         "-a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename              LFRic tangent-linear kernel source\n\n"
-        "optional arguments:\n"
+        "  filename              LFRic tangent-linear kernel source\n\n")
+    assert expected2 in output
+    expected3 = (
         "  -h, --help            show this help message and exit\n"
         "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
         "                        names of active variables\n"
@@ -131,8 +132,7 @@ def test_main_h_option(capsys):
         "adjoint code\n"
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
-    assert expected1 in output
-    assert expected2 in output
+    assert expected3 in output
 
 
 # no args

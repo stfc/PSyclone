@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,28 +30,34 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified: R. W. Ford, STFC Daresbury Laboratory
 
-'''This module provides access to various classes used in determining
-variable access information.
-'''
+include ../../common.mk
 
-from psyclone.core.access_info import AccessInfo, SingleVariableAccessInfo, \
-    VariablesAccessInfo
-from psyclone.core.access_type import AccessType
-from psyclone.core.component_indices import ComponentIndices
-from psyclone.core.signature import Signature
-from psyclone.core.symbolic_maths import SymbolicMaths
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
+                   test_harness.*
 
+# The first command will write the adjoint kernel to stdout. The second will
+# write both it and the corresponding test harness to separate files.
+transform:
+	$(PSYAD) testkern_mod.f90 -a field1 field2
+	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
+                 testkern_mod.f90 -a field1 field2
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.core import Signature'
-__all__ = [
-        'AccessInfo',
-        'AccessType',
-        'ComponentIndices',
-        'Signature',
-        'SingleVariableAccessInfo',
-        'SymbolicMaths',
-        'VariablesAccessInfo']
+compile: transform
+	$(F90) $(F90FLAGS) -c testkern_mod.f90
+	$(F90) $(F90FLAGS) -c testkernadj_mod.f90
+	$(F90) $(F90FLAGS) -c test_harness.f90
+	$(F90) $(F90FLAGS) -o test_harness.exe testkern_mod.o \
+                  testkernadj_mod.o test_harness.o
+
+run: compile
+	@echo ""
+	@echo "Running PSyAD-generated test harness..."
+	@./test_harness.exe
+	@echo "...done."
+
+include ../../top_level.mk

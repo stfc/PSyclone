@@ -329,17 +329,9 @@ issues:
 3) at the moment, to test whether two loop ranges are the same, we
    first check whether they both access the full bounds of the
    array. If so we assume that they are the same (otherwise the code
-   will not run). If this is not the case then we check whether the
-   string versions of the ranges are the same. This approach supports
-   arbitrarily complex array ranges that are identical but if they
-   differ at all then the ranges are assumed to be different. For
-   example ``range(1:n+1:1)`` and ``range(1:1+n:1)`` are assumed to be
-   different. Some form of symbolic analyis might be useful to address
-   this. A less powerful alternative would be to support checking
-   whether two node hierarchies are the same by checking each level of
-   the hierarchy, with levels that support commutitivity checking each
-   option. This is similar to the approach taken in ``math_equal()`` in
-   the ``Node`` base-class.
+   will not run). If this is not the case, then PSyclone uses :ref:`SymPy`
+   for comparing ranges, which will consider the two ranges
+   ``range(1:n+1:1)`` and ``range(1:1+n:1)`` to be equal.
 
 4) there is a test for non-elementwise operations on the rhs of an
    assignment as it is not possible to turn this into an explicit
