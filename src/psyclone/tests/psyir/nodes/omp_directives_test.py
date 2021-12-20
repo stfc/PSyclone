@@ -764,11 +764,12 @@ def test_omp_task_directive_validate_global_constraints(fortran_reader, fortran_
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
+        integer, dimension(10, 10) :: B
         integer :: i
         integer :: j
         do i = 1, 10
             do j = 1, 10
-                A(i, j) = 0
+                A(i, j) = B(i, j) + 1
             end do
         end do
         do i = 1, 10
@@ -791,4 +792,28 @@ def test_omp_task_directive_validate_global_constraints(fortran_reader, fortran_
     strans.apply(parent.children)
     ptrans.apply(parent.children)
     print(fortran_writer(tree))
-    assert False
+    correct = '''subroutine my_subroutine()
+  integer, dimension(10,10) :: a
+  integer, dimension(10,10) :: b
+  integer :: i
+  integer :: j
+
+  !$omp parallel default(shared), private(i,j)
+  !$omp single
+  !$omp task private(i, j), shared(a), depend(in: b(i, j) ), depend(out: a(i, j) )
+  do i = 1, 10, 1
+    do j = 1, 10, 1
+      a(i,j) = b(i,j) + 1
+    enddo
+  enddo
+  !$omp end task
+  do i = 1, 10, 1
+    do j = 1, 10, 1
+      a(i,j) = 0
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct

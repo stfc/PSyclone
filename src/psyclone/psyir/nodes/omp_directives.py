@@ -669,7 +669,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 "OMPTaskDirective must be inside an OMP Serial region "
                 "but could not find an ancestor node")
 
-    @classmethod
+    @staticmethod
     def handle_readonly_reference(ref, firstprivate_list, private_list,
                                   shared_list, in_list, out_list,
                                   parallel_private, start_val, stop_val,
@@ -708,12 +708,13 @@ class OMPTaskDirective(OMPRegionDirective):
         FIXME Raises docstring
         '''
         from psyclone.psyir.backend.fortran import FortranWriter
+        writer = FortranWriter()
         if isinstance(ref, (ArrayReference,
                             ArrayOfStructuresReference)):
             # Resolve ArrayReference (AoSReference)
             # Read access array. Find the string representing this
             # array
-            name = writer(ref.symbol.name)
+            name = ref.symbol.name
             index_list = []
             # Check if this is private in the parent parallel
             # region
@@ -741,21 +742,17 @@ class OMPTaskDirective(OMPRegionDirective):
                 for index in ref.indices:
                     if type(index) is Reference:
                         # Check this is a firstprivate var
-                        index_name = writer(index.symbol)
+                        index_name = index.symbol.name
                         index_private = (index_name in 
                                          parallel_private)
                         if index_private:
-                            if name in private_list:
-                                raise GenerationError(
-                                        "Private variable access "
-                                        "used as an index inside "
-                                        "an OMPTaskDirective which"
-                                        " is not supported.")
-                            elif name in firstprivate_list:
-                                index_list.append(name)
+                            if index_name in private_list:
+                                index_list.append(index_name)
+                            elif index_name in firstprivate_list:
+                                index_list.append(index_name)
                             else:
-                                firstprivate_list.append(name)
-                                index_list.append(name)
+                                firstprivate_list.append(index_name)
+                                index_list.append(index_name)
                         else:
                             raise GenerationError(
                                     "Shared variable access used "
@@ -777,7 +774,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                 "OMPTaskDirective.".format(
                                     type(index).__name__))
             # Add to in_list: name(index1, index2)
-            dclause = name + "(" + ",".join(index_list) + ")"
+            dclause = name + "(" + ", ".join(index_list) + ")"
             in_list.append(dclause)
         elif isinstance(ref, StructureReference):
             # Read access variable. Find the string representing
@@ -805,7 +802,7 @@ class OMPTaskDirective(OMPRegionDirective):
         elif isinstance(ref, Reference):
             # Read access variable. Find the string representing
             # this reference
-            name = writer(ref.symbol)
+            name = ref.symbol.name
             # Check if this is private in the parent parallel 
             # region
             is_private = (name in parallel_private)
@@ -826,7 +823,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 if name not in in_list:
                     in_list.append(name)
 
-    @classmethod
+    @staticmethod
     def handle_binary_op(node, index_strings, firstprivate_list,
                          private_list, parallel_private,
                          start_val, stop_val):
@@ -902,11 +899,16 @@ class OMPTaskDirective(OMPRegionDirective):
             if index_name in private_list:
                 # FIXME I think this should be
                 # supportable, but need to think
-                raise GenerationError(
-                        "Private variable access "
-                        "used as an index inside "
-                        "an OMPTaskDirective which"
-                        " is not supported.")
+                if node.operator is \
+                    BinaryOperator.ADD:
+                    index_name = index_name + ("+({0} - {1})"
+                           .format(writer(stop_val)
+                               ,writer(start_val)))
+                else:
+                    index_name = index_name + ("-({0} - {1})"
+                           .format(writer(stop_val)
+                               ,writer(start_val)))
+                index_strings.append(index_name)
             elif index_name in firstprivate_list:
                 # name +/- stop-start
                 if node.operator is \
@@ -1042,7 +1044,7 @@ class OMPTaskDirective(OMPRegionDirective):
                     index_strings = []
                     loop_reference = False
                     # Do something with indices
-                    for index in indices:
+                    for index in indices[0]:
                         if isinstance(index, Literal):
                             # Literals are just value
                             value = writer(index)
@@ -1050,7 +1052,7 @@ class OMPTaskDirective(OMPRegionDirective):
                         elif isinstance(index, Reference):
                             # Refrences also just treated as values
                             index_strings.append(writer(index))
-                            if index.symbol == loop_val.symbol:
+                            if index.symbol == loop_var:
                                 loop_reference = True
                         elif isinstance(index, BinaryOperation):
                             OMPTaskDirective.handle_binary_op(index,
@@ -1067,7 +1069,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                         type(index).__name__))
                     # So we have a list of indices [index1, index2, index3] so convert these
                     # to a depend clause
-                    depend_clause = name + "(" + index_strings.join(", ") + ")"
+                    depend_clause = name + "(" + ", ".join(index_strings) + ")"
                     shared_list.append(name)
                     out_list.append(depend_clause)
                 elif isinstance(lhs, ArrayOfStructuresReference):
@@ -1152,6 +1154,8 @@ class OMPTaskDirective(OMPRegionDirective):
             elif isinstance(statement, Loop):
                 # Resolve Loop
                 # FIXME Handle Loop variable
+                var = statement.variable
+                private_list.append(var.name)
                 start = statement.children[0]
                 stop = statement.children[1]
                 end = statement.children[2]
