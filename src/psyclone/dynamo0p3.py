@@ -3260,6 +3260,9 @@ class LFRicLoopBounds(DynCollection):
     Handles all variables required for specifying loop limits.
 
     '''
+    def _invoke_declarations(self, parent):
+        ''' Only needed because method is virtual in parent class. '''
+
     def initialise(self, parent):
         '''
         Updates the f2pygen AST so that all of the variables holding the lower
@@ -7026,7 +7029,11 @@ class DynLoop(Loop):
 
     @property
     def _mesh_name(self):
-        ''' ARPDBG '''
+        '''
+        :returns: the name of the mesh variable from which to get the bounds \
+                  for this loop.
+        :rtype: str
+        '''
         # We must allow for self._kern being None (as it will be for
         # a built-in).
         if self._kern and self._kern.is_intergrid:
@@ -7036,15 +7043,15 @@ class DynLoop(Loop):
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
             # DynKernelArguments.iteration_space_arg()).
-            mesh_name = "mesh_" + self._field_name
+            tag_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
-            mesh_name = "mesh"
+            tag_name = "mesh"
 
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # Loops in the Invoke.
+        # The symbol for the mesh will already have been added to the
+        # symbol table associated with the InvokeSchedule.
         return self.ancestor(InvokeSchedule).symbol_table.\
-            lookup_with_tag(mesh_name).name
+            lookup_with_tag(tag_name).name
 
     def _upper_bound_fortran(self):
         ''' Create the Fortran code that gives the appropriate upper bound
@@ -7085,8 +7092,7 @@ class DynLoop(Loop):
                 root_name += "_" + self._field_name
             sym = self.ancestor(
                 InvokeSchedule).symbol_table.find_or_create_tag(root_name)
-
-            return sym.name+"(colour)"
+            return f"{sym.name}(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
@@ -7098,8 +7104,8 @@ class DynLoop(Loop):
             else:
                 # If no depth is specified then we go to the full halo depth
                 depth = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_tag(f"max_halo_depth_{self._mesh_name}").\
-                    name
+                    find_or_create_tag(
+                        f"max_halo_depth_{self._mesh_name}").name
             root_name = "last_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
@@ -7109,11 +7115,12 @@ class DynLoop(Loop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    result = self.field.proxy_name_indexed + "%" + \
-                             self.field.ref_name() + "%get_last_dof_owned()"
+                    result = (f"{self.field.proxy_name_indexed}%"
+                              f"{self.field.ref_name()}%get_last_dof_owned()")
                 else:  # nannexed
-                    result = self.field.proxy_name_indexed + "%" + \
-                             self.field.ref_name() + "%get_last_dof_annexed()"
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
                 result = self._kern.undf_name
             return result
@@ -7121,8 +7128,8 @@ class DynLoop(Loop):
             if Config.get().distributed_memory:
                 result = f"{self._mesh_name}%get_last_edge_cell()"
             else:
-                result = self.field.proxy_name_indexed + "%" + \
-                    self.field.ref_name() + "%get_ncell()"
+                result = (f"{self.field.proxy_name_indexed}%"
+                          f"{self.field.ref_name()}%get_ncell()")
             return result
         if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
@@ -7132,16 +7139,15 @@ class DynLoop(Loop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                return "{0}%{1}%get_last_dof_halo({2})".format(
-                    self.field.proxy_name_indexed, self.field.ref_name(),
-                    halo_index)
+                return (f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_halo("
+                        f"{halo_index})")
             raise GenerationError(
                 "'dof_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "inner":
             if Config.get().distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(self._mesh_name,
-                                                             halo_index)
+                return f"{self._mesh_name}%get_last_inner_cell({halo_index})"
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -7428,13 +7434,13 @@ class DynLoop(Loop):
                 return ArrayReference.create(asym, [Reference(colour_var),
                                                     halo_depth])
             return ArrayReference.create(asym, [Reference(colour_var)])
-        else:
-            # This isn't a 'colour' loop so we have already set-up a
-            # variable that holds the upper bound.
-            loops = inv_sched.loops()
-            posn = loops.index(self)
-            ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
-            return Reference(ubound)
+
+        # This isn't a 'colour' loop so we have already set-up a
+        # variable that holds the upper bound.
+        loops = inv_sched.loops()
+        posn = loops.index(self)
+        ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
+        return Reference(ubound)
 
     def gen_code(self, parent):
         ''' Call the base class to generate the code and then add any

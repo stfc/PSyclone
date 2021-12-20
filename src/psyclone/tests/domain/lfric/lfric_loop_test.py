@@ -49,7 +49,7 @@ from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Schedule, ArrayReference, Reference
+from psyclone.psyir.nodes import Schedule, ArrayReference, Reference, Literal
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       Dynamo0p3RedundantComputationTrans)
@@ -285,7 +285,7 @@ def test_loop_start_expr(dist_mem):
 
 
 def test_loop_stop_expr(dist_mem):
-    ''' '''
+    ''' Test the stop_expr property of a loop with and without colouring. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
@@ -305,6 +305,41 @@ def test_loop_stop_expr(dist_mem):
     loops = sched.walk(DynLoop)
     ubound = loops[1].stop_expr
     assert isinstance(ubound, ArrayReference)
+    assert ubound.symbol.name == "last_cell_all_colours"
+    assert ubound.indices[0].name == "colour"
+    if dist_mem:
+        assert isinstance(ubound.indices[1], Literal)
+        assert ubound.indices[1].value == "1"
+
+
+def test_loop_stop_expr_intergrid(dist_mem):
+    ''' Test the stop_expr property for a loop containing an
+    inter-grid kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[0].stop_expr
+    assert isinstance(ubound, Reference)
+    assert ubound.symbol.name == "loop0_stop"
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[1].stop_expr
+    assert isinstance(ubound, ArrayReference)
+    assert ubound.symbol.name == "last_cell_all_colours_field1"
+    assert ubound.indices[0].name == "colour"
+    if dist_mem:
+        assert isinstance(ubound.indices[1], Literal)
+        assert ubound.indices[1].value == "1"
 
 
 def test_dynloop_load_unexpected_func_space():
