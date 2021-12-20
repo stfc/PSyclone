@@ -43,13 +43,13 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Schedule
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
-from psyclone.configuration import Config
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Schedule, ArrayReference, Reference
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       Dynamo0p3RedundantComputationTrans)
@@ -267,6 +267,44 @@ def test_upper_bound_ncolour_intergrid(monkeypatch, dist_mem):
         assert loops[1]._upper_bound_name == "ncolour"
         assert (loops[1]._upper_bound_fortran() ==
                 "last_cell_all_colours_field1(colour)")
+
+
+def test_loop_start_expr(dist_mem):
+    ''' Test that the start_expr property returns the expected reference
+    to a symbol. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    lbound = loops[0].start_expr
+    assert isinstance(lbound, Reference)
+    assert lbound.symbol.name == "loop0_start"
+
+
+def test_loop_stop_expr(dist_mem):
+    ''' '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[0].stop_expr
+    assert isinstance(ubound, Reference)
+    assert ubound.symbol.name == "loop0_stop"
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[1].stop_expr
+    assert isinstance(ubound, ArrayReference)
 
 
 def test_dynloop_load_unexpected_func_space():

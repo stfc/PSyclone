@@ -5470,7 +5470,7 @@ class DynInvoke(Invoke):
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
                          self.reference_element_properties,
-                         self.mesh_properties,
+                         self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             entities.declarations(invoke_sub)
 
@@ -7024,6 +7024,28 @@ class DynLoop(Loop):
         return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
             + prev_space_index_str + ")+1"
 
+    @property
+    def _mesh_name(self):
+        ''' ARPDBG '''
+        # We must allow for self._kern being None (as it will be for
+        # a built-in).
+        if self._kern and self._kern.is_intergrid:
+            # We have more than one mesh object to choose from and we
+            # want the coarse one because that determines the iteration
+            # space. _field_name holds the name of the argument that
+            # determines the iteration space of this kernel and that
+            # is set-up to be the one on the coarse mesh (in
+            # DynKernelArguments.iteration_space_arg()).
+            mesh_name = "mesh_" + self._field_name
+        else:
+            # It's not an inter-grid kernel so there's only one mesh
+            mesh_name = "mesh"
+
+        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # Loops in the Invoke.
+        return self.ancestor(InvokeSchedule).symbol_table.\
+            lookup_with_tag(mesh_name).name
+
     def _upper_bound_fortran(self):
         ''' Create the Fortran code that gives the appropriate upper bound
         value for this type of loop.
@@ -7038,24 +7060,6 @@ class DynLoop(Loop):
         halo_index = ""
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
-
-        # We must allow for self._kern being None (as it will be for
-        # a built-in).
-        if self._kern and self._kern.is_intergrid:
-            # We have more than one mesh object to choose from and we
-            # want the coarse one because that determines the iteration
-            # space. _field_name holds the name of the argument that
-            # determines the iteration space of this kernel and that
-            # is set-up to be the one on the coarse mesh (in
-            # DynKernelArguments.iteration_space_arg()).
-            mesh_name = "mesh_" + self._field_name
-        else:
-            # It's not an inter-grid kernel so there's only one mesh
-            mesh_name = "mesh"
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # Loops in the Invoke.
-        mesh = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(mesh_name).name
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -7094,7 +7098,8 @@ class DynLoop(Loop):
             else:
                 # If no depth is specified then we go to the full halo depth
                 depth = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_tag(f"max_halo_depth_{mesh_name}").name
+                    find_or_create_tag(f"max_halo_depth_{self._mesh_name}").\
+                    name
             root_name = "last_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
@@ -7114,14 +7119,14 @@ class DynLoop(Loop):
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
-                result = mesh + "%get_last_edge_cell()"
+                result = f"{self._mesh_name}%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
-                return f"{mesh}%get_last_halo_cell({halo_index})"
+                return f"{self._mesh_name}%get_last_halo_cell({halo_index})"
             raise GenerationError(
                 "'cell_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -7135,7 +7140,7 @@ class DynLoop(Loop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "inner":
             if Config.get().distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(mesh,
+                return "{0}%get_last_inner_cell({1})".format(self._mesh_name,
                                                              halo_index)
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
