@@ -371,6 +371,58 @@ def test_multi_add(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
+def test_multi_add_array_elements(tmpdir):
+    '''
+    Same as test_multi_add except that 'A' and 'B' are actually just
+    different elements of the same array:
+
+    A=B+xC -> B*=B*+A*; C*=C*+xA*; A*=0.0
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10), n\n"
+        "  integer :: i,j\n"
+        "  a(i) = a(j) + 3*n*b(j)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  a(j) = a(j) + a(i)\n"
+        "  b(j) = b(j) + 3 * n * a(i)\n"
+        "  a(i) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+def test_multi_add_array_range(tmpdir):
+    ''' Test that the correct code is generated for an assignment that is
+    not strictly an increment due to differing array slices. This means
+    we follow the rule:
+
+    A=B+xC -> B*=B*+A*; C*=C*+xA*; A*=0.0
+
+    where A=a(2:5), B=a(1:4) and C=b(1:4).
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10)\n  real :: x\n"
+        "  a(2:5) = A(1:4)+x*B(1:4)\n")
+    # If we consider a single array element from this expression then:
+    #   a(2) = a(1) + x*b(1)
+    # becomes:
+    #   a(1) = a(1) + a(2)
+    #   b(1) = b(1) + x*a(2)
+    #   a(2) = 0.0
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(10) :: b\n"
+        "  real :: x\n\n"
+        "  a(1:4) = a(1:4) + a(2:5)\n"
+        "  b(1:4) = b(1:4) + x * a(2:5)\n"
+        "  a(2:5) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
 def test_increment(tmpdir, index_str):
     '''Test the adjoint transformation with an assignment of the form
     A = A.
