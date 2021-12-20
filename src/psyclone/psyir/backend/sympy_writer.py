@@ -55,19 +55,27 @@ class SymPyWriter(FortranWriter):
     implements special handling for constants (which can have a precision
     attached, e.g. 2_4) and some intrinsic functions (e.g. MAX, which SymPy
     expects to be Max).
+    It additionally supports accesses to structure types. A full description
+    can be found in the manual:
+    https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
 
     '''
 
     def __init__(self, list_of_expressions=None):
         super().__init__()
 
+        # The symbol table is used to create unique names for structure
+        # members that are being accesses (these need to be defined as
+        # SymPy functions or symbols, which could clash with other
+        # references in the expression).
         self._symbol_table = SymbolTable()
+
         if list_of_expressions is None:
             list_of_expressions = []
-        # This directory keeps track of which expression
-        # are arrays (--> must be declared as a SymPy
-        # function) or non-array (--> must be declared
-        # as a SymPy symbol).
+        # First add all references. This way we can be sure that the writer
+        # will never rename a reference. This directory keeps track of which
+        # names are arrays (--> must be declared as a SymPy function) or
+        # non-array (--> must be declared as a SymPy symbol).
         self._sympy_type = {}
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
@@ -123,6 +131,9 @@ class SymPyWriter(FortranWriter):
         while not isinstance(parent, Reference):
             parent = parent.parent
             tag.insert(0, parent.name)
+        # The root name uses _, the tag uses % (which are guaranteed
+        # to be unique, the root_name might clash with a user defined
+        # variable otherwise.
         root_name = "_".join(tag)
         sig_name = "%".join(tag)
         new_sym = self._symbol_table.find_or_create_tag(tag=sig_name,

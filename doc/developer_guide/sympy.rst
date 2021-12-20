@@ -102,46 +102,27 @@ be fused have the same loop boundaries using code like this:
     'k' does not equal '2 * k - k - 1'
 
 
-Internal Details
-----------------
-The method ``equal`` of the SymbolicMaths class expects two PSyIR
-nodes. It converts these expression first into strings before parsing
-them as SymPy expressions. The conversion is done with the SymPyWriter
-class:
-
-.. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
-    :members:
-
-This class mostly uses the Fortran writer, but implements the following,
-SymPy specific way of converting nodes:
-
-1. No precision or kind information is added to a constant (e.g. a Fortran
-   value like ``2_4`` will be written just as ``2``).
-2. The intrinsic functions ``Max``, ``Min``, ``Mod`` are returned with a
-   capitalised first letter only. The Fortran writer would write them
-   as ``MAX`` etc., which SymPy does not recognise - it would handle them
-   as unknown functions.
-
-SymPy also has no concept of Fortran structure references or array syntax
+Handling of Fortran Structures and Arrays
+-----------------------------------------
+SymPy has no concept of Fortran structure references or array syntax
 like ``a(i)%b``. But this case is not handled especially, the Fortran
 syntax is provided unmodified to SymPy. SymPy interprets the ``%`` symbol
 as modulo function, so the expression above is read as ``Mod(a(i), b)``.
-Furthermore, it will interpret ``a(i)`` as an unknown function ``a`` with the
-symbol ``i`` as argument. Similarly,``b`` will be a symbol. This interpretation
-achieves the expected outcome when comparing structures and array references.
+This interpretation achieves the expected outcome when comparing structures
+and array references.
 For example, ``a(i+2*j-1)%b(k-i)`` and ``a(j*2-1+i)%b(-i+k)`` will be
 considered to be equal:
 
 1. Converting the two expressions to SymPy internally results in
    ``Mod(a(i+2*j-1), b(k-i))`` and ``Mod(a(j*2-1+i, b(-i+k))``.
 2. Since nothing is known about the arguments of any of the ``Mod``
-   function, SymPy will first detect that the same function is called
+   functions, SymPy will first detect that the same function is called
    in both expression, and then continue to compare the arguments of
    this function.
 3. The first arguments are ``a(i+2*j-1)`` and ``a(j*2-1+i)``.
-   The name ``a`` is considered an unknown function (since it's not
-   a SymPy vector). SymPy detects that both expressions appear to call
-   the same function, and it will therefore compare the arguments.
+   The name ``a`` is considered an unknown function. SymPy detects
+   that both expressions appear to call the same function, and it
+   will therefore compare the arguments.
 4. SymPy compares ``i+2*j-1`` and ``j*2-1+i`` symbolically, and
    evaluate these expressions to be identical. Therefore, the
    two expressions ``a(...)`` are identical, so the first arguments
@@ -153,21 +134,53 @@ considered to be equal:
    SymPy will report these two functions to be the same, which
    is the expected outcome.
 
-All Fortran names will be declared as SymPy symbols. Because
-of the handling of structures, all members of a structure will be
-declared individually, e.g. ``a%b`` will declare two SymPy symbols ``a``
-and ``b``.
+Converting Fortran to Sympy - SymPyWriter
+-----------------------------------------
+The method ``equal`` of the SymbolicMaths class expects two PSyIR
+nodes. It converts these expression first into strings before parsing
+them as SymPy expressions. The conversion is done with the SymPyWriter
+class. As described in the previous section, a member of a structure
+in Fortran becomes a stand alone symbol or function in sympy. The SymPy
+writer will rename members to better indicate that they are members:
+an expression like ``a%b%c`` will be written as ``a%a_b%a_b_c``, which
+SymPy then parses as ``MOD(a, MOD(a_b, a_b_c))``. These convention
+makes it easier to identify what the various expression in SymPy are.
 
-A variable that is using an array access will be declared as a SymPy
-function. This results in the correct behaviour that SymPy will
-look at the function parameters when testing if two expressions
-are equal, which are the array indices. Any non-array variable
-access will result in a declaration as a SymPy Symbol.
+This handling of member variables can result in name clashes. Consider
+the expression ``a%b + a_b + b``. The structure access will be using
+two symbols ``a`` and ``a_b`` - but now there are two different symbols
+with the same name. Note that the renaming of the member from ``b`` to
+``a_b`` is not the reason for this - without renaming the same clash would
+happen with the symbol ``b``.
 
-.. important:: Due to the way that structures are handled, some
-    valid Fortran expressions cannot be converted to SymPy. For
-    example, the expression ``a%b(b)`` will result in declaring
-    a symbol ``a``, then a function ``b()`` for the member ``a%b``
-    as described above. But the scalar expression ``b`` used as
-    index in ``a%b(b)`` would result in a declaration as symbol.
-    An exception will be raised in this case.
+SymPy uses a symbol table to make sure it creates unique symbols. It
+first adds all references in the expression to the symbol table, which
+guarantees that no Fortran reference is renamed. The writer then renames
+all members and makes sure it uses a unique name. In the case of
+``a%b + a_b + b``, it would create ``a%a_b_1 + a_b + b``, using the name
+``a_b_1`` for the member to avoid the name clash with the reference
+``a_b`` - so an existing Fortran reference will not be renamed, only
+members.
+
+The SymPy writer mostly uses the Fortran writer, but implements the
+following, SymPy specific features:
+
+1. It will declare any array access as a SymPy unknown function, and any
+   scalar access as a SymPy symbol. These declarations are stored in a
+   dictionary, which can be queried. This dictionary is parsed into the
+   SymPy writer to ensure the correct interpretation of any names found
+   in the expression. Declaring arrays as functions results in the correct
+   behaviour of SymPy: in case of an unknown function SymPy will compare
+   all arguments, which are the array indices.
+2. It renames members as described above. So a Fortran expression like
+   ``a%b`` will create two SymPy symbols: ``a`` and ``a_b`` (or a similar
+   name if a name clash was detected).
+3. No precision or kind information is added to a constant (e.g. a Fortran
+   value like ``2_4`` will be written just as ``2``).
+4. The intrinsic functions ``Max``, ``Min``, ``Mod`` are returned with a
+   capitalised first letter only. The Fortran writer would write them
+   as ``MAX`` etc., which SymPy does not recognise - it would handle them
+   as unknown functions.
+
+.. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
+    :members:
