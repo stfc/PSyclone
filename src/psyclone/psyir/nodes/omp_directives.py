@@ -667,7 +667,7 @@ class OMPTaskDirective(OMPRegionDirective):
         if not self.ancestor(OMPSerialDirective):
             raise GenerationError(
                 "OMPTaskDirective must be inside an OMP Serial region "
-                "but could not find an ancestor node")
+                "but could not find an ancestor node.")
 
     @staticmethod
     def handle_readonly_reference(ref, firstprivate_list, private_list,
@@ -1071,8 +1071,10 @@ class OMPTaskDirective(OMPRegionDirective):
                     # So we have a list of indices [index1, index2, index3] so convert these
                     # to a depend clause
                     depend_clause = name + "(" + ", ".join(index_strings) + ")"
-                    shared_list.append(name)
-                    out_list.append(depend_clause)
+                    if name not in shared_list:
+                        shared_list.append(name)
+                    if depend_clause not in out_list:
+                        out_list.append(depend_clause)
                 elif isinstance(lhs, ArrayOfStructuresReference):
                     # ArrayOfStructuresReference
                     # We write to this reference, so it is shared and depend out on
@@ -1115,23 +1117,29 @@ class OMPTaskDirective(OMPRegionDirective):
                     # So we have a list of indices [index1, index2, index3] so convert these
                     # to a depend clause
                     depend_clause = name + "(" + index_strings.join(", ") + ")"
-                    shared_list.append(name)
-                    out_list.append(depend_clause)
+                    if name not in shared_list:
+                        shared_list.append(name)
+                    if depend_clause not in out_list:
+                       out_list.append(depend_clause)
                 elif isinstance(lhs, StructureReference):
                     # Resolve StructureReference
                     # We only need the Structure name, this is probably wrong
                     name = writer(lhs.symbol.name)
                     is_private = (name in parallel_private)
                     if not is_private:
-                        shared_list.append(name)
-                        out_list.append(name)
+                        if name not in shared_list:
+                            shared_list.append(name)
+                        if name not in out_list:
+                            out_list.append(name)
                 elif isinstance(lhs, Reference):
                     #Resolve reference
                     name = writer(lhs)
                     is_private = (name in parallel_private)
                     if not is_private:
-                        shared_list.append(name)
-                        out_list.append(name)
+                        if name not in shared_list:
+                            shared_list.append(name)
+                        if name not in out_list:
+                            out_list.append(name)
 
                 # Handle rhs References
                 references = rhs.walk(Reference)
