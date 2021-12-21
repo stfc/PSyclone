@@ -6985,6 +6985,8 @@ class DynLoop(Loop):
         '''
         Create the associated Fortran code for the type of lower bound.
 
+        TODO: Issue #440. lower_bound_fortran should generate PSyIR.
+
         :returns: the Fortran code for the lower bound.
         :rtype: str
 
@@ -7056,6 +7058,8 @@ class DynLoop(Loop):
     def _upper_bound_fortran(self):
         ''' Create the Fortran code that gives the appropriate upper bound
         value for this type of loop.
+
+        TODO: Issue #440. upper_bound_fortran should generate PSyIR.
 
         :return: Fortran code for the upper bound of this loop
         :rtype: str

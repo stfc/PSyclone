@@ -52,6 +52,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Schedule, ArrayReference, Reference, Literal
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import (Dynamo0p3ColourTrans,
+                                      DynamoOMPParallelLoopTrans,
                                       Dynamo0p3RedundantComputationTrans)
 
 BASE_PATH = os.path.join(
@@ -210,7 +211,7 @@ def test_upper_bound_inner(monkeypatch):
     assert ubound == "mesh%get_last_inner_cell(1)"
 
 
-def test_upper_bound_ncolour(monkeypatch, dist_mem):
+def test_upper_bound_ncolour(dist_mem):
     ''' Check that we get the correct Fortran for the upper bound of a
     coloured loop. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -238,7 +239,7 @@ def test_upper_bound_ncolour(monkeypatch, dist_mem):
                 "last_cell_all_colours(colour)")
 
 
-def test_upper_bound_ncolour_intergrid(monkeypatch, dist_mem):
+def test_upper_bound_ncolour_intergrid(dist_mem):
     ''' Check that we get the correct Fortran for a coloured loop's upper bound
     if it contains an inter-grid kernel. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -276,6 +277,7 @@ def test_loop_start_expr(dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(DynLoop)
@@ -290,6 +292,7 @@ def test_loop_stop_expr(dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(DynLoop)
@@ -310,6 +313,11 @@ def test_loop_stop_expr(dist_mem):
     if dist_mem:
         assert isinstance(ubound.indices[1], Literal)
         assert ubound.indices[1].value == "1"
+        # Alter the loop so that it goes to the full halo depth
+        loops[1]._upper_bound_halo_depth = None
+        ubound = loops[1].stop_expr
+        assert isinstance(ubound.indices[1], Reference)
+        assert ubound.indices[1].symbol.name == "max_halo_depth_mesh"
 
 
 def test_loop_stop_expr_intergrid(dist_mem):
@@ -320,6 +328,7 @@ def test_loop_stop_expr_intergrid(dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(DynLoop)
@@ -340,6 +349,34 @@ def test_loop_stop_expr_intergrid(dist_mem):
     if dist_mem:
         assert isinstance(ubound.indices[1], Literal)
         assert ubound.indices[1].value == "1"
+        # Alter the loop so that it goes to the full halo depth
+        loops[1]._upper_bound_halo_depth = None
+        ubound = loops[1].stop_expr
+        assert isinstance(ubound.indices[1], Reference)
+        assert ubound.indices[1].symbol.name == "max_halo_depth_mesh_field1"
+
+
+def test_lfricloop_gen_code_err():
+    ''' Test that the gen_code method raises the expected exception if the loop
+    type is 'colours' and is within an OpenMP parallel region. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    loops = sched.walk(DynLoop)
+    # Parallelise the inner loop (over cells of a given colour)
+    trans = DynamoOMPParallelLoopTrans()
+    trans.apply(loops[1])
+    # Alter the loop type manually
+    loops[1]._loop_type = "colours"
+    with pytest.raises(GenerationError) as err:
+        loops[1].gen_code(None)
+    assert ("Cannot have a loop over colours within an OpenMP parallel region"
+            in str(err.value))
 
 
 def test_dynloop_load_unexpected_func_space():
