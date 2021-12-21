@@ -87,16 +87,15 @@ def test_explicit(parser):
     acc_kernels.apply(schedule.children)
     acc_trans = ACCEnterDataTrans()
     acc_trans.apply(schedule)
-    schedule.view()
     gen_code = str(psy.gen).lower()
-
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
-            "  !$acc data copyout(umask)\n"
+            "  !$acc enter data copyin(jpi,jpj,jpk,r,umask)\n"
+            "  !$acc kernels\n"
             "  do jk = 1, jpk") in gen_code
 
     assert ("  enddo\n"
-            "  !$acc end data\n"
+            "  !$acc end kernels\n"
             "\n"
             "end program explicit_do") in gen_code
 

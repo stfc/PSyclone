@@ -49,7 +49,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Loop, Schedule, Routine, ACCEnterDataDirective
+from psyclone.psyir.nodes import (Loop, Schedule, Routine, ACCKernelsDirective,
+                                  ACCParallelDirective, ACCEnterDataDirective)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import GenerationError
 
@@ -337,13 +338,6 @@ class NemoLoop(Loop):
 class NemoACCEnterDataDirective(ACCEnterDataDirective):
     '''
     '''
-    @property
-    def ref_list(self):
-        '''
-        '''
-        variables = []
-        return variables
-
     def lower_to_language_level(self):
         '''
         In-place replacement of this directive concept into language level
@@ -364,18 +358,24 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
             # for later use in any sub-class.
             self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                     (ACCParallelDirective, ACCKernelsDirective))
-            # 2. For each directive, loop over each of the fields used by
-            #    the kernels it contains (this list is given by ref_list)
-            #    and add it to our list if we don't already have it
+            #import pdb; pdb.set_trace()
+            # 2. For each directive, loop over each of the variables used by
+            #    the kernels it contains and add it to our list if we don't
+            #    already have it
             self._variables_to_copy = []
-            # TODO grid properties are effectively duplicated in this list (but
-            # the OpenACC deep-copy support should spot this).
             for pdir in self._acc_dirs:
                 inputs, outputs = dep_tools.get_in_out_parameters(
                     pdir.children)
-                for var in pdir.ref_list:
-                    if var not in self._variables_to_copy:
-                        self._variables_to_copy.append(var)
+                for sig in (inputs + outputs):
+                    if sig.is_structure:
+                        raise NotImplementedError("ARPDBG")
+                    name = sig.var_name
+                    # TODO use Config to get loop variable names
+                    if name in ["ji", "jj", "jk"]:
+                        continue
+                    sym = self.scope.symbol_table.lookup(name)
+                    if name not in self._variables_to_copy:
+                        self._variables_to_copy.append(name)
             self._node_lowered = True
 
         super(ACCEnterDataDirective, self).lower_to_language_level()
