@@ -762,7 +762,7 @@ class OMPTaskDirective(OMPRegionDirective):
                     elif type(index) is BinaryOperation:
                         # Binary Operation check
                         OMPTaskDirective.handle_binary_op(index,
-                                index_strings, firstprivate_list,
+                                index_list, firstprivate_list,
                                 private_list, parallel_private,
                                 start_val, stop_val)
                     else:
@@ -859,6 +859,7 @@ class OMPTaskDirective(OMPRegionDirective):
         :raises GenerationError: If the child Reference is a shared variable.
         '''
         from psyclone.psyir.backend.fortran import FortranWriter
+        writer = FortranWriter()
         # Binary Operation check
         if node.operator is not \
            BinaryOperation.ADD and \
@@ -900,7 +901,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 # FIXME I think this should be
                 # supportable, but need to think
                 if node.operator is \
-                    BinaryOperator.ADD:
+                    BinaryOperation.ADD:
                     index_name = index_name + ("+({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
@@ -912,7 +913,7 @@ class OMPTaskDirective(OMPRegionDirective):
             elif index_name in firstprivate_list:
                 # name +/- stop-start
                 if node.operator is \
-                    BinaryOperator.ADD:
+                    BinaryOperation.ADD:
                     index_name = index_name + ("+({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
@@ -924,8 +925,8 @@ class OMPTaskDirective(OMPRegionDirective):
             else:
                 firstprivate_list.append(index_name)
                 # name +/- stop-start 
-                if index.operator is \
-                    BinaryOperator.ADD:
+                if node.operator is \
+                    BinaryOperation.ADD:
                     index_name = index_name + ("+({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
@@ -1095,7 +1096,7 @@ class OMPTaskDirective(OMPRegionDirective):
                         elif isinstance(index, Reference):
                             # Refrences also just treated as values
                             index_strings.append(writer(index))
-                            if index.symbol == loop_val.symbol:
+                            if index.symbol == loop_var.symbol:
                                 loop_reference = True
                         elif isinstance(index, BinaryOperation):
                             # Binary Operation check

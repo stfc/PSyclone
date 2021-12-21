@@ -34,9 +34,10 @@
 # Author A. B. G. Chalk STFC Daresbury Lab
 ''' This module provides the OMPTaskTrans transformation.'''
 from psyclone.core import VariablesAccessInfo
-from psyclone.errors import LazyString, InternalError
+from psyclone.errors import LazyString, InternalError, GenerationError
 from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
+from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop, Schedule, \
     OMPDoDirective, OMPTaskDirective, OMPSerialDirective, \
