@@ -161,6 +161,31 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
     assert my_loop._lower_bound_fortran() == "mesh%get_last_" + output + "+1"
 
 
+def test_mesh_name():
+    ''' Tests for the _mesh_name property of DynLoop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
+    assert loops[0]._mesh_name == "mesh"
+
+
+def test_mesh_name_intergrid():
+    ''' Tests for the _mesh_name property of DynLoop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
+    assert loops[0]._mesh_name == "mesh_field1"
+
+
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used'''
