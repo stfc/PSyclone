@@ -40,6 +40,7 @@
 transformations and base classes.
 '''
 
+from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans

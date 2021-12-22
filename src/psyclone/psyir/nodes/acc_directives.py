@@ -739,14 +739,15 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
 
     :raises ValueError: if the direction argument is not a string with \
-                            value 'host' or 'device'.
+                        value 'host' or 'device'.
     :raises TypeError: if the symbol is not a DataSymbol.
 
     '''
 
     _VALID_DIRECTIONS = ("host", "device")
 
-    def __init__(self, symbol, direction, children=None, parent=None):
+    def __init__(self, symbol, direction, children=None, parent=None,
+                 conditional=True):
         super(ACCUpdateDirective, self).__init__(children=children,
                                                  parent=parent)
         if not isinstance(direction, six.string_types) or direction not in \
@@ -763,6 +764,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         self._direction = direction
         self._symbol = symbol
+        self._conditional = conditional
 
     def begin_string(self):
         '''
@@ -775,7 +777,11 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc update " + self._direction + "(" + self._symbol.name + ")"
+        if self._conditional:
+            condition = f"if(acc_is_present({self._symbol.name}))"
+        else:
+            condition = ""
+        return f"acc update {condition} {self._direction}({self._symbol.name})"
 
 
 # For automatic API documentation generation
