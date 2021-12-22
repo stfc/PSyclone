@@ -52,10 +52,15 @@ class ACCUpdateTrans(Transformation):
     for any data accessed outside of a kernels or parallel region.
 
     '''
+    def __init__(self):
+        self._dep_tools = DependencyTools()
+        self._acc_region_nodes = (ACCParallelDirective, ACCKernelsDirective)
+
     def validate(self, sched, options=None):
         ''' '''
         if not isinstance(sched, Schedule):
             raise TransformationError()
+        super().validate(sched, options)
 
     def apply(self, sched, options=None):
         ''' '''
@@ -74,12 +79,17 @@ class ACCUpdateTrans(Transformation):
         #   var2(:,:) = var(:,:)
         #   !$acc end kernels
         # end if
-        dep_tools = DependencyTools()
-        acc_region_nodes = (ACCParallelDirective, ACCKernelsDirective)
+        self.validate(sched, options)
+        self.add_updates(sched)
+
+    def add_updates(self, sched):
+        '''
+        Recursively add any required OpenACC update directives.
+        '''
         node_list = []
         start_node = None
         for child in sched.children[:]:
-            if not child.walk(acc_region_nodes):
+            if not child.walk(self._acc_region_nodes):
                 if not start_node:
                     start_node = child
                 node_list.append(child)
@@ -87,9 +97,16 @@ class ACCUpdateTrans(Transformation):
                 if isinstance(child, (IfBlock, Loop)):
                     # TODO: Update node_list with nodes from IfBlock condition
                     # or Loop bounds/step
-                    pass
+                    if not start_node:
+                        start_node = child
+                    if isinstance(child, IfBlock):
+                        node_list.append(child.condition)
+                        # Recurse down
+                        self.add_updates(child.if_body)
+                        if child.else_body:
+                            self.add_updates(child.else_body)
                 if node_list:
-                    inputs, outputs = dep_tools.get_in_out_parameters(
+                    inputs, outputs = self._dep_tools.get_in_out_parameters(
                         node_list)
                     for sig in inputs:
                         if sig.is_structure:
