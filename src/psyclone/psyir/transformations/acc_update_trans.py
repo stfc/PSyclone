@@ -40,7 +40,8 @@ data is kept up-to-date on the host.
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes import (IfBlock, Loop, Schedule, ACCKernelsDirective,
-                                  ACCParallelDirective, ACCUpdateDirective)
+                                  ACCParallelDirective, ACCUpdateDirective,
+                                  ACCEnterDataDirective)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyGen import Transformation
 #, TransformationError
@@ -87,18 +88,15 @@ class ACCUpdateTrans(Transformation):
         Recursively add any required OpenACC update directives.
         '''
         node_list = []
-        start_node = None
         for child in sched.children[:]:
+            if isinstance(child, ACCEnterDataDirective):
+                continue
             if not child.walk(self._acc_region_nodes):
-                if not start_node:
-                    start_node = child
                 node_list.append(child)
             else:
                 if isinstance(child, (IfBlock, Loop)):
                     # TODO: Update node_list with nodes from IfBlock condition
                     # or Loop bounds/step
-                    if not start_node:
-                        start_node = child
                     if isinstance(child, IfBlock):
                         node_list.append(child.condition)
                         # Recurse down
@@ -108,13 +106,23 @@ class ACCUpdateTrans(Transformation):
                 if node_list:
                     inputs, outputs = self._dep_tools.get_in_out_parameters(
                         node_list)
+                    parent = node_list[0].parent
+                    # Copy any data that is read by this region to the host
+                    # if it is on the GPU.
                     for sig in inputs:
                         if sig.is_structure:
                             raise NotImplementedError("ARPDBG2")
                         sym = sched.symbol_table.lookup(sig.var_name)
                         update_dir = ACCUpdateDirective(sym, "host")
-                        parent = start_node.parent
                         parent.addchild(update_dir,
-                                        parent.children.index(start_node))
+                                        parent.children.index(node_list[0]))
+                    # Copy any data that is written by this region back to
+                    # the GPU.
+                    for sig in outputs:
+                        if sig.is_structure:
+                            raise NotImplementedError("ARPDBG3")
+                        sym = sched.symbol_table.lookup(sig.var_name)
+                        update_dir = ACCUpdateDirective(sym, "device")
+                        parent.addchild(update_dir,
+                                        parent.children.index(node_list[-1])+1)
                 node_list = []
-                start_node = None
