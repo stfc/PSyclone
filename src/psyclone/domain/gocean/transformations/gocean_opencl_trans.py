@@ -263,7 +263,7 @@ class GOOpenCLTrans(Transformation):
                                          kernel.opencl_options["queue_number"])
 
         # Insert, if they don't already exist, the necessary OpenCL helper
-        # subroutines in the root Container,
+        # subroutines in the root Container.
         psy_init = self._insert_opencl_init_routine(node.root)
         init_grid = self._insert_initialise_grid_buffers(node.root)
         write_grid_buf = self._insert_write_grid_buffers(node.root)
@@ -319,8 +319,8 @@ class GOOpenCLTrans(Transformation):
             "cmd_queues", symbol_type=DataSymbol,
             datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
             tag="opencl_cmd_queues")  # Was SAVE
-        # 'first' needs a UnknownFortranType because it has SAVE and initial
-        # value
+        # 'first_time' needs to be an UnknownFortranType because it has SAVE
+        # and initial value
         first = DataSymbol("first_time",
                            datatype=UnknownFortranType(
                                "logical, save :: first_time = .true."))
@@ -428,7 +428,7 @@ class GOOpenCLTrans(Transformation):
                     cursor = cursor + 1
 
         # Now we can insert calls to write_to_device method for each buffer
-        # and the grid writign call is there is one (in a new first time block)
+        # and the grid writing call is there is one (in a new first time block)
         first_time_block = first_time_template.copy()
         for field in initialised_fields:
             call = Call.create(
@@ -545,7 +545,7 @@ class GOOpenCLTrans(Transformation):
                 check = Call.create(check_status, [message, Reference(flag)])
                 node.children.insert(outerloop.position, check)
 
-            # Then we call clEnqueueNDRangeKernel
+            # Then we call the clEnqueueNDRangeKernel
             assig = Assignment.create(
                         Reference(flag),
                         Call.create(cl_launch, [
@@ -633,15 +633,13 @@ class GOOpenCLTrans(Transformation):
                         "Wait until all kernels have finished"
                     added_comment = True
 
-        # And at the very end always makes sure that first time is false
+        # And at the very end always makes sure that first_time value is False
         assign = Assignment.create(Reference(first),
                                    Literal("false", BOOLEAN_TYPE))
         assign.preceding_comment = "Unset the first time flag"
         node.addchild(assign)
 
         self._output_opencl_kernels_file()
-        # TODO #595: Remove transformation return values
-        return None, None
 
     def _insert_kernel_code_in_opencl_file(self, kernel):
         if not self._kernels_file:
