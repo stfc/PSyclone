@@ -252,6 +252,11 @@ class GOOpenCLTrans(Transformation):
 
         self._transformed_invokes += 1
 
+        # Get end_barrier option
+        _end_barrier = True
+        if 'end_barrier' in options:
+            _end_barrier = options['end_barrier']
+
         # Update the maximum value that the queue_number have.
         for kernel in node.coded_kernels():
             self._max_queue_number = max(self._max_queue_number,
@@ -614,7 +619,7 @@ class GOOpenCLTrans(Transformation):
         for node_to_detach in nodes_to_detach:
             node_to_detach.detach()
 
-        if 'end_barrier' in options:
+        if _end_barrier:
             # We need a clFinish for each of the queues in the implementation
             added_comment = False
             for num in range(1, self._max_queue_number + 1):

@@ -888,11 +888,10 @@ def test_opencl_options_effects():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
-    otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-
     # Change kernel local_size to 4
     sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
     assert "localsize = (/4, 1/)" in generated_code
 
@@ -902,11 +901,10 @@ def test_opencl_options_effects():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
-    otrans = GOOpenCLTrans()
-    otrans.apply(sched)
-
     # Change kernel queue number to 2 (the barrier should then also go up to 2)
     sched.coded_kernels()[0].set_opencl_options({'queue_number': 2})
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
