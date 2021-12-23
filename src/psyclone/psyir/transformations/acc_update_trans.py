@@ -106,23 +106,29 @@ class ACCUpdateTrans(Transformation):
                 if node_list:
                     inputs, outputs = self._dep_tools.get_in_out_parameters(
                         node_list)
-                    parent = node_list[0].parent
+                    parent = sched
                     # Copy any data that is read by this region to the host
                     # if it is on the GPU.
+                    first_child = node_list[0]
+                    while first_child not in parent.children:
+                        first_child = first_child.parent
                     for sig in inputs:
                         if sig.is_structure:
                             raise NotImplementedError("ARPDBG2")
                         sym = sched.symbol_table.lookup(sig.var_name)
                         update_dir = ACCUpdateDirective(sym, "host")
                         parent.addchild(update_dir,
-                                        parent.children.index(node_list[0]))
+                                        parent.children.index(first_child))
                     # Copy any data that is written by this region back to
                     # the GPU.
+                    last_child = node_list[-1]
+                    while last_child not in parent.children:
+                        last_child = last_child.parent
                     for sig in outputs:
                         if sig.is_structure:
                             raise NotImplementedError("ARPDBG3")
                         sym = sched.symbol_table.lookup(sig.var_name)
                         update_dir = ACCUpdateDirective(sym, "device")
                         parent.addchild(update_dir,
-                                        parent.children.index(node_list[-1])+1)
+                                        parent.children.index(last_child)+1)
                 node_list = []
