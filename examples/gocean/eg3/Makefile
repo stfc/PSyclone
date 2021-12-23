@@ -38,9 +38,9 @@ include ../../common.mk
 
 KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o
 
-GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl \
-	compute_z_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} ${KERNELS:.o=.mod} \
-	alg_opencl.exe allkernels.cl alg_gen_dm.f90 psy_gen_dm.f90 *.exe *.o
+GENERATED_FILES += opencl_kernels_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} \
+	${KERNELS:.o=.mod} alg_opencl.exe allkernels.cl alg_gen_dm.f90 \
+	psy_gen_dm.f90 *.exe *.o
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).

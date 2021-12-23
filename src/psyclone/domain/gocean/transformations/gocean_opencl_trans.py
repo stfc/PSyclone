@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     StructureReference, FileContainer, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE
+    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
 from psyclone.transformations import TransformationError, KernelTrans
 
 
@@ -652,6 +652,22 @@ class GOOpenCLTrans(Transformation):
         if not self._kernels_file:
             self._kernels_file = FileContainer("opencl_kernels")
 
+        # Create a copy of the kernel and remove precision symbols
+        kernel_copy = kernel.get_kernel_schedule().copy()
+        symtab = kernel_copy.symbol_table
+
+        for sym in symtab.datasymbols:
+            # Not all types have the 'precision' attribute (e.g. DeferredType)
+            if (hasattr(sym.datatype, "precision") and
+                    isinstance(sym.datatype.precision, DataSymbol)):
+                sym.datatype._precision = ScalarType.Precision.DOUBLE
+
+        if 'go_wp' in symtab:
+            del symtab._symbols['go_wp']
+
+        # Insert kernel in the OpenCL kernels file
+        self._kernels_file.addchild(kernel_copy)
+
     def _output_opencl_kernels_file(self):
 
         from psyclone.psyir.backend.opencl import OpenCLWriter
@@ -677,13 +693,11 @@ class GOOpenCLTrans(Transformation):
             except (OSError, IOError):
                 # The os.O_CREATE and os.O_EXCL flags in combination mean
                 # that open() raises an error if the file exists
-                if Config.get().kernel_naming == "single":
-                    # If the kernel-renaming scheme is such that we only ever
-                    # create one copy of a transformed kernel then we're done
-                    break
                 continue
 
+        # Write the modified AST out to file
         os.write(fdesc, new_kern_code.encode())
+        # Close the new kernel file
         os.close(fdesc)
 
     def _generate_set_args_call(self, kernel, scope):
