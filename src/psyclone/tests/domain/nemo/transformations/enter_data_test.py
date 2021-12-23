@@ -201,3 +201,49 @@ end SUBROUTINE tra_ldf_iso
     assert ("  tmask(:,:) = jpi\n"
             "  !$acc update if(acc_is_present(tmask)) device(tmask)\n"
             ) in gen_code
+
+
+def test_loop_on_cpu(parser):
+    ''' Test the application of ACCUpdateTrans to CPU code containing a
+    loop. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  USE some_mod, only: dia_ptr_hst
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  INTEGER :: jn, ji
+  LOGICAL :: l_ptr
+  INTEGER, DIMENSION(jpi,jpj) :: tmask
+  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
+  zftv(:,:,:) = 0.0d0
+  DO ji = 1, jpi
+    CALL dia_ptr_hst( ji, 'ldf', -zftv(ji,:,:)  )
+    zftv(ji,:,:) = 1.0d0
+    zftw(ji,:,:) = -1.0d0
+  END DO
+  zftu(:,:,1) = 1.0d0
+  tmask(:,:) = jpi
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_update = ACCUpdateTrans()
+    acc_update.apply(schedule)
+    gen_code = str(psy.gen).lower()
+    # Loop variable should not be copied to device
+    assert "device(ji)" not in gen_code
+    # Currently jpi is copied to and fro. We need a list of variables that
+    # are written just once and are read-only thereafter. Such variables will
+    # be written on the CPU (e.g. after reading from namelist).
+    assert ("  !$acc update if(acc_is_present(jpi)) host(jpi)\n"
+            "  zftv(:,:,:) = 0.0d0\n"
+            "  do ji = 1, jpi, 1\n" in gen_code)
+    # TODO All of these variables are actually local to the subroutine so
+    # should not be copied back.
+    assert ("  tmask(:,:) = jpi\n"
+            "  !$acc update if(acc_is_present(zftw)) device(zftw)\n"
+            "  !$acc update if(acc_is_present(zftv)) device(zftv)\n"
+            "  !$acc update if(acc_is_present(zftu)) device(zftu)\n"
+            "  !$acc update if(acc_is_present(tmask)) device(tmask)\n"
+            in gen_code)

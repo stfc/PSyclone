@@ -39,6 +39,7 @@ data is kept up-to-date on the host.
 '''
 
 from __future__ import absolute_import
+from psyclone.configuration import Config
 from psyclone.psyir.nodes import (IfBlock, Loop, Schedule, ACCKernelsDirective,
                                   ACCParallelDirective, ACCUpdateDirective,
                                   ACCEnterDataDirective)
@@ -56,6 +57,9 @@ class ACCUpdateTrans(Transformation):
     def __init__(self):
         self._dep_tools = DependencyTools()
         self._acc_region_nodes = (ACCParallelDirective, ACCKernelsDirective)
+        loop_type_mapping = Config.get().api_conf("nemo") \
+                                        .get_loop_type_mapping()
+        self._loop_vars = loop_type_mapping.keys()
 
     def validate(self, sched, options=None):
         ''' '''
@@ -126,6 +130,8 @@ class ACCUpdateTrans(Transformation):
             for sig in inputs:
                 if sig.is_structure:
                     raise NotImplementedError("ARPDBG2")
+                if sig.var_name in self._loop_vars:
+                    continue
                 sym = sched.symbol_table.lookup(sig.var_name)
                 update_dir = ACCUpdateDirective(sym, "host")
                 parent.addchild(update_dir,
@@ -139,6 +145,8 @@ class ACCUpdateTrans(Transformation):
                 if sig.is_structure:
                     raise NotImplementedError("ARPDBG3")
                 sym = sched.symbol_table.lookup(sig.var_name)
+                if sig.var_name in self._loop_vars:
+                    continue
                 update_dir = ACCUpdateDirective(sym, "device")
                 parent.addchild(update_dir,
                                 parent.children.index(last_child)+1)
