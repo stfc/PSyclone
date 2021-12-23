@@ -154,8 +154,9 @@ end SUBROUTINE tra_ldf_iso
             "end subroutine tra_ldf_iso" in gen_code)
 
 
-def test_nested_acc(parser):
-    ''' '''
+def test_nested_acc_in_if(parser):
+    ''' Test that the necessary update directives are added when we have
+    a kernels region within an IfBlock. '''
     code = '''
 SUBROUTINE tra_ldf_iso()
   USE some_mod, only: dia_ptr_hst
@@ -184,14 +185,19 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_kernels.apply(schedule[0])
     acc_kernels.apply(schedule[1].if_body[2])
-    acc_kernels.apply(schedule[3:5])
+    acc_kernels.apply(schedule[3])
     acc_trans.apply(schedule)
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     assert ("  !$acc end kernels\n"
-            "  !$acc update if(acc_is_present(l_ptr) host(lptr)\n"
-            "  !$acc if (l_ptr) then\n"
+            "  !$acc update if(acc_is_present(l_ptr)) host(l_ptr)\n"
+            "  if (l_ptr) then\n"
             "    !$acc update if(acc_is_present(jn)) host(jn)\n"
             "    !$acc update if(acc_is_present(zftv)) host(zftv)\n"
+            ) in gen_code
+    assert ("    zftv(:,:,:) = 1.0d0\n"
+            "    !$acc update if(acc_is_present(zftv)) device(zftv)\n"
+            ) in gen_code
+    assert ("  tmask(:,:) = jpi\n"
+            "  !$acc update if(acc_is_present(tmask)) device(tmask)\n"
             ) in gen_code
