@@ -65,28 +65,20 @@ class ACCUpdateTrans(Transformation):
 
     def apply(self, sched, options=None):
         ''' '''
-        # We must walk through the Schedule and find those nodes that are
-        # not within a kernels or parallel region.
-        #
-        # !$acc kernels
-        # var(:,:) = 0.0
-        # !$acc end kernels
-        # !$acc update if(acc_is_present(blah)) self(blah)
-        # if(blah == 1)then
-        #   !$acc update if(acc_is_present(var)) self(var)
-        #   var(:,1) = 0.0
-        #   !$acc update device(var)
-        #   !$acc kernels
-        #   var2(:,:) = var(:,:)
-        #   !$acc end kernels
-        # end if
         self.validate(sched, options)
         self.add_updates(sched)
 
     def add_updates(self, sched):
         '''
-        Recursively add any required OpenACC update directives.
+        Recursively identify those statements that are not being executed
+        on the GPU and add any required OpenACC update directives.
+
+        :param sched: the schedule of statements to process.
+        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+
         '''
+        # We must walk through the Schedule and find those nodes that are
+        # not within a kernels or parallel region.
         node_list = []
         for child in sched.children[:]:
             if isinstance(child, ACCEnterDataDirective):
@@ -104,31 +96,49 @@ class ACCUpdateTrans(Transformation):
                         if child.else_body:
                             self.add_updates(child.else_body)
                 if node_list:
-                    inputs, outputs = self._dep_tools.get_in_out_parameters(
-                        node_list)
-                    parent = sched
-                    # Copy any data that is read by this region to the host
-                    # if it is on the GPU.
-                    first_child = node_list[0]
-                    while first_child not in parent.children:
-                        first_child = first_child.parent
-                    for sig in inputs:
-                        if sig.is_structure:
-                            raise NotImplementedError("ARPDBG2")
-                        sym = sched.symbol_table.lookup(sig.var_name)
-                        update_dir = ACCUpdateDirective(sym, "host")
-                        parent.addchild(update_dir,
-                                        parent.children.index(first_child))
-                    # Copy any data that is written by this region back to
-                    # the GPU.
-                    last_child = node_list[-1]
-                    while last_child not in parent.children:
-                        last_child = last_child.parent
-                    for sig in outputs:
-                        if sig.is_structure:
-                            raise NotImplementedError("ARPDBG3")
-                        sym = sched.symbol_table.lookup(sig.var_name)
-                        update_dir = ACCUpdateDirective(sym, "device")
-                        parent.addchild(update_dir,
-                                        parent.children.index(last_child)+1)
+                    self._add_update_directives(sched, node_list)
                 node_list = []
+        # We've reached the end of the list of children - are there any
+        # last nodes that represent computation on the CPU?
+        if node_list:
+            self._add_update_directives(sched, node_list)
+
+    def _add_update_directives(self, sched, node_list):
+        '''
+        Adds the required update directives before and after the nodes in
+        the supplied list.
+
+        :param sched: the schedule which contains the nodes in node_list.
+        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param node_list: the PSyIR nodes representing code executed on the \
+                          CPU rather than the GPU.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
+        parent = sched
+        # Copy any data that is read by this region to the host if it is
+        # on the GPU.
+        if inputs:
+            first_child = node_list[0]
+            while first_child not in parent.children:
+                first_child = first_child.parent
+            for sig in inputs:
+                if sig.is_structure:
+                    raise NotImplementedError("ARPDBG2")
+                sym = sched.symbol_table.lookup(sig.var_name)
+                update_dir = ACCUpdateDirective(sym, "host")
+                parent.addchild(update_dir,
+                                parent.children.index(first_child))
+        # Copy any data that is written by this region back to the GPU.
+        if outputs:
+            last_child = node_list[-1]
+            while last_child not in parent.children:
+                last_child = last_child.parent
+            for sig in outputs:
+                if sig.is_structure:
+                    raise NotImplementedError("ARPDBG3")
+                sym = sched.symbol_table.lookup(sig.var_name)
+                update_dir = ACCUpdateDirective(sym, "device")
+                parent.addchild(update_dir,
+                                parent.children.index(last_child)+1)
