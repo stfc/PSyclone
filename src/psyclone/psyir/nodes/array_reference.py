@@ -82,15 +82,16 @@ class ArrayReference(ArrayMixin, Reference):
                 "indices argument in create method of ArrayReference class "
                 "should be a list but found '{0}'."
                 "".format(type(indices).__name__))
-        if not symbol.is_array:
-            raise GenerationError(
-                "expecting the symbol to be an array, not a scalar.")
-        if len(symbol.shape) != len(indices):
-            raise GenerationError(
-                "the symbol should have the same number of dimensions as "
-                "indices (provided in the 'indices' argument). "
-                "Expecting '{0}' but found '{1}'.".format(
-                    len(indices), len(symbol.shape)))
+        # if not symbol.is_array:
+        #    raise GenerationError(
+        #        "expecting the symbol to be an array, not a scalar.")
+        if symbol.is_array:
+            if len(symbol.shape) != len(indices):
+                raise GenerationError(
+                    "the symbol should have the same number of dimensions as "
+                    "indices (provided in the 'indices' argument). "
+                    "Expecting '{0}' but found '{1}'.".format(
+                        len(indices), len(symbol.shape)))
 
         array = ArrayReference(symbol)
         for child in indices:

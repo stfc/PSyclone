@@ -38,6 +38,7 @@
 
 import six
 
+from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
@@ -46,7 +47,7 @@ from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
-    StructureReference, FileContainer
+    StructureReference, FileContainer, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
     INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE
@@ -312,13 +313,15 @@ class GOOpenCLTrans(Transformation):
             node.symbol_table.add(check_status)
 
         # Declare local variables needed on a OpenCL PSy-layer invoke
+        int_array_2d = ArrayType(INTEGER_TYPE, [2])
         nqueues = node.symbol_table.new_symbol(
             "num_cmd_queues", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues")  # Was SAVE
         qlist = node.symbol_table.new_symbol(
             "cmd_queues", symbol_type=DataSymbol,
-            datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
-            tag="opencl_cmd_queues")  # Was SAVE
+            datatype=UnknownFortranType(
+                "integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"),
+            tag="opencl_cmd_queues")
         # 'first_time' needs to be an UnknownFortranType because it has SAVE
         # and initial value
         first = DataSymbol("first_time",
@@ -328,17 +331,20 @@ class GOOpenCLTrans(Transformation):
         flag = node.symbol_table.new_symbol(
             "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             tag="opencl_error")
-        #size_bytes = node.symbol_table.new_symbol(
+        # size_bytes = node.symbol_table.new_symbol(
         #    "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
         #    tag="opencl_bytes")
-        #write_event = node.symbol_table.new_symbol(
+        # write_event = node.symbol_table.new_symbol(
         #    "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
         #    tag="opencl_wevent")
-        int_array_2d = ArrayType(INTEGER_TYPE, [2])
         global_size = node.symbol_table.new_symbol(
-            "globalsize", symbol_type=DataSymbol, datatype=int_array_2d)
+            "globalsize", symbol_type=DataSymbol,
+            datatype=UnknownFortranType(
+                "integer(kind=c_size_t), target :: globalsize(2)"))
         local_size = node.symbol_table.new_symbol(
-            "localsize", symbol_type=DataSymbol, datatype=int_array_2d)
+            "localsize", symbol_type=DataSymbol,
+            datatype=UnknownFortranType(
+                "integer(kind=c_size_t), target :: localsize(2)"))
 
         # Create a first_time condition that we will reuse (copy) below
         first_time_template = IfBlock.create(Reference(first), [])
@@ -357,9 +363,10 @@ class GOOpenCLTrans(Transformation):
                                         Reference(nqueues),
                                         Call.create(get_num_cmd_queues, [])))
         cursor = cursor + 1
-        node.children.insert(cursor, Assignment.create(
-                                        Reference(qlist),
-                                        Call.create(get_cmd_queues, [])))
+        ptree = Fortran2003.Pointer_Assignment_Stmt(
+            "{0} => {1}()".format(qlist.name, get_cmd_queues.name))
+        cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+        node.children.insert(cursor, cblock)
         cursor = cursor + 1
 
         # Declare and assign kernel pointers
@@ -751,7 +758,7 @@ class GOOpenCLTrans(Transformation):
                         StructureReference.create(
                             symtab.lookup(garg.name),
                             api_config.grid_properties[arg._property_name]
-                            .fortran.split('%')
+                            .fortran.split('%')[1:]
                         ))
                 else:
                     # Cast grid buffer to cl_mem type expected by OpenCL
