@@ -203,6 +203,62 @@ end SUBROUTINE tra_ldf_iso
             ) in gen_code
 
 
+def test_call_accesses(parser):
+    ''' Check that a call does not result in any update directives. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  USE some_mod, only: dia_ptr_hst
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  INTEGER :: jn=2
+  REAL :: checksum
+  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftv, zftw
+  zftv(:,:,:) = 0.0d0
+  CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+  checksum = SUM(zftv)
+  write(*,*) checksum
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_update = ACCUpdateTrans()
+    acc_update.apply(schedule)
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
+    assert 0
+
+
+def test_call_within_if(parser):
+    ''' Check that a Call within an If results in the expected update
+    directive when one of its arguments is subsequently accessed on
+    the CPU. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  USE some_mod, only: dia_ptr_hst
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  INTEGER :: jn=2
+  REAL :: checksum
+  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftv, zftw
+  zftv(:,:,:) = 0.0d0
+  if(jn == 1)then
+    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+  end if
+  checksum = SUM(zftv)
+  write(*,*) checksum
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_update = ACCUpdateTrans()
+    acc_update.apply(schedule)
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
+    assert 0
+
+
 def test_loop_on_cpu(parser):
     ''' Test the application of ACCUpdateTrans to CPU code containing a
     loop. '''
