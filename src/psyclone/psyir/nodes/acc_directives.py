@@ -786,6 +786,9 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         self._direction = direction
         self._symbol = symbol
+        # Whether or not we include the 'if_present' clause on the update
+        # directive (this instructs the directive to silently ignore any
+        # variables that are not on the GPU).
         self._conditional = conditional
 
     def __eq__(self, other):
