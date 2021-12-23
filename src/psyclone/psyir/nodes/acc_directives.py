@@ -835,7 +835,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         '''
         if self._conditional:
-            condition = f"if(acc_is_present({self._symbol.name}))"
+            condition = "if_present"
         else:
             condition = ""
         return f"acc update {condition} {self._direction}({self._symbol.name})"
