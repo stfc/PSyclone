@@ -78,7 +78,8 @@ class ACCUpdateTrans(Transformation):
         :type options: dict
 
         :raises TransformationError: if the supplied node is not a Schedule.
-
+        :raises TransformationError: if the supplied node is already within \
+                                     an OpenACC region.
         '''
         if not isinstance(node, Schedule):
             # transformations module file needs moving into the psyir
@@ -87,6 +88,12 @@ class ACCUpdateTrans(Transformation):
             from psyclone.transformations import TransformationError
             raise TransformationError(f"Expected a Schedule but got a node of "
                                       f"type '{type(node).__name__}'")
+
+        if node.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+            raise TransformationError(
+                "Cannot apply the ACCUpdateTrans to nodes that are already "
+                "within an OpenACC region.")
+
         super().validate(node, options)
 
     def apply(self, node, options=None):
@@ -105,9 +112,9 @@ class ACCUpdateTrans(Transformation):
         self.validate(node, options)
         # Call the routine that recursively adds updates to all Schedules
         # within the supplied Schedule.
-        self.add_updates(node)
+        self._add_updates_to_schedule(node)
 
-    def add_updates(self, sched):
+    def _add_updates_to_schedule(self, sched):
         '''
         Recursively identify those statements that are not being executed
         on the GPU and add any required OpenACC update directives.
@@ -116,8 +123,10 @@ class ACCUpdateTrans(Transformation):
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        # We must walk through the Schedule and find those nodes that are
-        # not within a kernels or parallel region.
+        # We must walk through the Schedule and find those nodes representing
+        # contiguous regions of code that are not executed on the GPU. Any
+        # Call nodes are taken as boundaries of such regions because it may
+        # be that the body of the call is executed on the GPU.
         node_list = []
         for child in sched.children[:]:
             if isinstance(child, ACCEnterDataDirective):
@@ -134,15 +143,24 @@ class ACCUpdateTrans(Transformation):
                                                BinaryOperation.Operator.UBOUND]
                            for op in ops):
                         raise NotImplementedError("ARPDBG4")
-                if isinstance(child, (IfBlock, Loop)):
-                    # TODO: Update node_list with nodes from IfBlock condition
-                    # or Loop bounds/step
-                    if isinstance(child, IfBlock):
-                        self._add_update_directives(sched, [child.condition])
-                        # Recurse down
-                        self.add_updates(child.if_body)
-                        if child.else_body:
-                            self.add_updates(child.else_body)
+                if isinstance(child, IfBlock):
+                    # Add any update statements that are required due to
+                    # (read) accesses within the condition of the If.
+                    self._add_update_directives(sched, [child.condition])
+                    # Recurse down
+                    self._add_updates_to_schedule(child.if_body)
+                    if child.else_body:
+                        self._add_updates_to_schedule(child.else_body)
+                if isinstance(child, Loop):
+                    # We have a loop that is on the CPU but contains code
+                    # that could be on the GPU.
+                    # The loop start, stop and step values could all
+                    # potentially have been written to on the GPU.
+                    self._add_update_directives(sched, [child.start_expr,
+                                                        child.stop_expr,
+                                                        child.step_expr])
+                    # Recurse down into the loop body
+                    self._add_updates_to_schedule(child.loop_body)
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the CPU?
         if node_list:
@@ -165,29 +183,37 @@ class ACCUpdateTrans(Transformation):
         # Copy any data that is read by this region to the host if it is
         # on the GPU.
         if inputs:
+            # Since the supplied nodes may be the children of an IfBlock or
+            # Loop, we have to search up to find the ancestor that *is* a
+            # child of the Schedule we are working on.
             first_child = node_list[0]
             while first_child not in parent.children:
                 first_child = first_child.parent
+            sym_list = []
             for sig in inputs:
                 if sig.is_structure:
                     raise NotImplementedError("ARPDBG2")
                 if sig.var_name in self._loop_vars:
                     continue
-                sym = sched.symbol_table.lookup(sig.var_name)
-                update_dir = ACCUpdateDirective(sym, "host")
-                parent.addchild(update_dir,
-                                parent.children.index(first_child))
+                sym_list.append(sched.symbol_table.lookup(sig.var_name))
+            if sym_list:
+                update_dir = ACCUpdateDirective(sym_list, "host")
+                parent.addchild(update_dir, parent.children.index(first_child))
         # Copy any data that is written by this region back to the GPU.
         if outputs:
+            # Since the supplied nodes may be the children of an IfBlock or
+            # Loop, we have to search up to find the ancestor that *is* a
+            # child of the Schedule we are working on.
             last_child = node_list[-1]
             while last_child not in parent.children:
                 last_child = last_child.parent
+            sym_list = []
             for sig in outputs:
                 if sig.is_structure:
                     raise NotImplementedError("ARPDBG3")
-                sym = sched.symbol_table.lookup(sig.var_name)
                 if sig.var_name in self._loop_vars:
                     continue
-                update_dir = ACCUpdateDirective(sym, "device")
-                parent.addchild(update_dir,
-                                parent.children.index(last_child)+1)
+                sym_list.append(sched.symbol_table.lookup(sig.var_name))
+            if sym_list:
+                update_dir = ACCUpdateDirective(sym_list, "device")
+                parent.addchild(update_dir, parent.children.index(last_child)+1)

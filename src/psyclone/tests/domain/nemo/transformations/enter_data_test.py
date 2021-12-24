@@ -113,10 +113,10 @@ SUBROUTINE tra_ldf_iso()
   REAL, DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
   zftv(:,:,:) = 0.0d0
   IF( l_ptr )THEN
-    CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
     zftv(:,:,:) = 1.0d0
   END IF
-  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+  CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   zftu(:,:,1) = 1.0d0
   tmask(:,:) = jpi
 end SUBROUTINE tra_ldf_iso
@@ -141,11 +141,10 @@ end SUBROUTINE tra_ldf_iso
             "  !$acc kernels\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc end kernels\n"
-            "  !$acc update if(acc_is_present(jn)) host(jn)\n"
-            "  !$acc update if(acc_is_present(l_ptr)) host(l_ptr)\n"
-            "  !$acc update if(acc_is_present(zftv)) host(zftv)\n"
+            "  !$acc update if_present host(l_ptr)\n"
             "  if (l_ptr) then\n" in gen_code)
-
+    assert ("    zftv(:,:,:) = 1.0d0\n"
+            "    !$acc update if_present device(zftv)\n" in gen_code)
     assert ("  !$acc kernels\n"
             "  zftu(:,:,1) = 1.0d0\n"
             "  tmask(:,:) = jpi\n"
@@ -167,11 +166,11 @@ SUBROUTINE tra_ldf_iso()
   REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
   zftv(:,:,:) = 0.0d0
   IF( l_ptr )THEN
-    CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
     zftv(:,:,:) = 1.0d0
     zftw(:,:,:) = -1.0d0
   END IF
-  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+  CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   zftu(:,:,1) = 1.0d0
   tmask(:,:) = jpi
 end SUBROUTINE tra_ldf_iso
@@ -190,16 +189,14 @@ end SUBROUTINE tra_ldf_iso
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
     assert ("  !$acc end kernels\n"
-            "  !$acc update if(acc_is_present(l_ptr)) host(l_ptr)\n"
+            "  !$acc update if_present host(l_ptr)\n"
             "  if (l_ptr) then\n"
-            "    !$acc update if(acc_is_present(jn)) host(jn)\n"
-            "    !$acc update if(acc_is_present(zftv)) host(zftv)\n"
             ) in gen_code
     assert ("    zftv(:,:,:) = 1.0d0\n"
-            "    !$acc update if(acc_is_present(zftv)) device(zftv)\n"
+            "    !$acc update if_present device(zftv)\n"
             ) in gen_code
     assert ("  tmask(:,:) = jpi\n"
-            "  !$acc update if(acc_is_present(tmask)) device(tmask)\n"
+            "  !$acc update if_present device(tmask)\n"
             ) in gen_code
 
 
@@ -225,8 +222,14 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
-    assert 0
+    assert ("  zftv(:,:,:) = 0.0d0\n"
+            "  !$acc update if_present device(zftv)\n"
+            "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
+            # TODO we should be able to infer that the following update is
+            # not required because if it *is* updated in the call above then
+            # the GPU copy should already be up-to-date.
+            "  !$acc update if_present host(zftv)\n"
+            "  checksum = sum(zftv)\n" in gen_code)
 
 
 def test_call_within_if(parser):
@@ -256,23 +259,28 @@ end SUBROUTINE tra_ldf_iso
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
     print(gen_code)
-    assert 0
+    assert ("  zftv(:,:,:) = 0.0d0\n"
+            "  !$acc update if_present device(zftv)\n" in gen_code)
+    # TODO again we should be able to spot that this update is not required
+    # as it is only separated from the previous region by a call().
+    assert ("  end if\n"
+            "  !$acc update if_present host(zftv)\n" in gen_code)
 
 
 def test_loop_on_cpu(parser):
     ''' Test the application of ACCUpdateTrans to CPU code containing a
-    loop. '''
+    loop which itself contains a Call. '''
     code = '''
 SUBROUTINE tra_ldf_iso()
   USE some_mod, only: dia_ptr_hst
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
   INTEGER :: jn, ji
   LOGICAL :: l_ptr
   INTEGER, DIMENSION(jpi,jpj) :: tmask
   REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
   zftv(:,:,:) = 0.0d0
-  DO ji = 1, jpi
-    CALL dia_ptr_hst( ji, 'ldf', -zftv(ji,:,:)  )
+  DO ji = start, jpi, step
+    CALL dia_ptr_hst( ji, 'ldf', zftv(ji,:,:)  )
     zftv(ji,:,:) = 1.0d0
     zftw(ji,:,:) = -1.0d0
   END DO
@@ -292,14 +300,13 @@ end SUBROUTINE tra_ldf_iso
     # Currently jpi is copied to and fro. We need a list of variables that
     # are written just once and are read-only thereafter. Such variables will
     # be written on the CPU (e.g. after reading from namelist).
-    assert ("  !$acc update if(acc_is_present(jpi)) host(jpi)\n"
-            "  zftv(:,:,:) = 0.0d0\n"
-            "  do ji = 1, jpi, 1\n" in gen_code)
+    assert ("  zftv(:,:,:) = 0.0d0\n"
+            "  !$acc update if_present device(zftv)\n"
+            "  !$acc update if_present host(jpi,start,step)\n"
+            "  do ji = start, jpi, step\n" in gen_code)
     # TODO All of these variables are actually local to the subroutine so
     # should not be copied back.
-    assert ("  tmask(:,:) = jpi\n"
-            "  !$acc update if(acc_is_present(zftw)) device(zftw)\n"
-            "  !$acc update if(acc_is_present(zftv)) device(zftv)\n"
-            "  !$acc update if(acc_is_present(zftu)) device(zftu)\n"
-            "  !$acc update if(acc_is_present(tmask)) device(tmask)\n"
+    assert ("  zftu(:,:,1) = 1.0d0\n"
+            "  tmask(:,:) = jpi\n"
+            "  !$acc update if_present device(tmask,zftu)\n"
             in gen_code)
