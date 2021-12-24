@@ -751,8 +751,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
     It includes a direction attribute that can be set to 'self', 'host' or
     'device' and the symbol that is being updated.
 
-    :param symbol: the symbol to synchronise with the accelerator.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param symbols: the symbol(s) to synchronise with the accelerator.
+    :type symbol: [list of] :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param str direction: the direction of the synchronisation.
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -769,23 +769,31 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
-    def __init__(self, symbol, direction, children=None, parent=None,
+    def __init__(self, symbols, direction, children=None, parent=None,
                  conditional=True):
         super().__init__(children=children, parent=parent)
         if not isinstance(direction, six.string_types) or direction not in \
                 self._VALID_DIRECTIONS:
             raise ValueError(
                 f"The ACCUpdateDirective direction argument must be a string "
-                f"with any of the values in '{self._VALID_DIRECTIONS}' "
-                f"but found '{direction}'.")
-
-        if not isinstance(symbol, DataSymbol):
+                f"with any of the values in '{self._VALID_DIRECTIONS}' but "
+                f"found '{direction}'.")
+        if isinstance(symbols, DataSymbol):
+            self._symbol_list = [symbols]
+        elif isinstance(symbols, list):
+            if not all(isinstance(sym, DataSymbol) for sym in symbols):
+                raise TypeError(
+                    f"The ACCUpdateDirective symbols argument must be a list "
+                    f"of 'DataSymbol' objects but got "
+                    f"{[type(sym).__name__ for sym in symbols]}")
+            self._symbol_list = symbols
+        else:
             raise TypeError(
-                f"The ACCUpdateDirective symbol argument must be a 'DataSymbol"
-                f"' but found '{type(symbol).__name__}'.")
+                f"The ACCUpdateDirective symbols argument must either be a "
+                f"'DataSymbol' or a list of DataSymbols but found "
+                f"'{type(symbols).__name__}'")
 
         self._direction = direction
-        self._symbol = symbol
         # Whether or not we include the 'if_present' clause on the update
         # directive (this instructs the directive to silently ignore any
         # variables that are not on the GPU).
@@ -841,7 +849,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
             condition = "if_present"
         else:
             condition = ""
-        return f"acc update {condition} {self._direction}({self._symbol.name})"
+        sym_list = ",".join(sym.name for sym in self._symbol_list)
+        return f"acc update {condition} {self._direction}({sym_list})"
 
 
 # For automatic API documentation generation
