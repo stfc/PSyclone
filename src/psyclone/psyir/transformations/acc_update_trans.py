@@ -39,11 +39,12 @@ data is kept up-to-date on the host.
 '''
 
 from __future__ import absolute_import
+from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (Call, IfBlock, Loop, Schedule, Operation,
                                   BinaryOperation, ACCKernelsDirective,
                                   ACCParallelDirective, ACCUpdateDirective,
-                                  ACCEnterDataDirective)
+                                  ACCEnterDataDirective, CodeBlock)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyGen import Transformation
 
@@ -60,7 +61,7 @@ class ACCUpdateTrans(Transformation):
         # We treat a Call as being a (potential) ACC region because we
         # don't know what happens within it.
         self._acc_region_nodes = (ACCParallelDirective, ACCKernelsDirective,
-                                  Call)
+                                  Call, CodeBlock)
         loop_type_mapping = Config.get().api_conf("nemo") \
                                         .get_loop_type_mapping()
         self._loop_vars = loop_type_mapping.keys()
@@ -79,13 +80,16 @@ class ACCUpdateTrans(Transformation):
 
         :raises TransformationError: if the supplied node is not a Schedule.
         :raises TransformationError: if the supplied node is already within \
-                                     an OpenACC region.
+            an OpenACC region.
+        :raises TransformationError: if the supplied Schedule contains any \
+            CodeBlocks and the 'allow-codeblocks' option is False.
         '''
+        # transformations module file needs moving into the psyir
+        # hierarchy.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.transformations import TransformationError
+
         if not isinstance(node, Schedule):
-            # transformations module file needs moving into the psyir
-            # hierarchy.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.transformations import TransformationError
             raise TransformationError(f"Expected a Schedule but got a node of "
                                       f"type '{type(node).__name__}'")
 
@@ -93,6 +97,13 @@ class ACCUpdateTrans(Transformation):
             raise TransformationError(
                 "Cannot apply the ACCUpdateTrans to nodes that are already "
                 "within an OpenACC region.")
+
+        if not options or not options.get("allow-codeblocks", False):
+            if node.walk(CodeBlock):
+                raise TransformationError(
+                    "Supplied Schedule contains one or more CodeBlocks which "
+                    "prevents the data analysis required for adding Update "
+                    "directives.")
 
         super().validate(node, options)
 
@@ -112,9 +123,14 @@ class ACCUpdateTrans(Transformation):
         self.validate(node, options)
         # Call the routine that recursively adds updates to all Schedules
         # within the supplied Schedule.
-        self._add_updates_to_schedule(node)
+        if options and options.get("allow-codeblocks", False):
+            excluded_nodes = tuple(list(self._acc_region_nodes) + [CodeBlock])
+        else:
+            excluded_nodes = self._acc_region_nodes
 
-    def _add_updates_to_schedule(self, sched):
+        self._add_updates_to_schedule(node, excluded_nodes)
+
+    def _add_updates_to_schedule(self, sched, excluded_nodes):
         '''
         Recursively identify those statements that are not being executed
         on the GPU and add any required OpenACC update directives.
@@ -131,7 +147,7 @@ class ACCUpdateTrans(Transformation):
         for child in sched.children[:]:
             if isinstance(child, ACCEnterDataDirective):
                 continue
-            if not child.walk(self._acc_region_nodes):
+            if not child.walk(excluded_nodes):
                 node_list.append(child)
             else:
                 if node_list:
@@ -148,7 +164,8 @@ class ACCUpdateTrans(Transformation):
                     # (read) accesses within the condition of the If.
                     self._add_update_directives(sched, [child.condition])
                     # Recurse down
-                    self._add_updates_to_schedule(child.if_body)
+                    self._add_updates_to_schedule(child.if_body,
+                                                  excluded_nodes)
                     if child.else_body:
                         self._add_updates_to_schedule(child.else_body)
                 if isinstance(child, Loop):
@@ -160,7 +177,19 @@ class ACCUpdateTrans(Transformation):
                                                         child.stop_expr,
                                                         child.step_expr])
                     # Recurse down into the loop body
-                    self._add_updates_to_schedule(child.loop_body)
+                    self._add_updates_to_schedule(child.loop_body,
+                                                  excluded_nodes)
+                if isinstance(child, CodeBlock):
+                    # We don't currently handle CodeBlocks so we inject code
+                    # to abort the execution.
+                    ptree = Fortran2003.Stop_Stmt(
+                        "STOP 'PSyclone: need to manually add update "
+                        "statements for the following code block...'")
+                    # TODO can I add a following comment to a CodeBlock (to
+                    # indicate where it ends in the generated Fortran)?
+                    sched.addchild(CodeBlock([ptree],
+                                             CodeBlock.Structure.STATEMENT),
+                                   index=child.position)
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the CPU?
         if node_list:
@@ -199,7 +228,8 @@ class ACCUpdateTrans(Transformation):
             if sym_list:
                 update_dir = ACCUpdateDirective(sym_list, "host")
                 parent.addchild(update_dir, parent.children.index(first_child))
-        # Copy any data that is written by this region back to the GPU.
+        # Copy any data that is written by this region and that is on the GPU
+        # back to the GPU.
         if outputs:
             # Since the supplied nodes may be the children of an IfBlock or
             # Loop, we have to search up to find the ancestor that *is* a
@@ -216,4 +246,5 @@ class ACCUpdateTrans(Transformation):
                 sym_list.append(sched.symbol_table.lookup(sig.var_name))
             if sym_list:
                 update_dir = ACCUpdateDirective(sym_list, "device")
-                parent.addchild(update_dir, parent.children.index(last_child)+1)
+                parent.addchild(update_dir,
+                                parent.children.index(last_child)+1)
