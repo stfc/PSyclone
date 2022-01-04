@@ -92,8 +92,8 @@ class AlgorithmInvokeCall(Call):
         # Keep the root names as these will also be needed by the
         # PSy-layer to use as tags to pull out the actual names from
         # the algorithm symbol table, once issue #753 is complete.
-        self.psylayer_routine_root_name = None
-        self.psylayer_container_root_name = None
+        self._psylayer_routine_root_name = None
+        self._psylayer_container_root_name = None
         self._name = name
 
     @classmethod
@@ -206,17 +206,19 @@ class AlgorithmInvokeCall(Call):
         to the lower level PSyIR to the symbol table before lowering.
 
         '''
-        self.psylayer_routine_root_name = self._def_routine_root_name()
+        if not self._psylayer_routine_root_name:
+            self._psylayer_routine_root_name = self._def_routine_root_name()
 
-        # The PSy-layer module naming logic (in algorithm.py) finds
-        # the first program, module, subroutine or function in the
-        # parse tree and uses that name for the container name. Here
-        # we temporarily replicate this functionality. Eventually we
-        # will merge. Note, a better future solution could be to use
-        # the closest ancestor routine instead.
-        nodes = self.root.walk(Routine)
-        node = nodes[0]
-        self.psylayer_container_root_name = f"psy_{node.name}"
+        if not self._psylayer_container_root_name:
+            # The PSy-layer module naming logic (in algorithm.py) finds
+            # the first program, module, subroutine or function in the
+            # parse tree and uses that name for the container name. Here
+            # we temporarily replicate this functionality. Eventually we
+            # will merge. Note, a better future solution could be to use
+            # the closest ancestor routine instead.
+            nodes = self.root.walk(Routine)
+            node = nodes[0]
+            self._psylayer_container_root_name = f"psy_{node.name}"
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
@@ -246,7 +248,7 @@ class AlgorithmInvokeCall(Call):
 
         symbol_table = self.scope.symbol_table
 
-        container_tag = self.psylayer_container_root_name
+        container_tag = self._psylayer_container_root_name
         try:
             container_symbol = symbol_table.lookup_with_tag(container_tag)
         except KeyError:
@@ -254,7 +256,7 @@ class AlgorithmInvokeCall(Call):
                 root_name=container_tag, tag=container_tag,
                 symbol_type=ContainerSymbol)
 
-        routine_tag = self.psylayer_routine_root_name
+        routine_tag = self._psylayer_routine_root_name
         interface = ImportInterface(container_symbol)
         routine_symbol = symbol_table.new_symbol(
             root_name=routine_tag, tag=routine_tag, symbol_type=RoutineSymbol,
@@ -326,19 +328,6 @@ class KernelFunctor(Reference):
 
         '''
         return isinstance(child, DataNode)
-
-    def node_str(self, colour=True):
-        '''
-        Construct a text representation of this node, optionally containing
-        colour control codes.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this PSyIR node.
-        :rtype: str
-
-        '''
-        return f"{self.coloured_name(colour)}[name='{self.symbol.name}']"
 
 
 __all__ = [

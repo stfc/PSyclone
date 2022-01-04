@@ -123,8 +123,8 @@ def test_algorithminvokecall():
     assert call._children_valid_format == "[KernelFunctor]*"
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
-    assert call.psylayer_routine_root_name is None
-    assert call.psylayer_container_root_name is None
+    assert call._psylayer_routine_root_name is None
+    assert call._psylayer_container_root_name is None
     assert call._index == 2
     assert call.parent is None
     assert call._name is None
@@ -298,13 +298,20 @@ def test_aic_createpsylayersymbolrootnames():
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke.psylayer_routine_root_name is None
-    assert invoke.psylayer_container_root_name is None
+    assert invoke._psylayer_routine_root_name is None
+    assert invoke._psylayer_container_root_name is None
 
     invoke.create_psylayer_symbol_root_names()
 
-    assert invoke.psylayer_routine_root_name == "invoke_0_kern"
-    assert invoke.psylayer_container_root_name == "psy_alg1"
+    assert invoke._psylayer_routine_root_name == "invoke_0_kern"
+    assert invoke._psylayer_container_root_name == "psy_alg1"
+
+    # Check that the names are only created once.
+    routine_root_name_tmp = invoke._psylayer_routine_root_name
+    container_root_name_tmp = invoke._psylayer_container_root_name
+    invoke.create_psylayer_symbol_root_names()
+    assert invoke._psylayer_routine_root_name is routine_root_name_tmp
+    assert invoke._psylayer_container_root_name is container_root_name_tmp
 
 
 def test_aic_lowertolanguagelevel_error():
@@ -580,7 +587,7 @@ def test_kernelfunctor_node_str():
     arg = Reference(Symbol("dummy"))
     klr = KernelFunctor.create(symbol, [arg])
     coloredtext = colored("KernelFunctor", KernelFunctor._colour)
-    assert klr.node_str() == coloredtext+"[name='hello']"
+    assert klr.node_str() == coloredtext+"[name:'hello']"
 
 
 def test_kernelfunctor_str():
@@ -589,4 +596,4 @@ def test_kernelfunctor_str():
     symbol = DataTypeSymbol("hello", StructureType())
     arg = Reference(Symbol("dummy"))
     klr = KernelFunctor.create(symbol, [arg])
-    assert klr.__str__() == "KernelFunctor[name='hello']"
+    assert klr.__str__() == "KernelFunctor[name:'hello']"

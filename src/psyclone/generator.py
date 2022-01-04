@@ -235,46 +235,44 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         if not os.access(kernel_path, os.R_OK):
             raise IOError(
                 "Kernel search path '{0}' not found".format(kernel_path))
-    try:
-        ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                                 kernel_paths=kernel_paths,
-                                 line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
-        if script_name is not None:
-            handle_script(script_name, psy)
 
-        # Add profiling nodes to schedule if automatic profiling has
-        # been requested.
-        for invoke in psy.invokes.invoke_list:
-            Profiler.add_profile_nodes(invoke.schedule, Loop)
+    ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
+                             kernel_paths=kernel_paths,
+                             line_length=line_length)
+    psy = PSyFactory(api, distributed_memory=distributed_memory)\
+        .create(invoke_info)
+    if script_name is not None:
+        handle_script(script_name, psy)
 
-        if api not in API_WITHOUT_ALGORITHM:
-            if api == "gocean1.0":
-                # Create language-level PSyIR from fparser2 ast
-                psyir_reader = Fparser2Reader()
-                psyir = psyir_reader.generate_psyir(ast)
+    # Add profiling nodes to schedule if automatic profiling has
+    # been requested.
+    for invoke in psy.invokes.invoke_list:
+        Profiler.add_profile_nodes(invoke.schedule, Loop)
 
-                # Raise to Algorithm PSyIR
-                alg_trans = AlgTrans()
-                alg_trans.apply(psyir)
+    if api not in API_WITHOUT_ALGORITHM:
+        if api == "gocean1.0":
+            # Create language-level PSyIR from fparser2 ast
+            psyir_reader = Fparser2Reader()
+            psyir = psyir_reader.generate_psyir(ast)
 
-                # TODO: issue #753
-                # 1) call to algorithm optimisation script will go here
-                # 2) psygen creation and symbol generation will go here
-                #    (+ algorithm processing could go here, which would
-                #    include the removal of the invoke symbol).
-                # 3) psygen optimisation script will go here
+            # Raise to Algorithm PSyIR
+            alg_trans = AlgTrans()
+            alg_trans.apply(psyir)
 
-                # Create Fortran from Algorithm PSyIR
-                writer = FortranWriter()
-                alg_gen = writer(psyir)
-            else:
-                alg_gen = Alg(ast, psy).gen
+            # TODO: issue #753
+            # 1) call to algorithm optimisation script will go here
+            # 2) psygen creation and symbol generation will go here
+            #    (+ algorithm processing could go here, which would
+            #    include the removal of the invoke symbol).
+            # 3) psygen optimisation script will go here
+
+            # Create Fortran from Algorithm PSyIR
+            writer = FortranWriter()
+            alg_gen = writer(psyir)
         else:
-            alg_gen = None
-    except Exception:
-        raise
+            alg_gen = Alg(ast, psy).gen
+    else:
+        alg_gen = None
 
     return alg_gen, psy.gen
 
