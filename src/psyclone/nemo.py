@@ -335,7 +335,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
     '''
     def lower_to_language_level(self):
         '''
-        In-place replacement of this directive concept into language level
+        In-place replacement of this directive concept into language-level
         PSyIR constructs.
 
         '''
@@ -359,15 +359,21 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
                     pdir.children)
                 for sig in (inputs + outputs):
                     if sig.is_structure:
-                        raise NotImplementedError("ARPDBG")
-                    name = sig.var_name
-                    # TODO use Config to get loop variable names
-                    if name in ["ji", "jj", "jk"]:
-                        continue
-                    # TODO examine type of sym?
-                    # sym = self.scope.symbol_table.lookup(name)
-                    if name not in self._variables_to_copy:
-                        self._variables_to_copy.append(name)
+                        # Perform a deep copy of the necessary elements of
+                        # the structure.
+                        for idx in range(len(sig)):
+                            name = "%".join(sig[0:idx+1])
+                            if name not in self._variables_to_copy:
+                                self._variables_to_copy.append(name)
+                    else:
+                        name = sig.var_name
+                        # TODO use Config to get loop variable names
+                        if name in ["ji", "jj", "jk"]:
+                            continue
+                        # TODO examine type of sym?
+                        # sym = self.scope.symbol_table.lookup(name)
+                        if name not in self._variables_to_copy:
+                            self._variables_to_copy.append(name)
             self._node_lowered = True
 
         super(ACCEnterDataDirective, self).lower_to_language_level()

@@ -44,14 +44,14 @@ nodes.'''
 from __future__ import absolute_import
 import abc
 import six
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
+from psyclone.psyir.symbols import ScalarType
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -751,8 +751,9 @@ class ACCUpdateDirective(ACCStandaloneDirective):
     It includes a direction attribute that can be set to 'self', 'host' or
     'device' and the symbol that is being updated.
 
-    :param symbols: the symbol(s) to synchronise with the accelerator.
-    :type symbol: [list of] :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param signatures: the access signature(s) that need to be synchronised \
+                       with the accelerator.
+    :type signatures: [list of] :py:class:`psyclone.core.Signature`
     :param str direction: the direction of the synchronisation.
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -769,7 +770,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
-    def __init__(self, symbols, direction, children=None, parent=None,
+    def __init__(self, signatures, direction, children=None, parent=None,
                  conditional=True):
         super().__init__(children=children, parent=parent)
         if not isinstance(direction, six.string_types) or direction not in \
@@ -778,22 +779,20 @@ class ACCUpdateDirective(ACCStandaloneDirective):
                 f"The ACCUpdateDirective direction argument must be a string "
                 f"with any of the values in '{self._VALID_DIRECTIONS}' but "
                 f"found '{direction}'.")
-        if isinstance(symbols, DataSymbol):
-            self._symbol_list = [symbols]
-        elif isinstance(symbols, list):
-            # TODO ARPDBG when processing NEMO we do have bare Symbols
-            # sometimes (because of wildcard imports).
-            if not all(isinstance(sym, Symbol) for sym in symbols):
+        if isinstance(signatures, Signature):
+            self._symbol_list = [signatures]
+        elif isinstance(signatures, list):
+            if not all(isinstance(sig, Signature) for sig in signatures):
                 raise TypeError(
-                    f"The ACCUpdateDirective symbols argument must be a list "
-                    f"of 'DataSymbol' objects but got "
-                    f"{[type(sym).__name__ for sym in symbols]}")
-            self._symbol_list = symbols
+                    f"The ACCUpdateDirective signatures argument must be a "
+                    f"list of 'Signature' objects but got "
+                    f"{[type(sig).__name__ for sig in signatures]}")
+            self._symbol_list = signatures
         else:
             raise TypeError(
                 f"The ACCUpdateDirective symbols argument must either be a "
-                f"'DataSymbol' or a list of DataSymbols but found "
-                f"'{type(symbols).__name__}'")
+                f"'Signature' or a list of Signatures but found "
+                f"'{type(signatures).__name__}'")
 
         self._direction = direction
         # Whether or not we include the 'if_present' clause on the update
@@ -851,7 +850,16 @@ class ACCUpdateDirective(ACCStandaloneDirective):
             condition = "if_present"
         else:
             condition = ""
-        sym_list = ",".join(sym.name for sym in self._symbol_list)
+        name_list = []
+        for sig in self._symbol_list:
+            if sig.is_structure:
+                for idx in range(len(sig)):
+                    name = "%".join(sig[0:idx+1])
+                    if name not in name_list:
+                        name_list.append(name)
+            else:
+                name_list.append(sig.var_name)
+        sym_list = ",".join(name_list)
         return f"acc update {condition} {self._direction}({sym_list})"
 
 
