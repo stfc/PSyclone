@@ -31,9 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified: R. W. Ford, STFC Daresbury Laboratory
 
-EXAMPLES=$(sort $(wildcard eg*))
+include ../../common.mk
 
-include ../top_level.mk
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
+                   test_harness.*
+
+# The first command will write the adjoint kernel to stdout. The second will
+# write both it and the corresponding test harness to separate files.
+transform:
+	$(PSYAD) testkern_mod.f90 -a field1 field2
+	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
+                 testkern_mod.f90 -a field1 field2
+
+compile: transform
+	$(F90) $(F90FLAGS) -c testkern_mod.f90
+	$(F90) $(F90FLAGS) -c testkernadj_mod.f90
+	$(F90) $(F90FLAGS) -c test_harness.f90
+	$(F90) $(F90FLAGS) -o test_harness.exe testkern_mod.o \
+                  testkernadj_mod.o test_harness.o
+
+run: compile
+	@echo ""
+	@echo "Running PSyAD-generated test harness..."
+	@./test_harness.exe
+	@echo "...done."
+
+include ../../top_level.mk
