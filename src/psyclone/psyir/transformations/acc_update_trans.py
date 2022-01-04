@@ -44,7 +44,7 @@ from psyclone.configuration import Config
 from psyclone.psyir.nodes import (Call, IfBlock, Loop, Schedule, Operation,
                                   BinaryOperation, ACCKernelsDirective,
                                   ACCParallelDirective, ACCUpdateDirective,
-                                  ACCEnterDataDirective, CodeBlock)
+                                  ACCEnterDataDirective, CodeBlock, Routine)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyGen import Transformation
 
@@ -121,13 +121,20 @@ class ACCUpdateTrans(Transformation):
 
         '''
         self.validate(node, options)
-        # Call the routine that recursively adds updates to all Schedules
-        # within the supplied Schedule.
+
         if options and options.get("allow-codeblocks", False):
             excluded_nodes = tuple(list(self._acc_region_nodes) + [CodeBlock])
         else:
             excluded_nodes = self._acc_region_nodes
 
+        routine = node.ancestor(Routine, include_self=True)
+        if routine:
+            self._routine_name = routine.name
+        else:
+            self._routine_name = ""
+
+        # Call the routine that recursively adds updates to all Schedules
+        # within the supplied Schedule.
         self._add_updates_to_schedule(node, excluded_nodes)
 
     def _add_updates_to_schedule(self, sched, excluded_nodes):
@@ -183,13 +190,18 @@ class ACCUpdateTrans(Transformation):
                     # We don't currently handle CodeBlocks so we inject code
                     # to abort the execution.
                     ptree = Fortran2003.Stop_Stmt(
-                        "STOP 'PSyclone: need to manually add update "
-                        "statements for the following code block...'")
-                    # TODO can I add a following comment to a CodeBlock (to
-                    # indicate where it ends in the generated Fortran)?
+                        f"STOP 'PSyclone: {self._routine_name}: manually add "
+                        f"ACC update statements (if required) for the "
+                        f"following CodeBlock...'")
                     sched.addchild(CodeBlock([ptree],
                                              CodeBlock.Structure.STATEMENT),
                                    index=child.position)
+                    # If this is not the last child in the Schedule then we
+                    # can add a comment to show where the CodeBlock ends.
+                    if child is not sched.children[-1]:
+                        sibling = sched.children[child.position+1]
+                        sibling.preceding_comment = "...CodeBlock ends here."
+
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the CPU?
         if node_list:
