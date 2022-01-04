@@ -51,7 +51,7 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -781,7 +781,9 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         if isinstance(symbols, DataSymbol):
             self._symbol_list = [symbols]
         elif isinstance(symbols, list):
-            if not all(isinstance(sym, DataSymbol) for sym in symbols):
+            # TODO ARPDBG when processing NEMO we do have bare Symbols
+            # sometimes (because of wildcard imports).
+            if not all(isinstance(sym, Symbol) for sym in symbols):
                 raise TypeError(
                     f"The ACCUpdateDirective symbols argument must be a list "
                     f"of 'DataSymbol' objects but got "
