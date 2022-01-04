@@ -65,6 +65,12 @@ class ACCUpdateTrans(Transformation):
         loop_type_mapping = Config.get().api_conf("nemo") \
                                         .get_loop_type_mapping()
         self._loop_vars = loop_type_mapping.keys()
+        # Those fparser2 nodes that may occur inside a CodeBlock but represent
+        # accesses that do not require any data synchronisation between CPU
+        # and GPU.
+        self._fp_ignore_nodes = (Fortran2003.Allocate_Stmt,
+                                 Fortran2003.Deallocate_Stmt,
+                                 Fortran2003.Inquire_Stmt)
 
         super().__init__()
 
@@ -165,7 +171,13 @@ class ACCUpdateTrans(Transformation):
                     if any(op.operator not in [BinaryOperation.Operator.LBOUND,
                                                BinaryOperation.Operator.UBOUND]
                            for op in ops):
-                        raise NotImplementedError("ARPDBG4")
+                        ptree = Fortran2003.Stop_Stmt(
+                            f"STOP 'PSyclone: {self._routine_name}: manually "
+                            f"add ACC update statements for the temporaries "
+                            f"required by the following Call'")
+                        sched.addchild(CodeBlock(
+                            [ptree], CodeBlock.Structure.STATEMENT),
+                                       index=child.position)
                 if isinstance(child, IfBlock):
                     # Add any update statements that are required due to
                     # (read) accesses within the condition of the If.
@@ -174,7 +186,8 @@ class ACCUpdateTrans(Transformation):
                     self._add_updates_to_schedule(child.if_body,
                                                   excluded_nodes)
                     if child.else_body:
-                        self._add_updates_to_schedule(child.else_body)
+                        self._add_updates_to_schedule(child.else_body,
+                                                      excluded_nodes)
                 if isinstance(child, Loop):
                     # We have a loop that is on the CPU but contains code
                     # that could be on the GPU.
@@ -187,6 +200,13 @@ class ACCUpdateTrans(Transformation):
                     self._add_updates_to_schedule(child.loop_body,
                                                   excluded_nodes)
                 if isinstance(child, CodeBlock):
+                    # All is not lost if we encounter a CodeBlock as we may
+                    # be able to infer that it doesn't require any data
+                    # transfers.
+                    fp_nodes = child.get_ast_nodes
+                    if all(isinstance(fp_node, self._fp_ignore_nodes)
+                           for fp_node in fp_nodes):
+                        continue
                     # We don't currently handle CodeBlocks so we inject code
                     # to abort the execution.
                     ptree = Fortran2003.Stop_Stmt(
@@ -230,15 +250,13 @@ class ACCUpdateTrans(Transformation):
             first_child = node_list[0]
             while first_child not in parent.children:
                 first_child = first_child.parent
-            sym_list = []
+            sig_list = []
             for sig in inputs:
-                if sig.is_structure:
-                    raise NotImplementedError("ARPDBG2")
                 if sig.var_name in self._loop_vars:
                     continue
-                sym_list.append(sched.symbol_table.lookup(sig.var_name))
-            if sym_list:
-                update_dir = ACCUpdateDirective(sym_list, "host")
+                sig_list.append(sig)
+            if sig_list:
+                update_dir = ACCUpdateDirective(sig_list, "host")
                 parent.addchild(update_dir, parent.children.index(first_child))
         # Copy any data that is written by this region and that is on the GPU
         # back to the GPU.
@@ -249,14 +267,12 @@ class ACCUpdateTrans(Transformation):
             last_child = node_list[-1]
             while last_child not in parent.children:
                 last_child = last_child.parent
-            sym_list = []
+            sig_list = []
             for sig in outputs:
-                if sig.is_structure:
-                    raise NotImplementedError("ARPDBG3")
                 if sig.var_name in self._loop_vars:
                     continue
-                sym_list.append(sched.symbol_table.lookup(sig.var_name))
-            if sym_list:
-                update_dir = ACCUpdateDirective(sym_list, "device")
+                sig_list.append(sig)
+            if sig_list:
+                update_dir = ACCUpdateDirective(sig_list, "device")
                 parent.addchild(update_dir,
                                 parent.children.index(last_child)+1)
