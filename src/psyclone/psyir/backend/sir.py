@@ -228,7 +228,12 @@ class SIRWriter(PSyIRVisitor):
             try:
                 value = bound_value(loop.stop_expr)
                 upper_bound_offset = 0
-                upper_bound_str = str(value)
+                if value == 1:
+                    # Assume that 1 is the lower bound of the
+                    # array. This gets round a bug in Dawn.
+                    upper_bound_str = "Interval.Start"
+                else:
+                    upper_bound_str = str(value)
             except TypeError:
                 try:
                     upper_bound_offset = bound_name_offset(loop.stop_expr, upper_bound_name)

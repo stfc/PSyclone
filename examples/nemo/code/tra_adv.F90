@@ -16,7 +16,7 @@ PROGRAM tra_adv
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)       :: rnfmsk_z
    REAL(wp) :: zice, zu, z0u, zzwx, zv, z0v, zzwy, ztra, zbtr, zdt, zalpha
-   REAL(wp) :: r
+   REAL(wp) :: r, checksum
    REAL(wp) :: zw, z0w
    INTEGER  :: jpi, jpj, jpk, ji, jj, jk, jt
    ! TODO #588 it would be more natural to do INTEGER*8 here but PSyclone does
@@ -242,13 +242,18 @@ PROGRAM tra_adv
 
    OPEN(unit = 4, file = 'output.dat', form='formatted')
   
+   checksum = 0.0d0
    DO jk = 1, jpk-1
       DO jj = 2, jpj-1
          DO ji = 2, jpi-1
             write(4,*) mydomain(ji,jj,jk)
+            checksum = checksum + mydomain(ji,jj,jk)
          END DO
       END DO
    END DO
+
+   write(*, "('Checksum for domain ', 2(I4, ' x'), I4, ' (',I4,' iterations) = ',E23.16)") &
+                 jpi, jpj, jpk, it, checksum 
 
    CLOSE(4)
 

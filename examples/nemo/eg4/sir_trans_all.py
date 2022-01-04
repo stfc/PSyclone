@@ -60,7 +60,7 @@ from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   NaryOperation, Operation, Assignment)
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans, Max2CodeTrans, HoistTrans
+    Min2CodeTrans, Max2CodeTrans, HoistTrans, OwnerComputesTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
     NemoAllArrayAccess2LoopTrans
 
@@ -84,6 +84,7 @@ def trans(psy):
     array_range_trans = NemoAllArrayRange2LoopTrans()
     array_access_trans = NemoAllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
+    owner_computes = OwnerComputesTrans()
 
     sir_writer = SIRWriter()
 
@@ -134,8 +135,9 @@ def trans(psy):
                 for child in loop.loop_body[:]:
                     if isinstance(child, Assignment):
                         hoist_trans.apply(child)
-
-        kern = sir_writer(schedule)
-        print(kern)
+        for loop in schedule.loops():
+            owner_computes.apply(loop)
+        ##kern = sir_writer(schedule)
+        ##print(kern)
 
     return psy
