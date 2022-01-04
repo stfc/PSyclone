@@ -1265,6 +1265,13 @@ def test_process_declarations_kind_use():
     assert fake_parent.symbol_table.lookup("r_def") is \
         var2_var.datatype.precision
 
+    # If we change the symbol_table default visibility, this is respected
+    # by new kind symbols
+    fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    _kind_find_or_create("i_def", fake_parent.symbol_table)
+    assert fake_parent.symbol_table.lookup("i_def").visibility \
+            is Symbol.Visibility.PRIVATE
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_wrong_type_kind_param():
@@ -1562,7 +1569,7 @@ def test_unresolved_array_size():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_use_stmt():
+def test_process_use_stmts_with_default_visibility():
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -1571,7 +1578,7 @@ def test_use_stmt():
                                  "use this_mod\n"
                                  "use other_mod, only: var1, var2\n")
     fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor._process_use_stmts(fake_parent, fparser2spec.content)
 
     symtab = fake_parent.symbol_table
 
@@ -1588,6 +1595,41 @@ def test_use_stmt():
         == symtab.lookup("my_mod")
     assert symtab.lookup("var2").interface.container_symbol \
         == symtab.lookup("other_mod")
+
+    assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var1").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("other_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var2").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("my_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
+
+
+def test_process_use_stmts_with_accessibility_statements(parser):
+    ''' Same as the previous test, but now from a module with a Fortran
+    accessibility statement. This will provide a visibility map to the
+    use statement processor so the imported symbols and modules end up with
+    the appropriate visibility attributes. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader('''
+        module test
+            use my_mod, only: some_var
+            use this_mod
+            use other_mod, only: var1, var2
+            private this_mod, var1
+        end module test
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+
+    symtab = psyir.symbol_table
+
+    assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("var1").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("other_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var2").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("my_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
 
 
 @pytest.mark.usefixtures("f2008_parser")
