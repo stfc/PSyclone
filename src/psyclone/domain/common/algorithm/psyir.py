@@ -248,6 +248,9 @@ class AlgorithmInvokeCall(Call):
 
         symbol_table = self.scope.symbol_table
 
+        # TODO #753. At the moment the container and routine names
+        # produced here will differ from the PSy-layer routine name if
+        # there is a name clash in the algorithm layer.
         container_tag = self._psylayer_container_root_name
         try:
             container_symbol = symbol_table.lookup_with_tag(container_tag)
