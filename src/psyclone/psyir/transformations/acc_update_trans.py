@@ -204,23 +204,37 @@ class ACCUpdateTrans(Transformation):
                     # be able to infer that it doesn't require any data
                     # transfers.
                     fp_nodes = child.get_ast_nodes
-                    if all(isinstance(fp_node, self._fp_ignore_nodes)
-                           for fp_node in fp_nodes):
-                        continue
-                    # We don't currently handle CodeBlocks so we inject code
-                    # to abort the execution.
-                    ptree = Fortran2003.Stop_Stmt(
-                        f"STOP 'PSyclone: {self._routine_name}: manually add "
-                        f"ACC update statements (if required) for the "
-                        f"following CodeBlock...'")
-                    sched.addchild(CodeBlock([ptree],
-                                             CodeBlock.Structure.STATEMENT),
-                                   index=child.position)
-                    # If this is not the last child in the Schedule then we
-                    # can add a comment to show where the CodeBlock ends.
-                    if child is not sched.children[-1]:
-                        sibling = sched.children[child.position+1]
-                        sibling.preceding_comment = "...CodeBlock ends here."
+                    for fp_node in fp_nodes:
+                        if isinstance(fp_node, self._fp_ignore_nodes):
+                            continue
+                        if isinstance(fp_node, Fortran2003.Write_Stmt):
+                            if fp_node.children[-1] is None:
+                                # A WRITE with no arguments is fine.
+                                continue
+                            if all(isinstance(
+                                    fp_child,
+                                    Fortran2003.Char_Literal_Constant) for
+                                   fp_child in fp_node.children[-1].children):
+                                # A WRITE that only uses character literals
+                                # is also fine.
+                                continue
+                        # If we reach this point then the CodeBlock contains
+                        # (or may contain) variable accesses so we inject code
+                        # to abort the execution.
+                        ptree = Fortran2003.Stop_Stmt(
+                            f"STOP 'PSyclone: {self._routine_name}: manually "
+                            f"add ACC update statements (if required) for the "
+                            f"following CodeBlock...'")
+                        sched.addchild(CodeBlock(
+                            [ptree], CodeBlock.Structure.STATEMENT),
+                                       index=child.position)
+                        # If this is not the last child in the Schedule then we
+                        # can add a comment to show where the CodeBlock ends.
+                        if child is not sched.children[-1]:
+                            sibling = sched.children[child.position+1]
+                            sibling.preceding_comment = (
+                                "...CodeBlock ends here.")
+                        break
 
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the CPU?
