@@ -43,6 +43,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -303,49 +304,54 @@ def test_acc_routine_directive_constructor_and_strings():
 # Class ACCUpdateDirective
 
 def test_accupdatedirective_init():
-    ''' Test the constructor of ACCUpdateDirective node'''
+    ''' Test the constructor of ACCUpdateDirective node. '''
 
     # Check argument validations
     with pytest.raises(TypeError) as err:
         _ = ACCUpdateDirective("invalid", "host")
-    assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
-            "but found 'str'." in str(err.value))
+    assert ("The ACCUpdateDirective signatures argument must either be a "
+            "'Signature' or a list of Signatures but found 'str'."
+            in str(err.value))
 
-    symbol = DataSymbol("x", REAL_TYPE)
+    sig = Signature("x")
     with pytest.raises(ValueError) as err:
-        _ = ACCUpdateDirective(symbol, "invalid")
+        _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
             "any of the values in '('self', 'host', 'device')' but found "
             "'invalid'." in str(err.value))
 
     # Successful init
-    directive = ACCUpdateDirective(symbol, "host")
-    assert directive._symbol is symbol
+    directive = ACCUpdateDirective(sig, "host")
+    assert directive._sig_list == [sig]
     assert directive._direction == "host"
+    assert directive._conditional is True
+
+    directive = ACCUpdateDirective(sig, "host", conditional=False)
+    assert directive._conditional is False
 
 
 def test_accupdatedirective_begin_string():
-    ''' Test the begin_string method of ACCUpdateDirective'''
+    ''' Test the begin_string method of ACCUpdateDirective. '''
 
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "host")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = Signature("x")
+    directive1 = ACCUpdateDirective(sig, "host", conditional=False)
+    directive2 = ACCUpdateDirective(sig, "device")
 
     assert directive1.begin_string() == "acc update host(x)"
-    assert directive2.begin_string() == "acc update device(x)"
+    assert directive2.begin_string() == "acc update if_present device(x)"
 
 
 def test_accupdatedirective_equality():
     ''' Test the __eq__ method of ACCUpdateDirective node. '''
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "device")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = Signature("x")
+    directive1 = ACCUpdateDirective(sig, "device")
+    directive2 = ACCUpdateDirective(sig, "device")
     assert directive1 == directive2
 
-    # Check equality fails when different symbols
-    directive3 = ACCUpdateDirective(DataSymbol("t", REAL_TYPE), "device")
+    # Check equality fails when different signatures
+    directive3 = ACCUpdateDirective(Signature("t"), "device")
     assert directive1 != directive3
 
     # Check equality fails when different directions
-    directive4 = ACCUpdateDirective(symbol, "host")
+    directive4 = ACCUpdateDirective(sig, "host")
     assert directive1 != directive4

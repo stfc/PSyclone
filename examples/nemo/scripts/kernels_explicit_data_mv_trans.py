@@ -86,7 +86,7 @@ UPDATE_TRANS = ACCUpdateTrans()
 
 # Whether or not to automatically add profiling calls around
 # un-accelerated regions
-_AUTO_PROFILE = True
+_AUTO_PROFILE = False
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "ice_thd_pnd", "macho", "mpp_", "nemo_gcm",
