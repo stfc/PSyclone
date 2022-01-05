@@ -780,19 +780,19 @@ class ACCUpdateDirective(ACCStandaloneDirective):
                 f"with any of the values in '{self._VALID_DIRECTIONS}' but "
                 f"found '{direction}'.")
         if isinstance(signatures, Signature):
-            self._symbol_list = [signatures]
+            self._sig_list = [signatures]
         elif isinstance(signatures, list):
             if not all(isinstance(sig, Signature) for sig in signatures):
                 raise TypeError(
                     f"The ACCUpdateDirective signatures argument must be a "
                     f"list of 'Signature' objects but got "
                     f"{[type(sig).__name__ for sig in signatures]}")
-            self._symbol_list = signatures
+            self._sig_list = signatures
         else:
             raise TypeError(
-                f"The ACCUpdateDirective symbols argument must either be a "
+                f"The ACCUpdateDirective signatures argument must either be a "
                 f"'Signature' or a list of Signatures but found "
-                f"'{type(signatures).__name__}'")
+                f"'{type(signatures).__name__}'.")
 
         self._direction = direction
         # Whether or not we include the 'if_present' clause on the update
@@ -847,20 +847,21 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         '''
         if self._conditional:
-            condition = "if_present"
+            condition = "if_present "
         else:
             condition = ""
         name_list = []
-        for sig in self._symbol_list:
+        for sig in self._sig_list:
             if sig.is_structure:
                 for idx in range(len(sig)):
+                    # TODO this is Fortran specific
                     name = "%".join(sig[0:idx+1])
                     if name not in name_list:
                         name_list.append(name)
             else:
                 name_list.append(sig.var_name)
         sym_list = ",".join(name_list)
-        return f"acc update {condition} {self._direction}({sym_list})"
+        return f"acc update {condition}{self._direction}({sym_list})"
 
 
 # For automatic API documentation generation

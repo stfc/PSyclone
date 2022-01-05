@@ -48,7 +48,7 @@ from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Loop, Routine, ACCEnterDataDirective
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
@@ -1600,11 +1600,13 @@ def test_acc_loop_before_enter_data():
     # Add an enclosing parallel region
     accpara.apply(schedule[1])
 
-    # Add a data region. By default, the enter data is always added at the
-    # beginning of the Schedule. We must therefore move it in order to trigger
-    # the error.
+    # Add a data region. By default, the enter data is always added just
+    # before the first parallel region. We must therefore move it in order to
+    # trigger the error.
     accdata.apply(schedule)
-    mvtrans.apply(schedule[0], schedule[3])
+    accdatadir = schedule.walk(ACCEnterDataDirective,
+                               stop_type=ACCEnterDataDirective)
+    mvtrans.apply(accdatadir[0], schedule[3])
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen

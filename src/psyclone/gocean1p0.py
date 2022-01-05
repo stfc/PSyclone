@@ -2183,8 +2183,8 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
         # Add an ACCUpdateDirective inside the subroutine
-        symbol = subroutine.symbol_table.lookup("to")
-        subroutine.addchild(ACCUpdateDirective(symbol, "host"))
+        subroutine.addchild(ACCUpdateDirective(Signature("to"), "host",
+                                               conditional=False))
 
         # Rename subroutine
         subroutine.name = subroutine_name
