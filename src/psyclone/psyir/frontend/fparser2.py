@@ -2759,12 +2759,14 @@ class Fparser2Reader(object):
         :returns: rank of the sub-section of the array.
         :rtype: int
 
-        :raises NotImplementedError: if no ArrayMixin node with at least one \
-                                     Range in its indices is found.
-        :raises NotImplementedError: if two or more part references in a \
-                                     structure reference contain ranges.
-        :raises InternalError: if the supplied node is not of the correct type.
-
+        :raises InternalError: if no ArrayMixin node with at least one \
+                               Range in its indices is found.
+        :raises InternalError: if two or more part references in a \
+                               structure reference contain ranges.
+        :raises NotImplementedError: if the supplied node is not of a \
+                                     supported type.
+        :raises NotImplementedError: if any ranges are encountered that are \
+                                     not for the full extent of the dimension.
         '''
         if isinstance(node, (ArrayReference, ArrayMember)):
             array = node
@@ -2781,16 +2783,17 @@ class Fparser2Reader(object):
                             from psyclone.psyir.backend.fortran import \
                                 FortranWriter
                             lang_writer = FortranWriter()
-                        raise NotImplementedError(
+                        raise InternalError(
                             "Found a structure reference containing two or "
                             "more part references that have ranges: '{0}'. "
                             "This is not valid within a WHERE in Fortran.".
                             format(lang_writer(node)))
                     array = part_ref
             if not array:
-                raise NotImplementedError(
+                raise InternalError(
                     "No array access found in node '{0}'".format(node.name))
         else:
+            # This will result in a CodeBlock.
             raise NotImplementedError(
                 "Expected either an ArrayReference, ArrayMember or a "
                 "StructureReference but got '{0}'".format(type(node).__name__))

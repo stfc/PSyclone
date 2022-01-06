@@ -369,7 +369,7 @@ def test_default_real_type():
 
 def test_array_notation_rank():
     '''Test the static method _array_notation_rank in the fparser2reader
-    class
+    class.
 
     '''
     int_one = Literal("1", INTEGER_TYPE)
@@ -381,7 +381,7 @@ def test_array_notation_rank():
 
     # Structure reference containing no array access
     symbol = DataSymbol("field", DeferredType())
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         Fparser2Reader._array_notation_rank(
             StructureReference.create(symbol, ["first", "second"]))
     assert "No array access found in node 'field'" in str(err.value)
@@ -394,7 +394,7 @@ def test_array_notation_rank():
         BinaryOperation.Operator.UBOUND,
         StructureReference.create(symbol, ["first"]), int_one.copy())
     my_range = Range.create(lbound, ubound)
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         Fparser2Reader._array_notation_rank(
             StructureReference.create(symbol, [("first", [my_range]),
                                                ("second", [my_range.copy()])]))
@@ -403,7 +403,7 @@ def test_array_notation_rank():
             "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
             "valid within a WHERE in Fortran." in str(err.value))
     # Repeat but this time for an ArrayOfStructuresReference.
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         Fparser2Reader._array_notation_rank(
             ArrayOfStructuresReference.create(symbol, [my_range.copy()],
                                               ["first",
