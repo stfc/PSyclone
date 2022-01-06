@@ -67,12 +67,12 @@ def test_math_logicals(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 logical :: x
-                x = {0}
-                x = {1}
+                x = {expressions[0]}
+                x = {expressions[1]}
                 end program test_prog
-                '''.format(expressions[0], expressions[1])
+                '''
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
 
@@ -105,14 +105,14 @@ def test_symbolic_math_equal(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k, x
                 type(my_mod_type) :: a, b
-                x = {0}
-                x = {1}
+                x = {expressions[0]}
+                x = {expressions[1]}
                 end program test_prog
-                '''.format(expressions[0], expressions[1])
+                '''
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
 
@@ -136,14 +136,14 @@ def test_symbolic_math_equal_structures(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k
                 type(my_mod_type) :: a, b, c(:,:)
-                x = {0}
-                x = {1}
+                x = {expressions[0]}
+                x = {expressions[1]}
                 end program test_prog
-                '''.format(expressions[0], expressions[1])
+                '''
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
 
@@ -165,14 +165,14 @@ def test_symbolic_math_not_equal(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k, x
                 type(my_mod_type) :: a, b
-                x = {0}
-                x = {1}
+                x = {expressions[0]}
+                x = {expressions[1]}
                 end program test_prog
-                '''.format(expressions[0], expressions[1])
+                '''
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
 
@@ -193,14 +193,14 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k, x
                 type(my_mod_type) :: a, b
-                x = {0}
-                x = {1}
+                x = {expressions[0]}
+                x = {expressions[1]}
                 end program test_prog
-                '''.format(expressions[0], expressions[1])
+                '''
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
 
@@ -225,14 +225,14 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                  use some_mod
                  integer :: i, j, k, x
                  type(my_mod_type) :: a, b
-                 x = {0}
-                 x = {1}
+                 x = {expressions[0]}
+                 x = {expressions[1]}
                  end program test_prog
-             '''.format(expressions[0], expressions[1])
+             '''
 
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
@@ -254,17 +254,16 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     same as a SymPy function (e.g. 'field'), parsing will fail.
 
     '''
-    print("--------------------------")
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                  use some_mod
                  integer :: field(10), i
                  type(my_mod_type) :: a, b
-                 x = {0}
-                 x = {1}
+                 x = {expressions[0]}
+                 x = {expressions[1]}
                  end program test_prog
-             '''.format(expressions[0], expressions[1])
+             '''
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()

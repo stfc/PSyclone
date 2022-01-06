@@ -79,10 +79,10 @@ def test_sym_writer_int_constants(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 integer :: x
-                x = {0}
-                end program test_prog '''.format(expressions[0])
+                x = {expressions[0]}
+                end program test_prog '''
     psyir = fortran_reader.psyir_from_source(source)
     # psyir is a FileContainer, its first children the program, and its
     # first children the assignment, of which we take the right hand side
@@ -107,10 +107,10 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 integer :: x
-                x = {0}
-                end program test_prog '''.format(expressions[0])
+                x = {expressions[0]}
+                end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
     lit = psyir.children[0].children[0].rhs
@@ -132,10 +132,10 @@ def test_sym_writer_functions(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 integer :: x
-                x = {0}
-                end program test_prog '''.format(expressions[0])
+                x = {expressions[0]}
+                end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
     function = psyir.children[0].children[0].rhs
@@ -161,12 +161,12 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 use my_mod
                 type(my_type) :: a, b(10)
                 integer :: i, j, x, a_c, b_c, a_b_c, a_b_c_1
-                x = {0}
-                end program test_prog '''.format(expressions[0])
+                x = {expressions[0]}
+                end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
@@ -197,15 +197,15 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
+    source = f'''program test_prog
                 use my_mod
                 type(my_type) :: a, b(10)
                 integer :: i, j, x, a_c, b_c, a_b_c, a_b_c_1
-                x = {0}
-                end program test_prog '''.format(expressions[0])
+                x = {expressions[0]}
+                end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter(list_of_expressions=[expr])
     _ = sympy_writer(expr)
-    assert sympy_writer.get_sympy_types() == expressions[1]
+    assert sympy_writer.get_sympy_type_map() == expressions[1]
