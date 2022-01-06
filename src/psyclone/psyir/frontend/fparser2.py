@@ -581,6 +581,7 @@ def _kind_find_or_create(name, symbol_table):
         # so create one. We specify an UnresolvedInterface as we don't
         # currently know how this symbol is brought into scope.
         kind_symbol = DataSymbol(lower_name, default_integer_type(),
+                                 visibility=symbol_table.default_visibility,
                                  interface=UnresolvedInterface())
         symbol_table.add(kind_symbol)
     return kind_symbol
@@ -1364,7 +1365,7 @@ class Fparser2Reader(object):
         return (default_visibility, visibility_map)
 
     @staticmethod
-    def _process_use_stmts(parent, nodes):
+    def _process_use_stmts(parent, nodes, visibility_map=None):
         '''
         Process all of the USE statements in the fparser2 parse tree
         supplied as a list of nodes. Imported symbols are added to
@@ -1375,6 +1376,10 @@ class Fparser2Reader(object):
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for use statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         :raises GenerationError: if the parse tree for a use statement has an \
             unrecognised structure.
@@ -1384,7 +1389,8 @@ class Fparser2Reader(object):
             supported.
 
         '''
-        default_visibility = parent.symbol_table.default_visibility
+        if visibility_map is None:
+            visibility_map = {}
 
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
@@ -1402,6 +1408,8 @@ class Fparser2Reader(object):
                                                              text))
 
             mod_name = str(decl.items[2])
+            mod_visibility = visibility_map.get(
+                    mod_name,  parent.symbol_table.default_visibility)
 
             # Add the module symbol to the symbol table. Keep a record of
             # whether or not we've seen this module before for reporting
@@ -1409,7 +1417,7 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name,
-                                            visibility=default_visibility)
+                                            visibility=mod_visibility)
                 parent.symbol_table.add(container)
             else:
                 new_container = False
@@ -1430,6 +1438,8 @@ class Fparser2Reader(object):
                     pass
                 for name in decl.items[4].items:
                     sym_name = str(name).lower()
+                    sym_visibility = visibility_map.get(
+                        sym_name,  parent.symbol_table.default_visibility)
                     if sym_name not in parent.symbol_table:
                         # We're dealing with a symbol named in a use statement
                         # in the *current* scope therefore we do not check
@@ -1437,7 +1447,7 @@ class Fparser2Reader(object):
                         # new symbol. Since we don't yet know anything about
                         # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
-                            Symbol(sym_name, visibility=default_visibility,
+                            Symbol(sym_name, visibility=sym_visibility,
                                    interface=ImportInterface(container)))
                     else:
                         # There's already a symbol with this name
@@ -1511,11 +1521,11 @@ class Fparser2Reader(object):
             try:
                 data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
             except KeyError as err:
-                six.raise_from(NotImplementedError(
+                raise NotImplementedError(
                     "Could not process {0}. Only 'real', 'double "
                     "precision', 'integer', 'logical' and 'character' "
                     "intrinsic types are supported."
-                    "".format(str(type_spec))), err)
+                    "".format(str(type_spec))) from err
             if fort_type == "double precision":
                 # Fortran double precision is equivalent to a REAL
                 # intrinsic with precision DOUBLE in the PSyIR.
@@ -1534,6 +1544,12 @@ class Fparser2Reader(object):
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
+            if type_spec.children[0].lower() != "type":
+                # We don't yet support declarations that use 'class'
+                # TODO #1504 extend the PSyIR for this variable type.
+                raise NotImplementedError(
+                    f"Could not process {type_spec} - declarations "
+                    f"other than 'type' are not yet supported.")
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)
@@ -1916,7 +1932,7 @@ class Fparser2Reader(object):
             visibility_map = {}
 
         # Look at any USE statements
-        self._process_use_stmts(parent, nodes)
+        self._process_use_stmts(parent, nodes, visibility_map)
 
         # Handle any derived-type declarations/definitions before we look
         # at general variable declarations in case any of the latter use

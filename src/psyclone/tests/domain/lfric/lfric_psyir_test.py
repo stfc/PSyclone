@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
@@ -41,7 +42,7 @@ import pytest
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
-    ArrayType
+    ArrayType, Symbol
 from psyclone.psyir.nodes import Reference, Literal
 
 
@@ -365,6 +366,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
       [Reference(
           lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
               "qr",
+              visibility=Symbol.Visibility.PRIVATE,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {})])
 def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
@@ -420,6 +422,7 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w1",
+              visibility=Symbol.Visibility.PUBLIC,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w1"}),
      (lfric_psyir.LogicalVectorFieldDataDataSymbol,
@@ -427,6 +430,7 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
       [Reference(
           lfric_psyir.NumberOfUniqueDofsDataSymbol(
               "ndofs", "w2",
+              visibility=Symbol.Visibility.PRIVATE,
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {"fs": "w2"})])
 def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
