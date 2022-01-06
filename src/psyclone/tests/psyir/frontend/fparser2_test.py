@@ -791,22 +791,22 @@ def test_process_unsupported_declarations(fortran_reader):
                       UnknownFortranType)
 
     # Unsupported initialisation of a parameter which comes after a valid
-    # initialisation
+    # initialisation and is then followed by a second, valid initialisation.
     reader = FortranStringReader(
-        "INTEGER, PARAMETER :: happy=1, fbsp = SELECTED_REAL_KIND( 6, 37)")
+        "INTEGER, PARAMETER :: happy=1, fbsp=SELECTED_REAL_KIND(6,37), sad=2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fbsym = fake_parent.symbol_table.lookup("fbsp")
-    assert isinstance(fbsym.datatype, UnknownFortranType)
-    assert (fbsym.datatype.declaration ==
-            "INTEGER, PARAMETER :: fbsp = SELECTED_REAL_KIND(6, 37)")
+    assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(fbsym.constant_value, CodeBlock)
     # The first parameter should have been handled correctly
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert hsym.constant_value.value == "1"
-    # The fparser2 parse tree should still be intact
-    assert ("INTEGER, PARAMETER :: happy = 1, fbsp = SELECTED_REAL_KIND(6, 37)"
-            in str(fparser2spec))
+    # As should the third
+    ssym = fake_parent.symbol_table.lookup("sad")
+    assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert ssym.constant_value.value == "2"
 
 
 @pytest.mark.usefixtures("f2008_parser")
