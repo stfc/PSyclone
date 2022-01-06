@@ -813,6 +813,51 @@ def test_process_unsupported_declarations(fortran_reader):
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_unsupported_decln_initial_value(monkeypatch):
+    ''' Check that an invalid constant value for a parameter is handled
+    correctly. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    reader = FortranStringReader(
+        "INTEGER, PARAMETER :: happy=1, fbsp=SELECTED_REAL_KIND(6,37), "
+        " sad=fbsp")
+    fparser2spec = Specification_Part(reader).content[0]
+    # This error condition is very difficult to trigger so we monkeypatch
+    # the DataSymbol class itself with a setter that raises a ValueError
+    # for anything other than a Literal.
+
+    class BrokenDataSymbol(DataSymbol):
+        @property
+        def constant_value(self):
+            return self._constant_value
+
+        @constant_value.setter
+        def constant_value(self, value):
+            if isinstance(value, Literal):
+                self._constant_value = value
+            else:
+                raise ValueError("")
+
+    # At this point the fparser2 module will already have 'DataSymbol' in
+    # its namespace (due to the imports at the top of this file) so we
+    # monkeypatch that entry.
+    from psyclone.psyir.frontend import fparser2
+    monkeypatch.setattr(fparser2, "DataSymbol", BrokenDataSymbol)
+
+    processor = Fparser2Reader()
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    hsym = fake_parent.symbol_table.lookup("happy")
+    assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert hsym.constant_value.value == "1"
+    fbsym = fake_parent.symbol_table.lookup("fbsp")
+    assert isinstance(fbsym.datatype, UnknownFortranType)
+    assert (fbsym.datatype.declaration == "INTEGER, PARAMETER :: fbsp = "
+            "SELECTED_REAL_KIND(6, 37)")
+    sadsym = fake_parent.symbol_table.lookup("sad")
+    assert isinstance(sadsym.datatype, UnknownFortranType)
+    assert sadsym.datatype.declaration == "INTEGER, PARAMETER :: sad = fbsp"
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_unsupported_decln_duplicate_symbol():
     ''' Check that we raise the expected error when an unsupported declaration
     of only one symbol clashes with an existing entry in the symbol table. '''
