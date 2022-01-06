@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -415,6 +415,9 @@ class GOKernelArgument(KernelArgument):
     def __init__(self, arg, arg_info, call):
         self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
+        # Complete the argument initialisation as in some APIs it
+        # needs to be separated.
+        self.arg_init1(arg_info)
 
     @property
     def function_space(self):

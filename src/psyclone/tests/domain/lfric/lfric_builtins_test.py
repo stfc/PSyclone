@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,17 @@ def setup():
     yield()
     Config._instance = None
 
+
+def dummy_func(self, _1, _2=True):
+    '''Dummy routine that replaces _init_data_type_properties when used
+    with monkeypatch and sets the minimum needed values to return
+    without error for the associated tests.
+
+    '''
+    self._data_type = "dummy1"
+    self._precision = "dummy2"
+    self._proxy_data_type = "dummy3"
+    self._module_name = "dummy4"
 
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
@@ -226,7 +237,7 @@ def test_builtin_no_field_args(monkeypatch):
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
         DynKernelArgument, "_init_data_type_properties",
-        lambda arg1, arg2, arg3=True: None)
+        dummy_func)
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
@@ -264,7 +275,7 @@ def test_builtin_invalid_argument_type(monkeypatch):
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
         DynKernelArgument, "_init_data_type_properties",
-        lambda arg1, arg2, arg3=True: None)
+        dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
@@ -296,7 +307,7 @@ def test_builtin_invalid_data_type(monkeypatch):
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
         DynKernelArgument, "_init_data_type_properties",
-        lambda arg1, arg2, arg3=True: None)
+        dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
@@ -358,7 +369,7 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
         DynKernelArgument, "_init_data_type_properties",
-        lambda arg1, arg2, arg3=True: None)
+        dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -8681,12 +8681,15 @@ class DynKernelArgument(KernelArgument):
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
-
         # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
         # arguments: precision, module name, data type and proxy data type
         self._init_data_type_properties(arg_info, check)
+        # Complete the initialisation of the argument (after
+        # _init_data_type_properties() so the precision info etc is
+        # already set up)
+        self.arg_init1(arg_info)
 
     def ref_name(self, function_space=None):
         '''
@@ -9290,18 +9293,12 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
-        const = LFRicConstants()
-
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         symbol_table = self._call.scope.symbol_table
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
-
-        proxy_str = ""
-        if proxy:
-            proxy_str = "_proxy"
 
         def _find_or_create_type(mod_name, type_name):
             '''
@@ -9327,30 +9324,18 @@ class DynKernelArgument(KernelArgument):
                         ))
 
         if self.is_scalar:
-
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
-                if self.access in AccessType.get_valid_reduction_modes():
-                    # Set 'real' scalar reduction properties as defined in
-                    # the LFRic infrastructure
-                    kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
-                else:
-                    # Set read-only 'real' scalar precision
-                    if self._precision:
-                        kind_name = self._precision
-                    else:
-                        kind_name = const.SCALAR_PRECISION_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
-                kind_name = const.SCALAR_PRECISION_MAP["integer"]
                 prim_type = ScalarType.Intrinsic.INTEGER
             elif self.intrinsic_type == "logical":
-                kind_name = const.SCALAR_PRECISION_MAP["logical"]
                 prim_type = ScalarType.Intrinsic.BOOLEAN
             else:
                 raise NotImplementedError(
-                    "Unsupported scalar type '{0}'".format(
-                        self.intrinsic_type))
+                    f"Unsupported scalar type '{self.intrinsic_type}'")
+
+            kind_name = self.precision
             try:
                 kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
@@ -9371,45 +9356,18 @@ class DynKernelArgument(KernelArgument):
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
 
-        if self.is_field:
-
-            # Find or create the DataTypeSymbol for the appropriate field type.
-            if self.intrinsic_type == "real":
-                argtype = "field"
-            elif self.intrinsic_type == "integer":
-                argtype = "integer_field"
+        if self.is_field or self.is_operator:
+            # Find or create the DataTypeSymbol for the appropriate
+            # field or operator type.
+            mod_name = self._module_name
+            if proxy:
+                type_name = self._proxy_data_type
             else:
-                raise NotImplementedError(
-                    "Fields may only be of 'real' or 'integer' type but found "
-                    "'{0}'".format(self.intrinsic_type))
-
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
-            type_name = "{0}{1}_type".format(argtype, proxy_str)
-
-            return _find_or_create_type(mod_name, type_name)
-
-        if self.is_operator:
-
-            # Find or create the DataTypeSymbol for the appropriate operator
-            # type.
-            if self.argument_type == "gh_operator":
-                argtype = "operator"
-            elif self.argument_type == "gh_columnwise_operator":
-                argtype = "columnwise_operator"
-            else:
-                raise NotImplementedError(
-                    "Operators may only be of 'gh_operator' or 'gh_columnwise_"
-                    "operator' type but found '{0}'".format(
-                        self.argument_type))
-
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
-            type_name = "{0}{1}_type".format(argtype, proxy_str)
-
+                type_name = self._data_type
             return _find_or_create_type(mod_name, type_name)
 
         raise NotImplementedError(
-            "'{0}' is not a scalar, field or operator argument"
-            "".format(str(self)))
+            f"'{str(self)}' is not a scalar, field or operator argument")
 
 
 class DynKernCallFactory(object):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -760,16 +760,19 @@ def test_int_real_field_invalid(monkeypatch):
     monkeypatch.
 
     '''
-    def dummy(self, _1, _2=True):
+    def dummy_func(self, _1, _2=True):
         '''Dummy routine that replaces _init_data_type_properties when used
         with monkeypatch and sets the minimum needed values to return
         without error for the associated example.
 
         '''
-        self._precision = "r_def"
+        self._data_type = "dummy1"
+        self._precision = "dummy2"
+        self._proxy_data_type = "dummy3"
+        self._module_name = "dummy4"
 
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties", dummy)
+        DynKernelArgument, "_init_data_type_properties", dummy_func)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,

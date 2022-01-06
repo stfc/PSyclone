@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1859,6 +1859,9 @@ class GOKernelArgument(KernelArgument):
 
         self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
+        # Complete the argument initialisation as in some APIs it
+        # needs to be separated.
+        self.arg_init1(arg_info)
 
     def psyir_expression(self):
         '''
@@ -1994,6 +1997,9 @@ class GOKernelGridArgument(Argument):
     '''
     def __init__(self, arg, kernel_call):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
+        # Complete the argument initialisation as in some APIs it
+        # needs to be separated.
+        self.arg_init1(None)
 
         api_config = Config.get().api_conf("gocean1.0")
         try:

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1352,32 +1352,34 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     arg = call.arguments.args[1]
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, DataTypeSymbol)
-    assert dtype.name == "field{0}_type".format(proxy_str)
+    assert dtype.name == f"field{proxy_str}_type"
     # Repeat when the field(_proxy)_type symbol is missing.
     old_dtype = container_table._symbols.pop(dtype.name)
     dtype = arg.infer_datatype(proxy)
     assert dtype is not old_dtype
     assert isinstance(dtype, DataTypeSymbol)
-    assert dtype.name == "field{0}_type".format(proxy_str)
+    assert dtype.name == f"field{proxy_str}_type"
     # Repeat when both the field (proxy) type and associated container are
     # missing.
     old_dtype = container_table._symbols.pop(dtype.name)
     old_fld_mod = container_table._symbols.pop("field_mod")
     dtype3 = arg.infer_datatype(proxy)
     assert isinstance(dtype3, DataTypeSymbol)
-    assert dtype3.name == "field{0}_type".format(proxy_str)
+    assert dtype3.name == f"field{proxy_str}_type"
     assert dtype3 is not old_dtype
     assert old_fld_mod is not container_table.lookup("field_mod")
     # Integer field argument.
-    monkeypatch.setattr(arg, "_intrinsic_type", "integer")
+    monkeypatch.setattr(arg, "_data_type", "integer_field_type")
+    monkeypatch.setattr(arg, "_proxy_data_type", "integer_field_proxy_type")
+    monkeypatch.setattr(arg, "_module_name", "integer_field_mod")
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, DataTypeSymbol)
-    assert dtype.name == "integer_field{0}_type".format(proxy_str)
+    assert dtype.name == f"integer_field{proxy_str}_type"
     # Repeat when the integer_field(_proxy)_type symbol is missing.
     del container_table._symbols[dtype.name]
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, DataTypeSymbol)
-    assert dtype.name == "integer_field{0}_type".format(proxy_str)
+    assert dtype.name == f"integer_field{proxy_str}_type"
     # Repeat when both the field (proxy) type and associated container are
     # missing.
     old_dtype = container_table._symbols.pop(dtype.name)
@@ -1386,16 +1388,14 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     assert isinstance(dtype, DataTypeSymbol)
     assert dtype is not old_dtype
     assert old_fld_mod is not container_table.lookup("integer_field_mod")
-    assert dtype.name == "integer_field{0}_type".format(proxy_str)
-    # Field with invalid intrinsic type.
-    monkeypatch.setattr(arg, "_intrinsic_type", "foo")
-    with pytest.raises(NotImplementedError) as err:
-        arg.infer_datatype(proxy)
-    assert ("Fields may only be of 'real' or 'integer' type but found 'foo'" in
-            str(err.value))
+    assert dtype.name == f"integer_field{proxy_str}_type"
     # Valid operator types
     for op_name in ["gh_operator", "gh_columnwise_operator"]:
         monkeypatch.setattr(arg, "_argument_type", op_name)
+        monkeypatch.setattr(arg, "_data_type", f"{op_name[3:]}_type")
+        monkeypatch.setattr(
+            arg, "_proxy_data_type", f"{op_name[3:]}_proxy_type")
+        monkeypatch.setattr(arg, "_module_name", "operator_mod")
         dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, DataTypeSymbol)
         assert dtype.name == op_name[3:] + proxy_str + "_type"
@@ -1403,27 +1403,16 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
         old_dtype = container_table._symbols.pop(dtype.name)
         dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, DataTypeSymbol)
-        assert dtype.name == op_name[3:] + proxy_str + "_type"
+        assert dtype.name == f"{op_name[3:]}{proxy_str}_type"
         assert old_dtype is not dtype
         # Repeat, ensuring both type and container symbols deleted first.
         old_dtype = container_table._symbols.pop(dtype.name)
         old_mod = container_table._symbols.pop("operator_mod")
         dtype = arg.infer_datatype(proxy)
         assert isinstance(dtype, DataTypeSymbol)
-        assert dtype.name == op_name[3:] + proxy_str + "_type"
+        assert dtype.name == f"{op_name[3:]}{proxy_str}_type"
         assert dtype is not old_dtype
         assert container_table.lookup("operator_mod") is not old_mod
-    # We need to monkeypatch the recognised list of operators in order to
-    # trigger the next exception. We have to ensure the LFRicConstants class
-    # has been initialised before we monkeypatch it.
-    _ = LFRicConstants()
-    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
-                        ["gh_not_an_op"])
-    monkeypatch.setattr(arg, "_argument_type", "gh_not_an_op")
-    with pytest.raises(NotImplementedError) as err:
-        arg.infer_datatype(proxy)
-    assert ("Operators may only be of 'gh_operator' or 'gh_columnwise_"
-            "operator' type but found 'gh_not_an_op'" in str(err.value))
 
     # We should get an exception for an unrecognised argument type
     monkeypatch.setattr(arg, "_argument_type", "foo")
@@ -1813,7 +1802,7 @@ def test_dynkernelargument_idtp_r_solver_operator():
         operator_argument._init_data_type_properties(None)
     assert ("It was not possible to determine the operator type from the "
             "algorithm layer for argument 'self_mm_w0' in kernel "
-            "'testkern_operator_code'.")
+            "'testkern_operator_code'." in str(info.value))
 
     # Inconsistent datatype
     arg = Arg("variable", None, None, ("columnwise_operator_type", None))
@@ -1931,7 +1920,7 @@ def test_initdatatypeproperties_unknown_field_type():
         os.path.join(BASE_PATH, "8.1_vector_field_deref.f90"),
         api=TEST_API)
     with pytest.raises(GenerationError) as info:
-        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+        _ = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     assert ("It was not possible to determine the field type from the "
             "algorithm layer for argument 'box_chi' in kernel "
             "'testkern_coord_w0_code'." in str(info.value))
@@ -2933,8 +2922,7 @@ def test_multiple_updated_op_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if ((descriptor.argument_type == "gh_field" or
-             descriptor.argument_type == "gh_operator") and
+        if (descriptor.argument_type in ["gh_field", "gh_operator"] and
                 descriptor.access != AccessType.READ):
             count += 1
     assert count == 2

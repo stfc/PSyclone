@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2464,7 +2464,23 @@ class Argument(object):
         self._precision = None
         self._data_type = None
         self._module_name = None
+        # Default the name to the original name for debugging
+        # purposes. This may be updated when arg_init1() is called.
+        self._name = self._orig_name
 
+    def arg_init1(self, arg_info):
+        '''Provides the initialisation of name, text and the declaration of
+        symbols in the symbol table if required. This initialisation
+        is not performed in the constructor as subclasses may need to
+        perform additional initialisation before infer_datatype is
+        called (in order to determine the values of precision,
+        data_type and module_name).
+
+        :param arg_info: Information about this argument collected by \
+            the parser.
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+
+        '''
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
             # we do not want an argument (_text=None) but we do want to
@@ -2475,7 +2491,6 @@ class Argument(object):
             # There are unit-tests where we create Arguments without an
             # associated call or InvokeSchedule.
             if self._call and self._call.ancestor(InvokeSchedule):
-
                 symtab = self._call.ancestor(InvokeSchedule).symbol_table
 
                 # Keep original list of arguments

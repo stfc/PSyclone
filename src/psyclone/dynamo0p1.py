@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -448,6 +448,9 @@ class DynKernelArgument(Argument):
         api_config = Config.get().api_conf("dynamo0.1")
         access_mapping = api_config.get_access_mapping()
         Argument.__init__(self, call, arg_info, access_mapping[arg.access])
+        # Complete the argument initialisation as in some APIs it
+        # needs to be separated.
+        self.arg_init1(arg_info)
 
     @property
     def function_space(self):
