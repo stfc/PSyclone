@@ -285,7 +285,7 @@ epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
     'Sergi Siso'
 epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
     'and Sergi Siso'
-epub_copyright = u'2017-2020, STFC'
+epub_copyright = u'2017-2022, STFC'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

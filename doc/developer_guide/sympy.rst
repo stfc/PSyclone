@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -102,11 +102,12 @@ be fused have the same loop boundaries using code like this:
     'k' does not equal '2 * k - k - 1'
 
 
-Handling of Fortran Structures and Arrays
------------------------------------------
-SymPy has no concept of Fortran structure references or array syntax
-like ``a(i)%b``. But this case is not handled especially, the Fortran
-syntax is provided unmodified to SymPy. SymPy interprets the ``%`` symbol
+Handling of PSyIR Structures and Arrays
+---------------------------------------
+SymPy has no concept of structure references or array syntax like
+``a(i)%b`` in Fortran. But this case is not handled especially, the
+PSyIR is converted to Fortran syntax and is provided unmodified to SymPy.
+SymPy interprets the ``%`` symbol
 as modulo function, so the expression above is read as ``Mod(a(i), b)``.
 This interpretation achieves the expected outcome when comparing structures
 and array references.
@@ -134,8 +135,8 @@ considered to be equal:
    SymPy will report these two functions to be the same, which
    is the expected outcome.
 
-Converting Fortran to Sympy - SymPyWriter
------------------------------------------
+Converting PSyIR to Sympy - SymPyWriter
+---------------------------------------
 The method ``equal`` of the SymbolicMaths class expects two PSyIR
 nodes. It converts these expression first into strings before parsing
 them as SymPy expressions. The conversion is done with the SymPyWriter
@@ -143,8 +144,8 @@ class. As described in the previous section, a member of a structure
 in Fortran becomes a stand alone symbol or function in sympy. The SymPy
 writer will rename members to better indicate that they are members:
 an expression like ``a%b%c`` will be written as ``a%a_b%a_b_c``, which
-SymPy then parses as ``MOD(a, MOD(a_b, a_b_c))``. These convention
-makes it easier to identify what the various expression in SymPy are.
+SymPy then parses as ``MOD(a, MOD(a_b, a_b_c))``. This convention
+makes it easier to identify what the various expressions in SymPy are.
 
 This handling of member variables can result in name clashes. Consider
 the expression ``a%b + a_b + b``. The structure access will be using
@@ -153,13 +154,13 @@ with the same name. Note that the renaming of the member from ``b`` to
 ``a_b`` is not the reason for this - without renaming the same clash would
 happen with the symbol ``b``.
 
-SymPy uses a symbol table to make sure it creates unique symbols. It
-first adds all references in the expression to the symbol table, which
-guarantees that no Fortran reference is renamed. The writer then renames
-all members and makes sure it uses a unique name. In the case of
+The SymPy writer uses a symbol table to make sure it creates unique symbols.
+It first adds all References in the expression to the symbol table, which
+guarantees that no Reference to an existing symbol is renamed. The writer
+then renames all members and makes sure it uses a unique name. In the case of
 ``a%b + a_b + b``, it would create ``a%a_b_1 + a_b + b``, using the name
 ``a_b_1`` for the member to avoid the name clash with the reference
-``a_b`` - so an existing Fortran reference will not be renamed, only
+``a_b`` - so an existing Symbol Reference will not be renamed, only
 members.
 
 The SymPy writer mostly uses the Fortran writer, but implements the
@@ -172,9 +173,9 @@ following, SymPy specific features:
    in the expression. Declaring arrays as functions results in the correct
    behaviour of SymPy: in case of an unknown function SymPy will compare
    all arguments, which are the array indices.
-2. It renames members as described above. So a Fortran expression like
-   ``a%b`` will create two SymPy symbols: ``a`` and ``a_b`` (or a similar
-   name if a name clash was detected).
+2. It renames members as described above. So a structure reference like
+   ``a%b`` (in Fortran syntax) will create two SymPy symbols: ``a`` and
+    ``a_b`` (or a similar name if a name clash was detected).
 3. No precision or kind information is added to a constant (e.g. a Fortran
    value like ``2_4`` will be written just as ``2``).
 4. The intrinsic functions ``Max``, ``Min``, ``Mod`` are returned with a
