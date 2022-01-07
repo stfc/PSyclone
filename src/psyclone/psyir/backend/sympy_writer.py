@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ class SymPyWriter(FortranWriter):
         super().__init__()
 
         # The symbol table is used to create unique names for structure
-        # members that are being accesses (these need to be defined as
+        # members that are being accessed (these need to be defined as
         # SymPy functions or symbols, which could clash with other
         # references in the expression).
         self._symbol_table = SymbolTable()
@@ -76,15 +76,15 @@ class SymPyWriter(FortranWriter):
         # will never rename a reference. This directory keeps track of which
         # names are arrays (--> must be declared as a SymPy function) or
         # non-array (--> must be declared as a SymPy symbol).
-        self._sympy_type = {}
+        self._sympy_type_map = {}
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
                 self._symbol_table.find_or_create_tag(tag=name, root_name=name)
                 if ref.is_array():
-                    self._sympy_type[name] = Function(name)
+                    self._sympy_type_map[name] = Function(name)
                 else:
-                    self._sympy_type[name] = Symbol(name)
+                    self._sympy_type_map[name] = Symbol(name)
 
         self._intrinsic = set()
         self._op_to_str = {}
@@ -100,17 +100,18 @@ class SymPyWriter(FortranWriter):
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str
 
-    def get_sympy_types(self):
-        ''':returns: returns the mapping of symbols in the written
+    def get_sympy_type_map(self):
+        ''':returns: the mapping of symbols in the written
             PSyIR expressions to SymPy types (Function or Symbol).
         :rtype: dict of string to SymPy.Symbol or SymPy.Function
 
         '''
-        return self._sympy_type
+        return self._sympy_type_map
 
     def member_node(self, node):
-        '''In SymPy a structure access `a%b` is handled as the 'MOD'
-        function `MOD(a, b)`. We have therefore make sure that a member
+        '''In SymPy an access to a member 'b' of a structure 'a'
+        (i.e. a%b in Fortran) is handled as the 'MOD' function
+        `MOD(a, b)`. We must therefore make sure that a member
         access is unique (e.g. `b` could already be a scalar variable).
         This is done by creating a new name, which replaces the `%`
         with an `_`. So `a%b` becomes `MOD(a, a_b)`. This makes it easier
@@ -118,31 +119,35 @@ class SymPyWriter(FortranWriter):
         Additionally, we still need to avoid a name clash, e.g. there
         could already be a variable `a_b`. This is done by using a symbol
         table, which was prefilled with all references (`a` in the example
-        above) in the constructor. We use the string with '%' as unique
-        tag and get a new, unqiue symbol from the symbol table based on the
-        new name using `_`. . For example, `a(i)%b` would get the tag
-        `a%b` and might get a symbol name like `a_b`, `a_b_1`, ...
+        above) in the constructor. We use the string containing the '%' as
+        a unique tag and get a new, unique symbol from the symbol table
+        based on the new name using `_`. For example, the access to member
+        `b` in `a(i)%b` would result in a new symbol with tag `a%b` and a
+        name like `a_b`, `a_b_1`, ...
         '''
 
         # We need to find the parent reference in order to make a new
-        # name (a%b%c --> a_b_c)
+        # name (a%b%c --> a_b_c). Collect the names of members and the
+        # symbol in a list.
         parent = node
-        tag = [node.name]
+        name_list = [node.name]
         while not isinstance(parent, Reference):
             parent = parent.parent
-            tag.insert(0, parent.name)
+            name_list.append(parent.name)
+        name_list.reverse()
+
         # The root name uses _, the tag uses % (which are guaranteed
         # to be unique, the root_name might clash with a user defined
-        # variable otherwise.
-        root_name = "_".join(tag)
-        sig_name = "%".join(tag)
+        # variable otherwise).
+        root_name = "_".join(name_list)
+        sig_name = "%".join(name_list)
         new_sym = self._symbol_table.find_or_create_tag(tag=sig_name,
                                                         root_name=root_name)
         new_name = new_sym.name
         if node.is_array():
-            self._sympy_type[new_name] = Function(new_name)
+            self._sympy_type_map[new_name] = Function(new_name)
         else:
-            self._sympy_type[new_name] = Symbol(new_name)
+            self._sympy_type_map[new_name] = Symbol(new_name)
 
         # Now get the original string that this node produces:
         original_name = super().member_node(node)
@@ -173,8 +178,8 @@ class SymPyWriter(FortranWriter):
             return node.value.capitalize()
 
         if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            raise TypeError("SymPy cannot handle strings like '{0}'."
-                            .format(node.value))
+            raise TypeError("SymPy cannot handle strings "
+                            f"like '{node.value}'.")
         # All real (single, double precision) and integer work by just
         # using the node value. Single and double precision both use
         # 'e' as specification, which SymPy accepts, and precision

@@ -106,14 +106,14 @@ class SymbolicMaths:
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
         # Create a new writer, and pre-fill its internal symbol table
-        # with all references (so we do not rename any symbols, only
+        # with all symbols (so we do not rename any symbols, only
         # members will be renamed)
         writer = SymPyWriter(list_of_expressions=[exp1, exp2])
         str_exp1 = writer(exp1)
         str_exp2 = writer(exp2)
 
         # Get the sympy declaration directory, and pass it to SymPy
-        local_dict = writer.get_sympy_types()
+        local_dict = writer.get_sympy_type_map()
         str_exp1 = parse_expr(str_exp1, local_dict=local_dict)
         str_exp2 = parse_expr(str_exp2, local_dict=local_dict)
 
