@@ -123,8 +123,7 @@ def test_zero(tmpdir):
     0. This is the only valid value that an active variable can be set
     to in a tangent-linear code and represents multiplying an active
     variable by zero on the rhs. Scalars, directly addressed arrays,
-    indirectly addressed arrays and structure array accesses are
-    tested.
+    indirectly addressed arrays and array ranges are tested.
 
     A=0 -> A*=0
 
@@ -218,8 +217,8 @@ def test_single_assign(tmpdir):
     '''Test the transformation works when there is one active variable on
     the rhs (B) and with the active variable on the lhs (A) only being
     written to, i.e. not also read on the rhs. Scalars, directly
-    addressed arrays, indirectly addressed arrays and structure array
-    accesses are tested.
+    addressed arrays, indirectly addressed arrays and array ranges are
+    tested.
 
     A=B -> B*=B*+A*; A*=0.0
 
