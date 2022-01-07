@@ -81,7 +81,7 @@ class SymPyWriter(FortranWriter):
             for ref in expr.walk(Reference):
                 name = ref.name
                 self._symbol_table.find_or_create_tag(tag=name, root_name=name)
-                if ref.is_array():
+                if ref.is_array:
                     self._sympy_type_map[name] = Function(name)
                 else:
                     self._sympy_type_map[name] = Symbol(name)
@@ -144,7 +144,7 @@ class SymPyWriter(FortranWriter):
         new_sym = self._symbol_table.find_or_create_tag(tag=sig_name,
                                                         root_name=root_name)
         new_name = new_sym.name
-        if node.is_array():
+        if node.is_array:
             self._sympy_type_map[new_name] = Function(new_name)
         else:
             self._sympy_type_map[new_name] = Symbol(new_name)

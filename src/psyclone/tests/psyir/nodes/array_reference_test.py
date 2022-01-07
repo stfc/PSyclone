@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ def test_array_is_array():
     children = [Reference(symbol_i), Reference(symbol_j),
                 Literal("1", INTEGER_SINGLE_TYPE)]
     array = ArrayReference.create(symbol_temp, children)
-    assert array.is_array() is True
+    assert array.is_array is True
 
 
 def test_array_create_invalid1():

@@ -75,10 +75,9 @@ class Member(Node):
         if (parent and
                 not isinstance(parent, (StructureReference, StructureMember))):
             raise TypeError(
-                "The parent of a {0} must be either a "
+                f"The parent of a {type(self).__name__} must be either a "
                 "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member"
-                " but found '{1}'.".format(type(self).__name__,
-                                           type(parent).__name__))
+                f" but found '{type(parent).__name__}'.")
 
         super(Member, self).__init__(parent=parent)
         # Store the name of the component that this member represents
@@ -106,6 +105,7 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
+    @property
     def is_array(self):
         ''':returns: if this member is an array.
         :rtype: bool

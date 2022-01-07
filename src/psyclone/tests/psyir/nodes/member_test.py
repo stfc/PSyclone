@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the Member class. '''
@@ -77,11 +78,11 @@ def test_member_can_be_copied():
 def test_member_is_array():
     ''' Test that we can check if a member is an array. '''
     mem = nodes.Member("fred")
-    assert mem.is_array() is False
+    assert mem.is_array is False
 
 
 def test_member_get_signature():
-    ''' Test that we can check if a member is an array. '''
+    ''' Test that we get the expected signature from a member. '''
     mem = nodes.Member("fred")
     signature, indices = mem.get_signature_and_indices()
     assert str(signature) == "fred"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the ArrayOfStructuresReference
@@ -165,4 +166,4 @@ def test_ast_is_array():
     ssym = symbols.DataSymbol("grid", grid_array_type)
     asref = nodes.ArrayOfStructuresReference.create(
         ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
-    assert asref.is_array()
+    assert asref.is_array
