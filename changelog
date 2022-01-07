@@ -58,6 +58,9 @@
 	with 2 threads (as 2 cores are available) and runs tests with as
 	many threads as there are cores available (again 2 at this time).
 
+	21) PR #1510 for #1499. Add SymbolTable method to resolve the properties
+	of imported symbols.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
