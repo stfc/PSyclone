@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import pytest
 import fparser
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
@@ -51,9 +52,9 @@ from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
-    ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
+    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
@@ -1030,6 +1031,16 @@ def test_process_not_supported_declarations():
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
                       UnknownFortranType)
 
+    reader = FortranStringReader("class(my_type), intent(in) :: carg")
+    # Set reader to free format (otherwise this is a comment in fixed format)
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("carg")
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert (sym.datatype.declaration.lower() ==
+            "class(my_type), intent(in) :: carg")
+
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
     reader = FortranStringReader("integer, allocatable :: l10(5)")
@@ -1144,12 +1155,16 @@ def test_process_declarations_intent():
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    reader = FortranStringReader("integer, intent(in) :: arg1")
+    reader = FortranStringReader("integer, intent(in) :: arg1, arg1a")
     fparser2spec = Specification_Part(reader).content[0]
-    arg_list = [Fortran2003.Name("arg1")]
+    arg_list = [Fortran2003.Name("arg1"), Fortran2003.Name("arg1a")]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg1").interface.access == \
-        ArgumentInterface.Access.READ
+    # Check that the interface is correct and distinct for each symbol.
+    interface1 = fake_parent.symbol_table.lookup("arg1").interface
+    assert interface1.access == ArgumentInterface.Access.READ
+    interface1a = fake_parent.symbol_table.lookup("arg1a").interface
+    assert interface1a.access == ArgumentInterface.Access.READ
+    assert interface1a is not interface1
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     arg_list.append(Fortran2003.Name("arg2"))
@@ -1253,6 +1268,13 @@ def test_process_declarations_kind_use():
     assert isinstance(var2_var.datatype.precision, DataSymbol)
     assert fake_parent.symbol_table.lookup("r_def") is \
         var2_var.datatype.precision
+
+    # If we change the symbol_table default visibility, this is respected
+    # by new kind symbols
+    fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
+    _kind_find_or_create("i_def", fake_parent.symbol_table)
+    assert fake_parent.symbol_table.lookup("i_def").visibility \
+            is Symbol.Visibility.PRIVATE
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1551,7 +1573,7 @@ def test_unresolved_array_size():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_use_stmt():
+def test_process_use_stmts_with_default_visibility():
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -1560,7 +1582,7 @@ def test_use_stmt():
                                  "use this_mod\n"
                                  "use other_mod, only: var1, var2\n")
     fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    processor._process_use_stmts(fake_parent, fparser2spec.content)
 
     symtab = fake_parent.symbol_table
 
@@ -1577,6 +1599,41 @@ def test_use_stmt():
         == symtab.lookup("my_mod")
     assert symtab.lookup("var2").interface.container_symbol \
         == symtab.lookup("other_mod")
+
+    assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var1").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("other_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var2").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("my_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
+
+
+def test_process_use_stmts_with_accessibility_statements(parser):
+    ''' Same as the previous test, but now from a module with a Fortran
+    accessibility statement. This will provide a visibility map to the
+    use statement processor so the imported symbols and modules end up with
+    the appropriate visibility attributes. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader('''
+        module test
+            use my_mod, only: some_var
+            use this_mod
+            use other_mod, only: var1, var2
+            private this_mod, var1
+        end module test
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+
+    symtab = psyir.symbol_table
+
+    assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("var1").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("other_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("var2").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("my_mod").visibility == Symbol.Visibility.PUBLIC
+    assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
 
 
 @pytest.mark.usefixtures("f2008_parser")

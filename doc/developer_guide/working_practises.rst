@@ -439,13 +439,16 @@ computational cost (so that we 'fail fast'):
  3. The code base, examples and tutorials are lint'ed with flake8.
     (Configuration of flake8 is performed in ``setup.cfg``.)
 
- 4. All of the examples are tested (for Python versions 3.6 and 3.8)
+ 4. All of the examples are tested (for Python versions 3.6, 3.8 and 3.10.0)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
+    The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 5. The full test suite is run for Python versions 3.6 and 3.8 but without
-    the compilation checks.
+ 5. The full test suite is run for Python versions 3.6, 3.8 and 3.10.0 but
+    without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
+    so that it will run the tests in parallel on as many cores as are
+    available (currently 2 on GHA instances).
 
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
@@ -470,7 +473,7 @@ and therefore the line described above must be commented out again
 before making a release.
 
 A single run of the test suite on GitHub Actions uses
-approximately 20 minutes of CPU time and we run the test suite on two
+approximately 20 minutes of CPU time and we run the test suite on three
 different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without

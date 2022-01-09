@@ -220,6 +220,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
+   :members: apply
+   :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Matmul2CodeTrans
     :members: apply
     :noindex:

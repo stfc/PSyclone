@@ -107,6 +107,22 @@ class DataTypeSymbol(Symbol):
                 "DataType but got: '{0}'".format(type(value).__name__))
         self._datatype = value
 
+    def copy_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+
+        :param symbol_in: the symbol from which the properties are copied.
+        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, DataTypeSymbol):
+            raise TypeError(f"Argument should be of type 'DataTypeSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
+        super(DataTypeSymbol, self).copy_properties(symbol_in)
+        self._datatype = symbol_in.datatype
+
 
 # For automatic documentation generation
 __all__ = ['DataTypeSymbol']
