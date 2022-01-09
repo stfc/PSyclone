@@ -139,11 +139,13 @@ def test_symbol_str():
 
 
 def test_symbolinterface():
-    '''Test we can create a SymbolInterface instance. This does nothing so
-    needs no further testing.
+    '''Test we can create a SymbolInterface instance and make a copy of it.
 
     '''
-    _ = SymbolInterface()
+    inter1 = SymbolInterface()
+    inter2 = inter1.copy()
+    assert isinstance(inter2, SymbolInterface)
+    assert inter2 is not inter1
 
 
 def test_localinterface():
@@ -165,7 +167,7 @@ def test_unresolvedinterface():
 
 
 def test_importinterface():
-    '''Test that we can create an Import Interface successfully, that is
+    '''Test that we can create an Import Interface successfully, that it
     raises the expected exception if the container_symbol attribute is
     of the wrong type, that the container symbol property and str
     method work as expected.
@@ -180,6 +182,17 @@ def test_importinterface():
         _ = ImportInterface("hello")
     assert ("ImportInterface container_symbol parameter must be of type "
             "ContainerSymbol, but found 'str'." in str(info.value))
+
+
+def test_importinterface_copy():
+    ''' Test the copy() method of ImportInterface. '''
+    csym = ContainerSymbol("my_mod")
+    import_interface = ImportInterface(csym)
+    new_interface = import_interface.copy()
+    assert new_interface is not import_interface
+    assert new_interface.container_symbol is csym
+    new_interface._container_symbol = ContainerSymbol("other_mod")
+    assert import_interface.container_symbol is csym
 
 
 def test_argumentinterface_init():
@@ -228,6 +241,16 @@ def test_argumentinterface_str():
     assert str(argument_interface) == "Argument(pass-by-value=False)"
 
 
+def test_argumentinterface_copy():
+    ''' Test the copy() method of ArgumentInterface. '''
+    arg_interface = ArgumentInterface(access=ArgumentInterface.Access.WRITE)
+    new_interface = arg_interface.copy()
+    assert new_interface.access == ArgumentInterface.Access.WRITE
+    # Check that we can modify the copy without affecting the original
+    new_interface.access = ArgumentInterface.Access.READ
+    assert arg_interface.access == ArgumentInterface.Access.WRITE
+
+
 def test_find_symbol_table():
     ''' Test the find_symbol_table() method. '''
     sym = Symbol("a_var")
@@ -264,8 +287,13 @@ def test_symbol_copy():
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
-    assert new_sym.interface == asym.interface
+    assert isinstance(new_sym.interface, ImportInterface)
+    assert new_sym.interface.container_symbol is csym
     assert new_sym.visibility == asym.visibility
+    # Check that we can modify the interface of the new symbol without
+    # affecting the original.
+    new_sym.interface._container_symbol = ContainerSymbol("other_mod")
+    assert asym.interface.container_symbol is csym
 
 
 def test_symbol_copy_properties():
