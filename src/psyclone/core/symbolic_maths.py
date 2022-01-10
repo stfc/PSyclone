@@ -108,7 +108,8 @@ class SymbolicMaths:
         # Create a new writer, and pre-fill its internal symbol table
         # with all symbols (so we do not rename any symbols, only
         # members will be renamed)
-        writer = SymPyWriter(list_of_expressions=[exp1, exp2])
+        type_map = SymPyWriter.create_type_map([exp1, exp2])
+        writer = SymPyWriter(type_map)
         str_exp1 = writer(exp1)
         str_exp2 = writer(exp2)
 
@@ -116,7 +117,6 @@ class SymbolicMaths:
         local_dict = writer.get_sympy_type_map()
         str_exp1 = parse_expr(str_exp1, local_dict=local_dict)
         str_exp2 = parse_expr(str_exp2, local_dict=local_dict)
-
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         result = simplify(str_exp1 == str_exp2)

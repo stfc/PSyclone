@@ -59,9 +59,14 @@ class SymPyWriter(FortranWriter):
     can be found in the manual:
     https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
 
+    :param type_map: the initial mapping that contains the SymPy data type \
+        of each reference in the expressions. This is the result of the \
+        static function \
+        :py:meth:`psyclone.core.sympy_writer.create_type_map`.
+    :type type_map: dictionary of string:Sympy-data-type values
     '''
 
-    def __init__(self, list_of_expressions=None):
+    def __init__(self, type_map=None):
         super().__init__()
 
         # The symbol table is used to create unique names for structure
@@ -70,21 +75,18 @@ class SymPyWriter(FortranWriter):
         # references in the expression).
         self._symbol_table = SymbolTable()
 
-        if list_of_expressions is None:
-            list_of_expressions = []
         # First add all references. This way we can be sure that the writer
-        # will never rename a reference. This directory keeps track of which
-        # names are arrays (--> must be declared as a SymPy function) or
-        # non-array (--> must be declared as a SymPy symbol).
-        self._sympy_type_map = {}
-        for expr in list_of_expressions:
-            for ref in expr.walk(Reference):
-                name = ref.name
-                self._symbol_table.find_or_create_tag(tag=name, root_name=name)
-                if ref.is_array:
-                    self._sympy_type_map[name] = Function(name)
-                else:
-                    self._sympy_type_map[name] = Symbol(name)
+        # will never rename a reference. The `type_map` dictionary keeps track
+        # of which names are arrays (--> must be declared as a SymPy function)
+        # or non-array (--> must be declared as a SymPy symbol).
+        if type_map:
+            self._sympy_type_map = type_map
+        else:
+            self._sympy_type_map = {}
+
+        for symbol_name in self._sympy_type_map:
+            self._symbol_table.find_or_create_tag(tag=symbol_name,
+                                                  root_name=symbol_name)
 
         self._intrinsic = set()
         self._op_to_str = {}
@@ -99,6 +101,36 @@ class SymPyWriter(FortranWriter):
                                  ]:
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str
+
+    @staticmethod
+    def create_type_map(list_of_expressions):
+        '''
+        This function creates a dictionary mapping each Reference in any
+        of the expressions to either a Sympy Function (if the reference
+        is an array reference) or a Symbol (if the reference is not an
+        array reference).
+
+        :param list_of_expressions: the list of expressions from which all \
+            references are taken and added to the a symbol table to avoid \
+            renaming any symbols (so that only member names will be renamed).
+        :type list_of_expressions: list of \
+            :py:class:`psyclone.psyir.nodes.Node`
+        :returns: the dictionary mapping each reference name to a Sympy \
+            data type (Function of Symbol).
+        :rtype: dictionary of string:Sympy-data-type values
+
+        '''
+        sympy_type_map = {}
+        for expr in list_of_expressions:
+            for ref in expr.walk(Reference):
+                name = ref.name
+                if name not in sympy_type_map:
+                    if ref.is_array:
+                        sympy_type_map[name] = Function(name)
+                    else:
+                        sympy_type_map[name] = Symbol(name)
+
+        return sympy_type_map
 
     def get_sympy_type_map(self):
         ''':returns: the mapping of symbols in the written
@@ -124,8 +156,14 @@ class SymPyWriter(FortranWriter):
         based on the new name using `_`. For example, the access to member
         `b` in `a(i)%b` would result in a new symbol with tag `a%b` and a
         name like `a_b`, `a_b_1`, ...
-        '''
 
+        :param node: a Member PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Member`
+
+        :returns: the code as string
+        :rtype: str
+
+        '''
         # We need to find the parent reference in order to make a new
         # name (a%b%c --> a_b_c). Collect the names of members and the
         # symbol in a list.
@@ -144,10 +182,11 @@ class SymPyWriter(FortranWriter):
         new_sym = self._symbol_table.find_or_create_tag(tag=sig_name,
                                                         root_name=root_name)
         new_name = new_sym.name
-        if node.is_array:
-            self._sympy_type_map[new_name] = Function(new_name)
-        else:
-            self._sympy_type_map[new_name] = Symbol(new_name)
+        if new_name not in self._sympy_type_map:
+            if node.is_array:
+                self._sympy_type_map[new_name] = Function(new_name)
+            else:
+                self._sympy_type_map[new_name] = Symbol(new_name)
 
         # Now get the original string that this node produces:
         original_name = super().member_node(node)
