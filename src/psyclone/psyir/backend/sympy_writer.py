@@ -59,8 +59,8 @@ class SymPyWriter(FortranWriter):
     can be found in the manual:
     https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
 
-    :param type_map: the initial mapping that contains the SymPy data type \
-        of each reference in the expressions. This is the result of the \
+    :param type_map: Optional initial mapping that contains the SymPy data \
+        type of each reference in the expressions. This is the result of the \
         static function \
         :py:meth:`psyclone.core.sympy_writer.create_type_map`.
     :type type_map: dictionary of string:Sympy-data-type values
