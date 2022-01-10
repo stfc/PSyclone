@@ -174,20 +174,20 @@ def test_binaryoperation_is_elemental():
 
     '''
     # SUM, MATMUL, SIZE, LBOUND and UBOUND are not elemental
-    operation1 = BinaryOperation(BinaryOperation.Operator.SUM)
-    operation2 = BinaryOperation(BinaryOperation.Operator.SIZE)
-    operation3 = BinaryOperation(BinaryOperation.Operator.MATMUL)
-    operation4 = BinaryOperation(BinaryOperation.Operator.LBOUND)
-    operation5 = BinaryOperation(BinaryOperation.Operator.UBOUND)
-    assert not operation1.is_elemental()
-    assert not operation2.is_elemental()
-    assert not operation3.is_elemental()
-    assert not operation4.is_elemental()
-    assert not operation5.is_elemental()
+    not_elemental = [
+        BinaryOperation.Operator.SUM,
+        BinaryOperation.Operator.SIZE,
+        BinaryOperation.Operator.MATMUL,
+        BinaryOperation.Operator.LBOUND,
+        BinaryOperation.Operator.UBOUND
+    ]
 
-    # The rest are elemental
-    operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    assert operation.is_elemental()
+    for binary_operator in BinaryOperation.Operator:
+        operation = BinaryOperation(binary_operator)
+        if binary_operator in not_elemental:
+            assert not operation.is_elemental()
+        else:
+            assert operation.is_elemental()
 
 
 # Test UnaryOperation class
@@ -291,12 +291,16 @@ def test_unaryoperation_is_elemental():
 
     '''
     # SUM is not elemental
-    operation1 = UnaryOperation(UnaryOperation.Operator.SUM)
-    assert not operation1.is_elemental()
+    not_elemental = [
+        UnaryOperation.Operator.SUM,
+    ]
 
-    # The rest are elemental
-    operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert operation.is_elemental()
+    for unary_operator in UnaryOperation.Operator:
+        operation = UnaryOperation(unary_operator)
+        if unary_operator in not_elemental:
+            assert not operation.is_elemental()
+        else:
+            assert operation.is_elemental()
 
 
 # Test NaryOperation class
@@ -391,12 +395,16 @@ def test_naryoperation_is_elemental():
 
     '''
     # SUM is not elemental
-    operation1 = NaryOperation(NaryOperation.Operator.SUM)
-    assert not operation1.is_elemental()
+    not_elemental = [
+        NaryOperation.Operator.SUM,
+    ]
 
-    # The rest are elemental
-    operation = NaryOperation(NaryOperation.Operator.MAX)
-    assert operation.is_elemental()
+    for nary_operator in NaryOperation.Operator:
+        operation = NaryOperation(nary_operator)
+        if nary_operator in not_elemental:
+            assert not operation.is_elemental()
+        else:
+            assert operation.is_elemental()
 
 
 def test_operations_can_be_copied():
