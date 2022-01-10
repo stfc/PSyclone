@@ -304,7 +304,7 @@ def test_apply_non_existing_bound_names(tmpdir):
 
 def test_apply_structure_of_arrays():
     '''Check that the apply method works when the assignment expression
-    contain structure of arrays.
+    contains structures of arrays.
 
     '''
     _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
@@ -333,8 +333,6 @@ def test_apply_structure_of_arrays():
         "  enddo\n" in result)
 
     # Case 2: SoA in the LHS is not yet supported
-    array_ref = assignment2.lhs.children[0].children[0]
-    result = writer(schedule)
     assert "mystruct%field2%field(:,:,:) = 0.0d0" in result
 
     # Case 3: Nested SoA currently causes an InternalError
@@ -357,8 +355,9 @@ def test_apply_existing_names_as_ancestor_loop_variables():
     assignment = schedule[0]
     array_ref = assignment.lhs
 
-    # We create the same-variable loop by converting an explicit to
-    # loop once and then copy the full implicit expression again inside
+    # We create the same-variable loop by converting an implicit loop into an
+    # explicit one once and then copying the full implicit expression again
+    # inside
     implicit_loop = assignment.copy()
     trans.apply(array_ref.children[2])
     schedule[0].loop_body.addchild(implicit_loop)
@@ -443,8 +442,8 @@ def test_apply_with_array_with_hidden_accessor():
             "'arg1' must be a scalar DataSymbol in order to successfully "
             "apply the transformation." in str(info.value))
 
-    # The second fails because its an UnknwonType and we don't know if its
-    # an scalar or an array.
+    # The second fails because it's an UnknownType and we don't know whether
+    # it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
@@ -472,10 +471,9 @@ def test_apply_different_num_dims():
 
 
 def test_apply_array_valued_function():
-    ''' Check that the apply the transformation refuses to transform the
-    assignment when range nodes are inside a function, as it does not know
-    if the function is declared as 'elemental' which changes the semantics
-    of the array notation.
+    ''' Check that the apply method refuses to transform the assignment when
+    range nodes are inside a function, as it does not know if the function is
+    declared as 'elemental' which changes the semantics of the array notation.
     '''
     _, invoke_info = get_invoke("array_valued_function.f90", api=API, idx=0)
     schedule = invoke_info.schedule
