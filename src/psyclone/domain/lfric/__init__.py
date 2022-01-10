@@ -48,6 +48,8 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
+from psyclone.domain.lfric.kern_call_invoke_arg_list import \
+    KernCallInvokeArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 
