@@ -9,13 +9,60 @@
 
 	4) PR #1475 for #595. Remove memento and transformation return values.
 
-	5) PR #1470 for #1459. Refactor OMPLoopTrans to support OMPLoop 
+	5) PR #1470 for #1459. Refactor OMPLoopTrans to support OMPLoop
 	directive and add OMPTargetTrans.
 
 	6) PR #1452 for #1451. Add doctest for the Dev Guide to GitHub Actions
 	and tidy the examples so that they work.
 
 	7) PR #1503 for #1502. Fix incorrect path in tutorial README.
+
+	8) PR #1489 for #1488. Configure MD link checker to skip links to MO wiki.
+
+	9) PR #1501 for #1484. Remove Python2 validation, update
+	documentation, start removing Python2-specific code and start
+	using any pylint-suggested Python3-specific code constructs.
+
+	10) PR #1476 for #1456. Fix precision problems in the PSyAD harness
+	code generation and add harness documentation.
+
+	11) PR #1482 for #1481. Renames symbol_from_tag->find_or_create_tag
+	and tidies its use.
+
+	12) PR #1521 for #1193. Update python 3.5 to 3.6 in the GitHubActions CI.
+
+	13) PR #1512 for #1511 and #1516. Fix silent compilation test failures,
+	and make sure all files are compiled in tmpdir.
+
+	14) PR #1531. Fixes incorrect imports of OMPTaskwaitTrans in examples
+	in class docstrings.
+
+	15) PR #1498 for #533. Adds the use of SymPy for comparing expressions
+	for equality. Removes math_equal() and
+	ArrayRange2LoopTrans.string_compare() methods.
+
+	16) PR #1492 for #1457. Adds support for the transformation of Loops
+	when taking the adjoint of a code.
+
+	17) PR #1520 towards #1504. The Fortran frontend marks class type
+	definitions as UnknownFortranType in the PSyIR.
+
+	18) PR #1522 for #1519. Make the LoopSwapTransformation generic and
+	move it to the psyir.transformations module.
+
+	19) PR #1539 for #1524. Re-enable a previously deleted compilation test
+	due to a compilation error now fixed.
+
+	20) PR #1535 for #1534. Adds testing of Python 3.10 in GHA and
+	updates PSyclone to work with 3.10. Also makes GHA build examples
+	with 2 threads (as 2 cores are available) and runs tests with as
+	many threads as there are cores available (again 2 at this time).
+
+	21) PR #1510 for #1499. Add SymbolTable method to resolve the properties
+	of imported symbols.
+
+	22) PR #1485 for #1429. Create correct variable intents for
+	generated adjoint kernel code.
 
 release 2.1.0 3rd November 2021
 

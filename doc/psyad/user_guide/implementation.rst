@@ -39,9 +39,9 @@
 Implementation
 ==============
 
-The approach taken is the line-by-line method, where the order of
-computation is reversed and each line of the tangent-linear code is
-transformed into its adjoint form.
+The approach taken to constructing the adjoint is the line-by-line
+method, where the order of computation is reversed and each line of
+the tangent-linear (TL) code is transformed into its adjoint form.
 
 This approach is implemented in PSyclone by parsing the tangent-linear
 code and transforming it into the PSyIR (the PSyclone Internal
@@ -50,20 +50,28 @@ node in the PSyIR tree and transforms each node into its adjoint form. Once
 this is complete, the PSyIR representation is then written back out as
 code.
 
+If the supplied tangent-linear code contains active variables that are
+passed by argument then the intent of those arguments may change when
+translating to their adjoint form. The new intents are determined as a
+final step in the visitor for a PSyIR :ref:`Schedule <psyir_schedule>`
+node: dependence analysis is used to identify the way in which each
+argument is being accessed in the adjoint code and the ``intent`` is
+updated appropriately.
 
-Active variables
+
+Active Variables
 ++++++++++++++++
 
 When creating the adjoint of a tangent-linear code the active
-variables must be specified. The remaining variables are inactive (or
+variables must be specified. The remaining variables are passive (or
 trajectory) variables. The active variables are the ones that are
-transformed and reversed, whereas the inactive (trajectory) variables
+transformed and reversed, whereas the passive (trajectory) variables
 remain unchanged.
 
 .. Note:: it should be possisble to only need to specify global
 	  variables (ones with a lifetime beyond the code i.e. passed
 	  in via argument, modules etc.) as local variables will
-	  inherit being active or inactive based on how they are
+	  inherit being active or passive based on how they are
 	  used. However, this logic has not yet been implemented so at
 	  the moment all variables (local and global) must be
 	  specified.
@@ -229,7 +237,7 @@ adjoint variable :math:`\hat{A}` must be set to zero:
 
     \hat{A} = 0
 
-Array accesses
+Array Accesses
 **************
 
 Active variables will typically be arrays that are accessed within a
@@ -279,6 +287,8 @@ Transformation
 .. autoclass:: psyclone.psyad.transformations.AssignmentTrans
       :members: apply
 
+.. _psyir_schedule:
+
 Sequence of Statements (PSyIR Schedule)
 ---------------------------------------
 
@@ -290,12 +300,12 @@ the following rules:
 1) Each statement is examined to see whether it contains any active
 variables. A statement that contains one or more active variables is
 classed as an ``active statement`` and a statement that does not
-contain any active variables is classed as an ``inactive statement``.
+contain any active variables is classed as a ``passive statement``.
 
-2) Any inactive statements are left unchanged and immediately output
+2) Any passive statements are left unchanged and immediately output
 as PSyIR in the same order as they were found in the tangent linear
 code. Therefore the resulting sequence of statements in the adjoint
-code will contains all inactive statements before all active
+code will contains all passive statements before all active
 statements.
 
 3) The order of any active tangent-linear statements are then reversed
@@ -303,11 +313,133 @@ and the rules associated with each statement type are applied
 individually to each statement and the resultant PSyIR returned.
 
 .. note:: At the moment the only statements supported within a
-          sequence of statements are assignments. If other types of
-          statement are found then an exception will be raised.
+          sequence of statements are assignments and loops. If other
+          types of statement are found then an exception will be
+          raised.
 
-.. warning:: The above rules are invalid if an inactive variable is
-             modified and that inactive variable is read both before
-             and after it is modified from within active
-             statements. This case is not checked in this version, see
+.. warning:: The above rules are invalid if a passive variable is
+             modified and that passive variable is read both before
+             and after it is modified from within active statements or
+             loops. This case is not checked in this version, see
              issue #1458.
+
+Loop
+----
+
+The loop variable and any variables used in the loop bounds should be
+passive. If they are not then an exception will be raised.
+
+If all of the variables used within the body of the loop are passive
+then this loop statement and its contents is considered to be passive and
+treated in the same way as any other passive node, i.e. left unchanged
+when creating the adjoint code.
+
+If one or more of the variables used within the body of the loop are
+active then the loop statement is considered to be active. In this case:
+
+1) the order of the loop is reversed. This can be naively implemented
+   by swapping the loop's upper and lower bounds and multiplying the
+   loop step by :math:`-1`. However, if we consider the following
+   loop: :math:`start=1`, :math:`stop=4`, :math:`step=2`, the
+   iteration values would be :math:`1` and :math:`3`. If this loop is
+   reversed in the naive way then we get the following loop:
+   :math:`start=4`, :math:`stop=1`, :math:`step=-2`, which gives the
+   iteration values :math:`4` and :math:`2`. Therefore it can be seen
+   that the naive approach does not work correctly in this case. What
+   is required is an offset correction which can be computed as:
+   :math:`(stop-start) \mod(step)`. The adjoint loop start then
+   becomes :math:`stop - ((stop-start) \mod(step))`. With this change
+   the iteration values in the above example are :math:`3` and
+   :math:`1` as expected.
+
+2) the body of the loop comprises a schedule which will contain a
+   sequence of statements. The rules associated with the schedule are
+   followed and the loop body translated accordingly (see the
+   following section).
+
+.. note:: if PSyclone is able to determine that the loop step is
+          :math:`1` or :math:`-1` then there is no need to compute an
+          offset, as the offset will always be :math:`0`. As a step of
+          :math:`1` (or :math:`-1`) is a common case PSyclone will
+          therefore avoid generating any loop-bound offset code in
+          this case.
+
+Test Harness
+++++++++++++
+
+In addition to generating the adjoint of a tangent-linear kernel, PSyAD
+is also able to :ref:`generate <test_harness_gen>` a test harness for
+that kernel that verifies that the generated adjoint is mathematically
+correct.
+
+This test harness code must perform the following steps:
+
+1) Initialise all of the kernel arguments and keep copies of them;
+2) Call the tangent-linear kernel;
+3) Compute the inner product of the results of the kernel;
+4) Call the adjoint of the TL kernel, passing in the outputs of the TL
+   kernel call;
+5) Compute the inner product of the results of the adjoint kernel with
+   the original inputs to the TL kernel;
+6) Compare the two inner products for equality, allowing for machine
+   precision.
+
+Steps 1, 3, 5 and 6 are described in more detail below.
+
+Initialisation
+--------------
+
+All arguments to the TL kernel are initialised with pseudo-random numbers
+in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
+function.
+
+.. note:: this initialisation will not be correct when a kernel contains
+	  indirection and is passed a mapping array. In such cases the mapping
+	  array will need initialising with meaningful values. This is the
+	  subject of Issue #1496.
+
+Inner Products
+--------------
+
+The precision of the variables used to accumulate the inner-product values
+is set to match that of the active variables in the supplied TL kernel.
+(An exception is raised if active variables of different precision
+are found.)
+
+For simplicity, when computing the inner product in steps 3) and 5),
+both active and passive kernel arguments are included (since the
+latter will remain constant for both the TL and adjoint kernel calls
+they can be included in the inner-product compuation without affecting the
+correctness test). It is likely that this will require refinement in future,
+e.g. for kernels that have non-numeric arguments.
+
+Comparing the Inner Products
+----------------------------
+
+Performing the comparison of the two inner products while allowing for
+machine precision is implemented as follows:
+
+1) Find the smallest possible difference that can be represented by
+   calling the Fortran `spacing` intrinsic on the largest absolute value of
+   of the two inner products;
+
+2) Compute the *relative* difference between the two values by dividing
+   their absolute difference by this spacing;
+
+3) If this relative difference is less than the overall test tolerance
+   then the test has passed.
+
+By using the largest of the two inner product results in step 1), the
+resulting spacing value is guaranteed to be appropriate in the case where
+there is an error and one of the inner products is zero or less than
+`tiny(1.0)`.
+
+By default, the overall test tolerance is set to `1500.0`. This is
+currently set as a constant in the `psyclone.psyad.tl2ad` module but
+will eventually be exposed as a configuration option (this is the
+subject of issue #1346).  This value is the one arrived at over time
+by the Met Office in the current adjoint-testing code. In that code,
+the vector of variables can be of order 200M in length (since it
+involves values at all points of the 3D mesh) and therefore there is
+plenty of scope for numerical errors to accumulate. Whether this value
+is appropriate for LFRic kernels is yet to be determined.

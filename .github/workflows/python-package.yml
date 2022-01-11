@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.8]
+        python-version: [3.6, 3.8, 3.10.0]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -106,15 +106,12 @@ jobs:
         pip install .
     - name: Lint with flake8
       run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        # TODO cannot do this while we still support Python 2
-        # flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        # Name the required directories to avoid the fparser submodule
-        flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics src/psyclone examples tutorial
+        # Stop the build if there are Python syntax errors or undefined names.
+        # See PSyclone/setup.cfg for configuration of this check.
+        flake8 --count --select=E9,F63,F7,F82 --show-source --statistics src examples tutorial
     - name: Run examples
       run: |
-        ( make -C examples transform > /dev/null )
+        ( make -j 2 -C examples transform > /dev/null )
         ( make -C examples notebook )
     - name: Run tutorials
       run: |
@@ -124,12 +121,12 @@ jobs:
       if: ${{ !(matrix.python-version == 3.8) }}
       run: |
         locale
-        pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+        pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
     - name: Test with pytest and C Locale
       if: ${{ matrix.python-version == 3.8 }}
       run: |
         locale
-        pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+        pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
       env:
         LC_ALL: C
         LANG: C

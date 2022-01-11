@@ -52,8 +52,12 @@ def test_create():
     '''Check that Operator2CodeTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
         _ = Operator2CodeTrans()
+    msg = str(excinfo.value)
+    # Have to split this check as Python >= 3.10 spots that 'method'
+    # should be singular.
     assert ("Can't instantiate abstract class Operator2CodeTrans with "
-            "abstract methods apply" in str(excinfo.value))
+            "abstract method" in msg)
+    assert " apply" in msg
 
 
 class DummyTrans(Operator2CodeTrans):

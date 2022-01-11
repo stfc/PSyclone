@@ -35,8 +35,8 @@
 
 .. _psyad_command:
 
-The psyad command
-=================
+The ``psyad`` Command
+=====================
 
 The simplest way to run PSyAD is to use the ``psyad`` command. If you
 installed PSyclone using ``pip`` then this command should be available
@@ -104,7 +104,7 @@ by another optional argument [see the next section])
    > psyad tl_kern.f90 -a var1 var2
 
 
-File output
+File Output
 -----------
 
 By default the adjoint kernel code is output to the terminal. This can
@@ -123,7 +123,9 @@ an alternative form is
     > psyad -a var1 var2 -oad ad_kern.f90 tl_kern.f90
 
 
-Test harness
+.. _test_harness_gen:
+
+Test Harness
 ------------
 
 ``psyad`` also supports the optional generation of test-harness code which
@@ -149,8 +151,11 @@ the previous command
 
    > psyad -oad ad_kernel.f90 -a var1 var2 -otest harness.f90 tl_kern.f90
 
+.. note:: A test harness can only be generated if the supplied tangent-linear
+	  kernel is in the form of a subroutine contained within a module.
+	  PSyAD will report an error if this is not the case.
 
-Processing information
+Processing Information
 ----------------------
 
 To see more information about what the psyad script is doing

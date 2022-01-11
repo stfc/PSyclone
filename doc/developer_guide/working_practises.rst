@@ -422,25 +422,33 @@ Continuous Integration
 The PSyclone project uses GitHub Actions
 (https://psyclone.readthedocs.io/en/stable/examples.html#examples)
 for continuous integration. GitHub triggers an action whenever there
-is a push to the repository. The work performed by the action is
-configured by the ``PSyclone/.github/workflows/python-package.yml``
-file.
+is a push to a pull-request on the repository. The work performed by
+the action is configured in the
+``PSyclone/.github/workflows/python-package.yml`` file.
 
-Currently there are three main checks performed, in order of increasing
+Currently there are five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked.
+ 1. All links within all MarkDown files are checked. Those links to skip
+    (because they are e.g. password protected) are specified in the
+    ``PSyclone/mlc_config.json`` configuration file.
 
  2. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
 
- 3. All of the examples are tested (for Python versions 2.7, 3.5 and 3.8)
+ 3. The code base, examples and tutorials are lint'ed with flake8.
+    (Configuration of flake8 is performed in ``setup.cfg``.)
+
+ 4. All of the examples are tested (for Python versions 3.6, 3.8 and 3.10.0)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
+    The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 4. The full test suite is run for Python versions 2.7, 3.5 and 3.8 but without
-    the compilation checks.
+ 5. The full test suite is run for Python versions 3.6, 3.8 and 3.10.0 but
+    without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
+    so that it will run the tests in parallel on as many cores as are
+    available (currently 2 on GHA instances).
 
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
