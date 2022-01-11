@@ -40,8 +40,34 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.frontend.fparser2 import _kind_find_or_create
-from psyclone.psyir.symbols import DataSymbol, ScalarType, UnknownFortranType
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+
+from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
+                                              _kind_find_or_create)
+from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
+                                    RoutineSymbol, SymbolTable, Symbol)
+
+
+def process_declarations(code):
+    '''
+    Utility routine to create PSyIR for Fortran variable declarations.
+
+    :param str code: Fortran declaration statement(s)
+
+    :returns: a 2-tuple consisting of a KernelSchedule with populated Symbol \
+              Table and the parse tree for the specification part.
+    :rtype: (:py:class:`psyclone.psyir.nodes.KernelSchedule`, \
+             :py:class:`fparser.two.Fortran2003.Specification_Part`)
+    '''
+    sched = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    fparser2spec = Fortran2003.Specification_Part(reader).content
+    processor.process_declarations(sched, fparser2spec, [])
+    return sched, fparser2spec
 
 
 @pytest.mark.usefixtures("f2008_parser")

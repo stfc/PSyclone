@@ -59,27 +59,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type, _kind_find_or_create, \
-    _first_type_match
-
-
-def process_declarations(code):
-    '''
-    Utility routine to create PSyIR for Fortran variable declarations.
-
-    :param str code: Fortran declaration statement(s)
-
-    :returns: a 2-tuple consisting of a KernelSchedule with populated Symbol \
-              Table and the parse tree for the specification part.
-    :rtype: (:py:class:`psyclone.psyir.nodes.KernelSchedule`, \
-             :py:class:`fparser.two.Fortran2003.Specification_Part`)
-    '''
-    sched = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(sched, fparser2spec, [])
-    return sched, fparser2spec
+    default_integer_type, default_real_type, _first_type_match
 
 
 # Tests
@@ -826,6 +806,8 @@ def test_unsupported_decln_initial_value(monkeypatch):
     # for anything other than a Literal.
 
     class BrokenDataSymbol(DataSymbol):
+        ''' Sub-class of DataSymbol with `constant_value` setter patched
+        so that it raises a ValueError for anything other than a Literal. '''
         @property
         def constant_value(self):
             return self._constant_value
@@ -840,6 +822,7 @@ def test_unsupported_decln_initial_value(monkeypatch):
     # At this point the fparser2 module will already have 'DataSymbol' in
     # its namespace (due to the imports at the top of this file) so we
     # monkeypatch that entry.
+    # pylint: disable=import-outside-toplevel
     from psyclone.psyir.frontend import fparser2
     monkeypatch.setattr(fparser2, "DataSymbol", BrokenDataSymbol)
 
@@ -850,11 +833,12 @@ def test_unsupported_decln_initial_value(monkeypatch):
     assert hsym.constant_value.value == "1"
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert isinstance(fbsym.datatype, UnknownFortranType)
-    assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: fbsp = "
-            "SELECTED_REAL_KIND(6, 37)")
+    assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
+            "fbsp = SELECTED_REAL_KIND(6, 37)")
     sadsym = fake_parent.symbol_table.lookup("sad")
     assert isinstance(sadsym.datatype, UnknownFortranType)
-    assert sadsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: sad = fbsp"
+    assert (sadsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
+            "sad = fbsp")
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -888,7 +872,7 @@ def test_process_declarations_precision(precision, type_name, fort_name):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    reader = FortranStringReader("{0}*{1} :: l1".format(fort_name, precision))
+    reader = FortranStringReader(f"{fort_name}*{precision} :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l1_var = fake_parent.symbol_table.lookup("l1")
@@ -2406,28 +2390,38 @@ def test_handling_case_construct():
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_case_default():
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
+
+    # Create the symbols that the frontend will expect to already be
+    # present in the symbol table.
+    symbols = []
+    for idx in [1, 2, 3]:
+        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
+    for var_name in ["selector", "label1", "label2"]:
+        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
+
     # Loop over the 3 possible locations for the 'default' clause
     for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
         fortran_text = (
-            "SELECT CASE (selector)\n"
-            "{0}{1}{2}"
-            "END SELECT\n".format(case_clauses[idx1], case_clauses[idx2],
-                                  case_clauses[idx3]))
+            f"SELECT CASE (selector)\n"
+            f"{case_clauses[idx1]}{case_clauses[idx2]}{case_clauses[idx3]}"
+            f"END SELECT\n")
         reader = FortranStringReader(fortran_text)
         fparser2case_construct = Execution_Part.match(reader)[0][0]
 
         fake_parent = Schedule()
+        # Ensure we have the necessary symbols in the symbol table.
+        for sym in symbols:
+            fake_parent.symbol_table.add(sym)
+
         processor = Fparser2Reader()
         processor.process_nodes(fake_parent, [fparser2case_construct])
         assigns = fake_parent.walk(Assignment)
