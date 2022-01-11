@@ -19,6 +19,9 @@ if __name__ == "__main__":
     # Ensure the Fortran parser is initialised
     parser = ParserFactory().create(std="f2008")
 
+    prog = Routine("main", is_program=True)
+    table = prog.symbol_table
+
     # Now we want to create a suitable algorithm layer that invokes
     # this kernel. For simplicity we use a template algorithm
     # layer taken from examples/lfric/eg17.
@@ -49,6 +52,8 @@ PROGRAM main
   WRITE(*, *) "Mesh has", mesh % get_nlayers(), "layers."
 END PROGRAM main
 '''
+    # To save time, we create a CodeBlock containing all the initialisation
+    # that we can't represent in PSyIR (e.g. pointer assignments).
     reader = FortranStringReader(alg_code)
     ast = parser(reader)
     exe_parts = Fortran2003.walk(ast, Fortran2003.Execution_Part)
@@ -59,25 +64,30 @@ END PROGRAM main
     kernel_name = "testkern_type"
     kernel_mod_name = "testkern_mod"
     parse_tree = get_kernel_parse_tree(kernel_path)
-    print(parse_tree)
+
     ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
                                                       name=kernel_name)
     # Construct a DynKern using the metadata.
     kern = DynKern()
     kern.load_meta(ktype)
 
-    prog = Routine("main", is_program=True)
-    table = prog.symbol_table
+    # Construct a list of which function spaces the field argument(s)
+    # are on.
+    field_spaces = []
+    for arg in ktype.arg_descriptors:
+        if arg.argument_type == "gh_field":
+            field_spaces.append(arg.function_space)
+    unique_function_spaces = set(field_spaces)
 
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
                 "global_mesh_base_mod", "mesh_mod", "partition_mod",
                 "extrusion_mod", "constants_mod", kernel_mod_name]:
         table.new_symbol(mod, symbol_type=ContainerSymbol)
 
-    ftype = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                             datatype=DeferredType(),
-                             interface=ImportInterface(
-                                 table.lookup("field_mod")))
+    field_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                                  datatype=DeferredType(),
+                                  interface=ImportInterface(
+                                      table.lookup("field_mod")))
     kernel_routine = table.new_symbol(kernel_name,
                                       interface=ImportInterface(
                                           table.lookup(kernel_mod_name)))
@@ -112,8 +122,26 @@ END PROGRAM main
     partition = table.new_symbol("partition", symbol_type=DataSymbol,
                                  datatype=partition_type)
 
+    table.new_symbol("mesh", symbol_type=DataSymbol,
+                     datatype=UnknownFortranType(
+                         "TYPE(mesh_type), TARGET :: mesh"))
+    table.new_symbol("global_mesh", symbol_type=DataSymbol,
+                     datatype=UnknownFortranType(
+                         "TYPE(global_mesh_base_type), TARGET :: global_mesh"))
+    table.new_symbol("global_mesh_ptr", symbol_type=DataSymbol,
+                     datatype=UnknownFortranType(
+                         "CLASS(global_mesh_base_type), POINTER :: "
+                         "global_mesh_ptr"))
+    table.new_symbol("extrusion", symbol_type=DataSymbol,
+                     datatype=UnknownFortranType(
+                         "TYPE(uniform_extrusion_type), TARGET :: extrusion"))
+    table.new_symbol("extrusion_ptr", symbol_type=DataSymbol,
+                     datatype=UnknownFortranType(
+                         "TYPE(uniform_extrusion_type), POINTER :: "
+                         "extrusion_ptr"))
+
     partitioner_planar = table.new_symbol(
-        "partioner_planar", symbol_type=RoutineSymbol,
+        "partitioner_planar", symbol_type=RoutineSymbol,
         interface=ImportInterface(table.lookup("partition_mod")))
     partitioner_interface = table.new_symbol(
         "partitioner_interface",
@@ -141,37 +169,51 @@ END PROGRAM main
                                     Literal("20", INTEGER_TYPE)))
     prog.addchild(init_block)
 
-    spaces_decln = ""
-    spaces_setup = ""
-    for space in ["0", "1", "2", "2V", "2H", "3"]:
-        table.new_symbol(f"W{space}", symbol_type=DataSymbol,
+    for space in unique_function_spaces:
+        table.new_symbol(f"{space}", symbol_type=DataSymbol,
                          datatype=DeferredType(),
                          interface=ImportInterface(
                              table.lookup("fs_continuity_mod")))
-        vsym = table.new_symbol(f"vector_space_w{space}",
+        vsym = table.new_symbol(f"vector_space_{space}",
                                 symbol_type=DataSymbol,
                                 datatype=UnknownFortranType(
                                     f"TYPE(function_space_type), TARGET :: "
-                                    f"vector_space_w{space}"))
-        table.new_symbol(f"vector_space_w{space}_ptr", symbol_type=DataSymbol,
+                                    f"vector_space_{space}"))
+        table.new_symbol(f"vector_space_{space}_ptr", symbol_type=DataSymbol,
                          datatype=UnknownFortranType(
                              f"TYPE(function_space_type), POINTER :: "
-                             f"vector_space_w{space}_ptr"))
+                             f"vector_space_{space}_ptr"))
         ptree = Fortran2003.Assignment_Stmt(
             FortranStringReader(
-                f"  vector_space_w{space} = function_space_type("
-                f"  mesh, element_order, W{space}, ndata_sz)"))
+                f"  vector_space_{space} = function_space_type("
+                f"  mesh, element_order, {space}, ndata_sz)"))
         prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
 
         ptree = Fortran2003.Pointer_Assignment_Stmt(
-            FortranStringReader(f"vector_space_w{space}_ptr => "
-                                f"vector_space_w{space}\n"))
+            FortranStringReader(f"vector_space_{space}_ptr => "
+                                f"vector_space_{space}\n"))
         prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
 
+    # Construct the argument list and add suitable symbols to the table.
     kern_args = KernCallInvokeArgList(kern, table)
     kern_args.generate()
 
+    # Initialise field datastructures using the symbols added to the table
+    # when setting up the kernel arguments and the information on their
+    # respective function spaces extracted from the kernel metadata.
+    fld_idx = 0
+    for sym in table.local_datasymbols:
+        if sym.datatype is field_type:
+            ptree = Fortran2003.Call_Stmt(
+                f"CALL {sym.name} % initialise(vector_space = "
+                f"vector_space_{field_spaces[fld_idx]}_ptr, name = "
+                f"'{sym.name}')")
+            prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+            fld_idx += 1
+
     kernel_arg_list = ','.join(name for name in kern_args.arglist)
+    # Getting fparser to parse the 'invoke' is difficult so put it in its
+    # own program.
     reader = FortranStringReader(f'''
 PROGRAM main
   use testkern_mod
@@ -181,8 +223,9 @@ END PROGRAM main
     ast = parser(reader)
     calls = Fortran2003.walk(ast, types=Fortran2003.Call_Stmt)
     prog.addchild(CodeBlock([calls[0]], CodeBlock.Structure.STATEMENT))
+
     writer = FortranWriter()
-    print(writer(prog))
+    gen_code = writer(prog)
 
     with open("main_alg.x90", "w", encoding="utf-8") as fmain:
-        print(writer(prog))
+        print(gen_code, file=fmain)
