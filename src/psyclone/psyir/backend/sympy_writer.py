@@ -41,6 +41,7 @@
 from __future__ import absolute_import
 
 from sympy import Function, Symbol
+from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
@@ -133,7 +134,7 @@ class SymPyWriter(FortranWriter):
         return sympy_type_map
 
     @staticmethod
-    def write_as_sympy_strings(list_of_expressions):
+    def convert_to_sympy_expressions(list_of_expressions):
         '''
         This function takes a list of PSyIR expressions (trees), and converts
         them all into strings, that can be passed on to the SymPy parser.
@@ -163,16 +164,16 @@ class SymPyWriter(FortranWriter):
 
         # Create a SymPy writer that uses this type_map
         writer = SymPyWriter(type_map)
-        result_list = []
+        expression_str_list = []
         for expr in list_of_expressions:
             # Convert each expression. Note that this call might add
             # additional entries to type_map if it finds member names
             # that clash with a symbol (e.g. a%b --> it will try to
             # create a SymPy symbol `a_b`, but if `a_b` is the same as
             # symbol, `a_b_1`, ... will be used instead).
-            result_list.append(writer(expr))
+            expression_str_list.append(writer(expr))
 
-        return (result_list, type_map)
+        return [parse_expr(expr, type_map) for expr in expression_str_list]
 
     def get_sympy_type_map(self):
         ''':returns: the mapping of symbols in the written

@@ -39,7 +39,6 @@ functions.'''
 
 
 from sympy import simplify, true
-from sympy.parsing.sympy_parser import parse_expr
 
 
 class SymbolicMaths:
@@ -105,17 +104,14 @@ class SymbolicMaths:
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
-        # Create a new writer, and pre-fill its internal symbol table
-        # with all symbols (so we do not rename any symbols, only
-        # members will be renamed)
-        ([str_exp1, str_exp2], local_dict) = \
-            SymPyWriter.write_as_sympy_strings([exp1, exp2])
+        # Use the SymPyWriter to convert the two expressions to
+        # SymPy expressions:
+        sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
+                                                                      exp2])
 
-        str_exp1 = parse_expr(str_exp1, local_dict=local_dict)
-        str_exp2 = parse_expr(str_exp2, local_dict=local_dict)
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
-        result = simplify(str_exp1 == str_exp2)
+        result = simplify(sympy_expressions[0] == sympy_expressions[1])
 
         # Convert SymPy boolean to python boolean.
         return result is true

@@ -37,9 +37,9 @@
 
 from __future__ import print_function, absolute_import
 
-from sympy import Function, Symbol
-
 import pytest
+from sympy import Function, Symbol
+from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.nodes import Literal
@@ -246,7 +246,7 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
     assert sympy_writer.get_sympy_type_map() == expressions[1]
 
 
-def test_sym_writer_write_as_sympy_strings(fortran_reader):
+def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     '''Tests that convenience function `write_as_sympy_strings works
     as expected.
 
@@ -264,14 +264,7 @@ def test_sym_writer_write_as_sympy_strings(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     exp1 = psyir.children[0].children[0].rhs
     exp2 = psyir.children[0].children[1].rhs
-    ([str_exp1, str_exp2], local_dict) = \
-        SymPyWriter.write_as_sympy_strings([exp1, exp2])
+    sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
 
-    assert str_exp1 == "a%a_b_1 + a%a_c(1) + i"
-    assert str_exp2 == "a_b + j"
-    assert local_dict == {'a': Symbol('a'),
-                          'i': Symbol('i'),
-                          'j': Symbol('j'),
-                          'a_b_1': Symbol('a_b_1'),
-                          'a_c': Function('a_c'),
-                          'a_b': Symbol('a_b')}
+    assert sympy_list[0] == parse_expr("a%a_b_1 + a%a_c(1) + i")
+    assert sympy_list[1] == parse_expr("a_b + j")
