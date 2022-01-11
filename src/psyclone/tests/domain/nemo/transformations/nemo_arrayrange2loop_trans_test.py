@@ -310,7 +310,6 @@ def test_apply_structure_of_arrays():
     _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     assignment1 = schedule[0]
-    assignment2 = schedule[1]
     assignment3 = schedule[2]
     trans = NemoArrayRange2LoopTrans()
 
@@ -366,8 +365,8 @@ def test_apply_existing_names_as_ancestor_loop_variables():
     with pytest.raises(TransformationError) as info:
         trans.apply(implicit_loop.lhs.children[2])
     assert ("The config file specifies 'jk' as the name of the iteration "
-            "variable but this is already used by an ancestor loop variable."
-            in str(info.value))
+            "variable but this is already used by an ancestor loop variable "
+            "in:\ndo jk = 1, jpk, 1\n" in str(info.value))
 
 
 def test_apply_with_codeblock():
@@ -389,8 +388,8 @@ def test_apply_with_codeblock():
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
     assert ("This transformation does not support array assignments that "
-            "contain a CodeBlock anywhere in the expression."
-            in str(info.value))
+            "contain a CodeBlock anywhere in the expression, but found:\n"
+            "umask(:,:,:) = 0.0d0 + \n" in str(info.value))
 
 
 def test_apply_with_a_function_call():
@@ -412,8 +411,8 @@ def test_apply_with_a_function_call():
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
     assert ("This transformation does not support array assignments that "
-            "contain a Call anywhere in the expression."
-            in str(info.value))
+            "contain a Call anywhere in the expression, but found:\n"
+            "umask(:,:,:) = 0.0d0 + func()\n" in str(info.value))
 
 
 def test_apply_with_array_with_hidden_accessor():
@@ -439,16 +438,17 @@ def test_apply_with_array_with_hidden_accessor():
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment1.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
-            "'arg1' must be a scalar DataSymbol in order to successfully "
-            "apply the transformation." in str(info.value))
+            "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
+            "<Array<Scalar<REAL" in str(info.value))
 
     # The second fails because it's an UnknownType and we don't know whether
     # it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
+    print(str(info.value))
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
-            "'arg2' must be a scalar DataSymbol in order to successfully "
-            "apply the transformation." in str(info.value))
+            "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
+            "<UnknownFortranType" in str(info.value))
 
 
 def test_apply_different_num_dims():
@@ -470,7 +470,7 @@ def test_apply_different_num_dims():
             "invalid PSyIR." in str(info.value))
 
 
-def test_apply_array_valued_function():
+def test_apply_imported_function():
     ''' Check that the apply method refuses to transform the assignment when
     range nodes are inside a function, as it does not know if the function is
     declared as 'elemental' which changes the semantics of the array notation.
@@ -482,12 +482,15 @@ def test_apply_array_valued_function():
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    # The PSyIR currently sees imported symbols that can be functions or arrays
-    # always as arrays (e.g. `use my_mod, only: my_object`), for this reason
-    # the error message talks about arrays instead of functions.
+    # fparser currently parses imported symbols that can be functions or arrays
+    # always as arrays accessors, for this reason the error message talks about
+    # arrays instead of functions. If this is resolved this test would be
+    # equivalent to test_apply_with_a_function_call
     assert("Error in NemoArrayRange2LoopTrans transformation. This "
            "transformation does not support assignments with rhs arrays that "
-           "don't have a range." in str(info.value))
+           "don't have a range, but found 'ptr_sjk' in:\n"
+           "z3d(1,:,:) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
+           in str(info.value))
 
 
 def test_apply_calls_validate():
@@ -545,9 +548,9 @@ def test_within_array_reference():
         my_range._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
-        assert("Error in NemoArrayRange2LoopTrans transformation. The "
-               "supplied node argument should be within an "
-               "ArrayReference node, but found '{0}'.".format(result)
+        assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
+               f"supplied node argument should be within an "
+               f"ArrayReference node, but found '{result}'."
                in str(info.value))
 
 
@@ -568,10 +571,10 @@ def test_within_assignment():
         array_ref._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
-        assert("Error in NemoArrayRange2LoopTrans transformation. The "
-               "supplied node argument should be within an ArrayReference "
-               "node that is within an Assignment node, but found '{0}'."
-               "".format(result) in str(info.value))
+        assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
+               f"supplied node argument should be within an ArrayReference "
+               f"node that is within an Assignment node, but found '{result}'."
+               in str(info.value))
 
 
 def test_within_lhs_assignment():
@@ -594,9 +597,9 @@ def test_within_lhs_assignment():
            "node, but it is on the right-hand-side." in str(info.value))
 
 
-def test_array_valued_operator():
-    '''Check that the vaidate() method raises the expected exception if an
-    array valued operation is found on the rhs of the assignment node.
+def test_array_non_elemental_operator():
+    '''Check that the vaidate() method raises the expected exception if a
+    a non-elemental operation is found on the rhs of the assignment node.
 
     '''
     _, invoke_info = get_invoke("array_valued_operation.f90", api=API, idx=0)
@@ -608,7 +611,7 @@ def test_array_valued_operator():
         trans.apply(array_ref.children[0])
     assert (
         "Error in NemoArrayRange2LoopTrans transformation. This "
-        "transformation does not support array valued operations on the rhs "
+        "transformation does not support non-elemental operations on the rhs "
         "of the associated Assignment node, but found 'MATMUL'."
         in str(info.value))
 
@@ -681,5 +684,5 @@ def test_loop_variable_name_error(datatype):
         trans.apply(array_ref.children[2])
     assert ("The config file specifies 'jk' as the name of the iteration "
             "variable but this is already declared in the code as something "
-            "that is not a scalar integer, or is a deferred type."
+            "that is not a scalar integer or a deferred type."
             in str(info.value))
