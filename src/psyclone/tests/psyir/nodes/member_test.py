@@ -46,8 +46,9 @@ def test_member_constructor():
     ''' Test that we can construct an instance of Member. '''
     mem = nodes.Member("fred")
     assert mem.name == "fred"
-    assert mem.children == []
     assert str(mem) == "Member[name:'fred']"
+    # pylint: disable=use-implicit-booleaness-not-comparison
+    assert mem.children == []
 
 
 def test_member_constructor_errors():

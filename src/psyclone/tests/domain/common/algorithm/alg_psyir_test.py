@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ def check_call(call, routine_name, args_info):
     assert call.routine.name == routine_name
     assert call.routine.is_import
     assert (call.routine.interface.container_symbol.name ==
-            "{0}_mod".format(routine_name))
+            f"{routine_name}_mod")
     args = call.children
     assert len(args) == len(args_info)
     for idx, arg_info in enumerate(args_info):
@@ -188,10 +188,9 @@ def test_aic_defroutinerootname():
     index = 3
     call = AlgorithmInvokeCall(routine, index)
     call.children = [kernel_functor]
-    assert call._def_routine_root_name() == "invoke_{0}_{1}".format(
-        index, symbol_name)
+    assert call._def_routine_root_name() == f"invoke_{index}_{symbol_name}"
     call.children.append(kernel_functor.copy())
-    assert call._def_routine_root_name() == "invoke_{0}".format(index)
+    assert call._def_routine_root_name() == f"invoke_{index}"
 
 
 def test_aic_createpsylayersymbols():
@@ -221,7 +220,7 @@ def test_aic_createpsylayersymbols():
     assert isinstance(routine_symbol, RoutineSymbol)
     assert routine_symbol.name == routine_name
     container_symbol = routine_symbol.interface.container_symbol
-    assert container_symbol.name == "{0}_mod".format(routine_name)
+    assert container_symbol.name == f"{routine_name}_mod"
 
     invoke.create_psylayer_symbols()
 
