@@ -175,13 +175,20 @@ following, SymPy specific features:
    all arguments, which are the array indices.
 2. It renames members as described above. So a structure reference like
    ``a%b`` (in Fortran syntax) will create two SymPy symbols: ``a`` and
-    ``a_b`` (or a similar name if a name clash was detected).
+   ``a_b`` (or a similar name if a name clash was detected).
 3. No precision or kind information is added to a constant (e.g. a Fortran
    value like ``2_4`` will be written just as ``2``).
 4. The intrinsic functions ``Max``, ``Min``, ``Mod`` are returned with a
-   capitalised first letter only. The Fortran writer would write them
-   as ``MAX`` etc., which SymPy does not recognise - it would handle them
+   capitalised first letter. The Fortran writer would write them
+   as ``MAX`` etc., which SymPy does not recognise and would then handle
    as unknown functions.
 
 .. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
     :members:
+
+.. note::
+    The SymPyWriter class provides the static function
+    ``convert_to_sympy_expressions`` which hides the complexities of the
+    conversion from PSyIR expressions to a SymPy expressions. It is
+    strongly recommended to only use this function when this functionality
+    is needed.
