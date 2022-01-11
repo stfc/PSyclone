@@ -6,11 +6,12 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.dynamo0p3 import DynKern
+from psyclone.line_length import FortLineLength
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import CodeBlock, Assignment, Literal, Reference, Routine
-from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE,
+from psyclone.psyir.nodes import (CodeBlock, Assignment, Literal, Reference,
+                                  Routine)
+from psyclone.psyir.symbols import (INTEGER_TYPE,
                                     DataSymbol, DataTypeSymbol, DeferredType,
                                     ImportInterface, ContainerSymbol,
                                     RoutineSymbol, UnknownFortranType)
@@ -63,6 +64,7 @@ END PROGRAM main
     kernel_path = sys.argv[1]
     kernel_name = "testkern_type"
     kernel_mod_name = "testkern_mod"
+    # Parse the kernel metadata.
     parse_tree = get_kernel_parse_tree(kernel_path)
 
     ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
@@ -79,6 +81,7 @@ END PROGRAM main
             field_spaces.append(arg.function_space)
     unique_function_spaces = set(field_spaces)
 
+    # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
                 "global_mesh_base_mod", "mesh_mod", "partition_mod",
                 "extrusion_mod", "constants_mod", kernel_mod_name]:
@@ -169,6 +172,7 @@ END PROGRAM main
                                     Literal("20", INTEGER_TYPE)))
     prog.addchild(init_block)
 
+    # Initialise the function spaces required by the kernel arguments.
     for space in unique_function_spaces:
         table.new_symbol(f"{space}", symbol_type=DataSymbol,
                          datatype=DeferredType(),
@@ -202,14 +206,22 @@ END PROGRAM main
     # when setting up the kernel arguments and the information on their
     # respective function spaces extracted from the kernel metadata.
     fld_idx = 0
-    for sym in table.local_datasymbols:
-        if sym.datatype is field_type:
-            ptree = Fortran2003.Call_Stmt(
-                f"CALL {sym.name} % initialise(vector_space = "
-                f"vector_space_{field_spaces[fld_idx]}_ptr, name = "
-                f"'{sym.name}')")
-            prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
-            fld_idx += 1
+    for sym in kern_args.fields:
+        ptree = Fortran2003.Call_Stmt(
+            f"CALL {sym.name} % initialise(vector_space = "
+            f"vector_space_{field_spaces[fld_idx]}_ptr, name = "
+            f"'{sym.name}')")
+        prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+        fld_idx += 1
+
+    # Initialise argument values.
+    for sym in kern_args.scalars:
+        prog.addchild(Assignment.create(Reference(sym),
+                                        Literal("0", INTEGER_TYPE)))
+    # We use the setval_c builtin to initialise all fields to zero.
+    setval_list = []
+    for sym in kern_args.fields:
+        setval_list.append(f"setval_c({sym.name}, 0.0_r_def)")
 
     kernel_arg_list = ','.join(name for name in kern_args.arglist)
     # Getting fparser to parse the 'invoke' is difficult so put it in its
@@ -217,7 +229,8 @@ END PROGRAM main
     reader = FortranStringReader(f'''
 PROGRAM main
   use testkern_mod
-  call invoke({kernel_routine.name}({kernel_arg_list}))
+  call invoke({",".join(setval_list)}, &
+              {kernel_routine.name}({kernel_arg_list}))
 END PROGRAM main
 ''')
     ast = parser(reader)
@@ -226,6 +239,8 @@ END PROGRAM main
 
     writer = FortranWriter()
     gen_code = writer(prog)
+    fll = FortLineLength()
+    output = fll.process(gen_code)
 
     with open("main_alg.x90", "w", encoding="utf-8") as fmain:
-        print(gen_code, file=fmain)
+        print(output, file=fmain)
