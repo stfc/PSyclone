@@ -79,10 +79,10 @@ class SymPyWriter(FortranWriter):
         # will never rename a reference. The `type_map` dictionary keeps track
         # of which names are arrays (--> must be declared as a SymPy function)
         # or non-array (--> must be declared as a SymPy symbol).
-        if type_map:
-            self._sympy_type_map = type_map
-        else:
+        if type_map is None:
             self._sympy_type_map = {}
+        else:
+            self._sympy_type_map = type_map
 
         for symbol_name in self._sympy_type_map:
             self._symbol_table.find_or_create_tag(tag=symbol_name,
