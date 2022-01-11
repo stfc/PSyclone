@@ -34,31 +34,37 @@
 ! Author: A. R. Porter, STFC Daresbury Lab
 ! Modified by: R. W. Ford, STFC Daresbury Lab
 
-! Example module containing a very simple, one-line kernel subroutine.
+! Example module containing a very simple kernel subroutine that
+! contains assignments within a loop over array elements.
 
 module testkern_mod
   implicit none
 
 contains
 
-  subroutine testkern_code(ascalar, field1, field2, npts)
+  subroutine testkern_code(ascalar, field1, field2, field3, npts)
     real, intent(in) :: ascalar
     integer, intent(in) :: npts
-    ! issue #1429. Active variables need to be declared as inout as
-    ! the intents can change in the adjoint version and PSyclone does
-    ! not currently deal with this.
     real, intent(inout), dimension(npts) :: field2
-    real, intent(inout), dimension(npts) :: field1
+    ! Deliberately leave off the intent for 'field1' to demonstrate that
+    ! it is correctly set in the generated adjoint code.
+    real, dimension(npts) :: field1
+    ! This argument must be made intent(inout) in the adjoint
+    real, intent(in), dimension(npts) :: field3
+    ! Locals
     real :: tmp, tmp2, tmp3
     integer :: i
 
-    field1(1) = field2(1)*ascalar
+    ! issue #1430. Array notation does not work with the assignment
+    ! transformation so temporarily change the assignment to a single
+    ! index, e.g. previously we had:
+    !    field1(:) = ascalar*field1(:) + field2(:) + field3(:)
     tmp = ascalar*ascalar
     do i=1,npts
        tmp2 = tmp*i
-       field1(i) = tmp2*field1(i) + field2(i)
+       field1(i) = tmp*field1(i) + field2(i) + field3(i)
        tmp3 = tmp2*3.0
-       field2(i) = field2(i) + field1(i)/tmp3
+       field2(i) = field2(i) + field1(i)/tmp2
     end do
     field2(npts) = field2(npts) + field1(1)   
 

@@ -62,6 +62,13 @@ class SymbolError(PSycloneError):
 class SymbolInterface(object):   # pylint: disable=too-few-public-methods
     ''' Abstract class of a Symbol Interface '''
 
+    def copy(self):
+        '''
+        :returns: a copy of this object.
+        :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
+        '''
+        return self.__class__()
+
 
 class LocalInterface(SymbolInterface):
     # pylint: disable=too-few-public-methods
@@ -116,6 +123,13 @@ class ImportInterface(SymbolInterface):
 
     def __str__(self):
         return "Import(container='{0}')".format(self.container_symbol.name)
+
+    def copy(self):
+        '''
+        :returns: a copy of this object.
+        :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
+        '''
+        return self.__class__(self.container_symbol)
 
 
 class ArgumentInterface(SymbolInterface):
@@ -180,6 +194,13 @@ class ArgumentInterface(SymbolInterface):
 
     def __str__(self):
         return "Argument(pass-by-value={0})".format(self._pass_by_value)
+
+    def copy(self):
+        '''
+        :returns: a copy of this object.
+        :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
+        '''
+        return self.__class__(access=self.access)
 
 
 class Symbol(object):
@@ -270,7 +291,7 @@ class Symbol(object):
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
         return type(self)(self.name, visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface.copy())
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
