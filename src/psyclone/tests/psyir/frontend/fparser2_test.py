@@ -60,27 +60,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type, _kind_find_or_create, \
-    _first_type_match
-
-
-def process_declarations(code):
-    '''
-    Utility routine to create PSyIR for Fortran variable declarations.
-
-    :param str code: Fortran declaration statement(s)
-
-    :returns: a 2-tuple consisting of a KernelSchedule with populated Symbol \
-              Table and the parse tree for the specification part.
-    :rtype: (:py:class:`psyclone.psyir.nodes.KernelSchedule`, \
-             :py:class:`fparser.two.Fortran2003.Specification_Part`)
-    '''
-    sched = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    fparser2spec = Specification_Part(reader).content
-    processor.process_declarations(sched, fparser2spec, [])
-    return sched, fparser2spec
+    default_integer_type, default_real_type, _first_type_match
 
 
 # Tests
@@ -838,22 +818,74 @@ def test_process_unsupported_declarations(fortran_reader):
                       UnknownFortranType)
 
     # Unsupported initialisation of a parameter which comes after a valid
-    # initialisation
+    # initialisation and is then followed by another, valid initialisation
+    # which references the second one.
     reader = FortranStringReader(
-        "INTEGER, PARAMETER :: happy=1, fbsp = SELECTED_REAL_KIND( 6, 37)")
+        "INTEGER, PARAMETER :: happy=1, fbsp=SELECTED_REAL_KIND(6,37), "
+        " sad=fbsp")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fbsym = fake_parent.symbol_table.lookup("fbsp")
-    assert isinstance(fbsym.datatype, UnknownFortranType)
-    assert (fbsym.datatype.declaration ==
-            "INTEGER, PARAMETER :: fbsp = SELECTED_REAL_KIND(6, 37)")
+    assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(fbsym.constant_value, CodeBlock)
     # The first parameter should have been handled correctly
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert hsym.constant_value.value == "1"
-    # The fparser2 parse tree should still be intact
-    assert ("INTEGER, PARAMETER :: happy = 1, fbsp = SELECTED_REAL_KIND(6, 37)"
-            in str(fparser2spec))
+    # As should the third
+    ssym = fake_parent.symbol_table.lookup("sad")
+    assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(ssym.constant_value, Reference)
+    assert ssym.constant_value.symbol.name == "fbsp"
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_unsupported_decln_initial_value(monkeypatch):
+    ''' Check that an invalid constant value for a parameter is handled
+    correctly. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    reader = FortranStringReader(
+        "INTEGER, PRIVATE, PARAMETER :: happy=1, "
+        "fbsp=SELECTED_REAL_KIND(6,37), sad=fbsp")
+    fparser2spec = Specification_Part(reader).content[0]
+    # This error condition is very difficult to trigger so we monkeypatch
+    # the DataSymbol class itself with a setter that raises a ValueError
+    # for anything other than a Literal.
+
+    class BrokenDataSymbol(DataSymbol):
+        ''' Sub-class of DataSymbol with `constant_value` setter patched
+        so that it raises a ValueError for anything other than a Literal. '''
+        @property
+        def constant_value(self):
+            return self._constant_value
+
+        @constant_value.setter
+        def constant_value(self, value):
+            if isinstance(value, Literal):
+                self._constant_value = value
+            else:
+                raise ValueError("")
+
+    # At this point the fparser2 module will already have 'DataSymbol' in
+    # its namespace (due to the imports at the top of this file) so we
+    # monkeypatch that entry.
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.frontend import fparser2
+    monkeypatch.setattr(fparser2, "DataSymbol", BrokenDataSymbol)
+
+    processor = Fparser2Reader()
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    hsym = fake_parent.symbol_table.lookup("happy")
+    assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert hsym.constant_value.value == "1"
+    fbsym = fake_parent.symbol_table.lookup("fbsp")
+    assert isinstance(fbsym.datatype, UnknownFortranType)
+    assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
+            "fbsp = SELECTED_REAL_KIND(6, 37)")
+    sadsym = fake_parent.symbol_table.lookup("sad")
+    assert isinstance(sadsym.datatype, UnknownFortranType)
+    assert (sadsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
+            "sad = fbsp")
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -887,7 +919,7 @@ def test_process_declarations_precision(precision, type_name, fort_name):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    reader = FortranStringReader("{0}*{1} :: l1".format(fort_name, precision))
+    reader = FortranStringReader(f"{fort_name}*{precision} :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l1_var = fake_parent.symbol_table.lookup("l1")
@@ -1252,143 +1284,6 @@ def test_process_declarations_intent():
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
     assert fake_parent.symbol_table.lookup("arg6").interface.access is \
         ArgumentInterface.Access.UNKNOWN
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_kind_new_param():
-    ''' Test that process_declarations handles variables declared with
-    an explicit KIND parameter that has not already been declared. Also
-    check that the matching on the variable name is not case sensitive.
-
-    '''
-    fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1\n"
-                                                "real(kind=Wp) :: var2\n")
-    var1_var = fake_parent.symbol_table.lookup("var1")
-    assert isinstance(var1_var.datatype.precision, DataSymbol)
-    # Check that this has resulted in the creation of a new 'wp' symbol
-    wp_var = fake_parent.symbol_table.lookup("wp")
-    assert wp_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert var1_var.datatype.precision is wp_var
-    # Check that, despite the difference in case, the second variable
-    # references the same 'wp' symbol.
-    var2_var = fake_parent.symbol_table.lookup("var2")
-    assert var2_var.datatype.precision is wp_var
-    # Check that we get a symbol of unknown type if the KIND expression has
-    # an unexpected structure
-    # Break the parse tree by changing Name('wp') into a str
-    fp2spec[0].items[0].items[1].items = ("(", "blah", ")")
-    # Change the variable name too to prevent a clash
-    fp2spec[0].children[2].children[0].items[0].string = "var3"
-    processor = Fparser2Reader()
-    processor.process_declarations(fake_parent, [fp2spec[0]], [])
-    sym = fake_parent.symbol_table.lookup("var3")
-    assert isinstance(sym, DataSymbol)
-    assert isinstance(sym.datatype, UnknownFortranType)
-
-
-@pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
-@pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_kind_param():
-    ''' Test that process_declarations handles the kind attribute when
-    it specifies a previously-declared symbol.
-
-    '''
-    fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
-                                 "real(kind=r_def) :: var2")
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
-                      DataSymbol)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_kind_use():
-    ''' Test that process_declarations handles the kind attribute when
-    it specifies a symbol accessed via a USE.
-
-    '''
-    fake_parent, _ = process_declarations("use kind_mod, only: r_def\n"
-                                          "real(kind=r_def) :: var2")
-    var2_var = fake_parent.symbol_table.lookup("var2")
-    assert isinstance(var2_var.datatype.precision, DataSymbol)
-    assert fake_parent.symbol_table.lookup("r_def") is \
-        var2_var.datatype.precision
-
-    # If we change the symbol_table default visibility, this is respected
-    # by new kind symbols
-    fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
-    _kind_find_or_create("i_def", fake_parent.symbol_table)
-    assert fake_parent.symbol_table.lookup("i_def").visibility \
-            is Symbol.Visibility.PRIVATE
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_wrong_type_kind_param():
-    ''' Check that we raise the expected error if a variable used as a KIND
-    specifier is not a DataSymbol or has already been declared with non-integer
-    type.
-
-    '''
-    fake_parent, _ = process_declarations("integer :: r_def\n"
-                                          "real(kind=r_def) :: var2")
-    r_def = fake_parent.symbol_table.lookup("r_def")
-    # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
-    r_def.__class__ = RoutineSymbol
-    with pytest.raises(TypeError) as err:
-        _kind_find_or_create("r_def", fake_parent.symbol_table)
-    assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
-            str(err.value))
-    # Repeat but declare r_def as real
-    with pytest.raises(TypeError) as err:
-        process_declarations("real :: r_def\n"
-                             "real(kind=r_def) :: var2")
-    assert ("already contains a DataSymbol for variable 'r_def'" in
-            str(err.value))
-
-
-@pytest.mark.parametrize("vartype, kind, precision",
-                         [("real", "1.0d0", ScalarType.Precision.DOUBLE),
-                          ("real", "1.0D7", ScalarType.Precision.DOUBLE),
-                          ("real", "1_t_def", None),
-                          ("real", "1.0", ScalarType.Precision.UNDEFINED),
-                          ("real", "1.0E3", ScalarType.Precision.SINGLE),
-                          # 32-bit integer
-                          ("integer", "1", ScalarType.Precision.UNDEFINED),
-                          # 64-bit integer
-                          ("integer", str(1 << 31 + 4)+"_t_def", None)])
-@pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_kind_literals(vartype, kind, precision):
-    ''' Test that process_declarations handles variables declared with
-    an explicit KIND specified using a literal constant.
-
-    '''
-    fake_parent, _ = process_declarations("{0}(kind=KIND({1})) :: var".
-                                          format(vartype, kind))
-    if not precision:
-        assert fake_parent.symbol_table.lookup("var").datatype.precision is \
-            fake_parent.symbol_table.lookup("t_def")
-    else:
-        assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
-                precision)
-
-
-@pytest.mark.parametrize("vartype, kind",
-                         [("logical", ".false."),
-                          ("real", "-1.0D7"),
-                          ("real", "kvar"),
-                          ("real", "kvar(1)")])
-@pytest.mark.usefixtures("f2008_parser")
-def test_unsupported_kind(vartype, kind):
-    ''' Check that we get an unknown type for an unsupported kind specifier.
-        TODO #569 - add support for some/all of these.
-
-    '''
-    sched, _ = process_declarations("{0}(kind=KIND({1})) :: var".format(
-        vartype, kind))
-    assert isinstance(sched.symbol_table.lookup("var").datatype,
-                      UnknownFortranType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2546,28 +2441,38 @@ def test_handling_case_construct():
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+@pytest.mark.usefixtures("f2008_parser")
 def test_case_default():
     ''' Check that the fparser2Reader handles SELECT blocks with
     a default clause.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
+
+    # Create the symbols that the frontend will expect to already be
+    # present in the symbol table.
+    symbols = []
+    for idx in [1, 2, 3]:
+        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
+    for var_name in ["selector", "label1", "label2"]:
+        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
+
     # Loop over the 3 possible locations for the 'default' clause
     for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
         fortran_text = (
-            "SELECT CASE (selector)\n"
-            "{0}{1}{2}"
-            "END SELECT\n".format(case_clauses[idx1], case_clauses[idx2],
-                                  case_clauses[idx3]))
+            f"SELECT CASE (selector)\n"
+            f"{case_clauses[idx1]}{case_clauses[idx2]}{case_clauses[idx3]}"
+            f"END SELECT\n")
         reader = FortranStringReader(fortran_text)
         fparser2case_construct = Execution_Part.match(reader)[0][0]
 
         fake_parent = Schedule()
+        # Ensure we have the necessary symbols in the symbol table.
+        for sym in symbols:
+            fake_parent.symbol_table.add(sym)
+
         processor = Fparser2Reader()
         processor.process_nodes(fake_parent, [fparser2case_construct])
         assigns = fake_parent.walk(Assignment)
