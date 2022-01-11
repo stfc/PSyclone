@@ -175,14 +175,6 @@ class SymPyWriter(FortranWriter):
 
         return [parse_expr(expr, type_map) for expr in expression_str_list]
 
-    def get_sympy_type_map(self):
-        ''':returns: the mapping of symbols in the written
-            PSyIR expressions to SymPy types (Function or Symbol).
-        :rtype: dict of string to SymPy.Symbol or SymPy.Function
-
-        '''
-        return self._sympy_type_map
-
     def member_node(self, node):
         '''In SymPy an access to a member 'b' of a structure 'a'
         (i.e. a%b in Fortran) is handled as the 'MOD' function

@@ -243,7 +243,7 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
     type_map = SymPyWriter.create_type_map([expr])
     sympy_writer = SymPyWriter(type_map)
     _ = sympy_writer(expr)
-    assert sympy_writer.get_sympy_type_map() == expressions[1]
+    assert sympy_writer._sympy_type_map == expressions[1]
 
 
 def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
