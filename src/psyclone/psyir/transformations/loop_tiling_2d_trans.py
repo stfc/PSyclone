@@ -42,7 +42,7 @@ from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
-        TransformationError
+    TransformationError
 
 
 class LoopTiling2DTrans(LoopTrans):
@@ -99,13 +99,33 @@ class LoopTiling2DTrans(LoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
         :type options: dict of str:values or None
-        :param int options["tilesize"]: The size to tile size for this \
-                transformation. If not specified, the value 32 is used.
+        :param int options["tilesize"]: The size of the resulting tile, \
+            currently square tiles are always used. If not specified, the \
+            value 32 is used.
 
+        :raises TransformationError: if an unsupported option has been \
+            provided.
+        :raises TransformationError: if the provided tilesize is not an \
+            integer.
         '''
         if options is None:
             options = {}
         super(LoopTiling2DTrans, self).validate(node, options=options)
+
+        # Validate options map
+        valid_options = ['tilesize']
+        for key, value in options.items():
+            if key in valid_options:
+                if key == "tilesize" and not isinstance(value, int):
+                    raise TransformationError(
+                        f"The LoopTiling2DTrans tilesize option must be an "
+                        f"integer but found a '{type(value).__name__}'.")
+            else:
+                raise TransformationError(
+                    f"The LoopTiling2DTrans does not support the "
+                    f"transformation option '{key}', the supported options "
+                    f"are: {valid_options}.")
+
         tilesize = options.get("tilesize", 32)
 
         # Even though the loops that ultimately will be swapped are the ones
@@ -118,8 +138,8 @@ class LoopTiling2DTrans(LoopTrans):
         # Check that we can chunk both loops
         outer_loop = node
         inner_loop = node.loop_body.children[0]
-        ChunkLoopTrans().validate(outer_loop, options={'chuncksize': tilesize})
-        ChunkLoopTrans().validate(inner_loop, options={'chuncksize': tilesize})
+        ChunkLoopTrans().validate(outer_loop, options={'chunksize': tilesize})
+        ChunkLoopTrans().validate(inner_loop, options={'chunksize': tilesize})
 
     def apply(self, node, options=None):
         '''
@@ -130,8 +150,9 @@ class LoopTiling2DTrans(LoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
         :type options: dict of str:values or None
-        :param int options["tilesize"]: The size to tile for this \
-                transformation. If not specified, the value 32 is used.
+        :param int options["tilesize"]: The size of the resulting tile, \
+                currently square tiles are always used. If not \
+                specified, the value 32 is used.
 
         '''
         self.validate(node, options)
@@ -143,8 +164,8 @@ class LoopTiling2DTrans(LoopTrans):
         outer_loop = node
         inner_loop = node.loop_body.children[0]
 
-        ChunkLoopTrans().apply(outer_loop, options={'chuncksize': tilesize})
-        ChunkLoopTrans().apply(inner_loop, options={'chuncksize': tilesize})
+        ChunkLoopTrans().apply(outer_loop, options={'chunksize': tilesize})
+        ChunkLoopTrans().apply(inner_loop, options={'chunksize': tilesize})
 
         loops = parent[position].walk(Loop)[1]
         LoopSwapTrans().apply(loops)

@@ -131,6 +131,33 @@ def test_loop_tiling_2d_trans_validation3(fortran_reader):
             "transformation" in str(err.value))
 
 
+def test_loop_tiling_2d_trans_validation_options(fortran_reader):
+    ''' Validation fails if an invalid option map is provided '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                tmp(i,j) = 2 * tmp(i,j)
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        LoopTiling2DTrans().apply(outer_loop, {'unsupported': None})
+    assert ("The LoopTiling2DTrans does not support the transformation option"
+            " 'unsupported', the supported options are: ['tilesize']."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        LoopTiling2DTrans().apply(outer_loop, {'tilesize': '32'})
+    assert ("The LoopTiling2DTrans tilesize option must be an integer but "
+            "found a 'str'." in str(err.value))
+
+
 def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
     ''' Validation passes when found a 2D nested loop construct. '''
     psyir = fortran_reader.psyir_from_source('''
@@ -150,13 +177,47 @@ def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
 
     outer_loop = psyir.walk(Loop)[0]
     result = fortran_writer(outer_loop)
-    print(result)
     expected = '''\
 do i_out_var = 1, 100, 32
   i_el_inner = MIN(i_out_var + (32 - 1), 100)
   do j_out_var = 1, 100, 32
     do i = i_out_var, i_el_inner, 1
       j_el_inner = MIN(j_out_var + (32 - 1), 100)
+      do j = j_out_var, j_el_inner, 1
+        tmp(i,j) = 2 * tmp(i,j)
+      enddo
+    enddo
+  enddo
+enddo'''
+    assert expected in result
+
+
+def test_loop_tiling_2d_trans_apply_options(fortran_reader, fortran_writer):
+    ''' Validation passes when found a 2D nested loop construct when a
+    non-default tilesize option is provided '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                tmp(i,j) = 2 * tmp(i,j)
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    LoopTiling2DTrans().apply(outer_loop, {"tilesize": 64})
+
+    outer_loop = psyir.walk(Loop)[0]
+    result = fortran_writer(outer_loop)
+    expected = '''\
+do i_out_var = 1, 100, 64
+  i_el_inner = MIN(i_out_var + (64 - 1), 100)
+  do j_out_var = 1, 100, 64
+    do i = i_out_var, i_el_inner, 1
+      j_el_inner = MIN(j_out_var + (64 - 1), 100)
       do j = j_out_var, j_el_inner, 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo

@@ -295,6 +295,33 @@ def test_chunkloop_trans_validate7():
             "CodeBlock node.") in str(excinfo.value)
 
 
+def test_chunkloop_trans_validation_options(fortran_reader):
+    ''' Validation fails if an invalid option map is provided '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                tmp(i,j) = 2 * tmp(i,j)
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'unsupported': None})
+    assert ("The ChunkLoopTrans does not support the transformation option"
+            " 'unsupported', the supported options are: ['chunksize']."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'chunksize': '32'})
+    assert ("The ChunkLoopTrans chunksize option must be an integer but "
+            "found a 'str'." in str(err.value))
+
+
 def test_chunkloop_trans_apply_pos():
     '''Test the apply method of ChunkLoopTrans for a positive step index'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),

@@ -190,6 +190,12 @@ can be found in the API-specific sections).
   
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
     :noindex:
@@ -223,6 +229,12 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
    :members: apply
    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+    :members: apply
+    :noindex:
 
 ####
 
@@ -260,18 +272,6 @@ can be found in the API-specific sections).
 .. _sec_move_trans:
 
 .. autoclass:: psyclone.transformations.MoveTrans
-    :members: apply
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
-    :members: apply
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
     :members: apply
     :noindex:
 

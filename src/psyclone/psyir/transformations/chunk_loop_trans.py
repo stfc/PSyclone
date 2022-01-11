@@ -111,10 +111,29 @@ class ChunkLoopTrans(LoopTrans):
                 variables inside the Loop body.
         :raises TransformationError: if the supplied Loop contains a \
                 CodeBlock node.
+        :raises TransformationError: if an unsupported option has been \
+            provided.
+        :raises TransformationError: if the provided tilesize is not an \
+            integer.
         '''
-        super(ChunkLoopTrans, self).validate(node, options=options)
         if options is None:
             options = {}
+        super().validate(node, options=options)
+
+        # Validate options map
+        valid_options = ['chunksize']
+        for key, value in options.items():
+            if key in valid_options:
+                if key == "chunksize" and not isinstance(value, int):
+                    raise TransformationError(
+                        f"The ChunkLoopTrans chunksize option must be an "
+                        f"integer but found a '{type(value).__name__}'.")
+            else:
+                raise TransformationError(
+                    f"The ChunkLoopTrans does not support the "
+                    f"transformation option '{key}', the supported options "
+                    f"are: {valid_options}.")
+
         if not isinstance(node.children[2], nodes.Literal):
             # If step is a variable we don't support it.
             raise TransformationError(

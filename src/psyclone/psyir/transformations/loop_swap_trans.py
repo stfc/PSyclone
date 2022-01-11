@@ -83,7 +83,7 @@ class LoopSwapTrans(LoopTrans):
         return "Exchange the order of two nested loops: inner becomes " + \
                "outer and vice versa"
 
-    def validate(self, node_outer, options=None):
+    def validate(self, node, options=None):
         # pylint: disable=arguments-differ
         '''Checks if the given node contains a valid Fortran structure
         to allow swapping loops. This means the node must represent
@@ -100,7 +100,8 @@ class LoopSwapTrans(LoopTrans):
                                      has a symbol table.
 
         '''
-        super().validate(node_outer, options=options)
+        super().validate(node, options=options)
+        node_outer = node
 
         if not node_outer.loop_body or not node_outer.loop_body.children:
             raise TransformationError(
@@ -144,8 +145,9 @@ class LoopSwapTrans(LoopTrans):
                 "Error in LoopSwap transformation: The inner loop "
                 "has a non-empty symbol table.")
 
-        for node in node_outer.children[0:2]:
-            symbols = [ref.symbol for ref in node.walk(Reference)]
+        for boundary in (node_outer.start_expr, node_outer.stop_expr,
+                         node_outer.step_expr):
+            symbols = [ref.symbol for ref in boundary.walk(Reference)]
             if node_inner.variable in symbols:
                 raise TransformationError(
                     f"Error in LoopSwap transformation: The inner loop "
@@ -153,8 +155,9 @@ class LoopSwapTrans(LoopTrans):
                     f"of the outer loop boundary expressions, so their order "
                     f"can not be swapped.")
 
-        for node in node_inner.children[0:2]:
-            symbols = [ref.symbol for ref in node.walk(Reference)]
+        for boundary in (node_inner.start_expr, node_inner.stop_expr,
+                         node_inner.step_expr):
+            symbols = [ref.symbol for ref in boundary.walk(Reference)]
             if node_outer.variable in symbols:
                 raise TransformationError(
                     f"Error in LoopSwap transformation: The outer loop "
@@ -162,7 +165,7 @@ class LoopSwapTrans(LoopTrans):
                     f"of the inner loop boundary expressions, so their order "
                     f"can not be swapped.")
 
-    def apply(self, outer, options=None):
+    def apply(self, node, options=None):
         # pylint: disable=arguments-differ
         '''The argument :py:obj:`outer` must be a loop which has exactly
         one inner loop. This transform then swaps the outer and inner loop.
@@ -176,7 +179,8 @@ class LoopSwapTrans(LoopTrans):
                                      allow a loop swap to be done.
 
         '''
-        self.validate(outer, options=options)
+        self.validate(node, options=options)
+        outer = node
         inner = outer.loop_body[0]
         # Detach the inner code
         inner_loop_body = inner.loop_body.detach()
