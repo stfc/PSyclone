@@ -59,6 +59,23 @@ class KernCallInvokeArgList(ArgOrdering):
     def __init__(self, kern, symbol_table):
         super().__init__(kern)
         self._symtab = symbol_table
+        self._fields = []
+        self._scalars = []
+
+    @property
+    def fields(self):
+        return self._fields
+
+    @property
+    def scalars(self):
+        return self._scalars
+
+    def generate(self, var_accesses=None):
+        ''' Just ensures that our internal lists of field and scalar arguments
+        are reset as calling generate() populates them. '''
+        self._fields = []
+        self._scalars = []
+        super().generate(var_accesses)
 
     def scalar(self, scalar_arg, var_accesses=None):
         ''' '''
@@ -75,9 +92,10 @@ class KernCallInvokeArgList(ArgOrdering):
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.data_type}' not supported.")
 
-        self._symtab.new_symbol(scalar_arg.name,
-                                symbol_type=DataSymbol,
-                                datatype=datatype)
+        sym = self._symtab.new_symbol(scalar_arg.name,
+                                      symbol_type=DataSymbol,
+                                      datatype=datatype)
+        self._scalars.append(sym)
 
     def fs_common(self, function_space, var_accesses=None):
         ''' Nothing '''
@@ -117,6 +135,7 @@ class KernCallInvokeArgList(ArgOrdering):
         ftype = self._symtab.lookup("field_type")
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=ftype)
+        self._fields.append(sym)
         self.append(sym.name)
 
     def stencil(self, arg, var_accesses=None):
