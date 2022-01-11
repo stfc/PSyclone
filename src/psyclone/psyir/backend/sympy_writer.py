@@ -136,26 +136,23 @@ class SymPyWriter(FortranWriter):
     @staticmethod
     def convert_to_sympy_expressions(list_of_expressions):
         '''
-        This function takes a list of PSyIR expressions (trees), and converts
-        them all into strings, that can be passed on to the SymPy parser.
+        This function takes a list of PSyIR expressions, and converts
+        them all into Sympy expressions using the SymPy parser.
         It takes care of all Fortran specific conversion required (e.g.
-        constants with kind specification, ...), and renaming of member
-        accesses, as described in
+        constants with kind specification, ...), including the renaming of
+        member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
 
-        It returns a 2-tuple consisting first of the list of strings of the
-        original expressions, and a dictionary that must be passed to the
-        SymPy parsing function to correctly interpret all symbols.
+        It returns the converted PSyIR expressions as a list of SymPy
+        expressions.
 
         :param list_of_expressions: the list of expressions which are to be \
             converted into SymPy-parsable strings.
         :type list_of_expressions: list of \
             :py:class:`psyclone.psyir.nodes.Node`
-        :returns: a 2-tuple, with the first element being a list of strings \
-            that are the conversion from the specified PSyIR expressions,
-            and a dictionary required for SymPy to properly parse the symbols.
-        :rtype: 2-tuple of list of strings, and dictionary of string:SymPy \
-            types
+        :returns: a list of SymPy expressions that are the conversion from
+            the specified PSyIR expressions.
+        :rtype: list of SymPy expressions
 
         '''
         # Create the type_map that will include all symbols used in both

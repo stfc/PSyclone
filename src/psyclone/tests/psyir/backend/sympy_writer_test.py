@@ -242,6 +242,8 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
     expr = psyir.children[0].children[0].rhs
     type_map = SymPyWriter.create_type_map([expr])
     sympy_writer = SymPyWriter(type_map)
+    # Note that this call can extend the type_map with type information
+    # about member names.
     _ = sympy_writer(expr)
     assert sympy_writer._sympy_type_map == expressions[1]
 
