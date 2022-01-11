@@ -1889,6 +1889,13 @@ class Fparser2Reader(object):
         # Populate this StructureType by processing the components of
         # the derived type
         try:
+            # We don't yet support derived-type definitions with a CONTAINS
+            # section.
+            contains = walk(decl, Fortran2003.Contains_Stmt)
+            if contains:
+                raise NotImplementedError(
+                    "Derived-type definition has a CONTAINS statement.")
+
             # Re-use the existing code for processing symbols
             local_table = SymbolTable(
                 default_visibility=default_compt_visibility)
