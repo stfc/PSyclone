@@ -1075,10 +1075,10 @@ class FortranWriter(LanguageWriter):
         for child in node.children:
             exec_statements += self._visit(child)
         result += (
-            "{0}"
-            "{1}\n"
-            "{2}\n"
-            "".format(imports, declarations, exec_statements))
+            f"{imports}"
+            f"{self._nindent}implicit none\n"
+            f"{declarations}\n"
+            f"{exec_statements}\n")
 
         self._depth -= 1
         result += (
