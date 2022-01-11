@@ -132,6 +132,48 @@ class SymPyWriter(FortranWriter):
 
         return sympy_type_map
 
+    @staticmethod
+    def write_as_sympy_strings(list_of_expressions):
+        '''
+        This function takes a list of PSyIR expressions (trees), and converts
+        them all into strings, that can be passed on to the SymPy parser.
+        It takes care of all Fortran specific conversion required (e.g.
+        constants with kind specification, ...), and renaming of member
+        accesses, as described in
+        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
+
+        It returns a 2-tuple consisting first of the list of strings of the
+        original expressions, and a dictionary that must be passed to the
+        SymPy parsing function to correctly interpret all symbols.
+
+        :param list_of_expressions: the list of expressions which are to be \
+            converted into SymPy-parsable strings.
+        :type list_of_expressions: list of \
+            :py:class:`psyclone.psyir.nodes.Node`
+        :returns: a 2-tuple, with the first element being a list of strings \
+            that are the conversion from the specified PSyIR expressions,
+            and a dictionary required for SymPy to properly parse the symbols.
+        :rtype: 2-tuple of list of strings, and dictionary of string:SymPy \
+            types
+
+        '''
+        # Create the type_map that will include all symbols used in both
+        # expressions.
+        type_map = SymPyWriter.create_type_map(list_of_expressions)
+
+        # Create a SymPy writer that uses this type_map
+        writer = SymPyWriter(type_map)
+        result_list = []
+        for expr in list_of_expressions:
+            # Convert each expression. Note that this call might add
+            # additional entries to type_map if it finds member names
+            # that clash with a symbol (e.g. a%b --> it will try to
+            # create a SymPy symbol `a_b`, but if `a_b` is the same as
+            # symbol, `a_b_1`, ... will be used instead).
+            result_list.append(writer(expr))
+
+        return (result_list, type_map)
+
     def get_sympy_type_map(self):
         ''':returns: the mapping of symbols in the written
             PSyIR expressions to SymPy types (Function or Symbol).
