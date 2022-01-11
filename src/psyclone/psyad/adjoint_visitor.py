@@ -46,8 +46,10 @@ from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Schedule, Reference, Node, BinaryOperation, \
-    CodeBlock, Literal
+from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
+                                  CodeBlock, BinaryOperation)
+from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.tools import DependencyTools
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -155,6 +157,47 @@ class AdjointVisitor(PSyIRVisitor):
                 node_copy.children.extend(result)
             else:
                 node_copy.children.append(result)
+
+        # Creating the adjoint may have altered the way variables are
+        # accessed within the code. If any of the active variables are
+        # subroutine arguments then we must update the access property of
+        # the associated ArgumentInterface.
+
+        # Since a piece of code could contain many Schedules, ensure we are
+        # currently handling the one representing the routine.
+        if isinstance(node, Routine):
+            dtools = DependencyTools()
+            # Input signatures ('in_sigs') are those whose first access is a
+            # read.
+            # Output signatures ('out_sigs') are those that are written to at
+            # some point.
+            in_sigs, out_sigs = dtools.get_in_out_parameters(
+                node_copy.children)
+            # Get the variable name associated with each of these signatures.
+            in_names = [sig.var_name for sig in in_sigs]
+            out_names = [sig.var_name for sig in out_sigs]
+
+            # We must update the symbols in the table of the new tree
+            adj_table = node_copy.symbol_table
+
+            for vname in self._active_variable_names:
+                sym = adj_table.lookup(vname)
+                if not sym.is_argument:
+                    continue
+                # Ensure that the interface we modify is private to this
+                # symbol.
+                # TODO #1544 how do we ensure that an interface is only
+                # referred to by one symbol?
+                new_interface = sym.interface.copy()
+                sym.interface = new_interface
+                if vname in in_names:
+                    if vname in out_names:
+                        sym.interface.access = \
+                            ArgumentInterface.Access.READWRITE
+                    else:
+                        sym.interface.access = ArgumentInterface.Access.READ
+                else:
+                    sym.interface.access = ArgumentInterface.Access.WRITE
 
         return node_copy
 
