@@ -113,7 +113,7 @@ def test_process_declarations_kind_param():
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
                                  "real(kind=r_def) :: var2")
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
                       DataSymbol)
@@ -193,8 +193,8 @@ def test_process_declarations_kind_literals(vartype, kind, precision):
     an explicit KIND specified using a literal constant.
 
     '''
-    fake_parent, _ = process_declarations("{0}(kind=KIND({1})) :: var".
-                                          format(vartype, kind))
+    fake_parent, _ = process_declarations(f"{vartype}(kind=KIND({kind})) :: "
+                                          f"var")
     if not precision:
         assert fake_parent.symbol_table.lookup("var").datatype.precision is \
             fake_parent.symbol_table.lookup("t_def")
@@ -214,7 +214,6 @@ def test_unsupported_kind(vartype, kind):
         TODO #569 - add support for some/all of these.
 
     '''
-    sched, _ = process_declarations("{0}(kind=KIND({1})) :: var".format(
-        vartype, kind))
+    sched, _ = process_declarations(f"{vartype}(kind=KIND({kind})) :: var")
     assert isinstance(sched.symbol_table.lookup("var").datatype,
                       UnknownFortranType)
