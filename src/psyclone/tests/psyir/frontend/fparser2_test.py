@@ -1187,12 +1187,16 @@ def test_process_declarations_intent():
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    reader = FortranStringReader("integer, intent(in) :: arg1")
+    reader = FortranStringReader("integer, intent(in) :: arg1, arg1a")
     fparser2spec = Specification_Part(reader).content[0]
-    arg_list = [Fortran2003.Name("arg1")]
+    arg_list = [Fortran2003.Name("arg1"), Fortran2003.Name("arg1a")]
     processor.process_declarations(fake_parent, [fparser2spec], arg_list)
-    assert fake_parent.symbol_table.lookup("arg1").interface.access == \
-        ArgumentInterface.Access.READ
+    # Check that the interface is correct and distinct for each symbol.
+    interface1 = fake_parent.symbol_table.lookup("arg1").interface
+    assert interface1.access == ArgumentInterface.Access.READ
+    interface1a = fake_parent.symbol_table.lookup("arg1a").interface
+    assert interface1a.access == ArgumentInterface.Access.READ
+    assert interface1a is not interface1
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     arg_list.append(Fortran2003.Name("arg2"))
