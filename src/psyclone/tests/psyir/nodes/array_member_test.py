@@ -167,7 +167,7 @@ def test_am_matching_access():
     ref1 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("xobs", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref2.member._matching_access(ref1) is True
+    assert ref1.member._matching_access(ref2) is True
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("yobs", [one.copy()])])
     amem = ref2.member.member  # "yobs"
@@ -215,8 +215,7 @@ def test_am_matching_access():
     assert ref1._matching_access(nodes.Reference(array_sym))
     # member being compared is not at the bottom of a derived-type access
     ref1 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
-                                                  ("b", [one.copy()]),
-                                                  ("d", [one.copy()])])
+                                                  ("b", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
                                                   ("b", [one.copy()]),
                                                   ("c", [one.copy()])])

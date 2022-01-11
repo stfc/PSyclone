@@ -321,6 +321,7 @@ class Node(object):
         ignoring these tags.
     :type annotations: list of str
 
+    :raises TypeError: if a parent is supplied that is not an instance of Node.
     :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
@@ -347,6 +348,9 @@ class Node(object):
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
+        if parent and not isinstance(parent, Node):
+            raise TypeError(f"The parent of a Node must also be a Node but "
+                            f"got '{type(parent).__name__}'")
         # Keep a record of whether a parent node was supplied when constructing
         # this object. In this case it still won't appear in the parent's
         # children list. When both ends of the reference are connected this

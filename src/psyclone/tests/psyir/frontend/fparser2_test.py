@@ -48,7 +48,8 @@ from fparser.two.Fortran2003 import Specification_Part, \
     Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    ArrayReference, Container, Literal, Range, KernelSchedule, Directive
+    ArrayReference, Container, Literal, Range, KernelSchedule, Directive, \
+    StructureReference, ArrayOfStructuresReference
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
@@ -121,8 +122,9 @@ def test_check_args():
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(None, None)
-    assert ("'array' argument should be an ArrayReference type but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("'array' argument should be some sort of array access (i.e. a "
+            "sub-class of ArrayMixin) but found 'NoneType'." in
+            str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -156,8 +158,9 @@ def test_is_bound_full_extent():
     # Check that _is_bound_full_extent calls the check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(None, None, None)
-    assert ("'array' argument should be an ArrayReference type but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("'array' argument should be some sort of array access (i.e. "
+            "a sub-class of ArrayMixin) but found 'NoneType'." in
+            str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -241,8 +244,9 @@ def test_is_array_range_literal():
     # Check that _is_array_range_literal calls the _check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(None, None, None, None)
-    assert ("'array' argument should be an ArrayReference type but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("'array' argument should be some sort of array access (i.e. a "
+            "sub-class of ArrayMixin) but found 'NoneType'." in
+            str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -365,17 +369,60 @@ def test_default_real_type():
 
 def test_array_notation_rank():
     '''Test the static method _array_notation_rank in the fparser2reader
-    class
+    class.
 
     '''
+    int_one = Literal("1", INTEGER_TYPE)
+    # Wrong type of argument
+    with pytest.raises(NotImplementedError) as err:
+        Fparser2Reader._array_notation_rank(int_one)
+    assert ("Expected either an ArrayReference, ArrayMember or a "
+            "StructureReference but got 'Literal'" in str(err.value))
+
+    # Structure reference containing no array access
+    symbol = DataSymbol("field", DeferredType())
+    with pytest.raises(InternalError) as err:
+        Fparser2Reader._array_notation_rank(
+            StructureReference.create(symbol, ["first", "second"]))
+    assert "No array access found in node 'field'" in str(err.value)
+
+    # Structure reference with ranges in more than one part reference.
+    lbound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        StructureReference.create(symbol, ["first"]), int_one.copy())
+    ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        StructureReference.create(symbol, ["first"]), int_one.copy())
+    my_range = Range.create(lbound, ubound)
+    with pytest.raises(InternalError) as err:
+        Fparser2Reader._array_notation_rank(
+            StructureReference.create(symbol, [("first", [my_range]),
+                                               ("second", [my_range.copy()])]))
+    assert ("Found a structure reference containing two or more part "
+            "references that have ranges: 'field%first(:)%second("
+            "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
+            "valid within a WHERE in Fortran." in str(err.value))
+    # Repeat but this time for an ArrayOfStructuresReference.
+    with pytest.raises(InternalError) as err:
+        Fparser2Reader._array_notation_rank(
+            ArrayOfStructuresReference.create(symbol, [my_range.copy()],
+                                              ["first",
+                                               ("second", [my_range.copy()])]))
+    assert ("Found a structure reference containing two or more part "
+            "references that have ranges: 'field(LBOUND(field%first, 1):"
+            "UBOUND(field%first, 1))%first%second("
+            "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
+            "valid within a WHERE in Fortran." in str(err.value))
+
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
     array = ArrayReference(symbol, [])
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
-    assert ("An Array reference in the PSyIR must have at least one child but "
-            "'a' has none" in str(excinfo.value))
+    assert ("ArrayReference malformed or incomplete: must have one or more "
+            "children representing array-index expressions but 'a' has none"
+            in str(excinfo.value))
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension

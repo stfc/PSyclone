@@ -46,6 +46,7 @@ import six
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
@@ -201,34 +202,40 @@ class ArrayMixin(object):
         on the innermost member access are ignored. e.g.
         A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
 
+        :param node: the node representing the access that is to be compared \
+                     with this node.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
+                    :py:class:`psyclone.psyir.nodes.Member`
+
         :returns: True if the structure accesses match, False otherwise.
         :rtype: bool
 
         '''
-        if isinstance(self, Reference):
-            if not isinstance(node, Reference):
-                return False
-            # This node is a reference so just compare symbol names.
-            return self.symbol.name == node.symbol.name
-
-        # This node is somewhere within a structure access so we need to
-        # get the parent Reference and keep a record of how deep this node
-        # is within the structure access. e.g. if this node was the
-        # StructureMember 'b' in a%c%b%d then its depth would be 2.
-        current = self
-        depth = 1
-        while current.parent and not isinstance(current.parent, Reference):
-            depth += 1
-            current = current.parent
-        parent_ref = current.parent
-        if not parent_ref:
+        if not isinstance(node, (Member, Reference)):
             return False
+
+        if isinstance(self, Member):
+            # This node is somewhere within a structure access so we need to
+            # get the parent Reference and keep a record of how deep this node
+            # is within the structure access. e.g. if this node was the
+            # StructureMember 'b' in a%c%b%d then its depth would be 2.
+            depth = 1
+            current = self
+            while current.parent and not isinstance(current.parent, Reference):
+                depth += 1
+                current = current.parent
+            parent_ref = current.parent
+            if not parent_ref:
+                return False
+        else:
+            depth = 0
+            parent_ref = self
 
         # Now we have the parent Reference and the depth, we can construct the
         # Signatures and compare them to the required depth.
         self_sig, self_indices = parent_ref.get_signature_and_indices()
         node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig[:depth+1] != node_sig[:depth+1]:
+        if self_sig[:depth+1] != node_sig[:]:
             return False
 
         # We use the FortranWriter to simplify the job of comparing array-index
@@ -294,15 +301,16 @@ class ArrayMixin(object):
         if not self._children:
             raise InternalError(
                 "{0} malformed or incomplete: must have one or more "
-                "children representing array-index expressions but found "
-                "none.".format(type(self).__name__))
+                "children representing array-index expressions but '{1}' has "
+                "none.".format(type(self).__name__, self.name))
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child {1} must by a psyir."
-                    "nodes.DataNode or Range representing an array-index "
-                    "expression but found '{2}'".format(
-                        type(self).__name__, idx, type(child).__name__))
+                    "{0} malformed or incomplete: child {1} of '{2}' must be "
+                    "a psyir.nodes.DataNode or Range representing an array-"
+                    "index expression but found '{3}'".format(
+                        type(self).__name__, idx, self.name,
+                        type(child).__name__))
         return self.children
 
 

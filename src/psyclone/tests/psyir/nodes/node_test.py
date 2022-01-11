@@ -63,6 +63,22 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
 
+def test_node_parent_check():
+    ''' Test that the Node constructor accepts a valid parent node but
+    rejects a parent that is not itself a Node. '''
+    # Node is abstract so we need a sub-class to test it.
+    class MyNode(Node):
+        ''' Mock node sub-class. '''
+        _colour = "green"
+    with pytest.raises(TypeError) as err:
+        MyNode(parent="hello")
+    assert ("The parent of a Node must also be a Node but got 'str'"
+            in str(err.value))
+    parent = MyNode()
+    node = MyNode(parent=parent)
+    assert node.parent is parent
+
+
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     tnode = Node()
