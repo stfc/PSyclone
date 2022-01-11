@@ -43,9 +43,7 @@ first before any members.
 '''
 
 from psyclone.domain.lfric import ArgOrdering
-from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE,
-                                    DataSymbol, DataTypeSymbol, DeferredType,
-                                    ImportInterface, ContainerSymbol)
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -66,17 +64,20 @@ class KernCallInvokeArgList(ArgOrdering):
         ''' '''
         super().scalar(scalar_arg, var_accesses)
 
+        # Create a DataSymbol for this kernel argument.
         if scalar_arg.intrinsic_type == "real":
-            datatype = REAL_TYPE
+            datatype = ScalarType(ScalarType.Intrinsic.REAL,
+                                  self._symtab.lookup("r_def"))
         elif scalar_arg.intrinsic_type == "integer":
-            datatype = INTEGER_TYPE
+            datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
+                                  self._symtab.lookup("i_def"))
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.data_type}' not supported.")
-        # TODO handle precision (scalar_arg.precision)
-        sym = self._symtab.new_symbol(scalar_arg.name,
-                                      symbol_type=DataSymbol,
-                                      datatype=datatype)
+
+        self._symtab.new_symbol(scalar_arg.name,
+                                symbol_type=DataSymbol,
+                                datatype=datatype)
 
     def fs_common(self, function_space, var_accesses=None):
         ''' Nothing '''
@@ -95,6 +96,8 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        raise NotImplementedError("Need to implement support for a "
+                                  "field-vector kernel argument.")
         self.append(argvect.name)
 
     def field(self, arg, var_accesses=None):
