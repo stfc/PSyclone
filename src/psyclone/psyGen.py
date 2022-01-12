@@ -717,18 +717,6 @@ class InvokeSchedule(Routine):
             else:
                 self.addchild(KernFactory.create(call, parent=self))
 
-        # TODO #1134: If OpenCL is just a PSyIR transformation the following
-        # properties may not be needed or are transformation options instead.
-        # Flag to choose whether or not to generate OpenCL
-        self._opencl = False  # Whether or not to generate OpenCL
-        # Flag to choose whether or not to add an OpenCL barrier at the end of
-        # the Invoke code.
-        self._opencl_end_barrier = True
-
-        # This reference will store during gen_code() the block of code that
-        # is executed only on the first iteration of the invoke.
-        self._first_time_block = None
-
     @property
     def symbol_table(self):
         '''
@@ -814,29 +802,6 @@ class InvokeSchedule(Routine):
         self._symbol_table = symbol_table_before_gen
         self.parent._symbol_table = psy_symbol_table_before_gen
         # pylint: enable=protected-access
-
-    @property
-    def opencl(self):
-        '''
-        :returns: Whether or not we are generating OpenCL for this \
-            InvokeSchedule.
-        :rtype: bool
-        '''
-        return self._opencl
-
-    @opencl.setter
-    def opencl(self, value):
-        '''
-        Setter for whether or not to generate the OpenCL version of this
-        schedule.
-
-        :param bool value: whether or not to generate OpenCL.
-        '''
-        if not isinstance(value, bool):
-            raise ValueError(
-                "InvokeSchedule.opencl must be a bool but got {0}".
-                format(type(value)))
-        self._opencl = value
 
 
 class GlobalSum(Statement):
@@ -1737,7 +1702,7 @@ class CodedKern(Kern):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified and not self.ancestor(InvokeSchedule).opencl:
+        if not self.modified:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -1758,25 +1723,8 @@ class CodedKern(Kern):
             name_idx += 1
             new_suffix = ""
 
-            # GOcean OpenCL needs to differentiate between kernels generated
-            # from the same module file, so we include the kernelname into the
-            # output filename.
-            # TODO: Issue 499, this works as an OpenCL quickfix but it needs
-            # to be generalized and be consistent with the '--kernel-renaming'
-            # conventions.
-            if self.ancestor(InvokeSchedule).opencl:
-                if self.name.lower().endswith("_code"):
-                    new_suffix += "_" + self.name[:-5]
-                else:
-                    new_suffix += "_" + self.name
-
             new_suffix += "_{0}".format(name_idx)
-
-            # Choose file extension
-            if self.ancestor(InvokeSchedule).opencl:
-                new_name = old_base_name + new_suffix + ".cl"
-            else:
-                new_name = old_base_name + new_suffix + "_mod.f90"
+            new_name = old_base_name + new_suffix + "_mod.f90"
 
             try:
                 # Atomically attempt to open the new kernel file (in case
@@ -1795,24 +1743,19 @@ class CodedKern(Kern):
 
         # Use the suffix we have determined to rename all relevant quantities
         # within the AST of the kernel code.
-        # We can't rename OpenCL kernels as the Invoke set_args functions
-        # have already been generated. The link to an specific kernel
-        # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  FORTCL_KERNELS_FILE environment variable)
-        if not self.ancestor(InvokeSchedule).opencl:
-            if self._kern_schedule:
-                # A PSyIR kernel schedule has been created. This means
-                # that the PSyIR has been modified and will be used to
-                # generate modified kernel code. Therefore the PSyIR
-                # should be modified rather than the parse tree. This
-                # if test, and the associated else, are only required
-                # whilst old style (direct fp2) transformations still
-                # exist - #490.
+        if self._kern_schedule:
+            # A PSyIR kernel schedule has been created. This means
+            # that the PSyIR has been modified and will be used to
+            # generate modified kernel code. Therefore the PSyIR
+            # should be modified rather than the parse tree. This
+            # if test, and the associated else, are only required
+            # whilst old style (direct fp2) transformations still
+            # exist - #490.
 
-                # Rename PSyIR module and kernel names.
-                self._rename_psyir(new_suffix)
-            else:
-                self._rename_ast(new_suffix)
+            # Rename PSyIR module and kernel names.
+            self._rename_psyir(new_suffix)
+        else:
+            self._rename_ast(new_suffix)
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
@@ -1826,12 +1769,7 @@ class CodedKern(Kern):
             os.close(fdesc)
             return
 
-        if self.ancestor(InvokeSchedule).opencl:
-            from psyclone.psyir.backend.opencl import OpenCLWriter
-            ocl_writer = OpenCLWriter(
-                kernels_local_size=self._opencl_options['local_size'])
-            new_kern_code = ocl_writer(self.get_kernel_schedule())
-        elif self._kern_schedule:
+        if self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
             # that the PSyIR has been modified. Therefore use the
             # chosen PSyIR back-end to write out the modified kernel

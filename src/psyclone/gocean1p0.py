@@ -298,15 +298,10 @@ class GOInvoke(Invoke):
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
 
-        # If we're generating an OpenCL routine then the arguments must
-        # have the target attribute as we pass pointers to them in to
-        # the OpenCL run-time.
-        target = bool(self.schedule.opencl)
-
         # Add the subroutine argument declarations for fields
         if self.unique_args_arrays:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
-                                         intent="inout", target=target,
+                                         intent="inout",
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
@@ -2375,31 +2370,6 @@ class GOHaloExchange(HaloExchange):
 
         # TODO 886: Currently only stencils of depth 1 are accepted by this
         # API, so the HaloExchange is hardcoded to depth 1.
-
-        if self.ancestor(InvokeSchedule).opencl:
-            # If the dependency is a Kernel dispatched in a different command
-            # queue than _OCL_MANAGEMENT_QUEUE, in order to guarantee that the
-            # haloexchange data transfer happens after the kernel is finished,
-            # we need to add a barrier to that previous queue.
-            dependency = self.backward_dependence()
-            if dependency and dependency.coded_kernels():
-                for kernel_dep in dependency.coded_kernels():
-                    # TODO #1134: The OpenCL options should not leak from the
-                    # OpenCL transformation.
-                    # pylint: disable=protected-access
-                    previous_queue = kernel_dep._opencl_options['queue_number']
-                    if previous_queue != _OCL_MANAGEMENT_QUEUE:
-                        # If the backward dependency is being executed in
-                        # another queue we add a barrier to make sure the
-                        # previous kernel has finished.
-                        stab = self.scope.symbol_table
-                        qlist = stab.lookup_with_tag("opencl_cmd_queues").name
-                        flag = stab.lookup_with_tag("opencl_error").name
-                        parent.add(AssignGen(
-                            parent,
-                            lhs=flag,
-                            rhs="clFinish({0}({1}))".format(
-                                qlist, str(previous_queue))))
 
         parent.add(
             CallGen(

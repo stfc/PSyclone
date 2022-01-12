@@ -672,7 +672,7 @@ class GOOpenCLTrans(Transformation):
 
         from psyclone.psyir.backend.opencl import OpenCLWriter
         import os
-        ocl_writer = OpenCLWriter()
+        ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_name = ""
         new_kern_code = ocl_writer(self._kernels_file)
 
