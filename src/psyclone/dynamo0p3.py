@@ -2273,8 +2273,6 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
-        # There is no need to check whether the default kind has been
-        # declared as it as it always will be by this point.
         my_kind = api_config.default_kind["real"]
         parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
@@ -2836,7 +2834,8 @@ class LFRicFields(DynCollection):
                 field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
 
         # Add the Invoke subroutine argument declarations for the
-        # different fields types
+        # different fields types. They are declared as intent "in" as
+        # they contain a pointer to the data that is modified.
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
             arg_list = [arg.declaration_name for arg in args]
@@ -3118,8 +3117,8 @@ class DynProxies(DynCollection):
                 field_datatype_map[
                     (arg.proxy_data_type, arg.module_name)] = [arg]
 
-        # Add the Invoke subroutine argument declarations for the
-        # different fields type proxy's
+        # Add the Invoke subroutine declarations for the different
+        # field-type proxies
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
             arg_list = [arg.proxy_declaration_name for arg in args]
@@ -3556,6 +3555,8 @@ class DynLMAOperators(DynCollection):
                                    entity_decls=operators_names,
                                    intent="in"))
             op_mod = operators_list[0].module_name
+            # Record that we will need to import this operator
+            # datatype from the appropriate infrastructure module
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(operator_datatype))
 
@@ -3706,6 +3707,9 @@ class DynCMAOperators(DynCollection):
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
             if cma_kind not in const_mod_list:
+                # Record that we will need to import the kind of this
+                # cma operator from the appropriate infrastructure
+                # module
                 const_mod_list.append(cma_kind)
 
             # Declare the associated integer parameters
@@ -4595,6 +4599,9 @@ class DynBasisFunctions(DynCollection):
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
             if my_kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # pointer declaration (associated with a function
+                # space) from the appropriate infrastructure module
                 const_mod_list.append(my_kind)
 
         if self._basis_fns:
@@ -4825,6 +4832,9 @@ class DynBasisFunctions(DynCollection):
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
             if kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # declaration (associated with quadrature) from the
+                # appropriate infrastructure module
                 const_mod_list.append(kind)
 
             # Get the quadrature proxy
@@ -4909,6 +4919,9 @@ class DynBasisFunctions(DynCollection):
             const_mod_list = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
             if kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # declaration (associated with quadrature) from the
+                # appropriate infrastructure module
                 const_mod_list.append(kind)
             # Get the quadrature proxy
             proxy_name = symbol_table.find_or_create_tag(
@@ -7570,8 +7583,7 @@ class DynKern(CodedKern):
                 break
 
     def _setup(self, ktype, module_name, args, parent, check=True):
-        '''
-        Internal setup of kernel information.
+        '''Internal setup of kernel information.
 
         :param ktype: object holding information on the parsed metadata for \
                       this kernel.
@@ -7584,6 +7596,9 @@ class DynKern(CodedKern):
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param bool check: optional argument to do with checking \
+            consistency between kernel metadata and the algorithm \
+            layer. Defaults to True.
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
@@ -7880,7 +7895,8 @@ class DynKern(CodedKern):
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
-        # Add "use" statement with supported argument kinds (precisions)
+        # Add wildcard "use" statement for all supported argument
+        # kinds (precisions)
         sub_stub.add(
             UseGen(sub_stub,
                    name=const.UTILITIES_MOD_MAP["constants"]["module"]))
@@ -8758,12 +8774,11 @@ class DynKernelArgument(KernelArgument):
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
 
-        :param alg_datatype_info: the type and precision of this \
-            argument as extracted from the algorithm layer with None \
-            indicating that no information could be extracted.
-        :type alg_datatype_info: (str or NoneType, str or NoneType)
+        :param arg_info: information on how this argument is specified \
+            in the Algorithm layer.
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param bool use_alg_info: whether to use the algorithm \
-            information. Defaults to True.
+            information. Optional argument that defaults to True.
 
         '''
         alg_datatype_info = None
@@ -8812,16 +8827,16 @@ class DynKernelArgument(KernelArgument):
             if use_alg_info and alg_datatype and not alg_precision and \
                not self.is_literal:
                 raise GenerationError(
-                    f"Scalars must have their precision defined in the "
-                    f"algorithm layer but '{self.name}' in "
-                    f"'{self._call.name}' does not.")
+                    f"LFRic coding standards require scalars to have "
+                    f"their precision defined in the algorithm layer but "
+                    f"'{self.name}' in '{self._call.name}' does not.")
 
             if self.access in AccessType.get_valid_reduction_modes():
                 # Treat reductions separately to other scalars as it
                 # is expected that they should match the precision of
                 # the field they are reducing. At the moment there is
                 # an assumption that the precision will always be a
-                # particular specified value.
+                # particular value (the default), see issue #1570.
 
                 # Only real reductions are supported.
                 if not self.intrinsic_type == "real":

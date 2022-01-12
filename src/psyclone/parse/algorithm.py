@@ -771,40 +771,39 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
             # reason Add_Operation represents binary expressions in
             # fparser2.  Walk the tree to look for an argument.
-            if not walk(argument, Name):
-                # This is a literal so store the full expression as a
-                # string
-                # First determine the datatype
-                candidate_datatype = None
-                for literal in walk(
-                        argument, (Real_Literal_Constant,
-                                   Int_Literal_Constant)):
-                    precision = literal.children[1]
-                    if precision:
-                        precision = str(precision)
-                    if isinstance(literal, Real_Literal_Constant):
-                        datatype = ("real", precision)
-                    else:  # it's an Int_Literal_Constant
-                        datatype = ("integer", precision)
-
-                    if not candidate_datatype:
-                        # This is the first candidate
-                        candidate_datatype = datatype
-                    elif candidate_datatype != datatype:
-                        raise NotImplementedError(
-                            f"Found two non-matching literals within an "
-                            f"expression passed into an invoke from the "
-                            f"algorithm layer. '{datatype}' and "
-                            f"'{candidate_datatype}' do not match. "
-                            f"This is not supported in PSyclone.")
-                arguments.append(Arg('literal', argument.tostr().lower(),
-                                 datatype=datatype))
-            else:
+            if walk(argument, Name):
                 raise NotImplementedError(
                     f"algorithm.py:get_kernel: Expressions containing "
                     f"variables are not yet supported '{type(argument)}', "
                     f"value '{str(argument)}', kernel '{parse_tree}' in "
                     f"file '{alg_filename}'.")
+            # This is a literal so store the full expression as a
+            # string
+            # First determine the datatype
+            candidate_datatype = None
+            for literal in walk(
+                    argument, (Real_Literal_Constant,
+                               Int_Literal_Constant)):
+                precision = literal.children[1]
+                if precision:
+                    precision = str(precision)
+                if isinstance(literal, Real_Literal_Constant):
+                    datatype = ("real", precision)
+                else:  # it's an Int_Literal_Constant
+                    datatype = ("integer", precision)
+
+                if not candidate_datatype:
+                    # This is the first candidate
+                    candidate_datatype = datatype
+                elif candidate_datatype != datatype:
+                    raise NotImplementedError(
+                        f"Found two non-matching literals within an "
+                        f"expression ('{str(argument)}') passed into an "
+                        f"invoke from the algorithm layer. '{datatype}' and "
+                        f"'{candidate_datatype}' do not match. This is not "
+                        f"supported in PSyclone.")
+            arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
         else:
             raise InternalError(
                 f"algorithm.py:get_kernel: Unsupported argument structure "

@@ -1605,8 +1605,9 @@ def test_dynkernelargument_idtp_scalar():
     arg = Arg("variable", None, None, ("real", None))
     with pytest.raises(GenerationError) as info:
         scalar_argument._init_data_type_properties(arg)
-    assert ("Scalars must have their precision defined in the algorithm layer "
-            "but 'a' in 'testkern_code' does not." in str(info.value))
+    assert ("LFRic coding standards require scalars to have their precision "
+            "defined in the algorithm layer but 'a' in 'testkern_code' does "
+            "not." in str(info.value))
 
 
 def test_dynkernelargument_idtp_reduction():

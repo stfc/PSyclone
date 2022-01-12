@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -446,11 +446,12 @@ called via a generic interface (which lets Fortran choose the
 appropriate subroutine based on the precision of its argument(s).
 
 Below is a simple example of an algorithm code calling the same
-generic kernel twice with potentially different precision and for the
-kernel to support 32-bit and 64-bit precision. The use of LFRic names
-for precision in the algorithm code allows precision to be controlled
-in a simple way. For example r_solver could be set to be 32-bits in
-one configuration and 64-bits in another:
+generic kernel twice with potentially different precision. The
+implementation of the generic kernel such that it supports both 32-
+and 64-bit precision is also shown. The use of LFRic names for
+precision in the algorithm code allows precision to be controlled in a
+simple way. For example r_solver could be set to be 32-bits in one
+configuration and 64-bits in another:
 
 .. code-block:: fortran
 
@@ -506,11 +507,11 @@ one configuration and 64-bits in another:
   end module example_mod
 
 In order to support mixed precision, PSyclone needs to know the
-precision (as specified in the algorithm layer) of any LFRic data that
-has a type that supports different multiple precisions. The reason for
-this is that PSyclone needs to be able to declare data with the
-correct precision information within the PSy-layer to ensure that
-the correct flavour of kernels are called.
+precision (as specified in the algorithm layer) of any kernel
+arguments that are of a type that supports different precisions (e.g
+GH_FIELD). The reason for this is that PSyclone needs to be able to
+declare data with the correct precision information within the
+PSy-layer to ensure that the correct flavour of kernels are called.
 
 PSyclone must therefore determine this information from the algorithm
 layer. The rules for whether PSyclone requires information for
@@ -536,22 +537,23 @@ Scalars
 
 It is not mandatory for PSyclone to be able to determine the datatype
 of a scalar from the algorithm layer. This constraint was considered
-to be too restrictive as PSyclone only looks at the current algorithm
-code to determine a scalars datatype and scalars are often included in
-the algorithm layer from other modules which means their datatype is
-not directly visible.
+to be too restrictive as PSyclone currently only examines the current
+algorithm code when determining datatype. This means that if scalars
+are imported from other modules (as is often the case) then their
+datatype cannot be determined.
 
 If the precision information for a scalar is found by PSyclone then
 this is used. If the scalar declaration is found and it contains no
 precision information then PSyclone will abort with a message that
-indicates the problem. If no precision information is found then
-default precision values are used as specified in the PSyclone config
-file (`r_def` for real, `i_def` for integer and `l_def` for logical).
+indicates the problem (since this violates LFRic coding standards). If
+no precision information is found then default precision values are
+used as specified in the PSyclone config file (`r_def` for real,
+`i_def` for integer and `l_def` for logical).
 
-Supported precisions are `r_def` and `r_solver` for real data, `i_def`
-for integer data and `l_def` for logical data. If an unsupported
-scalar precision is found then PSyclone will abort with a message that
-indicates the problem.
+Supported precisions for scalars are `r_def` and `r_solver` for real
+data, `i_def` for integer data and `l_def` for logical data. If an
+unsupported scalar precision is found then PSyclone will abort with a
+message that indicates the problem.
 
 LMA Operators
 +++++++++++++

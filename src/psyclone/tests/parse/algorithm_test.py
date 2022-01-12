@@ -622,10 +622,11 @@ def test_getkernel_isliteral_expr_error():
     tree = Structure_Constructor("sub(1.0_r_def*1.0_r_solver)")
     with pytest.raises(NotImplementedError) as info:
         _, _ = get_kernel(tree, "dummy.f90", {})
-    assert ("Found two non-matching literals within an expression passed into "
-            "an invoke from the algorithm layer. '('real', 'r_solver')' and "
-            "'('real', 'r_def')' do not match. This is not supported in "
-            "PSyclone." in str(info.value))
+    assert ("Found two non-matching literals within an expression "
+            "('1.0_r_def * 1.0_r_solver') passed into an invoke from the "
+            "algorithm layer. '('real', 'r_solver')' and '('real', 'r_def')' "
+            "do not match. This is not supported in PSyclone."
+            in str(info.value))
 
 
 @pytest.mark.parametrize('content',

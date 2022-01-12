@@ -65,3 +65,11 @@ module helmholtz_solver_alg_mod
   end subroutine apply_helmholtz_lhs
 
 end module helmholtz_solver_alg_mod
+
+program driver
+  ! Minimal driver for compilation testing
+  use helmholtz_solver_alg_mod, only : apply_helmholtz_lhs
+  use field_mod, only : field_type
+  type(field_type) :: Hp, p
+  call apply_helmholtz_lhs(Hp,p)
+end program driver

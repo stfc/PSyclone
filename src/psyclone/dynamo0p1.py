@@ -329,16 +329,19 @@ class DynKern(CodedKern):
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
     def load(self, call, parent, check=True):
-        '''
-        Load this DynKern object with state pulled from the call object.
+        '''Load this DynKern object with state pulled from the call object.
 
         :param call: details of the Algorithm-layer call of this Kernel.
         :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
         :param parent: parent of this kernel node in the PSyIR.
         :type parent: :py:class:`psyclone.dynamo0p1.DynLoop` or NoneType.
+        :param bool check: optional argument to do with checking \
+            consistency between kernel metadata and the algorithm \
+            layer. It is not used by this API. Defaults to True.
 
         '''
-        super(DynKern, self).__init__(DynKernelArguments, call, parent)
+        super(DynKern, self).__init__(
+            DynKernelArguments, call, parent, check=check)
 
     def local_vars(self):
         return ["cell", "map"]
