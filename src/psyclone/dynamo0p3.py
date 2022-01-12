@@ -8928,50 +8928,82 @@ class DynKernelArgument(KernelArgument):
         # check by their argument type
         if self.is_operator:
 
-            # If the algorithm information is not being ignored and is
-            # available from the algorithm layer then check the
-            # metadata and algorithm type are consistent and that the
-            # metadata specifies a supported operator type.
-            if self.argument_type == "gh_operator":
-                if not use_alg_info:
-                    # Use the default as we are ignoring any algorithm info
-                    argtype = "operator"
-                elif not alg_datatype:
-                    # Raise an exception as we require algorithm
-                    # information to determine the precision of the
-                    # operator
-                    raise GenerationError(
-                        f"It was not possible to determine the operator type "
-                        f"from the algorithm layer for argument '{self.name}' "
-                        f"in kernel '{self._call.name}'.")
-                elif alg_datatype == "operator_type":
-                    argtype = "operator"
-                elif alg_datatype == "r_solver_operator_type":
-                    argtype = "r_solver_operator"
-                else:
-                    raise GenerationError(
-                        f"The metadata for argument '{self.name}' in kernel "
-                        f"'{self._call.name}' specifies that this is an "
-                        f"operator, however it is declared as a "
-                        f"'{alg_datatype}' in the algorithm code.")
-            elif self.argument_type == "gh_columnwise_operator":
-                if use_alg_info and alg_datatype and \
-                   alg_datatype != "columnwise_operator_type":
-                    raise GenerationError(
-                        f"The metadata for argument '{self.name}' in kernel "
-                        f"'{self._call.name}' specifies that this is a "
-                        f"columnwise operator, however it is declared as a "
-                        f"'{alg_datatype}' in the algorithm code.")
-                argtype = "columnwise_operator"
-            else:
-                raise InternalError(
-                    f"Expected 'gh_operator' or 'gh_columnwise_operator' "
-                    f"argument type but found '{self.argument_type}'.")
-
+            argtype = self.operator_argtype(alg_datatype, use_alg_info)
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+
+    def operator_argtype(self, alg_datatype, use_alg_info=True):
+        '''Return the type of this operator. When the kernel metadata
+        specifies that its argument is a gh_operator then the expected
+        datatype is not known as more than one is allowed. If the
+        actual datatype can be determined from the algorithm layer
+        (alg_datatype) then this will be returned, otherwise the
+        default type will be returned. When the kernel metadata
+        specifies that its argument is a gh_columnwise_operator then
+        the the expected datatype is known to be a particular type and
+        can therefore be returned.
+
+        If the datatype determined from the algorithm layer is
+        inconsistent with the kernel metadata then an exception is
+        raised.
+
+        if the use_alg_info argument is set to False then any
+        algorithm layer information is ignored and the default
+        datatypes are returned.
+
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param bool use_alg_info: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_operator \
+            could not be found in the algorithm layer.
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises InternalError: if this argument is not an operator.
+
+        '''
+        argtype = None
+        if self.argument_type == "gh_operator":
+            if not use_alg_info:
+                # Use the default as we are ignoring any algorithm info
+                argtype = "operator"
+            elif not alg_datatype:
+                # Raise an exception as we require algorithm
+                # information to determine the precision of the
+                # operator
+                raise GenerationError(
+                    f"It was not possible to determine the operator type "
+                    f"from the algorithm layer for argument '{self.name}' "
+                    f"in kernel '{self._call.name}'.")
+            elif alg_datatype == "operator_type":
+                argtype = "operator"
+            elif alg_datatype == "r_solver_operator_type":
+                argtype = "r_solver_operator"
+            else:
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is an "
+                    f"operator, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+        elif self.argument_type == "gh_columnwise_operator":
+            if use_alg_info and alg_datatype and \
+               alg_datatype != "columnwise_operator_type":
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is a "
+                    f"columnwise operator, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+            argtype = "columnwise_operator"
+        else:
+            raise InternalError(
+                f"Expected 'gh_operator' or 'gh_columnwise_operator' "
+                f"argument type but found '{self.argument_type}'.")
+        return argtype
 
     @property
     def is_scalar(self):

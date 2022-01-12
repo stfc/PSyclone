@@ -1461,9 +1461,6 @@ class CodedKern(Kern):
     :param bool check: whether to check for consistency between the \
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises GenerationError: if(check) and the number of arguments in the \
-                             call does not match that in the meta-data.
-
     '''
     # Textual description of the node.
     _text_name = "CodedKern"
