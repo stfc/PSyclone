@@ -67,6 +67,7 @@ MODULE2_OUT = (
     "  implicit none\n"
     "  real, public :: c\n"
     "  public\n\n"
+    "  public :: b\n\n"
     "  contains\n\n"
     "end module a\n")
 # module with subprograms
