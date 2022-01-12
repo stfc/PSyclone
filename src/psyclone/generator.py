@@ -59,12 +59,15 @@ import six
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.domain.common.transformations import AlgTrans
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Loop
 from psyclone.version import __VERSION__
 
@@ -247,7 +250,27 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     if api not in API_WITHOUT_ALGORITHM:
-        alg_gen = Alg(ast, psy).gen
+        if api == "gocean1.0":
+            # Create language-level PSyIR from fparser2 ast
+            psyir_reader = Fparser2Reader()
+            psyir = psyir_reader.generate_psyir(ast)
+
+            # Raise to Algorithm PSyIR
+            alg_trans = AlgTrans()
+            alg_trans.apply(psyir)
+
+            # TODO: issue #753
+            # 1) call to algorithm optimisation script will go here
+            # 2) psygen creation and symbol generation will go here
+            #    (+ algorithm processing could go here, which would
+            #    include the removal of the invoke symbol).
+            # 3) psygen optimisation script will go here
+
+            # Create Fortran from Algorithm PSyIR
+            writer = FortranWriter()
+            alg_gen = writer(psyir)
+        else:
+            alg_gen = Alg(ast, psy).gen
     else:
         alg_gen = None
 
