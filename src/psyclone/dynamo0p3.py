@@ -8878,63 +8878,92 @@ class DynKernelArgument(KernelArgument):
                         self.intrinsic_type]
 
         if self.is_field:
-
-            # If the algorithm information is not being ignored then
-            # it must be available.
-            if use_alg_info and not alg_datatype:
-                raise GenerationError(
-                    f"It was not possible to determine the field type from "
-                    f"the algorithm layer for argument '{self.name}' in "
-                    f"kernel '{self._call.name}'.")
-
-            # If the algorithm information is not being ignored then
-            # check the metadata and algorithm type are consistent and
-            # that the metadata specifies a supported intrinsic type.
-            if self.intrinsic_type == "real":
-                if not use_alg_info:
-                    # Use the default as we are ignoring any algorithm info
-                    argtype = "field"
-                elif alg_datatype == "field_type":
-                    argtype = "field"
-                elif alg_datatype == "r_solver_field_type":
-                    argtype = "r_solver_field"
-                else:
-                    raise GenerationError(
-                        f"The metadata for argument '{self.name}' in kernel "
-                        f"'{self._call.name}' specifies that this is a real "
-                        f"field, however it is declared as a "
-                        f"'{alg_datatype}' in the algorithm code.")
-
-            elif self.intrinsic_type == "integer":
-                if use_alg_info and alg_datatype != "integer_field_type":
-                    raise GenerationError(
-                        f"The metadata for argument '{self.name}' in kernel "
-                        f"'{self._call.name}' specifies that this is an "
-                        f"integer field, however it is declared as a "
-                        f"'{alg_datatype}' in the algorithm code.")
-                argtype = "integer_field"
-            else:
-                raise InternalError(
-                    f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} "
-                    f"intrinsic types for a field argument but found "
-                    f"'{self.intrinsic_type}'.")
-
+            argtype = self._field_argtype(alg_datatype, use_alg_info)
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-        # All supported operators have the same intrinsic type, 'real', so we
-        # check by their argument type
         if self.is_operator:
-
-            argtype = self.operator_argtype(alg_datatype, use_alg_info)
+            argtype = self._operator_argtype(alg_datatype, use_alg_info)
             self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
             self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
             self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
             self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-    def operator_argtype(self, alg_datatype, use_alg_info=True):
+    def _field_argtype(self, alg_datatype, use_alg_info=True):
+        '''Return the type of this field. When the kernel metadata
+        specifies that its argument is a gh_field then the expected
+        datatype is not known as more than one is allowed. The 
+        datatype is therefore determined from the algorithm layer
+        (alg_datatype).
+
+        If the datatype can't be determined from the algorithm layer
+        or it is inconsistent with the kernel metadata then an
+        exception is raised.
+
+        if the use_alg_info argument is set to False then any
+        algorithm layer information is ignored and the default
+        field datatype is returned.
+
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param bool use_alg_info: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_field \
+            could not be found in the algorithm layer.
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises InternalError: if the intrinsic type of the field is \
+            not supported (i.e. is not real or integer).
+
+        '''
+        const = LFRicConstants()
+        # If the algorithm information is not being ignored then
+        # it must be available.
+        if use_alg_info and not alg_datatype:
+            raise GenerationError(
+                f"It was not possible to determine the field type from "
+                f"the algorithm layer for argument '{self.name}' in "
+                f"kernel '{self._call.name}'.")
+
+        # If the algorithm information is not being ignored then
+        # check the metadata and algorithm type are consistent and
+        # that the metadata specifies a supported intrinsic type.
+        if self.intrinsic_type == "real":
+            if not use_alg_info:
+                # Use the default as we are ignoring any algorithm info
+                argtype = "field"
+            elif alg_datatype == "field_type":
+                argtype = "field"
+            elif alg_datatype == "r_solver_field_type":
+                argtype = "r_solver_field"
+            else:
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is a real "
+                    f"field, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+
+        elif self.intrinsic_type == "integer":
+            if use_alg_info and alg_datatype != "integer_field_type":
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is an "
+                    f"integer field, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+            argtype = "integer_field"
+        else:
+            raise InternalError(
+                f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} "
+                f"intrinsic types for a field argument but found "
+                f"'{self.intrinsic_type}'.")
+        return argtype
+
+    def _operator_argtype(self, alg_datatype, use_alg_info=True):
         '''Return the type of this operator. When the kernel metadata
         specifies that its argument is a gh_operator then the expected
         datatype is not known as more than one is allowed. If the
