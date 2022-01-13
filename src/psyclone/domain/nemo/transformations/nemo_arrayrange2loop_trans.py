@@ -427,8 +427,8 @@ class NemoArrayRange2LoopTrans(Transformation):
                             f"\n{FortranWriter()(current)}"))
                 current = current.parent
             # Note that we don't check if the variable name is used in a
-            # context different other that the loop if it's an integer. We
-            # assume this is a guarantee of the API.
+            # context other that the loop if it's an integer. We assume this
+            # is a guarantee of the API.
 
         except IndexError:
             # There is no name for this index in the config file (it can

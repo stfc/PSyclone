@@ -38,11 +38,11 @@ subroutine implicit_do_hidden(arg1, arg2)
   real, dimension(jpi,jpj,jpk), intent(in) :: arg1
   real, dimension(jpi,jpj,jpk), intent(in), optional :: arg2
 
-  ! Test code with implicit NEMO-style do loop with known array type and missing
-  ! range expression in the RHS
+  ! Test code with implicit NEMO-style do loop with known array type and
+  ! missing range expression in the RHS
   local1(:,:,:) = arg1
 
-  ! Test code with implicit NEMO-style do loop with unsupported array type and
-  ! missing range expression in the RHS
+  ! Test code with implicit NEMO-style do loop with unsupported array type
+  ! (due to the optional parameter) and missing range expression in the RHS
   local1(:,:,:) = arg2
 end subroutine implicit_do_hidden

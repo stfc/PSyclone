@@ -482,10 +482,10 @@ def test_apply_imported_function():
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    # fparser currently parses imported symbols that can be functions or arrays
-    # always as arrays accessors, for this reason the error message talks about
-    # arrays instead of functions. If this is resolved this test would be
-    # equivalent to test_apply_with_a_function_call
+    # TODO fparser/#201: currently fparsre parses imported symbols that can be
+    # functions or arrays always as arrays accessors, for this reason the error
+    # message talks about arrays instead of functions. If this is resolved this
+    # test would be equivalent to test_apply_with_a_function_call.
     assert("Error in NemoArrayRange2LoopTrans transformation. This "
            "transformation does not support assignments with rhs arrays that "
            "don't have a range, but found 'ptr_sjk' in:\n"
