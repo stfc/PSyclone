@@ -1555,6 +1555,26 @@ def test_arg_intrinsic_type_error():
 
 # Test DynKernelArgument _init_data_type_properties()
 
+def test_dynkernelargument_idtp_error(monkeypatch):
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class raises the expected exception if the argument is not a
+    supported type (one of scalar, field or operator)
+
+    '''
+    # Use one of the examples to create an instance of
+    # DynKernelArgument.
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[0]
+    monkeypatch.setattr(scalar_argument, "_argument_type", "invalid")
+    assert not scalar_argument.is_scalar
+    with pytest.raises(InternalError) as info:
+        scalar_argument._init_data_type_properties(None)
+    assert ("Supported argument types are scalar, field and operator, but "
+            "the argument 'a' in kernel 'testkern_code' is none of these."
+            in str(info.value))
+    
 
 def test_dynkernelargument_idtp_scalar():
     '''Test the _init_data_type_properties method in the DynKernelArgument

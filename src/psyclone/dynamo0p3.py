@@ -8800,17 +8800,17 @@ class DynKernelArgument(KernelArgument):
                 alg_datatype = None
 
         if self.is_scalar:
-            self._init_scalar_properties(
-                alg_datatype, alg_precision, use_alg_info)
+            self._init_scalar_properties(alg_datatype, alg_precision,
+                                         use_alg_info)
         elif self.is_field:
-            argtype = self._init_field_properties(alg_datatype, use_alg_info)
+            self._init_field_properties(alg_datatype, use_alg_info)
         elif self.is_operator:
-            argtype = self._init_operator_properties(
-                alg_datatype, use_alg_info)
+            self._init_operator_properties(alg_datatype, use_alg_info)
         else:
             raise InternalError(
                 f"Supported argument types are scalar, field and operator, "
-                f"but the argument '{self.name}' is none of these")
+                f"but the argument '{self.name}' in kernel "
+                f"'{self._call.name}' is none of these.")
 
     def _init_scalar_properties(
             self, alg_datatype, alg_precision, use_alg_info=True):
