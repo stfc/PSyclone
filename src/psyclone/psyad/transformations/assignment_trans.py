@@ -239,8 +239,6 @@ class AssignmentTrans(AdjointTransformation):
             Assignment.
         :raises TangentLinearError: if the assignment does not conform \
             to the required tangent-linear structure.
-        :raises NotImplementedError: if accesses to different ranges of the \
-            same active array are found on the LHS and RHS.
 
         '''
         # Check node argument is an assignment node
