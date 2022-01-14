@@ -37,7 +37,7 @@
 PSyclone Kernel Tools
 =====================
 
-In addition to the `psyclone` command, the PSyclone package also
+In addition to the ``psyclone`` command, the PSyclone package also
 provides tools related to generating code purely from kernel
 metadata. Currently there are two such tools:
 
@@ -56,11 +56,29 @@ that represents a complete, standalone application. Processing the
 generated algorithm layer and kernel metadata with PSyclone in the
 usual way will then generate code which executes the supplied kernel. 
 
-This functionality is provided to the user via the `psyclone-kern`
+This functionality is provided to the user via the ``psyclone-kern``
 command, described in more detail below.
 
-The `psyclone-kern` Command
+The psyclone-kern Command
 ---------------------------
+
+The ``psyclone-kern`` command has the following arguments::
+
+    > psyclone-ken -h
+    usage: psyclone-kern [-h] [-o OUTFILE] [-api API] [-l] filename
+
+    Create Kernel stub code from Kernel metadata
+
+    positional arguments:
+      filename              Kernel metadata
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -o OUTFILE, --outfile OUTFILE
+                            filename of output
+      -api API              choose a particular api from ['dynamo0.3'], default dynamo0.3
+      -l, --limit           limit the fortran line length to 132 characters
+
 
 .. _stub-generation:
 

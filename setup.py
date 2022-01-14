@@ -170,7 +170,7 @@ if __name__ == '__main__':
                      "pytest-pylint", "pytest-flakes", "pytest-pep257"],
         },
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/genkernelstub', 'bin/psyad'],
+        scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
         data_files=[
             ('share/psyclone',
              ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
