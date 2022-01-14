@@ -190,15 +190,6 @@ def test_loop_gen_code():
     gen = str(psy.gen)
     assert "DO cell=1,mesh%get_last_halo_cell(1),2" in gen
 
-    # If start and stop are unit literals the loop is skipped (there is just
-    # the loop body)
-    loop.start_expr = Literal("1", INTEGER_SINGLE_TYPE)
-    loop.stop_expr = Literal("1", INTEGER_SINGLE_TYPE)
-    loop._loop_type = "null"  # Otherwise the LFRic API will regenerate them
-    gen = str(psy.gen)
-    assert "DO" not in gen
-    assert "CALL testkern_code" in gen  # loop body
-
 
 def test_invalid_loop_annotations():
     ''' Check that the Loop constructor validates any supplied annotations. '''

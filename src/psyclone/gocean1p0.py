@@ -2324,6 +2324,11 @@ class GOHaloExchange(HaloExchange):
         appropriate library method.
 
         '''
+        # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
+
+        # TODO 886: Currently only stencils of depth 1 are accepted by this
+        # API, so the HaloExchange is hardcoded to depth 1.
+
         # Call the halo_exchange routine with depth argument to 1
         # Currently we create an symbol name with % as a workaround of not
         # having type bound routines.
@@ -2331,26 +2336,6 @@ class GOHaloExchange(HaloExchange):
                                 self._halo_exchange_name)
         call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
         self.replace_with(call_node)
-
-    def gen_code(self, parent):
-        '''GOcean specific code generation for this class.
-
-        :param parent: an f2pygen object that will be the parent of \
-            f2pygen objects created in this method.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
-
-        # TODO 886: Currently only stencils of depth 1 are accepted by this
-        # API, so the HaloExchange is hardcoded to depth 1.
-
-        parent.add(
-            CallGen(
-                parent, name=self._field.name +
-                "%" + self._halo_exchange_name +
-                "(depth=1)"))
-        parent.add(CommentGen(parent, ""))
 
 
 # For Sphinx AutoAPI documentation generation
