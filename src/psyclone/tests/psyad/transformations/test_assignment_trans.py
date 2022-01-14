@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -389,36 +389,6 @@ def test_multi_add_array_elements(tmpdir):
         "  a(j) = a(j) + a(i)\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
-    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
-
-
-def test_multi_add_array_range(tmpdir):
-    ''' Test that the correct code is generated for an assignment that is
-    not strictly an increment due to differing array slices. This means
-    we follow the rule:
-
-    A=B+xC -> B*=B*+A*; C*=C*+xA*; A*=0.0
-
-    where A=a(2:5), B=a(1:4) and C=b(1:4).
-
-    '''
-    tl_fortran = (
-        "  real a(10), b(10)\n  real :: x\n"
-        "  a(2:5) = A(1:4)+x*B(1:4)\n")
-    # If we consider a single array element from this expression then:
-    #   a(2) = a(1) + x*b(1)
-    # becomes:
-    #   a(1) = a(1) + a(2)
-    #   b(1) = b(1) + x*a(2)
-    #   a(2) = 0.0
-    active_variables = ["a", "b"]
-    ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real :: x\n\n"
-        "  a(1:4) = a(1:4) + a(2:5)\n"
-        "  b(1:4) = b(1:4) + x * a(2:5)\n"
-        "  a(2:5) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -845,6 +815,65 @@ def test_unary_binary_minus(tmpdir):
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
+
+# _array_ranges_match method
+
+def test_array_ranges_match():
+    ''' Test for the helper method that checks whether the array ranges match
+    for a variable referenced on both the LHS and RHS of an assignment. '''
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    lhs_symbol = DataSymbol("a", array_type)
+    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    single_elem_ref = ArrayReference.create(lhs_symbol,
+                                            [Literal("1", INTEGER_TYPE)])
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(rhs_symbol), single_elem_ref)
+    lhs = ArrayReference.create(lhs_symbol,
+                                [Range.create(Literal("2", INTEGER_TYPE),
+                                              Literal("5", INTEGER_TYPE))])
+    assign = Assignment.create(lhs, multiply)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    # If the rhs reference is not to the symbol on the LHS then the routine
+    # should do nothing.
+    trans._array_ranges_match(assign, Reference(rhs_symbol))
+    # If the rhs reference *is* to the same symbol as on the LHS but is not
+    # an ArrayReference then an exception should be raised.
+    with pytest.raises(TangentLinearError) as err:
+        trans._array_ranges_match(assign, Reference(lhs_symbol))
+    assert ("TangentLinearError: Assignment is to an array range but found a "
+            "reference to the LHS variable 'a' without array notation on the "
+            "RHS: 'a(2:5) = x * a(1)" in str(err.value))
+    # If the rhs reference does not match the range on the LHS then an
+    # exception should be raised.
+    with pytest.raises(NotImplementedError) as err:
+        trans._array_ranges_match(assign, single_elem_ref)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'. This "
+            "is not supported." in str(err.value))
+    # Repeat but with a range instead of a single array element. (This isn't
+    # valid code but is sufficient for this test.)
+    wrong_range = Range.create(Literal("3", INTEGER_TYPE),
+                               Literal("6", INTEGER_TYPE))
+    new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
+    assign = Assignment.create(lhs.detach(), new_ref)
+    with pytest.raises(NotImplementedError) as err:
+        trans._array_ranges_match(assign, new_ref)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = a(3:6)\n'. This "
+            "is not supported." in str(err.value))
+    # Repeat with a range where only the step size is wrong. (This isn't valid
+    # code but is sufficient for this test.)
+    wrong_range = Range.create(Literal("2", INTEGER_TYPE),
+                               Literal("5", INTEGER_TYPE),
+                               Literal("2", INTEGER_TYPE))
+    new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
+    assign = Assignment.create(lhs.detach(), new_ref)
+    with pytest.raises(NotImplementedError) as err:
+        trans._array_ranges_match(assign, new_ref)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = a(2:5:2)\n'. This "
+            "is not supported." in str(err.value))
+
 # validate() method
 
 
@@ -1249,6 +1278,18 @@ def test_validate_mismatched_array_ranges():
         trans.validate(assign)
     assert ("Different sections of the same active array 'a' are accessed on "
             "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'"
+            in str(err.value))
+    # Repeat but without a multiplier: a(2:5) = a(3:6).
+    assign = Assignment.create(lhs.detach(),
+                               ArrayReference.create(
+                                   lhs_symbol, [Range.create(
+                                       Literal("3", INTEGER_TYPE),
+                                       Literal("6", INTEGER_TYPE))]))
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(NotImplementedError) as err:
+        trans.validate(assign)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = a(3:6)\n'"
             in str(err.value))
 
 
