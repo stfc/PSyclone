@@ -36,6 +36,7 @@
 '''This module contains the GOcean-specific OpenCL transformation.
 '''
 
+import os
 import six
 
 from fparser.two import Fortran2003
@@ -44,6 +45,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
     HaloExchange
+from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
@@ -665,13 +667,24 @@ class GOOpenCLTrans(Transformation):
         if 'go_wp' in symtab:
             del symtab._symbols['go_wp']
 
-        # Insert kernel in the OpenCL kernels file
-        self._kernels_file.addchild(kernel_copy)
+        # Insert kernel in the OpenCL kernels file if it doesn't already exist
+        for routine in self._kernels_file.walk(Routine):
+            if routine.name == kernel.name:
+                code1 = OpenCLWriter()(kernel_copy)
+                code2 = OpenCLWriter()(routine)
+                if code1 != code2:
+                    raise TransformationError(
+                        f"A kernel named {kernel.name} already exist in the "
+                        f"OpenCL file but they have different source codes:\n"
+                        f"{code1}\n"
+                        f"----\n"
+                        f"{code2}")
+                break  # if they are the same we can re-use it.
+        else:
+            self._kernels_file.addchild(kernel_copy)
 
     def _output_opencl_kernels_file(self):
 
-        from psyclone.psyir.backend.opencl import OpenCLWriter
-        import os
         ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_name = ""
         new_kern_code = ocl_writer(self._kernels_file)
