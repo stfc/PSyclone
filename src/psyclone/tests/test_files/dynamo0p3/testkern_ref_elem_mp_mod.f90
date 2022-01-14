@@ -63,11 +63,7 @@ contains
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
-    integer(kind=i_def), intent(in) :: ndf_w2
-    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
-    integer(kind=i_def), intent(in) :: ndf_w3
-    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
+    integer(kind=i_def), intent(in) :: undf_w1
     real(kind=r_solver), intent(inout), dimension(undf_w1) :: fld1
     integer(kind=i_def), intent(in) :: nfaces_re_h
     integer(kind=i_def), intent(in) :: nfaces_re_v
