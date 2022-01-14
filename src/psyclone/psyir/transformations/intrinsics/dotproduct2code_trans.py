@@ -41,7 +41,7 @@ better than the intrinsic.
 '''
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, DataNode
+    Loop, Literal, ArrayReference, Range, DataNode, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
@@ -166,7 +166,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         super().validate(node, options)
 
     def apply(self, node, options=None):
-        '''Apply the DOR_PRODUCT intrinsic conversion transformation to the
+        '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
         specified node. This node must be a DOT_PRODUCT
         BinaryOperation.
         If the transformation is
@@ -184,7 +184,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         assignment = node.ancestor(Assignment)
         vector1 = node.children[0]
         vector2 = node.children[1]
-        symbol_table = node.scope.symbol_table
+        symbol_table = node.ancestor(Routine).symbol_table
 
         # Create new i loop iterator.
         i_loop_symbol = symbol_table.new_symbol(

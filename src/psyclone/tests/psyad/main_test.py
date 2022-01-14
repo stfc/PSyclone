@@ -319,6 +319,23 @@ def test_main_not_implemented_error(tmpdir, capsys):
     assert "This is not currently supported" in output
 
 
+def test_main_new_var(tmpdir):
+    '''Test that the main() function works when -a specifies a variable
+    name that does not exist in the original code but gets created as
+    part of the internal support for transformations.
+
+    '''
+    code = (
+        "program test\n"
+        "real :: a, b(10), c(10)\n"
+        "a = dot_product(b(:), c(:))\n"
+        "end program test\n")
+    filename = str(tmpdir.join("tl.f90"))
+    with open(filename, "w") as my_file:
+        my_file.write(code)
+    main(["-a", "a", "b", "res_dot_product", "--", filename])
+
+
 # writing to stdout
 def test_main_stdout(tmpdir, capsys):
     '''Test that the the main() function returns its output to stdout by
