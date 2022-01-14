@@ -247,23 +247,6 @@ class GOInvoke(Invoke):
         return result
 
     @property
-    def unique_args_rscalars(self):
-        '''
-        :returns: the unique arguments that are scalars of type real \
-                  (defined as those that are go_r_scalar 'space').
-        :rtype: list of str.
-
-        '''
-        result = []
-        for call in self._schedule.kernels():
-            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
-                                   include_literals=False):
-                if arg.space.lower() == "go_r_scalar" and \
-                   arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    @property
     def unique_args_iscalars(self):
         '''
         :returns: the unique arguments that are scalars of type integer \
@@ -306,19 +289,10 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # Add the subroutine argument declarations for integer and real scalars
-        r_args = []
         i_args = []
         for argument in self.schedule.symbol_table.argument_datasymbols:
-            if argument.name in self.unique_args_rscalars:
-                r_args.append(argument.name)
             if argument.name in self.unique_args_iscalars:
                 i_args.append(argument.name)
-
-        if r_args:
-            my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
-                                       intent="inout", kind="go_wp",
-                                       entity_decls=r_args)
-            invoke_sub.add(my_decl_rscalars)
 
         if i_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",

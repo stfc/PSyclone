@@ -124,6 +124,16 @@ def test_goloop_create(monkeypatch):
     assert goloop.children[1].value == '20'
     assert goloop.children[2].value == '1'
 
+    # Try with and invalid loop type
+    with pytest.raises(GenerationError) as err:
+        goloop = GOLoop.create(parent=gosched,
+                               loop_type="invalid",
+                               field_name="cv_fld",
+                               iteration_space="go_internal_pts",
+                               field_space="go_cv")
+    assert ("Error, loop_type value (invalid) is invalid. Must be one of "
+            "['inner', 'outer']." in str(err.value))
+
 
 def test_goloop_properties_getters_and_setters():
     ''' Test that the GOLoop getters and setters, retrieve and set the
