@@ -94,6 +94,36 @@ def test_generate_adjoint_str(caplog):
     assert test_harness is None
 
 
+def test_generate_adjoint_str_trans():
+    '''Test that the generate_adjoint_str() function successfully calls
+    the kern_trans() function.
+
+    '''
+    tl_code = (
+        "program test\n"
+        "real :: a, b(10), c(10)\n"
+        "a = dot_product(b(:), c(:))\n"
+        "end program test\n")
+    expected = (
+        "program test_adj\n"
+        "  real :: a\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n"
+        "  integer :: i\n"
+        "  real :: res_dot_product\n\n"
+        "  res_dot_product = res_dot_product + a\n"
+        "  a = 0.0\n"
+        "  do i = 10, 1, -1\n"
+        "    b(i) = b(i) + res_dot_product * c(i)\n"
+        "  enddo\n"
+        "  res_dot_product = 0.0\n\n"
+        "end program test_adj\n")
+    result, test_harness = generate_adjoint_str(
+        tl_code, ["a", "b", "res_dot_product"])
+    assert expected in result
+    assert not test_harness
+
+
 def test_generate_adjoint_str_generate_harness():
     ''' Test the create_test option to generate_adjoint_str(). '''
     tl_code = (

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,44 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''Module providing a transformation script that converts the supplied
-PSyIR to the Stencil intermediate representation (SIR) and
-
-1) modifies any PSyIR min, max, abs and sign intrinsics to PSyIR code
-beforehand using transformations, as SIR does not support intrinsics.
-
-2) transforms implicit loops to explicit loops as the SIR does not
-have the concept of implicit loops.
-
-Translation to the SIR is limited to the NEMO API. The NEMO API has no
-algorithm layer so all of the original code is captured in the invoke
-objects. Therefore by translating all of the invoke objects, all of
-the original code is translated.
+'''Module containing a PSyAD kernel transformation script that applies
+any required tranformations to the tangent linear PSyIR before it is
+translated to adjoint PSyIR.
 
 '''
-from __future__ import print_function
-from psyclone.nemo import NemoKern
-from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
-                                  NaryOperation, Operation, Assignment)
+from psyclone.psyir.nodes import BinaryOperation
 from psyclone.psyir.transformations import DotProduct2CodeTrans
 
 
-def trans(psy):
-    '''xxx'''
+def kern_trans(kernel_psyir):
+    '''PSyclone kernel transformation script which replaces dotproduct
+    intrinsics with equivalent code and returns the modified
+    psyir. This is called internally by the PSyAD script.
+
+    :param kernel_psyir: PSyIR representation of the tangent linear \
+        kernel code.
+    :type kernel_psyir: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
     dot_product_trans = DotProduct2CodeTrans()
 
-    # the invokes represent all of the original code.
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-
-        for kernel in schedule.walk(NemoKern):
-
-            kernel_schedule = kernel.get_kernel_schedule()
-            for oper in kernel_schedule.walk(Operation):
-                if oper.operator == BinaryOperation.Operator.DOT_PRODUCT:
-                    # Apply DOT_PRODUCT transformation
-                    dot_product_trans.apply(oper)
-
-    return psy
+    for oper in kernel_psyir.walk(BinaryOperation):
+        if oper.operator == BinaryOperation.Operator.DOT_PRODUCT:
+            # Apply DOT_PRODUCT transformation
+            dot_product_trans.apply(oper)
