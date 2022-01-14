@@ -54,7 +54,7 @@ import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
-    Pointer_Assignment_Stmt, Subroutine_Subprogram
+    Pointer_Assignment_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -62,8 +62,8 @@ from psyclone.core import Signature
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
+from psyclone.f2pygen import DeclGen, UseGen, ModuleGen, SubroutineGen, \
+    TypeDeclGen, PSyIRGen
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -76,17 +76,9 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
     ACCKernelsDirective, Container, ACCUpdateDirective
-from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
-    DataTypeSymbol, UnresolvedInterface, UnknownFortranType, BOOLEAN_TYPE, \
-    REAL_TYPE
-
-
-# Specify which OpenCL command queue to use for management operations like
-# data transfers when generating an OpenCL PSy-layer
-# TODO #1134: This value should be moved to the GOOpenCLTrans when the
-# transformation logic is also moved there.
-_OCL_MANAGEMENT_QUEUE = 1
+from psyclone.psyir.symbols import SymbolTable, ScalarType, INTEGER_TYPE, \
+    DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
+    UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
 
 
 class GOPSy(PSy):

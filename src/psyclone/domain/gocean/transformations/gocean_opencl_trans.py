@@ -78,7 +78,7 @@ class GOOpenCLTrans(Transformation):
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
 
-    # TODO #1134: These are class attributes because multiple invokes may have
+    # TODO #1572: These are class attributes because multiple invokes may need
     # to generate a single OpenCL environment (e.g. to share the device data
     # pointers) and therefore guarantee the same properties, but this hasn't
     # been tested. PSycloneBench ShallowWater could be an example of this.
@@ -416,8 +416,6 @@ class GOOpenCLTrans(Transformation):
                     except KeyError:
                         node.symbol_table.new_symbol(
                             name, tag=name, symbol_type=DataSymbol,
-                            # TODO #1134: We could import the kind symbols from
-                            # a iso_c_binding global container.
                             datatype=UnknownFortranType(
                                 "INTEGER(KIND=c_intptr_t) :: " + name))
 
@@ -680,11 +678,14 @@ class GOOpenCLTrans(Transformation):
 
     def _output_opencl_kernels_file(self):
 
+        # TODO 1013: The code below duplicates some logic of the CodedKern
+        # rename_and_write method. Ideally this should be moved out of
+        # the AST and transformations and put into some kind of IOManager.
+
         ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_name = ""
         new_kern_code = ocl_writer(self._kernels_file)
 
-        # TODO: The code below duplicates some logic inside CodedKern
         fdesc = None
         name_idx = -1
         while not fdesc:
@@ -929,10 +930,9 @@ class GOOpenCLTrans(Transformation):
         '''
         symtab = node.symbol_table
         try:
-            # TODO #1134: The init routine may need to be regenerated if there
-            # are multiple Invokes (multiple applies of this transformation),
-            # because _max_queue_number may have increased and we need to load
-            # the kernels of both invokes.
+            # TODO #1572: The ocl_init routine may need to be regenerated if
+            # there are multiple Invokes because _max_queue_number may have
+            # increased and we need to load the kernels of both invokes.
             return symtab.lookup_with_tag("ocl_init_routine")
         except KeyError:
             # If the Symbol does not exist, the rest of this method
