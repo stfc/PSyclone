@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -113,50 +113,58 @@ class ChunkLoopTrans(LoopTrans):
                 CodeBlock node.
         :raises TransformationError: if an unsupported option has been \
             provided.
-        :raises TransformationError: if the provided tilesize is not an \
-            integer.
+        :raises TransformationError: if the provided tilesize is not a \
+            positive integer.
         '''
         if options is None:
             options = {}
         super().validate(node, options=options)
 
         # Validate options map
+        # TODO #613: Hardcoding the valid_options does not allow for
+        # subclassing this transformation and adding new options, this
+        # should be fixed.
         valid_options = ['chunksize']
         for key, value in options.items():
             if key in valid_options:
                 if key == "chunksize" and not isinstance(value, int):
                     raise TransformationError(
-                        f"The ChunkLoopTrans chunksize option must be an "
-                        f"integer but found a '{type(value).__name__}'.")
+                        f"The ChunkLoopTrans chunksize option must be a "
+                        f"positive integer but found a "
+                        f"'{type(value).__name__}'.")
+                if key == "chunksize" and value <= 0:
+                    raise TransformationError(
+                        f"The ChunkLoopTrans chunksize option must be a "
+                        f"positive integer but found '{value}'.")
             else:
                 raise TransformationError(
                     f"The ChunkLoopTrans does not support the "
                     f"transformation option '{key}', the supported options "
                     f"are: {valid_options}.")
 
-        if not isinstance(node.children[2], nodes.Literal):
+        if not isinstance(node.step_expr, nodes.Literal):
             # If step is a variable we don't support it.
             raise TransformationError(
                 f"Cannot apply a ChunkLoopTrans to a loop with a non-literal "
                 f"step size, but a step expression node of type "
                 f"'{type(node).__name__}' was found.")
-        if node.children[2].datatype.intrinsic is not \
+        if node.step_expr.datatype.intrinsic is not \
            ScalarType.Intrinsic.INTEGER:
             raise TransformationError(
                 f"Cannot apply a ChunkLoopTrans to a loop with a non-integer "
                 f"step size, but a step expression of type "
-                f"'{node.children[2].datatype.intrinsic.name}' was found.")
+                f"'{node.step_expr.datatype.intrinsic.name}' was found.")
         chunk_size = options.get("chunksize", 32)
-        if abs(int(node.children[2].value)) > abs(chunk_size):
+        if abs(int(node.step_expr.value)) > abs(chunk_size):
             raise TransformationError(
                 f"Cannot apply a ChunkLoopTrans to a loop with larger step "
-                f"size ({node.children[2].value}) than the chosen chunk size "
+                f"size ({node.step_expr.value}) than the chosen chunk size "
                 f"({chunk_size}).")
         if 'chunked' in node.annotations:
             raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "an already chunked loop.")
 
-        if int(node.children[2].value) == 0:
+        if int(node.step_expr.value) == 0:
             raise TransformationError("Cannot apply a ChunkLoopTrans to "
                                       "a loop with a step size of 0.")
 
@@ -168,11 +176,11 @@ class ChunkLoopTrans(LoopTrans):
         # Dependency analysis, following rules:
         # No child has a write dependency to the loop variable.
         # Find variable access info for the loop variable and step
-        refs = VariablesAccessInfo(node.children[0])
+        refs = VariablesAccessInfo(node.start_expr)
         bounds_ref = VariablesAccessInfo()
         if refs is not None:
             bounds_ref.merge(refs)
-        refs = VariablesAccessInfo(node.children[1])
+        refs = VariablesAccessInfo(node.stop_expr)
         if refs is not None:
             bounds_ref.merge(refs)
         # The current implementation of ChunkLoopTrans does not allow
@@ -185,7 +193,7 @@ class ChunkLoopTrans(LoopTrans):
         bounds_sigs = bounds_ref.all_signatures
 
         # Find the Loop code's signatures
-        body_refs = VariablesAccessInfo(node.children[3])
+        body_refs = VariablesAccessInfo(node.loop_body)
         body_sigs = body_refs.all_signatures
 
         for ref1 in bounds_sigs:
@@ -234,12 +242,12 @@ class ChunkLoopTrans(LoopTrans):
 
         # Store the node's parent for replacing later and the start and end
         # indicies
-        start = node.children[0]
-        stop = node.children[1]
+        start = node.start_expr
+        stop = node.stop_expr
 
         # For positive steps we do:
         #     el_inner = min(out_var+chunk_size-1, el_outer)
-        if int(node.children[2].value) > 0:
+        if int(node.step_expr.value) > 0:
             add = BinaryOperation.create(
                     BinaryOperation.Operator.ADD,
                     Reference(outer_loop_variable),
@@ -253,7 +261,7 @@ class ChunkLoopTrans(LoopTrans):
                                                minop)
         # For negative steps we do:
         #     el_inner = max(out_var-chunk_size+1, el_outer)
-        elif int(node.children[2].value) < 0:
+        elif int(node.step_expr.value) < 0:
             sub = BinaryOperation.create(
                     BinaryOperation.Operator.SUB,
                     Reference(outer_loop_variable),
@@ -289,4 +297,4 @@ class ChunkLoopTrans(LoopTrans):
         # Replace this loop with the outerloop
         node.replace_with(outerloop)
         # Add the loop to the innerloop's schedule
-        outerloop.children[3].addchild(node)
+        outerloop.loop_body.addchild(node)

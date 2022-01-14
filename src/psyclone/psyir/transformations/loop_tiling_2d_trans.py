@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,7 @@ class LoopTiling2DTrans(LoopTrans):
 
         :raises TransformationError: if an unsupported option has been \
             provided.
-        :raises TransformationError: if the provided tilesize is not an \
+        :raises TransformationError: if the provided tilesize is not a \
             integer.
         '''
         if options is None:
@@ -113,13 +113,21 @@ class LoopTiling2DTrans(LoopTrans):
         super(LoopTiling2DTrans, self).validate(node, options=options)
 
         # Validate options map
+        # TODO #613: Hardcoding the valid_options does not allow for
+        # subclassing this transformation and adding new options, this
+        # should be fixed.
         valid_options = ['tilesize']
         for key, value in options.items():
             if key in valid_options:
                 if key == "tilesize" and not isinstance(value, int):
                     raise TransformationError(
-                        f"The LoopTiling2DTrans tilesize option must be an "
-                        f"integer but found a '{type(value).__name__}'.")
+                        f"The LoopTiling2DTrans tilesize option must be a "
+                        f"positive integer but found a "
+                        f"'{type(value).__name__}'.")
+                if key == "tilesize" and value <= 0:
+                    raise TransformationError(
+                        f"The LoopTiling2DTrans tilesize option must be a "
+                        f"positive integer but found '{value}'.")
             else:
                 raise TransformationError(
                     f"The LoopTiling2DTrans does not support the "

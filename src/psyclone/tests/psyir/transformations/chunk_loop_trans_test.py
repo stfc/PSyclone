@@ -193,7 +193,7 @@ def test_chunkloop_trans_validate4():
                                    Reference(lvar), Literal("1", INTEGER_TYPE))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
-    parent.children[0].replace_with(Reference(ivar))
+    parent.start_expr.replace_with(Reference(ivar))
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
@@ -222,7 +222,7 @@ def test_chunkloop_trans_validate4():
                                    Reference(ivar), Literal("1", INTEGER_TYPE))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
-    parent.children[1].replace_with(Reference(ivar))
+    parent.stop_expr.replace_with(Reference(ivar))
     parent._variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
@@ -318,8 +318,16 @@ def test_chunkloop_trans_validation_options(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         ChunkLoopTrans().validate(outer_loop, {'chunksize': '32'})
-    assert ("The ChunkLoopTrans chunksize option must be an integer but "
-            "found a 'str'." in str(err.value))
+    assert ("The ChunkLoopTrans chunksize option must be a positive integer "
+            "but found a 'str'." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'chunksize': -64})
+    assert ("The ChunkLoopTrans chunksize option must be a positive integer "
+            "but found '-64'." in str(err.value))
+
+    # Positive integers are accepted
+    ChunkLoopTrans().validate(outer_loop, {'chunksize': 64})
 
 
 def test_chunkloop_trans_apply_pos():
@@ -354,7 +362,7 @@ def test_chunkloop_trans_apply_neg():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.children[0].children[2].replace_with(Literal("-1", INTEGER_TYPE))
+    schedule.children[0].step_expr.replace_with(Literal("-1", INTEGER_TYPE))
     chunktrans = ChunkLoopTrans()
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
@@ -368,6 +376,24 @@ def test_chunkloop_trans_apply_neg():
     correct = '''END DO
         END DO
       END DO'''
+    assert correct in code
+
+
+def test_chunkloop_trans_apply_with_options():
+    ''' Check that a non-default chunksize option is used correctly. '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0], {'chunksize': 4})
+    code = str(psy.gen)
+    correct = \
+        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
+        j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
+        DO j = j_out_var, j_el_inner, 1
+    '''
     assert correct in code
 
 

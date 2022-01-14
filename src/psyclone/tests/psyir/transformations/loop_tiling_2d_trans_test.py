@@ -154,8 +154,13 @@ def test_loop_tiling_2d_trans_validation_options(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().apply(outer_loop, {'tilesize': '32'})
-    assert ("The LoopTiling2DTrans tilesize option must be an integer but "
-            "found a 'str'." in str(err.value))
+    assert ("The LoopTiling2DTrans tilesize option must be a positive integer "
+            "but found a 'str'." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        LoopTiling2DTrans().apply(outer_loop, {'tilesize': -32})
+    assert ("The LoopTiling2DTrans tilesize option must be a positive integer "
+            "but found '-32'." in str(err.value))
 
 
 def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
@@ -193,8 +198,7 @@ enddo'''
 
 
 def test_loop_tiling_2d_trans_apply_options(fortran_reader, fortran_writer):
-    ''' Validation passes when found a 2D nested loop construct when a
-    non-default tilesize option is provided '''
+    ''' Check that a non-default tilesize option is used correctly. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
             integer:: i, j
