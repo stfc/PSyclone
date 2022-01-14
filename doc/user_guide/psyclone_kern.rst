@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,41 @@
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
+PSyclone Kernel Tools
+=====================
+
+In addition to the `psyclone` command, the PSyclone package also
+provides tools related to generating code purely from kernel
+metadata. Currently there are two such tools:
+
+ 1. Kernel-stub generator
+ 2. Algorithm generator
+
+The kernel-stub generator takes a file containing kernel metadata as
+input and outputs the (Fortran) kernel subroutine arguments and
+declarations. The word "stub" is used to indicate that it is only the
+subroutine arguments and their declarations that are generated; the
+subroutine has no content.
+
+The algorithm generator also takes a file containing a kernel
+implementation but this time generates an appropriate Algorithm layer
+that represents a complete, standalone application. Processing the
+generated algorithm layer and kernel metadata with PSyclone in the
+usual way will then generate code which executes the supplied kernel. 
+
+This functionality is provided to the user via the `psyclone-kern`
+command, described in more detail below.
+
+The `psyclone-kern` Command
+---------------------------
+
 .. _stub-generation:
 
-Stub Generation
-===============
+Kernel-stub Generator
+---------------------
 
 Quick Start
------------
++++++++++++
 
 1) Use an existing Kernel file or create a Kernel file containing a
    Kernel module with the required metadata and an empty Kernel
@@ -50,7 +78,7 @@ Quick Start
     > genkernelstub <PATH>/my_file.f90
 
 Introduction
-------------
+++++++++++++
 
 PSyclone provides a kernel stub generator for the LFRic (Dynamo 0.3) API.
 The kernel stub generator takes a kernel file as input and outputs the
@@ -94,7 +122,7 @@ consistent.
 .. _stub-generation-use:
 
 Use
----
++++
 
 Before using the stub generator, PSyclone must be installed. If you
 have not already done so, please follow the instructions for setting
@@ -151,7 +179,7 @@ wrapping of lines within the 132 character limit (please see the
 .. _stub-generation-kernels:
 
 Kernels
--------
++++++++
 
 Any LFRic kernel can be used as input to the stub generator.
 Example Kernels can be found in the ``examples/lfric`` repository or,
@@ -164,8 +192,7 @@ In the ``tests/test_files/dynamo0p3`` directory the majority of examples
 start with ``testkern``. Amongst the exceptions are: ``simple.f90``,
 ``ru_kernel_mod.f90`` and ``matrix_vector_kernel_mod.F90``. The following
 test kernels can be used to generate kernel stub code (running stub
-generation from the ``<PSYCLONEHOME>/src/psyclone`` directory):
-::
+generation from the ``<PSYCLONEHOME>/src/psyclone`` directory)::
 
     tests/test_files/dynamo0p3/testkern_chi_read_mod.F90
     tests/test_files/dynamo0p3/testkern_coord_w0_mod.F90
@@ -181,8 +208,7 @@ Example
 
 A simple single field example of a kernel that can be used as input for the
 stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
-is shown below:
-::
+is shown below::
 
   module simple_mod
 
@@ -222,13 +248,11 @@ is shown below:
           the generator relies on currently requires a dummy kernel subroutine
           to exist.
 
-If we run the kernel stub generator on the ``simple.f90`` example:
-::
+If we run the kernel stub generator on the ``simple.f90`` example::
 
   > genkernelstub tests/test_files/dynamo0p3/simple.f90
 
-we get the following kernel stub output:
-::
+we get the following kernel stub output::
 
   MODULE simple_mod
     IMPLICIT NONE
@@ -283,8 +307,7 @@ specifies that there are four fields passed by the algorithm layer, the
 fourth of which is a vector field of size three. All three of the spaces
 require a basis function and the ``W0`` and ``W2`` function spaces
 additionally require a differential basis function. The content of the
-Kernel, excluding the subroutine body, is given below.
-::
+Kernel, excluding the subroutine body, is given below::
 
   module ru_kernel_mod
 
@@ -393,7 +416,7 @@ for a kernel that performs stencil operations is provided in
 .. _stub-generation-errors:
 
 Errors
-------
+++++++
 
 The stub generator has been written to provide useful errors if
 mistakes are found. If you run the generator and it does not produce a
@@ -402,8 +425,7 @@ contact the PSyclone developers.
 
 The following tests do not produce stub kernel code either because
 they are invalid or because they contain functionality that is not
-supported in the stub generator.
-::
+supported in the stub generator::
 
     tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     tests/test_files/dynamo0p3/testkern_any_space_4_mod.f90
@@ -417,8 +439,7 @@ supported in the stub generator.
 ``testkern_invalid_fortran.F90``, ``testkern_no_datatype.F90``,
 ``testkern_short_name.F90`` and ``testkern_qr.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
-appropriate errors. Two examples are below:
-::
+appropriate errors. Two examples are below::
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     Error: 'Parse Error: Code appears to be invalid Fortran'
@@ -439,8 +460,7 @@ for :ref:`quadrature <dynamo0.3-quadrature>` and
 :ref:`evaluators <dynamo0.3-gh-shape>`, are not supported. Hence,
 ``testkern_any_space_1_mod.f90``, ``testkern_any_space_4_mod.f90`` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
-appropriate warnings because of that. For example:
-::
+appropriate warnings because of that. For example::
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
@@ -449,9 +469,11 @@ appropriate warnings because of that. For example:
 
 As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
-message. For example:
-::
+message. For example::
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_qr.F90
     Error: "Parse Error: Error, module name 'testkern_qr' does not have
     '_mod' as an extension. This convention is assumed."
+
+Algorithm Generator
+-------------------
