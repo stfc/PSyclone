@@ -67,6 +67,9 @@
 	23) PR #1228 towards #753. The GOcean API now uses PSyIR for the Algorithm
 	layer.
 
+	24) PR #1526 for #1430. Fixes and improves support for array
+	ranges in psyad.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

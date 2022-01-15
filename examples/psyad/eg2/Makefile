@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
 include ../../common.mk
 
@@ -42,7 +42,7 @@ GENERATED_FILES +=
 # second, if supported, would write both it and the corresponding test
 # harness to separate files.
 transform:
-	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad grad_theta_v_at_quad res_dot_product
+	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 	@echo "Harness generation not yet supported"
 
 # It is not yet possible to compile the adjoint code into an object
