@@ -102,7 +102,7 @@ class AssignmentTrans(AdjointTransformation):
                     # Since we have already checked (in validate) that any
                     # references to the same symbol on the RHS have the same
                     # range, this is an increment if the symbols match.
-                    if (node.lhs.symbol is ref.symbol):
+                    if node.lhs.symbol is ref.symbol:
                         increment = True
                 else:
                     if sym_maths.equal(ref, node.lhs):
@@ -183,13 +183,13 @@ class AssignmentTrans(AdjointTransformation):
         :param assign: the assignment that we are checking.
         :type assign: :py:class:`psyclone.psyir.nodes.Assignment`
         :param active_variable: an active variable that appears on the \
-            RHS of the supplied assignment.
+            LHS and RHS of the supplied assignment.
         :type active_variable: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :raises TangentLinearError: if the supplied assignment is to an \
+        :raises TangentLinearError: if the supplied assignment is to a \
             symbol with an array range but the same symbol occurs on the \
             RHS without an array range.
-        :raises NotImplementedError: if the array ranges on the LHS and
+        :raises NotImplementedError: if the array ranges on the LHS and \
             RHS of the assignment for the supplied variable do not match.
 
         '''
