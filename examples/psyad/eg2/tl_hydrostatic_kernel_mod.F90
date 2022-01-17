@@ -248,19 +248,16 @@ subroutine tl_hydrostatic_code(nlayers,          &
           exner_at_quad  = exner_at_quad + exner_e(df)*w3_basis(1,df,qp1,qp2)
         end do
         theta_v_at_quad = 0.0_r_def
-        !*** Issue #1430 array notation for active variables is not working
-        !*** grad_theta_v_at_quad(:) = 0.0_r_def
+        grad_theta_v_at_quad(:) = 0.0_r_def
         do df = 1, ndf_wt
           theta_v_at_quad   = theta_v_at_quad                                 &
                             + theta_v_e(df)*wt_basis(1,df,qp1,qp2)
-          !*** Issue #1430 array notation for active variables is not working
-          !*** grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
-          !***                         + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2)
+          grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
+                                   + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2)
         end do
         ! Calculation
         do df = 1, ndf_w2
-          !*** Issue #1430 array notation for active variables is not working
-          !*** v  = w2_basis(:,df,qp1,qp2)
+          v  = w2_basis(:,df,qp1,qp2)
           dv = w2_diff_basis(1,df,qp1,qp2)
           ! Pressure gradient term
           !*** Issue #1490 dot_product is not supported
