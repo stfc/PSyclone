@@ -63,8 +63,10 @@ from psyclone.version import __VERSION__
 
 def run():
     '''
-    Parses and checks the command line arguments, calls the generate
-    function if all is well, catches any errors and outputs the
+    Driver for the psyclone-kern tool.
+
+    Parses and checks the command line arguments, calls the appropriate
+    generate function(s) if all is well, catches any errors and outputs the
     results.
 
     :param list args: the list of command-line arguments which which \
@@ -161,16 +163,19 @@ def run():
         if args.alg_gen or args.oalg:
             # Generate algorithm
             args.alg_gen = True
-            pass
+            from psyclone.alg_gen import generate
+            alg = generate(args.filename, api=api)
+
         if args.stub_gen or args.ostub:
             # Generate kernel stub
             args.stub_gen = True
             from psyclone.gen_kernel_stub import generate
             stub = generate(args.filename, api=api)
-            pass
+
     except (IOError, ParseError, GenerationError, RuntimeError) as error:
         print("Error:", error, file=sys.stderr)
         exit(1)
+
     except Exception:   # pylint: disable=broad-except
         print("Error, unexpected exception:\n")
         exc_type, exc_value, exc_traceback = sys.exc_info()
