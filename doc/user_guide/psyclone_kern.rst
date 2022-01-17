@@ -41,8 +41,8 @@ In addition to the ``psyclone`` command, the PSyclone package also
 provides tools related to generating code purely from kernel
 metadata. Currently there are two such tools:
 
- 1. Kernel-stub generator
- 2. Algorithm generator
+ 1. :ref:`stub-generation`
+ 2. :ref:`alg-generation`
 
 The kernel-stub generator takes a file containing kernel metadata as
 input and outputs the (Fortran) kernel subroutine arguments and
@@ -51,10 +51,11 @@ subroutine arguments and their declarations that are generated; the
 subroutine has no content.
 
 The algorithm generator also takes a file containing a kernel
-implementation but this time generates an appropriate Algorithm layer
-that represents a complete, standalone application. Processing the
-generated algorithm layer and kernel metadata with PSyclone in the
-usual way will then generate code which executes the supplied kernel. 
+implementation but this time generates an appropriate algorithm layer
+that represents a complete, standalone application. Processing
+this algorithm layer plus the assoicated kernel metadata may then be
+processed with PSyclone in the usual way to generate code which executes
+the supplied kernel. 
 
 This functionality is provided to the user via the ``psyclone-kern``
 command, described in more detail below.
@@ -62,8 +63,10 @@ command, described in more detail below.
 The psyclone-kern Command
 ---------------------------
 
-The ``psyclone-kern`` command has the following arguments::
+The ``psyclone-kern`` command has the following arguments:
 
+.. code-block:: bash
+		
     > psyclone-ken -h
     usage: psyclone-kern [-h] [-o OUTFILE] [-api API] [-l] filename
 
@@ -74,11 +77,31 @@ The ``psyclone-kern`` command has the following arguments::
 
     optional arguments:
       -h, --help            show this help message and exit
-      -o OUTFILE, --outfile OUTFILE
-                            filename of output
+      --stub-gen            generate a kernel stub for the supplied kernel metadata
+      --alg-gen             generate algorithm code that calls the supplied kernel using an 'invoke'
+      -oalg OUTFILE, --outalgfile OUTFILE
+                            filename of output algorithm (implies --alg-gen)
+      -ostub OUTFILE, --outstubfile OUTFILE
+                            filename of output kernel subroutine stub (implies --stub-gen)
       -api API              choose a particular api from ['dynamo0.3'], default dynamo0.3
-      -l, --limit           limit the fortran line length to 132 characters
+      -l, --limit           limit the Fortran line length to 132 characters
 
+Those specific to stub or algorithm generation are covered in the appropriate
+sections below.
+
+The ``-oxxx``, or ``--outxxxfile`` options allows the user to specify that
+the output should be written to a particular file. If they are not
+specified then the python ``print`` statement is used. Typically the
+print statement results in the output being printed to the terminal.
+
+As is indicated when using the ``-h`` option, the ``-api`` option only
+accepts ``dynamo0.3`` (LFRic) at the moment and is redundant as this option
+is also the default. However the number of supported APIs is expected to
+expand in the future.
+
+The ``-l``, or ``--limit`` option utilises the PSyclone support for
+wrapping of lines within the 132 character limit in the generated Fortran code
+(please see the :ref:`Line Length <line-length>` chapter for more details).
 
 .. _stub-generation:
 
@@ -93,7 +116,7 @@ Quick Start
    subroutine with no arguments.
 2) Run the following command ::
 
-    > genkernelstub <PATH>/my_file.f90
+    > psyclone-kern --stub-gen <PATH>/my_file.f90
 
 Introduction
 ++++++++++++
@@ -142,57 +165,20 @@ consistent.
 Use
 +++
 
-Before using the stub generator, PSyclone must be installed. If you
+Before using the ``psyclone-kern`` tool, PSyclone must be installed. If you
 have not already done so, please follow the instructions for setting
 up PSyclone in Section :ref:`Getting Going <getting-going>`.
 
 PSyclone will be installed in a particular location on your machine,
 which will be referred to as the ``<PSYCLONEINSTALL>`` directory. The
-stub generator script ``genkernelstub`` comes with the PSyclone
-installation. A quick check ``> which genkernelstub`` should return
+`pyclone-kern`` script comes with the PSyclone
+installation. A quick check ``> which psyclone-kern`` should return
 the location of the ``<PSYCLONEINSTALL>/bin`` directory.
 
-The easiest way to use the stub generator is to run the supplied
-``genkernelstub`` script.
-::
+The easiest way to use the stub generator is to run this ``psyclone-kern``
+script with the ``--stub-gen`` and/or ``--ostub`` flags::
 
-    > genkernelstub
-    usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename
-    genkernelstub: error: the following arguments are required: filename
-
-You can get information about the ``genkernelstub`` arguments using
-``-h`` or ``--help``:
-::
-
-  >  genkernelstub -h
-  usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename
-
-  Create Kernel stub code from Kernel metadata
-
-  positional arguments:
-    filename              Kernel metadata
-
-  optional arguments:
-    -h, --help            show this help message and exit
-    -o OUTFILE, --outfile OUTFILE
-                          filename of output
-    -api API              choose a particular api from ['dynamo0.3'], default
-                          dynamo0.3
-    -l, --limit           limit the fortran line length to 132 characters
-
-As is indicated when using the ``-h`` option, the ``-api`` option only
-accepts ``dynamo0.3`` (LFRic) at the moment and is redundant as this option
-is also the default. However the number of supported APIs is expected to
-expand in the future.
-
-The ``-o``, or ``--outfile`` option allows the user to specify that
-the output should be written to a particular file. If ``-o`` is not
-specified then the python ``print`` statement is used. Typically the
-print statement results in the output being printed to the terminal.
-
-The ``-l``, or ``--limit`` option utilises the PSyclone support for
-wrapping of lines within the 132 character limit (please see the
-:ref:`Line Length <line-length>` chapter for more details).
+    > psyclone-kern --ostub my_stub_file.f90 ./my_kernel_mod.f90
 
 .. _stub-generation-kernels:
 
@@ -268,7 +254,7 @@ is shown below::
 
 If we run the kernel stub generator on the ``simple.f90`` example::
 
-  > genkernelstub tests/test_files/dynamo0p3/simple.f90
+  > psyclone-kern --stub-gen tests/test_files/dynamo0p3/simple.f90
 
 we get the following kernel stub output::
 
@@ -370,7 +356,7 @@ Kernel, excluding the subroutine body, is given below::
 
 If we run the kernel stub generator on this example::
 
-  > genkernelstub tests/test_files/dynamo0p3/ru_kernel_mod.f90
+  > psyclone-kern --stub-gen tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
 we obtain the following output::
 
@@ -426,10 +412,9 @@ the number of the vector.
 The introduction of stencil operations on field arguments further complicates
 the argument list of a kernel. An example of the use of the stub generator
 for a kernel that performs stencil operations is provided in
-``examples/lfric/eg5``.
-::
+``examples/lfric/eg5``::
 
-  > genkernelstub ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
+  > psyclone-kern --stub-gen ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
 
 .. _stub-generation-errors:
 
@@ -459,10 +444,10 @@ supported in the stub generator::
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 
-    > genkernelstub tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
+    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     Error: 'Parse Error: Code appears to be invalid Fortran'
 
-    > genkernelstub tests/test_files/dynamo0p3/testkern_no_datatype.F90
+    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_no_datatype.F90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
@@ -480,7 +465,7 @@ for :ref:`quadrature <dynamo0.3-quadrature>` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
 appropriate warnings because of that. For example::
 
-    > genkernelstub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
+    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
     one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2',
     'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found 'any_space_1'"
@@ -489,9 +474,12 @@ As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example::
 
-    > genkernelstub tests/test_files/dynamo0p3/testkern_qr.F90
+    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_qr.F90
     Error: "Parse Error: Error, module name 'testkern_qr' does not have
     '_mod' as an extension. This convention is assumed."
+
+
+.. _alg-generation:
 
 Algorithm Generator
 -------------------
