@@ -644,10 +644,18 @@ class GOOpenCLTrans(Transformation):
         self._output_opencl_kernels_file()
 
     def _insert_kernel_code_in_opencl_file(self, kernel):
+        ''' Insert the given kernel in a PSyIR tree that represents the whole
+        OpenCL kernels file that will be produced by this transformation.
+
+        :param kernel: the kernel to insert.
+        :type kernel: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        '''
+
         if not self._kernels_file:
             self._kernels_file = FileContainer("opencl_kernels")
 
-        # Create a copy of the kernel and remove precision symbols
+        # Create a copy of the kernel and remove precision symbols since they
+        # are not supported in the OpenCL backend.
         kernel_copy = kernel.get_kernel_schedule().copy()
         symtab = kernel_copy.symbol_table
 
@@ -663,27 +671,21 @@ class GOOpenCLTrans(Transformation):
         # Insert kernel in the OpenCL kernels file if it doesn't already exist
         for routine in self._kernels_file.walk(Routine):
             if routine.name == kernel.name:
-                code1 = OpenCLWriter()(kernel_copy)
-                code2 = OpenCLWriter()(routine)
-                if code1 != code2:
-                    raise TransformationError(
-                        f"A kernel named {kernel.name} already exist in the "
-                        f"OpenCL file but they have different source codes:\n"
-                        f"{code1}\n"
-                        f"----\n"
-                        f"{code2}")
-                break  # if they are the same we can re-use it.
+                break  # if it exist re-use existing one
+                # TODO 1572: Here we assume that in the same Invoke (scope) a
+                # kernel with the same name will be the same kernel, but than
+                # may not be true when doing multiple invokes.
         else:
             self._kernels_file.addchild(kernel_copy)
 
     def _output_opencl_kernels_file(self):
+        ''' Write the current OpenCL kernels PSyIR tree into a file. '''
 
         # TODO 1013: The code below duplicates some logic of the CodedKern
         # rename_and_write method. Ideally this should be moved out of
         # the AST and transformations and put into some kind of IOManager.
 
         ocl_writer = OpenCLWriter(kernels_local_size=64)
-        new_name = ""
         new_kern_code = ocl_writer(self._kernels_file)
 
         fdesc = None
