@@ -52,10 +52,9 @@ subroutine has no content.
 
 The algorithm generator also takes a file containing a kernel
 implementation but this time generates an appropriate algorithm layer
-that represents a complete, standalone application. Processing
-this algorithm layer plus the assoicated kernel metadata may then be
-processed with PSyclone in the usual way to generate code which executes
-the supplied kernel. 
+that represents a complete, standalone application. This algorithm layer
+plus the associated kernel metadata may then be processed with PSyclone
+in the usual way to generate code which executes the supplied kernel.
 
 This functionality is provided to the user via the ``psyclone-kern``
 command, described in more detail below.
@@ -68,31 +67,47 @@ The ``psyclone-kern`` command has the following arguments:
 .. code-block:: bash
 
     > psyclone-ken -h
-    usage: psyclone-kern [-h] [-o OUTFILE] [-api API] [-l] filename
+    usage: psyclone-kern [-h] [--alg-gen] [--stub-gen] [-oalg OALG]
+                         [-ostub OSTUB] [-api API]
+                         [-I INCLUDE] [-l {off,all,output}]
+                         [--config CONFIG] [-v]
+                         filename
 
-    Create Kernel stub code from Kernel metadata
+    Run the PSyclone kernel generator on a particular file
 
     positional arguments:
-      filename              Kernel metadata
+      filename              file containing Kernel metadata
 
     optional arguments:
       -h, --help            show this help message and exit
-      --stub-gen            generate a kernel stub for the supplied kernel metadata
-      --alg-gen             generate algorithm code that calls the supplied kernel using an 'invoke'
-      -oalg OUTFILE, --outalgfile OUTFILE
-                            filename of output algorithm (implies --alg-gen)
-      -ostub OUTFILE, --outstubfile OUTFILE
-                            filename of output kernel subroutine stub (implies --stub-gen)
-      -api API              choose a particular api from ['dynamo0.3'], default dynamo0.3
-      -l, --limit           limit the Fortran line length to 132 characters
+      --alg-gen             generate an algorithm layer for the supplied
+                            kernel
+      --stub-gen            generate a stub kernel subroutine
+      -oalg OALG            filename of created algorithm code (implies
+                            '--alg-gen'
+      -ostub OSTUB          filename of created kernel stub code
+                            (implies '--stub-gen')
+      -api API              choose a particular API from ['dynamo0.1',
+                            'dynamo0.3', 'gocean0.1', 'gocean1.0',
+                            'nemo'], default 'dynamo0.3'.
+      -I INCLUDE, --include INCLUDE
+                            path to Fortran INCLUDE or module files
+      -l {off,all,output}, --limit {off,all,output}
+                            limit the Fortran line length to 132
+                            characters (default 'off'). Use 'all' to
+                            apply limit to both input and output
+                            Fortran. Use 'output' to apply line-length
+                            limit to output Fortran only.
+      --config CONFIG       Config file with PSyclone specific options.
+      -v, --version         Display version information (2.1.0)
 
 Those specific to stub or algorithm generation are covered in the appropriate
 sections below.
 
-The ``-oxxx``, or ``--outxxxfile`` options allows the user to specify that
-the output should be written to a particular file. If they are not
-specified then the python ``print`` statement is used. Typically the
-print statement results in the output being printed to the terminal.
+The ``-oalg`` and ``-ostub`` options allow the user to specify that
+the output should be written to a particular file. If these are not
+specified then the Python ``print`` statement is used to write to stdout.
+Typically this results in the output being printed to the terminal.
 
 As is indicated when using the ``-h`` option, the ``-api`` option only
 accepts ``dynamo0.3`` (LFRic) at the moment and is redundant as this option
@@ -171,7 +186,7 @@ up PSyclone in Section :ref:`Getting Going <getting-going>`.
 
 PSyclone will be installed in a particular location on your machine,
 which will be referred to as the ``<PSYCLONEINSTALL>`` directory. The
-`pyclone-kern`` script comes with the PSyclone
+``psyclone-kern`` script comes with the PSyclone
 installation. A quick check ``> which psyclone-kern`` should return
 the location of the ``<PSYCLONEINSTALL>/bin`` directory.
 
@@ -208,9 +223,9 @@ generation from the ``<PSYCLONEHOME>/src/psyclone`` directory)::
 .. _stub-generation-example:
 
 Example
--------
++++++++
 
-A simple single field example of a kernel that can be used as input for the
+A simple, single field example of a kernel that can be used as input for the
 stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
 is shown below::
 
