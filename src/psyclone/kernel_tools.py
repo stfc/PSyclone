@@ -91,13 +91,11 @@ def run():
     parser.add_argument('-ostub', help="filename of created kernel stub code "
                         "(implies '--stub-gen')")
     parser.add_argument('-api',
-                        help='choose a particular api from {0}, '
+                        help='choose a particular API from {0}, '
                              'default \'{1}\'.'
                         .format(str(Config.get().supported_apis),
                                 Config.get().default_api))
     parser.add_argument('filename', help='file containing Kernel metadata')
-    parser.add_argument('-s', '--script', help='filename of a PSyclone'
-                        ' optimisation script')
 
     # Make the default an empty list so that we can check whether the
     # user has supplied a value(s) later
