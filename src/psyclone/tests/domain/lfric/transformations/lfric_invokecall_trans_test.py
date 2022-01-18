@@ -66,10 +66,10 @@ def check_invoke(call, kern_info, description=None):
 
     '''
     assert isinstance(call, LFRicAlgorithmInvokeCall)
-    if call._description:
-        assert call._description == "'{0}'".format(description)
+    if call._name:
+        assert call._name == f"'{description}'"
     else:
-        assert call._description is None
+        assert call._name is None
     assert len(call.children) == len(kern_info)
     for index, (kern_type, kern_name) in enumerate(kern_info):
         assert isinstance(call.children[index], kern_type)
@@ -136,10 +136,10 @@ def test_named_arg_error(string, fortran_reader):
 
     '''
     code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke({0})\n"
-        "end subroutine alg\n".format(string))
+        f"subroutine alg()\n"
+        f"  use kern_mod\n"
+        f"  call invoke({string})\n"
+        f"end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
@@ -147,16 +147,16 @@ def test_named_arg_error(string, fortran_reader):
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
-            "named argument, it must take the form name='str', but found "
-            "'{0}'.".format(string) in str(info.value))
+    assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
+            f"named argument, it must take the form name='str', but found "
+            f"'{string}'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans._validate_fp2_node(
             subroutine[0].children[0]._fp2_nodes[0])
-    assert ("Error in LFRicInvokeCallTrans transformation. If there is a "
-            "named argument, it must take the form name='str', but found "
-            "'{0}'.".format(string) in str(info.value))
+    assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
+            f"named argument, it must take the form name='str', but found "
+            f"'{string}'." in str(info.value))
 
 
 def test_multi_named_arg_error(fortran_reader):

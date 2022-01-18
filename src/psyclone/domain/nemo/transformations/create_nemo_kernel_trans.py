@@ -56,9 +56,10 @@ class CreateNemoKernelTrans(Transformation):
     >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
     >>> code = '''
     ... subroutine sub()
-    ...   integer :: ji, tmp(10)
+    ...   integer :: ji
+    ...   real :: tmp(10)
     ...   do ji=1, 10
-    ...     tmp(ji) = 2*ji
+    ...     tmp(ji) = 2.0*ji
     ...   end do
     ... end subroutine sub'''
     >>> psyir = FortranReader().psyir_from_source(code)
@@ -79,7 +80,7 @@ class CreateNemoKernelTrans(Transformation):
                                 ArrayReference[name:'tmp']
                                     Reference[name:'ji']
                                 BinaryOperation[operator:'MUL']
-                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                                    Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
                                     Reference[name:'ji']
 
     The resulting Schedule contains a NemoKern (displayed as an

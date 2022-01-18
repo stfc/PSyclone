@@ -61,6 +61,12 @@
 	21) PR #1510 for #1499. Add SymbolTable method to resolve the properties
 	of imported symbols.
 
+	22) PR #1485 for #1429. Create correct variable intents for
+	generated adjoint kernel code.
+
+	23) PR #1228 towards #753. The GOcean API now uses PSyIR for the Algorithm
+	layer.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

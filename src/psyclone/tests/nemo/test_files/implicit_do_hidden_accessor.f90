@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,15 +34,15 @@
 subroutine implicit_do_hidden(arg1, arg2)
   implicit none
   integer, parameter :: jpi=10, jpj=10, jpk=10
-  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: local1
-  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk), intent(in) :: arg1
-  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk), intent(in), optional :: arg2
+  real, dimension(jpi,jpj,jpk) :: local1
+  real, dimension(jpi,jpj,jpk), intent(in) :: arg1
+  real, dimension(jpi,jpj,jpk), intent(in), optional :: arg2
 
-  ! Test code with implicit NEMO-style do loop with known array type but hidden
-  ! ranges
+  ! Test code with implicit NEMO-style do loop with known array type and
+  ! missing range expression in the RHS
   local1(:,:,:) = arg1
 
-  ! Test code with implicit NEMO-style do loop with unsupported array type and
-  ! hidden ranges
+  ! Test code with implicit NEMO-style do loop with unsupported array type
+  ! (due to the optional parameter) and missing range expression in the RHS
   local1(:,:,:) = arg2
 end subroutine implicit_do_hidden

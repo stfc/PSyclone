@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
@@ -44,20 +45,20 @@ array index should be transformed.
 '''
 
 from __future__ import absolute_import
-
+from psyclone.configuration import Config
+from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
+    CreateNemoKernelTrans
+from psyclone.errors import LazyString, InternalError
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation, InvokeSchedule
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
-from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType
-from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     Assignment, Literal, Operation, CodeBlock, ArrayMember, Loop, Routine, \
     BinaryOperation, StructureReference, StructureMember
-from psyclone.nemo import NemoLoop
-from psyclone.configuration import Config
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
+    ScalarType
+from psyclone.psyir.transformations.transformation_error import \
+    TransformationError
 
 
 class NemoArrayRange2LoopTrans(Transformation):
@@ -172,7 +173,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 except KeyError:
                     # The config lower bound symbol name does not exist
                     pass
-        # The lower bound is still not set use the LBOUND() intrinsic
+        # The lower bound is still not set so use the LBOUND() intrinsic
         if not lower_bound:
             lower_bound = node.start.copy()
 
@@ -192,9 +193,9 @@ class NemoArrayRange2LoopTrans(Transformation):
                     upper_bound = Reference(
                         symbol_table.lookup(upper_bound_info))
                 except KeyError:
-                    # The config lower upper symbol name does not exist
+                    # The config upper bound symbol name does not exist
                     pass
-        # The upper_bound bound is still not set use the UBOUND() intrinsic
+        # The upper_bound bound is still not set so use the UBOUND() intrinsic
         if not upper_bound:
             upper_bound = node.stop.copy()
 
@@ -273,24 +274,24 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Am I Range node?
         if not isinstance(node, Range):
             raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Range, but "
-                "found '{0}'.".format(type(node).__name__))
+                f"Error in NemoArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Range, but "
+                f"found '{type(node).__name__}'.")
         # Am I within an array reference?
         if not node.parent or not isinstance(node.parent, ArrayReference):
             raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayReference "
-                "node, but found '{0}'.".format(type(node.parent).__name__))
+                f"Error in NemoArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be within an ArrayReference "
+                f"node, but found '{type(node.parent).__name__}'.")
         array_ref = node.parent
         # Is the array reference within an assignment?
         if not array_ref.parent or not isinstance(array_ref.parent,
                                                   Assignment):
             raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayReference "
-                "node that is within an Assignment node, but found '{0}'."
-                .format(type(array_ref.parent).__name__))
+                f"Error in NemoArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be within an ArrayReference "
+                f"node that is within an Assignment node, but found "
+                f"'{type(array_ref.parent).__name__}'.")
         assignment = array_ref.parent
         # Is the array reference the lhs of the assignment?
         if assignment.lhs is not array_ref:
@@ -309,26 +310,33 @@ class NemoArrayRange2LoopTrans(Transformation):
                 continue
             if not operation.is_elemental():
                 raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation. This "
-                    "transformation does not support array valued operations "
-                    "on the rhs of the associated Assignment node, but found "
-                    "'{0}'.".format(operation.operator.name))
+                    f"Error in NemoArrayRange2LoopTrans transformation. This "
+                    f"transformation does not support non-elemental operations"
+                    f" on the rhs of the associated Assignment node, but found"
+                    f" '{operation.operator.name}'.")
+
+        # Do a single walk to avoid doing a separate one for each type we need
+        nodes_to_check = assignment.walk((CodeBlock, Call, Reference))
+
         # Do not allow to transform expressions with CodeBlocks
-        if assignment.walk(CodeBlock):
-            raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. This "
-                "transformation does not support array assignments that "
-                "contain a CodeBlock anywhere in the expression.")
+        if any(isinstance(n, CodeBlock) for n in nodes_to_check):
+            raise TransformationError(LazyString(
+                lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
+                f"This transformation does not support array assignments that"
+                f" contain a CodeBlock anywhere in the expression, but found:"
+                f"\n{FortranWriter()(assignment)}"))
         # Do not allow to transform expressions with function calls (to allow
         # this we need to differentiate between elemental and not elemental
         # functions as they have different semantics in array notation)
-        if assignment.walk(Call):
-            raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. This "
-                "transformation does not support array assignments that "
-                "contain a Call anywhere in the expression.")
+        if any(isinstance(n, Call) for n in nodes_to_check):
+            raise TransformationError(LazyString(
+                lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
+                f"This transformation does not support array assignments that"
+                f" contain a Call anywhere in the expression, but found:"
+                f"\n{FortranWriter()(assignment)}"))
 
-        for reference in assignment.walk(Reference):
+        references = [n for n in nodes_to_check if isinstance(n, Reference)]
+        for reference in references:
             # As special case we always allow references to whole arrays as
             # part of the LBOUND and UBOUND operations, regardless of the
             # restrictions below (e.g. is a DeferredType reference).
@@ -349,10 +357,13 @@ class NemoArrayRange2LoopTrans(Transformation):
                 # converted to an explicit expression
                 if not any(child for child in reference.children if
                            isinstance(child, Range)):
-                    raise TransformationError(
-                        "Error in NemoArrayRange2LoopTrans transformation. "
-                        "This transformation does not support assignments "
-                        "with rhs arrays that don't have a range.")
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
+                        lambda: f"Error in NemoArrayRange2LoopTrans "
+                        f"transformation. This transformation does not support"
+                        f" assignments with rhs arrays that don't have a range"
+                        f", but found '{reference.name}' in:"
+                        f"\n{FortranWriter()(assignment)}"))
                 continue
 
             # However, if it doesn't have array accessors or structure syntax,
@@ -360,10 +371,9 @@ class NemoArrayRange2LoopTrans(Transformation):
             if not isinstance(reference.symbol, DataSymbol) or \
                     not isinstance(reference.symbol.datatype, ScalarType):
                 raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation. "
-                    "Variable '{0}' must be a scalar DataSymbol in order to "
-                    "successfully apply the transformation."
-                    "".format(reference.symbol.name))
+                    f"Error in NemoArrayRange2LoopTrans transformation. "
+                    f"Variable '{reference.symbol.name}' must be a DataSymbol"
+                    f" of ScalarType, but it's a '{reference.symbol}'.")
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
@@ -393,10 +403,10 @@ class NemoArrayRange2LoopTrans(Transformation):
                         loop_variable_symbol.datatype.intrinsic is
                         ScalarType.Intrinsic.INTEGER):
                     raise TransformationError(
-                        "The config file specifies '{0}' as the name of the "
-                        "iteration variable but this is already declared in "
-                        "the code as something that is not a scalar integer, "
-                        "or is a deferred type.".format(loop_variable_name))
+                        f"The config file specifies '{loop_variable_name}' as "
+                        f"the name of the iteration variable but this is "
+                        f"already declared in the code as something that is "
+                        f"not a scalar integer or a deferred type.")
             except KeyError:
                 # Variable is not defined
                 pass
@@ -410,15 +420,16 @@ class NemoArrayRange2LoopTrans(Transformation):
                 if isinstance(current, Loop):
                     varname = current.variable.name
                     if varname.lower() == loop_variable_name.lower():
-                        raise TransformationError(
-                            "The config file specifies '{0}' as the name of "
-                            "the iteration variable but this is already used "
-                            "by an ancestor loop variable."
-                            "".format(loop_variable_name))
+                        raise TransformationError(LazyString(
+                            lambda: f"The config file specifies "
+                            f"'{loop_variable_name}' as the name of the "
+                            f"iteration variable but this is already used "
+                            f"by an ancestor loop variable in:"
+                            f"\n{FortranWriter()(current)}"))
                 current = current.parent
             # Note that we don't check if the variable name is used in a
-            # context different that the loop if its an integer. We assume
-            # this is a guarantee of the API.
+            # context other that the loop if it's an integer. We assume this
+            # is a guarantee of the API.
 
         except IndexError:
             # There is no name for this index in the config file (it can
