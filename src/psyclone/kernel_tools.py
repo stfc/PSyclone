@@ -121,7 +121,7 @@ def run():
     args = parser.parse_args()
 
     if args.version:
-        print(f"psyclone-kern version: {__VERSION__}")
+        print(f"psyclone-kern version: {__VERSION__}", file=sys.stdout)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -185,7 +185,8 @@ def run():
         exit(1)
 
     if not (args.stub_gen or args.alg_gen):
-        print("ARPDBG need one of xxx or yyy", file=sys.stderr)
+        print("Error, no action specified: one or both of --stub-gen/-oalg "
+              "or --alg-gen/-ogen must be supplied.", file=sys.stderr)
         sys.exit(1)
 
     if args.limit:

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,14 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the Dynamo 0.3 kernel-stub generator using pytest. '''
+''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
+    pytest. '''
 
 # imports
 from __future__ import absolute_import, print_function
 
 import os
-from subprocess import Popen, PIPE, STDOUT
+import subprocess
 import pytest
 
 import fparser
@@ -657,27 +658,20 @@ def test_sub_name():
 
 def test_kernel_stub_usage():
     ''' Check that the kernel-stub generator prints a usage message
-    if no arguments are supplied '''
+    if no arguments are supplied. '''
 
     usage_msg = (
-        "usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename\n"
-        )
-
-    # We use the Popen constructor here rather than check_output because
-    # the latter is only available in Python 2.7 onwards.
-    out = Popen(['genkernelstub'],
-                stdout=PIPE,
-                stderr=STDOUT).communicate()[0]
-    assert usage_msg in out.decode('utf-8')
+        "usage: psyclone-kern [-h] [--alg-gen] [--stub-gen] [-oalg OALG] ")
+    out = subprocess.run(['psyclone-kern'], check=False,
+                         stderr=subprocess.PIPE, encoding="utf-8").stderr
+    assert usage_msg in out
 
 
 def test_kernel_stub_gen_cmd_line():
     ''' Check that we can call the kernel-stub generator from the
-    command line '''
-    # We use the Popen constructor here rather than check_output because
-    # the latter is only available in Python 2.7 onwards.
-    out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "simple.f90")],
-                stdout=PIPE).communicate()[0]
+    command line. '''
+
+    out = subprocess.check_output(["psyclone-kern", "--stub-gen",
+                                   os.path.join(BASE_PATH, "simple.f90")])
 
     assert SIMPLE in out.decode('utf-8')

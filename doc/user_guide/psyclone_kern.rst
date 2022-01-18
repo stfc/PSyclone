@@ -66,7 +66,7 @@ The psyclone-kern Command
 The ``psyclone-kern`` command has the following arguments:
 
 .. code-block:: bash
-		
+
     > psyclone-ken -h
     usage: psyclone-kern [-h] [-o OUTFILE] [-api API] [-l] filename
 
@@ -483,3 +483,5 @@ message. For example::
 
 Algorithm Generator
 -------------------
+
+This will be implemented as part of #1555.
