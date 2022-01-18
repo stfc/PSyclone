@@ -115,12 +115,12 @@ algorithm file::
 
 If the algorithm file is invalid for some reason, the command should
 return with an appropriate error. For example, if we use the Python
-``genkernelstub`` script as an algorithm file we get the following::
+``psyclone-kern`` script as an algorithm file we get the following::
 
-    > psyclone <PSYCLONEHOME>/bin/genkernelstub
-    ...
-        1:#!/usr/bin/env python <== no parse pattern found for "#" in 'BeginSource' block.
-    'Parse Error: Fatal error in external fparser tool'
+    > psyclone <PSYCLONEHOME>/bin/psyclone-kern
+    Parse Error: algorithm.py:parse_fp2: Syntax error in file '<PSYCLONEHOME>/bin/psyclone-kern':
+    at line 1
+    >>>#!/usr/bin/env python
 
 If the algorithm file is valid then the modified algorithm code and
 the generated PSy code will be output to the terminal screen.

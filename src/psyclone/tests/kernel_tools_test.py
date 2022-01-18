@@ -72,7 +72,7 @@ def test_run(monkeypatch, capsys, tmpdir):
 
     # Test without --limit, but with -ostub:
     psy_file = tmpdir.join("psy.f90")
-    monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file),
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", str(kern_file),
                                       "-api", "dynamo0.3", "-ostub",
                                       str(psy_file)])
     kernel_tools.run()

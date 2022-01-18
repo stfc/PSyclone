@@ -70,7 +70,7 @@ for the argument list and declarations by running the PSyclone kernel
 stub generator:
 
 ```shell
-genkernelstub setval_field_any_kernel_mod.f90
+psyclone-kern --stub-gen setval_field_any_kernel_mod.f90
 ```
 
 and then replace the empty kernel subroutine body with the generated
@@ -87,10 +87,10 @@ statement each, so in this case of long argument names they may overrun
 the free-form Fortran line-length limit of 132 characters and PSyclone
 will complain when building the code (see e.g. [here](
 https://psyclone.readthedocs.io/en/stable/line_length.html)). To wrap
-long lines just use the `-l` flag when running the stub generator, e.g.
+long lines just use the `-l output` flag when running the stub generator, e.g.
 
 ```shell
-genkernelstub -l setval_field_any_kernel_mod.f90
+psyclone-kern --stub-gen -l output setval_field_any_kernel_mod.f90
 ```
 
 ---
