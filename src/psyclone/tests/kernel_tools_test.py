@@ -84,14 +84,130 @@ def test_run(monkeypatch, capsys, tmpdir):
     assert "MODULE testkern_w0_mod" in str(output)
 
 
+def test_run_version(monkeypatch, capsys):
+    ''' Test that the flag requesting version information works correctly. '''
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "-v", "not-a-file.f90"])
+    with pytest.raises(SystemExit):
+        kernel_tools.run()
+    result, _ = capsys.readouterr()
+    from psyclone.version import __VERSION__
+    assert f"psyclone-kern version: {__VERSION__}" in result
+
+
+def test_run_invalid_api(monkeypatch, capsys):
+    ''' Test that the expected error is reported if an invalid API is
+    specified. '''
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "-api", "invalid",
+                                      "not-a-file.f90"])
+    with pytest.raises(SystemExit):
+        kernel_tools.run()
+    _, err = capsys.readouterr()
+    assert "Unsupported API 'invalid' specified. Supported APIs are" in err
+
+
+def test_run_include_flag(monkeypatch, capsys):
+    ''' Check that the -I flag can be used to pass an include path into
+    the configuration object. We actually specify an invalid location and
+    check that the expected error is raised. '''
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "-I", "./some/path",
+                                      "not-a-file.f90"])
+    with pytest.raises(SystemExit):
+        kernel_tools.run()
+    _, err = capsys.readouterr()
+    assert ("PSyclone configuration error: Include path './some/path' does "
+            "not exist" in err)
+
+
 def test_run_missing_file(monkeypatch, capsys):
     ''' Test that an IOError is handled correctly. '''
-    # Test error handling of command line options
+    # Use monkeypatch to spoof some command-line arguments
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--stub-gen",
+                                      str("/does_not_exist")])
     with pytest.raises(SystemExit):
-        # Use monkeypatch to spoof some command-line arguments
-        monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--stub-gen",
-                                          str("/does_not_exist")])
         kernel_tools.run()
     _, result = capsys.readouterr()
     assert ("Error: Kernel stub generator: File '/does_not_exist' "
             "not found" in str(result))
+
+
+def test_unexpected_exception(monkeypatch, capsys):
+    ''' Check that an unexpected Exception is caught correctly. '''
+    from psyclone import alg_gen
+
+    def broken_gen(kernel_filename, api):
+        ''' Broken generate() function that just raises a general
+        Exception. '''
+        raise Exception("This is just a test")
+
+    monkeypatch.setattr(alg_gen, "generate", broken_gen)
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--alg-gen",
+                                      str("/does_not_exist")])
+    with pytest.raises(SystemExit):
+        kernel_tools.run()
+    _, err = capsys.readouterr()
+    assert "unexpected exception:" in err
+    assert "This is just a test" in err
+
+
+def test_run_alg_gen(monkeypatch, capsys):
+    ''' Check that the kernel_tools run method attempts to generate an
+    algorithm layer if requested. Currently this raises a
+    NotImplementedError. '''
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--alg-gen",
+                                      str("/does_not_exist")])
+    with pytest.raises(SystemExit):
+        kernel_tools.run()
+    _, err = capsys.readouterr()
+    assert ("Algorithm generation from kernel metadata is not yet "
+            "implemented - #1555" in err)
+
+
+@pytest.mark.parametrize("limit", [True, False])
+@pytest.mark.parametrize("mode", ["alg", "stub"])
+def test_run_line_length(monkeypatch, capsys, limit, mode):
+    ''' Check that line-length limiting is applied to generated algorithm
+    and kernel-stub code when requested. '''
+    from psyclone import alg_gen, gen_kernel_stub
+
+    def long_gen(kernel_filename, api):
+        ''' generate() function that returns a string longer than
+        132 chars. '''
+        return f"long_str = '{140*' '}'"
+
+    # Monkeypatch both the algorithm and stub 'generate' functions.
+    monkeypatch.setattr(alg_gen, "generate", long_gen)
+    monkeypatch.setattr(gen_kernel_stub, "generate", long_gen)
+    args = ["psyclone-kern", f"--{mode}-gen", str("/does_not_exist")]
+    if limit:
+        args.extend(["--limit", "output"])
+    monkeypatch.setattr(sys, "argv", args)
+    kernel_tools.run()
+    out, _ = capsys.readouterr()
+    if limit:
+        assert "long_str = '" in out
+        assert "   &\n&                     '" in out
+    else:
+        assert f"long_str = '{140*' '}'" in out
+
+
+@pytest.mark.parametrize("mode", ["alg", "stub"])
+def test_file_output(monkeypatch, mode, tmpdir):
+    ''' Check that the output of the generate() function is written to file
+    if requested. We test for both the kernel-stub & algorithm generation. '''
+    from psyclone import alg_gen, gen_kernel_stub
+
+    def fake_gen(kernel_filename, api):
+        ''' generate() function that simply returns a string. '''
+        return "the_answer = 42"
+
+    # Monkeypatch both the algorithm and stub 'generate' functions.
+    monkeypatch.setattr(alg_gen, "generate", fake_gen)
+    monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
+    tmpdir.chdir()
+    monkeypatch.setattr(sys, "argv", ["psyclone-kern", f"-o{mode}",
+                                      f"output_file_{mode}",
+                                      str("/does_not_exist")])
+    kernel_tools.run()
+    with open(f"output_file_{mode}", "r") as infile:
+        content = infile.read()
+        assert "the_answer = 42" in content

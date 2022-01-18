@@ -134,7 +134,7 @@ def run():
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported API's are "
+        print("Unsupported API '{0}' specified. Supported APIs are "
               "{1}.".format(args.api, Config.get().supported_apis),
               file=sys.stderr)
         sys.exit(1)
@@ -177,7 +177,7 @@ def run():
         exit(1)
 
     except Exception:   # pylint: disable=broad-except
-        print("Error, unexpected exception:\n")
+        print("Error, unexpected exception:\n", file=sys.stderr)
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print(exc_type, file=sys.stderr)
         print(exc_value, file=sys.stderr)
@@ -189,7 +189,7 @@ def run():
               "or --alg-gen/-ogen must be supplied.", file=sys.stderr)
         sys.exit(1)
 
-    if args.limit:
+    if args.limit != "off":
         fll = FortLineLength()
         if stub:
             stub_str = fll.process(str(stub))
