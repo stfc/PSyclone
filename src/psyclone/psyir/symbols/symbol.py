@@ -584,8 +584,6 @@ class Symbol(object):
 
         :raises InternalError: if a loop_variable is specified, but no \
             access information is given.
-        :raises InternalError: if a loop_variable is specified, but no \
-            access information is given.
 
         '''
         # TODO #1270: this function might either be better off elsewhere,
@@ -629,4 +627,10 @@ class Symbol(object):
         # is just a Symbol, not a DataSymbol), the `is_array` function will
         # raise an exception.
         # TODO #1213: check for wildcard imports
-        return self.is_array
+        try:
+            return self.is_array
+        except ValueError:
+            # Generic symbols produce a ValueError, since this does not have
+            # a datatype and a Array access was not found, we don't consider
+            # it an array.
+            return False

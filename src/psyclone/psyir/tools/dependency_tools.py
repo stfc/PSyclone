@@ -496,10 +496,7 @@ class DependencyTools(object):
             symbol_table = loop.scope.symbol_table
             symbol = symbol_table.lookup(var_name)
             # TODO #1270 - the is_array_access function might be moved
-            try:
-                is_array = symbol.is_array_access(access_info=var_info)
-            except ValueError:
-                continue
+            is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
                 # Handle arrays
                 par_able = self.array_access_parallelisable(loop_variable,
