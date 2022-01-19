@@ -275,10 +275,11 @@ class DependencyTools(object):
                 self._add_info("Not a nested loop.")
                 return False
 
-        if loop.loop_type not in self._loop_types_to_parallelise:
-            self._add_info("Loop has wrong loop type '{0}'.".
-                           format(loop.loop_type))
-            return False
+        if self._loop_types_to_parallelise:
+            if loop.loop_type not in self._loop_types_to_parallelise:
+                self._add_info("Loop has wrong loop type '{0}'.".
+                               format(loop.loop_type))
+                return False
         return True
 
     # -------------------------------------------------------------------------

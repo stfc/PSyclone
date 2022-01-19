@@ -253,7 +253,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     "containing only {1} loops".format(collapse, loop_count))
 
         # Check that there are no loop-carried dependencies
-        dep_tools = DependencyTools(["levels", "lat"])
+        dep_tools = DependencyTools()
 
         if not dep_tools.can_loop_be_parallelised(node,
                                                   only_nested_loops=False):

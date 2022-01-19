@@ -506,7 +506,7 @@ class FortranWriter(LanguageWriter):
         # It's possible to have both explicit and wildcard imports from the
         # same Fortran module.
         if symbol.wildcard_import:
-            use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
+            return "{0}use {1}\n".format(self._nindent, symbol.name)
         return use_stmts
 
     def gen_vardecl(self, symbol, include_visibility=False):
