@@ -254,10 +254,23 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # Check that there are no loop-carried dependencies
         dep_tools = DependencyTools()
 
-        if not dep_tools.can_loop_be_parallelised(node,
-                                                  only_nested_loops=False):
-            raise TransformationError(
-                    "Dependency analysis can_loop_be_parallelised failed!")
+        try:
+            if not dep_tools.can_loop_be_parallelised(node,
+                                                      only_nested_loops=False):
+
+                # The DependencyTools also returns False for things that are
+                # not an issue, so we look for a specific message.
+                messages = "\n".join(dep_tools.get_all_messages())
+
+                if "can therefore not be parallelised" in messages:
+                    raise TransformationError(
+                        f"Dependency analysis failed with the following "
+                        f"messages:\n{messages}")
+        except (KeyError, InternalError):
+            # LFRic still has symbols that don't exist in the symbol_table
+            # until the gen_code() step, so the dependency analysis raises
+            # KeyErrors in some cases. We ignore this for now.
+            pass
 
     def apply(self, node, options=None):
         '''

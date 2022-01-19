@@ -326,6 +326,40 @@ def test_omplooptrans_properties():
             in str(err.value))
 
 
+def test_omplooptrans_validate_loop_carried_dependencies(fortran_reader):
+    ''' Test that the omplooptrans validation checks for loop carried
+    dependencies. '''
+
+    omplooptrans = OMPLoopTrans()
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine my_subroutine()
+        integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
+        real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              zwt(ji,jj,jk) = zwd(ji,jj,jk) - zwi(ji,jj,jk) * &
+                              zws(ji,jj,jk - 1) / zwt(ji,jj,jk - 1)
+            enddo
+          enddo
+        enddo
+    end subroutine''')
+    loops = psyir.walk(Loop)
+
+    # Check that the loop can not be parallelised due to the loop-carried
+    # dependency.
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.validate(loops[0])
+    assert ("Transformation Error: Dependency analysis failed with the "
+            "following messages:\nWarning: Variable 'zwt' is written and "
+            "is accessed using indices 'jk - 1' and 'jk' and can therefore "
+            "not be parallelised." in str(err.value))
+
+    # However, the inner loop can be parallelised because the dependency is
+    # just with 'jk' and it is not modified in the inner loops
+    omplooptrans.validate(loops[1])
+
+
 def test_omplooptrans_apply(sample_psyir, fortran_writer):
     ''' Test OMPLoopTrans works as expected with the different options. '''
 
@@ -354,6 +388,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     omplooptrans.apply(loop2, {'collapse': 2})
     assert isinstance(loop2.parent, Schedule)
     assert isinstance(loop2.parent.parent, OMPLoopDirective)
+    ompparalleltrans.apply(loop2.parent.parent)  # Needed for generation
 
     # Check that the full resulting code looks like this
     expected = '''
@@ -366,13 +401,16 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
+  !$omp parallel default(shared), private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = 0
     enddo
   enddo
-  !$omp end loop\n'''
+  !$omp end loop
+  !$omp end parallel\n'''
+
     assert expected in fortran_writer(tree)
 
 
