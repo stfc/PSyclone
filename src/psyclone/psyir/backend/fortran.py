@@ -452,10 +452,7 @@ class FortranWriter(LanguageWriter):
     def gen_use(self, symbol, symbol_table):
         ''' Performs consistency checks and then creates and returns the
         Fortran use statement(s) for this ContainerSymbol as required for
-        the supplied symbol table. If this symbol has both a wildcard import
-        and explicit imports then two use statements are generated. (This
-        means that when generating Fortran from PSyIR created from Fortran
-        code, we replicate the structure of the original.)
+        the supplied symbol table.
 
         :param symbol: the container symbol instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
@@ -499,15 +496,11 @@ class FortranWriter(LanguageWriter):
         if not only_list and not symbol.wildcard_import:
             # We have a "use xxx, only:" - i.e. an empty only list
             return "{0}use {1}, only :\n".format(self._nindent, symbol.name)
-        use_stmts = ""
-        if only_list:
-            use_stmts = "{0}use {1}, only : {2}\n".format(
+        if only_list and not symbol.wildcard_import:
+            return "{0}use {1}, only : {2}\n".format(
                 self._nindent, symbol.name, ", ".join(sorted(only_list)))
-        # It's possible to have both explicit and wildcard imports from the
-        # same Fortran module.
-        if symbol.wildcard_import:
-            use_stmts += "{0}use {1}\n".format(self._nindent, symbol.name)
-        return use_stmts
+
+        return "{0}use {1}\n".format(self._nindent, symbol.name)
 
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
