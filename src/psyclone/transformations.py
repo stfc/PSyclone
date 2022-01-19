@@ -71,7 +71,6 @@ from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 
 
-
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
 
