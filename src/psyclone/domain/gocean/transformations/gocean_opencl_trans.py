@@ -314,9 +314,6 @@ class GOOpenCLTrans(Transformation):
 
         # Declare local variables needed on a OpenCL PSy-layer invoke
         int_array_2d = ArrayType(INTEGER_TYPE, [2])
-        nqueues = node.symbol_table.new_symbol(
-            "num_cmd_queues", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues")  # Was SAVE
         qlist = node.symbol_table.new_symbol(
             "cmd_queues", symbol_type=DataSymbol,
             datatype=UnknownFortranType(
@@ -331,12 +328,6 @@ class GOOpenCLTrans(Transformation):
         flag = node.symbol_table.new_symbol(
             "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             tag="opencl_error")
-        # size_bytes = node.symbol_table.new_symbol(
-        #    "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        #    tag="opencl_bytes")
-        # write_event = node.symbol_table.new_symbol(
-        #    "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        #    tag="opencl_wevent")
         global_size = node.symbol_table.new_symbol(
             "globalsize", symbol_type=DataSymbol,
             datatype=UnknownFortranType(
@@ -346,28 +337,30 @@ class GOOpenCLTrans(Transformation):
             datatype=UnknownFortranType(
                 "integer(kind=c_size_t), target :: localsize(2)"))
 
-        # Create a first_time condition that we will reuse (copy) below
-        first_time_template = IfBlock.create(Reference(first), [])
+        # Bring all the boundaries at the beginning (since we are going to
+        # use them during the setup block - and they don't change)
+        boundary_vars = []
+        for tag, symbol in node.symbol_table.tags_dict.items():
+            if tag.startswith(("xstart_", "xstop_", "ystart_", "ystop_")):
+                boundary_vars.append(symbol)
+        cursor = 0
+        for assignment in node.walk(Assignment):
+            if assignment.lhs.symbol in boundary_vars:
+                node.children.insert(cursor, assignment.detach())
+                cursor += 1
 
         # Create block of code to execute only the first time:
-        cursor = 0
-        setup_block = first_time_template.copy()
-        node.children.insert(cursor, setup_block)
-        cursor = cursor + 1
-        setup_block.if_body.addchild(Call.create(psy_init, []))
-        setup_block.preceeding_comment = \
+        setup_block = IfBlock.create(Reference(first), [])
+        setup_block.preceding_comment = \
             "Initialise OpenCL runtime, kernels and buffers"
+        node.children.insert(cursor, setup_block)
+        setup_block.if_body.addchild(Call.create(psy_init, []))
 
-        # Set up queue_list and num_queues
-        node.children.insert(cursor, Assignment.create(
-                                        Reference(nqueues),
-                                        Call.create(get_num_cmd_queues, [])))
-        cursor = cursor + 1
+        # Set up cmd_queues pointer
         ptree = Fortran2003.Pointer_Assignment_Stmt(
             f"{qlist.name} => {get_cmd_queues.name}()")
         cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
-        node.children.insert(cursor, cblock)
-        cursor = cursor + 1
+        setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers
         for kern in node.coded_kernels():
@@ -423,39 +416,43 @@ class GOOpenCLTrans(Transformation):
         # in Xiling FPGA) knowing which arguments each kernel is going to use
         # allows the write operation to place the data into the appropriate
         # memory bank.
+        first_statement_comment = False
         kernel_names = set()
         for kern in node.coded_kernels():
             if kern.name not in kernel_names:
                 kernel_names.add(kern.name)
                 callblock = self._generate_set_args_call(kern, node.scope)
                 for child in callblock.pop_all_children():
-                    node.children.insert(cursor, child.copy())
-                    cursor = cursor + 1
+                    setup_block.if_body.addchild(child)
+                    if not first_statement_comment:
+                        child.preceding_comment = (
+                            "Do a set_args now so subsequent writes place the "
+                            "data appropriately")
+                        first_statement_comment = True
 
         # Now we can insert calls to write_to_device method for each buffer
         # and the grid writing call is there is one (in a new first time block)
-        first_time_block = first_time_template.copy()
+        first_statement_comment = False
         for field in initialised_fields:
             call = Call.create(
                 RoutineSymbol(field.name+"%write_to_device"), [])
-            first_time_block.if_body.addchild(call)
+            setup_block.if_body.addchild(call)
+            if not first_statement_comment:
+                call.preceding_comment = "Write data to the device"
+                first_statement_comment = True
 
         if there_is_a_grid_buffer:
             fieldarg = node.coded_kernels()[0].arguments.find_grid_access()
             field = node.symbol_table.lookup(fieldarg.name)
             call = Call.create(write_grid_buf, [Reference(field)])
-            first_time_block.if_body.addchild(call)
-
-        node.children.insert(cursor, first_time_block)
-        cursor = cursor + 1
+            setup_block.if_body.addchild(call)
 
         # We will just mark the nodes we are replacing as deleting them inside
         # the loop would break the PSy-layer backward_dependency method in the
-        # following iterations. We will detach all this nodes after the loop.
+        # following iterations. We will detach all these nodes after the loop.
         nodes_to_detach = []
 
         for kern in node.coded_kernels():
-
             outerloop = kern.ancestor(GOLoop).ancestor(GOLoop)
 
             # Set up globalsize and localsize arrays
@@ -548,6 +545,10 @@ class GOOpenCLTrans(Transformation):
                                   CHARACTER_TYPE)
                 check = Call.create(check_status, [message, Reference(flag)])
                 node.children.insert(outerloop.position, check)
+
+            callblock = self._generate_set_args_call(kern, node.scope)
+            for child in callblock.pop_all_children():
+                node.children.insert(outerloop.position, child)
 
             # Then we call the clEnqueueNDRangeKernel
             assig = Assignment.create(
@@ -744,12 +745,6 @@ class GOOpenCLTrans(Transformation):
                 f"OpenCL code for kernel '{kernel.name}'. Make sure to apply "
                 f"the GOMoveIterationBoundariesInsideKernelTrans before "
                 f"attempting the OpenCL code generation.") from err
-
-        # Initialise the boundary assignments statements
-        # FIXME: Can this go away?
-        for node in scope.walk(Assignment):
-            if node.lhs.symbol.name in boundaries:
-                call_block.addchild(node.copy())
 
         api_config = Config.get().api_conf("gocean1.0")
         # Prepare the argument list for the set_args routine

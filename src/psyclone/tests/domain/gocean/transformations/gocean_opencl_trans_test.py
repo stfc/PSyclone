@@ -182,8 +182,8 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
     otrans.apply(sched)
     generated_code = fortran_writer(sched).lower()
 
-    assert ("use fortcl, only : get_cmd_queues, get_kernel_by_name, "
-            "get_num_cmd_queues" in generated_code)
+    assert ("use fortcl, only : get_cmd_queues, get_kernel_by_name"
+            in generated_code)
     assert "use clfortran" in generated_code
     assert "use iso_c_binding" in generated_code
 
@@ -214,7 +214,6 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
     assert "integer :: ierr" in generated_code
     assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
             in generated_code)
-    assert "integer :: num_cmd_queues" in generated_code
 
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -236,7 +235,6 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
 
     # Test that the necessary variables are declared at the beginning
     # of the invoke
-    print(generated_code)
     assert "integer(kind=c_size_t), target :: localsize(2)" in generated_code
     assert "integer(kind=c_size_t), target :: globalsize(2)" in generated_code
     assert "integer(kind=c_intptr_t) :: u_fld_cl_mem" in generated_code
@@ -248,45 +246,37 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     assert "integer :: ierr" in generated_code
     assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
             in generated_code)
-    assert "integer :: num_cmd_queues" in generated_code
 
     # Test that a conditional 'first_time' code is generated with the
     # expected initialisation statements:
     # - Call psy_init
-    # - Set num_cmd_queues and cmd_queues pointers
+    # - Set cmd_queues pointers
     # - OpenCL kernel setters
     # - Initialization of all OpenCL field buffers
     # - Call set_arg of the kernels (with necessary boundary and cl_mem
     #   buffers initialisation)
     # - Write data into the OpenCL buffers
     expected = '''\
+  ! initialise opencl runtime, kernels and buffers
   if (first_time) then
     call psy_init()
+    cmd_queues => get_cmd_queues()
     kernel_compute_cu_code = get_kernel_by_name('compute_cu_code')
     call initialise_device_buffer(cu_fld)
     call initialise_device_buffer(p_fld)
     call initialise_device_buffer(u_fld)
-  end if
-  num_cmd_queues = get_num_cmd_queues()
-  cmd_queues => get_cmd_queues()
-  xstart = cu_fld%internal%xstart
-  xstop = cu_fld%internal%xstop
-  ystart = cu_fld%internal%ystart
-  ystop = cu_fld%internal%ystop
-  cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
-  p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
-  u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
-  call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
+    ! do a set_args now so subsequent writes place the data appropriately
+    cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+    p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+    u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
+    call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
-  if (first_time) then
-  '''
-    assert expected in generated_code
-
-
-    # TODO: Search for this 3 lines in any order, since they come from a set
-    # call p_fld%write_to_device()
-    # call u_fld%write_to_device()
-    # call cu_fld%write_to_device()
+    ! write data to the device
+    call u_fld%write_to_device()
+    call cu_fld%write_to_device()
+    call p_fld%write_to_device()
+  end if'''
+    assert expected == generated_code
 
     # Search the final first_time block with:
     # first_time = .false.
@@ -380,7 +370,6 @@ c_sizeof(field%grid%area_t(1,1))'''
         call initialise_device_buffer(dx)
         call initialise_grid_device_buffers(in_fld)
       end if
-      num_cmd_queues = get_num_cmd_queues()
       cmd_queues => get_cmd_queues()
       xstart = out_fld%internal%xstart
       xstop = out_fld%internal%xstop
@@ -980,6 +969,7 @@ def test_multiple_command_queues(dist_mem):
         assert kernelbarrier not in generated_code
         assert haloexbarrier in generated_code
     else:
+        print(generated_code)
         # Without distributed memory we need a barrier for the first
         # command queue before launching the second kernel
         assert kernelbarrier in generated_code
