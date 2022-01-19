@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2019,6 +2019,8 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
+        # Since colouring is applied via transformations, we have to check for
+        # it now, rather than when this class was first constructed.
         need_colour_limits = False
         for call in self._calls:
             if call.is_coloured() and not call.is_intergrid:
@@ -2026,6 +2028,9 @@ class LFRicMeshProperties(DynCollection):
                 break
 
         if not self._properties and not need_colour_limits:
+            # If no mesh properties are required and there's no colouring
+            # (which requires a mesh object to lookup loop bounds) then we
+            # need do nothing.
             return
 
         parent.add(CommentGen(parent, ""))
@@ -3257,11 +3262,18 @@ class DynCellIterators(DynCollection):
 
 class LFRicLoopBounds(DynCollection):
     '''
-    Handles all variables required for specifying loop limits.
+    Handles all variables required for specifying loop limits within a
+    PSy-layer routine.
 
     '''
     def _invoke_declarations(self, parent):
-        ''' Only needed because method is virtual in parent class. '''
+        '''
+        Only needed because method is virtual in parent class.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
 
     def initialise(self, parent):
         '''
@@ -3286,10 +3298,12 @@ class LFRicLoopBounds(DynCollection):
         api_config = config.api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
-            root_name = "loop{0}_start".format(idx)
+            root_name = f"loop{idx}_start"
             try:
                 lbound = sym_table.lookup_with_tag(root_name)
             except KeyError:
+                # TODO #1258 the loop bound symbol should be of
+                # precision 'i_def'.
                 lbound = sym_table.new_symbol(root_name=root_name,
                                               tag=root_name,
                                               symbol_type=DataSymbol,
@@ -3299,10 +3313,12 @@ class LFRicLoopBounds(DynCollection):
             entities = [lbound.name]
 
             if loop.loop_type != "colour":
-                root_name = "loop{0}_stop".format(idx)
+                root_name = f"loop{idx}_stop"
                 try:
                     ubound = sym_table.lookup_with_tag(root_name)
                 except KeyError:
+                    # TODO #1258 the loop bound symbol should be of
+                    # precision 'i_def'.
                     ubound = sym_table.new_symbol(root_name=root_name,
                                                   tag=root_name,
                                                   symbol_type=DataSymbol,
@@ -3806,14 +3822,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if (call.reference_element.properties or
-                    call.mesh.properties or call.iterates_over == "domain" or
-                    call.cma_operation):
+            if (call.reference_element.properties or call.mesh.properties or
+                    call.iterates_over == "domain" or call.cma_operation):
                 _name_set.add("mesh")
-                requires_mesh = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3856,28 +3869,28 @@ class DynMeshes(object):
         # object if any of the kernels require properties of either the
         # reference element or the mesh. (Colourmaps also require a mesh
         # object but that is handled in _colourmap_init().)
-        if not _name_set:
-            if requires_mesh or Config.get().distributed_memory:
-                _name_set.add("mesh")
+        if not _name_set and Config.get().distributed_memory:
+            _name_set.add("mesh")
 
-        self._mesh_tag_names = self._add_mesh_symbols(list(_name_set))
+        self._add_mesh_symbols(list(_name_set))
 
-    def _add_mesh_symbols(self, meshes):
+    def _add_mesh_symbols(self, mesh_tags):
         '''
-        Add DataSymbols for the supplied list of mesh names. A ContainerSymbol
-        is created for the LFRic mesh module and a TypeSymbol for the mesh
-        type. If distributed memory is enabled then a DataSymbol to hold the
-        maximum halo depth is created for each mesh.
+        Add DataSymbols for the supplied list of mesh names and store the
+        corresponding list of tags.
 
-        :param meshes: tag names for every mesh object required.
-        :type meshes: list of str
+        A ContainerSymbol is created for the LFRic mesh module and a TypeSymbol
+        for the mesh type. If distributed memory is enabled then a DataSymbol
+        to hold the maximum halo depth is created for each mesh.
 
-        :returns: the sorted list of tags.
-        :rtype: list of str
+        :param mesh_tags: tag names for every mesh object required.
+        :type mesh_tags: list of str
 
         '''
-        if not meshes:
-            return []
+        if not mesh_tags:
+            return
+
+        self._mesh_tag_names = sorted(mesh_tags)
 
         # Look up the names of the module and type for the mesh object
         # from the LFRic constants class.
@@ -3894,18 +3907,18 @@ class DynMeshes(object):
             interface=ImportInterface(csym))
 
         name_list = []
-        for name in meshes:
+        for name in mesh_tags:
             name_list.append(self._symbol_table.find_or_create_tag(
                 name, symbol_type=DataSymbol, datatype=mtype_sym).name)
 
         if Config.get().distributed_memory:
             # If distributed memory is enabled then we require a variable
             # holding the maximum halo depth for each mesh.
-            for name in meshes:
+            for name in mesh_tags:
+                # TODO #1258 this variable should have precision 'i_def'.
                 self._symbol_table.find_or_create_tag(f"max_halo_depth_{name}",
                                                       symbol_type=DataSymbol,
                                                       datatype=INTEGER_TYPE)
-        return sorted(meshes)
 
     def _colourmap_init(self):
         '''
@@ -3940,6 +3953,7 @@ class DynMeshes(object):
                 base_name, symbol_type=DataSymbol,
                 datatype=array_type_2d).name
             # No. of colours
+            # TODO #1258 this variable should have precision 'i_def'.
             base_name = "ncolour_" + carg_name
             ncolours = self._schedule.symbol_table.find_or_create_tag(
                 base_name, symbol_type=DataSymbol,
@@ -3964,7 +3978,7 @@ class DynMeshes(object):
         if have_non_intergrid and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
-            self._mesh_tag_names = self._add_mesh_symbols(["mesh"])
+            self._add_mesh_symbols(["mesh"])
             colour_map = self._schedule.symbol_table.find_or_create_tag(
                 "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
             # No. of colours
@@ -4091,16 +4105,16 @@ class DynMeshes(object):
 
     def initialise(self, parent):
         '''
-        Initialise parameters specific to inter-grid kernels
+        Initialise parameters specific to inter-grid kernels.
 
-        :param parent: the parent node to which to add the initialisations
+        :param parent: the parent node to which to add the initialisations.
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
         # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
-        if len(self._mesh_tag_names) == 0:
+        if not self._mesh_tag_names:
             return
 
         parent.add(CommentGen(parent, ""))
@@ -6513,9 +6527,11 @@ class HaloWriteAccess(HaloDepth):
         '''
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :param sym_table: the symbol table associated with the scoping region \
+                          that contains this halo access.
+        :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-
         HaloDepth.__init__(self, sym_table)
         self._compute_from_field(field)
 
@@ -6595,6 +6611,9 @@ class HaloReadAccess(HaloDepth):
         '''
         :param field: the field that we want to get information on
         :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param sym_table: the symbol table associated with the scoping region \
+                          that contains this halo access.
+        :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         HaloDepth.__init__(self, sym_table)
@@ -7115,7 +7134,7 @@ class DynLoop(Loop):
                 root_name += "_" + self._field_name
             sym = self.ancestor(
                 InvokeSchedule).symbol_table.find_or_create_tag(root_name)
-            return sym.name+"(colour, {0})".format(depth)
+            return f"{sym.name}(colour, {depth})"
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
@@ -7894,19 +7913,21 @@ class DynKern(CodedKern):
 
         :return: name of the colourmap (Fortran array)
         :rtype: str
+
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
+
         '''
         if not self.is_coloured():
-            raise InternalError("Kernel '{0}' is not inside a coloured "
-                                "loop.".format(self.name))
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
             if self not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
-                    "Colourmap information for kernel '{0}' has not yet "
-                    "been initialised".format(self.name))
+                    f"Colourmap information for kernel '{self.name}' has "
+                    f"not yet been initialised")
             cmap = invoke.meshes.intergrid_kernels[self].colourmap
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
