@@ -52,7 +52,6 @@ from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen, PSyIRGen
-from psyclone.configuration import Config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -1434,7 +1433,7 @@ class LFRicIntXKern(LFRicBuiltIn):
     field elements using the Fortran intrinsic `int` function,
     `Y = int(X, i_def)`. Here `Y` is an integer-valued field and
     `X` is the real-valued field being converted. The correct `kind`
-    is read from the PSyclone configuration file.
+    is picked up from the associated argument.
 
     '''
     def __str__(self):
@@ -1449,15 +1448,25 @@ class LFRicIntXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
         # Convert all the elements of a real-valued field to the
         # corresponding elements of an integer-valued field using
         # the PSyclone configuration for the correct 'kind'.
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = ("int(" + field_name1 + ", " +
-                    api_config.default_kind["integer"] + ")")
+        precision = self._arguments.args[0].precision
+        rhs_expr = (f"int({field_name1}, {precision})")
         parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+        # Import the precision variable if it is not already imported
+        const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        # Import node type here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynInvokeSchedule
+        schedule = self.ancestor(DynInvokeSchedule)
+        psy = schedule.invoke.invokes.psy
+        precision_list = psy.infrastructure_modules[const_mod]
+        if precision not in precision_list:
+            precision_list.append(precision)
 
 
 # ******************************************************************* #
@@ -1681,7 +1690,7 @@ class LFRicRealXKern(LFRicBuiltIn):
     field elements using the Fortran intrinsic `real` function,
     `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
     is the integer-valued field being converted. The correct `kind`
-    is read from the PSyclone configuration file.
+    is picked up from the associated argument.
 
     '''
     def __str__(self):
@@ -1696,15 +1705,26 @@ class LFRicRealXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
         # Convert all the elements of an integer-valued field to
         # the corresponding elements of a real-valued field using
         # the PSyclone configuration for the correct 'kind'.
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        precision = self._arguments.args[0].precision
         rhs_expr = ("real(" + field_name1 + ", " +
-                    api_config.default_kind["real"] + ")")
+                    precision + ")")
         parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+        # Import the precision variable if it is not already imported
+        const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        # Import node type here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynInvokeSchedule
+        schedule = self.ancestor(DynInvokeSchedule)
+        psy = schedule.invoke.invokes.psy
+        precision_list = psy.infrastructure_modules[const_mod]
+        if precision not in precision_list:
+            precision_list.append(precision)
 
 
 # The built-in operations that we support for this API. The meta-data

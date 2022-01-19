@@ -2818,7 +2818,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
     expected string and 2) we generate correct code for the built-in
     operation Y = int(X, i_def) where Y is an integer-valued field, X is
     the real-valued field being converted and the correct kind, 'i_def',
-    is read from the PSyclone configuration file. Test with and without
+    is picked up from the associated field. Test with and without
     annexed dofs being computed as this affects the generated code.
 
     '''
@@ -2891,6 +2891,26 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
 
+
+def test_int_X_precision(monkeypatch):
+    '''Test that the builtin picks up and creates correct code for a
+    scalar with precision that is not the default i.e. not i_def. At
+    the moment there is no other integer precision so we make one
+    up. However, this does mean that we can't check whether it
+    compiles.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.3_int_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
+    code = str(psy.gen)
+    assert ("USE constants_mod, ONLY: i_solver, i_def" in code)
+    assert ("f2_proxy%data(df) = int(f1_proxy%data(df), i_solver)" in code)
 
 # ------------- Xfail built-ins --------------------------------------------- #
 
