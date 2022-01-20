@@ -177,6 +177,18 @@ def test_missing_array_notation_lhs():
 
 
 @pytest.mark.usefixtures("parser")
+def test_missing_array_notation_in_assign():
+    ''' Check that we get a code block if the WHERE contains an assignment
+    where no array notation appears. TODO #717 - extend this test so that
+    `z1_st` is of array type with rank 3. '''
+    fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
+                                   "  z1_st = 1._wp\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+@pytest.mark.usefixtures("parser")
 def test_where_array_notation_rank():
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
@@ -369,8 +381,13 @@ def test_where_array_subsections():
 
 @pytest.mark.usefixtures("parser")
 @pytest.mark.parametrize("rhs", ["depth", "maxval(depth(:))"])
+@pytest.mark.xfail(reason="#717 need to distinguish scalar and array "
+                   "assignments")
 def test_where_with_scalar_assignment(rhs):
-    ''' '''
+    ''' Test that a WHERE containing a scalar assignment is handled correctly.
+    Currently it is not as we do not distinguish between a scalar and an array
+    reference that is missing its colons. This will be fixed in #717.
+    '''
     fake_parent, _ = process_where(
         f"WHERE (dry(1, :, :))\n"
         f"  var1 = {rhs}\n"

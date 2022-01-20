@@ -2834,13 +2834,11 @@ class Fparser2Reader(object):
                                      found.
         '''
         assigns = parent.walk(Assignment)
-        # Check that the LHS of any assignment that has Ranges on the RHS
-        # uses recognised array notation.
+        # Check that the LHS of any assignment uses array notation.
+        # Note that this will prevent any WHERE blocks that contain scalar
+        # assignments from being handled but is a necessary limitation until
+        # #717 is done and we interrogate the type of each symbol.
         for assign in assigns:
-            ranges = assign.rhs.walk(Range)
-            if not ranges:
-                # No array ranges on the RHS of this assignment
-                continue
             _ = self._array_notation_rank(assign.lhs)
 
         # TODO #717 if the supplied code accidentally omits array
@@ -3054,6 +3052,9 @@ class Fparser2Reader(object):
 
         # Each array reference must now be indexed by the loop variables
         # of the loops we've just created.
+        # N.B. we can't use `ifblock.condition` below because the IfBlock is
+        # not yet fully constructed and therefore the consistency checks
+        # inside that method fail.
         self._array_syntax_to_indexed(ifblock.children[0], loop_vars)
 
         # Now construct the body of the IF using the body of the WHERE
@@ -3091,18 +3092,12 @@ class Fparser2Reader(object):
                                              annotations=annotations)
                         elsebody.addchild(newifblock)
 
-                        # Keep pointer to fpaser2 AST
-                        elsebody.ast = node.content[start_idx]
-                        newifblock.ast = node.content[start_idx]
-
                         # Create condition as first child
                         self.process_nodes(parent=newifblock,
                                            nodes=[clause.items[0]])
 
                         # Create if-body as second child
                         ifbody = Schedule(parent=newifblock)
-                        ifbody.ast = node.content[start_idx + 1]
-                        ifbody.ast_end = node.content[end_idx - 1]
                         newifblock.addchild(ifbody)
                         self.process_nodes(
                             parent=ifbody,
@@ -3117,8 +3112,6 @@ class Fparser2Reader(object):
                                     node.content))
                         elsebody = Schedule(parent=current_parent)
                         current_parent.addchild(elsebody)
-                        elsebody.ast = node.content[start_idx]
-                        elsebody.ast_end = node.content[end_idx]
                         self.process_nodes(
                             parent=elsebody,
                             nodes=node.content[start_idx + 1:end_idx])
