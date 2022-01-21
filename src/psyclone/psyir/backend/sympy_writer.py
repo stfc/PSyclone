@@ -163,9 +163,11 @@ class SymPyWriter(FortranWriter):
             # Convert each expression. Note that this call might add
             # additional entries to type_map if it finds member names
             # that clash with a symbol (e.g. a%b --> it will try to
-            # create a SymPy symbol `a_b`, but if `a_b` is the same as
-            # symbol, `a_b_1`, ... will be used instead).
-            expression_str_list.append(writer(expr))
+            # create a SymPy symbol `a_b`, but if `a_b` clashes with an
+            # existing symbol, `a_b_1`, ... will be used instead).
+            # We use the `_visit()` call which avoids creating a copy
+            # of the whole tree, which causes huge slowdown of this call.
+            expression_str_list.append(writer._visit(expr))
 
         return [parse_expr(expr, type_map) for expr in expression_str_list]
 
