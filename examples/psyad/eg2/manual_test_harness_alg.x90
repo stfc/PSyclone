@@ -22,7 +22,7 @@ program adj_test
   TYPE(function_space_type), TARGET :: vector_space
   TYPE(function_space_type), POINTER :: vector_space_ptr
   PROCEDURE(partitioner_interface), POINTER :: partitioner_ptr
-  TYPE(field_type) :: field1, field2
+  TYPE(field_type) :: field1, field1_input, field2, field2_input
   INTEGER(KIND = i_def) :: lfric_fs = W0
   INTEGER(KIND = i_def) :: element_order = 1
   INTEGER(KIND = i_def) :: ndata_sz
@@ -32,30 +32,8 @@ program adj_test
   real(kind=r_def) :: inner2
   integer :: nlayers
   integer :: nlayers_input
-  real(kind=r_def), dimension(undf_w2) :: r_u
-  real(kind=r_def), dimension(undf_w2) :: r_u_input
-  real(kind=r_def), dimension(undf_w3) :: exner
-  real(kind=r_def), dimension(undf_w3) :: exner_input
-  real(kind=r_def), dimension(undf_wt) :: theta
-  real(kind=r_def), dimension(undf_wt) :: theta_input
-  real(kind=r_def), dimension(undf_wt) :: moist_dyn_gas
-  real(kind=r_def), dimension(undf_wt) :: moist_dyn_gas_input
-  real(kind=r_def), dimension(undf_wt) :: moist_dyn_tot
-  real(kind=r_def), dimension(undf_wt) :: moist_dyn_tot_input
-  real(kind=r_def), dimension(undf_wt) :: moist_dyn_fac
-  real(kind=r_def), dimension(undf_wt) :: moist_dyn_fac_input
-  real(kind=r_def), dimension(undf_w3) :: ls_exner
-  real(kind=r_def), dimension(undf_w3) :: ls_exner_input
-  real(kind=r_def), dimension(undf_wt) :: ls_theta
-  real(kind=r_def), dimension(undf_wt) :: ls_theta_input
-  real(kind=r_def), dimension(undf_wt) :: ls_moist_dyn_gas
-  real(kind=r_def), dimension(undf_wt) :: ls_moist_dyn_gas_input
-  real(kind=r_def), dimension(undf_wt) :: ls_moist_dyn_tot
-  real(kind=r_def), dimension(undf_wt) :: ls_moist_dyn_tot_input
-  real(kind=r_def), dimension(undf_wt) :: ls_moist_dyn_fac
-  real(kind=r_def), dimension(undf_wt) :: ls_moist_dyn_fac_input
-  real(kind=r_def) :: cp
-  real(kind=r_def) :: cp_input
+  real(kind=r_def) :: ascalar
+  real(kind=r_def) :: ascalar_input
   real(kind=r_def) :: MachineTol
   real(kind=r_def) :: relative_diff
 
