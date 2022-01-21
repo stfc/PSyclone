@@ -973,7 +973,6 @@ def test_multiple_command_queues(dist_mem):
         assert kernelbarrier not in generated_code
         assert haloexbarrier in generated_code
     else:
-        print(generated_code)
         # Without distributed memory we need a barrier for the first
         # command queue before launching the second kernel
         assert kernelbarrier in generated_code

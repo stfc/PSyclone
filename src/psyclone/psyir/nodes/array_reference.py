@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, DeferredType, UnknownType
 from psyclone.errors import GenerationError
 
 
@@ -82,9 +82,11 @@ class ArrayReference(ArrayMixin, Reference):
                 "indices argument in create method of ArrayReference class "
                 "should be a list but found '{0}'."
                 "".format(type(indices).__name__))
-        # if not symbol.is_array:
-        #    raise GenerationError(
-        #        "expecting the symbol to be an array, not a scalar.")
+        if not symbol.is_array:
+            # Deferred and Unknown types may still be arrays
+            if not isinstance(symbol.datatype, (DeferredType, UnknownType)):
+                raise GenerationError(
+                    "expecting the symbol to be an array, not a scalar.")
         if symbol.is_array:
             if len(symbol.shape) != len(indices):
                 raise GenerationError(
