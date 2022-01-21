@@ -277,6 +277,19 @@ def valid_acc_kernel(node):
                             "IF performs comparison with REAL scalar", enode)
                     return False
 
+            # Comparison of character strings causes a crash at runtime.
+            if PGI_VERSION <= 2170:
+                opn = enode.children[0]
+                if (excluding.ifs_real_scalars and
+                        isinstance(opn, BinaryOperation) and
+                        opn.operator == BinaryOperation.Operator.EQ and
+                        isinstance(opn.children[1], Literal) and
+                        opn.children[1].datatype.intrinsic ==
+                        ScalarType.Intrinsic.CHARACTER):
+                    log_msg(routine_name,
+                            "IF performs comparison with char literal", enode)
+                    return False
+
             # We also permit single-statement IF blocks that contain a Loop
             if "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
