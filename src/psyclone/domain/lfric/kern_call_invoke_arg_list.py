@@ -42,8 +42,10 @@ derived types. In that case, the derived type itself must be specified
 first before any members.
 '''
 
-from psyclone.domain.lfric import ArgOrdering
-from psyclone.psyir.symbols import ArrayType, ScalarType, DataSymbol
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.psyir.symbols import (ArrayType, ScalarType, DataSymbol,
+                                    DataTypeSymbol, DeferredType,
+                                    ContainerSymbol, ImportInterface)
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -61,6 +63,7 @@ class KernCallInvokeArgList(ArgOrdering):
         self._symtab = symbol_table
         self._fields = []
         self._scalars = []
+        self._qr_objects = []
 
     @property
     def fields(self):
@@ -77,6 +80,11 @@ class KernCallInvokeArgList(ArgOrdering):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._scalars
+
+    @property
+    def quadrature_objects(self):
+        ''' TODO '''
+        return self._qr_objects
 
     def generate(self, var_accesses=None):
         ''' Just ensures that our internal lists of field and scalar arguments
@@ -255,6 +263,59 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+
+    def quad_rule(self, var_accesses=None):
+        '''Add quadrature-related information to the kernel argument list.
+        Adds the necessary arguments to the argument list, and optionally
+        adds variable access information to the var_accesses object.
+
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        lfric_const = LFRicConstants()
+        #use finite_element_config_mod,      only: element_order
+
+        #fe_config_mod = self._symtab.new_symbol("finite_element_config_mod",
+        #                                        symbol_type=ContainerSymbol)
+        #self._symtab.new_symbol("element_order", symbol_type=DataSymbol,
+        #                        datatype=DeferredType(),
+        #                        interface=ImportInterface(fe_config_mod))
+        try:
+            qr_rule_sym = self._symtab.lookup("quadrature_rule")
+        except KeyError:
+            qr_gaussian_mod = self._symtab.new_symbol(
+                "quadrature_rule_gaussian_mod", symbol_type=ContainerSymbol)
+            qr_gaussian_type = self._symtab.new_symbol(
+                "quadrature_rule_gaussian_type", symbol_type=DataTypeSymbol,
+                datatype=DeferredType(),
+                interface=ImportInterface(qr_gaussian_mod))
+            qr_rule_sym = self._symtab.new_symbol("quadrature_rule",
+                                                  symbol_type=DataSymbol,
+                                                  datatype=qr_gaussian_type)
+
+        for shape, rule in self._kern.qr_rules.items():
+            mod_name = lfric_const.QUADRATURE_TYPE_MAP[shape]["module"]
+            type_name = lfric_const.QUADRATURE_TYPE_MAP[shape]["type"]
+            try:
+                quad_container = self._symtab.lookup(mod_name)
+            except KeyError:
+                quad_container = self._symtab.new_symbol(
+                    mod_name, symbol_type=ContainerSymbol)
+            try:
+                quad_type = self._symtab.lookup(type_name)
+            except KeyError:
+                quad_type = self._symtab.new_symbol(
+                    type_name, symbol_type=DataTypeSymbol,
+                    datatype=DeferredType(),
+                    interface=ImportInterface(quad_container))
+            sym = self._symtab.new_symbol(rule.psy_name,
+                                          symbol_type=DataSymbol,
+                                          datatype=quad_type)
+            self._qr_objects.append((sym, shape))
+            self.append(sym.name)
 
 
 # ============================================================================

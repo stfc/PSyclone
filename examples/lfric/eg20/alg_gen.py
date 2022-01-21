@@ -4,7 +4,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
 
-from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
@@ -73,7 +73,8 @@ END PROGRAM main
 
     ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
                                                       name=kernel_name)
-    # Construct a DynKern using the metadata.
+    # Construct a DynKern using the metadata. This is used when constructing
+    # the kernel argument list.
     kern = DynKern()
     kern.load_meta(ktype)
 
@@ -235,6 +236,25 @@ END PROGRAM main
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
         fld_idx += 1
+
+    # Initialise any quadrature objects
+    for qr_sym, shape in kern_args.quadrature_objects:
+
+        if shape == "gh_quadrature_xyoz":
+            # TODO 'element_order' and 'quadrature_rule' names shouldn't
+            # be hardwired
+            reader = FortranStringReader(
+                "quadrature_xyoz_type(element_order+3, quadrature_rule)")
+            ptree = Fortran2003.Structure_Constructor(reader)
+            prog.addchild(Assignment.create(
+                Reference(qr_sym),
+                CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)))
+
+        elif shape == "blah":
+            # Quadrature rule on lateral faces only
+            #qrf = quadrature_face_type(nqp_exact, .true., .false., &
+            #                       reference_element, quadrature_rule)
+            pass
 
     # Initialise argument values.
     for sym in kern_args.scalars:
