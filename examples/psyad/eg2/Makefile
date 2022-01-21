@@ -38,7 +38,7 @@ include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 GENERATED_FILES += tl_hydrostatic_kernel_mod_adj.[fF]90 test_harness.f90 \
-                   *.mod *.o
+                   main_alg.x90 alg.f90 psy.f90 *.mod *.o
 
 LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
@@ -49,24 +49,31 @@ F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none
 # The first command will write the adjoint kernel to stdout. The
 # second, if supported, would write both it and the corresponding test
 # harness to separate files.
-transform:
+transform: tl_hydrostatic_kernel_mod.F90 ../../lfric/eg20/alg_gen.py
 	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad
 	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -otest test_harness.f90 -oad tl_hydrostatic_kernel_mod_adj.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad
 	# Currently PSyAD does not update the kernel metadata (issue #1453)
 	# so we do that manually here.
 	sed -e 's/PROCEDURE, NOPASS :: tl_hydrostatic_code/PROCEDURE, NOPASS :: tl_hydrostatic_code_adj/' tl_hydrostatic_kernel_mod_adj.F90 > tl_hydrostatic_kernel_mod_adj.f90
-	${PSYCLONE} -api dynamo0.3 -opsy psy.f90 -oalg alg.f90 manual_test_harness_alg.x90
+	# Ultimately this will use the new `python-kern` command but that is
+	# still being developed.
+	python ../../lfric/eg20/alg_gen.py tl_hydrostatic_kernel_type ./tl_hydrostatic_kernel_mod.F90
+	${PSYCLONE} -api dynamo0.3 -opsy psy.f90 -oalg alg.f90 main_alg.x90
 
-compile: transform test_harness.exe
+compile: alg.f90 psy.f90 test_harness.exe
 
-#$(F90) $(F90FLAGS) -c tl_hydrostatic_kernel_mod.F90
-#	$(F90) $(F90FLAGS) -c tl_hydrostatic_kernel_mod_adj.f90
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
 
 psy.f90 alg.f90: transform
 
-test_harness.exe: tl_hydrostatic_kernel_mod.o tl_hydrostatic_kernel_mod_adj.o psy.o alg.o
+test_harness.exe: ${LFRIC_LIB} tl_hydrostatic_kernel_mod.o tl_hydrostatic_kernel_mod_adj.o psy.o alg.o
 	$(F90) $(F90FLAGS) -o test_harness.exe testkern_mod.o \
-                  testkernadj_mod.o psy.o alg.o
+                  testkernadj_mod.o psy.o main_alg.o
+
+tl_hydrostatic_kernel_mod.o: ${LFRIC_LIB}
+tl_hydrostatic_kernel_mod_adj.o: ${LFRIC_LIB}
+psy.o: ${LFRIC_LIB}
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
@@ -75,3 +82,7 @@ test_harness.exe: tl_hydrostatic_kernel_mod.o tl_hydrostatic_kernel_mod_adj.o ps
 
 run: compile
 	@echo "Harness running not yet supported"
+
+allclean: clean
+	${MAKE} -C ${LFRIC_DIR} allclean
+
