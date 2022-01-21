@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -61,7 +60,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.version import __VERSION__
 
 
-def run():
+def run(args):
     '''
     Driver for the psyclone-kern tool.
 
@@ -116,7 +115,7 @@ def run():
         '-v', '--version', dest='version', action="store_true",
         help='Display version information ({0})'.format(__VERSION__))
 
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     if args.version:
         print(f"psyclone-kern version: {__VERSION__}", file=sys.stdout)

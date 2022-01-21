@@ -32,13 +32,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''A Python driver script for the PSyclone kernel utilities tool.
 '''
 
+import sys
+from psyclone.kernel_tools import run
+
 
 if __name__ == "__main__":
 
-    from psyclone.kernel_tools import run
-    run()
+    run(sys.argv[1:])

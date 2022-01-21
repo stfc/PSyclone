@@ -38,44 +38,37 @@
 
 from __future__ import absolute_import
 import os
-import sys
 import pytest
 
-from psyclone import kernel_tools
+from psyclone import alg_gen, gen_kernel_stub, kernel_tools
+from psyclone.version import __VERSION__
 
 
-def test_run_missing_action(monkeypatch, capsys):
+def test_run_missing_action(capsys):
     ''' Test that failing to specify whether to create a stub or an algorithm
     results in the expected message. '''
-    # Use monkeypatch to spoof some command-line arguments.
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "not_a_file.f90"])
     with pytest.raises(SystemExit):
-        kernel_tools.run()
-    out, err = capsys.readouterr()
+        kernel_tools.run(["not_a_file.f90"])
+    _, err = capsys.readouterr()
     assert ("Error, no action specified: one or both of --stub-gen/-oalg or "
             "--alg-gen/-ogen must be supplied." in err)
 
 
-def test_run(monkeypatch, capsys, tmpdir):
+def test_run(capsys, tmpdir):
     ''' Basic test for the run() routine. '''
     # Use a dynamo 0.3 kernel so that we check that the default API
     # (dynamo 0.3) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    # Use monkeypatch to spoof some command-line arguments - first with --limit
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", str(kern_file),
-                                      "--limit", "output", "--stub-gen"])
-    kernel_tools.run()
+    kernel_tools.run([str(kern_file), "--limit", "output", "--stub-gen"])
     result, _ = capsys.readouterr()
     assert "Kernel stub code:" in result
     assert "MODULE testkern_w0_mod" in result
 
     # Test without --limit, but with -ostub:
     psy_file = tmpdir.join("psy.f90")
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", str(kern_file),
-                                      "-api", "dynamo0.3", "-ostub",
-                                      str(psy_file)])
-    kernel_tools.run()
+    kernel_tools.run([str(kern_file), "-api", "dynamo0.3", "-ostub",
+                      str(psy_file)])
     result, _ = capsys.readouterr()
 
     # Now read output file into a string and check:
@@ -84,47 +77,38 @@ def test_run(monkeypatch, capsys, tmpdir):
     assert "MODULE testkern_w0_mod" in str(output)
 
 
-def test_run_version(monkeypatch, capsys):
-    ''' Test that the flag requesting version information works correctly. '''
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "-v", "not-a-file.f90"])
+def test_run_version(capsys):
+    ''' Test that theflag requesting version information works correctly. '''
     with pytest.raises(SystemExit):
-        kernel_tools.run()
+        kernel_tools.run(["-v", "not-a-file.f90"])
     result, _ = capsys.readouterr()
-    from psyclone.version import __VERSION__
     assert f"psyclone-kern version: {__VERSION__}" in result
 
 
-def test_run_invalid_api(monkeypatch, capsys):
+def test_run_invalid_api(capsys):
     ''' Test that the expected error is reported if an invalid API is
     specified. '''
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "-api", "invalid",
-                                      "not-a-file.f90"])
     with pytest.raises(SystemExit):
-        kernel_tools.run()
+        kernel_tools.run(["-api", "invalid", "not-a-file.f90"])
     _, err = capsys.readouterr()
     assert "Unsupported API 'invalid' specified. Supported APIs are" in err
 
 
-def test_run_include_flag(monkeypatch, capsys):
+def test_run_include_flag(capsys):
     ''' Check that the -I flag can be used to pass an include path into
     the configuration object. We actually specify an invalid location and
     check that the expected error is raised. '''
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "-I", "./some/path",
-                                      "not-a-file.f90"])
     with pytest.raises(SystemExit):
-        kernel_tools.run()
+        kernel_tools.run(["-I", "./some/path", "not-a-file.f90"])
     _, err = capsys.readouterr()
     assert ("PSyclone configuration error: Include path './some/path' does "
             "not exist" in err)
 
 
-def test_run_missing_file(monkeypatch, capsys):
+def test_run_missing_file(capsys):
     ''' Test that an IOError is handled correctly. '''
-    # Use monkeypatch to spoof some command-line arguments
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--stub-gen",
-                                      str("/does_not_exist")])
     with pytest.raises(SystemExit):
-        kernel_tools.run()
+        kernel_tools.run(["--stub-gen", str("/does_not_exist")])
     _, result = capsys.readouterr()
     assert ("Error: Kernel stub generator: File '/does_not_exist' "
             "not found" in str(result))
@@ -132,7 +116,6 @@ def test_run_missing_file(monkeypatch, capsys):
 
 def test_unexpected_exception(monkeypatch, capsys):
     ''' Check that an unexpected Exception is caught correctly. '''
-    from psyclone import alg_gen
 
     def broken_gen(kernel_filename, api):
         ''' Broken generate() function that just raises a general
@@ -140,23 +123,19 @@ def test_unexpected_exception(monkeypatch, capsys):
         raise Exception("This is just a test")
 
     monkeypatch.setattr(alg_gen, "generate", broken_gen)
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--alg-gen",
-                                      str("/does_not_exist")])
     with pytest.raises(SystemExit):
-        kernel_tools.run()
+        kernel_tools.run(["--alg-gen", str("/does_not_exist")])
     _, err = capsys.readouterr()
     assert "unexpected exception:" in err
     assert "This is just a test" in err
 
 
-def test_run_alg_gen(monkeypatch, capsys):
+def test_run_alg_gen(capsys):
     ''' Check that the kernel_tools run method attempts to generate an
     algorithm layer if requested. Currently this raises a
     NotImplementedError. '''
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", "--alg-gen",
-                                      str("/does_not_exist")])
     with pytest.raises(SystemExit):
-        kernel_tools.run()
+        kernel_tools.run(["--alg-gen", str("/does_not_exist")])
     _, err = capsys.readouterr()
     assert ("Algorithm generation from kernel metadata is not yet "
             "implemented - #1555" in err)
@@ -167,21 +146,20 @@ def test_run_alg_gen(monkeypatch, capsys):
 def test_run_line_length(monkeypatch, capsys, limit, mode):
     ''' Check that line-length limiting is applied to generated algorithm
     and kernel-stub code when requested. '''
-    from psyclone import alg_gen, gen_kernel_stub
 
     def long_gen(kernel_filename, api):
         ''' generate() function that returns a string longer than
         132 chars. '''
+        # pylint: disable=unused-argument
         return f"long_str = '{140*' '}'"
 
     # Monkeypatch both the algorithm and stub 'generate' functions.
     monkeypatch.setattr(alg_gen, "generate", long_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", long_gen)
-    args = ["psyclone-kern", f"--{mode}-gen", str("/does_not_exist")]
+    args = [f"--{mode}-gen", str("/does_not_exist")]
     if limit:
         args.extend(["--limit", "output"])
-    monkeypatch.setattr(sys, "argv", args)
-    kernel_tools.run()
+    kernel_tools.run(args)
     out, _ = capsys.readouterr()
     if limit:
         assert "long_str = '" in out
@@ -194,20 +172,18 @@ def test_run_line_length(monkeypatch, capsys, limit, mode):
 def test_file_output(monkeypatch, mode, tmpdir):
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
-    from psyclone import alg_gen, gen_kernel_stub
 
     def fake_gen(kernel_filename, api):
         ''' generate() function that simply returns a string. '''
+        # pylint: disable=unused-argument
         return "the_answer = 42"
 
     # Monkeypatch both the algorithm and stub 'generate' functions.
     monkeypatch.setattr(alg_gen, "generate", fake_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
     tmpdir.chdir()
-    monkeypatch.setattr(sys, "argv", ["psyclone-kern", f"-o{mode}",
-                                      f"output_file_{mode}",
-                                      str("/does_not_exist")])
-    kernel_tools.run()
-    with open(f"output_file_{mode}", "r") as infile:
+    kernel_tools.run([f"-o{mode}", f"output_file_{mode}",
+                      str("/does_not_exist")])
+    with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
         content = infile.read()
         assert "the_answer = 42" in content
