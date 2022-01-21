@@ -66,7 +66,7 @@ The ``psyclone-kern`` command has the following arguments:
 
 .. code-block:: bash
 
-    > psyclone-ken -h
+    > psyclone-kern -h
     usage: psyclone-kern [-h] [--alg-gen] [--stub-gen] [-oalg OALG]
                          [-ostub OSTUB] [-api API]
                          [-I INCLUDE] [-l {off,all,output}]
@@ -99,7 +99,7 @@ The ``psyclone-kern`` command has the following arguments:
                             Fortran. Use 'output' to apply line-length
                             limit to output Fortran only.
       --config CONFIG       Config file with PSyclone specific options.
-      -v, --version         Display version information (2.1.0)
+      -v, --version         Display version information (\ |release|\ )
 
 Those specific to stub or algorithm generation are covered in the appropriate
 sections below.
@@ -499,4 +499,5 @@ message. For example::
 Algorithm Generator
 -------------------
 
-This will be implemented as part of #1555.
+Currently this will raise a ``NotImplementedError`` as the functionality will
+be implemented as part of #1555.
