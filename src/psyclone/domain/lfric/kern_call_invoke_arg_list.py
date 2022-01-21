@@ -60,19 +60,22 @@ class KernCallInvokeArgList(ArgOrdering):
         super().__init__(kern)
         self._symtab = symbol_table
         self._fields = []
-        self._field_vectors = []
         self._scalars = []
 
     @property
     def fields(self):
+        '''
+        :returns: the field (and field-vector) arguments to the kernel.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
         return self._fields
 
     @property
-    def field_vectorss(self):
-        return self._field_vectors
-
-    @property
     def scalars(self):
+        '''
+        :returns: the scalar arguments to the kernel.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
         return self._scalars
 
     def generate(self, var_accesses=None):
@@ -128,7 +131,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
         sym = self._symtab.new_symbol(argvect.name,
                                       symbol_type=DataSymbol, datatype=dtype)
-        self._field_vectors.append(sym)
+        self._fields.append(sym)
         self.append(sym.name)
 
     def field(self, arg, var_accesses=None):

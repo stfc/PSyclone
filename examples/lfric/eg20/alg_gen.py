@@ -6,12 +6,13 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.dynamo0p3 import DynKern
+from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (CodeBlock, Assignment, Literal, Reference,
                                   Routine)
-from psyclone.psyir.symbols import (INTEGER_TYPE,
+from psyclone.psyir.symbols import (INTEGER_TYPE, ArrayType,
                                     DataSymbol, DataTypeSymbol, DeferredType,
                                     ImportInterface, ContainerSymbol,
                                     RoutineSymbol, UnknownFortranType)
@@ -210,11 +211,29 @@ END PROGRAM main
     # respective function spaces extracted from the kernel metadata.
     fld_idx = 0
     for sym in kern_args.fields:
-        ptree = Fortran2003.Call_Stmt(
-            f"CALL {sym.name} % initialise(vector_space = "
-            f"vector_space_{field_spaces[fld_idx]}_ptr, name = "
-            f"'{sym.name}')")
-        prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+        if isinstance(sym.datatype, DataTypeSymbol):
+            # Single field argument.
+            ptree = Fortran2003.Call_Stmt(
+                f"CALL {sym.name} % initialise(vector_space = "
+                f"vector_space_{field_spaces[fld_idx]}_ptr, name = "
+                f"'{sym.name}')")
+            prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+
+        elif isinstance(sym.datatype, ArrayType):
+            # Field vector argument.
+            for dim in range(int(sym.datatype.shape[0].lower.value),
+                             int(sym.datatype.shape[0].upper.value)+1):
+                ptree = Fortran2003.Call_Stmt(
+                    f"CALL {sym.name}({dim}) % initialise(vector_space = "
+                    f"vector_space_{field_spaces[fld_idx]}_ptr, name = "
+                    f"'{sym.name}')")
+                prog.addchild(CodeBlock([ptree],
+                                        CodeBlock.Structure.STATEMENT))
+        else:
+            raise InternalError(
+                f"Expected a field symbol to either be of ArrayType or have "
+                f"a type specified by a DataTypeSymbol but found "
+                f"{sym.datatype} for field '{sym.name}'")
         fld_idx += 1
 
     # Initialise argument values.
@@ -224,7 +243,17 @@ END PROGRAM main
     # We use the setval_c builtin to initialise all fields to zero.
     setval_list = []
     for sym in kern_args.fields:
-        setval_list.append(f"setval_c({sym.name}, 0.0_r_def)")
+        if isinstance(sym.datatype, DataTypeSymbol):
+            setval_list.append(f"setval_c({sym.name}, 0.0_r_def)")
+        elif isinstance(sym.datatype, ArrayType):
+            for dim in range(int(sym.datatype.shape[0].lower.value),
+                             int(sym.datatype.shape[0].upper.value)+1):
+                setval_list.append(f"setval_c({sym.name}({dim}), 0.0_r_def)")
+        else:
+            raise InternalError(
+                f"Expected a field symbol to either be of ArrayType or have "
+                f"a type specified by a DataTypeSymbol but found "
+                f"{sym.datatype} for field '{sym.name}'")
 
     kernel_arg_list = ','.join(name for name in kern_args.arglist)
     # Getting fparser to parse the 'invoke' is difficult so put it in its
