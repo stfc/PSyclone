@@ -43,7 +43,7 @@ first before any members.
 '''
 
 from psyclone.domain.lfric import ArgOrdering
-from psyclone.psyir.symbols import ScalarType, DataSymbol
+from psyclone.psyir.symbols import ArrayType, ScalarType, DataSymbol
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -60,6 +60,7 @@ class KernCallInvokeArgList(ArgOrdering):
         super().__init__(kern)
         self._symtab = symbol_table
         self._fields = []
+        self._field_vectors = []
         self._scalars = []
 
     @property
@@ -67,12 +68,20 @@ class KernCallInvokeArgList(ArgOrdering):
         return self._fields
 
     @property
+    def field_vectorss(self):
+        return self._field_vectors
+
+    @property
     def scalars(self):
         return self._scalars
 
     def generate(self, var_accesses=None):
         ''' Just ensures that our internal lists of field and scalar arguments
-        are reset as calling generate() populates them. '''
+        are reset (as calling generate() populates them) before calling this
+        method in the parent class.
+
+        :param var_accesses: TBD
+        '''
         self._fields = []
         self._scalars = []
         super().generate(var_accesses)
@@ -114,9 +123,13 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        raise NotImplementedError("Need to implement support for a "
-                                  "field-vector kernel argument.")
-        self.append(argvect.name)
+        ftype = self._symtab.lookup("field_type")
+        dtype = ArrayType(ftype, [argvect.vector_size])
+
+        sym = self._symtab.new_symbol(argvect.name,
+                                      symbol_type=DataSymbol, datatype=dtype)
+        self._field_vectors.append(sym)
+        self.append(sym.name)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
