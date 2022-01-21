@@ -271,15 +271,23 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
     call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
-    ! write data to the device
-    call u_fld%write_to_device()
-    call cu_fld%write_to_device()
-    call p_fld%write_to_device()
-  end if'''
-    assert expected == generated_code
+    ! write data to the device'''
+    assert expected in generated_code
 
-    # Search the final first_time block with:
-    # first_time = .false.
+    # The write_to_device() can appear in any order in the following 3 lines
+    lines = generated_code.split('\n')
+    idx = lines.index('    ! write data to the device')
+    candidates = '\n'.join(lines[idx+1:idx+4])
+    assert "call u_fld%write_to_device()" in candidates
+    assert "call cu_fld%write_to_device()" in candidates
+    assert "call p_fld%write_to_device()" in candidates
+
+    # Just before the end of the subroutine first_time is set to False
+    expected = '''\
+  first_time = .false.
+
+end subroutine'''
+    assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -361,39 +369,42 @@ c_sizeof(field%grid%area_t(1,1))'''
     # Check that during the first time set-up the previous routines are called
     # for a kernel which contains a grid property access.
     expected = '''
+      xstart = out_fld%internal%xstart
+      xstop = out_fld%internal%xstop
+      ystart = out_fld%internal%ystart
+      ystop = out_fld%internal%ystop
+      ! initialise opencl runtime, kernels and buffers
       if (first_time) then
         call psy_init
+        cmd_queues => get_cmd_queues()
         kernel_compute_kernel_code = get_kernel_by_name('compute_kernel_code')
         call initialise_device_buffer(out_fld)
         call initialise_device_buffer(in_out_fld)
         call initialise_device_buffer(in_fld)
         call initialise_device_buffer(dx)
         call initialise_grid_device_buffers(in_fld)
-      end if
-      cmd_queues => get_cmd_queues()
-      xstart = out_fld%internal%xstart
-      xstop = out_fld%internal%xstop
-      ystart = out_fld%internal%ystart
-      ystop = out_fld%internal%ystop
-      out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
-      in_out_fld_cl_mem = \
-transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
-      in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
-      dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
-      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
-      call compute_kernel_code_set_args(kernel_compute_kernel_code, \
+        ! do a set_args now so subsequent writes place the data appropriately
+        out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
+        in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
+        in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
+        dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
+        gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
+        call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
-      if (first_time) then'''
+        ! write data to the device'''
     assert expected in generated_code
 
-    # TODO: Check this statement that can be in any order
-    # call out_fld%write_to_device
-    # call in_out_fld%write_to_device
-    # call in_fld%write_to_device
-    # call dx%write_to_device
-    # call write_grid_buffers(in_fld)
+    # The write_to_device() can appear in any order in the following 5 lines
+    lines = generated_code.split('\n')
+    idx = lines.index('        ! write data to the device')
+    candidates = '\n'.join(lines[idx+1:idx+6])
+    assert "call out_fld%write_to_device" in candidates
+    assert "call in_out_fld%write_to_device" in candidates
+    assert "call in_fld%write_to_device" in candidates
+    assert "call dx%write_to_device" in candidates
+    assert "call write_grid_buffers(in_fld)" in candidates
 
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
@@ -685,29 +696,8 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
-    # Set the boundaries for this kernel
-    expected = '''
-      xstart = cu_fld%internal%xstart
-      xstop = cu_fld%internal%xstop
-      ystart = cu_fld%internal%ystart
-      ystop = cu_fld%internal%ystop'''
-
-    # Cast dl_esm_inf pointers to cl_mem handlers
-    #expected += '''
-    #  cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
-    #  p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
-    #  u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
-
-    # Call the set_args subroutine with the boundaries corrected for the
-    # OpenCL 0-indexing
-    # expected += '''
-    #  CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-# cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
-# xstart - 1, xstop - 1, \
-# ystart - 1, ystop - 1)'''
-
     # Set up globalsize and localsize values
-    expected += '''
+    expected = '''
       globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
       localsize = (/64, 1/)'''
 
@@ -726,6 +716,20 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         expected += '''
       ierr = clFinish(cmd_queues(1))
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
+
+    # Cast dl_esm_inf pointers to cl_mem handlers
+    expected += '''
+      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
+
+    # Call the set_args subroutine with the boundaries corrected for the
+    # OpenCL 0-indexing
+    expected += '''
+      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
+xstart - 1, xstop - 1, \
+ystart - 1, ystop - 1)'''
 
     expected += '''
       ! Launch the kernel
@@ -957,7 +961,7 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      ! Launch the kernel'''
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)'''
 
     haloexbarrier = '''
       ierr = clFinish(cmd_queues(2))

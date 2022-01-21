@@ -452,6 +452,8 @@ class GOOpenCLTrans(Transformation):
         # following iterations. We will detach all these nodes after the loop.
         nodes_to_detach = []
 
+        # Transform each kernel call loop construct to its equivalent FortCL
+        # statements
         for kern in node.coded_kernels():
             outerloop = kern.ancestor(GOLoop).ancestor(GOLoop)
 
