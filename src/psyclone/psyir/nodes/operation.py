@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,7 @@ class Operation(DataNode):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = object
+    _non_elemental_ops = []
     # Textual description of the node.
     _text_name = "Operation"
     _colour = "blue"
@@ -75,9 +76,9 @@ class Operation(DataNode):
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
-                "{0} operator argument must be of type "
-                "{0}.Operator but found {1}.".format(type(self).__name__,
-                                                     type(operator).__name__))
+                f"{type(self).__name__} operator argument must be of type "
+                f"{type(self).__name__}.Operator but found "
+                f"{type(operator).__name__}.")
         self._operator = operator
 
     @property
@@ -105,6 +106,15 @@ class Operation(DataNode):
         '''
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
+
+    def is_elemental(self):
+        '''
+        :returns: whether this operation is elemental (provided with an input \
+            array it will apply the operation individually to each of the \
+            array elements and return an array with the results).
+        :rtype: bool
+        '''
+        return self.operator not in self._non_elemental_ops
 
     def __str__(self):
         result = self.node_str(False) + "\n"
@@ -139,6 +149,8 @@ class UnaryOperation(Operation):
         'REAL', 'INT', 'NINT'
         ])
 
+    _non_elemental_ops = [Operator.SUM]
+
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -170,9 +182,9 @@ class UnaryOperation(Operation):
         '''
         if not isinstance(oper, UnaryOperation.Operator):
             raise GenerationError(
-                "oper argument in create method of UnaryOperation class "
-                "should be a PSyIR UnaryOperation Operator but found '{0}'."
-                "".format(type(oper).__name__))
+                f"oper argument in create method of UnaryOperation class "
+                f"should be a PSyIR UnaryOperation Operator but found "
+                f"'{type(oper).__name__}'.")
 
         unary_op = UnaryOperation(oper)
         unary_op.children = [child]
@@ -201,6 +213,8 @@ class BinaryOperation(Operation):
         # Matrix and Vector Operators
         'MATMUL', 'DOT_PRODUCT'
         ])
+    _non_elemental_ops = [Operator.SUM, Operator.MATMUL, Operator.SIZE,
+                          Operator.LBOUND, Operator.UBOUND]
     '''Arithmetic operators:
 
     .. function:: POW(arg0, arg1) -> type(arg0)
@@ -314,9 +328,9 @@ class BinaryOperation(Operation):
         '''
         if not isinstance(oper, BinaryOperation.Operator):
             raise GenerationError(
-                "oper argument in create method of BinaryOperation class "
-                "should be a PSyIR BinaryOperation Operator but found '{0}'."
-                "".format(type(oper).__name__))
+                f"oper argument in create method of BinaryOperation class "
+                f"should be a PSyIR BinaryOperation Operator but found "
+                f"'{type(oper).__name__}'.")
 
         binary_op = BinaryOperation(oper)
         binary_op.children = [lhs, rhs]
@@ -337,6 +351,7 @@ class NaryOperation(Operation):
         # Arithmetic Operators
         'MAX', 'MIN', 'SUM'
         ])
+    _non_elemental_ops = [Operator.SUM]
 
     @staticmethod
     def _validate_child(position, child):
@@ -372,14 +387,13 @@ class NaryOperation(Operation):
         '''
         if not isinstance(oper, NaryOperation.Operator):
             raise GenerationError(
-                "oper argument in create method of NaryOperation class "
-                "should be a PSyIR NaryOperation Operator but found '{0}'."
-                "".format(type(oper).__name__))
+                f"oper argument in create method of NaryOperation class "
+                f"should be a PSyIR NaryOperation Operator but found "
+                f"'{type(oper).__name__}'.")
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of NaryOperation class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of NaryOperation class "
+                f"should be a list but found '{type(children).__name__}'.")
 
         nary_op = NaryOperation(oper)
         nary_op.children = children

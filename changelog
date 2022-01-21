@@ -70,6 +70,11 @@
 	24) PR #1526 for #1430. Fixes and improves support for array
 	ranges in psyad.
 
+	25) PR #1500 for #1487. Improvements to NEMO arrayrange2loop
+	transformation.
+
+	26) PR #1541 for #1513. Adds a 2D loop-tiling transformation.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
