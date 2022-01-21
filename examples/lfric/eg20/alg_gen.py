@@ -61,11 +61,14 @@ END PROGRAM main
     init_block = CodeBlock(exe_parts[0].children,
                            CodeBlock.Structure.STATEMENT)
 
-    kernel_path = sys.argv[1]
-    kernel_name = "testkern_type"
-    kernel_mod_name = "testkern_mod"
-    # Parse the kernel metadata.
+    kernel_name = sys.argv[1]
+    kernel_path = sys.argv[2]
+
+    # Parse the kernel metadata (this still uses fparser1 as that's what
+    # the meta-data handling is currently based upon).
     parse_tree = get_kernel_parse_tree(kernel_path)
+    # Get the name of the module that contains the kernel
+    kernel_mod_name = parse_tree.content[0].name
 
     ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
                                                       name=kernel_name)
