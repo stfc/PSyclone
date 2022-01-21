@@ -108,7 +108,7 @@ class Reference(DataNode):
         :return: text description of this node.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[name:'" + self.name + "']"
+        return f"{self.coloured_name(colour)}[name:'{self.name}']"
 
     def __str__(self):
         return self.node_str(False)

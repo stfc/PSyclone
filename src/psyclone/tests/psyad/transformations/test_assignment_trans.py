@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,11 +43,18 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Literal, UnaryOperation
+    Literal, UnaryOperation, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    ScalarType
+    ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
+
+
+@pytest.fixture(name="index_str", params=["1", "i", ":", "2:3"])
+def index_str_fixture(request):
+    ''' Fixture that supplies a number of different types of Fortran
+    array-index expressions. Returns the contents of params in turn. '''
+    return request.param
 
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
@@ -71,10 +78,9 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
-    input_code = ("subroutine test()\n{0}end subroutine test\n"
-                  "".format(tl_fortran))
-    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
-                            "".format(expected_ad_fortran))
+    input_code = f"subroutine test()\n{tl_fortran}end subroutine test\n"
+    expected_output_code = (f"subroutine test()\n{expected_ad_fortran}end "
+                            f"subroutine test\n")
 
     # Translate the tangent linear code to PSyIR.
     reader = FortranReader()
@@ -115,10 +121,9 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 def test_zero(tmpdir):
     '''Test the adjoint transformation with an assignment of the form A =
     0. This is the only valid value that an active variable can be set
-    to in a tangent linear code and represents multiplying an active
+    to in a tangent-linear code and represents multiplying an active
     variable by zero on the rhs. Scalars, directly addressed arrays,
-    indirectly addressed arrays and structure array accesses are
-    tested.
+    indirectly addressed arrays and array ranges are tested.
 
     A=0 -> A*=0
 
@@ -156,6 +161,28 @@ def test_zero(tmpdir):
         "  integer, dimension(n) :: b\n\n"
         "  a(b(n)) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n)\n"
+        "  a(:) = 0.0\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n\n"
+        "  a(:) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range with limits
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n)\n"
+        "  a(2:n-2) = 0.0\n\n")
+    active_variables = ["a"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n\n"
+        "  a(2:n - 2) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
 @pytest.mark.xfail(reason="issue #1347, type declaration is being written in "
@@ -190,8 +217,8 @@ def test_single_assign(tmpdir):
     '''Test the transformation works when there is one active variable on
     the rhs (B) and with the active variable on the lhs (A) only being
     written to, i.e. not also read on the rhs. Scalars, directly
-    addressed arrays, indirectly addressed arrays and structure array
-    accesses are tested.
+    addressed arrays, indirectly addressed arrays and array ranges are
+    tested.
 
     A=B -> B*=B*+A*; A*=0.0
 
@@ -233,6 +260,32 @@ def test_single_assign(tmpdir):
         "  integer, dimension(n) :: lookup\n\n"
         "  b(lookup(n) + 1) = b(lookup(n) + 1) + a(lookup(2 * i))\n"
         "  a(lookup(2 * i)) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n),b(n)\n"
+        "  a(:) = b(:)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
+        "  b(:) = b(:) + a(:)\n"
+        "  a(:) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+    # Array range with limits
+    tl_fortran = (
+        "  integer, parameter :: n=10\n"
+        "  real :: a(n),b(n)\n"
+        "  a(2:n) = b(1:n-1)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n\n"
+        "  b(1:n - 1) = b(1:n - 1) + a(2:n)\n"
+        "  a(2:n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -317,7 +370,29 @@ def test_multi_add(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment(tmpdir):
+def test_multi_add_array_elements(tmpdir):
+    '''
+    Same as test_multi_add except that 'A' and 'B' are actually just
+    different elements of the same array:
+
+    A=B+xC -> B*=B*+A*; C*=C*+xA*; A*=0.0
+
+    '''
+    tl_fortran = (
+        "  real a(10), b(10), n\n"
+        "  integer :: i,j\n"
+        "  a(i) = a(j) + 3*n*b(j)\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  a(j) = a(j) + a(i)\n"
+        "  b(j) = b(j) + 3 * n * a(i)\n"
+        "  a(i) = 0.0\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+def test_increment(tmpdir, index_str):
     '''Test the adjoint transformation with an assignment of the form
     A = A.
 
@@ -327,17 +402,19 @@ def test_increment(tmpdir):
 
     '''
     tl_fortran = (
-        "  integer, parameter :: n=2\n"
-        "  real a(n)\n"
-        "  a(n) = a(n)\n")
+        f"  integer, parameter :: n=3\n"
+        f"  integer :: i\n"
+        f"  real a(n)\n"
+        f"  a({index_str}) = a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 2\n"
+        "  integer, parameter :: n = 3\n"
+        "  integer :: i\n"
         "  real, dimension(n) :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_mult(tmpdir):
+def test_increment_mult(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read (and scaled (x)) on the rhs
     and there are no other active variables on the rhs. Also test
@@ -347,18 +424,20 @@ def test_increment_mult(tmpdir):
 
     '''
     tl_fortran = (
-        "  integer, parameter :: n=4\n"
-        "  real a(n)\n"
-        "  A(n) = 5*A(n)\n")
+        f"  integer, parameter :: n=4\n"
+        f"  integer :: i\n"
+        f"  real a(n)\n"
+        f"  A({index_str}) = 5*A({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 4\n"
-        "  real, dimension(n) :: a\n\n"
-        "  a(n) = 5 * a(n)\n\n")
+        f"  integer, parameter :: n = 4\n"
+        f"  integer :: i\n"
+        f"  real, dimension(n) :: a\n\n"
+        f"  a({index_str}) = 5 * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_add(tmpdir):
+def test_increment_add(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read on the rhs and there is a
     another active variable (B) read on the rhs. Also test mixed-case
@@ -368,46 +447,50 @@ def test_increment_add(tmpdir):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10)\n"
-        "  a(1) = A(1)+B(1)\n")
+        f"  real a(10), b(10)\n  integer :: i\n"
+        f"  a({index_str}) = A({index_str})+B({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n\n"
-        "  b(1) = b(1) + a(1)\n\n")
+        f"  real, dimension(10) :: a\n"
+        f"  real, dimension(10) :: b\n"
+        f"  integer :: i\n\n"
+        f"  b({index_str}) = b({index_str}) + a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_add_reorder(tmpdir):
+def test_increment_add_reorder(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read (and scaled (k)) on the rhs
     and there is another active variable (B) read on the
     rhs. Additionally, the active variable A is not the first term on
     the rhs (where we define terms as expressions separated by an
-    addition (or subtraction)).
+    addition (or subtraction)). Test for both individual array accesses
+    and array ranges.
 
     A=B+kA -> B*+=A*; A*=kA*
 
     '''
     tl_fortran = (
-        "  real a(10), b(10)\n"
-        "  integer k\n"
-        "  a(1) = b(1)+k*a(1)\n")
+        f"  real a(10), b(10)\n"
+        f"  integer i, k\n"
+        f"  a({index_str}) = b({index_str})+k*a({index_str})\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  integer :: k\n\n"
-        "  b(1) = b(1) + a(1)\n"
-        "  a(1) = k * a(1)\n\n")
+        f"  real, dimension(10) :: a\n"
+        f"  real, dimension(10) :: b\n"
+        f"  integer :: i\n"
+        f"  integer :: k\n\n"
+        f"  b({index_str}) = b({index_str}) + a({index_str})\n"
+        f"  a({index_str}) = k * a({index_str})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_increment_multi_add(tmpdir):
+def test_increment_multi_add(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read (and scaled (w)) on the rhs
     and there are many other active variables on the rhs (B, C, D),
-    which are also scaled.
+    which are also scaled. Test for both individual array accesses
+    and array ranges.
 
     A=wA+xB+yC+zD -> D*=D*+zA*; C*=C*+yA*; B*=B*+xA*; A*=wA*
 
@@ -415,38 +498,44 @@ def test_increment_multi_add(tmpdir):
     tl_fortran = (
         "  real a(10), b(10), c(10), d(10)\n"
         "  real w(10), x, y(10), z\n"
-        "  a(1) = w(1)*a(1)+x*b(1)+y(1)*c(1)+d(1)*z\n")
+        "  integer i\n"
+        "  a({0}) = w({0})*a({0})+x*b({0})+y({0})*c({0})+d({0})*z\n".format(
+            index_str))
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  real, dimension(10) :: w\n  real :: x\n"
-        "  real, dimension(10) :: y\n  real :: z\n\n"
-        "  b(1) = b(1) + x * a(1)\n"
-        "  c(1) = c(1) + y(1) * a(1)\n"
-        "  d(1) = d(1) + a(1) * z\n"
-        "  a(1) = w(1) * a(1)\n\n")
+        "  real, dimension(10) :: y\n  real :: z\n"
+        "  integer :: i\n\n"
+        "  b({0}) = b({0}) + x * a({0})\n"
+        "  c({0}) = c({0}) + y({0}) * a({0})\n"
+        "  d({0}) = d({0}) + a({0}) * z\n"
+        "  a({0}) = w({0}) * a({0})\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_multi_increment(tmpdir):
+def test_multi_increment(tmpdir, index_str):
     '''Test the code works when the active variable that is written to on
     the lhs (A) is also read on the rhs, but is read more than once in
     different terms, some of which are scaled. The resultant adjoint
-    code has the same form as the tangent-linear code.
+    code has the same form as the tangent-linear code. Test for both
+    individual array accesses and array ranges.
 
     A=A+xA -> A=A+xA.
 
     '''
     tl_fortran = (
-        "  real a(10)\n"
-        "  real x\n"
-        "  a(1) = a(1)+x*a(1)\n")
+        f"  real a(10)\n"
+        f"  real x\n"
+        f"  integer i\n"
+        f"  a({index_str}) = a({index_str})+x*a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  real :: x\n\n"
-        "  a(1) = a(1) + x * a(1)\n\n")
+        f"  real, dimension(10) :: a\n"
+        f"  real :: x\n"
+        f"  integer :: i\n\n"
+        f"  a({index_str}) = a({index_str}) + x * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -500,7 +589,7 @@ def test_multi_valued_sub(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_inc_sub(tmpdir):
+def test_inc_sub(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs is also read (and multiplied by -1) on the
     rhs. There are no other active variables on the rhs.
@@ -509,25 +598,26 @@ def test_inc_sub(tmpdir):
 
     '''
     tl_fortran = (
-        "  real a(10)\n"
-        "  integer :: i\n"
-        "  a(i) = -a(i)\n")
+        f"  real a(10)\n"
+        f"  integer :: i\n"
+        f"  a({index_str}) = -a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n"
-        "  integer :: i\n\n"
-        "  a(i) = -a(i)\n\n")
+        f"  real, dimension(10) :: a\n"
+        f"  integer :: i\n\n"
+        f"  a({index_str}) = -a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-def test_multi_inc_sub(tmpdir):
+def test_multi_inc_sub(tmpdir, index_str):
     '''Test the transformation works when the active variable that is
     written to on the lhs (A) is also read multiple times from
     different terms on the rhs. The terms on the rhs combine the
     active variable with an inactive variable (or no inactive
     variable) in different supported combinations (multiplication,
     division, unary minus). The terms are also combined on the rhs
-    with both addition and subtraction.
+    with both addition and subtraction. Test for both individual array
+    accesses and array ranges.
 
     A=-A-xA+B+A/y -> B*=B*+A*; A*=A*(-1.0-x+1.0/y)
 
@@ -536,14 +626,14 @@ def test_multi_inc_sub(tmpdir):
         "  real a(10), b(10)\n"
         "  integer :: i\n"
         "  real :: x,y\n"
-        "  a(i) = -a(i)-x*a(i)+b(i)+a(i)/y\n")
+        "  a({0}) = -a({0})-x*a({0})+b({0})+a({0})/y\n".format(index_str))
     active_variables = ["a", "b"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: i\n"
         "  real :: x\n  real :: y\n\n"
-        "  b(i) = b(i) + a(i)\n"
-        "  a(i) = -a(i) - x * a(i) + a(i) / y\n\n")
+        "  b({0}) = b({0}) + a({0})\n"
+        "  a({0}) = -a({0}) - x * a({0}) + a({0}) / y\n\n".format(index_str))
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -724,6 +814,65 @@ def test_unary_binary_minus(tmpdir):
         "  d = d + (-a)\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
+# _array_ranges_match method
+
+def test_array_ranges_match():
+    ''' Test for the helper method that checks whether the array ranges match
+    for a variable referenced on both the LHS and RHS of an assignment. '''
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    lhs_symbol = DataSymbol("a", array_type)
+    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    single_elem_ref = ArrayReference.create(lhs_symbol,
+                                            [Literal("1", INTEGER_TYPE)])
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(rhs_symbol), single_elem_ref)
+    lhs = ArrayReference.create(lhs_symbol,
+                                [Range.create(Literal("2", INTEGER_TYPE),
+                                              Literal("5", INTEGER_TYPE))])
+    assign = Assignment.create(lhs, multiply)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    # If the rhs reference is not to the symbol on the LHS then the routine
+    # should do nothing.
+    trans._array_ranges_match(assign, Reference(rhs_symbol))
+    # If the rhs reference *is* to the same symbol as on the LHS but is not
+    # an ArrayReference then an exception should be raised.
+    with pytest.raises(TangentLinearError) as err:
+        trans._array_ranges_match(assign, Reference(lhs_symbol))
+    assert ("TangentLinearError: Assignment is to an array range but found a "
+            "reference to the LHS variable 'a' without array notation on the "
+            "RHS: 'a(2:5) = x * a(1)" in str(err.value))
+    # If the rhs reference does not match the range on the LHS then an
+    # exception should be raised.
+    with pytest.raises(NotImplementedError) as err:
+        trans._array_ranges_match(assign, single_elem_ref)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'. This "
+            "is not supported." in str(err.value))
+    # Repeat but with a range instead of a single array element. (This isn't
+    # valid code but is sufficient for this test.)
+    wrong_range = Range.create(Literal("3", INTEGER_TYPE),
+                               Literal("6", INTEGER_TYPE))
+    new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
+    assign = Assignment.create(lhs.detach(), new_ref)
+    with pytest.raises(NotImplementedError) as err:
+        trans._array_ranges_match(assign, new_ref)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = a(3:6)\n'. This "
+            "is not supported." in str(err.value))
+    # Repeat with a range where only the step size is wrong. (This isn't valid
+    # code but is sufficient for this test.)
+    wrong_range = Range.create(Literal("2", INTEGER_TYPE),
+                               Literal("5", INTEGER_TYPE),
+                               Literal("2", INTEGER_TYPE))
+    new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
+    assign = Assignment.create(lhs.detach(), new_ref)
+    with pytest.raises(NotImplementedError) as err:
+        trans._array_ranges_match(assign, new_ref)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = a(2:5:2)\n'. This "
+            "is not supported." in str(err.value))
 
 # validate() method
 
@@ -1105,6 +1254,66 @@ def test_validate_unaryop():
     assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must be "
             "linear with respect to the active variable, but found 'SQRT(b)'."
             in str(info.value))
+
+
+def test_validate_mismatched_array_ranges():
+    ''' Check that we reject a tangent-linear assignment if it references
+    different ranges of the same active variable, e.g:
+                      a(2:5) = x*a(1)
+
+    '''
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    lhs_symbol = DataSymbol("a", array_type)
+    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol), ArrayReference.create(lhs_symbol,
+                                               [Literal("1", INTEGER_TYPE)]))
+    lhs = ArrayReference.create(lhs_symbol,
+                                [Range.create(Literal("2", INTEGER_TYPE),
+                                              Literal("5", INTEGER_TYPE))])
+    assign = Assignment.create(lhs, multiply)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(NotImplementedError) as err:
+        trans.validate(assign)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'"
+            in str(err.value))
+    # Repeat but without a multiplier: a(2:5) = a(3:6).
+    assign = Assignment.create(lhs.detach(),
+                               ArrayReference.create(
+                                   lhs_symbol, [Range.create(
+                                       Literal("3", INTEGER_TYPE),
+                                       Literal("6", INTEGER_TYPE))]))
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(NotImplementedError) as err:
+        trans.validate(assign)
+    assert ("Different sections of the same active array 'a' are accessed on "
+            "the LHS and RHS of an assignment: 'a(2:5) = a(3:6)\n'"
+            in str(err.value))
+
+
+def test_validate_missing_array_indices():
+    ''' Check that we reject a tangent-linear assignment if the LHS is an
+    array access but the same symbol is referenced on the RHS without array
+    notation. (The PSyIR permits this since arrays can be arguments to
+    query functions.) '''
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    lhs_symbol = DataSymbol("a", array_type)
+    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(rhs_symbol),
+        Reference(lhs_symbol))
+    lhs = ArrayReference.create(lhs_symbol,
+                                [Range.create(Literal("2", INTEGER_TYPE),
+                                              Literal("5", INTEGER_TYPE))])
+    assign = Assignment.create(lhs, multiply)
+    trans = AssignmentTrans(active_variables=[lhs_symbol])
+    with pytest.raises(TangentLinearError) as err:
+        trans.validate(assign)
+    assert ("Assignment is to an array range but found a reference to the LHS "
+            "variable 'a' without array notation on the RHS: "
+            "'a(2:5) = x * a\n'" in str(err.value))
 
 # _split_nodes() method
 

@@ -1799,8 +1799,12 @@ class Fparser2Reader(object):
 
                 symbol_table.add(sym)
 
-            # The Symbol must have the interface given by the declaration
-            sym.interface = interface
+            # The Symbol must have the interface given by the declaration. We
+            # take a copy to ensure that it can be modified without side
+            # effects.
+            # TODO #1444 Can we ensure that an interface is only referenced
+            # by a single symbol?
+            sym.interface = interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
