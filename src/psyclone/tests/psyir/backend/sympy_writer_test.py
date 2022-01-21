@@ -156,7 +156,7 @@ def test_sym_writer_functions(fortran_reader, expressions):
                                          ("a%b(1)", {'a': Symbol('a')})
                                          ])
 def test_sympy_writer_create_type_map(expressions, fortran_reader):
-    '''Tests that the static create_symbol_table creates a dictionary
+    '''Tests that the static create_type_map creates a dictionary
     with correctly declared references (and not any member names,
     which will be added later).
     '''
@@ -249,8 +249,8 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
 
 
 def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
-    '''Tests that convenience function `write_as_sympy_strings works
-    as expected.
+    '''Tests that convenience function `convert_to_sympy_expressions`
+    works as expected.
 
     '''
     # A dummy program to easily create the PSyIR for the

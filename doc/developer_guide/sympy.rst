@@ -189,6 +189,6 @@ following, SymPy specific features:
 .. note::
     The SymPyWriter class provides the static function
     ``convert_to_sympy_expressions`` which hides the complexities of the
-    conversion from PSyIR expressions to a SymPy expressions. It is
+    conversion from PSyIR expressions to SymPy expressions. It is
     strongly recommended to only use this function when this functionality
     is needed.

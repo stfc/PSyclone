@@ -111,7 +111,7 @@ class ArrayMixin(object):
         '''
         if not isinstance(index, int):
             raise TypeError(
-                "The index argument should be an integer but found "
+                f"The index argument should be an integer but found "
                 f"'{type(index).__name__}'.")
         if index > len(self.indices)-1:
             raise ValueError(
@@ -303,14 +303,14 @@ class ArrayMixin(object):
         if not self._children:
             raise InternalError(
                 f"{type(self).__name__} malformed or incomplete: must have "
-                "one or more children representing array-index expressions "
-                "but found none.")
+                f"one or more children representing array-index expressions "
+                f"but found none.")
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
                     f"{type(self).__name__} malformed or incomplete: child "
                     f"{idx} must by a psyir.nodes.DataNode or Range "
-                    "representing an array-index expression but "
+                    f"representing an array-index expression but "
                     f"found '{type(child).__name__}'")
         return self.children
 

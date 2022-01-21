@@ -64,7 +64,7 @@ class SymPyWriter(FortranWriter):
         type of each reference in the expressions. This is the result of the \
         static function \
         :py:meth:`psyclone.core.sympy_writer.create_type_map`.
-    :type type_map: dictionary of string:Sympy-data-type values
+    :type type_map: dict of str:Sympy-data-type values
     '''
 
     def __init__(self, type_map=None):
@@ -143,15 +143,12 @@ class SymPyWriter(FortranWriter):
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
 
-        It returns the converted PSyIR expressions as a list of SymPy
-        expressions.
-
         :param list_of_expressions: the list of expressions which are to be \
             converted into SymPy-parsable strings.
         :type list_of_expressions: list of \
             :py:class:`psyclone.psyir.nodes.Node`
-        :returns: a list of SymPy expressions that are the conversion from
-            the specified PSyIR expressions.
+
+        :returns: the converted PSyIR expressions.
         :rtype: list of SymPy expressions
 
         '''
@@ -192,7 +189,7 @@ class SymPyWriter(FortranWriter):
         :param node: a Member PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Member`
 
-        :returns: the code as string
+        :returns: the SymPy representation of this member access.
         :rtype: str
 
         '''
@@ -249,7 +246,7 @@ class SymPyWriter(FortranWriter):
             return node.value.capitalize()
 
         if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            raise TypeError("SymPy cannot handle strings "
+            raise TypeError(f"SymPy cannot handle strings "
                             f"like '{node.value}'.")
         # All real (single, double precision) and integer work by just
         # using the node value. Single and double precision both use

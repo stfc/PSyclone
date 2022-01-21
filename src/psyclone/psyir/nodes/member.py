@@ -76,8 +76,8 @@ class Member(Node):
                 not isinstance(parent, (StructureReference, StructureMember))):
             raise TypeError(
                 f"The parent of a {type(self).__name__} must be either a "
-                "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member"
-                f" but found '{type(parent).__name__}'.")
+                f"(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)"
+                f"Member but found '{type(parent).__name__}'.")
 
         super(Member, self).__init__(parent=parent)
         # Store the name of the component that this member represents

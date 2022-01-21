@@ -94,7 +94,7 @@ class Reference(DataNode):
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError(
-                "The Reference symbol setter expects a PSyIR Symbol object "
+                f"The Reference symbol setter expects a PSyIR Symbol object "
                 f"but found '{type(symbol).__name__}'.")
         self._symbol = symbol
 
