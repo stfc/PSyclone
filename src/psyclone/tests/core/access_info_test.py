@@ -597,10 +597,7 @@ def test_symbol_array_detection(fortran_reader):
 
     # For 'a' we don't have access information, nor symbol table information
     access_info_a = vai[Signature("a")]
-    with pytest.raises(ValueError) as error:
-        sym_a.is_array_access(access_info=access_info_a)
-    assert "No array information is available for the symbol 'a'" \
-        in str(error.value)
+    assert not sym_a.is_array_access(access_info=access_info_a)
 
     # For the access to 'b' we will find array access information:
     access_info_b = vai[Signature("b")]
