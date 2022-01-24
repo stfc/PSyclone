@@ -37,7 +37,7 @@ PSYROOT=../../..
 include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-GENERATED_FILES += tl_hydrostatic_kernel_mod_adj.[fF]90 test_harness.f90 \
+GENERATED_FILES += tl_hydrostatic_kernel_mod_adj.[fF]90 test_harness.exe \
                    main_alg.x90 alg.f90 psy.f90 *.mod *.o
 
 LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -65,14 +65,12 @@ compile: alg.f90 psy.f90 test_harness.exe
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
 
-psy.f90 alg.f90: transform
+psy.f90 alg.f90 tl_hydrostatic_kernel_mod_adj.f90: transform
 
 test_harness.exe: ${LFRIC_LIB} tl_hydrostatic_kernel_mod.o tl_hydrostatic_kernel_mod_adj.o psy.o alg.o
 	$(F90) $(F90FLAGS) -o test_harness.exe tl_hydrostatic_kernel_mod.o \
                   tl_hydrostatic_kernel_mod_adj.o psy.o alg.o ${LFRIC_LIB}
 
-tl_hydrostatic_kernel_mod.o: ${LFRIC_LIB}
-tl_hydrostatic_kernel_mod_adj.o: ${LFRIC_LIB}
 psy.o: ${LFRIC_LIB}
 
 %.o: %.f90
@@ -81,7 +79,7 @@ psy.o: ${LFRIC_LIB}
 	$(F90) $(F90FLAGS) -c $<
 
 run: compile
-	@echo "Harness running not yet supported"
+	./test_harness.exe
 
 allclean: clean
 	${MAKE} -C ${LFRIC_DIR} allclean
