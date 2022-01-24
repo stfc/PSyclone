@@ -83,7 +83,12 @@ END PROGRAM main
     field_spaces = []
     for arg in ktype.arg_descriptors:
         if arg.argument_type == "gh_field":
-            field_spaces.append(arg.function_space)
+            if arg.function_space.lower() == "any_w2":
+                # ANY_W2 means 'any W2 space' - it is not in and of itself
+                # a valid function space so change it to W2.
+                field_spaces.append("w2")
+            else:
+                field_spaces.append(arg.function_space)
     unique_function_spaces = set(field_spaces)
 
     # Create ContainerSymbols for each of the modules that we will need.

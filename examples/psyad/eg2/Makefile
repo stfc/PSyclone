@@ -51,7 +51,7 @@ F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none
 # harness to separate files.
 transform: tl_hydrostatic_kernel_mod.F90 ../../lfric/eg20/alg_gen.py
 	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad
-	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -otest test_harness.f90 -oad tl_hydrostatic_kernel_mod_adj.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad
+	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -otest /dev/null -oad tl_hydrostatic_kernel_mod_adj.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad
 	# Currently PSyAD does not update the kernel metadata (issue #1453)
 	# so we do that manually here.
 	sed -e 's/PROCEDURE, NOPASS :: tl_hydrostatic_code/PROCEDURE, NOPASS :: tl_hydrostatic_code_adj/' tl_hydrostatic_kernel_mod_adj.F90 > tl_hydrostatic_kernel_mod_adj.f90
@@ -68,8 +68,8 @@ $(LFRIC_LIB):
 psy.f90 alg.f90: transform
 
 test_harness.exe: ${LFRIC_LIB} tl_hydrostatic_kernel_mod.o tl_hydrostatic_kernel_mod_adj.o psy.o alg.o
-	$(F90) $(F90FLAGS) -o test_harness.exe testkern_mod.o \
-                  testkernadj_mod.o psy.o main_alg.o
+	$(F90) $(F90FLAGS) -o test_harness.exe tl_hydrostatic_kernel_mod.o \
+                  tl_hydrostatic_kernel_mod_adj.o psy.o alg.o ${LFRIC_LIB}
 
 tl_hydrostatic_kernel_mod.o: ${LFRIC_LIB}
 tl_hydrostatic_kernel_mod_adj.o: ${LFRIC_LIB}
