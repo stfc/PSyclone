@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, DataNode, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
+from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 
@@ -136,15 +137,16 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
     .. code-block:: fortran
 
-        R=DOT_PRODUCT(A,B)
+        R = ... DOT_PRODUCT(A,B) ...
 
     with the following code:
 
     .. code-block:: fortran
 
-        R = 0.0
-        do i=1,N
-            R = R + A(i)*B(i)
+        TMP = 0.0
+        do I=1,N
+            TMP = TMP + A(i)*B(i)
+        R = ... TMP ...
 
     '''
     def __init__(self):
@@ -155,7 +157,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
-        Matmul2CodeTran transformation to the supplied node.
+        DotProduct2CodeTran transformation to the supplied node.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
@@ -165,13 +167,62 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         '''
         super().validate(node, options)
 
+        # Check that both arguments are references (or array references)
+        for arg in node.children:
+            if not isinstance(arg, Reference):
+                raise TransformationError(
+                    f"The dotproduct2code_trans transformation only supports "
+                    f"the transformation of a dotproduct intrinsic if its "
+                    f"arguments are arrays, but found {self._writer(arg)} in "
+                    f"{self._writer(node)}.")
+
+        for arg in node.children:
+            # Check that the argument is a 1D array if the argument
+            # does not provide any array slice information (i.e. it is
+            # a Reference)
+            if arg.__class__ is Reference:
+                symbol = arg.symbol
+                # Check that this symbol is a 1D array
+                if not(isinstance(symbol, DataSymbol) and symbol.is_array and
+                       len(symbol.shape) == 1):
+                    raise TransformationError(
+                        f"The dotproduct2code_trans transformation only "
+                        f"supports the transformation of a dotproduct "
+                        f"intrinsic with an argument not containing an array "
+                        f"slice if the argument is a 1D array, but found "
+                        f"{self._writer(arg)} in {self._writer(node)}.")
+
+        for arg in node.children:
+            # If the argument does provide array slice information
+            # then check the array slice is in the first dimension of
+            # the array and that the slice is for the full range of that
+            # dimension i.e. uses a ':'.
+            if isinstance(arg, ArrayReference):
+                if not isinstance(arg.indices[0], Range):
+                    raise TransformationError(
+                        f"The dotproduct2code_trans transformation only "
+                        f"supports the transformation of a dotproduct "
+                        f"intrinsic with an argument containing an array "
+                        f"slice if the array slice is for the 1st dimension "
+                        f"of the array, but found {self._writer(arg)} in "
+                        f"{self._writer(node)}.")
+
+                if not arg.is_full_range(0):
+                    raise TransformationError(
+                        f"The dotproduct2code_trans transformation only "
+                        f"supports the transformation of a dotproduct "
+                        f"intrinsic with an argument not an array "
+                        f"slice if the argument is for the 1st dimension "
+                        f"of the array and is for the full range of that "
+                        f"dimension, but found {self._writer(arg)} in "
+                        f"{self._writer(node)}.")
+
     def apply(self, node, options=None):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
         specified node. This node must be a DOT_PRODUCT
-        BinaryOperation.
-        If the transformation is
-        successful then an assignment which includes a MATMUL
-        BinaryOperation node is converted to equivalent inline code.
+        BinaryOperation.  If the transformation is successful then an
+        assignment which includes a DOT_PRODUCT BinaryOperation node
+        is converted to equivalent inline code.
 
         :param node: a DOT_PRODUCT Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
@@ -231,7 +282,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         # Create i loop and add the above code as a child
         # Work out the bounds
         lower_bound, upper_bound, step = _get_array_bound(vector1, vector2)
-        iloop = Loop.create(i_loop_symbol, lower_bound, upper_bound, step,
+        iloop = Loop.create(i_loop_symbol, lower_bound.copy(), upper_bound.copy(), step.copy(),
                             [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
