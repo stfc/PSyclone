@@ -4,18 +4,42 @@ from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
+from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (CodeBlock, Assignment, Literal, Reference,
-                                  Routine)
+                                  Routine, Call)
 from psyclone.psyir.symbols import (INTEGER_TYPE, ArrayType,
                                     DataSymbol, DataTypeSymbol, DeferredType,
                                     ImportInterface, ContainerSymbol,
                                     RoutineSymbol, UnknownFortranType)
+
+
+def create_invoke_call(call_list):
+    '''
+    Create the PSyIR for a `call invoke(...)`. Each argument is actually a
+    Fortran structure constructor so we create CodeBlocks for them. Since
+    'invoke' only exists in the DSL, we create a RoutineSymbol for it but
+    never add it to a symbol table.
+
+    :param call_list: list of kernel and argument names.
+    :type call_list: list of (str, list of str)
+
+    :returns: a Call describing this invoke.
+    :rtype: :py:class:`psyclone.psyir.nodes.Call`
+
+    '''
+    invoke_args = []
+    for call in call_list:
+        reader = FortranStringReader(
+            f"{call[0]}({','.join(call[1])})")
+        ptree = Fortran2003.Structure_Constructor(reader)
+        invoke_args.append(CodeBlock([ptree], CodeBlock.Structure.EXPRESSION))
+    return Call.create(RoutineSymbol("invoke"), invoke_args)
+
 
 if __name__ == "__main__":
     # Ensure the Fortran parser is initialised
@@ -266,33 +290,26 @@ END PROGRAM main
         prog.addchild(Assignment.create(Reference(sym),
                                         Literal("0", INTEGER_TYPE)))
     # We use the setval_c builtin to initialise all fields to zero.
-    setval_list = []
+    kernel_list = []
     for sym in kern_args.fields:
         if isinstance(sym.datatype, DataTypeSymbol):
-            setval_list.append(f"setval_c({sym.name}, 0.0_r_def)")
+            kernel_list.append(("setval_c", [sym.name, "0.0_r_def"]))
         elif isinstance(sym.datatype, ArrayType):
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                setval_list.append(f"setval_c({sym.name}({dim}), 0.0_r_def)")
+                kernel_list.append(("setval_c", [f"{sym.name}({dim})",
+                                                 "0.0_r_def"]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
 
-    kernel_arg_list = ','.join(name for name in kern_args.arglist)
-    # Getting fparser to parse the 'invoke' is difficult so put it in its
-    # own program.
-    reader = FortranStringReader(f'''
-PROGRAM main
-  use testkern_mod
-  call invoke({",".join(setval_list)}, &
-              {kernel_routine.name}({kernel_arg_list}))
-END PROGRAM main
-''')
-    ast = parser(reader)
-    calls = Fortran2003.walk(ast, types=Fortran2003.Call_Stmt)
-    prog.addchild(CodeBlock([calls[0]], CodeBlock.Structure.STATEMENT))
+    kernel_list.append((kernel_routine.name,
+                        [name for name in kern_args.arglist]))
+
+    # Create the 'call invoke(...)' for the list of kernels.
+    prog.addchild(create_invoke_call(kernel_list))
 
     writer = FortranWriter()
     gen_code = writer(prog)
