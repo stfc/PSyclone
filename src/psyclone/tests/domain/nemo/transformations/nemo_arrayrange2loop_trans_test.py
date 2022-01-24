@@ -302,7 +302,7 @@ def test_apply_non_existing_bound_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_structure_of_arrays():
+def test_apply_structure_of_arrays(fortran_writer):
     '''Check that the apply method works when the assignment expression
     contains structures of arrays.
 
@@ -310,6 +310,7 @@ def test_apply_structure_of_arrays():
     _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     assignment1 = schedule[0]
+    assignment2 = schedule[1]
     assignment3 = schedule[2]
     trans = NemoArrayRange2LoopTrans()
 
@@ -319,8 +320,7 @@ def test_apply_structure_of_arrays():
     trans.apply(array_ref.children[1])
     trans.apply(array_ref.children[0])
 
-    writer = FortranWriter()
-    result = writer(schedule)
+    result = fortran_writer(schedule)
     assert (
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
@@ -332,7 +332,20 @@ def test_apply_structure_of_arrays():
         "  enddo\n" in result)
 
     # Case 2: SoA in the LHS is not yet supported
-    assert "mystruct%field2%field(:,:,:) = 0.0d0" in result
+    array_ref = assignment2.lhs
+    trans.apply(array_ref.member.member.children[2])
+    trans.apply(array_ref.member.member.children[1])
+    trans.apply(array_ref.member.member.children[0])
+    result = fortran_writer(schedule)
+    print(result)
+    assert (
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        mystruct%field2%field(ji,jj,jk) = 0.0d0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
 
     # Case 3: Nested SoA currently causes an InternalError
     array_ref = assignment3.lhs
@@ -550,7 +563,7 @@ def test_within_array_reference():
             trans.validate(my_range)
         assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
                f"supplied node argument should be within an "
-               f"ArrayReference node, but found '{result}'."
+               f"ArrayMixin node, but found '{result}'."
                in str(info.value))
 
 
@@ -566,14 +579,13 @@ def test_within_assignment():
     array_ref = assignment.lhs
     trans = NemoArrayRange2LoopTrans()
     my_range = array_ref.children[2]
-    for parent, result in [(schedule, "NemoInvokeSchedule"),
-                           (None, "NoneType")]:
+    for parent in (schedule, None):
         array_ref._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
-        assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
-               f"supplied node argument should be within an ArrayReference "
-               f"node that is within an Assignment node, but found '{result}'."
+        assert("Error in NemoArrayRange2LoopTrans transformation. The "
+               "supplied node argument should be within an Assignment node, "
+               "but found a 'Range[]' that is not in an assignment."
                in str(info.value))
 
 
@@ -588,11 +600,11 @@ def test_within_lhs_assignment():
     assignment = schedule[0]
     array_ref = assignment.rhs
     trans = NemoArrayRange2LoopTrans()
-    my_range = array_ref.children[0]
+    my_range = array_ref.children[-1]
     with pytest.raises(TransformationError) as info:
         trans.validate(my_range)
     assert("Error in NemoArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be within an ArrayReference "
+           "supplied node argument should be within an ArrayMixin "
            "node that is within the left-hand-side of an Assignment "
            "node, but it is on the right-hand-side." in str(info.value))
 

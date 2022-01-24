@@ -54,7 +54,8 @@ from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     Assignment, Literal, Operation, CodeBlock, ArrayMember, Loop, Routine, \
-    BinaryOperation, StructureReference, StructureMember
+    BinaryOperation, StructureReference, StructureMember, Node
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
     ScalarType
 from psyclone.psyir.transformations.transformation_error import \
@@ -133,7 +134,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         array_reference = node.parent
         array_index = node.position
-        assignment = array_reference.parent
+        assignment = node.ancestor(Assignment)
         parent = assignment.parent
         # Ensure we always use the routine-level symbol table
         symbol_table = node.ancestor(InvokeSchedule).symbol_table
@@ -278,26 +279,23 @@ class NemoArrayRange2LoopTrans(Transformation):
                 f"supplied node argument should be a PSyIR Range, but "
                 f"found '{type(node).__name__}'.")
         # Am I within an array reference?
-        if not node.parent or not isinstance(node.parent, ArrayReference):
+        if not node.parent or not isinstance(node.parent, ArrayMixin):
             raise TransformationError(
                 f"Error in NemoArrayRange2LoopTrans transformation. The "
-                f"supplied node argument should be within an ArrayReference "
+                f"supplied node argument should be within an ArrayMixin "
                 f"node, but found '{type(node.parent).__name__}'.")
-        array_ref = node.parent
         # Is the array reference within an assignment?
-        if not array_ref.parent or not isinstance(array_ref.parent,
-                                                  Assignment):
+        assignment = node.ancestor(Assignment)
+        if not assignment:
             raise TransformationError(
                 f"Error in NemoArrayRange2LoopTrans transformation. The "
-                f"supplied node argument should be within an ArrayReference "
-                f"node that is within an Assignment node, but found "
-                f"'{type(array_ref.parent).__name__}'.")
-        assignment = array_ref.parent
+                f"supplied node argument should be within an Assignment node, "
+                f"but found a '{node}' that is not in an assignment.")
         # Is the array reference the lhs of the assignment?
-        if assignment.lhs is not array_ref:
+        if node not in assignment.lhs.walk(Node):
             raise TransformationError(
                 "Error in NemoArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayReference "
+                "supplied node argument should be within an ArrayMixin "
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
         # Does the rhs of the assignment have any operations that are not
