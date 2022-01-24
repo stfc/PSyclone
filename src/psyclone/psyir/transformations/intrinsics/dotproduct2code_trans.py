@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 
 
-def _get_array_bound(vector1, vector2):
+def _get_array_bound(vector1, vector2, writer):
     '''A utility function that returns the appropriate loop bounds (lower,
     upper and step) for a vector.
     If either of the vectors are declared with known bounds (an integer or a
@@ -61,70 +61,44 @@ def _get_array_bound(vector1, vector2):
     :type array: :py:class:`psyir.nodes.Reference`
     :param int index: the (array) reference index that we are \
         interested in.
+
     :returns: the loop bounds for this array index.
     :rtype: (Literal, Literal, Literal) or \
         (BinaryOperation, BinaryOperation, Literal)
 
-    :raises TransformationError: if the shape of the array's symbol is \
-        not supported.
+    :raises TransformationError: if both vector1 and vector2 are not \
+        references to array symbols.
 
     '''
-    # If there are no indices then try to find explicit bounds
+    if not ((isinstance(vector1, Reference) and vector1.symbol.is_array) or
+            (isinstance(vector2, Reference) and vector2.symbol.is_array)):
+        raise TransformationError(
+            f"dotproduct2code_trans._get_array_bound requires at least one of "
+            f"the dotproduct arguments to be an array but found "
+            f"'{writer(vector1)}' and '{writer(vector2)}'.")
+
+    # Look for explicit bounds in one of the array declarations
     for vector in [vector1, vector2]:        
-        if isinstance(vector, Reference):
-            symbol = vector.symbol
-            my_dim = symbol.shape[0]
-            if isinstance(my_dim, ArrayType.ArrayBounds):
-                lower_bound = my_dim.lower
-                upper_bound = my_dim.upper
-                step = Literal("1", INTEGER_TYPE)
-                return (lower_bound, upper_bound, step)
+        symbol = vector.symbol
+        my_dim = symbol.shape[0]
+        if isinstance(my_dim, ArrayType.ArrayBounds):
+            lower_bound = my_dim.lower
+            upper_bound = my_dim.upper
+            step = Literal("1", INTEGER_TYPE)
+            return (lower_bound, upper_bound, step)
 
-    # TBD See if we can work things out from loop bounds
-    
-    for vector in [vector1, vector2]:
-        if isinstance(vector, Reference):
-            symbol = vector.symbol
-            my_dim = symbol.shape[0]
-            if my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
-                lower_bound = BinaryOperation.create(
-                    BinaryOperation.Operator.LBOUND, Reference(symbol),
-                    Literal("1", INTEGER_TYPE))
-                upper_bound = BinaryOperation.create(
-                    BinaryOperation.Operator.UBOUND, Reference(symbol),
-                    Literal("1", INTEGER_TYPE))
-                step = Literal("1", INTEGER_TYPE)
-                return (lower_bound, upper_bound, step)
-
-    raise Exception("NOT SUPPORTED")
-    #    raise TransformationError(
-    #        "Unsupported index type '{0}' found for dimension {1} of array "
-    #        "'{2}'.".format(type(my_dim).__name__, index+1, array.name))
-
-        
-    #elif isinstance(vector1, ArrayReference):
-    #    print("This access has some index information")
-    #    pass
-    #print ("Looking at the symbol")
-    #exit(1)
-    
-    #my_dim = array.symbol.shape[index]
-    #if isinstance(my_dim, ArrayType.ArrayBounds):
-    #    lower_bound = my_dim.lower
-    #    upper_bound = my_dim.upper
-    #elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
-    #    lower_bound = BinaryOperation.create(
-    #        BinaryOperation.Operator.LBOUND, Reference(array.symbol),
-    #        Literal(str(index), INTEGER_TYPE))
-    #    upper_bound = BinaryOperation.create(
-    #        BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-    #        Literal(str(index), INTEGER_TYPE))
-    #else:
-    #    raise TransformationError(
-    #        "Unsupported index type '{0}' found for dimension {1} of array "
-    #        "'{2}'.".format(type(my_dim).__name__, index+1, array.name))
-    #step = Literal("1", INTEGER_TYPE)
-    #return (lower_bound, upper_bound, step)
+    # No explicit array bound information could be found for either
+    # array so use the LBOUND and UBOUND intrinsics.
+    symbol = vector1.symbol
+    my_dim = symbol.shape[0]
+    lower_bound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, Reference(symbol),
+        Literal("1", INTEGER_TYPE))
+    upper_bound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, Reference(symbol),
+        Literal("1", INTEGER_TYPE))
+    step = Literal("1", INTEGER_TYPE)
+    return (lower_bound, upper_bound, step)
 
 
 class DotProduct2CodeTrans(Operator2CodeTrans):
@@ -163,6 +137,16 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+
+        :raises TransformationError: if one of the arguments is not a \
+            Reference node.
+        :raises TransformationError: if an argument does not use array \
+            slice notation and is not a 1d array.
+        :raises TransformationError: if an argument uses array slice \
+            notation but the array slice is not for the first dimension of \
+            the array.
+        :raises TransformationError: if an argument uses array slice \
+            notation but it is not for the full range of the dimension.
 
         '''
         super().validate(node, options)
@@ -216,6 +200,9 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"of the array and is for the full range of that "
                         f"dimension, but found {self._writer(arg)} in "
                         f"{self._writer(node)}.")
+
+        # Check whether _get_array_bound raises an exception
+        _get_array_bound(node.children[0], node.children[1], self._writer)
 
     def apply(self, node, options=None):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
@@ -279,11 +266,12 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
             BinaryOperation.Operator.ADD, result_ref.copy(), multiply)
         # Create "result = result + vector1(i) * vector2(i)"
         assign = Assignment.create(result_ref.copy(), rhs)
+        # Work out the loop bounds
+        lower_bound, upper_bound, step = _get_array_bound(vector1, vector2,
+                                                          self._writer)
         # Create i loop and add the above code as a child
-        # Work out the bounds
-        lower_bound, upper_bound, step = _get_array_bound(vector1, vector2)
-        iloop = Loop.create(i_loop_symbol, lower_bound.copy(), upper_bound.copy(), step.copy(),
-                            [assign])
+        iloop = Loop.create(i_loop_symbol, lower_bound.copy(),
+                            upper_bound.copy(), step.copy(), [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
