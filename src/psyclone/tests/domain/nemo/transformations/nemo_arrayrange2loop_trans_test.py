@@ -312,6 +312,7 @@ def test_apply_structure_of_arrays(fortran_writer):
     assignment1 = schedule[0]
     assignment2 = schedule[1]
     assignment3 = schedule[2]
+    assignment4 = schedule[3]
     trans = NemoArrayRange2LoopTrans()
 
     # Case 1: SoA in the RHS
@@ -331,13 +332,12 @@ def test_apply_structure_of_arrays(fortran_writer):
         "    enddo\n"
         "  enddo\n" in result)
 
-    # Case 2: SoA in the LHS is not yet supported
+    # Case 2: SoA in the LHS
     array_ref = assignment2.lhs
     trans.apply(array_ref.member.member.children[2])
     trans.apply(array_ref.member.member.children[1])
     trans.apply(array_ref.member.member.children[0])
     result = fortran_writer(schedule)
-    print(result)
     assert (
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
@@ -347,8 +347,23 @@ def test_apply_structure_of_arrays(fortran_writer):
         "    enddo\n"
         "  enddo\n" in result)
 
-    # Case 3: Nested SoA currently causes an InternalError
+    # Case 3: AoSoA in the LHS
     array_ref = assignment3.lhs
+    trans.apply(array_ref.member.children[3])
+    trans.apply(array_ref.member.children[2])
+    trans.apply(array_ref.member.children[1])
+    result = fortran_writer(schedule)
+    assert (
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        mystruct%field3(ji,jj,jk)%field4 = 0.0d0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+    # Case 4: Nested SoA currently causes an InternalError
+    array_ref = assignment4.lhs
     with pytest.raises(InternalError) as info:
         trans.apply(array_ref.children[2])
     assert ("The number of ranges in the arrays within this assignment are "
@@ -458,7 +473,6 @@ def test_apply_with_array_with_hidden_accessor():
     # it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
-    print(str(info.value))
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
             "<UnknownFortranType" in str(info.value))

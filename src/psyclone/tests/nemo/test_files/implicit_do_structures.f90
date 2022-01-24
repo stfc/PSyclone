@@ -43,6 +43,9 @@ program implicit_do_structures
   ! Test code with implicit NEMO-style do loop with structures in the LHS
   mystruct%field2%field(:,:,:) = 0.0d0
 
+  ! Test code with implicit NEMO-style do loop with structures in the LHS
+  mystruct%field3(:,:,:)%field4 = 0.0d0
+
   ! Test code with implicit NEMO-style do loop with nested structures
   umask(:,:,:) = mystruct%field(mystruct%field2%field3(:),:,:)
 

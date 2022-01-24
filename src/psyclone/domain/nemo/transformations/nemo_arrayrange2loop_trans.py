@@ -133,7 +133,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         self.validate(node)
 
         array_reference = node.parent
-        array_index = node.position
+        array_index = node.parent.indices.index(node)
         assignment = node.ancestor(Assignment)
         parent = assignment.parent
         # Ensure we always use the routine-level symbol table
@@ -211,7 +211,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Replace the loop_idx array dimension with the loop variable.
         n_ranges = None
-        for array in assignment.walk((ArrayReference, ArrayMember)):
+        for array in assignment.walk(ArrayMixin):
             current_n_ranges = len([child for child in array.children
                                     if isinstance(child, Range)])
             if n_ranges is None:
@@ -375,17 +375,20 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
-        if any(isinstance(node, Range) for node in
-               node.parent.children[node.position+1:]):
-            raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. This "
-                "transformation can only be applied to the outermost "
-                "Range.")
+        after_node = False
+        for index_child in node.parent.indices:
+            if index_child is node:
+                after_node = True
+            elif after_node and isinstance(index_child, Range):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation. This "
+                    "transformation can only be applied to the outermost "
+                    "Range.")
 
         # If there is a loop variable defined in the config file and
         # this variable is already defined in the code, is it defined
         # as an integer?
-        array_index = node.position
+        array_index = node.parent.indices.index(node)
         loop_type_order = Config.get().api_conf("nemo").get_index_order()
         loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
         try:
