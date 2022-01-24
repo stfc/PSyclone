@@ -90,10 +90,9 @@ def run(args):
     parser.add_argument('-ostub', help="filename of created kernel stub code "
                         "(implies '--stub-gen')")
     parser.add_argument('-api',
-                        help='choose a particular API from {0}, '
-                             'default \'{1}\'.'
-                        .format(str(Config.get().supported_apis),
-                                Config.get().default_api))
+                        help=f"choose a particular API from "
+                        f"{Config.get().supported_apis}, default "
+                        f"'{Config.get().default_api}'.")
     parser.add_argument('filename', help='file containing Kernel metadata')
 
     # Make the default an empty list so that we can check whether the
@@ -113,7 +112,7 @@ def run(args):
                         "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
-        help='Display version information ({0})'.format(__VERSION__))
+        help=f"Display version information ({__VERSION__})")
 
     args = parser.parse_args(args)
 
@@ -131,9 +130,8 @@ def run(args):
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported APIs are "
-              "{1}.".format(args.api, Config.get().supported_apis),
-              file=sys.stderr)
+        print(f"Unsupported API '{args.api}' specified. Supported APIs are "
+              f"{Config.get().supported_apis}.", file=sys.stderr)
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
@@ -171,7 +169,7 @@ def run(args):
 
     except (IOError, ParseError, GenerationError, RuntimeError) as error:
         print("Error:", error, file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     except Exception:   # pylint: disable=broad-except
         print("Error, unexpected exception:\n", file=sys.stderr)
@@ -179,7 +177,7 @@ def run(args):
         print(exc_type, file=sys.stderr)
         print(exc_value, file=sys.stderr)
         traceback.print_tb(exc_traceback)
-        exit(1)
+        sys.exit(1)
 
     if not (args.stub_gen or args.alg_gen):
         print("Error, no action specified: one or both of --stub-gen/-oalg "
@@ -200,25 +198,14 @@ def run(args):
 
     if stub:
         if args.ostub:
-            write_unicode_file(stub_str, args.ostub)
+            with io.open(args.ostub, mode='w', encoding='utf-8') as fobj:
+                fobj.write(stub_str)
         else:
             print("Kernel stub code:\n", stub_str, file=sys.stdout)
 
     if alg:
         if args.oalg:
-            write_unicode_file(alg_str, args.oalg)
+            with io.open(args.oalg, mode='w', encoding='utf-8') as fobj:
+                fobj.write(alg_str)
         else:
             print("Algorithm code:\n", alg_str, file=sys.stdout)
-
-
-def write_unicode_file(contents, filename):
-    '''Wrapper routine that ensures that a string is encoded as unicode before
-    writing to file.
-
-    :param str contents: string to write to file.
-    :param str filename: the name of the file to create.
-
-    '''
-    encoding = {'encoding': 'utf-8'}
-    with io.open(filename, mode='w', **encoding) as file_object:
-        file_object.write(contents)
