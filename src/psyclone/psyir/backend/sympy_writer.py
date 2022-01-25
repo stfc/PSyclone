@@ -167,6 +167,7 @@ class SymPyWriter(FortranWriter):
             # existing symbol, `a_b_1`, ... will be used instead).
             # We use the `_visit()` call which avoids creating a copy
             # of the whole tree, which causes huge slowdown of this call.
+            # TODO #1587 - disable deep copy of tree
             expression_str_list.append(writer._visit(expr))
 
         return [parse_expr(expr, type_map) for expr in expression_str_list]
