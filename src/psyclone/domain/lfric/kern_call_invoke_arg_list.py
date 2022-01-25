@@ -35,16 +35,14 @@
 # Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-'''This module implements a class that manages all of the data references
-that must be copied over to a GPU before executing the kernel. Ordering
-of the parameters does not matter apart from where we have members of
-derived types. In that case, the derived type itself must be specified
-first before any members.
+'''
+This module implements a class that captures all the arguments
+of a Kernel as required by an `invoke` of that kernel.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataSymbol,
-                                    DataTypeSymbol, DeferredType,
+                                    DataTypeSymbol, DeferredType, SymbolTable,
                                     ContainerSymbol, ImportInterface)
 
 
@@ -54,12 +52,19 @@ class KernCallInvokeArgList(ArgOrdering):
 
     :param kern: the kernel object for which to determine arguments.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-    :param symbol_table: TBD
-    :type symbol_table: TBD
+    :param symbol_table: the symbol table associated with the routine that \
+        contains the `invoke` of this kernel.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :raises TypeError: if supplied symbol table is of incorrect type.
 
     '''
     def __init__(self, kern, symbol_table):
         super().__init__(kern)
+        if not isinstance(symbol_table, SymbolTable):
+            raise TypeError(
+                f"Argument 'symbol_table' must be a SymbolTable "
+                f"instance but got '{type(symbol_table).__name__}'")
         self._symtab = symbol_table
         self._fields = []
         self._scalars = []
@@ -83,22 +88,43 @@ class KernCallInvokeArgList(ArgOrdering):
 
     @property
     def quadrature_objects(self):
-        ''' TODO '''
+        '''
+        :returns: the symbols representing the quadrature objects required by \
+                  the kernel along with the shape of each.
+        :rtype: list of (:py:class:`psyclone.psyir.symbols.DataSymbol`, str)
+        '''
         return self._qr_objects
 
     def generate(self, var_accesses=None):
-        ''' Just ensures that our internal lists of field and scalar arguments
-        are reset (as calling generate() populates them) before calling this
-        method in the parent class.
+        ''' Just ensures that our internal lists of arguments of various
+        types are reset (as calling generate() populates them) before calling
+        this method in the parent class.
 
-        :param var_accesses: TBD
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
         self._fields = []
         self._scalars = []
+        self._qr_objects = []
         super().generate(var_accesses)
 
     def scalar(self, scalar_arg, var_accesses=None):
-        ''' '''
+        '''
+        Add the necessary argument for a scalar quantity.
+
+        :param scalar_arg: the scalar kernel argument.
+        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance that \
+            stores information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NotImplementedError: if a scalar of type other than real \
+            or integer is found.
+
+        '''
         super().scalar(scalar_arg, var_accesses)
 
         # Create a DataSymbol for this kernel argument.
@@ -118,7 +144,17 @@ class KernCallInvokeArgList(ArgOrdering):
         self._scalars.append(sym)
 
     def fs_common(self, function_space, var_accesses=None):
-        ''' Nothing '''
+        ''' Does nothing as there are no arguments associated with function
+        spaces at the algorithm level.
+
+        :param function_space: the function space for which arguments \
+            should be added.
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
