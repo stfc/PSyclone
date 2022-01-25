@@ -259,10 +259,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                                                       only_nested_loops=False):
 
                 # The DependencyTools also returns False for things that are
-                # not an issue, so we look for a specific message.
-                messages = "\n".join(dep_tools.get_all_messages())
-
-                if "can therefore not be parallelised" in messages:
+                # not an issue, so we ignore specific messages.
+                for message in dep_tools.get_all_messages():
+                    if "is only written once." in message:
+                        continue
+                    if "which indicates a reduction." in message:
+                        continue
+                    messages = "\n".join(dep_tools.get_all_messages())
                     raise TransformationError(
                         f"Dependency analysis failed with the following "
                         f"messages:\n{messages}")
