@@ -33,6 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
+#TODO
+#1 Transformation have a working docstring example (see hoisttrans)?
+#2 Constrain arguments to be real as this is assumed.
+
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
 supported by the back-end or if the performance in the inline code is
