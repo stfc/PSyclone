@@ -112,7 +112,7 @@ def test_bound_error(fortran_writer):
     with pytest.raises(TransformationError) as info:
         _get_array_bound(Literal("1.0", REAL_TYPE), Literal("2.0", REAL_TYPE),
                          fortran_writer)
-    assert ("dotproduct2code_trans._get_array_bound requires at least one of "
+    assert ("DotProduct2CodeTrans._get_array_bound requires at least one of "
             "the dotproduct arguments to be an array but found '1.0' and "
             "'2.0'." in str(info.value))
 
@@ -191,6 +191,108 @@ def test_validate_super():
             "'NoneType'." in str(info.value))
 
 
+def test_validate_references(fortran_reader):
+    '''Test that the DotProduct2CodeTrans validate method produces the
+    expected exception when at least one of the arguments is not an
+    array. In this case it is a matmul intrinsic.
+
+    '''
+    code = (
+        f"subroutine dot_product_test(v1,v2,a3)\n"
+        f"real,intent(in) :: v1(:), v2(:), a3(:,:)\n"
+        f"real :: result\n"
+        f"result = dot_product(matmul(a3,v1),v2)\n"
+        f"end subroutine\n")
+    expected = (
+        "The DotProduct2CodeTrans transformation only supports the "
+        "transformation of a dotproduct intrinsic if its arguments "
+        "are arrays, but found MATMUL(a3, v1) in "
+        "DOT_PRODUCT(MATMUL(a3, v1), v2)")
+    check_validate(code, expected, fortran_reader)
+
+
+def test_validate_1d_array(fortran_reader):
+    '''Test that the DotProduct2CodeTrans validate method produces the
+    expected exception when at least one of the arguments does not use
+    array slice notation but is not known to be a 1D array.
+
+    '''
+    code = (
+        f"subroutine dot_product_test(a1,a2)\n"
+        f"real,intent(in) :: a1(:,:), a2(:,:)\n"
+        f"real :: result\n"
+        f"result = dot_product(a1,a2)\n"
+        f"end subroutine\n")
+    expected = (
+        "The DotProduct2CodeTrans transformation only supports the "
+        "transformation of a dotproduct intrinsic with an argument not "
+        "containing an array slice if the argument is a 1D array, but "
+        "found a1 in DOT_PRODUCT(a1, a2).")
+    check_validate(code, expected, fortran_reader)
+
+
+def test_validate_array_slice_dim1(fortran_reader):
+    '''Test that the DotProduct2CodeTrans validate method produces the
+    expected exception when at least one of the arguments uses array
+    slice notation but the array slice is not used in the the first
+    dimension of the array.
+
+    '''
+    code = (
+        f"subroutine dot_product_test(a1,a2)\n"
+        f"real,intent(in) :: a1(:,:), a2(:,:)\n"
+        f"real :: result\n"
+        f"result = dot_product(a1(:,1),a2(1,:))\n"
+        f"end subroutine\n")
+    expected = (
+        "The DotProduct2CodeTrans transformation only supports the "
+        "transformation of a dotproduct intrinsic with an argument "
+        "containing an array slice if the array slice is for the 1st "
+        "dimension of the array, but found a2(1,:) in "
+        "DOT_PRODUCT(a1(:,1), a2(1,:)).")
+    check_validate(code, expected, fortran_reader)
+
+
+def test_validate_array_full_slice(fortran_reader):
+    '''Test that the DotProduct2CodeTrans validate method produces the
+    expected exception when at least one of the arguments uses array
+    slice notation but the array slice is not for the full range of
+    the dimension.
+
+    '''
+    code = (
+        f"subroutine dot_product_test(a1,a2)\n"
+        f"real,intent(in) :: a1(:,:), a2(:,:)\n"
+        f"real :: result\n"
+        f"result = dot_product(a1(2:4,1),a2(:,10))\n"
+        f"end subroutine\n")
+    expected = (
+        "The DotProduct2CodeTrans transformation only supports the "
+        "transformation of a dotproduct intrinsic with an argument not "
+        "an array slice if the argument is for the 1st dimension of "
+        "the array and is for the full range of that dimension, but "
+        "found a1(2:4,1) in DOT_PRODUCT(a1(2:4,1), a2(:,10)).")
+    check_validate(code, expected, fortran_reader)
+
+
+def test_validate_real(fortran_reader):
+    '''Test that the DotProduct2CodeTrans validate method raises the
+    expected exception if the datatype of the arguments is not
+    real.
+
+    '''
+    code = (
+        f"subroutine dot_product_test(v1,v2)\n"
+        f"integer,intent(in) :: v1(:), v2(:)\n"
+        f"integer :: result\n"
+        f"result = dot_product(v1,v2)\n"
+        f"end subroutine\n")
+    expected = (
+        "The DotProduct2CodeTrans transformation only supports arrays of "
+        "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, v2).")
+    check_validate(code, expected, fortran_reader)
+
+
 def test_validate_get_array_bound(monkeypatch, fortran_reader):
     '''Test that the DotProduct2CodeTrans validate method calls the
     _get_array_bound method.
@@ -212,90 +314,6 @@ def test_validate_get_array_bound(monkeypatch, fortran_reader):
     check_validate(code, expected, fortran_reader)
 
 
-def test_validate_references(fortran_reader):
-    '''Test that the dotproduct2code validate method produces the expected
-    exception when at least one of the arguments is not an array. In
-    this case it is a matmul intrinsic.
-
-    '''
-    code = (
-        f"subroutine dot_product_test(v1,v2,a3)\n"
-        f"real,intent(in) :: v1(:), v2(:), a3(:,:)\n"
-        f"real :: result\n"
-        f"result = dot_product(matmul(a3,v1),v2)\n"
-        f"end subroutine\n")
-    expected = (
-        "The dotproduct2code_trans transformation only supports the "
-        "transformation of a dotproduct intrinsic if its arguments "
-        "are arrays, but found MATMUL(a3, v1) in "
-        "DOT_PRODUCT(MATMUL(a3, v1), v2)")
-    check_validate(code, expected, fortran_reader)
-
-
-def test_validate_1d_array(fortran_reader):
-    '''Test that the dotproduct2code validate method produces the expected
-    exception when at least one of the arguments does not use array
-    slice notation but is not known to be a 1D array.
-
-    '''
-    code = (
-        f"subroutine dot_product_test(a1,a2)\n"
-        f"real,intent(in) :: a1(:,:), a2(:,:)\n"
-        f"real :: result\n"
-        f"result = dot_product(a1,a2)\n"
-        f"end subroutine\n")
-    expected = (
-        "The dotproduct2code_trans transformation only supports the "
-        "transformation of a dotproduct intrinsic with an argument not "
-        "containing an array slice if the argument is a 1D array, but "
-        "found a1 in DOT_PRODUCT(a1, a2).")
-    check_validate(code, expected, fortran_reader)
-
-
-def test_validate_array_slice_dim1(fortran_reader):
-    '''Test that the dotproduct2code validate method produces the expected
-    exception when at least one of the arguments uses array slice
-    notation but the array slice is not used in the the first
-    dimension of the array.
-
-    '''
-    code = (
-        f"subroutine dot_product_test(a1,a2)\n"
-        f"real,intent(in) :: a1(:,:), a2(:,:)\n"
-        f"real :: result\n"
-        f"result = dot_product(a1(:,1),a2(1,:))\n"
-        f"end subroutine\n")
-    expected = (
-        "The dotproduct2code_trans transformation only supports the "
-        "transformation of a dotproduct intrinsic with an argument "
-        "containing an array slice if the array slice is for the 1st "
-        "dimension of the array, but found a2(1,:) in "
-        "DOT_PRODUCT(a1(:,1), a2(1,:)).")
-    check_validate(code, expected, fortran_reader)
-
-
-def test_validate_array_full_slice(fortran_reader):
-    '''Test that the dotproduct2code validate method produces the expected
-    exception when at least one of the arguments uses array slice
-    notation but the array slice is not for the full range of the
-    dimension.
-
-    '''
-    code = (
-        f"subroutine dot_product_test(a1,a2)\n"
-        f"real,intent(in) :: a1(:,:), a2(:,:)\n"
-        f"real :: result\n"
-        f"result = dot_product(a1(2:4,1),a2(:,10))\n"
-        f"end subroutine\n")
-    expected = (
-        "The dotproduct2code_trans transformation only supports the "
-        "transformation of a dotproduct intrinsic with an argument not "
-        "an array slice if the argument is for the 1st dimension of "
-        "the array and is for the full range of that dimension, but "
-        "found a1(2:4,1) in DOT_PRODUCT(a1(2:4,1), a2(:,10)).")
-    check_validate(code, expected, fortran_reader)
-
-
 # DotProduct2CodeTrans class apply method
 
 def test_apply_calls_validate():
@@ -312,8 +330,9 @@ def test_apply_calls_validate():
 
 @pytest.mark.parametrize("dim1,dim2", [("10", "10"), (":", "10"), ("10", ":")])
 def test_apply_known_dims(tmpdir, fortran_reader, fortran_writer, dim1, dim2):
-    '''Test that the dotproduct2code apply method produces the expected
-    PSyIR when at least one of the vectors has a known dimension.
+    '''Test that the DotProduct2CodeTrans apply method produces the
+    expected PSyIR when at least one of the vectors has a known
+    dimension.
 
     '''
     code = (
@@ -334,8 +353,8 @@ def test_apply_known_dims(tmpdir, fortran_reader, fortran_writer, dim1, dim2):
 
 
 def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
-    '''Test that the dotproduct2code apply method produces the expected
-    PSyIR when neither of the vectors have a known size.
+    '''Test that the DotProduct2CodeTrans apply method produces the
+    expected PSyIR when neither of the vectors have a known size.
 
     '''
     code = (
@@ -356,9 +375,9 @@ def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
 
 
 def test_apply_multi_rhs(tmpdir, fortran_reader, fortran_writer):
-    '''Test that the dotproduct2code apply method produces the expected
-    PSyIR when the expression on the rhs contains more than just the
-    DOT_PRODUCT.
+    '''Test that the DotProduct2CodeTrans apply method produces the
+    expected PSyIR when the expression on the rhs contains more than
+    just the DOT_PRODUCT.
 
     '''
     code = (
@@ -383,9 +402,9 @@ def test_apply_multi_rhs(tmpdir, fortran_reader, fortran_writer):
                                       ("(:)", "(:)")])
 def test_apply_array_notation(
         tmpdir, fortran_reader, fortran_writer, arg1, arg2):
-    '''Test that the dotproduct2code apply method produces the expected
-    PSyIR when array notation is used on the rhs by one or both of the
-    dot_product arguments.
+    '''Test that the DotProduct2CodeTrans apply method produces the
+    expected PSyIR when array notation is used on the rhs by one or
+    both of the dot_product arguments.
 
     '''
     code = (
@@ -409,9 +428,9 @@ def test_apply_array_notation(
                          [("(:,n)", "(:,1)", "(i,n)", "(i,1)")])
 def test_apply_extra_dims(tmpdir, fortran_reader, fortran_writer, arg1, arg2,
                           res1, res2):
-    '''Test that the dotproduct2code apply method produces the expected
-    PSyIR when the supplied dot_product arguments are arrays with
-    different dimensions having array notation.
+    '''Test that the DotProduct2CodeTrans apply method produces the
+    expected PSyIR when the supplied dot_product arguments are arrays
+    with different dimensions having array notation.
 
     '''
     code = (

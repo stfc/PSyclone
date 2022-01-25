@@ -33,10 +33,6 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-#TODO
-#1 Transformation have a working docstring example (see hoisttrans)?
-#2 Constrain arguments to be real as this is assumed.
-
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
 supported by the back-end or if the performance in the inline code is
@@ -45,9 +41,9 @@ better than the intrinsic.
 '''
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, DataNode, Routine
+    Loop, Literal, ArrayReference, Range, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
+    ArrayType, ScalarType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
@@ -77,12 +73,12 @@ def _get_array_bound(vector1, vector2, writer):
     if not ((isinstance(vector1, Reference) and vector1.symbol.is_array) or
             (isinstance(vector2, Reference) and vector2.symbol.is_array)):
         raise TransformationError(
-            f"dotproduct2code_trans._get_array_bound requires at least one of "
+            f"DotProduct2CodeTrans._get_array_bound requires at least one of "
             f"the dotproduct arguments to be an array but found "
             f"'{writer(vector1)}' and '{writer(vector2)}'.")
 
     # Look for explicit bounds in one of the array declarations
-    for vector in [vector1, vector2]:        
+    for vector in [vector1, vector2]:
         symbol = vector.symbol
         my_dim = symbol.shape[0]
         if isinstance(my_dim, ArrayType.ArrayBounds):
@@ -126,6 +122,37 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
             TMP = TMP + A(i)*B(i)
         R = ... TMP ...
 
+    For example:
+
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import BinaryOperation
+    >>> from psyclone.psyir.transformations import DotProduct2CodeTrans
+    >>> code = ("subroutine dot_product_test(v1,v2)\\n"
+    ...         "real,intent(in) :: v1(10), v2(10)\\n"
+    ...         "real :: result\\n"
+    ...         "result = dot_product(v1,v2)\\n"
+    ...         "end subroutine\\n")
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> trans = DotProduct2CodeTrans()
+    >>> trans.apply(psyir.walk(BinaryOperation)[0])
+    >>> print(FortranWriter()(psyir))
+    subroutine dot_product_test(v1, v2)
+      real, dimension(10), intent(in) :: v1
+      real, dimension(10), intent(in) :: v2
+      real :: result
+      integer :: i
+      real :: res_dot_product
+    <BLANKLINE>
+      res_dot_product = 0.0
+      do i = 1, 10, 1
+        res_dot_product = res_dot_product + v1(i) * v2(i)
+      enddo
+      result = res_dot_product
+    <BLANKLINE>
+    end subroutine dot_product_test
+    <BLANKLINE>
+
     '''
     def __init__(self):
         super().__init__()
@@ -155,26 +182,26 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         '''
         super().validate(node, options)
 
-        # Check that both arguments are references (or array references)
+        # Both arguments should be references (or array references)
         for arg in node.children:
             if not isinstance(arg, Reference):
                 raise TransformationError(
-                    f"The dotproduct2code_trans transformation only supports "
+                    f"The DotProduct2CodeTrans transformation only supports "
                     f"the transformation of a dotproduct intrinsic if its "
                     f"arguments are arrays, but found {self._writer(arg)} in "
                     f"{self._writer(node)}.")
 
         for arg in node.children:
-            # Check that the argument is a 1D array if the argument
-            # does not provide any array slice information (i.e. it is
-            # a Reference)
+            # The argument should be a 1D array if the argument does
+            # not provide any array slice information (i.e. it is a
+            # Reference)
             if arg.__class__ is Reference:
                 symbol = arg.symbol
-                # Check that this symbol is a 1D array
+                # This symbol should be a 1D array
                 if not(isinstance(symbol, DataSymbol) and symbol.is_array and
                        len(symbol.shape) == 1):
                     raise TransformationError(
-                        f"The dotproduct2code_trans transformation only "
+                        f"The DotProduct2CodeTrans transformation only "
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument not containing an array "
                         f"slice if the argument is a 1D array, but found "
@@ -188,7 +215,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
             if isinstance(arg, ArrayReference):
                 if not isinstance(arg.indices[0], Range):
                     raise TransformationError(
-                        f"The dotproduct2code_trans transformation only "
+                        f"The DotProduct2CodeTrans transformation only "
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument containing an array "
                         f"slice if the array slice is for the 1st dimension "
@@ -197,7 +224,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
                 if not arg.is_full_range(0):
                     raise TransformationError(
-                        f"The dotproduct2code_trans transformation only "
+                        f"The DotProduct2CodeTrans transformation only "
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument not an array "
                         f"slice if the argument is for the 1st dimension "
@@ -205,6 +232,16 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"dimension, but found {self._writer(arg)} in "
                         f"{self._writer(node)}.")
 
+        # Both arguments should be real (as other intrinsic datatypes
+        # are not suported).
+        for arg in node.children:
+            if arg.symbol.datatype.intrinsic != ScalarType.Intrinsic.REAL:
+                raise TransformationError(
+                    f"The DotProduct2CodeTrans transformation only supports "
+                    f"arrays of real data, but found {self._writer(arg)} of "
+                    f"type {arg.symbol.datatype.intrinsic.name} in "
+                    f"{self._writer(node)}.")
+        
         # Check whether _get_array_bound raises an exception
         _get_array_bound(node.children[0], node.children[1], self._writer)
 
