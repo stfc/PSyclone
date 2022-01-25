@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,15 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
+    @property
+    def is_array(self):
+        ''':returns: if this instance indicates an array access.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return True
+
     def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
@@ -102,13 +111,13 @@ class ArrayMixin(object):
         '''
         if not isinstance(index, int):
             raise TypeError(
-                "The index argument should be an integer but found '{0}'."
-                "".format(type(index).__name__))
+                f"The index argument should be an integer but found "
+                f"'{type(index).__name__}'.")
         if index > len(self.indices)-1:
             raise ValueError(
-                "In ArrayReference '{0}' the specified index '{1}' must be "
-                "less than the number of dimensions '{2}'."
-                "".format(self.name, index, len(self.indices)))
+                f"In ArrayReference '{self.name}' the specified index "
+                f"'{index}' must be less than the number of dimensions "
+                f"'{len(self.indices)}'.")
 
     def is_lower_bound(self, index):
         '''Returns True if the specified array index contains a Range node
@@ -293,16 +302,16 @@ class ArrayMixin(object):
         '''
         if not self._children:
             raise InternalError(
-                "{0} malformed or incomplete: must have one or more "
-                "children representing array-index expressions but found "
-                "none.".format(type(self).__name__))
+                f"{type(self).__name__} malformed or incomplete: must have "
+                f"one or more children representing array-index expressions "
+                f"but found none.")
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child {1} must by a psyir."
-                    "nodes.DataNode or Range representing an array-index "
-                    "expression but found '{2}'".format(
-                        type(self).__name__, idx, type(child).__name__))
+                    f"{type(self).__name__} malformed or incomplete: child "
+                    f"{idx} must by a psyir.nodes.DataNode or Range "
+                    f"representing an array-index expression but "
+                    f"found '{type(child).__name__}'")
         return self.children
 
 

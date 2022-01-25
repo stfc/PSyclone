@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,6 +87,20 @@ def test_array_create():
     check_links(array, children)
     result = FortranWriter().arrayreference_node(array)
     assert result == "temp(i,j,1)"
+
+
+def test_array_is_array():
+    '''Test that an ArrayReference is marked as being an array.
+
+    '''
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", INTEGER_SINGLE_TYPE)]
+    array = ArrayReference.create(symbol_temp, children)
+    assert array.is_array is True
 
 
 def test_array_create_invalid1():
