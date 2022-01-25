@@ -36,17 +36,24 @@ program implicit_do_structures
   implicit none
   integer, parameter :: jpi=10, jpj=10, jpk=10
   real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
+  integer, dimension(jpj) :: indices = 3
 
-  ! Test code with implicit NEMO-style do loop with structures
+  ! Test code with implicit do loop with structures
   umask(:,:,:) = mystruct%field(:,:,:) + mystruct%field2%field(:,:,:)
 
-  ! Test code with implicit NEMO-style do loop with structures in the LHS
+  ! Test code with implicit do loop with structures in the LHS
   mystruct%field2%field(:,:,:) = 0.0d0
 
-  ! Test code with implicit NEMO-style do loop with structures in the LHS
+  ! Test code with implicit do loop with AoSoA in the LHS
   mystruct%field3(:,:,:)%field4 = 0.0d0
 
-  ! Test code with implicit NEMO-style do loop with nested structures
-  umask(:,:,:) = mystruct%field(mystruct%field2%field3(:),:,:)
+  ! Test code mixing AoSoA in the LHS and SoA in the RHS
+  mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)
+
+  ! Test code with implicit do loop with range in a nested array
+  mystruct%field5(indices(:)) = 0.0d0
+
+  ! Test code with implicit with nested structures of arrays
+  umask(:,mystruct%field2%field3(:),:) = mystruct%field(mystruct%field2%field3(:),:,:)
 
 end program implicit_do_structures

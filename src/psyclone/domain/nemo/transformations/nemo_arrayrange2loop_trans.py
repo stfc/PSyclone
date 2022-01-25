@@ -298,6 +298,16 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "supplied node argument should be within an ArrayMixin "
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
+
+        # We don't support nested range expressions
+        for range_expr in assignment.walk(Range):
+            if range_expr.parent.ancestor(ArrayMixin):
+                raise TransformationError(LazyString(
+                    lambda: f"Error in NemoArrayRange2LoopTrans transformation"
+                    f". This transformation does not support array assignments"
+                    f" that contain nested Range structures, but found:"
+                    f"\n{FortranWriter()(assignment)}"))
+
         # Does the rhs of the assignment have any operations that are not
         # elemental?
         for operation in assignment.rhs.walk(Operation):

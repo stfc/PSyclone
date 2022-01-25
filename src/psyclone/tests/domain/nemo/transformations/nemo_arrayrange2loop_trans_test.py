@@ -362,17 +362,50 @@ def test_apply_structure_of_arrays(fortran_writer):
         "    enddo\n"
         "  enddo\n" in result)
 
-    # Case 4: Nested SoA currently causes an InternalError
+    # Case 4: AoSoA in the LHS and SoA in the RHS
     array_ref = assignment4.lhs
-    with pytest.raises(InternalError) as info:
+    trans.apply(array_ref.member.children[3])
+    trans.apply(array_ref.member.children[2])
+    trans.apply(array_ref.member.children[1])
+    result = fortran_writer(schedule)
+    assert (
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        mystruct%field3(ji,jj,jk)%field4 = "
+        "mystruct%field2%field(ji,jj,jk)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+
+def test_apply_nested_structure_of_arrays(fortran_writer):
+    '''Check that nested structure_of_arrays are not yet supported.
+
+    '''
+    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment5 = schedule[4]
+    assignment6 = schedule[5]
+    trans = NemoArrayRange2LoopTrans()
+    # Case 5: Nested SoA currently causes an InternalError
+    array_ref = assignment5.lhs
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.member.indices[0].indices[0])
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
+
+    # Case 6: Nested SoA currently causes an InternalError
+    array_ref = assignment6.lhs
+    with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    assert ("The number of ranges in the arrays within this assignment are "
-            "not equal. Any such case should have been dealt with by the "
-            "validation method or represents invalid PSyIR."
-            in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
 
 
-def test_apply_existing_names_as_ancestor_loop_variables():
+def test_validate_existing_names_as_ancestor_loop_variables():
     '''Check that the transformation is not applied if the variable name
     already exists as the variable name of an ancestor loop.
     '''
@@ -397,7 +430,7 @@ def test_apply_existing_names_as_ancestor_loop_variables():
             "in:\ndo jk = 1, jpk, 1\n" in str(info.value))
 
 
-def test_apply_with_codeblock():
+def test_validate_with_codeblock():
     '''Check that the transformation is not applied if there is a Codeblock as
     part of the assignment.
     '''
@@ -420,7 +453,7 @@ def test_apply_with_codeblock():
             "umask(:,:,:) = 0.0d0 + \n" in str(info.value))
 
 
-def test_apply_with_a_function_call():
+def test_validate_with_a_function_call():
     '''Check that the transformation is not applied if there is a Call as
     part of the assignment.
     '''
@@ -443,7 +476,7 @@ def test_apply_with_a_function_call():
             "umask(:,:,:) = 0.0d0 + func()\n" in str(info.value))
 
 
-def test_apply_with_array_with_hidden_accessor():
+def test_validate_with_array_with_hidden_accessor():
     '''Check that the transformation is not applied if there is a RHS array
     (or UnknownType) with the accessor expression missing.
 
@@ -478,7 +511,7 @@ def test_apply_with_array_with_hidden_accessor():
             "<UnknownFortranType" in str(info.value))
 
 
-def test_apply_different_num_dims():
+def test_validate_different_num_dims():
     '''Check that the apply method raises an exception when the number of
     range dimensions differ in different arrays. This should never
     happen as it is invalid PSyIR.
@@ -497,7 +530,7 @@ def test_apply_different_num_dims():
             "invalid PSyIR." in str(info.value))
 
 
-def test_apply_imported_function():
+def test_validate_imported_function():
     ''' Check that the apply method refuses to transform the assignment when
     range nodes are inside a function, as it does not know if the function is
     declared as 'elemental' which changes the semantics of the array notation.
@@ -513,14 +546,12 @@ def test_apply_imported_function():
     # functions or arrays always as arrays accessors, for this reason the error
     # message talks about arrays instead of functions. If this is resolved this
     # test would be equivalent to test_apply_with_a_function_call.
-    assert("Error in NemoArrayRange2LoopTrans transformation. This "
-           "transformation does not support assignments with rhs arrays that "
-           "don't have a range, but found 'ptr_sjk' in:\n"
-           "z3d(1,:,:) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
-           in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
 
 
-def test_apply_calls_validate():
+def test_validate_calls_validate():
     '''Check that the apply() method calls the validate method.'''
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
@@ -560,7 +591,7 @@ def test_valid_node():
            in str(info.value))
 
 
-def test_within_array_reference():
+def test_validate_within_array_reference():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not within an array reference.
 
@@ -581,7 +612,7 @@ def test_within_array_reference():
                in str(info.value))
 
 
-def test_within_assignment():
+def test_validate_within_assignment():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not within an array reference that is within
     an assignment.
@@ -603,7 +634,7 @@ def test_within_assignment():
                in str(info.value))
 
 
-def test_within_lhs_assignment():
+def test_validate_within_lhs_assignment():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not within an array reference that is within
     the lhs of an assignment (i.e. it is within the rhs).
@@ -623,8 +654,8 @@ def test_within_lhs_assignment():
            "node, but it is on the right-hand-side." in str(info.value))
 
 
-def test_array_non_elemental_operator():
-    '''Check that the vaidate() method raises the expected exception if a
+def test_validate_array_non_elemental_operator():
+    '''Check that the validate() method raises the expected exception if a
     a non-elemental operation is found on the rhs of the assignment node.
 
     '''
@@ -642,7 +673,7 @@ def test_array_non_elemental_operator():
         in str(info.value))
 
 
-def test_not_outermost_range():
+def test_validate_not_outermost_range():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not the outermost Range within an array
     reference.
@@ -693,7 +724,7 @@ def test_outer_index_error():
 @pytest.mark.parametrize("datatype",
                          [REAL_TYPE, ArrayType(INTEGER_TYPE, [10]),
                           DeferredType()])
-def test_loop_variable_name_error(datatype):
+def test_validate_loop_variable_name_error(datatype):
     '''Check that the expected exception is raised when the config file
     specifies a loop iteration name but it is already declared in the
     code as something that is not a scalar.
