@@ -262,8 +262,10 @@ class GOInvoke(Invoke):
         by the associated invoke call in the algorithm layer). This
         consists of the PSy invocation subroutine and the declaration of
         its arguments.
+
         :param parent: the node in the generated AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+
         '''
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,

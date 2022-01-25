@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -124,7 +124,7 @@ def test_goloop_create(monkeypatch):
     assert goloop.children[1].value == '20'
     assert goloop.children[2].value == '1'
 
-    # Try with and invalid loop type
+    # Try with an invalid loop type
     with pytest.raises(GenerationError) as err:
         goloop = GOLoop.create(parent=gosched,
                                loop_type="invalid",

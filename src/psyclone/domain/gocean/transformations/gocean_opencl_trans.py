@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -254,9 +254,7 @@ class GOOpenCLTrans(Transformation):
         self._transformed_invokes += 1
 
         # Get end_barrier option
-        _end_barrier = True
-        if 'end_barrier' in options:
-            _end_barrier = options['end_barrier']
+        end_barrier = options.get('end_barrier', True)
 
         # Update the maximum value that the queue_number have.
         for kernel in node.coded_kernels():
@@ -275,7 +273,7 @@ class GOOpenCLTrans(Transformation):
         for kern in node.coded_kernels():
             self._insert_ocl_arg_setter_routine(node.root, kern)
 
-        # Insert fortcl, clfotran and c_iso_binding import statement
+        # Insert fortcl, clfortran and c_iso_binding import statement
         fortcl = ContainerSymbol("fortcl")
         node.symbol_table.add(fortcl)
         get_num_cmd_queues = RoutineSymbol(
@@ -288,21 +286,23 @@ class GOOpenCLTrans(Transformation):
         node.symbol_table.add(get_cmd_queues)
         node.symbol_table.add(get_kernel_by_name)
         clfortran = ContainerSymbol("clfortran")
-        clfortran.wildcard_import = True
         node.symbol_table.add(clfortran)
         cl_finish = RoutineSymbol(
                 "clFinish", interface=ImportInterface(clfortran))
         cl_launch = RoutineSymbol(
                 "clEnqueueNDRangeKernel",
                 interface=ImportInterface(clfortran))
+        node.symbol_table.add(cl_finish)
+        node.symbol_table.add(cl_launch)
         iso_c_binding = ContainerSymbol("iso_c_binding")
-        iso_c_binding.wildcard_import = True
         node.symbol_table.add(iso_c_binding)
         c_loc = RoutineSymbol(
                 "C_LOC", interface=ImportInterface(iso_c_binding))
         c_null = DataSymbol(
                 "C_NULL_PTR", datatype=INTEGER_TYPE,
                 interface=ImportInterface(iso_c_binding))
+        node.symbol_table.add(c_loc)
+        node.symbol_table.add(c_null)
 
         # Include the check_status subroutine if we are in debug_mode
         if api_config.debug_mode:
@@ -312,7 +312,7 @@ class GOOpenCLTrans(Transformation):
             node.symbol_table.add(ocl_utils)
             node.symbol_table.add(check_status)
 
-        # Declare local variables needed on a OpenCL PSy-layer invoke
+        # Declare local variables needed by an OpenCL PSy-layer invoke
         int_array_2d = ArrayType(INTEGER_TYPE, [2])
         qlist = node.symbol_table.new_symbol(
             "cmd_queues", symbol_type=DataSymbol,
@@ -413,7 +413,7 @@ class GOOpenCLTrans(Transformation):
                                 "INTEGER(KIND=c_intptr_t) :: " + name))
 
         # Now call all the set_args routines because in some platforms (e.g.
-        # in Xiling FPGA) knowing which arguments each kernel is going to use
+        # in Xilinx FPGA) knowing which arguments each kernel is going to use
         # allows the write operation to place the data into the appropriate
         # memory bank.
         first_statement_comment = False
@@ -431,7 +431,7 @@ class GOOpenCLTrans(Transformation):
                         first_statement_comment = True
 
         # Now we can insert calls to write_to_device method for each buffer
-        # and the grid writing call is there is one (in a new first time block)
+        # and the grid writing call if there is one (in a new first time block)
         first_statement_comment = False
         for field in initialised_fields:
             call = Call.create(
@@ -624,7 +624,7 @@ class GOOpenCLTrans(Transformation):
         for node_to_detach in nodes_to_detach:
             node_to_detach.detach()
 
-        if _end_barrier:
+        if end_barrier:
             # We need a clFinish for each of the queues in the implementation
             added_comment = False
             for num in range(1, self._max_queue_number + 1):
@@ -676,7 +676,7 @@ class GOOpenCLTrans(Transformation):
             if routine.name == kernel.name:
                 break  # if it exist re-use existing one
                 # TODO 1572: Here we assume that in the same Invoke (scope) a
-                # kernel with the same name will be the same kernel, but than
+                # kernel with the same name will be the same kernel, but that
                 # may not be true when doing multiple invokes.
         else:
             self._kernels_file.addchild(kernel_copy)
@@ -719,11 +719,17 @@ class GOOpenCLTrans(Transformation):
         Generate the Call statement to the set_args subroutine for the
         provided kernel.
 
-        :param parent: parent subroutine in f2pygen AST of generated code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param kernel: the kernel for which to generate a call to its \
+            arg_setter subroutine.
+        :type kernel: :py:class:`psyclone.psyGen.CodedKern`
+        :param scope: The node representing the scope where the call \
+            statements will be inserted.
+        :type scope: :py:class:`psyclone.psyir.nodes.ScopedNode`
+
+        :returns: a block of statements that represent the set_args call
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        # Return all the code for the call inside a Schedule
         call_block = Schedule()
 
         # Retrieve symbol table and kernel symbol
