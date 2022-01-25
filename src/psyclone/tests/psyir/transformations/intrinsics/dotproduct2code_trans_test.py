@@ -133,11 +133,11 @@ def test_bound_explicit(fortran_reader, fortran_writer, dim1, dim2):
     psyir = fortran_reader.psyir_from_source(code)
     dot_product = psyir.walk(BinaryOperation)[0]
     assert dot_product.operator == BinaryOperation.Operator.DOT_PRODUCT
-    a, b, c = _get_array_bound(
+    lower, upper, step = _get_array_bound(
         dot_product.children[0], dot_product.children[1], fortran_writer)
-    assert a.value=='2'
-    assert b.value=='10'
-    assert c.value=='1'
+    assert lower.value == '2'
+    assert upper.value == '10'
+    assert step.value == '1'
 
 
 def test_bound_unknown(fortran_reader, fortran_writer):
@@ -154,11 +154,11 @@ def test_bound_unknown(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     dot_product = psyir.walk(BinaryOperation)[0]
     assert dot_product.operator == BinaryOperation.Operator.DOT_PRODUCT
-    a, b, c = _get_array_bound(
+    lower, upper, step = _get_array_bound(
         dot_product.children[0], dot_product.children[1], fortran_writer)
-    assert fortran_writer(a) == 'LBOUND(v1, 1)'
-    assert fortran_writer(b) == 'UBOUND(v1, 1)'
-    assert c.value=='1'
+    assert fortran_writer(lower) == 'LBOUND(v1, 1)'
+    assert fortran_writer(upper) == 'UBOUND(v1, 1)'
+    assert step.value == '1'
 
 
 # DotProduct2CodeTrans class init method
@@ -398,8 +398,8 @@ def test_apply_multi_rhs(tmpdir, fortran_reader, fortran_writer):
                 index=3)
 
 
-@pytest.mark.parametrize("arg1,arg2",[("", "(:)"), ("(:)", ""),
-                                      ("(:)", "(:)")])
+@pytest.mark.parametrize("arg1,arg2", [("", "(:)"), ("(:)", ""),
+                                       ("(:)", "(:)")])
 def test_apply_array_notation(
         tmpdir, fortran_reader, fortran_writer, arg1, arg2):
     '''Test that the DotProduct2CodeTrans apply method produces the

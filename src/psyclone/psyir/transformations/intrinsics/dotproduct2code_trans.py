@@ -241,7 +241,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     f"arrays of real data, but found {self._writer(arg)} of "
                     f"type {arg.symbol.datatype.intrinsic.name} in "
                     f"{self._writer(node)}.")
-        
+
         # Check whether _get_array_bound raises an exception
         _get_array_bound(node.children[0], node.children[1], self._writer)
 
