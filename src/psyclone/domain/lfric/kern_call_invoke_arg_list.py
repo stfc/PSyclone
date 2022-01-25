@@ -174,7 +174,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
         sym = self._symtab.new_symbol(argvect.name,
                                       symbol_type=DataSymbol, datatype=dtype)
-        self._fields.append(sym)
+        self._fields.append((sym, argvect.function_space.orig_name))
         self.append(sym.name)
 
     def field(self, arg, var_accesses=None):
@@ -192,7 +192,7 @@ class KernCallInvokeArgList(ArgOrdering):
         ftype = self._symtab.lookup("field_type")
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=ftype)
-        self._fields.append(sym)
+        self._fields.append((sym, arg.function_space.orig_name))
         self.append(sym.name)
 
     def stencil(self, arg, var_accesses=None):
