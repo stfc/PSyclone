@@ -46,12 +46,19 @@ from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
 
 
+def test_sym_writer_constructor():
+    '''Test that the constructor accepts an optional dictionary.
+    '''
+    sympy_writer = SymPyWriter({'some': 'symbol'})
+    assert sympy_writer._sympy_type_map['some'] == 'symbol'
+    # Also test that not specifying a type map as argument works:
+    sympy_writer = SymPyWriter()
+    assert sympy_writer._sympy_type_map == {}
+
+
 def test_sym_writer_boolean():
     '''Test that booleans are written in the way that SymPy accepts.
     '''
-    sympy_writer = SymPyWriter({})
-    lit = Literal("true", BOOLEAN_TYPE)
-    # Also test that not specifying a type map as argument works:
     sympy_writer = SymPyWriter()
     lit = Literal("true", BOOLEAN_TYPE)
     assert sympy_writer(lit) == "True"
