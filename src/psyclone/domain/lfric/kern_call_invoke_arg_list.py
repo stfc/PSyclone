@@ -112,7 +112,8 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''
-        Add the necessary argument for a scalar quantity.
+        Add the necessary argument for a scalar quantity as well as an
+        appropriate Symbol to the SymbolTable.
 
         :param scalar_arg: the scalar kernel argument.
         :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -158,9 +159,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
-        argument list. OpenACC requires the field and the
-        dereferenced data to be specified. If supplied it also stores
-        this access in var_accesses.
+        argument list and an associated Symbol to the SymbolTable.
 
         :param argvect: the field vector to add.
         :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -180,9 +179,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
-        argument list. OpenACC requires the field and the
-        dereferenced data to be specified. If supplied it also
-        stores this access in var_accesses.
+        argument list and an appropriate Symbol to the SymbolTable.
 
         :param arg: the field to be added.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -200,8 +197,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
-        to the argument list. OpenACC requires the full dofmap to be
-        specified. If supplied it also stores this access in var_accesses.
+        to the argument list.
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
@@ -211,18 +207,15 @@ class KernCallInvokeArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
+        :raises NotImplementedError: stencils are not yet supported.
+
         '''
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
-        self.append(var_name, var_accesses)
+        raise NotImplementedError("Stencils are not yet supported")
 
     def stencil_2d(self, arg, var_accesses=None):
         '''Add general 2D stencil information associated with the argument
-        'arg' to the argument list. OpenACC requires the full dofmap to be
-        specified. If supplied it also stores this access in var_accesses.This
-        method passes through to the stencil method.
+        'arg' to the argument list. This method passes through to the
+        :py:meth:`KernCallInvokeArgList.stencil` method.
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
@@ -247,19 +240,17 @@ class KernCallInvokeArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
+        :raises NotImplementedError: stencils are not yet supported.
+
         '''
-        # The extent is not specified in the metadata so pass the value in
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
-        self.append(name, var_accesses)
+        raise NotImplementedError(
+            "stencil_unknown_extent not yet implemented.")
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses. This method passes through to the
-        stencil_unknown_extent method.
+        :py:meth:`KernCallInvokeArgList.stencil_unknown_extent method`.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -302,8 +293,9 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.
-        Adds the necessary arguments to the argument list, and optionally
-        adds variable access information to the var_accesses object.
+        Adds the necessary arguments to the argument list and suitable
+        symbols to the SymbolTable. Optionally also adds variable access
+        information to the var_accesses object.
 
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
@@ -312,25 +304,6 @@ class KernCallInvokeArgList(ArgOrdering):
 
         '''
         lfric_const = LFRicConstants()
-        #use finite_element_config_mod,      only: element_order
-
-        #fe_config_mod = self._symtab.new_symbol("finite_element_config_mod",
-        #                                        symbol_type=ContainerSymbol)
-        #self._symtab.new_symbol("element_order", symbol_type=DataSymbol,
-        #                        datatype=DeferredType(),
-        #                        interface=ImportInterface(fe_config_mod))
-        try:
-            qr_rule_sym = self._symtab.lookup("quadrature_rule")
-        except KeyError:
-            qr_gaussian_mod = self._symtab.new_symbol(
-                "quadrature_rule_gaussian_mod", symbol_type=ContainerSymbol)
-            qr_gaussian_type = self._symtab.new_symbol(
-                "quadrature_rule_gaussian_type", symbol_type=DataTypeSymbol,
-                datatype=DeferredType(),
-                interface=ImportInterface(qr_gaussian_mod))
-            qr_rule_sym = self._symtab.new_symbol("quadrature_rule",
-                                                  symbol_type=DataSymbol,
-                                                  datatype=qr_gaussian_type)
 
         for shape, rule in self._kern.qr_rules.items():
             mod_name = lfric_const.QUADRATURE_TYPE_MAP[shape]["module"]
