@@ -1555,6 +1555,7 @@ def test_arg_intrinsic_type_error():
 
 # Test DynKernelArgument _init_data_type_properties()
 
+
 def test_dynkernelargument_idtp_error(monkeypatch):
     '''Test the _init_data_type_properties method in the DynKernelArgument
     class raises the expected exception if the argument is not a
@@ -1574,7 +1575,7 @@ def test_dynkernelargument_idtp_error(monkeypatch):
     assert ("Supported argument types are scalar, field and operator, but "
             "the argument 'a' in kernel 'testkern_code' is none of these."
             in str(info.value))
-    
+
 
 def test_dynkernelargument_idtp_scalar():
     '''Test the _init_data_type_properties method in the DynKernelArgument

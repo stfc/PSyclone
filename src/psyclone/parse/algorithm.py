@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -778,10 +778,10 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                     f"value '{str(argument)}', kernel '{parse_tree}' in "
                     f"file '{alg_filename}'.")
             # This is a literal so store the full expression as a
-            # string
-            # First determine the datatype
+            # string.
             candidate_datatype = None
             for literal in walk(
+                # Determine datatype and precision.
                     argument, (Real_Literal_Constant,
                                Int_Literal_Constant)):
                 precision = literal.children[1]

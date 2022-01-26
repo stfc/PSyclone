@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -459,9 +459,10 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     monkeypatch.setattr(scalar_arg, "_intrinsic_type", "tabby")
     with pytest.raises(InternalError) as err:
         scalar_arg._init_data_type_properties(None)
-    assert ("Expected one of {0} intrinsic types for a scalar "
-            "argument but found 'tabby'.".
-            format(const.VALID_INTRINSIC_TYPES)) in str(err.value)
+    assert (f"Expected one of {const.VALID_INTRINSIC_TYPES} intrinsic types "
+            f"for a scalar argument but found 'tabby' in the metadata of "
+            f"kernel testkern_qr_code for argument lscalar_6."
+            in str(err.value))
 
 
 def test_scalar_reduction_lfricconst_properties():

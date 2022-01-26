@@ -2462,10 +2462,11 @@ class Argument(object):
         self._data_type = None
         self._module_name = None
         # Default the name to the original name for debugging
-        # purposes. This may be updated when arg_init1() is called.
+        # purposes. This may be updated when _complete_init() is
+        # called.
         self._name = self._orig_name
 
-    def arg_init1(self, arg_info):
+    def _complete_init(self, arg_info):
         '''Provides the initialisation of name, text and the declaration of
         symbols in the symbol table if required. This initialisation
         is not performed in the constructor as subclasses may need to

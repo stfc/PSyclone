@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -45,6 +46,7 @@ from __future__ import absolute_import
 import abc
 import six
 from psyclone.core.access_type import AccessType
+from psyclone.errors import InternalError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
@@ -405,6 +407,54 @@ class LFRicBuiltIn(BuiltIn):
         '''
         return [arg.psyir_expression() for arg in self._arguments.args
                 if arg.is_scalar]
+
+
+class LFRicXKern(LFRicBuiltIn):
+    '''Abstract class providing functionaliy to convert a field of
+    one type to a field of another type. If [Datatype] (stored in
+    _field_type) is the particular datatype to convert to and
+    [Precision] is the precision of this datatype then the result is
+    `Y = [Datatype](X, [Precision])`. Here `Y` is a field of type
+    [Datatype] and `X` is a field with a different type. The correct
+    [Precision] is picked up from the associated argument.
+
+    '''
+    _field_type = None
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        [datatype]_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Subclass must set _field_type
+        if not self._field_type:
+            raise InternalError(
+                "Subclasses of LFRicXKern must set the _field_type variable "
+                "to the output datatype.")
+        # Convert all the elements of a field of one type to the
+        # corresponding elements of a field of another type using
+        # the PSyclone configuration for the correct 'kind'.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        precision = self._arguments.args[0].precision
+        rhs_expr = (f"{self._field_type}({field_name1}, {precision})")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+        # Import the precision variable if it is not already imported
+        const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        # Import node type here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynInvokeSchedule
+        schedule = self.ancestor(DynInvokeSchedule)
+        psy = schedule.invoke.invokes.psy
+        precision_list = psy.infrastructure_modules[const_mod]
+        if precision not in precision_list:
+            precision_list.append(precision)
+
 
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #
@@ -1422,51 +1472,22 @@ class LFRicSignXKern(LFRicBuiltIn):
         rhs_expr = ("sign(" + scalar_name + ", " + field_name1 + ")")
         parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
 
-
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXKern(LFRicBuiltIn):
+class LFRicIntXKern(LFRicXKern):
     ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `int` function,
-    `Y = int(X, i_def)`. Here `Y` is an integer-valued field and
-    `X` is the real-valued field being converted. The correct `kind`
-    is picked up from the associated argument.
+    `Y = int(X, r_def)`. Here `Y` is an int-valued field and `X`
+    is the real-valued field being converted.
 
     '''
+    _field_type = "int"
+
     def __str__(self):
         return "Built-in: Convert a real-valued to an integer-valued field"
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        int_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # Convert all the elements of a real-valued field to the
-        # corresponding elements of an integer-valued field using
-        # the PSyclone configuration for the correct 'kind'.
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        precision = self._arguments.args[0].precision
-        rhs_expr = (f"int({field_name1}, {precision})")
-        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
-        # Import the precision variable if it is not already imported
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        # Import node type here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
-        schedule = self.ancestor(DynInvokeSchedule)
-        psy = schedule.invoke.invokes.psy
-        precision_list = psy.infrastructure_modules[const_mod]
-        if precision not in precision_list:
-            precision_list.append(precision)
 
 
 # ******************************************************************* #
@@ -1685,46 +1706,17 @@ class LFRicIntSignXKern(LFRicSignXKern):
 # ------------------------------------------------------------------- #
 
 
-class LFRicRealXKern(LFRicBuiltIn):
+class LFRicRealXKern(LFRicXKern):
     ''' Converts integer-valued field elements to real-valued
     field elements using the Fortran intrinsic `real` function,
     `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
-    is the integer-valued field being converted. The correct `kind`
-    is picked up from the associated argument.
+    is the integer-valued field being converted.
 
     '''
+    _field_type = "real"
+
     def __str__(self):
         return "Built-in: Convert an integer-valued to a real-valued field"
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        real_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # Convert all the elements of an integer-valued field to
-        # the corresponding elements of a real-valued field using
-        # the PSyclone configuration for the correct 'kind'.
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        precision = self._arguments.args[0].precision
-        rhs_expr = ("real(" + field_name1 + ", " +
-                    precision + ")")
-        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
-        # Import the precision variable if it is not already imported
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        # Import node type here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
-        schedule = self.ancestor(DynInvokeSchedule)
-        psy = schedule.invoke.invokes.psy
-        precision_list = psy.infrastructure_modules[const_mod]
-        if precision not in precision_list:
-            precision_list.append(precision)
 
 
 # The built-in operations that we support for this API. The meta-data

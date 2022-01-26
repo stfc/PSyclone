@@ -1861,7 +1861,7 @@ class GOKernelArgument(KernelArgument):
         KernelArgument.__init__(self, arg, arg_info, call)
         # Complete the argument initialisation as in some APIs it
         # needs to be separated.
-        self.arg_init1(arg_info)
+        self._complete_init(arg_info)
 
     def psyir_expression(self):
         '''
@@ -1999,7 +1999,7 @@ class GOKernelGridArgument(Argument):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
         # Complete the argument initialisation as in some APIs it
         # needs to be separated.
-        self.arg_init1(None)
+        self._complete_init(None)
 
         api_config = Config.get().api_conf("gocean1.0")
         try:

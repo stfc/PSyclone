@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' This module tests the support for integer built-in operations in the
     LFRic API using pytest. Currently all built-in operations are 'pointwise'
@@ -1126,7 +1127,7 @@ def test_real_X_precision(tmpdir, monkeypatch):
     kern = first_invoke.schedule.children[0].loop_body[0]
     monkeypatch.setattr(kern.args[0], "_precision", "r_solver")
     code = str(psy.gen)
-    assert ("USE constants_mod, ONLY: r_solver, i_def" in code)
-    assert ("f2_proxy%data(df) = real(f1_proxy%data(df), r_solver)" in code)
+    assert "USE constants_mod, ONLY: r_solver, i_def" in code
+    assert "f2_proxy%data(df) = real(f1_proxy%data(df), r_solver)" in code
     # Test code generation
     assert LFRicBuild(tmpdir).code_compiles(psy)

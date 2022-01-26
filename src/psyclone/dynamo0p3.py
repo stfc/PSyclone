@@ -8705,7 +8705,7 @@ class DynKernelArgument(KernelArgument):
         # Complete the initialisation of the argument (after
         # _init_data_type_properties() so the precision info etc is
         # already set up)
-        self.arg_init1(arg_info)
+        self._complete_init(arg_info)
 
     def ref_name(self, function_space=None):
         '''
@@ -8846,7 +8846,8 @@ class DynKernelArgument(KernelArgument):
             raise InternalError(
                 f"Expected one of {const.VALID_INTRINSIC_TYPES} intrinsic "
                 f"types for a scalar argument but found "
-                f"'{self.intrinsic_type}'.")
+                f"'{self.intrinsic_type}' in the metadata of kernel "
+                f"{self._call.name} for argument {self.name}.")
 
         # Check the metadata and algorithm types are consistent if
         # the algorithm information is available and is not being ignored.

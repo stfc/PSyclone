@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
 from psyclone.dynamo0p3 import DynKernelArgument
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -97,6 +97,39 @@ def test_lfric_builtin_abstract_methods():
         lfric_builtins.LFRicBuiltIn()
     assert "abstract class LFRicBuiltIn" in str(err.value)
     assert "__str__" in str(err.value)
+
+
+def test_lfricxkern_abstract():
+    '''Test that the LFRicXKern class is abstract and that it sets its
+    internal _field_type variable to None.
+
+    '''
+    with pytest.raises(TypeError) as error:
+        lfric_builtins.LFRicXKern()
+    assert ("Can't instantiate abstract class LFRicXKern with abstract "
+            "methods __str__" in str(error.value))
+    assert lfric_builtins.LFRicXKern._field_type is None
+
+
+def test_lfricxkern_exception():
+    '''Test that LFRicXKern raises an exception if it is subclassed and
+    the subclass does not set the variable _field_type to a value.
+
+    '''
+
+    class Dummy(lfric_builtins.LFRicXKern):
+        '''Utility class to test that LFRicXKern raises the expected
+        exception
+
+        '''
+        def __str__(self):
+            return "dummy"
+
+    dummy = Dummy()
+    with pytest.raises(InternalError) as info:
+        dummy.gen_code(None)
+    assert ("Subclasses of LFRicXKern must set the _field_type variable "
+            "to the output datatype." in str(info.value))
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
@@ -2895,9 +2928,9 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 def test_int_X_precision(monkeypatch):
     '''Test that the builtin picks up and creates correct code for a
     scalar with precision that is not the default i.e. not i_def. At
-    the moment there is no other integer precision so we make one
-    up. However, this does mean that we can't check whether it
-    compiles.
+    the moment there is no other integer precision so we make one up
+    and use monkeypatch to get round any error checks. However, this
+    does mean that we can't check whether it compiles.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2909,8 +2942,8 @@ def test_int_X_precision(monkeypatch):
     kern = first_invoke.schedule.children[0].loop_body[0]
     monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
     code = str(psy.gen)
-    assert ("USE constants_mod, ONLY: i_solver, i_def" in code)
-    assert ("f2_proxy%data(df) = int(f1_proxy%data(df), i_solver)" in code)
+    assert "USE constants_mod, ONLY: i_solver, i_def" in code
+    assert "f2_proxy%data(df) = int(f1_proxy%data(df), i_solver)" in code
 
 # ------------- Xfail built-ins --------------------------------------------- #
 
