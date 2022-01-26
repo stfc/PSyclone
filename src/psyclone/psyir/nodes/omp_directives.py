@@ -891,9 +891,9 @@ class OMPTaskDirective(OMPRegionDirective):
         # and create clause appropriately
         index_name = "" 
         if type(node.children[0]) is Reference:
-            index_name = writer(node.children[0].symbol)
+            index_name = node.children[0].symbol.name
         if type(node.children[1]) is Reference:
-            index_name = writer(node.children[1].symbol)
+            index_name = node.children[1].symbol.name
         index_private = (index_name in 
                          parallel_private)
         if index_private:
@@ -996,7 +996,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
             name = writer(ref)
-            if ref not in firstprivate_list:
+            if name not in firstprivate_list:
                 firstprivate_list.append(name)
 
         stop_val_refs = stop_val.walk(Reference)
@@ -1007,7 +1007,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
             name = writer(ref)
-            if ref not in firstprivate_list:
+            if name not in firstprivate_list:
                 firstprivate_list.append(name)
 
         
@@ -1019,7 +1019,7 @@ class OMPTaskDirective(OMPRegionDirective):
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
             name = writer(ref)
-            if ref not in firstprivate_list:
+            if name not in firstprivate_list:
                 firstprivate_list.append(name)
 
         # Look through the schedule and work out data sharing clauses.
