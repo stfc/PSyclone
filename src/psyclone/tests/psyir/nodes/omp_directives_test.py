@@ -82,8 +82,8 @@ def test_ompdo_constructor():
     with pytest.raises(InternalError) as err:
         # pylint: disable=pointless-statement
         ompdo.dir_body
-    assert ("malformed or incomplete. It should have a single Schedule as a "
-            "child but found: []" in str(err.value))
+    assert ("malformed or incomplete. It should have a Schedule as child 0 "
+            "but found: []" in str(err.value))
     child = schedule.children[0].detach()
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
@@ -393,13 +393,9 @@ def test_omp_taskloop_strings():
     ''' Test the begin_string and end_string methods of the
         OMPTaskloop directive '''
     omp_taskloop = OMPTaskloopDirective()
-    omp_tl2 = OMPTaskloopDirective(num_tasks=32, nogroup=True)
-    omp_tl3 = OMPTaskloopDirective(grainsize=32)
 
     assert omp_taskloop.begin_string() == "omp taskloop"
     assert omp_taskloop.end_string() == "omp end taskloop"
-    assert omp_tl2.begin_string() == "omp taskloop num_tasks(32), nogroup"
-    assert omp_tl3.begin_string() == "omp taskloop grainsize(32)"
 
 
 def test_omp_taskloop_init():

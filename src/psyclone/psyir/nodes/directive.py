@@ -60,6 +60,14 @@ class Directive(Statement):
     _PREFIX = ""
     _colour = "green"
 
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        return []
+
 
 class RegionDirective(Directive):
     '''
@@ -107,16 +115,16 @@ class RegionDirective(Directive):
         :returns: the Schedule associated with this directive.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :raises InternalError: if this node does not have a single Schedule as\
-                               its child.
+        :raises InternalError: if this node does not have a Schedule as\
+                               its first child.
         '''
-        if len(self.children) != 1 or not \
-           isinstance(self.children[0], Schedule):
+        if len(self.children) < 1 or not isinstance(self.children[0], Schedule):
             raise InternalError(
-                "Directive malformed or incomplete. It should have a single "
-                "Schedule as a child but found: {0}".format(
+                "Directive malformed or incomplete. It should have a "
+                "Schedule as child 0 but found: {0}".format(
                     [type(child).__name__ for child in self.children]))
         return self.children[0]
+
 
 
 class StandaloneDirective(Directive):

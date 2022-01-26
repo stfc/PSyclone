@@ -394,6 +394,14 @@ class Node(object):
         # but the generic method always returns False.
         return False
 
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        return []
+
     def coloured_name(self, colour=True):
         '''
         Returns the display name of this Node, optionally with colour control

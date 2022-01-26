@@ -84,6 +84,9 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
     OMPTargetDirective, OMPLoopDirective
+from psyclone.psyir.nodes.clause import Clause
+from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NogroupClause, \
+    NowaitClause, NumTasksClause
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -97,6 +100,7 @@ __all__ = [
         'Assignment',
         'BinaryOperation',
         'Call',
+        'Clause',
         'CodeBlock',
         'Container',
         'DataNode',
@@ -151,5 +155,10 @@ __all__ = [
         'OMPParallelDoDirective',
         'OMPTaskwaitDirective',
         'OMPTargetDirective',
-        'OMPLoopDirective'
+        'OMPLoopDirective',
+        # Clause Nodes
+        'GrainsizeClause',
+        'NogroupClause',
+        'NowaitClause',
+        'NumTasksClause'
         ]

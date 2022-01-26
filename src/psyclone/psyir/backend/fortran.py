@@ -1439,6 +1439,31 @@ class FortranWriter(LanguageWriter):
             result += self._visit(child)
         return result
 
+    def clause_node(self, node):
+        '''This method is called when a Clause instance is found in the
+        PSyIR tree. It returns the clause and its children as a string.  The
+        string will be prefixed by a single space.
+
+        :param node: a Clause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Clause`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        result_list = [" "]
+
+        result_list.append(node._clause_string)
+
+        if len(node.children) > 0:
+            result_list.append("(")
+            child_list = []
+            for child in node.children:
+                child_list.append(self._visit(child))
+            result_list.append(",".join(child_list))
+
+        return "".join(result_list)
+
     def regiondirective_node(self, node):
         '''This method is called when a RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
@@ -1451,7 +1476,14 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
+        result_list = ["{0}!${1}".format(self._nindent, node.begin_string())]
+
+        clause_list = []
+        for clause in node.clauses:
+            clause_list.append(self._visit(clause))
+        result_list.append(",".join(clause_list))
+        result_list.append("\n")
+
         for child in node.dir_body:
             result_list.append(self._visit(child))
 
@@ -1471,7 +1503,13 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = ["{0}!${1}\n".format(self._nindent, node.begin_string())]
+        result_list = ["{0}!${1}".format(self._nindent, node.begin_string())]
+
+        clause_list = []
+        for clause in node.clauses:
+            clause_list.append(self._visit(clause))
+        result_list.append(",".join(clause_list))
+        result_list.append("\n")
 
         return "".join(result_list)
 

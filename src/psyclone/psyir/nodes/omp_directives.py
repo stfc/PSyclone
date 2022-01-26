@@ -54,6 +54,11 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NowaitClause,\
+    NogroupClause, NumTasksClause
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -587,9 +592,11 @@ class OMPTaskloopDirective(OMPRegionDirective):
                              a grainsize and num_tasks value \
                              specified.
     '''
+    _children_valid_format = "Schedule, [GrainsizeClause | NumTasksClause], [NogroupClause]"
     # pylint: disable=too-many-arguments
     def __init__(self, children=None, parent=None, grainsize=None,
                  num_tasks=None, nogroup=False):
+        # These remain primarily for the gen_code interface
         self._grainsize = grainsize
         self._num_tasks = num_tasks
         self._nogroup = nogroup
@@ -599,6 +606,53 @@ class OMPTaskloopDirective(OMPRegionDirective):
                 "numtasks clauses specified.")
         super(OMPTaskloopDirective, self).__init__(children=children,
                                                    parent=parent)
+        if self._grainsize is not None:
+            child = [Literal(f"{grainsize}", INTEGER_TYPE)]
+            self._children.append(GrainsizeClause(children=child))
+        if self._num_tasks is not None:
+            child = [Literal(f"{num_tasks}", INTEGER_TYPE)]
+            self._children.append(NumTasksClause(children=child))
+        if self._nogroup:
+            self._children.append(NogroupClause())
+
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         The rules are:
+         1. Child 0 must always be a Schedule.
+         2. Child 1 may be either a GrainsizeClause or NumTasksClause, or if
+            neither of those clauses are present, it may be a NogroupClause.
+         3. Child 2 must always be a NogroupClause, and can only exist if child
+            1 is a GrainsizeClause or NumTasksClause
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        if position == 1:
+            return isinstance(child, (GrainsizeClause, NumTasksClause,\
+                                      NogroupClause))
+        if position == 2:
+            return (isinstance(child, NogroupClause))
+        return False
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 1:
+            return self.children[1:]
+        return []
 
     @property
     def nogroup(self):
@@ -615,6 +669,8 @@ class OMPTaskloopDirective(OMPRegionDirective):
 
         :raises GenerationError: if this OMPTaskloopDirective is not \
                                  enclosed within an OpenMP serial region.
+        :raises GenerationError: if this OMPTaskloopDirective has two 
+                                 Nogroup clauses as children.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -625,6 +681,14 @@ class OMPTaskloopDirective(OMPRegionDirective):
             raise GenerationError(
                 "OMPTaskloopDirective must be inside an OMP Serial region "
                 "but could not find an ancestor node")
+
+        # Check children are well formed.
+        # _validate_child will ensure position 0 and 1 are valid.
+        if len(self._children) == 3 and isinstance(self._children[1],
+                NogroupClause):
+            raise GenerationError(
+                "OMPTaskloopDirective has two Nogroup clauses as children "
+                "which is not allowed.")
 
         super(OMPTaskloopDirective, self).validate_global_constraints()
 
@@ -652,15 +716,13 @@ class OMPTaskloopDirective(OMPRegionDirective):
             clause_list.append("num_tasks({0})".format(self._num_tasks))
         if self._nogroup:
             clause_list.append("nogroup")
-
         # Generate the string containing the required clauses
         extra_clauses = ", ".join(clause_list)
 
         parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
                                 extra_clauses))
 
-        for child in self.children:
-            child.gen_code(parent)
+        self.children[0].gen_code(parent)
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()
@@ -669,31 +731,19 @@ class OMPTaskloopDirective(OMPRegionDirective):
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "omp do ...". The visitor is responsible for adding the
+        "omp taskloop ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
         :rtype: str
 
         '''
-        extra_clauses = ""
-        # Find the specified clauses
-        clause_list = []
-        if self._grainsize is not None:
-            clause_list.append(" grainsize({0})".format(self._grainsize))
-        if self._num_tasks is not None:
-            clause_list.append(" num_tasks({0})".format(self._num_tasks))
-        if self._nogroup:
-            clause_list.append(" nogroup")
-
-        # Generate the string containing the required clauses
-        extra_clauses = ",".join(clause_list)
-
-        return "omp taskloop" + extra_clauses
+        # pylint: disable=no-self-use
+        return "omp taskloop"
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end do". The visitor is responsible for adding the
+        "omp end taskloop". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the end statement for this directive.
