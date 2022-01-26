@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,8 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
+
 from sympy import simplify, true
-from sympy.parsing.sympy_parser import parse_expr
 
 
 class SymbolicMaths:
@@ -80,16 +80,8 @@ class SymbolicMaths:
         return SymbolicMaths._instance
 
     # -------------------------------------------------------------------------
-    def __init__(self):
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.sympy_writer import SymPyWriter
-
-        self._writer = SymPyWriter()
-
-    # -------------------------------------------------------------------------
-
-    def equal(self, exp1, exp2):
+    @staticmethod
+    def equal(exp1, exp2):
         '''Test if the two PSyIR operations are identical. This is
         done by converting the operations to the equivalent Fortran
         representation, which can be fed into sympy for evaluation.
@@ -108,11 +100,18 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        str_exp1 = parse_expr(self._writer(exp1))
-        str_exp2 = parse_expr(self._writer(exp2))
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
+
+        # Use the SymPyWriter to convert the two expressions to
+        # SymPy expressions:
+        sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
+                                                                      exp2])
+
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
-        result = simplify(str_exp1 == str_exp2)
+        result = simplify(sympy_expressions[0] == sympy_expressions[1])
 
         # Convert SymPy boolean to python boolean.
         return result is true

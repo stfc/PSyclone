@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -336,8 +336,6 @@ def test_aic_lowertolanguagelevel_error():
             in str(info.value))
 
 
-@pytest.mark.xfail(reason="Issue #1523: field is a SymPy function "
-                          "causing parsing errors")
 def test_aic_lowertolanguagelevel_expr():
     '''Check that the lower_to_language_level method deals correctly with
     simple associative expresssions, i.e. i+1 is the same as 1+i.
