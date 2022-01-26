@@ -143,7 +143,7 @@ class ArrayMixin(object):
         if not isinstance(lower.children[0], Reference):
             return False
 
-        if not self._matching_access(lower.children[0]):
+        if not self.is_same_array(lower.children[0]):
             return False
 
         if not (isinstance(lower.children[1], Literal) and
@@ -185,17 +185,15 @@ class ArrayMixin(object):
         if not isinstance(upper.children[0], Reference):
             return False
 
-        if not self._matching_access(upper.children[0]):
+        if not self.is_same_array(upper.children[0]):
             return False
 
-        if not (isinstance(upper.children[1], Literal) and
+        return (isinstance(upper.children[1], Literal) and
                 upper.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER
-                and upper.children[1].value == str(index+1)):
-            return False
-        return True
+                and upper.children[1].value == str(index+1))
 
-    def _matching_access(self, node):
+    def is_same_array(self, node):
         '''
         Examines the full structure access represented by the supplied node
         to see whether it is the same as the one for this node. Any indices

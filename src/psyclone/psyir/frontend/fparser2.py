@@ -274,7 +274,7 @@ def _check_args(array, dim):
             "most the number of dimensions of the array ({0}) but found "
             "{1}.".format(len(array.children), dim))
 
-    # The first child of the array (index 0) relates to the first
+    # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
     if not isinstance(array.indices[dim-1], Range):
         raise TypeError(
@@ -294,10 +294,6 @@ def _is_bound_full_extent(array, dim, operator):
     This utility function checks that shorthand lower or upper
     bound Fortran code is captured as longhand lbound and/or
     ubound functions as expected in the PSyIR.
-
-    The supplied "array" argument is assumed to be a node that is a
-    subclass of ArrayMixin and the content of the specified dimension
-    "dim" is assumed to be a Range node.
 
     This routine is only in fparser2.py until #717 is complete as it
     is used to check that array syntax in a where statement is for the
@@ -331,7 +327,7 @@ def _is_bound_full_extent(array, dim, operator):
             "'operator' argument  expected to be LBOUND or UBOUND but "
             "found '{0}'.".format(type(operator).__name__))
 
-    # The first child of the array (index 0) relates to the first
+    # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
     bound = array.indices[dim-1].children[index]
 
@@ -341,7 +337,6 @@ def _is_bound_full_extent(array, dim, operator):
     reference = bound.children[0]
     literal = bound.children[1]
 
-    # pylint: disable=too-many-boolean-expressions
     if bound.operator != operator:
         return False
 
@@ -350,10 +345,8 @@ def _is_bound_full_extent(array, dim, operator):
             literal.value != str(dim)):
         return False
 
-    if isinstance(reference, Reference) and array._matching_access(reference):
-        return True
-
-    return False
+    return (isinstance(reference, Reference) and
+            array.is_same_array(reference))
 
 
 def _is_array_range_literal(array, dim, index, value):
