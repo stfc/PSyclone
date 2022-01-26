@@ -107,7 +107,7 @@ def test_lfricxkern_abstract():
     with pytest.raises(TypeError) as error:
         lfric_builtins.LFRicXKern()
     assert ("Can't instantiate abstract class LFRicXKern with abstract "
-            "methods __str__" in str(error.value))
+            "method" in str(error.value))
     assert lfric_builtins.LFRicXKern._field_type is None
 
 
