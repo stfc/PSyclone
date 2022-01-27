@@ -55,7 +55,7 @@ def test_grainsize_clause():
 def test_numtasks_clause():
     ''' Test the NumTasksClause functionality. '''
     c = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
-    assert c._clause_string = "num_tasks"
+    assert c._clause_string == "num_tasks"
     assert NumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE)) == True
     assert NumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE)) == False
 
