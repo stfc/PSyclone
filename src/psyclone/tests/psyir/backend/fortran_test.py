@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -551,15 +551,8 @@ def test_fw_gen_use(fortran_writer):
 
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, my_sub\n"
-                      "use my_module\n")
-
-    symbol2 = DataSymbol("dummy2", DeferredType(),
-                         interface=ImportInterface(container_symbol))
-    symbol_table.add(symbol2)
-    result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
-                      "use my_module\n")
+    assert "use my_module, only : dummy1, my_sub" not in result
+    assert "use my_module\n" in result
 
     # container2 has no symbols associated with it and has not been marked
     # as having a wildcard import. It should therefore result in a USE
@@ -575,6 +568,9 @@ def test_fw_gen_use(fortran_writer):
     result = fortran_writer.gen_use(container2, symbol_table)
     assert result == "use my_mod2\n"
     # Wrong type for first argument
+    symbol2 = DataSymbol("dummy2", DeferredType(),
+                         interface=ImportInterface(container_symbol))
+    symbol_table.add(symbol2)
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_use(symbol2, symbol_table)
     assert ("expects a ContainerSymbol as its first argument but got "
