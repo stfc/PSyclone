@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -421,8 +421,8 @@ def test_array_notation_rank():
     with pytest.raises(InternalError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but 'a' has none"
-            in str(excinfo.value))
+            "children representing array-index expressions but array 'a' has "
+            "none" in str(excinfo.value))
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension

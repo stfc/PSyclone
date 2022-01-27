@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -441,16 +441,16 @@ def test_array_indices():
     array._children = [one.copy(), "hello"]
     with pytest.raises(InternalError) as err:
         _ = array.indices
-    assert ("ArrayReference malformed or incomplete: child 1 of 'test' must "
-            "be a psyir.nodes.DataNode or Range representing an array-index "
-            "expression but found 'str'" in str(err.value))
+    assert ("ArrayReference malformed or incomplete: child 1 of array 'test' "
+            "must be a psyir.nodes.DataNode or Range representing an array-"
+            "index expression but found 'str'" in str(err.value))
     # Remove the children altogether
     array._children = []
     with pytest.raises(InternalError) as err:
         _ = array.indices
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but 'test' has none"
-            in str(err.value))
+            "children representing array-index expressions but array 'test' "
+            "has none" in str(err.value))
 
 
 def test_array_same_array():

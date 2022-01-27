@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -195,9 +195,10 @@ class ArrayMixin(object):
 
     def is_same_array(self, node):
         '''
-        Examines the full structure access represented by the supplied node
-        to see whether it is the same as the one for this node. Any indices
-        on the innermost member access are ignored. e.g.
+        Checks that the provided array is the same as this node (including the
+        chain of parent accessor expressions if the array is part of a
+        Structure). If the array is part of a structure then any indices on
+        the innermost member access are ignored, e.g.
         A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
 
         :param node: the node representing the access that is to be compared \
@@ -205,7 +206,7 @@ class ArrayMixin(object):
         :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
                     :py:class:`psyclone.psyir.nodes.Member`
 
-        :returns: True if the structure accesses match, False otherwise.
+        :returns: True if the array accesses match, False otherwise.
         :rtype: bool
 
         '''
@@ -298,17 +299,16 @@ class ArrayMixin(object):
         '''
         if not self._children:
             raise InternalError(
-                "{0} malformed or incomplete: must have one or more "
-                "children representing array-index expressions but '{1}' has "
-                "none.".format(type(self).__name__, self.name))
+                f"{type(self).__name__} malformed or incomplete: must have "
+                f"one or more children representing array-index expressions "
+                f"but array '{self.name}' has none.")
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child {1} of '{2}' must be "
-                    "a psyir.nodes.DataNode or Range representing an array-"
-                    "index expression but found '{3}'".format(
-                        type(self).__name__, idx, self.name,
-                        type(child).__name__))
+                    f"{type(self).__name__} malformed or incomplete: child "
+                    f"{idx} of array '{self.name}' must be a psyir.nodes."
+                    f"DataNode or Range representing an array-index "
+                    f"expression but found '{type(child).__name__}'")
         return self.children
 
 

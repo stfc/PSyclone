@@ -2736,7 +2736,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=bop, nodes=[node])
 
     @staticmethod
-    def _array_notation_rank(node, lang_writer=None):
+    def _array_notation_rank(node):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
         of the array that uses array notation. e.g. for a reference
@@ -2746,8 +2746,6 @@ class Fparser2Reader(object):
         :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
             :py:class:`psyclone.psyir.nodes.ArrayMember` or \
             :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param lang_writer: visitor to use when generating verbose error \
-            messages. Defaults to None in which case a FortranWriter is used.
 
         :returns: rank of the sub-section of the array.
         :rtype: int
@@ -2771,25 +2769,24 @@ class Fparser2Reader(object):
                     if array:
                         # Cannot have two or more part references that contain
                         # ranges - this is not valid Fortran.
-                        if not lang_writer:
-                            # pylint: disable=import-outside-toplevel
-                            from psyclone.psyir.backend.fortran import \
-                                FortranWriter
-                            lang_writer = FortranWriter()
+                        # pylint: disable=import-outside-toplevel
+                        from psyclone.psyir.backend.fortran import (
+                            FortranWriter)
+                        lang_writer = FortranWriter()
                         raise InternalError(
-                            "Found a structure reference containing two or "
-                            "more part references that have ranges: '{0}'. "
-                            "This is not valid within a WHERE in Fortran.".
-                            format(lang_writer(node)))
+                            f"Found a structure reference containing two or "
+                            f"more part references that have ranges: "
+                            f"'{lang_writer(node)}'. This is not valid within "
+                            f"a WHERE in Fortran.")
                     array = part_ref
             if not array:
                 raise InternalError(
-                    "No array access found in node '{0}'".format(node.name))
+                    f"No array access found in node '{node.name}'")
         else:
             # This will result in a CodeBlock.
             raise NotImplementedError(
-                "Expected either an ArrayReference, ArrayMember or a "
-                "StructureReference but got '{0}'".format(type(node).__name__))
+                f"Expected either an ArrayReference, ArrayMember or a "
+                f"StructureReference but got '{type(node).__name__}'")
 
         # Only array refs using basic colon syntax are currently
         # supported e.g. (a(:,:)).  Each colon is represented in the
@@ -2816,6 +2813,9 @@ class Fparser2Reader(object):
         Utility function that modifies each ArrayReference object in the
         supplied PSyIR fragment so that they are indexed using the supplied
         loop variables rather than having colon array notation.
+
+        # TODO #1576 this functionality is very similar to that needed in
+        # the NemoArrayRange2Loop transformation and should be rationalised.
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.

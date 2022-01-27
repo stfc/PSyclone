@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -200,8 +200,8 @@ def test_where_array_notation_rank():
     with pytest.raises(InternalError) as err:
         processor._array_notation_rank(my_array)
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but 'my_array' has "
-            "none." in str(err.value))
+            "children representing array-index expressions but array "
+            "'my_array' has none." in str(err.value))
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
@@ -551,6 +551,10 @@ def test_where_ordering(parser):
     "code, size_arg",
     [("where (my_type%var(:) > epsi20)\n"
       "my_type%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%var(:) > epsi20)\n"
+      "my_type(jl)%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%block(jl)%var(:) > epsi20)\n"
+      "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
       "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var")])
 def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
