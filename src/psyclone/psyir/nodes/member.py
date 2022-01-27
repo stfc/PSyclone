@@ -115,6 +115,37 @@ class Member(Node):
         '''
         return (Signature(self.name), [[]])
 
+    def _array_notation_rank(self):
+        '''Check that the supplied candidate array reference uses supported
+        array notation syntax and return the rank of the sub-section
+        of the array that uses array notation. e.g. for a reference
+        "a(:, 2, :)" the rank of the sub-section is 2.
+
+        :param node: the reference to check.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
+            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: rank of the sub-section of the array.
+        :rtype: int
+
+        :raises InternalError: if no ArrayMixin node with at least one \
+                               Range in its indices is found.
+        :raises InternalError: if two or more part references in a \
+                               structure reference contain ranges.
+        :raises NotImplementedError: if the supplied node is not of a \
+                                     supported type.
+        :raises NotImplementedError: if any ranges are encountered that are \
+                                     not for the full extent of the dimension.
+        '''
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        ranks = []
+        if isinstance(self, ArrayMixin):
+            ranks.append(self.rank_of_subsection)
+        if hasattr(self, "member"):
+            ranks.extend(self.member._array_notation_rank())
+        return ranks
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['Member']

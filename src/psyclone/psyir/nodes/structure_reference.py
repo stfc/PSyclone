@@ -41,9 +41,11 @@ from __future__ import absolute_import
 import six
 
 from psyclone.core import Signature
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -141,7 +143,9 @@ class StructureReference(Reference):
             the expected type.
         :raises ValueError: if no members are provided (since this would then \
             be a Reference as opposed to a StructureReference).
-        :raises NotImplementedError: if any of the structures being referenced\
+        :raises ValueError: if more than one member contains a Range, e.g. \
+            'a(:)%b%c(:)'.
+        :raises TypeError: if any of the structures being referenced\
             do not have full type information available.
 
         '''
@@ -167,9 +171,14 @@ class StructureReference(Reference):
 
         # Bottom-up creation of full reference. The last element in the members
         # list must be either an ArrayMember or a Member.
+        member_with_range = None
         if isinstance(members[-1], tuple):
             # An access to one or more array elements
             subref = ArrayMember.create(members[-1][0], members[-1][1])
+
+            if any(isinstance(idx_expr, Range) for idx_expr in members[-1][1]):
+                member_with_range = members[1][0]
+
         elif isinstance(members[-1], six.string_types):
             # A member access
             subref = Member(members[-1])
@@ -189,6 +198,15 @@ class StructureReference(Reference):
         for component in reversed(members[:-1]):
             if isinstance(component, tuple):
                 # This is an array access so we have an ArrayOfStructuresMember
+                if any(isinstance(idx_expr, Range) for idx_expr in
+                       component[1]):
+                    if member_with_range:
+                        raise ValueError(
+                            f"Only one of the list of 'members' passed to "
+                            f"StructureType._create() may contain a Range but "
+                            f"both '{component[0]}' and '{member_with_range}' "
+                            f"have Ranges.")
+                    member_with_range = component[0]
                 subref = ArrayOfStructuresMember.create(
                     component[0], component[1], subref)
             elif isinstance(component, six.string_types):
@@ -227,6 +245,51 @@ class StructureReference(Reference):
                 "that must be a (sub-class of) Member, but found: {1}".format(
                     type(self).__name__, self.children))
         return self.children[0]
+
+    def _array_notation_rank(self):
+        '''Check that the supplied candidate array reference uses supported
+        array notation syntax and return the rank of the sub-section
+        of the array that uses array notation. e.g. for a reference
+        "a(:, 2, :)" the rank of the sub-section is 2.
+
+        :param node: the reference to check.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
+            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: rank of the sub-section of the array.
+        :rtype: int
+
+        :raises InternalError: if no ArrayMixin node with at least one \
+                               Range in its indices is found.
+        :raises InternalError: if two or more part references in a \
+                               structure reference contain ranges.
+        :raises NotImplementedError: if the supplied node is not of a \
+                                     supported type.
+        :raises NotImplementedError: if any ranges are encountered that are \
+                                     not for the full extent of the dimension.
+        '''
+        from psyclone.errors import InternalError
+        ranks = []
+        if isinstance(self, ArrayMixin):
+            ranks.append(self.rank_of_subsection)
+        ranks.extend(self.member._array_notation_rank())
+
+        non_zero_ranks = [rank for rank in ranks if rank > 0]
+
+        if len(non_zero_ranks) > 1:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            lang_writer = FortranWriter()
+            raise InternalError(
+                f"Found a structure reference containing two or more part "
+                f"references that have ranges: '{lang_writer(self)}'. "
+                f"This is not valid PSyIR.")
+
+        if not non_zero_ranks:
+            raise InternalError(
+                "No array access found in node '{0}'".format(self.name))
+        return ranks[0]
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \

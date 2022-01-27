@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir import symbols, nodes
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 
 
 def test_am_constructor():
@@ -140,6 +140,102 @@ def test_am_is_lower_upper_bound():
     assert amem2.is_upper_bound(0) is False
     assert amem2.is_lower_bound(1) is True
     assert amem2.is_upper_bound(1) is True
+
+
+def test_array_notation_rank():
+    '''Test the _array_notation_rank method.
+
+    '''
+    int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
+#    # Wrong type of argument
+#    with pytest.raises(NotImplementedError) as err:
+#        Fparser2Reader._array_notation_rank(int_one)
+#    assert ("Expected either an ArrayReference, ArrayMember or a "
+#            "StructureReference but got 'Literal'" in str(err.value))
+
+    # Structure reference containing no array access
+    symbol = symbols.DataSymbol("field", symbols.DeferredType())
+    with pytest.raises(InternalError) as err:
+        nodes.StructureReference.create(
+            symbol, ["first", "second"])._array_notation_rank()
+    assert "No array access found in node 'field'" in str(err.value)
+
+    # Structure reference with ranges in more than one part reference.
+    sref1 = nodes.StructureReference.create(symbol, ["first"])
+    lbound1 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND, sref1, int_one.copy())
+    ubound1 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND, sref1.copy(), int_one.copy())
+    range1 = nodes.Range.create(lbound1, ubound1)
+    sref = nodes.StructureReference.create(symbol, [("first", [range1]),
+                                                    "second"])
+    lbound2 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND, sref, int_one.copy())
+    ubound2 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND, sref.copy(), int_one.copy())
+    range2 = nodes.Range.create(lbound2, ubound2)
+    with pytest.raises(InternalError) as err:
+        nodes.StructureReference.create(
+            symbol, [("first", [range1.copy()]),
+                     ("second", [range2])])._array_notation_rank()
+    assert ("Found a structure reference containing two or more part "
+            "references that have ranges: 'field%first(:)%second(:)'. "
+            "This is not valid within a WHERE in Fortran." in str(err.value))
+    # Repeat but this time for an ArrayOfStructuresReference.
+    lbound3 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND,
+        nodes.Reference(symbol), int_one.copy())
+    ubound3 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND,
+        nodes.Reference(symbol), int_one.copy())
+    range3 = nodes.Range.create(lbound3, ubound3)
+    asref = nodes.ArrayOfStructuresReference.create(
+            symbol, [range3.copy()],
+            ["first", ("second", [range2.copy()])])
+    with pytest.raises(NotImplementedError) as err:
+        asref._array_notation_rank()
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
+
+    # An array with no subsection has rank of zero
+    array_type = symbols.ArrayType(symbols.REAL_TYPE, [10])
+    symbol = symbols.DataSymbol("a", array_type)
+    array = nodes.ArrayReference.create(symbol, [int_one.copy()])
+    assert array.rank_of_subsection == 0
+
+    # If array syntax notation is found, it must be for all elements
+    # in that dimension
+    array_type = symbols.ArrayType(symbols.REAL_TYPE, [10, 10, 10])
+    symbol = symbols.DataSymbol("a", array_type)
+    lbound_op1 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND,
+        nodes.Reference(symbol), nodes.Literal("1", symbols.INTEGER_TYPE))
+    ubound_op1 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND,
+        nodes.Reference(symbol), nodes.Literal("1", symbols.INTEGER_TYPE))
+    lbound_op3 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND,
+        nodes.Reference(symbol), nodes.Literal("3", symbols.INTEGER_TYPE))
+    ubound_op3 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND,
+        nodes.Reference(symbol), nodes.Literal("3", symbols.INTEGER_TYPE))
+
+    range1 = nodes.Range.create(lbound_op1, ubound_op1)
+    range2 = nodes.Range.create(lbound_op3, ubound_op3)
+    one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    array = nodes.ArrayReference.create(symbol, [range1, one.copy(), range2])
+    result = array.rank_of_subsection
+    # Two array dimensions use array notation.
+    assert result == 2
+
+    # Make one of the array notation dimensions differ from what is required.
+    range2 = nodes.Range.create(lbound_op3.copy(), one.copy())
+    array = nodes.ArrayReference.create(symbol, [range1.copy(), one.copy(),
+                                                 range2.copy()])
+    with pytest.raises(NotImplementedError) as excinfo:
+        array.rank_of_subsection
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(excinfo.value))
 
 
 def test_am_same_array():

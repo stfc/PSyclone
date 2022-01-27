@@ -284,6 +284,51 @@ class ArrayMixin(object):
         return False
 
     @property
+    def rank_of_subsection(self, lang_writer=None):
+        '''Check that the supplied candidate array reference uses supported
+        array notation syntax and return the rank of the sub-section
+        of the array that uses array notation. e.g. for a reference
+        "a(:, 2, :)" the rank of the sub-section is 2.
+
+        :param node: the reference to check.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
+            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: rank of the sub-section of the array.
+        :rtype: int
+
+        :raises NotImplementedError: if any ranges are encountered that are \
+                                     not for the full extent of the dimension.
+        '''
+        # Only array refs using basic colon syntax are currently
+        # supported e.g. (a(:,:)).  Each colon is represented in the
+        # PSyIR as a Range node with first argument being an lbound
+        # binary operator, the second argument being a ubound operator
+        # and the third argument being an integer Literal node with
+        # value 1 i.e. a(:,:) is represented as
+        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
+        # the PSyIR.
+        num_colons = 0
+        for pos, idx_node in enumerate(self.indices):
+            if isinstance(idx_node, Range):
+                # Found an array range. Check that it is for the full extent
+                # of the dimension.
+                if not self.is_full_range(pos):
+                    if lang_writer is None:
+                        # pylint: disable=import-outside-toplevel
+                        from psyclone.psyir.backend.fortran import (
+                            FortranWriter)
+                        lang_writer = FortranWriter()
+                    raise NotImplementedError(
+                        f"Only subsections that involve the full extent of a "
+                        f"given array dimension are supported but index {pos} "
+                        f"of '{self.name}' contains a Range that is not for "
+                        f"the full extent: {lang_writer(self)}")
+                num_colons += 1
+        return num_colons
+
+    @property
     def indices(self):
         '''
         Supports semantic-navigation by returning the list of nodes
