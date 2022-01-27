@@ -49,6 +49,7 @@ from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
     OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
@@ -326,11 +327,13 @@ def test_omplooptrans_properties():
             in str(err.value))
 
 
-def test_omplooptrans_validate_loop_carried_dependencies(fortran_reader):
-    ''' Test that the omplooptrans validation checks for loop carried
+def test_parallellooptrans_validate_dependencies(fortran_reader):
+    ''' Test that the parallellooptrans validation checks for loop carried
     dependencies. '''
 
+    # Use OMPLoopTrans as a concrete class of ParallelLoopTrans
     omplooptrans = OMPLoopTrans()
+    # Example with a loop carried dependency in jk dimension
     psyir = fortran_reader.psyir_from_source('''
     subroutine my_subroutine()
         integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
@@ -358,6 +361,50 @@ def test_omplooptrans_validate_loop_carried_dependencies(fortran_reader):
     # However, the inner loop can be parallelised because the dependency is
     # just with 'jk' and it is not modified in the inner loops
     omplooptrans.validate(loops[1])
+
+    # Check if there is missing symbol information it still validates
+    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
+    omplooptrans.validate(loops[1])
+
+    # Reductions have dependencies but these are accepted because it
+    # can be manage with the appropriate clause
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine my_subroutine()
+        integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
+        real, dimension(10, 10, 10) :: zwt
+        real :: total
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              total = total + zwt(ji,jj,jk)
+            enddo
+          enddo
+        enddo
+    end subroutine''')
+    loops = psyir.walk(Loop)
+    assert not DependencyTools().can_loop_be_parallelised(
+                    loops[0], only_nested_loops=False)
+    omplooptrans.validate(loops[0])
+
+    # Shared scalars are race conditions but these are accepted because it
+    # can be manage with the appropriate clause
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine my_subroutine()
+        integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
+        real, dimension(10, 10, 10) :: zwt
+        real :: total
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              total = zwt(ji,jj,jk)
+            enddo
+          enddo
+        enddo
+    end subroutine''')
+    loops = psyir.walk(Loop)
+    assert not DependencyTools().can_loop_be_parallelised(
+                    loops[0], only_nested_loops=False)
+    omplooptrans.validate(loops[0])
 
 
 def test_omplooptrans_apply(sample_psyir, fortran_writer):
