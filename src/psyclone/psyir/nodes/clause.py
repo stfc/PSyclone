@@ -40,6 +40,7 @@ import abc
 from psyclone.psyir.nodes.node import Node
 import six
 
+
 @six.add_metaclass(abc.ABCMeta)
 class Clause(Node):
     '''
@@ -49,3 +50,12 @@ class Clause(Node):
     _text_name = "Clause"
     # The base string for this clause, e.g. nowait or private
     _clause_string = None
+
+    @property
+    def clause_string(self):
+        '''
+        Returns the clause string for this Clause
+
+        :rtype: str
+        '''
+        return self._clause_string

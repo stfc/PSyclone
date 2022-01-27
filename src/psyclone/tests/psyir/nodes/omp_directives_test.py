@@ -226,11 +226,11 @@ def test_omp_single_validate_child():
     sched = Schedule()
     nowait = NowaitClause()
     lit = Literal("32", INTEGER_TYPE)
-    assert OMPSingleDirective._validate_child(0, sched) == True
-    assert OMPSingleDirective._validate_child(1, nowait) == True
-    assert OMPSingleDirective._validate_child(0, lit) == False
-    assert OMPSingleDirective._validate_child(1, lit) == False
-    assert OMPSingleDirective._validate_child(2, lit) == False
+    assert OMPSingleDirective._validate_child(0, sched) is True
+    assert OMPSingleDirective._validate_child(1, nowait) is True
+    assert OMPSingleDirective._validate_child(0, lit) is False
+    assert OMPSingleDirective._validate_child(1, lit) is False
+    assert OMPSingleDirective._validate_child(2, lit) is False
 
 
 def test_omp_single_validate_global_constraints():
@@ -460,15 +460,15 @@ def test_omp_taskloop_validate_child():
     ntclause = NumTasksClause(children=[Literal("1", INTEGER_TYPE)])
     ngclause = NogroupClause()
     lit = Literal("1", INTEGER_TYPE)
-    assert OMPTaskloopDirective._validate_child(0, sched) == True
-    assert OMPTaskloopDirective._validate_child(1, gsclause) == True
-    assert OMPTaskloopDirective._validate_child(1, ntclause) == True
-    assert OMPTaskloopDirective._validate_child(1, ngclause) == True
-    assert OMPTaskloopDirective._validate_child(2, ngclause) == True
-    assert OMPTaskloopDirective._validate_child(3, ngclause) == False
-    assert OMPTaskloopDirective._validate_child(0, lit) == False
-    assert OMPTaskloopDirective._validate_child(1, lit) == False
-    assert OMPTaskloopDirective._validate_child(2, lit) == False
+    assert OMPTaskloopDirective._validate_child(0, sched) is True
+    assert OMPTaskloopDirective._validate_child(1, gsclause) is True
+    assert OMPTaskloopDirective._validate_child(1, ntclause) is True
+    assert OMPTaskloopDirective._validate_child(1, ngclause) is True
+    assert OMPTaskloopDirective._validate_child(2, ngclause) is True
+    assert OMPTaskloopDirective._validate_child(3, ngclause) is False
+    assert OMPTaskloopDirective._validate_child(0, lit) is False
+    assert OMPTaskloopDirective._validate_child(1, lit) is False
+    assert OMPTaskloopDirective._validate_child(2, lit) is False
 
 
 def test_omp_taskloop_validate_global_constraints():

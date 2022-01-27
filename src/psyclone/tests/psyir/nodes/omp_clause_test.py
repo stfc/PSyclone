@@ -34,35 +34,44 @@
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
+''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
+
 from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NowaitClause,\
     NogroupClause, NumTasksClause
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE
+
 
 def test_nowait_clause():
     ''' Test the NowaitClause functionality. '''
-    c = NowaitClause()
-    assert c._clause_string == "nowait"
-    assert NowaitClause._validate_child(0, c) == False
+    nowait = NowaitClause()
+    assert nowait.clause_string == "nowait"
+    assert NowaitClause._validate_child(0, nowait) is False
+
 
 def test_grainsize_clause():
     ''' Test the GrainsizeClause functionality. '''
 
-    c = GrainsizeClause(children=[Literal("32", INTEGER_TYPE)])
-    assert c._clause_string == "grainsize"
-    assert GrainsizeClause._validate_child(0, Literal("64", INTEGER_TYPE)) == True
-    assert GrainsizeClause._validate_child(1, Literal("64", INTEGER_TYPE)) == False
+    nowait = GrainsizeClause(children=[Literal("32", INTEGER_TYPE)])
+    assert nowait.clause_string == "grainsize"
+    assert GrainsizeClause._validate_child(0, Literal("64", INTEGER_TYPE)) is\
+        True
+    assert GrainsizeClause._validate_child(1, Literal("64", INTEGER_TYPE)) is\
+        False
+
 
 def test_numtasks_clause():
     ''' Test the NumTasksClause functionality. '''
-    c = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
-    assert c._clause_string == "num_tasks"
-    assert NumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE)) == True
-    assert NumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE)) == False
+    nowait = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    assert nowait.clause_string == "num_tasks"
+    assert NumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE)) is\
+        True
+    assert NumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE)) is\
+        False
+
 
 def test_nogroup_clause():
     ''' Test the NogroupClause functionality. '''
-    c = NogroupClause()
-    assert c._clause_string == "nogroup"
-    assert NogroupClause._validate_child(0, c) == False
-
+    nowait = NogroupClause()
+    assert nowait.clause_string == "nogroup"
+    assert NogroupClause._validate_child(0, nowait) is False

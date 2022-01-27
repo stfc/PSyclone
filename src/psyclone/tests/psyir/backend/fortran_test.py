@@ -2251,7 +2251,7 @@ def test_fw_comments(fortran_writer):
     assert expected == fortran_writer(container)
 
 
-def test_fw_directive_with_clause(fortran_reader,fortran_writer):
+def test_fw_directive_with_clause(fortran_reader, fortran_writer):
     '''Test that a PSyIR directive with clauses is translated to
     the required Fortran code.
 
@@ -2284,7 +2284,8 @@ def test_fw_directive_with_clause(fortran_reader,fortran_writer):
   !$omp end master
   !$omp end parallel''' in fortran_writer(container)
 
+
 def test_fw_clause(fortran_writer):
     '''Test that a PSyIR clause is translated to the correct Fortran code.'''
-    c = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
-    assert "num_tasks(32)" in fortran_writer(c)
+    clause = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    assert "num_tasks(32)" in fortran_writer(clause)

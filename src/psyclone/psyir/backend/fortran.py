@@ -1453,7 +1453,7 @@ class FortranWriter(LanguageWriter):
         '''
         result_list = [" "]
 
-        result_list.append(node._clause_string)
+        result_list.append(node.clause_string)
 
         if len(node.children) > 0:
             result_list.append("(")

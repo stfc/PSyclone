@@ -118,13 +118,13 @@ class RegionDirective(Directive):
         :raises InternalError: if this node does not have a Schedule as\
                                its first child.
         '''
-        if len(self.children) < 1 or not isinstance(self.children[0], Schedule):
+        if len(self.children) < 1 or not isinstance(self.children[0],
+                                                    Schedule):
             raise InternalError(
                 "Directive malformed or incomplete. It should have a "
                 "Schedule as child 0 but found: {0}".format(
                     [type(child).__name__ for child in self.children]))
         return self.children[0]
-
 
 
 class StandaloneDirective(Directive):

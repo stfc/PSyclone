@@ -184,6 +184,7 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``RegionDirective``:
    .. automethod:: psyclone.psyir.nodes.RegionDirective.dir_body()
+   .. automethod:: psyclone.psyir.nodes.RegionDirective.clause()
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 

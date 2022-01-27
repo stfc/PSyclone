@@ -40,6 +40,7 @@ nodes.'''
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.literal import Literal
 
+
 class NowaitClause(Clause):
     '''
     OpenMP nowait clause.
@@ -63,6 +64,7 @@ class NowaitClause(Clause):
 
         '''
         return False
+
 
 class GrainsizeClause(Clause):
     '''
@@ -90,6 +92,7 @@ class GrainsizeClause(Clause):
             return isinstance(child, Literal)
         return False
 
+
 class NumTasksClause(Clause):
     '''
     OpenMP numtasks clause, used by OMPTaskloopDirective.
@@ -97,6 +100,7 @@ class NumTasksClause(Clause):
     _children_valid_format = "Literal"
     _text_name = "NumTasksClause"
     _clause_string = "num_tasks"
+
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -114,6 +118,7 @@ class NumTasksClause(Clause):
         if position == 0:
             return isinstance(child, Literal)
         return False
+
 
 class NogroupClause(Clause):
     '''

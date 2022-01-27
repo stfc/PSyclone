@@ -58,7 +58,7 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NowaitClause,\
     NogroupClause, NumTasksClause
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -615,7 +615,9 @@ class OMPTaskloopDirective(OMPRegionDirective):
                              a grainsize and num_tasks value \
                              specified.
     '''
-    _children_valid_format = "Schedule, [GrainsizeClause | NumTasksClause], [NogroupClause]"
+    _children_valid_format = ("Schedule, [GrainsizeClause | NumTasksClause],"
+                              " [NogroupClause]")
+
     # pylint: disable=too-many-arguments
     def __init__(self, children=None, parent=None, grainsize=None,
                  num_tasks=None, nogroup=False):
@@ -637,7 +639,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
             self._children.append(NumTasksClause(children=child))
         if self._nogroup:
             self._children.append(NogroupClause())
-
 
     @staticmethod
     def _validate_child(position, child):
@@ -661,7 +662,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         if position == 0:
             return isinstance(child, Schedule)
         if position == 1:
-            return isinstance(child, (GrainsizeClause, NumTasksClause,\
+            return isinstance(child, (GrainsizeClause, NumTasksClause,
                                       NogroupClause))
         if position == 2:
             return (isinstance(child, NogroupClause))
@@ -692,7 +693,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
 
         :raises GenerationError: if this OMPTaskloopDirective is not \
                                  enclosed within an OpenMP serial region.
-        :raises GenerationError: if this OMPTaskloopDirective has two 
+        :raises GenerationError: if this OMPTaskloopDirective has two
                                  Nogroup clauses as children.
         '''
         # It is only at the point of code generation that we can check for
@@ -708,7 +709,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         # Check children are well formed.
         # _validate_child will ensure position 0 and 1 are valid.
         if len(self._children) == 3 and isinstance(self._children[1],
-                NogroupClause):
+                                                   NogroupClause):
             raise GenerationError(
                 "OMPTaskloopDirective has two Nogroup clauses as children "
                 "which is not allowed.")
