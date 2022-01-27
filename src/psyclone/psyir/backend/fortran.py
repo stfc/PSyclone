@@ -1507,8 +1507,6 @@ class FortranWriter(LanguageWriter):
         result_list = ["{0}!${1}".format(self._nindent, node.begin_string())]
 
         clause_list = []
-        for clause in node.clauses:
-            clause_list.append(self._visit(clause))
         result_list.append(",".join(clause_list))
         result_list.append("\n")
 

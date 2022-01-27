@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,\
-    Reference, NowaitClause
+    Reference, NowaitClause, GrainsizeClause, NumTasksClause, NogroupClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -452,6 +452,25 @@ def test_omptaskloop_nogroup(nogroup):
     assert taskwait.nogroup == nogroup
 
 
+def test_omp_taskloop_validate_child():
+    ''' Test the validate_child method of the OMPTaskloopDirective
+    Class. '''
+    sched = Schedule()
+    gsclause = GrainsizeClause(children=[Literal("1", INTEGER_TYPE)])
+    ntclause = NumTasksClause(children=[Literal("1", INTEGER_TYPE)])
+    ngclause = NogroupClause()
+    lit = Literal("1", INTEGER_TYPE)
+    assert OMPTaskloopDirective._validate_child(0, sched) == True
+    assert OMPTaskloopDirective._validate_child(1, gsclause) == True
+    assert OMPTaskloopDirective._validate_child(1, ntclause) == True
+    assert OMPTaskloopDirective._validate_child(1, ngclause) == True
+    assert OMPTaskloopDirective._validate_child(2, ngclause) == True
+    assert OMPTaskloopDirective._validate_child(3, ngclause) == False
+    assert OMPTaskloopDirective._validate_child(0, lit) == False
+    assert OMPTaskloopDirective._validate_child(1, lit) == False
+    assert OMPTaskloopDirective._validate_child(2, lit) == False
+
+
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
@@ -468,6 +487,19 @@ def test_omp_taskloop_validate_global_constraints():
     assert ("OMPTaskloopDirective must be inside an OMP "
             "Serial region but could not find an ancestor node"
             in str(excinfo.value))
+
+    # Ensure a taskloop clause can't have two nogroup clauses.
+    taskloop = schedule.children[0]
+    taskloop.addchild(NogroupClause())
+    taskloop.addchild(NogroupClause())
+    singletrans = OMPSingleTrans()
+    paralleltrans = OMPParallelTrans()
+    singletrans.apply(taskloop)
+    paralleltrans.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        taskloop.validate_global_constraints()
+    assert ("OMPTaskloopDirective has two Nogroup clauses as "
+            "children which is not allowed." in str(excinfo.value))
 
 
 # Test OMPTargetDirective
