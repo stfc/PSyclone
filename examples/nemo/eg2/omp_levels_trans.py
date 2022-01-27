@@ -45,6 +45,10 @@ This should produce a lot of output, ending with generated
 Fortran.
 '''
 
+from psyclone.nemo import NemoKern
+from psyclone.psyGen import TransInfo
+from psyclone.transformations import TransformationError
+
 
 def trans(psy):
     ''' Transform a specific Schedule by making all loops
@@ -58,8 +62,6 @@ def trans(psy):
     :rtype:  :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyGen import TransInfo
-    from psyclone.nemo import NemoKern
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_ldf_iso').schedule
     # Get the transformation we will apply
@@ -70,7 +72,11 @@ def trans(psy):
         # multiple kernels
         kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
-            ompt.apply(loop)
-    psy.invokes.get('tra_ldf_iso').schedule = sched
+            try:
+                ompt.apply(loop)
+            except TransformationError as error:
+                print(str(error))
+                continue
+
     # Return the modified psy object
     return psy

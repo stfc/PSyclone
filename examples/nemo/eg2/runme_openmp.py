@@ -51,7 +51,7 @@ from __future__ import print_function
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyGen import PSyFactory
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 if __name__ == "__main__":
@@ -82,9 +82,11 @@ if __name__ == "__main__":
         # multiple kernels
         kernels = loop.walk(NemoKern)
         if kernels and loop.loop_type == "levels":
-            OMP_TRANS.apply(loop)
+            try:
+                OMP_TRANS.apply(loop)
+            except TransformationError as error:
+                print(str(error))
+                continue
 
     SCHED.view()
-
-    PSY.invokes.get('tra_ldf_iso').schedule = SCHED
     print(PSY.gen)
