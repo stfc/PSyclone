@@ -74,6 +74,15 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
+    @property
+    def is_array(self):
+        ''':returns: if this instance indicates an array access.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return True
+
     def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
@@ -103,13 +112,13 @@ class ArrayMixin(object):
         '''
         if not isinstance(index, int):
             raise TypeError(
-                "The index argument should be an integer but found '{0}'."
-                "".format(type(index).__name__))
+                f"The index argument should be an integer but found "
+                f"'{type(index).__name__}'.")
         if index > len(self.indices)-1:
             raise ValueError(
-                "In ArrayReference '{0}' the specified index '{1}' must be "
-                "less than the number of dimensions '{2}'."
-                "".format(self.name, index, len(self.indices)))
+                f"In ArrayReference '{self.name}' the specified index "
+                f"'{index}' must be less than the number of dimensions "
+                f"'{len(self.indices)}'.")
 
     def is_lower_bound(self, index):
         '''Returns True if the specified array index contains a Range node

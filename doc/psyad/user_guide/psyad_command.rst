@@ -151,6 +151,9 @@ the previous command
 
    > psyad -oad ad_kernel.f90 -a var1 var2 -otest harness.f90 tl_kern.f90
 
+.. note:: A test harness can only be generated if the supplied tangent-linear
+	  kernel is in the form of a subroutine contained within a module.
+	  PSyAD will report an error if this is not the case.
 
 Processing Information
 ----------------------
