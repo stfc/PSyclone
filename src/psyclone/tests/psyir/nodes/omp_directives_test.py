@@ -49,7 +49,8 @@ from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
-    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, Reference
+    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,\
+    Reference, NowaitClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -218,6 +219,18 @@ def test_omp_single_strings(nowait):
 
     assert omp_single.begin_string() == "omp single"
     assert omp_single.end_string() == "omp end single"
+
+
+def test_omp_single_validate_child():
+    ''' Test the validate_child method of the OMPSingle class '''
+    sched = Schedule()
+    nowait = NowaitClause()
+    lit = Literal("32", INTEGER_TYPE)
+    assert OMPSingleDirective._validate_child(0, sched) == True
+    assert OMPSingleDirective._validate_child(1, nowait) == True
+    assert OMPSingleDirective._validate_child(0, lit) == False
+    assert OMPSingleDirective._validate_child(1, lit) == False
+    assert OMPSingleDirective._validate_child(2, lit) == False
 
 
 def test_omp_single_validate_global_constraints():

@@ -1461,6 +1461,7 @@ class FortranWriter(LanguageWriter):
             for child in node.children:
                 child_list.append(self._visit(child))
             result_list.append(",".join(child_list))
+        result_list.append(")")
 
         return "".join(result_list)
 

@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer, \
-    Assignment, IfBlock
+    Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
+    OMPParallelDirective, Loop, NumTasksClause
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -2248,3 +2249,42 @@ def test_fw_comments(fortran_writer):
         "  end subroutine my_routine  ! My routine inline comment\n\n"
         "end module my_container  ! My container inline comment\n")
     assert expected == fortran_writer(container)
+
+
+def test_fw_directive_with_clause(fortran_reader,fortran_writer):
+    '''Test that a PSyIR directive with clauses is translated to
+    the required Fortran code.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "program test\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i\n"
+        "  real :: a(n)\n"
+        "  do i=1,n\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test")
+    container = fortran_reader.psyir_from_source(code)
+    schedule = container.children[0]
+    loops = schedule.walk(Loop)
+    loop = loops[0].detach()
+    directive = OMPTaskloopDirective(children=[loop], num_tasks=32)
+    master = OMPMasterDirective(children=[directive])
+    parallel = OMPParallelDirective(children=[master])
+    schedule.addchild(parallel, 0)
+    assert '''!$omp parallel default(shared), private(i)
+  !$omp master
+  !$omp taskloop num_tasks(32)
+  do i = 1, n, 1
+    a(i) = 0.0
+  enddo
+  !$omp end taskloop
+  !$omp end master
+  !$omp end parallel''' in fortran_writer(container)
+
+def test_fw_clause(fortran_writer):
+    '''Test that a PSyIR clause is translated to the correct Fortran code.'''
+    c = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    assert "num_tasks(32)" in fortran_writer(c)
