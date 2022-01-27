@@ -1158,3 +1158,11 @@ def test_following_preceding():
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(routine=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
+
+def test_clauses():
+    '''Test that the clauses() method in the Node class
+    behaves as expected.
+    '''
+    a = Node()
+    assert a.clauses == []
+

@@ -231,6 +231,7 @@ class OMPSingleDirective(OMPSerialDirective):
         a nowait clause applied. Default value is False.
 
     '''
+    _children_valid_format = "Schedule, [NowaitClause]"
     # Textual description of the node
     _text_name = "OMPSingleDirective"
 
@@ -241,6 +242,30 @@ class OMPSingleDirective(OMPSerialDirective):
         # the nowait requirement
         super(OMPSingleDirective, self).__init__(children=children,
                                                  parent=parent)
+        if self._nowait:
+            self.children.append(NowaitClause())
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         The rules are:
+         1. Child 0 must always be a Schedule.
+         2. Child 1 can only be a NowaitClause.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        if position == 1:
+            return isinstance(child, NowaitClause)
+        return False
 
     @property
     def nowait(self):
@@ -288,8 +313,6 @@ class OMPSingleDirective(OMPSerialDirective):
         '''
         result = "omp single"
 
-        if self._nowait:
-            result = result + " nowait"
         return result
 
     def end_string(self):
