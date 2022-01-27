@@ -37,6 +37,7 @@
 from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NowaitClause,\
     NogroupClause, NumTasksClause
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 
 def test_nowait_clause():
     ''' Test the NowaitClause functionality. '''
@@ -61,6 +62,7 @@ def test_numtasks_clause():
 
 def test_nogroup_clause():
     ''' Test the NogroupClause functionality. '''
+    c = NogroupClause()
     assert c._clause_string == "nogroup"
-    assert NogroupClause.validate_child(0, c) == False
+    assert NogroupClause._validate_child(0, c) == False
 

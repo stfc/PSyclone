@@ -296,7 +296,7 @@ class OMPSingleDirective(OMPSerialDirective):
                                 nowait_string))
 
         # Generate the code for all of this node's children
-        for child in self.children:
+        for child in self.dir_body:
             child.gen_code(parent)
 
         # Generate the end code for this node

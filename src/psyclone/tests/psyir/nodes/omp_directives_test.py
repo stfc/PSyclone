@@ -216,11 +216,7 @@ def test_omp_single_strings(nowait):
     single.apply(schedule[0], {"nowait": nowait})
     omp_single = schedule[0]
 
-    nowait_str = ""
-    if nowait:
-        nowait_str = " nowait"
-
-    assert omp_single.begin_string() == "omp single" + nowait_str
+    assert omp_single.begin_string() == "omp single"
     assert omp_single.end_string() == "omp end single"
 
 
