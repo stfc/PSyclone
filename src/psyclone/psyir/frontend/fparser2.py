@@ -44,15 +44,15 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, BlockBase, StmtBase
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
     Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
@@ -345,8 +345,7 @@ def _is_bound_full_extent(array, dim, operator):
             literal.value != str(dim)):
         return False
 
-    return (isinstance(reference, Reference) and
-            array.is_same_array(reference))
+    return isinstance(reference, Reference) and array.is_same_array(reference)
 
 
 def _is_array_range_literal(array, dim, index, value):
@@ -2992,6 +2991,8 @@ class Fparser2Reader(object):
 
             loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
+            # Point to the original WHERE statement in the parse tree.
+            loop.ast = node
             # Add loop lower bound
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound - we use the SIZE operator to query the
@@ -3039,6 +3040,7 @@ class Fparser2Reader(object):
         # Now we have the loop nest, add an IF block to the innermost
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
+        ifblock.ast = node  # Point back to the original WHERE construct
         new_parent.addchild(ifblock)
 
         # We construct the conditional expression from the original
@@ -3089,12 +3091,18 @@ class Fparser2Reader(object):
                                              annotations=annotations)
                         elsebody.addchild(newifblock)
 
+                        # Keep pointer to fpaser2 AST
+                        elsebody.ast = node.content[start_idx]
+                        newifblock.ast = node.content[start_idx]
+
                         # Create condition as first child
                         self.process_nodes(parent=newifblock,
                                            nodes=[clause.items[0]])
 
                         # Create if-body as second child
                         ifbody = Schedule(parent=newifblock)
+                        ifbody.ast = node.content[start_idx + 1]
+                        ifbody.ast_end = node.content[end_idx - 1]
                         newifblock.addchild(ifbody)
                         self.process_nodes(
                             parent=ifbody,
@@ -3109,6 +3117,8 @@ class Fparser2Reader(object):
                                     node.content))
                         elsebody = Schedule(parent=current_parent)
                         current_parent.addchild(elsebody)
+                        elsebody.ast = node.content[start_idx]
+                        elsebody.ast_end = node.content[end_idx]
                         self.process_nodes(
                             parent=elsebody,
                             nodes=node.content[start_idx + 1:end_idx])

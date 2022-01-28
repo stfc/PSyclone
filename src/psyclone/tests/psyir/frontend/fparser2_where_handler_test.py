@@ -338,6 +338,7 @@ def test_basic_where():
     assert len(loops) == 3
     for loop in loops:
         assert "was_where" in loop.annotations
+        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].children[0], Literal)
     assert isinstance(loops[0].children[1], BinaryOperation)
@@ -368,6 +369,7 @@ def test_where_array_subsections():
     assert len(loops) == 2
     for loop in loops:
         assert "was_where" in loop.annotations
+        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     ifblock = loops[1].loop_body[0]
     assert isinstance(ifblock, IfBlock)
@@ -432,6 +434,7 @@ def test_elsewhere():
     assert fake_parent.walk(CodeBlock) == []
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
+    assert isinstance(loop.ast, Fortran2003.Where_Construct)
     assert isinstance(loop, Loop)
     assert isinstance(loop.loop_body[0], Loop)
     assert isinstance(loop.loop_body[0].loop_body[0], Loop)
@@ -439,6 +442,7 @@ def test_elsewhere():
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
+    assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert ("ArrayReference[name:'ptsu']\n"

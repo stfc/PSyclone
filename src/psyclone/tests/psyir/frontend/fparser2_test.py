@@ -1321,7 +1321,7 @@ def test_process_declarations_kind_use():
     fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
     _kind_find_or_create("i_def", fake_parent.symbol_table)
     assert fake_parent.symbol_table.lookup("i_def").visibility \
-            is Symbol.Visibility.PRIVATE
+        is Symbol.Visibility.PRIVATE
 
 
 @pytest.mark.usefixtures("f2008_parser")
