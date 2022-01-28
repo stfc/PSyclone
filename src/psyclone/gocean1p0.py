@@ -267,6 +267,9 @@ class GOInvoke(Invoke):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
 
         '''
+        # TODO 1010: GOcean doesn't use this method anymore and it can be
+        # deleted, but some tests still call it directly.
+
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
