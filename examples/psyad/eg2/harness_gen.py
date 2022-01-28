@@ -11,8 +11,47 @@ from psyclone.psyir.nodes import (Assignment, Reference, ArrayReference,
                                   Call, Literal, BinaryOperation)
 from psyclone.psyir.symbols import (INTEGER_TYPE, ArrayType, DataTypeSymbol,
                                     ImportInterface, ContainerSymbol,
-                                    REAL_TYPE, ScalarType,
+                                    ScalarType,
                                     DataSymbol, DeferredType, RoutineSymbol)
+
+
+def _compute_inner_products(prog, scalars, field_sums, sum_sym):
+    '''
+    :param prog: the Routine to which to add PSyIR.
+    :param scalars: the scalars to include in the sum.
+    :param field_sums: the results of all of the inner products of the \
+                       various field arguments.
+    :param sum_sym: the symbol into which to accumulate the final sum.
+
+    '''
+    prog.addchild(Assignment.create(Reference(sum_sym),
+                                    Literal("0.0", rdef_type)))
+    for scalar in scalars:
+        prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                      Reference(scalar[0]),
+                                      Reference(scalar[1]))
+        prog.addchild(
+                Assignment.create(
+                    Reference(sum_sym),
+                    BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                           Reference(sum_sym), prod)))
+    for sym in field_sums:
+        if sym.is_scalar:
+            prog.addchild(
+                    Assignment.create(
+                        Reference(sum_sym),
+                        BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                               Reference(sum_sym),
+                                               Reference(sym))))
+        else:
+            for dim in range(int(sym.datatype.shape[0].lower.value),
+                             int(sym.datatype.shape[0].upper.value)+1):
+                add_op = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    Reference(sum_sym),
+                    ArrayReference.create(sym,
+                                          [Literal(str(dim), INTEGER_TYPE)]))
+                prog.addchild(Assignment.create(Reference(sum_sym), add_op))
 
 
 if __name__ == "__main__":
@@ -52,11 +91,13 @@ if __name__ == "__main__":
     kern_args = construct_kernel_args(prog, kern)
 
     # Create symbols that will store copies of the inputs to the TL kernel.
+    input_symbols = {}
     for arg in kern_args.arglist:
         sym = table.lookup(arg)
         input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
+        input_symbols[sym] = input_sym
 
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
@@ -69,12 +110,11 @@ if __name__ == "__main__":
     # We use the set_random_kernel_type kernel to initialise all fields.
     kernel_list = []
     for sym, space in kern_args.fields:
+        input_sym = input_symbols[sym]
         if isinstance(sym.datatype, DataTypeSymbol):
             kernel_list.append(("setval_random", [sym.name]))
-            input_sym = table.lookup(sym.name+"_input")
             kernel_list.append(("setval_X", [input_sym.name, sym.name]))
         elif isinstance(sym.datatype, ArrayType):
-            input_sym = table.lookup(sym.name+"_input")
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
                 kernel_list.append(("setval_random",
@@ -128,36 +168,55 @@ if __name__ == "__main__":
     # Compute the first inner products.
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,
                                   datatype=rdef_type)
-    prog.addchild(Assignment.create(Reference(inner1_sym),
-                                    Literal("0.0", rdef_type)))
-    for sym in kern_args.scalars:
-        prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                      Reference(sym), Reference(sym))
-        prog.addchild(
-                Assignment.create(
-                    Reference(inner1_sym),
-                    BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                           Reference(inner1_sym), prod)))
-    for sym in field_ip_symbols:
-        if sym.is_scalar:
-            prog.addchild(
-                    Assignment.create(
-                        Reference(inner1_sym),
-                        BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                               Reference(inner1_sym),
-                                               Reference(sym))))
-        else:
+
+    scalars = zip(kern_args.scalars, kern_args.scalars)
+    _compute_inner_products(prog, scalars, field_ip_symbols, inner1_sym)
+
+    # Call the adjoint kernel.
+    kernel_list = [(adj_routine.name, kern_args.arglist)]
+    # Compute the inner product of its outputs
+    # with the original inputs.
+    field_ip_symbols = []
+    for sym, space in kern_args.fields:
+        inner_prod_name = sym.name+"_inner_prod"
+        ip_sym = table.lookup(inner_prod_name)
+        input_sym = input_symbols[sym]
+        if isinstance(sym.datatype, DataTypeSymbol):
+            prog.addchild(Assignment.create(Reference(ip_sym),
+                                            Literal("0.0", rdef_type)))
+            kernel_list.append(("X_innerproduct_Y",
+                                [ip_sym.name, sym.name, input_sym.name]))
+        elif isinstance(sym.datatype, ArrayType):
+            dtype = ArrayType(rdef_type, sym.datatype.shape)
+
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                add_op = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    Reference(inner1_sym),
-                    ArrayReference.create(sym,
-                                          [Literal(str(dim), INTEGER_TYPE)]))
-                prog.addchild(Assignment.create(Reference(inner1_sym), add_op))
+                prog.addchild(Assignment.create(
+                    ArrayReference.create(ip_sym,
+                                          [Literal(str(dim), INTEGER_TYPE)]),
+                    Literal("0.0", rdef_type)))
+            kernel_list.append(("X_innerproduct_Y",
+                                [f"{ip_sym.name}({dim})",
+                                 f"{sym.name}({dim})",
+                                 f"{input_sym.name}({dim})"]))
+        else:
+            raise InternalError(
+                f"Expected a field symbol to either be of ArrayType or have "
+                f"a type specified by a DataTypeSymbol but found "
+                f"{sym.datatype} for field '{sym.name}'")
+        field_ip_symbols.append(ip_sym)
 
-    # Call the adjoint kernel and compute the inner product of its outputs
-    # with the original inputs.
+    # Create the 'call invoke(...)' for the list of kernels.
+    prog.addchild(create_invoke_call(kernel_list))
+
+    # Sum up the second set of inner products
+    inner2_sym = table.new_symbol("inner2", symbol_type=DataSymbol,
+                                  datatype=rdef_type)
+    scalars = zip(kern_args.scalars,
+                  [input_symbols[sym] for sym in kern_args.scalars])
+    _compute_inner_products(prog, scalars, field_ip_symbols, inner2_sym)
+
+    # Finally, compare the two inner products.
 
     writer = FortranWriter()
     gen_code = writer(prog)
