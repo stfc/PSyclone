@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,8 +86,7 @@ class Loop(Statement):
 
     def __init__(self, parent=None, variable=None, valid_loop_types=None,
                  annotations=None):
-        super(Loop, self).__init__(self, parent=parent,
-                                   annotations=annotations)
+        super().__init__(parent=parent, annotations=annotations)
 
         # Although the base class checks on the annotations individually, we
         # need to do further checks here

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -277,7 +277,7 @@ def test_same_range():
 
     array_type = ArrayType(REAL_TYPE, [10])
     array_value = ArrayReference.create(
-        DataSymbol("dummy", array_type), [DataNode("x")])
+        DataSymbol("dummy", array_type), [DataNode()])
     array_range = ArrayReference.create(
         DataSymbol("dummy", array_type), [Range()])
 

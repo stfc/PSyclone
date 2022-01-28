@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1168,7 +1168,7 @@ class Kern(Statement):
     _children_valid_format = "<LeafNode>"
 
     def __init__(self, parent, call, name, ArgumentsClass):
-        super(Kern, self).__init__(self, parent=parent)
+        super().__init__(parent=parent)
         self._arguments = ArgumentsClass(call, self)
         self._name = name
         self._iterates_over = call.ktype.iterates_over

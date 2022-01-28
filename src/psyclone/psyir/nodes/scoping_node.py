@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,8 +59,7 @@ class ScopingNode(Node):
     _symbol_table_class = SymbolTable
 
     def __init__(self, children=None, parent=None, symbol_table=None):
-        super(ScopingNode, self).__init__(self, children=children,
-                                          parent=parent)
+        super().__init__(children=children, parent=parent)
         if symbol_table:
             self._symbol_table = symbol_table
         else:
@@ -74,7 +73,7 @@ class ScopingNode(Node):
         :type other: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        super(ScopingNode, self)._refine_copy(other)
+        super()._refine_copy(other)
         self._symbol_table = other.symbol_table.deep_copy()
         # pylint: disable=protected-access
         self._symbol_table._node = self  # Associate to self

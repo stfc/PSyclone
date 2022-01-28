@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,8 @@ from __future__ import print_function
 
 import copy
 import six
+
+from fparser.two import utils
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
@@ -353,10 +355,11 @@ class Node(object):
         # will become False.
         self._has_constructor_parent = parent is not None
         self._parent = parent
-        # Reference into fparser2 AST (if any)
-        self._ast = ast
+        # Reference into fparser2 AST (if any). Use setter to actually set
+        # value as it does type checking.
+        self._ast = None
+        self.ast = ast
         # Ref. to last fparser2 parse tree node associated with this Node.
-        # This is required when adding directives.
         self._ast_end = None
         # List of tags that provide additional information about this Node.
         self._annotations = []
@@ -464,7 +467,14 @@ class Node(object):
 
         :param ast: fparser2 node associated with this Node.
         :type ast: :py:class:`fparser.two.utils.Base`
+
+        :raises TypeError: if the supplied ast is not an fparser2 node.
+
         '''
+        if ast and not isinstance(ast, utils.Base):
+            raise TypeError(
+                f"The 'ast' property of a Node must be a subclass of "
+                f"fparser.two.utils.Base but got '{type(ast).__name__}'")
         self._ast = ast
 
     @ast_end.setter
