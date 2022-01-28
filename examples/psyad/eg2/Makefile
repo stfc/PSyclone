@@ -54,7 +54,7 @@ transform: tl_hydrostatic_kernel_mod.F90 ../../lfric/eg20/alg_gen.py
 	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -otest /dev/null -oad tl_hydrostatic_kernel_mod_adj.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad
 	# Currently PSyAD does not update the kernel metadata (issue #1453)
 	# so we do that manually here.
-	sed -e 's/PROCEDURE, NOPASS :: tl_hydrostatic_code/PROCEDURE, NOPASS :: tl_hydrostatic_code_adj/' tl_hydrostatic_kernel_mod_adj.F90 > tl_hydrostatic_kernel_mod_adj.f90
+	sed -e 's/PROCEDURE, NOPASS :: tl_hydrostatic_code/PROCEDURE, NOPASS :: tl_hydrostatic_code_adj/' -e 's/:: tl_hydrostatic_kernel_type/:: tl_hydrostatic_kernel_type_adj/' tl_hydrostatic_kernel_mod_adj.F90 > tl_hydrostatic_kernel_mod_adj.f90
 	# Ultimately this will use the new `python-kern` command but that is
 	# still being developed.
 	python ./harness_gen.py tl_hydrostatic_kernel_type ./tl_hydrostatic_kernel_mod.F90
