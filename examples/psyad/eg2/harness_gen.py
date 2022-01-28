@@ -6,6 +6,7 @@ from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+from psyclone.psyad.tl2ad import _create_real_comparison
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, ArrayReference,
                                   Call, Literal, BinaryOperation)
@@ -107,7 +108,7 @@ if __name__ == "__main__":
         input_sym = table.lookup(sym.name+"_input")
         prog.addchild(Assignment.create(Reference(input_sym), Reference(sym)))
 
-    # We use the set_random_kernel_type kernel to initialise all fields.
+    # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     for sym, space in kern_args.fields:
         input_sym = input_symbols[sym]
@@ -217,6 +218,9 @@ if __name__ == "__main__":
     _compute_inner_products(prog, scalars, field_ip_symbols, inner2_sym)
 
     # Finally, compare the two inner products.
+    stmts = _create_real_comparison(table, kern, inner1_sym, inner2_sym)
+    for stmt in stmts:
+        prog.addchild(stmt)
 
     writer = FortranWriter()
     gen_code = writer(prog)
