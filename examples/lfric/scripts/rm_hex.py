@@ -43,22 +43,16 @@ always the case (due to the way kernels are written internally).
 
 '''
 from psyclone.psyGen import Kern, HaloExchange
+from psyclone.psyir.transformations import TransformationError
 
-# TODO How to work with field vectors, A: remove them all
-# TODO same kernel name in an invoke (how to determine which), A: optional? tuple with schedule position information
-# TODO when things are not found? - list them at the end?
-
-# Add all selected invoke/kernel/arg names here
+# Add all selected invoke/kernel, position/arg names here. The kernel
+# information has a name and a position, with the position being the
+# nth time this kernel is found in a schedule, as a kernel may be used
+# multiple times in a schedule.
 invoke_info = {
-    "invoke_0_w3_solver_kernel_type":
-        {"solver_w3_code":
-             ["chi"]},
-    "invoke_bicg_group1":
-        {"matrix_vector_mm_code":
-             ["v", "lhs"]},
-    "invoke_bicg_iterloop_group1":
-        {"matrix_vector_mm_code":
-             ["p"]}}
+    "invoke_0_w3_solver_kernel_type": {("solver_w3_code", 1): ["chi"]},
+    "invoke_bicg_group1": {("matrix_vector_mm_code", 1): ["v", "lhs"]},
+    "invoke_bicg_iterloop_group1": {("matrix_vector_mm_code", 1): ["p"]}}
 
 # Note, we could use the psy algorithm name as well to distinguish
 # between algorithm files but the LFRic build system has support for
@@ -70,42 +64,79 @@ def trans(psy):
     selective halo exchanges.
 
     '''
+    found_info = {}
     for invoke in psy.invokes.invoke_list:
         if invoke.name in invoke_info:
             # Found a selected invoke
             kernel_info = invoke_info[invoke.name]
             schedule = invoke.schedule
             marked_halo_exchanges = []
+            kernel_count = {}
             for kernel in schedule.walk(Kern):
-                if kernel.name in kernel_info:
+                # Update the number of times we have found this kernel
+                # in the schedule
+                try:
+                    kernel_count[kernel.name] += 1
+                except KeyError:
+                    kernel_count[kernel.name] = 1
+                kernel_lookup = (kernel.name, kernel_count[kernel.name])
+                if kernel_lookup in kernel_info:
                     # Found a selected kernel
-                    arg_info = kernel_info[kernel.name]
+                    arg_info = kernel_info[kernel_lookup]
                     for arg in kernel.args:
                         if arg.name in arg_info:
                             # Found a selected field
-                            print(f"Found '{invoke.name}':'{kernel.name}':"
+                            print(f"Found '{invoke.name}':'{kernel_lookup}':"
                                   f"'{arg.name}'")
+                            # Add this information to found_info so
+                            # that later we can check whether all
+                            # requested invokes/kernels/args are
+                            # found.
+                            try:
+                                found_info[invoke.name]
+                            except KeyError:
+                                found_info[invoke.name] = {}
+                            try:
+                                found_info[invoke.name][kernel_lookup]
+                            except KeyError:
+                                found_info[invoke.name][kernel_lookup] = []
+                            found_info[invoke.name][kernel_lookup].\
+                                append(arg.name)
 
                             # Look for a preceding halo exchange for
                             # this field in the schedule
+                            n_hex_found = 0
                             for node in kernel.preceding(reverse=True):
                                 if isinstance(node, HaloExchange):
                                     # Found a preceding halo exchange
                                     if node.field.name == arg.name:
+                                        n_hex_found += 1
                                         print(f"  Found halo exchange for "
                                               f"'{arg.name}'")
                                         # Store the node to remove later
                                         marked_halo_exchanges.append(node)
-                                        break
+                                        # Continue until all halo
+                                        # exchanges associated with a
+                                        # vector field are found
+                                        if n_hex_found == arg.vector_size:
+                                            break
                                 if isinstance(node, Kern):
                                     # Reached an earlier kernel before
-                                    # finding a halo exchange so give
+                                    # finding halo exchange(s) so give
                                     # up.
+                                    if n_hex_found > 0:
+                                        raise TransformationError(
+                                            "Found a subset of the halo "
+                                            "exchanges for a field vector")
                                     print("  Reached previous kernel")
                                     break
                             else:
                                 # Reached the start of the schedule before
-                                # finding a halo exchange
+                                # finding halo exchange(s)
+                                if n_hex_found > 0:
+                                    raise TransformationError(
+                                        "Found a subset of the halo exchanges "
+                                        "for a field vector")
                                 print("  Reached start of schedule")
 
             if marked_halo_exchanges:
@@ -119,3 +150,26 @@ def trans(psy):
                               f"'{halo_exchange.field.name}'")
                         halo_exchange.detach()
                 schedule.view()
+
+    # Raise exception if any invoke/kernel/arg names were not found.
+    message = ""
+    for invoke_name in invoke_info:
+        if invoke_name not in found_info:
+            message += f"invoke '{invoke_name}' not found in schedule\n"
+        else:
+            for kernel_tuple in invoke_info[invoke_name]:
+                if kernel_tuple not in found_info[invoke_name]:
+                    message += (f"kernel '{kernel_tuple}' in invoke "
+                                f"'{invoke_name}' not found in schedule\n")
+                else:
+                    for arg_name in invoke_info[invoke_name][kernel_tuple]:
+                        if arg_name not in \
+                           found_info[invoke_name][kernel_tuple]:
+                            message += (
+                                f"arg '{arg_name}' in kernel '{kernel_tuple}' "
+                                f"in invoke '{invoke_name}' not found in "
+                                f"schedule\n")
+    if message:
+        raise TransformationError(message)
+
+    return psy
