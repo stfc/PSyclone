@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
