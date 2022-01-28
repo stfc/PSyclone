@@ -11,7 +11,7 @@ from psyclone.psyir.nodes import (Assignment, Reference, ArrayReference,
                                   Call, Literal, BinaryOperation)
 from psyclone.psyir.symbols import (INTEGER_TYPE, ArrayType, DataTypeSymbol,
                                     ImportInterface, ContainerSymbol,
-                                    REAL_TYPE,
+                                    REAL_TYPE, ScalarType,
                                     DataSymbol, DeferredType, RoutineSymbol)
 
 
@@ -37,11 +37,15 @@ if __name__ == "__main__":
                                       interface=ImportInterface(kernel_mod))
     adj_routine = table.new_symbol(kernel_name+"_adj",
                                    interface=ImportInterface(adj_mod))
+    #rand_kernel_mod = table.new_symbol("set_random_kernel_mod",
+    #                                   symbol_type=ContainerSymbol)
+    #rand_kernel_routine = table.new_symbol(
+    #    "set_random_kernel_type", interface=ImportInterface(rand_kernel_mod))
 
-    ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                      name=kernel_name)
     # Construct a DynKern using the metadata. This is used when constructing
     # the kernel argument list.
+    ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
+                                                      name=kernel_name)
     kern = DynKern()
     kern.load_meta(ktype)
 
@@ -54,25 +58,27 @@ if __name__ == "__main__":
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
 
-    # Initialise argument values and keep copies.
+    # Initialise argument values and keep copies. For scalars we use the
+    # Fortran 'random_number' intrinsic directly.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
         prog.addchild(Call.create(random_num, [Reference(sym)]))
         input_sym = table.lookup(sym.name+"_input")
         prog.addchild(Assignment.create(Reference(input_sym), Reference(sym)))
 
-    # We use the set_random_X builtin to initialise all fields.
+    # We use the set_random_kernel_type kernel to initialise all fields.
     kernel_list = []
     for sym, space in kern_args.fields:
         if isinstance(sym.datatype, DataTypeSymbol):
-            kernel_list.append(("set_random_X", [sym.name]))
+            kernel_list.append(("setval_random", [sym.name]))
             input_sym = table.lookup(sym.name+"_input")
             kernel_list.append(("setval_X", [input_sym.name, sym.name]))
         elif isinstance(sym.datatype, ArrayType):
             input_sym = table.lookup(sym.name+"_input")
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                kernel_list.append(("set_random_X", [f"{sym.name}({dim})"]))
+                kernel_list.append(("setval_random",
+                                    [f"{sym.name}({dim})"]))
                 kernel_list.append(("setval_X", [f"{input_sym.name}({dim})",
                                                  f"{sym.name}({dim})"]))
         else:
@@ -83,20 +89,21 @@ if __name__ == "__main__":
 
     kernel_list.append((kernel_routine.name, kern_args.arglist))
 
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL,
+                           table.lookup("r_def"))
+
     # Compute the inner products of the results of the TL kernel.
     field_ip_symbols = []
     for sym, space in kern_args.fields:
         inner_prod_name = sym.name+"_inner_prod"
         if isinstance(sym.datatype, DataTypeSymbol):
-            # TODO this should be of kind r_def
             ip_sym = table.new_symbol(inner_prod_name, symbol_type=DataSymbol,
-                                      datatype=REAL_TYPE)
+                                      datatype=rdef_type)
             prog.addchild(Assignment.create(Reference(ip_sym),
-                                            Literal("0.0", REAL_TYPE)))
+                                            Literal("0.0", rdef_type)))
             kernel_list.append(("X_innerproduct_X", [ip_sym.name, sym.name]))
         elif isinstance(sym.datatype, ArrayType):
-            # TODO this should be of kind r_def
-            dtype = ArrayType(REAL_TYPE, sym.datatype.shape)
+            dtype = ArrayType(rdef_type, sym.datatype.shape)
             ip_sym = table.new_symbol(inner_prod_name, symbol_type=DataSymbol,
                                       datatype=dtype)
             for dim in range(int(sym.datatype.shape[0].lower.value),
@@ -104,7 +111,7 @@ if __name__ == "__main__":
                 prog.addchild(Assignment.create(
                     ArrayReference.create(ip_sym,
                                           [Literal(str(dim), INTEGER_TYPE)]),
-                    Literal("0.0", REAL_TYPE)))
+                    Literal("0.0", rdef_type)))
             kernel_list.append(("X_innerproduct_X",
                                 [f"{ip_sym.name}({dim})",
                                  f"{sym.name}({dim})"]))
@@ -119,11 +126,10 @@ if __name__ == "__main__":
     prog.addchild(create_invoke_call(kernel_list))
 
     # Compute the first inner products.
-    # TODO this should be of kind r_def
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,
-                                  datatype=REAL_TYPE)
+                                  datatype=rdef_type)
     prog.addchild(Assignment.create(Reference(inner1_sym),
-                                    Literal("0.0", REAL_TYPE)))
+                                    Literal("0.0", rdef_type)))
     for sym in kern_args.scalars:
         prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                       Reference(sym), Reference(sym))
