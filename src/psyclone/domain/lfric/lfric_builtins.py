@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
     BinaryOperation
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.f2pygen import AssignGen, PSyIRGen, CallGen
 from psyclone.configuration import Config
 
 # The name of the file containing the meta-data describing the
@@ -1306,6 +1306,29 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name2, rhs=field_name1))
 
 
+class LFRicSetvalRandomKern(LFRicBuiltIn):
+    ''' Fill a real-valued field with pseudo-random numbers.
+
+    '''
+    def __str__(self):
+        return "Built-in: Fill a real-valued field with pseudo-random numbers"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        setval_random Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We copy one element of field X (second arg) to the corresponding
+        # element of field Y (first arg) (real-valued fields).
+        field_name = self.array_ref(self._arguments.args[0].proxy_name)
+        parent.add(CallGen(parent, name="random_number", args=[field_name]))
+        #parent.add(AssignGen(parent, lhs=field_name, rhs=field_name1))
+
+
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
 # ------------------------------------------------------------------- #
@@ -1754,6 +1777,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # real field's values
     "setval_c": LFRicSetvalCKern,
     "setval_X": LFRicSetvalXKern,
+    "setval_random": LFRicSetvalRandomKern,
     # Inner product of real fields
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
@@ -1835,6 +1859,7 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncXPowintNKern',
            'LFRicSetvalCKern',
            'LFRicSetvalXKern',
+           'LFRicSetvalRandomKern',
            'LFRicXInnerproductYKern',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',
