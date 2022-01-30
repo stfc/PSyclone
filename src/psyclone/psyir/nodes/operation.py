@@ -74,7 +74,7 @@ class Operation(DataNode):
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
-        super().__init__(parent=parent)
+        super().__init__(self, parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
