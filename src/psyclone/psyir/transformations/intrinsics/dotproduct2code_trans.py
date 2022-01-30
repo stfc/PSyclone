@@ -250,9 +250,6 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     f"type {arg.symbol.datatype.intrinsic.name} in "
                     f"{self._writer(node)}.")
 
-        # Check whether _get_array_bound raises an exception
-        _get_array_bound(node.children[0], node.children[1])
-
     def apply(self, node, options=None):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
         specified node. This node must be a DOT_PRODUCT

@@ -118,7 +118,7 @@ def test_bound_explicit(fortran_reader, fortran_writer, dim1, dim2):
     dot_product = psyir.walk(BinaryOperation)[0]
     assert dot_product.operator == BinaryOperation.Operator.DOT_PRODUCT
     lower, upper, step = _get_array_bound(
-        dot_product.children[0], dot_product.children[1], fortran_writer)
+        dot_product.children[0], dot_product.children[1])
     assert lower.value == '2'
     assert upper.value == '10'
     assert step.value == '1'
@@ -139,7 +139,7 @@ def test_bound_unknown(fortran_reader, fortran_writer):
     dot_product = psyir.walk(BinaryOperation)[0]
     assert dot_product.operator == BinaryOperation.Operator.DOT_PRODUCT
     lower, upper, step = _get_array_bound(
-        dot_product.children[0], dot_product.children[1], fortran_writer)
+        dot_product.children[0], dot_product.children[1])
     assert fortran_writer(lower) == 'LBOUND(v1, 1)'
     assert fortran_writer(upper) == 'UBOUND(v1, 1)'
     assert step.value == '1'
@@ -299,27 +299,6 @@ def test_validate_real(fortran_reader):
     expected = (
         "The DotProduct2CodeTrans transformation only supports arrays of "
         "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, v2).")
-    check_validate(code, expected, fortran_reader)
-
-
-def test_validate_get_array_bound(monkeypatch, fortran_reader):
-    '''Test that the DotProduct2CodeTrans validate method calls the
-    _get_array_bound method.
-
-    '''
-    code = (
-        "subroutine dot_product_test(v1,v2)\n"
-        "real,intent(in) :: v1(:), v2(:)\n"
-        "real :: result\n"
-        "result = dot_product(v1,v2)\n"
-        "end subroutine\n")
-    expected = "Transformation Error: dummy"
-
-    def dummy(_1, _2, _3):
-        '''Utility used to raise the required exception.'''
-        raise TransformationError("dummy")
-
-    monkeypatch.setattr(dotproduct2code_trans, "_get_array_bound", dummy)
     check_validate(code, expected, fortran_reader)
 
 
