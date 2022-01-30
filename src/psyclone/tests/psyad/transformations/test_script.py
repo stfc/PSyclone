@@ -39,7 +39,8 @@ within the psyad/transformations directory
 '''
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyad.transformations.script import kern_trans
+from psyclone.psyad.transformations.script import preprocess_trans
+from psyclone.tests.utilities import Compile
 
 
 def test_script_no_change():
@@ -54,13 +55,13 @@ def test_script_no_change():
         "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    kern_trans(psyir)
+    preprocess_trans(psyir)
     writer = FortranWriter()
     result = writer(psyir)
     assert result == code
 
 
-def test_script_dotproduct():
+def test_script_dotproduct(tmpdir):
     '''test that the script replaces a dotproduct with equivalent code.'''
     code = (
         "program test\n"
@@ -82,7 +83,8 @@ def test_script_dotproduct():
         "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    kern_trans(psyir)
+    preprocess_trans(psyir)
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected
+    assert Compile(tmpdir).string_compiles(result)

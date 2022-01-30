@@ -42,10 +42,11 @@ from psyclone.psyir.nodes import BinaryOperation
 from psyclone.psyir.transformations import DotProduct2CodeTrans
 
 
-def kern_trans(kernel_psyir):
+def preprocess_trans(kernel_psyir):
     '''PSyclone kernel transformation script which replaces dotproduct
     intrinsics with equivalent code and returns the modified
-    psyir. This is called internally by the PSyAD script.
+    psyir. This is called internally by the PSyAD script before
+    transforming the code to its adjoint form.
 
     :param kernel_psyir: PSyIR representation of the tangent linear \
         kernel code.

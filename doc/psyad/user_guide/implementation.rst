@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -379,7 +379,9 @@ The only supported intrinsic at this time is ``dot_product``.
 If a ``dot_product`` intrinsic is found in the tangent-linear code it
 is first transformed into equivalent inline code before the code is
 transformed to its adjoint form. The PSyIR ``DotProduct2CodeTrans``
-transformation is used by PSyAD to perform this transformation.
+transformation is used by PSyAD to perform this transformation. See
+the :ref:`user_guide:available_trans` section of the user guide for
+more information.
 
 .. note:: At the moment all ``dot_product`` instrinsics are transformed
 	  irrespective of whether they act on active variables or not.
@@ -388,7 +390,9 @@ transformation is used by PSyAD to perform this transformation.
           variables, some of which might be active. Any such active
           variables will need to be specified as active on the PSyAD
           command-line using the ``-a`` flag even though they do not
-          (yet) exist in the tangent linear code.
+          (yet) exist in the tangent linear code. Eventually such
+          variables will be detected automatically by PSyAD, see issue
+          #1595.
 
 
 Test Harness

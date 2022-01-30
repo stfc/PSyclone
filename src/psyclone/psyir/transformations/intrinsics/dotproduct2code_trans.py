@@ -39,6 +39,9 @@ supported by the back-end or if the performance in the inline code is
 better than the intrinsic.
 
 '''
+
+# pylint: disable=too-many-locals
+
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, Routine
@@ -49,13 +52,27 @@ from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 
 
-def _get_array_bound(vector1, vector2, writer):
+def _get_array_bound(vector1, vector2):
     '''A utility function that returns the appropriate loop bounds (lower,
     upper and step) for a vector.
     If either of the vectors are declared with known bounds (an integer or a
     symbol) then these bound values are used. If the size is unknown
     (a deferred or attribute type) then the LBOUND and UBOUND PSyIR
     nodes are used.
+
+    The validate() method in DotProduct2CodeTrans will ensure that the
+    arguments to _get_array_bound() are valid (as it is always called
+    beforehand). The validate() method also ensures that array slices
+    are for the first dimension of the array and that they are for the
+    full size of that dimension (they are limited to ":"). This
+    function makes use of these constraint, e.g. it always returns 1
+    for the stride.
+
+    Issue #717 requires similar functionality to this
+    function. However, to use this function safely in other situations
+    we would need to move the tests in validate into this function
+    first and then potentially add this function to the ArrayMixin
+    class, or a separate utils module.
 
     :param array: the reference that we are interested in.
     :type array: :py:class:`psyir.nodes.Reference`
@@ -66,17 +83,7 @@ def _get_array_bound(vector1, vector2, writer):
     :rtype: (Literal, Literal, Literal) or \
         (BinaryOperation, BinaryOperation, Literal)
 
-    :raises TransformationError: if both vector1 and vector2 are not \
-        references to array symbols.
-
     '''
-    if not ((isinstance(vector1, Reference) and vector1.symbol.is_array) or
-            (isinstance(vector2, Reference) and vector2.symbol.is_array)):
-        raise TransformationError(
-            f"DotProduct2CodeTrans._get_array_bound requires at least one of "
-            f"the dotproduct arguments to be an array but found "
-            f"'{writer(vector1)}' and '{writer(vector2)}'.")
-
     # Look for explicit bounds in one of the array declarations
     for vector in [vector1, vector2]:
         symbol = vector.symbol
@@ -167,7 +174,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:str or None
 
         :raises TransformationError: if one of the arguments is not a \
             Reference node.
@@ -184,12 +191,12 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
         # Both arguments should be references (or array references)
         for arg in node.children:
-            if not isinstance(arg, Reference):
+            if arg.__class__ not in [Reference, ArrayReference]:
                 raise TransformationError(
                     f"The DotProduct2CodeTrans transformation only supports "
                     f"the transformation of a dotproduct intrinsic if its "
-                    f"arguments are arrays, but found {self._writer(arg)} in "
-                    f"{self._writer(node)}.")
+                    f"arguments are plain arrays, but found "
+                    f"{self._writer(arg)} in {self._writer(node)}.")
 
         for arg in node.children:
             # The argument should be a 1D array if the argument does
@@ -205,7 +212,8 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument not containing an array "
                         f"slice if the argument is a 1D array, but found "
-                        f"{self._writer(arg)} in {self._writer(node)}.")
+                        f"{self._writer(arg)} with {len(symbol.shape)} "
+                        f"dimensions in {self._writer(node)}.")
 
         for arg in node.children:
             # If the argument does provide array slice information
@@ -226,7 +234,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     raise TransformationError(
                         f"The DotProduct2CodeTrans transformation only "
                         f"supports the transformation of a dotproduct "
-                        f"intrinsic with an argument not an array "
+                        f"intrinsic with an argument containing an array "
                         f"slice if the argument is for the 1st dimension "
                         f"of the array and is for the full range of that "
                         f"dimension, but found {self._writer(arg)} in "
@@ -243,7 +251,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     f"{self._writer(node)}.")
 
         # Check whether _get_array_bound raises an exception
-        _get_array_bound(node.children[0], node.children[1], self._writer)
+        _get_array_bound(node.children[0], node.children[1])
 
     def apply(self, node, options=None):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
@@ -255,7 +263,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         :param node: a DOT_PRODUCT Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:str or None
 
         '''
         self.validate(node)
@@ -269,14 +277,15 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         i_loop_symbol = symbol_table.new_symbol(
             "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        # Create temporary result variable. There is an assumption
-        # here that the DOT_PRODUCT Operator returns a PSyIR real
-        # type. This might not be what is wanted (e.g. the args might
-        # PSyIR integers), or there may be errors (arguments are of
-        # different types) but this can't be checked as we don't have
-        # the appropriate methods to query nodes (see #658).
+        # Create temporary result variable. Use the datatype of one of
+        # the arguments. We can do this as the validate method only
+        # allows plain real arrays.
+        vector1_datatype = vector1.symbol.datatype
+        datatype = ScalarType(
+            vector1_datatype.intrinsic, vector1_datatype.precision)
         symbol_res_var = symbol_table.new_symbol(
-            "res_dot_product", symbol_type=DataSymbol, datatype=REAL_TYPE)
+            "res_dot_product", symbol_type=DataSymbol,
+            datatype=datatype)
 
         # Replace operation with the temporary result variable.
         result_ref = Reference(symbol_res_var)
@@ -284,7 +293,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
         # Create "vector1(i)"
         vector1_dims = [Reference(i_loop_symbol)]
-        if len(vector2.children) > 1:
+        if len(vector1.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             for child in vector1.children[1:]:
                 vector1_dims.append(child.copy())
@@ -308,8 +317,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         # Create "result = result + vector1(i) * vector2(i)"
         assign = Assignment.create(result_ref.copy(), rhs)
         # Work out the loop bounds
-        lower_bound, upper_bound, step = _get_array_bound(vector1, vector2,
-                                                          self._writer)
+        lower_bound, upper_bound, step = _get_array_bound(vector1, vector2)
         # Create i loop and add the above code as a child
         iloop = Loop.create(i_loop_symbol, lower_bound.copy(),
                             upper_bound.copy(), step.copy(), [assign])

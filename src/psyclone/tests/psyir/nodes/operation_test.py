@@ -35,8 +35,9 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
-
 ''' Performs pytest tests on the Operation PSyIR node and its sub-classes. '''
+
+# pylint: disable=protected-access
 
 from __future__ import absolute_import
 import pytest
@@ -173,13 +174,15 @@ def test_binaryoperation_is_elemental():
     elemental in each BinaryOperation.
 
     '''
-    # SUM, MATMUL, SIZE, LBOUND and UBOUND are not elemental
+    # SUM, MATMUL, SIZE, LBOUND, UBOUND and DOT_PRODUCT are not
+    # elemental
     not_elemental = [
         BinaryOperation.Operator.SUM,
         BinaryOperation.Operator.SIZE,
         BinaryOperation.Operator.MATMUL,
         BinaryOperation.Operator.LBOUND,
-        BinaryOperation.Operator.UBOUND
+        BinaryOperation.Operator.UBOUND,
+        BinaryOperation.Operator.DOT_PRODUCT
     ]
 
     for binary_operator in BinaryOperation.Operator:

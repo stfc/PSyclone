@@ -39,6 +39,8 @@
 ''' This module contains the implementation of the Operation class and its
 sub-classes.'''
 
+# pylint: disable=isinstance-second-argument-not-valid-type
+
 import abc
 from enum import Enum
 import six
@@ -72,7 +74,7 @@ class Operation(DataNode):
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
-        super(Operation, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
@@ -214,7 +216,8 @@ class BinaryOperation(Operation):
         'MATMUL', 'DOT_PRODUCT'
         ])
     _non_elemental_ops = [Operator.SUM, Operator.MATMUL, Operator.SIZE,
-                          Operator.LBOUND, Operator.UBOUND]
+                          Operator.LBOUND, Operator.UBOUND,
+                          Operator.DOT_PRODUCT]
     '''Arithmetic operators:
 
     .. function:: POW(arg0, arg1) -> type(arg0)
