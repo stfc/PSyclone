@@ -75,6 +75,14 @@
 
 	26) PR #1541 for #1513. Adds a 2D loop-tiling transformation.
 
+	27) PR #1533 for #1523. Adds SymPy symbols for Fortran names
+	in the tools.symbolic_maths module.
+
+	28) PR #1579 for #1550. Removes duplicated use statements produced
+	by the Fortran backend.
+
+	29) PR #1518 for #1506. Bugfix for WHEREs involving derived types.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
