@@ -67,7 +67,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop
 from psyclone.version import __VERSION__
 
@@ -75,19 +75,23 @@ from psyclone.version import __VERSION__
 API_WITHOUT_ALGORITHM = ["nemo"]
 
 
-def handle_script(script_name, psy):
+def handle_script(script_name, psy ***RENAME***, function_name="trans"):
     '''Loads and applies the specified script to the given psy layer.
     The 'trans' function of the script is called with psy as parameter.
-    :param script_name: Name of the script to load.
-    :type script_name: string
-    :param psy: The psy layer to which the script is applied.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :raises IOError: If the file is not found.
-    :raises GenerationError: if the file does not have .py extension
+
+    :param str script_name: name of the script to load.
+    :param psy: the psy layer to which the script is applied.
+    :type psy: :py:class:`psyclone.psyGen.PSy` *** OR PSYIR ***
+    :param str function_name: the name of the function to call in the \
+        script.
+
+    :raises IOError: if the file is not found.
+    :raises GenerationError: if the file does not have .py extension \
         or can not be imported.
     :raises GenerationError: if trans() can not be called.
-    :raises GenerationError: if any exception is raised when trans()
-        was called.
+    :raises GenerationError: if any exception is raised when trans() \
+        is called.
+
     '''
     sys_path_appended = False
     try:
@@ -122,9 +126,9 @@ def handle_script(script_name, psy):
                 "generator: attempted to import '{0}' but script file "
                 "'{1}' is not valid python".
                 format(filename, script_name))
-        if callable(getattr(transmod, 'trans', None)):
+        if callable(getattr(transmod, function_name, None)):
             try:
-                psy = transmod.trans(psy)
+                psy = transmod.***function_name***(psy)
             except Exception:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 lines = traceback.format_exception(exc_type, exc_value,
@@ -239,40 +243,52 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
-    psy = PSyFactory(api, distributed_memory=distributed_memory)\
-        .create(invoke_info)
-    if script_name is not None:
-        handle_script(script_name, psy)
+    if api != "gocean1.0":
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+        if script_name is not None:
+            handle_script(script_name, psy)
 
-    # Add profiling nodes to schedule if automatic profiling has
-    # been requested.
-    for invoke in psy.invokes.invoke_list:
-        Profiler.add_profile_nodes(invoke.schedule, Loop)
+        # Add profiling nodes to schedule if automatic profiling has
+        # been requested.
+        for invoke in psy.invokes.invoke_list:
+            Profiler.add_profile_nodes(invoke.schedule, Loop)
 
-    if api not in API_WITHOUT_ALGORITHM:
-        if api == "gocean1.0":
-            # Create language-level PSyIR from fparser2 ast
-            psyir_reader = Fparser2Reader()
-            psyir = psyir_reader.generate_psyir(ast)
+    alg_gen = None
 
-            # Raise to Algorithm PSyIR
-            alg_trans = AlgTrans()
-            alg_trans.apply(psyir)
+    if api == "gocean1.0":
+        # Create language-level PSyIR from the Fortran file
+        psyir_reader = FortranReader()
+        psyir = psyir_reader(filename)
 
-            # TODO: issue #753
-            # 1) call to algorithm optimisation script will go here
-            # 2) psygen creation and symbol generation will go here
-            #    (+ algorithm processing could go here, which would
-            #    include the removal of the invoke symbol).
-            # 3) psygen optimisation script will go here
+        # Raise to Algorithm PSyIR
+        alg_trans = AlgTrans()
+        alg_trans.apply(psyir)
 
-            # Create Fortran from Algorithm PSyIR
-            writer = FortranWriter()
-            alg_gen = writer(psyir)
-        else:
-            alg_gen = Alg(ast, psy).gen
-    else:
-        alg_gen = None
+        # Call the algorithm optimisation script
+        if script_name is not None:
+            handle_script(script_name, psyir, function_name="trans_alg")
+            
+        # Create Fortran from Algorithm PSyIR
+        writer = FortranWriter()
+        alg_gen = writer(psyir)
+
+        # Create the PSy-layer
+        # TODO: issue #753 replace invoke_info with alg psyir
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
+        # Call the psy-layer optimisation script
+        if script_name is not None:
+            handle_script(script_name, psy)
+
+        # Add profiling nodes to schedule if automatic profiling has
+        # been requested.
+        for invoke in psy.invokes.invoke_list:
+            Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    elif api not in API_WITHOUT_ALGORITHM:
+        alg_gen = Alg(ast, psy).gen
 
     return alg_gen, psy.gen
 
