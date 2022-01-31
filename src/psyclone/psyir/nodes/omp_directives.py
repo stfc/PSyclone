@@ -1058,8 +1058,8 @@ class OMPLoopDirective(OMPRegionDirective):
             child in its associated schedule.
         :raises GenerationError: if the schedule associated with this \
             OMPLoopDirective does not contain a Loop.
-        :raises GenerationError: this directive must be inside a omp target,
-            parallel region.
+        :raises GenerationError: this directive must be inside a omp target \
+            or parallel region.
         :raises GenerationError: if this OMPLoopDirective has a collapse \
             clause but it doesn't have the expected number of nested Loops.
 

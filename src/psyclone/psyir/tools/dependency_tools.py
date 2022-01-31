@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -277,8 +278,7 @@ class DependencyTools(object):
 
         if self._loop_types_to_parallelise:
             if loop.loop_type not in self._loop_types_to_parallelise:
-                self._add_info("Loop has wrong loop type '{0}'.".
-                               format(loop.loop_type))
+                self._add_info(f"Loop has wrong loop type '{loop.loop_type}'.")
                 return False
         return True
 

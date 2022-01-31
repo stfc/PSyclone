@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -631,6 +631,6 @@ class Symbol(object):
             return self.is_array
         except ValueError:
             # Generic symbols produce a ValueError, since this does not have
-            # a datatype and a Array access was not found, we don't consider
+            # a datatype and an Array access was not found, we don't consider
             # it an array.
             return False
