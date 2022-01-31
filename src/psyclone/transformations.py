@@ -264,11 +264,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 for message in dep_tools.get_all_messages():
                     if "is only written once." in message:
                         continue
-                    if "which indicates a reduction." in message:
-                        continue
-                    # if "is written to, and does not depend" in message:
-                    #    # As it is, this could be a raise condition, but
-                    #    # we could in turn call the HoistTransformation here
                     messages = "\n".join(dep_tools.get_all_messages())
                     raise TransformationError(
                         f"Dependency analysis failed with the following "

@@ -401,7 +401,8 @@ class DependencyTools(object):
         # Now we have at least two accesses. If the first access is a WRITE,
         # then the variable is not used in a reduction. This relies on sorting
         # the accesses by location.
-        if all_accesses[0].access_type == AccessType.WRITE:
+        if all_accesses[0].access_type in (AccessType.WRITE,
+                                           AccessType.READWRITE):
             return True
 
         # Otherwise there is a read first, which would indicate that this loop

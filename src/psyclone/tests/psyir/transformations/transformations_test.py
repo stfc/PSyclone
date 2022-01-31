@@ -331,13 +331,20 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
     ''' Test that the parallellooptrans validation checks for loop carried
     dependencies. '''
 
+    def create_loops(body):
+        psyir = fortran_reader.psyir_from_source(f'''
+        subroutine my_subroutine()
+            integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
+            real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+            real :: total
+            {body}
+        end subroutine''')
+        return psyir.walk(Loop)
+
     # Use OMPLoopTrans as a concrete class of ParallelLoopTrans
     omplooptrans = OMPLoopTrans()
     # Example with a loop carried dependency in jk dimension
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine my_subroutine()
-        integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
-        real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+    loops = create_loops('''
         do jk = 2, jpkm1, 1
           do jj = 2, jpjm1, 1
             do ji = 2, jpim1, 1
@@ -345,9 +352,7 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
                               zws(ji,jj,jk - 1) / zwt(ji,jj,jk - 1)
             enddo
           enddo
-        enddo
-    end subroutine''')
-    loops = psyir.walk(Loop)
+        enddo''')
 
     # Check that the loop can not be parallelised due to the loop-carried
     # dependency.
@@ -366,42 +371,33 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
     del loops[1].ancestor(Routine).symbol_table._symbols['zws']
     omplooptrans.validate(loops[1])
 
-    # Reductions have dependencies but these are accepted because it
-    # can be manage with the appropriate clause
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine my_subroutine()
-        integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
-        real, dimension(10, 10, 10) :: zwt
-        real :: total
+    # Reductions also indicate a data dependency that needs to be handled, so
+    # we don't permit the parallelisation of the loop (until we support
+    # reduction clauses)
+    loops = create_loops('''
         do jk = 2, jpkm1, 1
           do jj = 2, jpjm1, 1
             do ji = 2, jpim1, 1
               total = total + zwt(ji,jj,jk)
             enddo
           enddo
-        enddo
-    end subroutine''')
-    loops = psyir.walk(Loop)
-    assert not DependencyTools().can_loop_be_parallelised(
-                    loops[0], only_nested_loops=False)
-    omplooptrans.validate(loops[0])
+        enddo''')
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.validate(loops[0])
+    assert ("Transformation Error: Dependency analysis failed with the "
+            "following messages:\nWarning: Variable 'total' is read first, "
+            "which indicates a reduction." in str(err.value))
 
     # Shared scalars are race conditions but these are accepted because it
     # can be manage with the appropriate clause
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine my_subroutine()
-        integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
-        real, dimension(10, 10, 10) :: zwt
-        real :: total
+    loops = create_loops('''
         do jk = 2, jpkm1, 1
           do jj = 2, jpjm1, 1
             do ji = 2, jpim1, 1
               total = zwt(ji,jj,jk)
             enddo
           enddo
-        enddo
-    end subroutine''')
-    loops = psyir.walk(Loop)
+        enddo''')
     assert not DependencyTools().can_loop_be_parallelised(
                     loops[0], only_nested_loops=False)
     omplooptrans.validate(loops[0])
