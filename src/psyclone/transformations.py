@@ -176,8 +176,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     # being transformed.
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
 
+    @abc.abstractmethod
     def __str__(self):
-        return str(type(self).__name__)
+        return  # pragma: no cover
 
     @abc.abstractmethod
     def _directive(self, children, collapse=None):
