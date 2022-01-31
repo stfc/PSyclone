@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ import re
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference, Routine
+    ArrayReference, Routine, Container, FileContainer
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
     ImportInterface, RoutineSymbol
 from psyclone.errors import GenerationError
@@ -187,6 +187,7 @@ class AlgorithmInvokeCall(Call):
                     f"(optional) name of an invoke must be a string "
                     f"containing a valid name (with any spaces replaced by "
                     f"underscores) but found '{routine_root_name}'.")
+            routine_root_name = f"invoke_{routine_root_name}"
         else:
             routine_root_name = f"invoke_{self._index}"
             if len(self.children) == 1:
@@ -216,7 +217,9 @@ class AlgorithmInvokeCall(Call):
             # we temporarily replicate this functionality. Eventually we
             # will merge. Note, a better future solution could be to use
             # the closest ancestor routine instead.
-            nodes = self.root.walk(Routine)
+            nodes = self.root.walk((Routine, Container))
+            nodes = [node for node in nodes if not
+                     isinstance(node, FileContainer)]
             node = nodes[0]
             self._psylayer_container_root_name = f"psy_{node.name}"
 
