@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -393,14 +393,6 @@ class Node(object):
         # Position and child argument names are kept for better documentation,
         # but the generic method always returns False.
         return False
-
-    @property
-    def clauses(self):
-        '''
-        :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
-        '''
-        return []
 
     def coloured_name(self, colour=True):
         '''

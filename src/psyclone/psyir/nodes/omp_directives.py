@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,8 +55,8 @@ from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NowaitClause,\
-    NogroupClause, NumTasksClause
+from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
 
@@ -65,8 +65,7 @@ from psyclone.psyir.symbols import INTEGER_TYPE
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
-@six.add_metaclass(abc.ABCMeta)
-class OMPDirective():
+class OMPDirective(metaclass=abc.ABCMeta):
     '''
     Base mixin class for all OpenMP-related directives.
 
@@ -112,6 +111,16 @@ class OMPRegionDirective(OMPDirective, RegionDirective):
                             result.append(arg.name)
         return result
 
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 1:
+            return self.children[1:]
+        return []
+
 
 @six.add_metaclass(abc.ABCMeta)
 class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
@@ -119,6 +128,15 @@ class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
     Base class for all OpenMP-related standalone directives
 
     '''
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 0:
+            return self.children
+        return []
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
@@ -231,7 +249,7 @@ class OMPSingleDirective(OMPSerialDirective):
         a nowait clause applied. Default value is False.
 
     '''
-    _children_valid_format = "Schedule, [NowaitClause]"
+    _children_valid_format = "Schedule, [OMPNowaitClause]"
     # Textual description of the node
     _text_name = "OMPSingleDirective"
 
@@ -243,7 +261,7 @@ class OMPSingleDirective(OMPSerialDirective):
         super(OMPSingleDirective, self).__init__(children=children,
                                                  parent=parent)
         if self._nowait:
-            self.children.append(NowaitClause())
+            self.children.append(OMPNowaitClause())
 
     @staticmethod
     def _validate_child(position, child):
@@ -251,7 +269,7 @@ class OMPSingleDirective(OMPSerialDirective):
          Decides whether a given child and position are valid for this node.
          The rules are:
          1. Child 0 must always be a Schedule.
-         2. Child 1 can only be a NowaitClause.
+         2. Child 1 can only be a OMPNowaitClause.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -264,7 +282,7 @@ class OMPSingleDirective(OMPSerialDirective):
         if position == 0:
             return isinstance(child, Schedule)
         if position == 1:
-            return isinstance(child, NowaitClause)
+            return isinstance(child, OMPNowaitClause)
         return False
 
     @property
@@ -615,8 +633,8 @@ class OMPTaskloopDirective(OMPRegionDirective):
                              a grainsize and num_tasks value \
                              specified.
     '''
-    _children_valid_format = ("Schedule, [GrainsizeClause | NumTasksClause],"
-                              " [NogroupClause]")
+    _children_valid_format = ("Schedule, [OMPGrainsizeClause | "
+                              "OMPNumTasksClause], [OMPNogroupClause]")
 
     # pylint: disable=too-many-arguments
     def __init__(self, children=None, parent=None, grainsize=None,
@@ -633,12 +651,12 @@ class OMPTaskloopDirective(OMPRegionDirective):
                                                    parent=parent)
         if self._grainsize is not None:
             child = [Literal(f"{grainsize}", INTEGER_TYPE)]
-            self._children.append(GrainsizeClause(children=child))
+            self._children.append(OMPGrainsizeClause(children=child))
         if self._num_tasks is not None:
             child = [Literal(f"{num_tasks}", INTEGER_TYPE)]
-            self._children.append(NumTasksClause(children=child))
+            self._children.append(OMPNumTasksClause(children=child))
         if self._nogroup:
-            self._children.append(NogroupClause())
+            self._children.append(OMPNogroupClause())
 
     @staticmethod
     def _validate_child(position, child):
@@ -646,10 +664,11 @@ class OMPTaskloopDirective(OMPRegionDirective):
          Decides whether a given child and position are valid for this node.
          The rules are:
          1. Child 0 must always be a Schedule.
-         2. Child 1 may be either a GrainsizeClause or NumTasksClause, or if
-            neither of those clauses are present, it may be a NogroupClause.
-         3. Child 2 must always be a NogroupClause, and can only exist if child
-            1 is a GrainsizeClause or NumTasksClause
+         2. Child 1 may be either a OMPGrainsizeClause or OMPNumTasksClause, \
+            or if neither of those clauses are present, it may be a \
+            OMPNogroupClause.
+         3. Child 2 must always be a OMPNogroupClause, and can only exist if \
+            child 1 is a OMPGrainsizeClause or OMPNumTasksClause.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -662,21 +681,11 @@ class OMPTaskloopDirective(OMPRegionDirective):
         if position == 0:
             return isinstance(child, Schedule)
         if position == 1:
-            return isinstance(child, (GrainsizeClause, NumTasksClause,
-                                      NogroupClause))
+            return isinstance(child, (OMPGrainsizeClause, OMPNumTasksClause,
+                                      OMPNogroupClause))
         if position == 2:
-            return (isinstance(child, NogroupClause))
+            return (isinstance(child, OMPNogroupClause))
         return False
-
-    @property
-    def clauses(self):
-        '''
-        :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
-        '''
-        if len(self.children) > 1:
-            return self.children[1:]
-        return []
 
     @property
     def nogroup(self):
@@ -709,7 +718,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         # Check children are well formed.
         # _validate_child will ensure position 0 and 1 are valid.
         if len(self._children) == 3 and isinstance(self._children[1],
-                                                   NogroupClause):
+                                                   OMPNogroupClause):
             raise GenerationError(
                 "OMPTaskloopDirective has two Nogroup clauses as children "
                 "which is not allowed.")
@@ -746,7 +755,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         parent.add(DirectiveGen(parent, "omp", "begin", "taskloop",
                                 extra_clauses))
 
-        self.children[0].gen_code(parent)
+        self.dir_body.gen_code(parent)
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()

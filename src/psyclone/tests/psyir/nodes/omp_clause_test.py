@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,42 +36,42 @@
 
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
 
-from psyclone.psyir.nodes.omp_clauses import GrainsizeClause, NowaitClause,\
-    NogroupClause, NumTasksClause
+from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 def test_nowait_clause():
-    ''' Test the NowaitClause functionality. '''
-    nowait = NowaitClause()
+    ''' Test the OMPNowaitClause functionality. '''
+    nowait = OMPNowaitClause()
     assert nowait.clause_string == "nowait"
-    assert NowaitClause._validate_child(0, nowait) is False
+    assert OMPNowaitClause._validate_child(0, nowait) is False
 
 
 def test_grainsize_clause():
-    ''' Test the GrainsizeClause functionality. '''
+    ''' Test the OMPGrainsizeClause functionality. '''
 
-    nowait = GrainsizeClause(children=[Literal("32", INTEGER_TYPE)])
+    nowait = OMPGrainsizeClause(children=[Literal("32", INTEGER_TYPE)])
     assert nowait.clause_string == "grainsize"
-    assert GrainsizeClause._validate_child(0, Literal("64", INTEGER_TYPE)) is\
-        True
-    assert GrainsizeClause._validate_child(1, Literal("64", INTEGER_TYPE)) is\
-        False
+    assert OMPGrainsizeClause._validate_child(0, Literal("64", INTEGER_TYPE))\
+        is True
+    assert OMPGrainsizeClause._validate_child(1, Literal("64", INTEGER_TYPE))\
+        is False
 
 
 def test_numtasks_clause():
-    ''' Test the NumTasksClause functionality. '''
-    nowait = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    ''' Test the OMPNumTasksClause functionality. '''
+    nowait = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
     assert nowait.clause_string == "num_tasks"
-    assert NumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE)) is\
-        True
-    assert NumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE)) is\
-        False
+    assert OMPNumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE))\
+        is True
+    assert OMPNumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE))\
+        is False
 
 
 def test_nogroup_clause():
-    ''' Test the NogroupClause functionality. '''
-    nowait = NogroupClause()
+    ''' Test the OMPNogroupClause functionality. '''
+    nowait = OMPNogroupClause()
     assert nowait.clause_string == "nogroup"
-    assert NogroupClause._validate_child(0, nowait) is False
+    assert OMPNogroupClause._validate_child(0, nowait) is False

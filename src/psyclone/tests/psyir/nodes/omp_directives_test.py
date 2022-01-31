@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,\
-    Reference, NowaitClause, GrainsizeClause, NumTasksClause, NogroupClause
+    Reference, OMPNowaitClause, OMPGrainsizeClause, OMPNumTasksClause,\
+    OMPNogroupClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -224,7 +225,7 @@ def test_omp_single_strings(nowait):
 def test_omp_single_validate_child():
     ''' Test the validate_child method of the OMPSingle class '''
     sched = Schedule()
-    nowait = NowaitClause()
+    nowait = OMPNowaitClause()
     lit = Literal("32", INTEGER_TYPE)
     assert OMPSingleDirective._validate_child(0, sched) is True
     assert OMPSingleDirective._validate_child(1, nowait) is True
@@ -456,9 +457,9 @@ def test_omp_taskloop_validate_child():
     ''' Test the validate_child method of the OMPTaskloopDirective
     Class. '''
     sched = Schedule()
-    gsclause = GrainsizeClause(children=[Literal("1", INTEGER_TYPE)])
-    ntclause = NumTasksClause(children=[Literal("1", INTEGER_TYPE)])
-    ngclause = NogroupClause()
+    gsclause = OMPGrainsizeClause(children=[Literal("1", INTEGER_TYPE)])
+    ntclause = OMPNumTasksClause(children=[Literal("1", INTEGER_TYPE)])
+    ngclause = OMPNogroupClause()
     lit = Literal("1", INTEGER_TYPE)
     assert OMPTaskloopDirective._validate_child(0, sched) is True
     assert OMPTaskloopDirective._validate_child(1, gsclause) is True
@@ -490,8 +491,8 @@ def test_omp_taskloop_validate_global_constraints():
 
     # Ensure a taskloop clause can't have two nogroup clauses.
     taskloop = schedule.children[0]
-    taskloop.addchild(NogroupClause())
-    taskloop.addchild(NogroupClause())
+    taskloop.addchild(OMPNogroupClause())
+    taskloop.addchild(OMPNogroupClause())
     singletrans = OMPSingleTrans()
     paralleltrans = OMPParallelTrans()
     singletrans.apply(taskloop)

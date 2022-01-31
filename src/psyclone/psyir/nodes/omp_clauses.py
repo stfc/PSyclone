@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,34 +41,20 @@ from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.literal import Literal
 
 
-class NowaitClause(Clause):
+class OMPNowaitClause(Clause):
     '''
-    OpenMP nowait clause.
+    OpenMP nowait clause. Disable the implicit barrier at the end of the
+    associated directive.
     '''
     _children_valid_format = None
     _text_name = "NowaitClause"
     _clause_string = "nowait"
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-         Decides whether a given child and position are valid for this node.
-         No children allowed for a nowait clause.
 
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return False
-
-
-class GrainsizeClause(Clause):
+class OMPGrainsizeClause(Clause):
     '''
-    OpenMP grainsize clause, used by OMPTaskloopDirective.
+    OpenMP grainsize clause, used by OMPTaskloopDirective. Controls the
+    grainsize of the associated directive.
     '''
     _children_valid_format = "Literal"
     _text_name = "GrainsizeClause"
@@ -93,9 +79,10 @@ class GrainsizeClause(Clause):
         return False
 
 
-class NumTasksClause(Clause):
+class OMPNumTasksClause(Clause):
     '''
-    OpenMP numtasks clause, used by OMPTaskloopDirective.
+    OpenMP numtasks clause, used by OMPTaskloopDirective. Controls the number
+    of tasks created by OpenMP for the associated directive.
     '''
     _children_valid_format = "Literal"
     _text_name = "NumTasksClause"
@@ -120,26 +107,11 @@ class NumTasksClause(Clause):
         return False
 
 
-class NogroupClause(Clause):
+class OMPNogroupClause(Clause):
     '''
-    OpenMP nogroup clause, used by OMPTaskloopDirective.
+    OpenMP nogroup clause, used by OMPTaskloopDirective to disable the
+    implicit Taskgroup associated with a Taskloop.
     '''
     _children_valid_format = None
     _text_name = "NogroupClause"
     _clause_string = "nogroup"
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-         Decides whether a given child and position are valid for this node.
-         No children allowed for a nowait clause.
-
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return False

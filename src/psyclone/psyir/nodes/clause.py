@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,9 @@
 
 import abc
 from psyclone.psyir.nodes.node import Node
-import six
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Clause(Node):
+class Clause(Node, metaclass=abc.ABCMeta):
     '''
     Base abstract class for all clauses.
     '''

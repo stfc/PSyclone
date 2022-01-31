@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1451,19 +1451,17 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [" "]
-
-        result_list.append(node.clause_string)
+        result = node.clause_string
 
         if len(node.children) > 0:
-            result_list.append("(")
+            result = result + "("
             child_list = []
             for child in node.children:
                 child_list.append(self._visit(child))
-            result_list.append(",".join(child_list))
-            result_list.append(")")
+            result = result + ", ".join(child_list)
+            result = result + ")"
 
-        return "".join(result_list)
+        return result
 
     def regiondirective_node(self, node):
         '''This method is called when a RegionDirective instance is found in
@@ -1482,7 +1480,10 @@ class FortranWriter(LanguageWriter):
         clause_list = []
         for clause in node.clauses:
             clause_list.append(self._visit(clause))
-        result_list.append(",".join(clause_list))
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result_list.append(" ")
+        result_list.append(" ".join(clause_list))
         result_list.append("\n")
 
         for child in node.dir_body:

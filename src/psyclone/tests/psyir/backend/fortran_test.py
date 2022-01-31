@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer, \
     Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
-    OMPParallelDirective, Loop, NumTasksClause
+    OMPParallelDirective, Loop, OMPNumTasksClause
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -2287,5 +2287,5 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
 
 def test_fw_clause(fortran_writer):
     '''Test that a PSyIR clause is translated to the correct Fortran code.'''
-    clause = NumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    clause = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
     assert "num_tasks(32)" in fortran_writer(clause)

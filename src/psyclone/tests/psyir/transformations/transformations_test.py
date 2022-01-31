@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,6 +204,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     code = str(psy.gen)
 
+    print(code)
     clauses = " nogroup"
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
