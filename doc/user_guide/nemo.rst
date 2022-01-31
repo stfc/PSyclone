@@ -206,9 +206,6 @@ we list the current, known limitations/issues:
 
  1. Scalar variables inside loops are not made private when
     parallelising using OpenMP;
- 2. All recognised loops (levels, latitude etc.) are assumed to be
-    parallelisable. This will not always be the case (e.g. tridiagonal
-    solve has a loop-carried dependence in the vertical);
  3. Labelled do-loops are not handled (i.e. they will be put inside a
     'CodeBlock' in the PSyIR);
  4. Loops are currently only permitted to contain one kernel.  This

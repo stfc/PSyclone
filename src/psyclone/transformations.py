@@ -166,17 +166,18 @@ class KernelTrans(Transformation):
 
 class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     '''
-    Adds an orphaned directive to a loop indicating that it should be
-    parallelised.
+    Adds an abstract directive (it needs to be specified by sub-classing this
+    transformation) to a loop indicating that it should be parallelised. It
+    performs some data dependency checks to guarantee that the loop can be
+    parallelised without changing the semantics of it.
 
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
 
-    @abc.abstractmethod
     def __str__(self):
-        return  # pragma: no cover
+        return str(type(self).__name__)
 
     @abc.abstractmethod
     def _directive(self, children, collapse=None):
