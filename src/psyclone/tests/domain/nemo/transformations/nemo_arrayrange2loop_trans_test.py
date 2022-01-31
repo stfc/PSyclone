@@ -379,25 +379,59 @@ def test_apply_structure_of_arrays(fortran_writer):
         "  enddo\n" in result)
 
 
-def test_apply_nested_structure_of_arrays(fortran_writer):
-    '''Check that nested structure_of_arrays are not yet supported.
+def test_apply_structure_of_arrays_multiple_arrays(fortran_writer):
+    '''Check that the apply method works when the assignment expression
+    contains structures of arrays with multiple array accessors.
 
     '''
     _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     assignment5 = schedule[4]
-    assignment6 = schedule[5]
     trans = NemoArrayRange2LoopTrans()
-    # Case 5: Nested SoA currently causes an InternalError
+
+    # Case 5: 2 array accessors in LHS but only one has ranges
     array_ref = assignment5.lhs
+    trans.apply(array_ref.member.member.children[2])
+    trans.apply(array_ref.member.member.children[1])
+    trans.apply(array_ref.member.member.children[0])
+    result = fortran_writer(schedule)
+    assert (
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        mystruct%field2(4,3)%field(ji,jj,jk) = 0.0d0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+
+def test_apply_nested_structure_of_arrays():
+    '''Check that nested structure_of_arrays are not supported. '''
+    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment6 = schedule[5]
+    assignment7 = schedule[6]
+    assignment8 = schedule[7]
+    trans = NemoArrayRange2LoopTrans()
+
+    # Case 6: 2 array accessors in LHS and both have ranges
+    array_ref = assignment6.lhs
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.member.member.children[2])
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
+
+    # Case 7: Nested SoA currently causes an InternalError
+    array_ref = assignment7.lhs
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.member.indices[0].indices[0])
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "
             "transformation does not support array assignments that contain "
             "nested Range structures, but found:\n" in str(info.value))
 
-    # Case 6: Nested SoA currently causes an InternalError
-    array_ref = assignment6.lhs
+    # Case 8: Nested SoA currently causes an InternalError
+    array_ref = assignment8.lhs
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "

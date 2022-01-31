@@ -50,6 +50,14 @@ program implicit_do_structures
   ! Test code mixing AoSoA in the LHS and SoA in the RHS
   mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)
 
+  ! Test code with implicit do loop with 2 arrays in the LHS structure, one
+  ! without ranges
+  mystruct%field2(4, 3)%field(:,:,:) = 0.0d0
+
+  ! Test code with implicit do loop with 2 arrays in the LHS structure, both
+  ! with ranges
+  mystruct%field2(:,:)%field(:,:,:) = 0.0d0
+
   ! Test code with implicit do loop with range in a nested array
   mystruct%field5(indices(:)) = 0.0d0
 

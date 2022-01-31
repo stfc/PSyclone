@@ -211,19 +211,27 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Replace the loop_idx array dimension with the loop variable.
         n_ranges = None
-        for array in assignment.walk(ArrayMixin):
-            current_n_ranges = len([child for child in array.children
-                                    if isinstance(child, Range)])
-            if n_ranges is None:
-                n_ranges = current_n_ranges
-            elif n_ranges != current_n_ranges:
-                raise InternalError(
-                    "The number of ranges in the arrays within this "
-                    "assignment are not equal. Any such case should have "
-                    "been dealt with by the validation method or represents "
-                    "invalid PSyIR.")
-            idx = get_outer_index(array)
-            array.children[idx] = Reference(loop_variable_symbol)
+        # Just loop the top level arrays since we just do 1 substitution per
+        # array construct, even if they have nested arrays in turn.
+        for top_level_ref in assignment.walk(ArrayMixin, stop_type=ArrayMixin):
+            # Then start checking by the inner-most array
+            for array in reversed(top_level_ref.walk(ArrayMixin)):
+                current_n_ranges = len([child for child in array.children
+                                        if isinstance(child, Range)])
+                if current_n_ranges == 0:
+                    continue  # This sub-expression already has explicit dims
+                if n_ranges is None:
+                    n_ranges = current_n_ranges
+                elif n_ranges != current_n_ranges:
+                    raise InternalError(
+                        "The number of ranges in the arrays within this "
+                        "assignment are not equal. Any such case should have "
+                        "been dealt with by the validation method or "
+                        "represents invalid PSyIR.")
+
+                idx = get_outer_index(array)
+                array.children[idx] = Reference(loop_variable_symbol)
+                break  # If one is found, go to the next top level expression
 
         # Replace the assignment with the new explicit loop structure
         position = assignment.position
@@ -231,9 +239,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                                upper_bound, step, [assignment.detach()])
         parent.children.insert(position, loop)
 
-        try:
-            _ = get_outer_index(array_reference)
-        except IndexError:
+        if not assignment.lhs.walk(Range):
             # All valid array ranges have been replaced with explicit
             # loops. We now need to take the content of the loop and
             # place it within a NemoKern (inlined kernel) node.
@@ -301,7 +307,9 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # We don't support nested range expressions
         for range_expr in assignment.walk(Range):
-            if range_expr.parent.ancestor(ArrayMixin):
+            ancestor_array = range_expr.parent.ancestor(ArrayMixin)
+            if ancestor_array and any(index.walk(Range) for index
+                                      in ancestor_array.indices):
                 raise TransformationError(LazyString(
                     lambda: f"Error in NemoArrayRange2LoopTrans transformation"
                     f". This transformation does not support array assignments"
@@ -453,14 +461,15 @@ def get_outer_index(array):
     does not exist then raise an exception.
 
     :param array: the array being examined.
-    :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
+    :type array: :py:class:`psyclone.psyir.nodes.ArrayMixin`
 
     :returns: the outermost index of the array that is a Range node.
 
     :raises IndexError: if the array does not contain a Range node.
 
     '''
-    for child in reversed(array.children):
+    # return array.walk(Range)[-1]
+    for child in reversed(array.indices):
         if isinstance(child, Range):
             return child.position
     raise IndexError
