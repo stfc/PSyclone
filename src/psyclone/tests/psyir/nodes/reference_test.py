@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -102,6 +102,13 @@ def test_reference_children_validation():
         ref.addchild(Literal("2", INTEGER_SINGLE_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_reference_is_array():
+    '''Test that a non-array reference is marked as not an array.
+    '''
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    assert reference.is_array is False
 
 
 def test_reference_accesses():
