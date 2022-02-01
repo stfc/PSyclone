@@ -1,9 +1,7 @@
-#!/usr/bin/env python2.7
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,22 +73,26 @@ from psyclone.version import __VERSION__
 API_WITHOUT_ALGORITHM = ["nemo"]
 
 
-def handle_script(script_name, psy ***RENAME***, function_name="trans"):
-    '''Loads and applies the specified script to the given psy layer.
-    The 'trans' function of the script is called with psy as parameter.
+def handle_script(script_name, info, function_name="trans"):
+    '''Loads and applies the specified script to the given algorithm or
+    psy layer. The relevant script function (in 'function_name') is
+    called with 'info' as the argument.
 
     :param str script_name: name of the script to load.
-    :param psy: the psy layer to which the script is applied.
-    :type psy: :py:class:`psyclone.psyGen.PSy` *** OR PSYIR ***
+    :param info: PSyclone representation of the algorithm or psy layer \
+        to which the script is applied.
+    :type info: :py:class:`psyclone.psyGen.PSy` or \
+        :py:class:`psyclone.psyir.nodes.Node`
     :param str function_name: the name of the function to call in the \
-        script.
+        script. Defaults to "trans".
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension \
         or can not be imported.
-    :raises GenerationError: if trans() can not be called.
-    :raises GenerationError: if any exception is raised when trans() \
-        is called.
+    :raises GenerationError: if the script function can not be called.
+
+    :raises GenerationError: if any exception is raised when the \
+        script function is called.
 
     '''
     sys_path_appended = False
@@ -128,7 +130,8 @@ def handle_script(script_name, psy ***RENAME***, function_name="trans"):
                 format(filename, script_name))
         if callable(getattr(transmod, function_name, None)):
             try:
-                psy = transmod.***function_name***(psy)
+                func_call = getattr(transmod, function_name)
+                info = func_call(info)
             except Exception:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 lines = traceback.format_exception(exc_type, exc_value,
@@ -141,11 +144,11 @@ def handle_script(script_name, psy ***RENAME***, function_name="trans"):
                     "following exception during execution "
                     "...\n{1}\nPlease check your script".format(
                         script_name, e_str))
-        else:
+        elif function_name != "trans_alg":
             raise GenerationError(
-                "generator: attempted to import '{0}' but script file "
-                "'{1}' does not contain a 'trans()' function".
-                format(filename, script_name))
+                f"generator: attempted to import '{filename}' but script file "
+                f"'{script_name}' does not contain a '{function_name}' "
+                f"function")
     except Exception as msg:
         if sys_path_appended:
             os.sys.path.pop()
@@ -215,7 +218,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     if distributed_memory is None:
         distributed_memory = Config.get().distributed_memory
 
-    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
         api = Config.get().default_api
     else:
@@ -258,17 +260,17 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     if api == "gocean1.0":
         # Create language-level PSyIR from the Fortran file
-        psyir_reader = FortranReader()
-        psyir = psyir_reader(filename)
+        reader = FortranReader()
+        psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
         alg_trans = AlgTrans()
         alg_trans.apply(psyir)
 
-        # Call the algorithm optimisation script
         if script_name is not None:
+            # Call the optimisation script for algorithm optimisations
             handle_script(script_name, psyir, function_name="trans_alg")
-            
+
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
         alg_gen = writer(psyir)
@@ -278,8 +280,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
-        # Call the psy-layer optimisation script
         if script_name is not None:
+            # Call the optimisation script for psy-layer optimisations
             handle_script(script_name, psy)
 
         # Add profiling nodes to schedule if automatic profiling has
@@ -430,8 +432,8 @@ def main(args):
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print("Warning: {0}".format(exc_value))
-        # no invoke calls were found in the algorithm file so we need
-        # not need to process it, or generate any psy layer code so
+        # no invoke calls were found in the algorithm file so we do
+        # not need to process it, or generate any psy layer code, so
         # output the original algorithm file and set the psy file to
         # be empty
         alg_file = open(args.filename)
