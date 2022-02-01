@@ -37,7 +37,7 @@
     This module provides the PSyclone kernel-generation 'run' routine
     which is intended to be driven from the bin/psyclone-kern executable
     script. It processes the various command-line options and then calls
-    the appropriate routines to do one or both of the following:
+    the appropriate routines to do one of the following:
 
     1. use the metadata to construct an appropriate Fortran subroutine stub
        for completion by a kernel developer;
@@ -53,11 +53,17 @@ import io
 import sys
 import traceback
 
+from psyclone import alg_gen, gen_kernel_stub
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.utils import ParseError
 from psyclone.version import __VERSION__
+
+# Dictionary of supported generation modes where values are a brief
+# description of what is created (used when outputting to stdout).
+GEN_MODES = {"alg": "Algorithm code",
+             "stub": "Kernel-stub code"}
 
 
 def run(args):
@@ -68,7 +74,7 @@ def run(args):
     generate function(s) if all is well, catches any errors and outputs the
     results.
 
-    :param list args: the list of command-line arguments which which \
+    :param list args: the list of command-line arguments with which \
                       psyclone-kern has been invoked.
     '''
     # pylint: disable=too-many-statements,too-many-branches
@@ -79,27 +85,24 @@ def run(args):
     Config.get(do_not_load_file=True)
 
     parser = argparse.ArgumentParser(
-        description='Run the PSyclone kernel generator on a particular file')
-    parser.add_argument('--alg-gen', action="store_true",
-                        help='generate an algorithm layer for the supplied '
-                        'kernel')
-    parser.add_argument('--stub-gen', action="store_true",
-                        help='generate a stub kernel subroutine')
-    parser.add_argument('-oalg', help="filename of created algorithm code "
-                        "(implies '--alg-gen'")
-    parser.add_argument('-ostub', help="filename of created kernel stub code "
-                        "(implies '--stub-gen')")
+        description='Run the PSyclone kernel generator on a particular file.')
+    parser.add_argument('-gen', choices=GEN_MODES.keys(), default="stub",
+                        help="what to generate for the supplied kernel "
+                        "(alg=algorithm layer, stub=kernel-stub "
+                        "subroutine). Defaults to stub.")
+    parser.add_argument('-o', dest='out_file', default=None,
+                        help="filename for created code.")
     parser.add_argument('-api',
                         help=f"choose a particular API from "
                         f"{Config.get().supported_apis}, default "
                         f"'{Config.get().default_api}'.")
-    parser.add_argument('filename', help='file containing Kernel metadata')
+    parser.add_argument('filename', help='file containing Kernel metadata.')
 
     # Make the default an empty list so that we can check whether the
     # user has supplied a value(s) later
     parser.add_argument(
         '-I', '--include', default=[], action="append",
-        help='path to Fortran INCLUDE or module files')
+        help='path to Fortran INCLUDE or module files.')
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
@@ -152,20 +155,16 @@ def run(args):
         print(str(err), file=sys.stderr)
         sys.exit(1)
 
-    alg = None
-    stub = None
     try:
-        if args.alg_gen or args.oalg:
+        if args.gen == "alg":
             # Generate algorithm
-            args.alg_gen = True
-            from psyclone.alg_gen import generate
-            alg = generate(args.filename, api=api)
-
-        if args.stub_gen or args.ostub:
+            code = alg_gen.generate(args.filename, api=api)
+        elif args.gen == "stub":
             # Generate kernel stub
-            args.stub_gen = True
-            from psyclone.gen_kernel_stub import generate
-            stub = generate(args.filename, api=api)
+            code = gen_kernel_stub.generate(args.filename, api=api)
+        else:
+            raise InternalError(f"Expected -gen option to be one of "
+                                f"{list(GEN_MODES.keys())} but got {args.gen}")
 
     except (IOError, ParseError, GenerationError, RuntimeError) as error:
         print("Error:", error, file=sys.stderr)
@@ -179,33 +178,15 @@ def run(args):
         traceback.print_tb(exc_traceback)
         sys.exit(1)
 
-    if not (args.stub_gen or args.alg_gen):
-        print("Error, no action specified: one or both of --stub-gen/-oalg "
-              "or --alg-gen/-ogen must be supplied.", file=sys.stderr)
-        sys.exit(1)
-
     if args.limit != "off":
+        # Apply line-length limiting to the output code.
         fll = FortLineLength()
-        if stub:
-            stub_str = fll.process(str(stub))
-        if alg:
-            alg_str = fll.process(str(alg))
+        code_str = fll.process(str(code))
     else:
-        if stub:
-            stub_str = str(stub)
-        if alg:
-            alg_str = str(alg)
+        code_str = str(code)
 
-    if stub:
-        if args.ostub:
-            with io.open(args.ostub, mode='w', encoding='utf-8') as fobj:
-                fobj.write(stub_str)
-        else:
-            print("Kernel stub code:\n", stub_str, file=sys.stdout)
-
-    if alg:
-        if args.oalg:
-            with io.open(args.oalg, mode='w', encoding='utf-8') as fobj:
-                fobj.write(alg_str)
-        else:
-            print("Algorithm code:\n", alg_str, file=sys.stdout)
+    if args.out_file:
+        with io.open(args.out_file, mode='w', encoding='utf-8') as fobj:
+            fobj.write(code_str)
+    else:
+        print(f"{GEN_MODES[args.gen]}:\n", code_str, file=sys.stdout)

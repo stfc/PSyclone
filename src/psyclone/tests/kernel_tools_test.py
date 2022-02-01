@@ -44,14 +44,14 @@ from psyclone import alg_gen, gen_kernel_stub, kernel_tools
 from psyclone.version import __VERSION__
 
 
-def test_run_missing_action(capsys):
-    ''' Test that failing to specify whether to create a stub or an algorithm
-    results in the expected message. '''
-    with pytest.raises(SystemExit):
-        kernel_tools.run(["not_a_file.f90"])
-    _, err = capsys.readouterr()
-    assert ("Error, no action specified: one or both of --stub-gen/-oalg or "
-            "--alg-gen/-ogen must be supplied." in err)
+def test_run_default_mode(capsys):
+    ''' Test that the default behaviour is to create a kernel stub. '''
+    kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+    kernel_tools.run([str(kern_file)])
+    out, err = capsys.readouterr()
+    assert "Kernel-stub code:\n   MODULE testkern_w0_mod\n" in out
+    assert not err
 
 
 def test_run(capsys, tmpdir):
@@ -60,14 +60,14 @@ def test_run(capsys, tmpdir):
     # (dynamo 0.3) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    kernel_tools.run([str(kern_file), "--limit", "output", "--stub-gen"])
+    kernel_tools.run([str(kern_file), "--limit", "output", "-gen", "stub"])
     result, _ = capsys.readouterr()
-    assert "Kernel stub code:" in result
+    assert "Kernel-stub code:" in result
     assert "MODULE testkern_w0_mod" in result
 
-    # Test without --limit, but with -ostub:
+    # Test without --limit, but with -o:
     psy_file = tmpdir.join("psy.f90")
-    kernel_tools.run([str(kern_file), "-api", "dynamo0.3", "-ostub",
+    kernel_tools.run([str(kern_file), "-api", "dynamo0.3", "-o",
                       str(psy_file)])
     result, _ = capsys.readouterr()
 
@@ -108,7 +108,7 @@ def test_run_include_flag(capsys):
 def test_run_missing_file(capsys):
     ''' Test that an IOError is handled correctly. '''
     with pytest.raises(SystemExit):
-        kernel_tools.run(["--stub-gen", str("/does_not_exist")])
+        kernel_tools.run([str("/does_not_exist")])
     _, result = capsys.readouterr()
     assert ("Error: Kernel stub generator: File '/does_not_exist' "
             "not found" in str(result))
@@ -124,7 +124,7 @@ def test_unexpected_exception(monkeypatch, capsys):
 
     monkeypatch.setattr(alg_gen, "generate", broken_gen)
     with pytest.raises(SystemExit):
-        kernel_tools.run(["--alg-gen", str("/does_not_exist")])
+        kernel_tools.run(["-gen", "alg", str("/does_not_exist")])
     _, err = capsys.readouterr()
     assert "unexpected exception:" in err
     assert "This is just a test" in err
@@ -135,10 +135,22 @@ def test_run_alg_gen(capsys):
     algorithm layer if requested. Currently this raises a
     NotImplementedError. '''
     with pytest.raises(SystemExit):
-        kernel_tools.run(["--alg-gen", str("/does_not_exist")])
+        kernel_tools.run(["-gen", "alg", str("/does_not_exist")])
     _, err = capsys.readouterr()
     assert ("Algorithm generation from kernel metadata is not yet "
             "implemented - #1555" in err)
+
+
+def test_invalid_gen_arg(capsys, monkeypatch):
+    ''' Test that the expected error is raised if the generation option
+    specified on the command line is not supported. '''
+    # The ArgumentParser class already checks that the supplied value is
+    # correct so we have to monkeypatch the list of names that it uses
+    # when performing this check.
+    monkeypatch.setattr(kernel_tools, "GEN_MODES", {"wrong": "nothing"})
+    kernel_tools.run(["-gen", "wrong", str("/does_not_exist")])
+    _, err = capsys.readouterr()
+    assert "Expected -gen option to be one of" in err
 
 
 @pytest.mark.parametrize("limit", [True, False])
@@ -156,7 +168,7 @@ def test_run_line_length(monkeypatch, capsys, limit, mode):
     # Monkeypatch both the algorithm and stub 'generate' functions.
     monkeypatch.setattr(alg_gen, "generate", long_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", long_gen)
-    args = [f"--{mode}-gen", str("/does_not_exist")]
+    args = ["-gen", mode, str("/does_not_exist")]
     if limit:
         args.extend(["--limit", "output"])
     kernel_tools.run(args)
@@ -182,7 +194,7 @@ def test_file_output(monkeypatch, mode, tmpdir):
     monkeypatch.setattr(alg_gen, "generate", fake_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
     tmpdir.chdir()
-    kernel_tools.run([f"-o{mode}", f"output_file_{mode}",
+    kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
                       str("/does_not_exist")])
     with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
         content = infile.read()
