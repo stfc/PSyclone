@@ -141,7 +141,7 @@ class OMPDirective(Directive):
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel do", "parallel", "do", "master", "single",
-                       "taskloop", "taskwait"]
+                       "taskloop", "taskwait", "declare"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)
@@ -163,7 +163,7 @@ class ACCDirective(Directive):
                          'loop').
     '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel", "kernels", "enter data", "loop"]
+        self._types = ["parallel", "kernels", "enter data", "loop", "routine"]
         self._positions = ["begin", "end"]
 
         super(ACCDirective, self).__init__(root, line, position, dir_type)

@@ -44,9 +44,10 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.errors import GenerationError
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCEnterDataDirective, \
+from psyclone.psyir.nodes import ACCRoutineDirective, \
     ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
@@ -242,7 +243,19 @@ def test_acckernelsdirective_gencode(default_present):
         "      END DO\n"
         "      !$acc end kernels\n" in code)
 
-# Class ACCKernelsDirective end
+
+# Class ACCRoutineDirective
+
+def test_acc_routine_directive_constructor_and_strings():
+    ''' Test the ACCRoutineDirective constructor and its output
+    strings.'''
+    target = ACCRoutineDirective()
+    assert target.begin_string() == "acc routine"
+    assert str(target) == "ACCRoutineDirective[]"
+
+    temporary_module = ModuleGen("test")
+    target.gen_code(temporary_module)
+    assert "!$acc routine\n" in str(temporary_module.root)
 
 
 # Class ACCUpdateDirective

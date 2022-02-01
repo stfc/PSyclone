@@ -49,7 +49,8 @@ from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
-    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, Reference
+    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
+    Reference, OMPDeclareTargetDirective
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -473,6 +474,20 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.begin_string() == "omp target"
     assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
+
+
+# Test OMPDeclareTargetDirective
+
+def test_omp_declare_target_directive_constructor_and_strings():
+    ''' Test the OMPDeclareTargetDirective constructor and its output
+    strings.'''
+    target = OMPDeclareTargetDirective()
+    assert target.begin_string() == "omp declare target"
+    assert str(target) == "OMPDeclareTargetDirective[]"
+
+    temporary_module = ModuleGen("test")
+    target.gen_code(temporary_module)
+    assert "!$omp declare target\n" in str(temporary_module.root)
 
 
 # Test OMPLoopDirective

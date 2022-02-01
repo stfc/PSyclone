@@ -116,6 +116,38 @@ class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
     '''
 
 
+class OMPDeclareTargetDirective(OMPStandaloneDirective):
+    '''
+    Class representing an OpenMP Declare Target directive in the PSyIR.
+
+    '''
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Declare Target Directive and any
+        associated code.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "declare", "target"))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp routine". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp declare target"
+
+
 class OMPTaskwaitDirective(OMPStandaloneDirective):
     '''
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
@@ -1096,4 +1128,4 @@ __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
-           "OMPLoopDirective"]
+           "OMPLoopDirective", "OMPDeclareTargetDirective"]
