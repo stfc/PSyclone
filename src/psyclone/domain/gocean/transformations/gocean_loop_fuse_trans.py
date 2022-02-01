@@ -99,35 +99,6 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                 "{1} {2}".format(self.name, node1.field_space,
                                  node2.field_space))
 
-    def apply(self, node1, node2, options=None):
-        ''' Fuses two `psyclone.gocean1p0.GOLoop` loops after performing
-        validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class.
-
-        :param node1: the first Node representing a GOLoop.
-        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param node2: the second Node representing a GOLoop.
-        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the supplied loops are over \
-                                     different grid-point types.
-        :raises TransformationError: if there is an unexpected exception.
-
-        '''
-        # Validate first
-        self.validate(node1, node2, options=options)
-
-        # Now check for GOcean-specific constraints before applying
-        # the transformation
-        try:
-            LoopFuseTrans.apply(self, node1, node2, options)
-        except Exception as err:
-            raise TransformationError(
-                "Error in {0} transformation. Unexpected exception: {1}".
-                format(self.name, err))
-
 
 # For automatic documentation generation
 __all__ = ["GOceanLoopFuseTrans"]
