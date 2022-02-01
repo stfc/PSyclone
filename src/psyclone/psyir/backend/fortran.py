@@ -1441,7 +1441,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [f"{self._nindent}!${node.begin_string()}\n"]
+        result_list = [f"{self._nindent}!${node.begin_string()}"]
 
         clause_list = []
         for clause in node.clauses:
@@ -1471,7 +1471,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [f"{self._nindent}!${node.begin_string()}\n"]
+        result_list = [f"{self._nindent}!${node.begin_string()}"]
 
         clause_list = []
         result_list.append(",".join(clause_list))
