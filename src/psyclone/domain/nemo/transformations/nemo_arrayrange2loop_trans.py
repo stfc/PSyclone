@@ -137,7 +137,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         assignment = node.ancestor(Assignment)
         parent = assignment.parent
         # Ensure we always use the routine-level symbol table
-        symbol_table = node.ancestor(InvokeSchedule).symbol_table
+        symbol_table = node.ancestor(Routine).symbol_table
 
         # See if there is any configuration information for this array index
         loop_type_order = Config.get().api_conf("nemo").get_index_order()

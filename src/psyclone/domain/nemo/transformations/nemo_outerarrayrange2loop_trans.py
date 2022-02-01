@@ -43,12 +43,8 @@ result in a reordering of the array accesses.
 
 '''
 
-from __future__ import absolute_import
-
-import six
-
-from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    Assignment
+from psyclone.psyir.nodes import Assignment, Reference, Range
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
@@ -120,7 +116,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         self.validate(node)
 
         # get lhs array
-        lhs_array_ref = node.lhs
+        lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
         index = get_outer_index(lhs_array_ref)
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
@@ -161,29 +157,24 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         # Am I an assignment node?
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Assignment, but "
-                "found '{0}'.".format(type(node).__name__))
+                f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Assignment, but "
+                f"found '{type(node).__name__}'.")
 
         # Is the LHS an array reference?
-        if not isinstance(node.lhs, (ArrayReference,
-                                     ArrayOfStructuresReference)):
+        if not (isinstance(node.lhs, Reference) and node.lhs.walk(ArrayMixin)):
             raise TransformationError(
-                "Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                "supplied assignment node should have either an ArrayReference"
-                " or an ArrayOfStructuresReference node on its lhs but found "
-                "'{0}'.".format(type(node.lhs).__name__))
-        array_reference = node.lhs
+                f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
+                f"supplied assignment node should be a Reference that contains"
+                f" an ArrayMixin somewhere in the expression, but found "
+                f"'{node.lhs}'.")
         # Has the array reference got a range?
-        try:
-            _ = get_outer_index(array_reference)
-        except IndexError as error:
-            message = (
-                "Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                "LHS of the supplied assignment node should be an "
-                "ArrayReference/ArrayOfStructuresReference node containing at "
-                "least one Range node but there are none.")
-            six.raise_from(TransformationError(message), error)
+        if not node.lhs.walk(Range):
+            raise TransformationError(
+                f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
+                f"LHS of the supplied assignment node should be an expression "
+                f"with an array that has a Range node, but found '{node.lhs}'."
+                )
 
 
 # For automatic document generation
