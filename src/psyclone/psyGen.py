@@ -219,8 +219,6 @@ class PSyFactory(object):
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOPSy as PSyClass
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy as PSyClass
         elif self._type == "nemo":

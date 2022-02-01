@@ -470,8 +470,7 @@ def get_base_path(api):
     api_2_path = {"dynamo0.1": "dynamo0p1",
                   "dynamo0.3": "dynamo0p3",
                   "nemo": "../nemo/test_files",
-                  "gocean1.0": "gocean1p0",
-                  "gocean0.1": "gocean0p1"}
+                  "gocean1.0": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
     except KeyError:

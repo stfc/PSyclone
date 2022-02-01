@@ -40,7 +40,6 @@
 
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 import psyclone.gocean1p0
-import psyclone.gocean0p1
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
@@ -84,13 +83,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if invalid parameters are passed in.
 
         '''
-
-        # Either both nodes are gocean1.0 loop nodes, or both
-        # nodes are gocean0.1 loop nodes, otherwise raise an exception:
-        if not ((isinstance(node1, psyclone.gocean0p1.GOLoop) and
-                 isinstance(node2, psyclone.gocean0p1.GOLoop)) or
-                (isinstance(node1, psyclone.gocean1p0.GOLoop) and
-                 isinstance(node2, psyclone.gocean1p0.GOLoop))):
+        if not (isinstance(node1, psyclone.gocean1p0.GOLoop) and
+                isinstance(node2, psyclone.gocean1p0.GOLoop)):
             raise TransformationError("Error in {0} transformation. "
                                       "Both nodes must be of the same "
                                       "GOLoop class.".format(self.name))
