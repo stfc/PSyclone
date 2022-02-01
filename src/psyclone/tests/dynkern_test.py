@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
-# Modified I. Kavcic Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Author: R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic Met Office
+#           J. Henrichs, Bureau of Meteorology
+#           A. R. Porter, STFC Daresbury Laboratory
 
 '''This module tests the DynKern class within dynamo0p3 using
 pytest. At the moment the tests here do not fully cover DynKern as

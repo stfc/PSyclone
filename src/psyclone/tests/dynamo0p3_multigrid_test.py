@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -578,7 +578,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      !\n"
             "      DO cell=loop1_start,loop1_stop\n")
         assert expected in output
-        assert "loop1_stop = mesh_fld_m%get_last_halo_cell(1)\n"
+        assert "loop1_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
         # Again the L1 halo for fld_f will now be clean but for restriction
         # we need the L2 halo to be clean. There's a set_clean(1) for
         # fld_f because the above loop over the coarser fld_m will go

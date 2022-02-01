@@ -9,7 +9,7 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2021, Science and Technology Facilities
+! Modifications copyright (c) 2020-2022, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -286,8 +286,8 @@ module mesh_mod
     procedure, public :: get_last_halo_cell_any
     procedure, public :: get_last_halo_cell_deepest
     generic           :: get_last_halo_cell => &
-                           get_last_halo_cell_any, &
-                           get_last_halo_cell_deepest
+                            get_last_halo_cell_any, &
+                            get_last_halo_cell_deepest
 
     procedure, public :: get_last_halo_cell_per_colour_any
     procedure, public :: get_last_halo_cell_per_colour_deepest

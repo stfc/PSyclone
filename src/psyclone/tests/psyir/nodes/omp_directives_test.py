@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,7 @@ def test_directive_get_private(monkeypatch):
     # generation time and therefore we cannot generate the list of
     # private variables until that is under way. Ultimately this will be
     # replaced by a `lower_to_language_level` call.
-    # pylint: disable=useless-statement
+    # pylint: disable=pointless-statement
     psy.gen
     # Now check that _get_private_list returns what we expect
     pvars = directive._get_private_list()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -980,7 +980,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
         # redundantly (out to the L1 halo)
-        assert "loop0_stop = mesh%get_last_halo_cell(1)\n"
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
         assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
     assert "DO cell=loop0_start,loop0_stop\n" in code

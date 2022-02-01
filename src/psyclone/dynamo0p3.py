@@ -3858,18 +3858,19 @@ class DynMeshes(object):
                     ", ".join([call.name for call in non_intergrid_kernels]),
                     invoke.name))
 
-        # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object if we have one or
-        # more kernels that operate on cell-columns or are doing redundant
-        # computation for a kernel that operates on dofs. Since the latter
-        # condition comes about through the application of a transformation,
-        # we don't yet know whether or not a mesh is required. Therefore,
-        # the only solution is to assume that a mesh object is required if
-        # distributed memory is enabled. We also require a mesh
-        # object if any of the kernels require properties of either the
-        # reference element or the mesh. (Colourmaps also require a mesh
-        # object but that is handled in _colourmap_init().)
+        # If distributed memory is enabled then we will need at least
+        # one mesh object if we have one or more kernels that operate
+        # on cell-columns or are doing redundant computation for a
+        # kernel that operates on dofs. Since the latter condition
+        # comes about through the application of a transformation, we
+        # don't yet know whether or not a mesh is required. Therefore,
+        # the only solution is to assume that a mesh object is
+        # required if distributed memory is enabled. We also require a
+        # mesh object if any of the kernels require properties of
+        # either the reference element or the mesh. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
         if not _name_set and Config.get().distributed_memory:
+            # We didn't already have a requirement for a mesh so add one now.
             _name_set.add("mesh")
 
         self._add_mesh_symbols(list(_name_set))
@@ -3982,6 +3983,7 @@ class DynMeshes(object):
             colour_map = self._schedule.symbol_table.find_or_create_tag(
                 "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
             # No. of colours
+            # TODO #1258 this variable should have precision 'i_def'.
             ncolours = self._schedule.symbol_table.find_or_create_tag(
                 "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
             if Config.get().distributed_memory:
@@ -6520,18 +6522,16 @@ def halo_check_arg(field, access_types):
 class HaloWriteAccess(HaloDepth):
     '''Determines how much of a field's halo is written to (the halo depth)
     when a field is accessed in a particular kernel within a
-    particular loop nest
+    particular loop nest.
+
+    :param field: the field that we are concerned with.
+    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+    :param sym_table: the symbol table associated with the scoping region \
+                      that contains this halo access.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
     def __init__(self, field, sym_table):
-        '''
-        :param field: the field that we are concerned with
-        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :param sym_table: the symbol table associated with the scoping region \
-                          that contains this halo access.
-        :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        '''
         HaloDepth.__init__(self, sym_table)
         self._compute_from_field(field)
 
@@ -6604,18 +6604,16 @@ class HaloWriteAccess(HaloDepth):
 class HaloReadAccess(HaloDepth):
     '''Determines how much of a field's halo is read (the halo depth) and
     additionally the access pattern (the stencil) when a field is
-    accessed in a particular kernel within a particular loop nest
+    accessed in a particular kernel within a particular loop nest.
+
+    :param field: the field for which we want information.
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param sym_table: the symbol table associated with the scoping region \
+                      that contains this halo access.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
     def __init__(self, field, sym_table):
-        '''
-        :param field: the field that we want to get information on
-        :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param sym_table: the symbol table associated with the scoping region \
-                          that contains this halo access.
-        :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        '''
         HaloDepth.__init__(self, sym_table)
         self._stencil_type = None
         self._needs_clean_outer = None
@@ -7080,7 +7078,7 @@ class DynLoop(Loop):
 
         TODO: Issue #440. upper_bound_fortran should generate PSyIR.
 
-        :return: Fortran code for the upper bound of this loop
+        :returns: Fortran code for the upper bound of this loop.
         :rtype: str
 
         '''
@@ -7911,7 +7909,7 @@ class DynKern(CodedKern):
         '''
         Getter for the name of the colourmap associated with this kernel call.
 
-        :return: name of the colourmap (Fortran array)
+        :returns: name of the colourmap (Fortran array).
         :rtype: str
 
         :raises InternalError: if this kernel is not coloured or the \
@@ -7939,8 +7937,9 @@ class DynKern(CodedKern):
         Getter for the name of the array holding the index of the last cell of
         each colour.
 
-        :return: name of the array
+        :returns: name of the array.
         :rtype: str
+
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -603,8 +603,8 @@ def test_multi_prefix_profile(monkeypatch):
             "      CALL tool1_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r0\", 0, 0)\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
-    assert "loop0_stop = mesh%get_last_halo_cell(1)\n"
-    assert "loop2_stop = mesh%get_last_halo_cell(1)\n"
+    assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
+    assert "loop2_stop = mesh%get_last_halo_cell(1)\n" in result
     assert ("      CALL tool1_psy_data%PostEnd\n"
             "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"

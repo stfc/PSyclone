@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3579,7 +3579,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=loop"+names["loop_idx"]+"_start,"
-                "loop"+ names["loop_idx"]+"_stop\n"
+                "loop" + names["loop_idx"]+"_stop\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
                 names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
                 "      END DO\n"

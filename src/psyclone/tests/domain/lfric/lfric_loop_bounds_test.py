@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ from psyclone.dynamo0p3 import LFRicLoopBounds
 from psyclone.f2pygen import SubroutineGen, ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir import symbols
 
 
 BASE_PATH = os.path.join(
@@ -74,9 +75,21 @@ def test_lbounds_initialise(monkeypatch):
     mod = ModuleGen()
     fake_parent = SubroutineGen(mod)
     lbounds = LFRicLoopBounds(invoke)
+
+    table = invoke.schedule.symbol_table
+    assert "loop0_start" not in table
+    assert "loop0_stop" not in table
+
     lbounds.initialise(fake_parent)
+
+    # Check that new symbols have been added.
+    start_sym = table.lookup("loop0_start")
+    assert start_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    stop_sym = table.lookup("loop0_stop")
+    assert stop_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+
     assert "Set-up all of the loop bounds" in str(fake_parent.children[1].root)
-    # Monkeypatch the schedule so that it appears to have no loops
+    # Monkeypatch the schedule so that it appears to have no loops.
     monkeypatch.setattr(invoke.schedule, "loops", lambda: [])
     lbounds = LFRicLoopBounds(invoke)
     fake_parent = SubroutineGen(mod)
@@ -84,3 +97,6 @@ def test_lbounds_initialise(monkeypatch):
     # added to the f2pygen tree.
     lbounds.initialise(fake_parent)
     assert fake_parent.children == []
+    # Symbols representing loop bounds should be unaffected.
+    assert table.lookup("loop0_start") is start_sym
+    assert table.lookup("loop0_stop") is stop_sym
