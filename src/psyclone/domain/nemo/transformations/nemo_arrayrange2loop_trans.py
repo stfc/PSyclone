@@ -363,23 +363,15 @@ class NemoArrayRange2LoopTrans(Transformation):
                 if operator is BinaryOperation.Operator.UBOUND:
                     continue
 
-            # We allow any references that are part of a structure syntax
+            # We allow any references that are part of a structure syntax, we
+            # analyse its children components by continuing the reference list
             if isinstance(reference, (StructureReference, StructureMember)):
                 continue
 
-            # We allow any references that have explicit array dimensions
+            # We allow any references that have explicit array syntax
+            # because we infer that this are not scalars from the context
+            # where they are found (even if they have DeferredType)
             if isinstance(reference, (ArrayReference, ArrayMember)):
-                # Arrays must have at least 1 range child in order to be
-                # converted to an explicit expression
-                if not any(child for child in reference.children if
-                           isinstance(child, Range)):
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"Error in NemoArrayRange2LoopTrans "
-                        f"transformation. This transformation does not support"
-                        f" assignments with rhs arrays that don't have a range"
-                        f", but found '{reference.name}' in:"
-                        f"\n{FortranWriter()(assignment)}"))
                 continue
 
             # However, if it doesn't have array accessors or structure syntax,

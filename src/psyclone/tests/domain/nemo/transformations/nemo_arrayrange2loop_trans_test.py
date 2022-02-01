@@ -399,7 +399,8 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_writer):
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
         "      do ji = 1, jpi, 1\n"
-        "        mystruct%field2(4,3)%field(ji,jj,jk) = 0.0d0\n"
+        "        mystruct%field2(4,3)%field(ji,jj,jk) = "
+        "mystruct%field2(5,8)%field(ji,jj,jk)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)

@@ -52,7 +52,7 @@ program implicit_do_structures
 
   ! Test code with implicit do loop with 2 arrays in the LHS structure, one
   ! without ranges
-  mystruct%field2(4, 3)%field(:,:,:) = 0.0d0
+  mystruct%field2(4, 3)%field(:,:,:) = mystruct%field2(5, 8)%field(:,:,:)
 
   ! Test code with implicit do loop with 2 arrays in the LHS structure, both
   ! with ranges
