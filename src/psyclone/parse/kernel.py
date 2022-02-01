@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -244,9 +244,6 @@ class KernelTypeFactory(object):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.1":
-            from psyclone.dynamo0p1 import DynKernelType
-            return DynKernelType(parse_tree, name=name)
         if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)

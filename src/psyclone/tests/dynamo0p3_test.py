@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1150,8 +1150,8 @@ def test_stub_non_existent_filename():
 def test_stub_invalid_api():
     ''' fail if the specified api is not supported '''
     with pytest.raises(GenerationError) as excinfo:
-        generate(os.path.join(BASE_PATH, "ru_kernel_mod.f90"), api="dynamo0.1")
-    assert "Unsupported API 'dynamo0.1' specified" in str(excinfo.value)
+        generate(os.path.join(BASE_PATH, "ru_kernel_mod.f90"), api="nemo")
+    assert "Unsupported API 'nemo' specified" in str(excinfo.value)
 
 
 def test_stub_file_content_not_fortran():

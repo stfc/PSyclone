@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -298,8 +298,7 @@ def test_read_values():
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['dynamo0.1', 'dynamo0.3',
-                        'gocean0.1', 'gocean1.0', 'nemo']
+    assert api_list == ['dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo']
     # The default API for kernel stub generation
     api = _config.default_stub_api
     assert isinstance(api, six.text_type)
@@ -477,9 +476,9 @@ def test_wrong_api():
         _ = _config.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api_conf("dynamo0.1")
+        _ = _config.api_conf("nemo")
     assert ("Configuration file did not contain a section for the "
-            "'dynamo0.1' API" in str(err.value))
+            "'nemo' API" in str(err.value))
     with pytest.raises(ValueError) as err:
         _config.api = "invalid"
     assert "'invalid' is not a valid API" in str(err.value)
