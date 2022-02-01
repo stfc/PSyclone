@@ -64,7 +64,7 @@ TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 # different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-API = dynamo0.3
+DEFAULTAPI = dynamo0.3
 DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
@@ -337,8 +337,8 @@ def test_api_not_in_list(tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^API = .*$",
-                     "API = invalid",
+    content = re.sub(r"^DEFAULTAPI = .*$",
+                     "DEFAULTAPI = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config")

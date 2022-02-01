@@ -919,8 +919,8 @@ class DynConfig(APISpecificConfig):
             raise ConfigurationError(
                 f"Supplied kind parameters {sorted(datakinds)} in the "
                 f"'[{section.name}]' section of the configuration file "
-                f"'{config.name}' do not define the default kind for one or "
-                f"more supported datatypes "
+                f"'{config.filename}' do not define the default kind for "
+                f"one or more supported datatypes "
                 f"{self._supported_fortran_datatypes}.")
         self._default_kind = all_kinds
 

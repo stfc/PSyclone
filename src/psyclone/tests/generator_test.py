@@ -595,7 +595,6 @@ def test_main_api():
 
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
-    assert Config.get().api != "dynamo0.3"
     main([filename, "--config", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
 
