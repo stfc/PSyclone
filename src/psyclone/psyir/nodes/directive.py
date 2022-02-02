@@ -64,7 +64,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         :returns: the Clauses associated with this directive.
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
-        return []
+        pass
 
 
 class RegionDirective(Directive):
