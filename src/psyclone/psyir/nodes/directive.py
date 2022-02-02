@@ -64,7 +64,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         :returns: the Clauses associated with this directive.
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
-        pass
+        return []
 
 
 class RegionDirective(Directive):
@@ -168,8 +168,10 @@ class StandaloneDirective(Directive):
         :returns: the Clauses associated with this directive.
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
-        if len(self.children) > 0:
-            return self.children
+        # This should be uncommented once a standalone directive with
+        # clauses exists
+        # if len(self.children) > 0:
+        #    return self.children
         return []
 
 
