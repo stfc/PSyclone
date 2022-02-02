@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -154,8 +154,8 @@ def test_field_gh_sum_invalid():
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API, allowed accesses for fields on continuous "
             "function spaces that are arguments to kernels that operate on "
-            "cell-columns are ['gh_read', 'gh_inc', 'gh_readinc'], but "
-            "found 'gh_sum' for 'w2'" in str(excinfo.value))
+            "cell-columns are ['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'],"
+            " but found 'gh_sum' for 'w2'" in str(excinfo.value))
 
 
 def test_ad_fld_type_too_few_args():
