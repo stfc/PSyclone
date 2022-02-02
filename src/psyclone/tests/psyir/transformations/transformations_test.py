@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@ from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
     OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
@@ -326,6 +327,82 @@ def test_omplooptrans_properties():
             in str(err.value))
 
 
+def test_parallellooptrans_validate_dependencies(fortran_reader):
+    ''' Test that the parallellooptrans validation checks for loop carried
+    dependencies. '''
+
+    def create_loops(body):
+        psyir = fortran_reader.psyir_from_source(f'''
+        subroutine my_subroutine()
+            integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
+            real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
+            real :: total
+            {body}
+        end subroutine''')
+        return psyir.walk(Loop)
+
+    # Use OMPLoopTrans as a concrete class of ParallelLoopTrans
+    omplooptrans = OMPLoopTrans()
+    # Example with a loop carried dependency in jk dimension
+    loops = create_loops('''
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              zwt(ji,jj,jk) = zwd(ji,jj,jk) - zwi(ji,jj,jk) * &
+                              zws(ji,jj,jk - 1) / zwt(ji,jj,jk - 1)
+            enddo
+          enddo
+        enddo''')
+
+    # Check that the loop can not be parallelised due to the loop-carried
+    # dependency.
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.validate(loops[0])
+    assert ("Transformation Error: Dependency analysis failed with the "
+            "following messages:\nWarning: Variable 'zwt' is written and "
+            "is accessed using indices 'jk - 1' and 'jk' and can therefore "
+            "not be parallelised." in str(err.value))
+
+    # However, the inner loop can be parallelised because the dependency is
+    # just with 'jk' and it is not modified in the inner loops
+    omplooptrans.validate(loops[1])
+
+    # Check if there is missing symbol information it still validates
+    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
+    omplooptrans.validate(loops[1])
+
+    # Reductions also indicate a data dependency that needs to be handled, so
+    # we don't permit the parallelisation of the loop (until we support
+    # reduction clauses)
+    loops = create_loops('''
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              total = total + zwt(ji,jj,jk)
+            enddo
+          enddo
+        enddo''')
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.validate(loops[0])
+    assert ("Transformation Error: Dependency analysis failed with the "
+            "following messages:\nWarning: Variable 'total' is read first, "
+            "which indicates a reduction." in str(err.value))
+
+    # Shared scalars are race conditions but these are accepted because it
+    # can be manage with the appropriate clause
+    loops = create_loops('''
+        do jk = 2, jpkm1, 1
+          do jj = 2, jpjm1, 1
+            do ji = 2, jpim1, 1
+              total = zwt(ji,jj,jk)
+            enddo
+          enddo
+        enddo''')
+    assert not DependencyTools().can_loop_be_parallelised(
+                    loops[0], only_nested_loops=False)
+    omplooptrans.validate(loops[0])
+
+
 def test_omplooptrans_apply(sample_psyir, fortran_writer):
     ''' Test OMPLoopTrans works as expected with the different options. '''
 
@@ -354,6 +431,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
     omplooptrans.apply(loop2, {'collapse': 2})
     assert isinstance(loop2.parent, Schedule)
     assert isinstance(loop2.parent.parent, OMPLoopDirective)
+    ompparalleltrans.apply(loop2.parent.parent)  # Needed for generation
 
     # Check that the full resulting code looks like this
     expected = '''
@@ -366,13 +444,16 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
+  !$omp parallel default(shared), private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = 0
     enddo
   enddo
-  !$omp end loop\n'''
+  !$omp end loop
+  !$omp end parallel\n'''
+
     assert expected in fortran_writer(tree)
 
 
