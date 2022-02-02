@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -737,7 +737,8 @@ combinations are specified later in this section (see
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
 * ``GH_WRITE`` indicates the data is modified in the Kernel before
-  (optionally) being read.
+  (optionally) being read. If any shared DoFs are written to then
+  different iterations of the Kernel must write the same value.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
   update quantities which do not share DoFs, such as operators and
@@ -812,7 +813,7 @@ For example::
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
           does not yet support ``integer`` and ``logical`` reductions.
 
-For a scalar the argument metadata contains only these three entries.
+For a scalar, the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -942,6 +943,7 @@ modes depend upon the argument type and the function space it is on:
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Continuous                   | GH_READ, GH_INC,   |
+|                        |                              | GH_WRITE,          |
 |                        |                              | GH_READINC         |
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
@@ -958,11 +960,22 @@ in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
 in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
-``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
-function space (see :ref:`lfric-function-space` for the list of
-discontinuous function spaces). Parallelisation of the loop over the
-horizontal domain for a kernel that updates such a field will not require
-colouring for either of the above cases (since there are no shared entities).
+``GH_READWRITE`` as its access pattern must typically (see below) be
+on a horizontally- discontinuous function space (see
+:ref:`lfric-function-space` for the list of discontinuous function
+spaces). Parallelisation of the loop over the horizontal domain for a
+kernel that updates such a field will not require colouring for either
+of the above cases (since there are no shared entities).
+
+There is however an exception to this - certain kernels may write to
+shared entities but each kernel iteration is guaranteed to write the
+*same value* to a given shared DoF. In this case, provided that the
+first access to any such shared DoF is a write, the loop containing
+such a kernel may be parallelised without colouring. Therefore,
+``GH_WRITE`` access is permitted for ``GH_FIELD`` arguments on
+continuous function spaces.  Obviously care must be taken to ensure
+that the kernel implementation satisfies the constraints just
+described as PSyclone cannot currently check this.
 
 If a field is described as being on ``ANY_SPACE_*``, there is currently no
 way to determine its continuity from the metadata (unless we can statically
