@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective, \
-    OMPTargetDirective
+    OMPTargetDirective, OMPDeclareTargetDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
@@ -614,7 +614,82 @@ class OMPTargetTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-        return None, None
+
+class OMPDeclareTargetTrans(Transformation):
+    '''
+    Adds an OpenMP declare target directive to the specified routine.
+
+    For example:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import OMPDeclareTargetTrans
+    >>>
+    >>> tree = FortranReader().psyir_from_source("""
+    ...     subroutine my_subroutine(A)
+    ...         integer, dimension(10, 10), intent(inout) :: A
+    ...         integer :: i
+    ...         integer :: j
+    ...         do i = 1, 10
+    ...             do j = 1, 10
+    ...                 A(i, j) = 0
+    ...             end do
+    ...         end do
+    ...     end subroutine
+    ...     """
+    >>> omptargettrans = OMPDeclareTargetTrans()
+    >>> omptargettrans.apply(tree.walk(Routine))
+
+    will generate:
+
+    .. code-block:: fortran
+
+        subroutine my_subroutine(A)
+            integer, dimension(10, 10), intent(inout) :: A
+            integer :: i
+            integer :: j
+            !$omp declare target
+            do i = 1, 10
+                do j = 1, 10
+                    A(i, j) = 0
+                end do
+            end do
+            !$omp end target
+        end subroutine
+
+    '''
+    def apply(self, node, options=None):
+        ''' Insert an OMPDeclareTargetDirective inside the provided routine.
+
+        :param node: the PSyIR routine to insert the directive into.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: dict of str:values or None
+
+        '''
+        self.validate(node, options)
+        for child in node.children:
+            if isinstance(child, OMPDeclareTargetDirective):
+                return  # The routine is already marked with OMPDeclareTarget
+        node.insert(0, OMPDeclareTargetDirective())
+
+    def validate(self, node, options=None):
+        ''' Check that an OMPDeclareTargetDirective can be inserted.
+
+        :param node: the PSyIR node to validate.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the node is not a Routine
+
+        '''
+        super().validate(node, options=options)
+        # Check that the supplied Node is a Routine
+        if not isinstance(node, Routine):
+            raise TransformationError(
+                f"The OMPDeclareTargetTrans must be applied to a Routine, "
+                f"but found: '{type(node).__name__}'.")
 
 
 class OMPLoopTrans(ParallelLoopTrans):
