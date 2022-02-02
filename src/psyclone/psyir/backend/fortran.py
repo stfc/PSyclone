@@ -1479,8 +1479,8 @@ class FortranWriter(LanguageWriter):
         # for clause in node.clauses:
         #     clause_list.append(self._visit(clause))
         # Add a space only if there are clauses
-        if len(clause_list) > 0:
-            result = result + " "
+        # if len(clause_list) > 0:
+        #     result = result + " "
         result = result + " ".join(clause_list)
         result = result + "\n"
 

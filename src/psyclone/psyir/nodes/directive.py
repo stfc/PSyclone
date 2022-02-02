@@ -58,6 +58,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
     _colour = "green"
 
     @property
+    @abc.abstractmethod
     def clauses(self):
         '''
         :returns: the Clauses associated with this directive.
