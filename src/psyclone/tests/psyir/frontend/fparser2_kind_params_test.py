@@ -48,7 +48,8 @@ from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               _kind_find_or_create)
 from psyclone.psyir.nodes import KernelSchedule
 from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
-                                    RoutineSymbol, SymbolTable, Symbol)
+                                    RoutineSymbol, SymbolTable, Symbol,
+                                    DeferredType)
 
 
 def process_declarations(code):
@@ -151,6 +152,18 @@ def test_kind_param_unknowntype():
     kind_sym = _kind_find_or_create("wp", symbol_table)
     assert kind_sym is wp_sym
     assert wp_sym.datatype.declaration == "integer, parameter :: wp = dp"
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_kind_param_deferredtype():
+    ''' Check that the _kind_find_or_create() routine changes the type of
+    a Symbol representing a kind parameter if it is of DeferredType. '''
+    symbol_table = SymbolTable()
+    wp_sym = DataSymbol("wp", DeferredType())
+    symbol_table.add(wp_sym)
+    kind_sym = _kind_find_or_create("wp", symbol_table)
+    assert kind_sym is wp_sym
+    assert wp_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 
 @pytest.mark.usefixtures("f2008_parser")
