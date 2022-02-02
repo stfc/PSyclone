@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1058,6 +1058,8 @@ class OMPLoopDirective(OMPRegionDirective):
             child in its associated schedule.
         :raises GenerationError: if the schedule associated with this \
             OMPLoopDirective does not contain a Loop.
+        :raises GenerationError: this directive must be inside a omp target \
+            or parallel region.
         :raises GenerationError: if this OMPLoopDirective has a collapse \
             clause but it doesn't have the expected number of nested Loops.
 
@@ -1072,6 +1074,13 @@ class OMPLoopDirective(OMPRegionDirective):
             raise GenerationError(
                 "OMPLoopDirective must have a Loop as child of its associated "
                 "schedule but found '{0}'.".format(self.dir_body.children[0]))
+
+        if not self.ancestor((OMPTargetDirective, OMPParallelDirective)):
+            # Also omp teams or omp threads regions but these are not supported
+            # in the PSyIR
+            raise GenerationError(
+                f"OMPLoopDirective must be inside a OMPTargetDirective or a "
+                f"OMPParallelDirective, but '{self}' is not.")
 
         # If there is a collapse clause, there must be as many immediately
         # nested loops as the collapse value
