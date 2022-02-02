@@ -400,7 +400,10 @@ class DependencyTools(object):
 
         # Now we have at least two accesses. If the first access is a WRITE,
         # then the variable is not used in a reduction. This relies on sorting
-        # the accesses by location.
+        # the accesses by location. Note that an argument to a kernel can have
+        # a 'READWRITE' access because, in that case, all we know is what the
+        # kernel metadata tells us. However, we do know that such an access is
+        # *not* a reduction because that would have 'SUM' access.
         if all_accesses[0].access_type in (AccessType.WRITE,
                                            AccessType.READWRITE):
             return True
