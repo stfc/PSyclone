@@ -140,8 +140,8 @@ supported by PSyclone.
 Entry                   Description
 ======================= =======================================================
 DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
-                        conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone ("dynamo0.3",
+                        conforms to if no API is specified. Must be one of
+			the APIs supported by PSyclone ("dynamo0.3",
                         "gocean0.1", "gocean1.0" and "nemo"). If there is no
                         API specified and there is only one API-specific
                         section in the config file loaded, this API will be
