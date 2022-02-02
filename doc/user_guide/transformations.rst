@@ -41,10 +41,11 @@ Transformations
 ===============
 
 As discussed in the previous section, transformations can be applied
-to a schedule to modify it. Typically transformations will be used to
-optimise the PSy and/or Kernel layer(s) for a particular architecture,
-however transformations could be added for other reasons, such as to
-aid debugging or for performance monitoring.
+to PSyclone's internal representation (PSyIR) to modify it. Typically
+transformations will be used to optimise the Algorithm, PSy and/or
+Kernel layer(s) for a particular architecture, however transformations
+could be added for other reasons, such as to aid debugging or for
+performance monitoring.
 
 Finding
 -------
@@ -123,9 +124,8 @@ Available transformations
 Most transformations are generic as the schedule structure is
 independent of the API, however it often makes sense to specialise
 these for a particular API by adding API-specific errors checks. Some
-transformations are API-specific (or specific to a set of APIs
-e.g. dynamo). Currently these different types of transformation are
-indicated by their names.
+transformations are API-specific. Currently these different types of
+transformation are indicated by their names.
 
 The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
@@ -385,6 +385,16 @@ can be found in the API-specific sections).
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
 
+Algorithm-layer
+---------------
+
+The gocean1.0 API supports the transformation of the algorithm
+layer. In the future the LFRic (dynamo0.3) API will also support
+this. However, this is not relevant to the nemo API as it does not
+have the concept of an algorithm layer (just PSy and Kernel
+layers). The ability to transformation the algorithm layer is new and
+at this time no relevant transformations have been developed.
+
 Kernels
 -------
 
@@ -594,7 +604,8 @@ Script
 PSyclone provides a Python script (**psyclone**) that can be used from
 the command line to generate PSy layer code and to modify algorithm
 layer code appropriately. By default this script will generate
-"vanilla" (unoptimised) PSy layer code. For example::
+"vanilla" (unoptimised) PSy-layer and algorithm layer code. For
+example::
 
     > psyclone algspec.f90
     > psyclone -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
@@ -628,7 +639,7 @@ A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
 ::
 
-    def trans(psy)
+    def trans(psy):
         ...
         return psy
 
@@ -645,16 +656,39 @@ below does the same thing as the example in the
         ol.apply(schedule.children[0])
         return psy
 
+In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
+optional **trans_alg** function may also be supplied. This function
+accepts **PSyIR** (reprenting the algorithm layer) as an argument and
+returns **PSyIR** i.e.: ::
+
+   def trans_alg(psyir):
+       ...
+       return psyir
+
+As with the `trans()` function it is up to the script what it does with
+the algorithm PSyIR. Note that the `trans_alg()` script is applied to
+the algorithm layer before the PSy-layer is generated so any changes
+applied to the algorithm layer will be reflected in the **PSy** object
+that is passed to the `trans()` function.
+
+For example, if the `trans_alg()` function in the script merged two
+`invoke` calls into one then the **Alg** object passed to the
+`trans()` function of the script would only contain one schedule
+associated with the merged invoke.
+
 Of course the script may apply as many transformations as is required
-for a particular schedule and may apply transformations to all the
-schedules (i.e. invokes and/or kernels) contained within the PSy
-layer.
+for a particular algorithm and/or schedule and may apply
+transformations to all the schedules (i.e. invokes and/or kernels)
+contained within the PSy layer.
 
 Examples of the use of transformation scripts can be found in many of
 the examples, such as examples/lfric/eg3 and
 examples/lfric/scripts. Please read the examples/lfric/README file
 first as it explains how to run the examples (and see also the
 examples/check_examples script).
+
+An example of the use of a script making use of the `trans_alg()`
+function can be found in examples/gocean/eg7.
 
 OpenMP
 ------

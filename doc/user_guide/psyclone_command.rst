@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -245,9 +245,13 @@ specified directory:
 Transformation script
 ---------------------
 
-By default the ``psyclone`` command will generate 'vanilla' PSy layer
-code. The -s option allows a Python script to be specified which can
-transform the PSy layer. This option is discussed in more detail in
+In the gocean1.0 and lfric (dynamo0.3) API's the ``psyclone`` command
+will default to generating 'vanilla' PSy-layer and algorithm-layer
+code, and will not modify kernel-layer code. In the nemo API,
+``psyclone`` will not perform any transformations on the input code.
+
+The -s option allows a Python script to be specified which can
+transform the code. This option is discussed in more detail in
 the :ref:`sec_transformations_script` section.
 
 .. _fort_line_length:
