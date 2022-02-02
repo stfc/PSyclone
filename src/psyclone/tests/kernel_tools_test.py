@@ -148,7 +148,8 @@ def test_invalid_gen_arg(capsys, monkeypatch):
     # correct so we have to monkeypatch the list of names that it uses
     # when performing this check.
     monkeypatch.setattr(kernel_tools, "GEN_MODES", {"wrong": "nothing"})
-    kernel_tools.run(["-gen", "wrong", str("/does_not_exist")])
+    with pytest.raises(SystemExit):
+        kernel_tools.run(["-gen", "wrong", str("/does_not_exist")])
     _, err = capsys.readouterr()
     assert "Expected -gen option to be one of" in err
 

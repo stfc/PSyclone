@@ -56,10 +56,10 @@ ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
   # Failed to find the configuration file so don't attempt to specify it.
   # Will be picked up from default locations or $PSYCLONE_CONFIG.
   PSYCLONE ?= psyclone
-  KERNEL_STUB_GEN ?= "psyclone-kern --stub-gen"
+  KERNEL_STUB_GEN ?= "psyclone-kern -gen stub"
 else
   PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
-  KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg psyclone-kern --stub-gen
+  KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg psyclone-kern -gen stub
 endif
 
 PSYAD ?= psyad

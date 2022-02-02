@@ -661,7 +661,7 @@ def test_kernel_stub_usage():
     if no arguments are supplied. '''
 
     usage_msg = (
-        "usage: psyclone-kern [-h] [--alg-gen] [--stub-gen] [-oalg OALG] ")
+        "usage: psyclone-kern [-h] [-gen {alg,stub}] [-o OUT_FILE] [-api API]")
     out = subprocess.run(['psyclone-kern'], check=False,
                          stderr=subprocess.PIPE, encoding="utf-8").stderr
     assert usage_msg in out
@@ -671,7 +671,7 @@ def test_kernel_stub_gen_cmd_line():
     ''' Check that we can call the kernel-stub generator from the
     command line. '''
 
-    out = subprocess.check_output(["psyclone-kern", "--stub-gen",
+    out = subprocess.check_output(["psyclone-kern", "-gen", "stub",
                                    os.path.join(BASE_PATH, "simple.f90")])
 
     assert SIMPLE in out.decode('utf-8')
