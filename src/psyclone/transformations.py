@@ -213,6 +213,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 colours.
         :raises TransformationError: if 'collapse' is supplied with an \
                 invalid number of loops.
+        :raises TransformationError: if there is a data dependency that \
+                prevents the parallelisation of the loop.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
