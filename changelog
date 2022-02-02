@@ -83,6 +83,11 @@
 
 	29) PR #1518 for #1506. Bugfix for WHEREs involving derived types.
 
+	30) PR #1578 for #1517. Uses dependency analysis to check for
+	loop-carried dependencies when attempting to parallelise a loop.
+	Also improves validation checks at code-generation time to ensure
+	that any OMP Loop directive is within a Target or Parallel region.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
