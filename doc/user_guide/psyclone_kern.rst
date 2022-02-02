@@ -67,8 +67,7 @@ The ``psyclone-kern`` command has the following arguments:
 .. code-block:: bash
 
     > psyclone-kern -h
-    usage: psyclone-kern [-h] [--alg-gen] [--stub-gen] [-oalg OALG]
-                         [-ostub OSTUB] [-api API]
+    usage: psyclone-kern [-h] [-gen {alg,stub}] [-o OUT_FILE] [-api API]
                          [-I INCLUDE] [-l {off,all,output}]
                          [--config CONFIG] [-v]
                          filename
@@ -80,13 +79,10 @@ The ``psyclone-kern`` command has the following arguments:
 
     optional arguments:
       -h, --help            show this help message and exit
-      --alg-gen             generate an algorithm layer for the supplied
-                            kernel
-      --stub-gen            generate a stub kernel subroutine
-      -oalg OALG            filename of created algorithm code (implies
-                            '--alg-gen'
-      -ostub OSTUB          filename of created kernel stub code
-                            (implies '--stub-gen')
+      -gen {alg,stub)       what to generate for the supplied kernel
+                            (alg=algorithm layer, stub=kernel-stub subroutine).
+			    Defaults to stub.
+      -o OUT_FILE           filename for created code.
       -api API              choose a particular API from ['dynamo0.1',
                             'dynamo0.3', 'gocean0.1', 'gocean1.0',
                             'nemo'], default 'dynamo0.3'.
@@ -104,10 +100,10 @@ The ``psyclone-kern`` command has the following arguments:
 Those specific to stub or algorithm generation are covered in the appropriate
 sections below.
 
-The ``-oalg`` and ``-ostub`` options allow the user to specify that
-the output should be written to a particular file. If these are not
-specified then the Python ``print`` statement is used to write to stdout.
-Typically this results in the output being printed to the terminal.
+The ``-o`` option allows the user to specify that the output should be
+written to a particular file. If this is not specified then the Python
+``print`` statement is used to write to stdout.  Typically this
+results in the output being printed to the terminal.
 
 As is indicated when using the ``-h`` option, the ``-api`` option only
 accepts ``dynamo0.3`` (LFRic) at the moment and is redundant as this option
@@ -131,7 +127,10 @@ Quick Start
    subroutine with no arguments.
 2) Run the following command ::
 
-    > psyclone-kern --stub-gen <PATH>/my_file.f90
+    > psyclone-kern -gen stub <PATH>/my_file.f90
+
+(Since stub generation is the default, the ``-gen stub`` may be omitted
+if desired.)
 
 Introduction
 ++++++++++++
@@ -191,9 +190,9 @@ installation. A quick check ``> which psyclone-kern`` should return
 the location of the ``<PSYCLONEINSTALL>/bin`` directory.
 
 The easiest way to use the stub generator is to run this ``psyclone-kern``
-script with the ``--stub-gen`` and/or ``--ostub`` flags::
+script with the ``-gen stub`` flag and, optionally, the ``-o`` flag::
 
-    > psyclone-kern --ostub my_stub_file.f90 ./my_kernel_mod.f90
+    > psyclone-kern -gen stub -o my_stub_file.f90 ./my_kernel_mod.f90
 
 .. _stub-generation-kernels:
 
@@ -269,7 +268,7 @@ is shown below::
 
 If we run the kernel stub generator on the ``simple.f90`` example::
 
-  > psyclone-kern --stub-gen tests/test_files/dynamo0p3/simple.f90
+  > psyclone-kern -gen stub tests/test_files/dynamo0p3/simple.f90
 
 we get the following kernel stub output::
 
@@ -371,7 +370,7 @@ Kernel, excluding the subroutine body, is given below::
 
 If we run the kernel stub generator on this example::
 
-  > psyclone-kern --stub-gen tests/test_files/dynamo0p3/ru_kernel_mod.f90
+  > psyclone-kern -gen stub tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
 we obtain the following output::
 
@@ -429,7 +428,7 @@ the argument list of a kernel. An example of the use of the stub generator
 for a kernel that performs stencil operations is provided in
 ``examples/lfric/eg5``::
 
-  > psyclone-kern --stub-gen ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
+  > psyclone-kern -gen stub ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
 
 .. _stub-generation-errors:
 
@@ -459,10 +458,10 @@ supported in the stub generator::
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 
-    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
+    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     Error: 'Parse Error: Code appears to be invalid Fortran'
 
-    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_no_datatype.F90
+    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_no_datatype.F90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
@@ -480,7 +479,7 @@ for :ref:`quadrature <dynamo0.3-quadrature>` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
 appropriate warnings because of that. For example::
 
-    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
+    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
     one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2',
     'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found 'any_space_1'"
@@ -489,7 +488,7 @@ As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example::
 
-    > psyclone-kern --stub-gen tests/test_files/dynamo0p3/testkern_qr.F90
+    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_qr.F90
     Error: "Parse Error: Error, module name 'testkern_qr' does not have
     '_mod' as an extension. This convention is assumed."
 
