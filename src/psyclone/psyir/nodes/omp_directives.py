@@ -111,16 +111,6 @@ class OMPRegionDirective(OMPDirective, RegionDirective):
                             result.append(arg.name)
         return result
 
-    @property
-    def clauses(self):
-        '''
-        :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
-        '''
-        if len(self.children) > 1:
-            return self.children[1:]
-        return []
-
 
 @six.add_metaclass(abc.ABCMeta)
 class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
@@ -128,15 +118,6 @@ class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
     Base class for all OpenMP-related standalone directives
 
     '''
-    @property
-    def clauses(self):
-        '''
-        :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
-        '''
-        if len(self.children) > 0:
-            return self.children
-        return []
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
@@ -329,9 +310,8 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        result = "omp single"
-
-        return result
+        # pylint: disable=no-self-use
+        return "omp single"
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -633,6 +613,10 @@ class OMPTaskloopDirective(OMPRegionDirective):
                              a grainsize and num_tasks value \
                              specified.
     '''
+    # This specification respects the mutual exclusion of OMPGransizeClause
+    # and OMPNumTasksClause, but adds an additional ordering requirement.
+    # Other specifications to soften the ordering requirement are possible,
+    # but need additional checks in the global constraints instead.
     _children_valid_format = ("Schedule, [OMPGrainsizeClause | "
                               "OMPNumTasksClause], [OMPNogroupClause]")
 
@@ -684,7 +668,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
             return isinstance(child, (OMPGrainsizeClause, OMPNumTasksClause,
                                       OMPNogroupClause))
         if position == 2:
-            return (isinstance(child, OMPNogroupClause))
+            return isinstance(child, OMPNogroupClause)
         return False
 
     @property

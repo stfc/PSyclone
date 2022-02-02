@@ -408,6 +408,12 @@ def test_omp_taskloop_strings():
     assert omp_taskloop.end_string() == "omp end taskloop"
 
 
+def test_omp_taskloop_clauses():
+    ''' Test the clauses property of the OMPTaskloop directive. '''
+    omp_taskloop = OMPTaskloopDirective()
+    assert omp_taskloop.clauses == []
+
+
 def test_omp_taskloop_init():
     ''' Test the constructor of the OMPTaskloop directive'''
     with pytest.raises(GenerationError) as excinfo:

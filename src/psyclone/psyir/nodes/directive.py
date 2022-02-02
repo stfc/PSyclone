@@ -41,7 +41,6 @@
 ''' This module contains the Directive, RegionDirective, StandaloneDirective
     node implementation.'''
 
-from __future__ import absolute_import
 import abc
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
@@ -124,6 +123,16 @@ class RegionDirective(Directive):
                 f"{[type(child).__name__ for child in self.children]}")
         return self.children[0]
 
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 1:
+            return self.children[1:]
+        return []
+
 
 class StandaloneDirective(Directive):
     '''
@@ -151,6 +160,16 @@ class StandaloneDirective(Directive):
         '''
         # Children are not allowed for StandaloneDirective
         return False
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 0:
+            return self.children
+        return []
 
 
 # For automatic API documentation generation

@@ -1407,8 +1407,7 @@ class FortranWriter(LanguageWriter):
 
     def clause_node(self, node):
         '''This method is called when a Clause instance is found in the
-        PSyIR tree. It returns the clause and its children as a string.  The
-        string will be prefixed by a single space.
+        PSyIR tree. It returns the clause and its children as a string.
 
         :param node: a Clause PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Clause`
@@ -1441,24 +1440,24 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [f"{self._nindent}!${node.begin_string()}"]
+        result = f"{self._nindent}!${node.begin_string()}"
 
         clause_list = []
         for clause in node.clauses:
             clause_list.append(self._visit(clause))
         # Add a space only if there are clauses
         if len(clause_list) > 0:
-            result_list.append(" ")
-        result_list.append(" ".join(clause_list))
-        result_list.append("\n")
+            result = result + " "
+        result = result + " ".join(clause_list)
+        result = result + "\n"
 
         for child in node.dir_body:
-            result_list.append(self._visit(child))
+            result = result + self._visit(child)
 
         end_string = node.end_string()
         if end_string:
-            result_list.append(f"{self._nindent}!${end_string}\n")
-        return "".join(result_list)
+            result = result + f"{self._nindent}!${end_string}\n"
+        return result
 
     def standalonedirective_node(self, node):
         '''This method is called when a StandaloneDirective instance is found
@@ -1471,13 +1470,21 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [f"{self._nindent}!${node.begin_string()}"]
+        result = f"{self._nindent}!${node.begin_string()}"
 
         clause_list = []
-        result_list.append(",".join(clause_list))
-        result_list.append("\n")
+        # Currently no standalone directives have clauses associated
+        # so this code is left commented out. If a standalone directive
+        # is added with clauses, this should be added in.
+        # for clause in node.clauses:
+        #     clause_list.append(self._visit(clause))
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result = result + " "
+        result = result + " ".join(clause_list)
+        result = result + "\n"
 
-        return "".join(result_list)
+        return result
 
     def call_node(self, node):
         '''Translate the PSyIR call node to Fortran.
