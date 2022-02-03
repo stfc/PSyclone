@@ -91,6 +91,13 @@
 	31) PR #1598 towards #282. Removes reference to the Dynamo 0.1 API
 	in the documentation.
 
+	32) PR #1462 for #451. Make LFRic loop bounds constant within the
+	PSy-layer with any function calls or structure accesses looking up
+	bounds information being computed separately beforehand. This can
+	help compilers correctly compile the code, particularly when there
+	are directives and may also help compilers produce more efficient
+	code.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
