@@ -347,7 +347,7 @@ def test_apply_structure_of_arrays(fortran_writer):
         "    enddo\n"
         "  enddo\n" in result)
 
-    # Case 3: AoSoA in the LHS
+    # Case 3: SoAoS in the LHS
     array_ref = assignment3.lhs
     trans.apply(array_ref.member.children[3])
     trans.apply(array_ref.member.children[2])
@@ -362,7 +362,7 @@ def test_apply_structure_of_arrays(fortran_writer):
         "    enddo\n"
         "  enddo\n" in result)
 
-    # Case 4: AoSoA in the LHS and SoA in the RHS
+    # Case 4: SoAoS in the LHS and SoA in the RHS
     array_ref = assignment4.lhs
     trans.apply(array_ref.member.children[3])
     trans.apply(array_ref.member.children[2])
@@ -441,8 +441,9 @@ def test_apply_nested_structure_of_arrays():
 
 
 def test_validate_existing_names_as_ancestor_loop_variables():
-    '''Check that the transformation is not applied if the variable name
-    already exists as the variable name of an ancestor loop.
+    '''Check that the validation method of the transformation raises an
+    exception if the variable name already exists as the variable name of
+    an ancestor loop.
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
     trans = NemoArrayRange2LoopTrans()
@@ -466,8 +467,8 @@ def test_validate_existing_names_as_ancestor_loop_variables():
 
 
 def test_validate_with_codeblock():
-    '''Check that the transformation is not applied if there is a Codeblock as
-    part of the assignment.
+    '''Check that the validation method of the transformation raises an
+    exception if there is a Codeblock as part of the assignment.
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
     trans = NemoArrayRange2LoopTrans()
@@ -489,8 +490,8 @@ def test_validate_with_codeblock():
 
 
 def test_validate_with_a_function_call():
-    '''Check that the transformation is not applied if there is a Call as
-    part of the assignment.
+    '''Check that the validation method of the transformation raises an
+    exception if there is a Call as part of the assignment.
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
     trans = NemoArrayRange2LoopTrans()
@@ -512,9 +513,9 @@ def test_validate_with_a_function_call():
 
 
 def test_validate_with_array_with_hidden_accessor():
-    '''Check that the transformation is not applied if there is a RHS array
-    (or UnknownType) with the accessor expression missing.
-
+    '''Check that the validation method of the transformation raises an
+    exception if there is a RHS array (or UnknownType) with the accessor
+    expression missing.
     '''
     _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
                                 api=API, idx=0)
@@ -546,8 +547,8 @@ def test_validate_with_array_with_hidden_accessor():
             "<UnknownFortranType" in str(info.value))
 
 
-def test_validate_different_num_dims():
-    '''Check that the apply method raises an exception when the number of
+def test_apply_different_num_dims():
+    '''Check that the validate method raises an exception when the number of
     range dimensions differ in different arrays. This should never
     happen as it is invalid PSyIR.
 
@@ -566,9 +567,10 @@ def test_validate_different_num_dims():
 
 
 def test_validate_imported_function():
-    ''' Check that the apply method refuses to transform the assignment when
-    range nodes are inside a function, as it does not know if the function is
-    declared as 'elemental' which changes the semantics of the array notation.
+    '''Check that the validation method of the transformation raises an
+    exception when range nodes are inside a function, as it does not know if
+    the function is declared as 'elemental' which changes the semantics of the
+    array notation.
     '''
     _, invoke_info = get_invoke("array_valued_function.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -577,7 +579,7 @@ def test_validate_imported_function():
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    # TODO fparser/#201: currently fparsre parses imported symbols that can be
+    # TODO fparser/#201: currently fparser parses imported symbols that can be
     # functions or arrays always as arrays accessors, for this reason the error
     # message talks about arrays instead of functions. If this is resolved this
     # test would be equivalent to test_apply_with_a_function_call.
@@ -586,7 +588,7 @@ def test_validate_imported_function():
             "nested Range structures, but found:\n" in str(info.value))
 
 
-def test_validate_calls_validate():
+def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
@@ -642,8 +644,8 @@ def test_validate_within_array_reference():
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
         assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
-               f"supplied node argument should be within an "
-               f"ArrayMixin node, but found '{result}'."
+               f"supplied node argument should be within an array "
+               f"access node, but found '{result}'."
                in str(info.value))
 
 
@@ -684,7 +686,7 @@ def test_validate_within_lhs_assignment():
     with pytest.raises(TransformationError) as info:
         trans.validate(my_range)
     assert("Error in NemoArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be within an ArrayMixin "
+           "supplied node argument should be within an array access "
            "node that is within the left-hand-side of an Assignment "
            "node, but it is on the right-hand-side." in str(info.value))
 

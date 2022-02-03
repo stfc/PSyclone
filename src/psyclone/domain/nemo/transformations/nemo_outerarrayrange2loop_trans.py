@@ -165,16 +165,16 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         if not (isinstance(node.lhs, Reference) and node.lhs.walk(ArrayMixin)):
             raise TransformationError(
                 f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                f"supplied assignment node should be a Reference that contains"
-                f" an ArrayMixin somewhere in the expression, but found "
-                f"'{node.lhs}'.")
+                f"LHS of the supplied assignment node should be a Reference "
+                f"that contains an array access somewhere in the expression, "
+                f"but found '{node.lhs}'.")
         # Has the array reference got a range?
         if not node.lhs.walk(Range):
             raise TransformationError(
                 f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
                 f"LHS of the supplied assignment node should be an expression "
-                f"with an array that has a Range node, but found '{node.lhs}'."
-                )
+                f"with an array that has a Range node, but found "
+                f"'{node.lhs}'.")
 
 
 # For automatic document generation

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -106,7 +106,7 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     '''
     trans = NemoOuterArrayRange2LoopTrans()
 
-    # The inner dimension is already set
+    # The outer dimension is already set
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
@@ -123,7 +123,7 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     result = fortran_writer(assignment)
     assert "base%field(constant)%array(ji,jj,jk) = 1" in result
 
-    # The outer dimension is already set
+    # The inner dimension is already set
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
@@ -138,23 +138,6 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     trans.apply(assignment)
     result = fortran_writer(assignment)
     assert "ptab(jf)%pt2d(jpi,jj,jk) = ptab(jf)%pt2d(jpim1,jj,jk)" in result
-
-    # Nested range structures are not supported
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        integer, parameter :: jf = 3, jpi = 3, jpim1 = 1
-        ptab(:)%pt2d(jpi,:,:) = ptab(:)%pt2d(jpim1,:,:)
-    end subroutine test
-    ''')
-    assignment = psyir.walk(Assignment)[0]
-    with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    assert("Error in NemoArrayRange2LoopTrans transformation. This "
-           "transformation does not support array assignments that contain "
-           "nested Range structures, but found:\n"
-           "ptab(:)%pt2d(jpi,:,:) = ptab(:)%pt2d(jpim1,:,:)"
-           in str(info.value))
 
 
 def test_apply_calls_validate():
@@ -227,9 +210,9 @@ END subroutine data_ref
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The supplied assignment node should be a Reference"
-           " that contains an ArrayMixin somewhere in the expression, but "
-           "found 'CodeBlock[1 nodes]'." in str(info.value))
+           "transformation. The LHS of the supplied assignment node should be "
+           "a Reference that contains an array access somewhere in the "
+           "expression, but found 'CodeBlock[1 nodes]'." in str(info.value))
 
 
 # lhs array reference has a range

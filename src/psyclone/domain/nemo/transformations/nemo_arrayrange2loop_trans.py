@@ -50,7 +50,7 @@ from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
     CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
-from psyclone.psyGen import Transformation, InvokeSchedule
+from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     Assignment, Literal, Operation, CodeBlock, ArrayMember, Loop, Routine, \
@@ -211,10 +211,10 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Replace the loop_idx array dimension with the loop variable.
         n_ranges = None
-        # Just loop the top level arrays since we just do 1 substitution per
+        # Just loop the top-level arrays since we just do 1 substitution per
         # array construct, even if they have nested arrays in turn.
         for top_level_ref in assignment.walk(ArrayMixin, stop_type=ArrayMixin):
-            # Then start checking by the inner-most array
+            # Then start checking with the inner-most array
             for array in reversed(top_level_ref.walk(ArrayMixin)):
                 current_n_ranges = len([child for child in array.children
                                         if isinstance(child, Range)])
@@ -288,7 +288,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         if not node.parent or not isinstance(node.parent, ArrayMixin):
             raise TransformationError(
                 f"Error in NemoArrayRange2LoopTrans transformation. The "
-                f"supplied node argument should be within an ArrayMixin "
+                f"supplied node argument should be within an array access "
                 f"node, but found '{type(node.parent).__name__}'.")
         # Is the array reference within an assignment?
         assignment = node.ancestor(Assignment)
@@ -301,7 +301,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         if node not in assignment.lhs.walk(Node):
             raise TransformationError(
                 "Error in NemoArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayMixin "
+                "supplied node argument should be within an array access "
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
 
@@ -363,13 +363,13 @@ class NemoArrayRange2LoopTrans(Transformation):
                 if operator is BinaryOperation.Operator.UBOUND:
                     continue
 
-            # We allow any references that are part of a structure syntax, we
-            # analyse its children components by continuing the reference list
+            # We allow any references that are part of a structure syntax - we
+            # analyse its child components by continuing the reference list
             if isinstance(reference, (StructureReference, StructureMember)):
                 continue
 
             # We allow any references that have explicit array syntax
-            # because we infer that this are not scalars from the context
+            # because we infer that they are not scalars from the context
             # where they are found (even if they have DeferredType)
             if isinstance(reference, (ArrayReference, ArrayMember)):
                 continue
@@ -385,11 +385,8 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
-        after_node = False
-        for index_child in node.parent.indices:
-            if index_child is node:
-                after_node = True
-            elif after_node and isinstance(index_child, Range):
+        for child in node.parent.indices[node.parent.indices.index(node)+1:]:
+            if isinstance(child, Range):
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "
                     "transformation can only be applied to the outermost "
@@ -456,11 +453,11 @@ def get_outer_index(array):
     :type array: :py:class:`psyclone.psyir.nodes.ArrayMixin`
 
     :returns: the outermost index of the array that is a Range node.
+    :rtype: int
 
     :raises IndexError: if the array does not contain a Range node.
 
     '''
-    # return array.walk(Range)[-1]
     for child in reversed(array.indices):
         if isinstance(child, Range):
             return child.position
