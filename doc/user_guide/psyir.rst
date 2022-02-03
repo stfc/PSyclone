@@ -140,7 +140,7 @@ descendants to stdout. If the ``termcolor`` package is installed
 (see :ref:`getting-going`) then colour highlighting is used for this
 output. For instance, part of the Schedule constructed for the second NEMO
 `example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/
-runme_openmp.py>`_ is rendered as:
+omp_levels_trans.py>`_ is rendered as:
 
 .. image:: schedule_with_indices.png
 
