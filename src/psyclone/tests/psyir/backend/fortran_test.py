@@ -2282,7 +2282,7 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
     the required Fortran code.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
+    # Generate PSyIR from Fortran code.
     code = (
         "program test\n"
         "  integer, parameter :: n=20\n"

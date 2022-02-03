@@ -43,7 +43,7 @@ import os
 import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Schedule, Directive, \
+from psyclone.psyir.nodes import Literal, Schedule, \
                                  StandaloneDirective, RegionDirective
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import INTEGER_TYPE
@@ -130,16 +130,3 @@ def test_standalonedirective_children_validation():
         cdir.addchild(schedule)
     assert("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
            "valid format is: 'None'." in str(excinfo.value))
-
-
-def test_directive_clauses():
-    ''' Test that the clauses function of the Directive class
-    returns [].'''
-    class TestDirective(Directive):
-        '''Dummy class for testing'''
-        @property
-        def clauses(self):
-            return super().clauses
-
-    abc = TestDirective()
-    assert abc.clauses == []
