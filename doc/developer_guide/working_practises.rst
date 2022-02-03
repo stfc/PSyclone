@@ -458,17 +458,6 @@ testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
 locally (see :ref:`compilation_testing`).
 
-Note that the link checking performed for the Sphinx documentation
-uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
-this checking (due to ssl isues with an outdated http server or pages
-requiring authentication) and this is configured in the ``conf.py``
-file of each document.  Note also that anchors on GitHub actually have
-"user-content-" prepended but this is not shown in the links displayed
-by the browser (see
-https://github.com/sphinx-doc/sphinx/issues/6779). Therefore, any
-links to such anchors provided in the rst sources *must include* this
-"user-content-" text when specifying an anchor.
-
 By default, the GitHub Actions configuration uses ``pip`` to install
 the dependencies required by PSyclone before running the test
 suite. This works well when PSyclone only depends upon released
@@ -492,6 +481,51 @@ different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without
 the quotes) in the associated commit message.
+
+Link checking
+-------------
+
+The link checking performed for the Sphinx documentation
+uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
+this checking (due to ssl isues with an outdated http server or pages
+requiring authentication) and this is configured in the ``conf.py``
+file of each document.  Note also that anchors on GitHub actually have
+"user-content-" prepended but this is not shown in the links displayed
+by the browser (see
+https://github.com/sphinx-doc/sphinx/issues/6779). Therefore, any
+links to such anchors provided in the rst sources *must include* this
+"user-content-" text when specifying an anchor.
+
+Since both the User and Developer Guides contain links to the
+Reference Guide, the issue of ensuring such links are correct is
+complex since a given PR may well alter the (auto-generated) Reference
+Guide but that version is, by definition, not yet available on Read
+The Docs (RTD). The solution to this is to perform the link checking against
+a *local* version of the Reference Guide rather than the one on RTD. For
+this to work, any links to the Reference Guide must be parameterised
+so that the correct URL can be generated, depending upon whether or not
+link checking is being performed. This parameterisation is achieved by
+implementing a Sphinx `plugin <https://www.sphinx-doc.org/en/master/extdev/index.html>`_ which provides the `\:ref_guide\:` role. (The source for this
+plugin may be found in the ``PSyclone/docs/_ext/apilinks.py`` file.) The format
+to use when adding a link to the Reference Guide is then, e.g.::
+
+  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`
+
+The URL to prepend to the supplied target is set via a new Sphinx
+configuration variable named ``ref_guide_base`` in the ``conf.py``
+file. The final step is to set this appropriately, depending on
+whether or not the documentation is being built as part of a GitHub
+Actions run.  The GHA configuration file
+``PSyclone/.github/workflows/python-package.yml`` contains a step that
+sets the ``GITHUB_PR_NUMBER`` environment variable to the number of
+the current pull request. This is then queried within the ``conf.py``
+file and, if set, the base URL is set to be that of a local
+webserver (started up as part of the GHA run). Otherwise, the base URL
+is set to be that of the latest version of the docs on RTD.
+
+Since links between the User and Developer Guide use ``intersphinx``,
+these may simply be configured using the ``intersphinx_mapping``
+dictionary within ``conf.py``.
 
 Performance
 ===========
