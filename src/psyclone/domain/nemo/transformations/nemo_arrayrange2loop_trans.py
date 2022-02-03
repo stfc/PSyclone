@@ -229,7 +229,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                         "been dealt with by the validation method or "
                         "represents invalid PSyIR.")
 
-                idx = get_outer_index(array)
+                idx = array.get_outer_range_index()
                 array.children[idx] = Reference(loop_variable_symbol)
                 break  # If one is found, go to the next top level expression
 
@@ -443,25 +443,6 @@ class NemoArrayRange2LoopTrans(Transformation):
             # There is no name for this index in the config file (it can
             # proceed as the apply will generate a new variable for it)
             pass
-
-
-def get_outer_index(array):
-    '''Find the outermost index of the array that is a Range node. If one
-    does not exist then raise an exception.
-
-    :param array: the array being examined.
-    :type array: :py:class:`psyclone.psyir.nodes.ArrayMixin`
-
-    :returns: the outermost index of the array that is a Range node.
-    :rtype: int
-
-    :raises IndexError: if the array does not contain a Range node.
-
-    '''
-    for child in reversed(array.indices):
-        if isinstance(child, Range):
-            return child.position
-    raise IndexError
 
 
 # For automatic document generation

@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
-    NemoArrayRange2LoopTrans, get_outer_index
+    NemoArrayRange2LoopTrans
 
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
@@ -117,7 +117,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
 
         # Get deepest array in LHS (excluding inside Ranges)
         lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
-        index = get_outer_index(lhs_array_ref)
+        index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
 
