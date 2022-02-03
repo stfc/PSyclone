@@ -365,7 +365,9 @@ linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
 
 
 # Configuration for intersphinx: refer to the Python standard library and
-# to the PSyclone Developers' Guide.
+# to the PSyclone Developer Guide. The base URL for this
+# is set earlier and depends on whether the docs are being built as part
+# of a CI run or not.
 intersphinx_mapping = {
     'http://docs.python.org/': None,
     'dev_guide': (dev_guide_base, None)}
