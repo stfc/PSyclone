@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  ACCEnterDataDirective,
+                                  ArrayReference, ACCEnterDataDirective,
                                   OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
@@ -2019,7 +2019,18 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        if not self._properties:
+        # Since colouring is applied via transformations, we have to check for
+        # it now, rather than when this class was first constructed.
+        need_colour_limits = False
+        for call in self._calls:
+            if call.is_coloured() and not call.is_intergrid:
+                need_colour_limits = True
+                break
+
+        if not self._properties and not need_colour_limits:
+            # If no mesh properties are required and there's no colouring
+            # (which requires a mesh object to lookup loop bounds) then we
+            # need do nothing.
             return
 
         parent.add(CommentGen(parent, ""))
@@ -2051,6 +2062,15 @@ class LFRicMeshProperties(DynCollection):
                     "initialisation code. Only members of the "
                     "MeshProperty Enum are permitted "
                     "({1})".format(str(prop), list(MeshProperty)))
+
+        if need_colour_limits:
+            lhs = self._symbol_table.find_or_create_tag(
+                "last_cell_all_colours").name
+            if Config.get().distributed_memory:
+                rhs = mesh + "%get_last_halo_cell_all_colours()"
+            else:
+                rhs = mesh + "%get_last_edge_cell_all_colours()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
 class DynReferenceElement(DynCollection):
@@ -3240,6 +3260,78 @@ class DynCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
+class LFRicLoopBounds(DynCollection):
+    '''
+    Handles all variables required for specifying loop limits within a
+    PSy-layer routine.
+
+    '''
+    def _invoke_declarations(self, parent):
+        '''
+        Only needed because method is virtual in parent class.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+    def initialise(self, parent):
+        '''
+        Updates the f2pygen AST so that all of the variables holding the lower
+        and upper bounds of all loops in an Invoke are initialised.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        loops = self._invoke.schedule.loops()
+
+        if not loops:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
+        parent.add(CommentGen(parent, ""))
+
+        sym_table = self._invoke.schedule.symbol_table
+        config = Config.get()
+        api_config = config.api_conf("dynamo0.3")
+
+        for idx, loop in enumerate(loops):
+            root_name = f"loop{idx}_start"
+            try:
+                lbound = sym_table.lookup_with_tag(root_name)
+            except KeyError:
+                # TODO #1258 the loop bound symbol should be of
+                # precision 'i_def'.
+                lbound = sym_table.new_symbol(root_name=root_name,
+                                              tag=root_name,
+                                              symbol_type=DataSymbol,
+                                              datatype=INTEGER_TYPE)
+            parent.add(AssignGen(parent, lhs=lbound.name,
+                                 rhs=loop._lower_bound_fortran()))
+            entities = [lbound.name]
+
+            if loop.loop_type != "colour":
+                root_name = f"loop{idx}_stop"
+                try:
+                    ubound = sym_table.lookup_with_tag(root_name)
+                except KeyError:
+                    # TODO #1258 the loop bound symbol should be of
+                    # precision 'i_def'.
+                    ubound = sym_table.new_symbol(root_name=root_name,
+                                                  tag=root_name,
+                                                  symbol_type=DataSymbol,
+                                                  datatype=INTEGER_TYPE)
+                entities.append(ubound.name)
+                parent.add(AssignGen(parent, lhs=ubound.name,
+                                     rhs=loop._upper_bound_fortran()))
+
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               entity_decls=entities))
+
+
 class LFRicScalarArgs(DynCollection):
     '''
     Handles the declarations of scalar kernel arguments appearing in either
@@ -3707,12 +3799,13 @@ class DynMeshes(object):
         # names.
         self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
-        self._mesh_names = []
+        self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
+        self._symbol_table = self._schedule.symbol_table
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -3729,13 +3822,11 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if (call.reference_element.properties or
-                    call.mesh.properties or call.iterates_over == "domain" or
-                    call.cma_operation):
-                requires_mesh = True
+            if (call.reference_element.properties or call.mesh.properties or
+                    call.iterates_over == "domain" or call.cma_operation):
+                _name_set.add("mesh")
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -3751,13 +3842,11 @@ class DynMeshes(object):
 
             # Create an object to capture info. on this inter-grid kernel
             # and store in our dictionary
-            self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
+            self._ig_kernels[call] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
-            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(fine_arg.name)).name)
-            _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(coarse_arg.name)).name)
+            _name_set.add("mesh_{0}".format(fine_arg.name))
+            _name_set.add("mesh_{0}".format(coarse_arg.name))
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
@@ -3769,59 +3858,141 @@ class DynMeshes(object):
                     ", ".join([call.name for call in non_intergrid_kernels]),
                     invoke.name))
 
-        # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object if we have one or
-        # more kernels that operate on cell-columns. We also require a mesh
-        # object if any of the kernels require properties of either the
-        # reference element or the mesh. (Colourmaps also require a mesh
-        # object but that is handled in _colourmap_init().)
-        if not _name_set:
-            if (requires_mesh or (Config.get().distributed_memory and
-                                  not invoke.operates_on_dofs_only)):
-                _name_set.add(self._schedule.symbol_table.find_or_create_tag(
-                    "mesh").name)
+        # If distributed memory is enabled then we will need at least
+        # one mesh object if we have one or more kernels that operate
+        # on cell-columns or are doing redundant computation for a
+        # kernel that operates on dofs. Since the latter condition
+        # comes about through the application of a transformation, we
+        # don't yet know whether or not a mesh is required. Therefore,
+        # the only solution is to assume that a mesh object is
+        # required if distributed memory is enabled. We also require a
+        # mesh object if any of the kernels require properties of
+        # either the reference element or the mesh. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
+        if not _name_set and Config.get().distributed_memory:
+            # We didn't already have a requirement for a mesh so add one now.
+            _name_set.add("mesh")
 
-        # Convert the set of mesh names to a list and store
-        self._mesh_names = sorted(_name_set)
+        self._add_mesh_symbols(list(_name_set))
+
+    def _add_mesh_symbols(self, mesh_tags):
+        '''
+        Add DataSymbols for the supplied list of mesh names and store the
+        corresponding list of tags.
+
+        A ContainerSymbol is created for the LFRic mesh module and a TypeSymbol
+        for the mesh type. If distributed memory is enabled then a DataSymbol
+        to hold the maximum halo depth is created for each mesh.
+
+        :param mesh_tags: tag names for every mesh object required.
+        :type mesh_tags: list of str
+
+        '''
+        if not mesh_tags:
+            return
+
+        self._mesh_tag_names = sorted(mesh_tags)
+
+        # Look up the names of the module and type for the mesh object
+        # from the LFRic constants class.
+        const = LFRicConstants()
+        mmod = const.MESH_TYPE_MAP["mesh"]["module"]
+        mtype = const.MESH_TYPE_MAP["mesh"]["type"]
+        # Create a Container symbol for the module
+        csym = self._symbol_table.find_or_create_tag(
+            mmod, symbol_type=ContainerSymbol)
+        # Create a TypeSymbol for the mesh type
+        mtype_sym = self._symbol_table.find_or_create_tag(
+            mtype, symbol_type=DataTypeSymbol,
+            datatype=DeferredType(),
+            interface=ImportInterface(csym))
+
+        name_list = []
+        for name in mesh_tags:
+            name_list.append(self._symbol_table.find_or_create_tag(
+                name, symbol_type=DataSymbol, datatype=mtype_sym).name)
+
+        if Config.get().distributed_memory:
+            # If distributed memory is enabled then we require a variable
+            # holding the maximum halo depth for each mesh.
+            for name in mesh_tags:
+                # TODO #1258 this variable should have precision 'i_def'.
+                self._symbol_table.find_or_create_tag(f"max_halo_depth_{name}",
+                                                      symbol_type=DataSymbol,
+                                                      datatype=INTEGER_TYPE)
 
     def _colourmap_init(self):
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
         and happens after the Schedule has already been constructed.
+
         '''
+        have_non_intergrid = False
+
+        array_type_1d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+
+        array_type_2d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
+                                                 ArrayType.Extent.DEFERRED])
         for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured
             self._needs_colourmap = True
 
-            if call.is_intergrid:
-                # This is an inter-grid kernel so look-up the names of
-                # the colourmap variables associated with the coarse
-                # mesh (since that determines the iteration space).
-                carg_name = self._ig_kernels[call.name].coarse.name
-                # Colour map
-                base_name = "cmap_" + carg_name
-                colour_map = \
-                    self._schedule.symbol_table.find_or_create_tag(base_name) \
-                                               .name
-                # No. of colours
-                base_name = "ncolour_" + carg_name
-                ncolours = \
-                    self._schedule.symbol_table.find_or_create_tag(base_name)\
-                                               .name
-                # Add these names into the dictionary entry for this
-                # inter-grid kernel
-                self._ig_kernels[call.name].colourmap = colour_map
-                self._ig_kernels[call.name].ncolours_var = ncolours
+            if not call.is_intergrid:
+                have_non_intergrid = True
+                continue
 
-        if not self._mesh_names and self._needs_colourmap:
+            # This is an inter-grid kernel so look-up the names of
+            # the colourmap variables associated with the coarse
+            # mesh (since that determines the iteration space).
+            carg_name = self._ig_kernels[call].coarse.name
+            # Colour map
+            base_name = "cmap_" + carg_name
+            colour_map = self._schedule.symbol_table.find_or_create_tag(
+                base_name, symbol_type=DataSymbol,
+                datatype=array_type_2d).name
+            # No. of colours
+            # TODO #1258 this variable should have precision 'i_def'.
+            base_name = "ncolour_" + carg_name
+            ncolours = self._schedule.symbol_table.find_or_create_tag(
+                base_name, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE).name
+            # Array holding the last halo or edge cell of a given colour
+            # and halo depth.
+            base_name = "last_cell_all_colours_" + carg_name
+            if Config.get().distributed_memory:
+                last_cell = self._schedule.symbol_table.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type_2d).name
+            else:
+                last_cell = self._schedule.symbol_table.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=array_type_1d).name
+            # Add these names into the dictionary entry for this
+            # inter-grid kernel
+            self._ig_kernels[call].colourmap = colour_map
+            self._ig_kernels[call].ncolours_var = ncolours
+            self._ig_kernels[call].last_cell_var = last_cell
+
+        if have_non_intergrid and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
-            mesh_name = \
-                self._schedule.symbol_table.find_or_create_tag("mesh").name
-            self._mesh_names.append(mesh_name)
+            self._add_mesh_symbols(["mesh"])
+            colour_map = self._schedule.symbol_table.find_or_create_tag(
+                "cmap", symbol_type=DataSymbol, datatype=array_type_2d).name
+            # No. of colours
+            # TODO #1258 this variable should have precision 'i_def'.
+            ncolours = self._schedule.symbol_table.find_or_create_tag(
+                "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+            if Config.get().distributed_memory:
+                dtype = array_type_2d
+            else:
+                dtype = array_type_1d
+            self._symbol_table.find_or_create_tag("last_cell_all_colours",
+                                                  symbol_type=DataSymbol,
+                                                  datatype=dtype)
 
     def declarations(self, parent):
         '''
@@ -3843,16 +4014,26 @@ class DynMeshes(object):
         mmod = const.MESH_TYPE_MAP["mesh"]["module"]
         mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
         mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
-        if self._mesh_names:
+        if self._mesh_tag_names:
+            name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
-                              funcnames=[mtype]))
+                              funcnames=[name]))
         if self._ig_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
-        # Declare the mesh object(s)
-        for name in self._mesh_names:
+        # Declare the mesh object(s) and associated halo depths
+        for tag_name in self._mesh_tag_names:
+            name = self._symbol_table.lookup_with_tag(tag_name).name
             parent.add(TypeDeclGen(parent, pointer=True, datatype=mtype,
                                    entity_decls=[name + " => null()"]))
+            # For each mesh we also need the maximum halo depth.
+            if Config.get().distributed_memory:
+                name = self._symbol_table.lookup_with_tag(
+                    f"max_halo_depth_{tag_name}").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
+
         # Declare the inter-mesh map(s) and cell map(s)
         for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
@@ -3881,6 +4062,17 @@ class DynMeshes(object):
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var]))
+                decln = kern.last_cell_var
+                if Config.get().distributed_memory:
+                    # If DM is enabled then the cell-count array is 2D because
+                    # it has a halo-depth dimension.
+                    decln += "(:,:)"
+                else:
+                    decln += "(:)"
+                parent.add(
+                    DeclGen(parent, datatype="integer", allocatable=True,
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=[decln]))
 
         if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
@@ -3900,32 +4092,52 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
+            last_cell = self._symbol_table.find_or_create_tag(
+                "last_cell_all_colours")
+            if Config.get().distributed_memory:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_cell.name+"(:,:)"]))
+            else:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   allocatable=True,
+                                   entity_decls=[last_cell.name+"(:)"]))
 
     def initialise(self, parent):
         '''
-        Initialise parameters specific to inter-grid kernels
+        Initialise parameters specific to inter-grid kernels.
 
-        :param parent: the parent node to which to add the initialisations
+        :param parent: the parent node to which to add the initialisations.
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
         # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
-        if len(self._mesh_names) == 0:
+        if not self._mesh_tag_names:
             return
 
         parent.add(CommentGen(parent, ""))
 
-        if len(self._mesh_names) == 1:
+        if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
             # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = "%".join([self._first_var.proxy_name_indexed,
                             self._first_var.ref_name(), "get_mesh()"])
-            parent.add(AssignGen(parent, pointer=True,
-                                 lhs=self._mesh_names[0], rhs=rhs))
+            mesh_name = self._symbol_table.lookup_with_tag(
+                self._mesh_tag_names[0]).name
+            parent.add(AssignGen(parent, pointer=True, lhs=mesh_name, rhs=rhs))
+            if Config.get().distributed_memory:
+                # If distributed memory is enabled then we need the maximum
+                # halo depth.
+                depth_name = self._symbol_table.lookup_with_tag(
+                    f"max_halo_depth_{self._mesh_tag_names[0]}").name
+                parent.add(AssignGen(parent, lhs=depth_name,
+                                     rhs=f"{mesh_name}%get_halo_depth()"))
             if self._needs_colourmap:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
@@ -3938,12 +4150,10 @@ class DynMeshes(object):
                                                .name
                 # Get the number of colours
                 parent.add(AssignGen(
-                    parent, lhs=ncolour,
-                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                    parent, lhs=ncolour, rhs=f"{mesh_name}%get_ncolours()"))
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                     rhs=self._mesh_names[0] +
-                                     "%get_colour_map()"))
+                                     rhs=f"{mesh_name}%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -3957,11 +4167,12 @@ class DynMeshes(object):
 
         # Loop over the DynInterGrid objects in our dictionary
         for dig in self._ig_kernels.values():
-            # We need pointers to both the coarse and the fine mesh
+            # We need pointers to both the coarse and the fine mesh as well
+            # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(dig.fine.name)).name
+                f"mesh_{dig.fine.name}").name
             coarse_mesh = self._schedule.symbol_table.find_or_create_tag(
-                "mesh_{0}".format(dig.coarse.name)).name
+                f"mesh_{dig.coarse.name}").name
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
@@ -3970,7 +4181,13 @@ class DynMeshes(object):
                               rhs="%".join([dig.fine.proxy_name_indexed,
                                             dig.fine.ref_name(),
                                             "get_mesh()"])))
+                if Config.get().distributed_memory:
+                    max_halo_f_mesh = (
+                        self._schedule.symbol_table.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.fine.name}").name)
 
+                    parent.add(AssignGen(parent, lhs=max_halo_f_mesh,
+                                         rhs=f"{fine_mesh}%get_halo_depth()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
@@ -3979,6 +4196,13 @@ class DynMeshes(object):
                               rhs="%".join([dig.coarse.proxy_name_indexed,
                                             dig.coarse.ref_name(),
                                             "get_mesh()"])))
+                if Config.get().distributed_memory:
+                    max_halo_c_mesh = (
+                        self._schedule.symbol_table.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.coarse.name}").name)
+                    parent.add(AssignGen(
+                        parent, lhs=max_halo_c_mesh,
+                        rhs=f"{coarse_mesh}%get_halo_depth()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
@@ -4038,6 +4262,12 @@ class DynMeshes(object):
                 parent.add(AssignGen(parent, lhs=dig.colourmap,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
+                if Config.get().distributed_memory:
+                    name = "%get_last_halo_cell_all_colours()"
+                else:
+                    name = "%get_last_edge_cell_all_colours()"
+                parent.add(AssignGen(parent, lhs=dig.last_cell_var,
+                                     rhs=coarse_mesh + name))
 
     @property
     def intergrid_kernels(self):
@@ -4090,6 +4320,8 @@ class DynInterGrid(object):
         self.colourmap = ""
         # Name of the variable holding the number of colours
         self.ncolours_var = ""
+        # Name of the variable holding the last cell of a particular colour
+        self.last_cell_var = ""
 
 
 class DynBasisFunctions(DynCollection):
@@ -5145,6 +5377,10 @@ class DynInvoke(Invoke):
         # Properties of the mesh
         self.mesh_properties = LFRicMeshProperties(self)
 
+        # Manage the variables used to store the upper and lower limits of
+        # all loops in this Invoke.
+        self.loop_bounds = LFRicLoopBounds(self)
+
         # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -5253,7 +5489,7 @@ class DynInvoke(Invoke):
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
                          self.reference_element_properties,
-                         self.mesh_properties,
+                         self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             entities.declarations(invoke_sub)
 
@@ -5286,7 +5522,7 @@ class DynInvoke(Invoke):
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
-                         self.mesh_properties]:
+                         self.mesh_properties, self.loop_bounds]:
             entities.initialise(invoke_sub)
 
         # Now that everything is initialised and checked, we can call
@@ -5407,7 +5643,7 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
-def _create_depth_list(halo_info_list):
+def _create_depth_list(halo_info_list, sym_table):
     '''Halo exchanges may have more than one dependency. This method
     simplifies multiple dependencies to remove duplicates and any
     obvious redundancy. For example, if one dependency is for depth=1
@@ -5421,6 +5657,9 @@ def _create_depth_list(halo_info_list):
     :param halo_info_list: a list containing halo access information \
         derived from all read fields dependent on this halo exchange.
     :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+    :param sym_table: the symbol table of the enclosing InvokeSchedule.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
     :returns: a list containing halo depth information derived from \
         the halo access information.
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
@@ -5442,7 +5681,7 @@ def _create_depth_list(halo_info_list):
             annexed_only = False
             break
     if annexed_only:
-        depth_info = HaloDepth()
+        depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=1, annexed_only=True,
                                 max_depth_m1=False)
@@ -5456,7 +5695,7 @@ def _create_depth_list(halo_info_list):
             if halo_info.needs_clean_outer:
                 # found a max_depth access so we only need one
                 # HaloDepth entry
-                depth_info = HaloDepth()
+                depth_info = HaloDepth(sym_table)
                 depth_info.set_by_value(max_depth=True, var_depth="",
                                         literal_depth=0, annexed_only=False,
                                         max_depth_m1=False)
@@ -5466,7 +5705,7 @@ def _create_depth_list(halo_info_list):
 
     if max_depth_m1:
         # we have at least one max_depth-1 access.
-        depth_info = HaloDepth()
+        depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=0, annexed_only=False,
                                 max_depth_m1=True)
@@ -5500,7 +5739,7 @@ def _create_depth_list(halo_info_list):
         if not match:
             # no matches were found with existing entries so
             # create a new one
-            depth_info = HaloDepth()
+            depth_info = HaloDepth(sym_table)
             depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                     literal_depth=literal_depth,
                                     annexed_only=False, max_depth_m1=False)
@@ -5607,7 +5846,8 @@ class DynHaloExchange(HaloExchange):
         # get our halo information
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
-        depth_info_list = _create_depth_list(halo_info_list)
+        depth_info_list = _create_depth_list(halo_info_list,
+                                             self._symbol_table)
         return depth_info_list
 
     def _compute_halo_read_info(self, ignore_hex_dep=False):
@@ -5675,8 +5915,8 @@ class DynHaloExchange(HaloExchange):
             raise InternalError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange.")
-        return [HaloReadAccess(read_dependency) for read_dependency
-                in read_dependencies]
+        return [HaloReadAccess(read_dependency, self._symbol_table) for
+                read_dependency in read_dependencies]
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
@@ -5698,7 +5938,7 @@ class DynHaloExchange(HaloExchange):
                 "Internal logic error. There should be at most one write "
                 "dependence for a halo exchange. Found "
                 "'{0}'".format(str(len(write_dependencies))))
-        return HaloWriteAccess(write_dependencies[0])
+        return HaloWriteAccess(write_dependencies[0], self._symbol_table)
 
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required
@@ -6088,9 +6328,13 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
 class HaloDepth(object):
     '''Determines how much of the halo a read to a field accesses (the
-    halo depth)
+    halo depth).
+
+    :param sym_table: the symbol table of the enclosing InvokeSchedule.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
     '''
-    def __init__(self):
+    def __init__(self, sym_table):
         # literal_depth is used to store any known (literal) component
         # of the depth of halo that is accessed. It may not be the
         # full depth as there may also be an additional var_depth
@@ -6115,6 +6359,9 @@ class HaloDepth(object):
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
+        # Keep a reference to the symbol table so that we can look-up
+        # variables holding the maximum halo depth.
+        self._symbol_table = sym_table
 
     @property
     def annexed_only(self):
@@ -6210,9 +6457,13 @@ class HaloDepth(object):
         as a string'''
         depth_str = ""
         if self.max_depth:
-            depth_str += "mesh%get_halo_depth()"
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            depth_str += max_depth.name
         elif self.max_depth_m1:
-            depth_str += "mesh%get_halo_depth()-1"
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:
                 depth_str += self.var_depth
@@ -6271,17 +6522,17 @@ def halo_check_arg(field, access_types):
 class HaloWriteAccess(HaloDepth):
     '''Determines how much of a field's halo is written to (the halo depth)
     when a field is accessed in a particular kernel within a
-    particular loop nest
+    particular loop nest.
+
+    :param field: the field that we are concerned with.
+    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+    :param sym_table: the symbol table associated with the scoping region \
+                      that contains this halo access.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field):
-        '''
-        :param field: the field that we are concerned with
-        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
-        '''
-
-        HaloDepth.__init__(self)
+    def __init__(self, field, sym_table):
+        HaloDepth.__init__(self, sym_table)
         self._compute_from_field(field)
 
     @property
@@ -6353,16 +6604,17 @@ class HaloWriteAccess(HaloDepth):
 class HaloReadAccess(HaloDepth):
     '''Determines how much of a field's halo is read (the halo depth) and
     additionally the access pattern (the stencil) when a field is
-    accessed in a particular kernel within a particular loop nest
+    accessed in a particular kernel within a particular loop nest.
+
+    :param field: the field for which we want information.
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param sym_table: the symbol table associated with the scoping region \
+                      that contains this halo access.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field):
-        '''
-        :param field: the field that we want to get information on
-        :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        '''
-        HaloDepth.__init__(self)
+    def __init__(self, field, sym_table):
+        HaloDepth.__init__(self, sym_table)
         self._stencil_type = None
         self._needs_clean_outer = None
         self._compute_from_field(field)
@@ -6750,6 +7002,8 @@ class DynLoop(Loop):
         '''
         Create the associated Fortran code for the type of lower bound.
 
+        TODO: Issue #440. lower_bound_fortran should generate PSyIR.
+
         :returns: the Fortran code for the lower bound.
         :rtype: str
 
@@ -6792,20 +7046,13 @@ class DynLoop(Loop):
         return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
             + prev_space_index_str + ")+1"
 
-    def _upper_bound_fortran(self):
-        ''' Create the associated fortran code for the type of upper bound
-
-        :return: Fortran code for the upper bound of this loop
-        :rtype: str
-
+    @property
+    def _mesh_name(self):
         '''
-        # pylint: disable=too-many-branches, too-many-return-statements
-        # precompute halo_index as a string as we use it in more than
-        # one of the if clauses
-        halo_index = ""
-        if self._upper_bound_halo_depth:
-            halo_index = str(self._upper_bound_halo_depth)
-
+        :returns: the name of the mesh variable from which to get the bounds \
+                  for this loop.
+        :rtype: str
+        '''
         # We must allow for self._kern being None (as it will be for
         # a built-in).
         if self._kern and self._kern.is_intergrid:
@@ -6815,14 +7062,32 @@ class DynLoop(Loop):
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
             # DynKernelArguments.iteration_space_arg()).
-            mesh_name = "mesh_" + self._field_name
+            tag_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
-            mesh_name = "mesh"
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # Loops in the Invoke.
-        mesh = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(mesh_name).name
+            tag_name = "mesh"
+
+        # The symbol for the mesh will already have been added to the
+        # symbol table associated with the InvokeSchedule.
+        return self.ancestor(InvokeSchedule).symbol_table.\
+            lookup_with_tag(tag_name).name
+
+    def _upper_bound_fortran(self):
+        ''' Create the Fortran code that gives the appropriate upper bound
+        value for this type of loop.
+
+        TODO: Issue #440. upper_bound_fortran should generate PSyIR.
+
+        :returns: Fortran code for the upper bound of this loop.
+        :rtype: str
+
+        '''
+        # pylint: disable=too-many-branches, too-many-return-statements
+        # precompute halo_index as a string as we use it in more than
+        # one of the if clauses
+        halo_index = ""
+        if self._upper_bound_halo_depth:
+            halo_index = str(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -6843,59 +7108,67 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
+            root_name = "last_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            return f"{sym.name}(colour)"
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
             # computation.
-            append = ""
             if halo_index:
-                # The colouring API support an additional optional
-                # argument which specifies the depth of the halo to
-                # which the coloured loop computes. If no argument is
-                # supplied it is assumed that the coloured loop
-                # computes to the full depth of the halo (whatever that
-                # may be).
-                append = ","+halo_index
-            return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh, append))
+                # The colouring API provides a 2D array that holds the last
+                # halo cell for a given colour and halo depth.
+                depth = halo_index
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = self.ancestor(InvokeSchedule).symbol_table.\
+                    find_or_create_tag(
+                        f"max_halo_depth_{self._mesh_name}").name
+            root_name = "last_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            return f"{sym.name}(colour, {depth})"
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    result = self.field.proxy_name_indexed + "%" + \
-                             self.field.ref_name() + "%get_last_dof_owned()"
+                    result = (f"{self.field.proxy_name_indexed}%"
+                              f"{self.field.ref_name()}%get_last_dof_owned()")
                 else:  # nannexed
-                    result = self.field.proxy_name_indexed + "%" + \
-                             self.field.ref_name() + "%get_last_dof_annexed()"
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
                 result = self._kern.undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
-                result = mesh + "%get_last_edge_cell()"
+                result = f"{self._mesh_name}%get_last_edge_cell()"
             else:
-                result = self.field.proxy_name_indexed + "%" + \
-                    self.field.ref_name() + "%get_ncell()"
+                result = (f"{self.field.proxy_name_indexed}%"
+                          f"{self.field.ref_name()}%get_ncell()")
             return result
         if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
-                return "{0}%get_last_halo_cell({1})".format(mesh,
-                                                            halo_index)
+                return f"{self._mesh_name}%get_last_halo_cell({halo_index})"
             raise GenerationError(
                 "'cell_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                return "{0}%{1}%get_last_dof_halo({2})".format(
-                    self.field.proxy_name_indexed, self.field.ref_name(),
-                    halo_index)
+                return (f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_halo("
+                        f"{halo_index})")
             raise GenerationError(
                 "'dof_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "inner":
             if Config.get().distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(mesh,
-                                                             halo_index)
+                return f"{self._mesh_name}%get_last_inner_cell({halo_index})"
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -7131,36 +7404,85 @@ class DynLoop(Loop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
+    @property
+    def start_expr(self):
+        '''
+        :returns: the PSyIR for the lower bound of this loop.
+        :rtype: :py:class:`psyclone.psyir.Node`
+
+        '''
+        inv_sched = self.ancestor(InvokeSchedule)
+        sym_table = inv_sched.symbol_table
+        loops = inv_sched.loops()
+        posn = loops.index(self)
+        lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
+        return Reference(lbound)
+
+    @property
+    def stop_expr(self):
+        '''
+        :returns: the PSyIR for the upper bound of this loop.
+        :rtype: :py:class:`psyclone.psyir.Node`
+
+        '''
+        inv_sched = self.ancestor(InvokeSchedule)
+        sym_table = inv_sched.symbol_table
+
+        if self._loop_type == "colour":
+            # If this loop is over all cells of a given colour then we must
+            # lookup the loop bound as it depends on the current colour.
+            parent_loop = self.ancestor(Loop)
+            colour_var = parent_loop.variable
+
+            asym = sym_table.lookup(self.kernel.last_cell_all_colours)
+
+            if Config.get().distributed_memory:
+                if self._upper_bound_halo_depth:
+                    # TODO: #696 Add kind (precision) once the
+                    # DynInvokeSchedule constructor has been extended to
+                    # create the necessary symbols.
+                    halo_depth = Literal(str(self._upper_bound_halo_depth),
+                                         INTEGER_TYPE)
+                else:
+                    # We need to go to the full depth of the halo.
+                    root_name = "mesh"
+                    if self.kernels()[0].is_intergrid:
+                        root_name += f"_{self._field_name}"
+                    depth_sym = sym_table.lookup_with_tag(
+                        f"max_halo_depth_{root_name}")
+                    halo_depth = Reference(depth_sym)
+
+                return ArrayReference.create(asym, [Reference(colour_var),
+                                                    halo_depth])
+            return ArrayReference.create(asym, [Reference(colour_var)])
+
+        # This isn't a 'colour' loop so we have already set-up a
+        # variable that holds the upper bound.
+        loops = inv_sched.loops()
+        posn = loops.index(self)
+        ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
+        return Reference(ubound)
+
     def gen_code(self, parent):
-        '''Work out the appropriate loop bounds and variable name
-        depending on the loop type and then call the base class to
-        generate the code.
+        ''' Call the base class to generate the code and then add any
+        required halo exchanges.
 
         :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
+            f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         :raises GenerationError: if a loop over colours is within an \
-        OpenMP parallel region (as it must be serial)
+            OpenMP parallel region (as it must be serial).
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over "
-                                  "colours within an OpenMP "
-                                  "parallel region.")
+            raise GenerationError("Cannot have a loop over colours within an "
+                                  "OpenMP parallel region.")
 
         if self._loop_type != "null":
-            # Generate the upper and lower loop bounds
-            # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
-            # TODO: Issue #696. Add kind (precision) when the support in the
-            #                   Literal class is implemented.
-            self.start_expr = Literal(self._lower_bound_fortran(),
-                                      INTEGER_TYPE, parent=self)
-            self.stop_expr = Literal(self._upper_bound_fortran(),
-                                     INTEGER_TYPE, parent=self)
-
             super(DynLoop, self).gen_code(parent)
         else:
             # This is a 'null' loop and therefore we do not actually generate
@@ -7168,118 +7490,103 @@ class DynLoop(Loop):
             for child in self.loop_body.children:
                 child.gen_code(parent)
 
-        # pylint: disable=too-many-nested-blocks
-        if Config.get().distributed_memory and self._loop_type != "colour":
-            # Set halo clean/dirty for all fields that are modified
-            fields = self.unique_modified_args("gh_field")
+        if not (Config.get().distributed_memory and
+                self._loop_type != "colour"):
+            # No need to add halo exchanges so we are done.
+            return
 
-            if fields:
-                parent.add(CommentGen(parent, ""))
-                if self._loop_type != "null":
-                    prev_node_name = "loop"
+        # Set halo clean/dirty for all fields that are modified
+        fields = self.unique_modified_args("gh_field")
+
+        if not fields:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        if self._loop_type != "null":
+            prev_node_name = "loop"
+        else:
+            prev_node_name = "kernel"
+        parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
+                              f"modified in the above {prev_node_name}"))
+        parent.add(CommentGen(parent, ""))
+        use_omp_master = False
+        if self.is_openmp_parallel():
+            if not self.ancestor(OMPParallelDoDirective):
+                use_omp_master = True
+                # I am within an OpenMP Do directive so protect
+                # set_dirty() and set_clean() with OpenMP Master
+                parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
+
+        sym_table = self.ancestor(InvokeSchedule).symbol_table
+
+        # first set all of the halo dirty unless we are
+        # subsequently going to set all of the halo clean
+        for field in fields:
+            # The HaloWriteAccess class provides information about how the
+            # supplied field is accessed within its parent loop
+            hwa = HaloWriteAccess(field, sym_table)
+            if not hwa.max_depth or hwa.dirty_outer:
+                # output set dirty as some of the halo will not be set to clean
+                if field.vector_size > 1:
+                    # the range function below returns values from 1 to the
+                    # vector size which is what we require in our Fortran code
+                    for index in range(1, field.vector_size+1):
+                        parent.add(CallGen(parent, name=field.proxy_name +
+                                           f"({index})%set_dirty()"))
                 else:
-                    prev_node_name = "kernel"
-                parent.add(
-                    CommentGen(parent, " Set halos dirty/clean for fields "
-                               "modified in the above {0}".format(
-                                   prev_node_name)))
-                parent.add(CommentGen(parent, ""))
-                use_omp_master = False
-                if self.is_openmp_parallel():
-                    if not self.ancestor(OMPParallelDoDirective):
-                        use_omp_master = True
-                        # I am within an OpenMP Do directive so protect
-                        # set_dirty() and set_clean() with OpenMP Master
-                        parent.add(DirectiveGen(parent, "omp", "begin",
-                                                "master", ""))
-                # first set all of the halo dirty unless we are
-                # subsequently going to set all of the halo clean
-                for field in fields:
-                    # The HaloWriteAccess class provides information
-                    # about how the supplied field is accessed within
-                    # its parent loop
-                    hwa = HaloWriteAccess(field)
-                    if not hwa.max_depth or hwa.dirty_outer:
-                        # output set dirty as some of the halo will
-                        # not be set to clean
-                        if field.vector_size > 1:
-                            # the range function below returns values from
-                            # 1 to the vector size which is what we
-                            # require in our Fortran code
-                            for index in range(1, field.vector_size+1):
-                                parent.add(CallGen(parent,
-                                                   name=field.proxy_name +
-                                                   "(" + str(index) +
-                                                   ")%set_dirty()"))
-                        else:
-                            parent.add(CallGen(parent, name=field.proxy_name +
-                                               "%set_dirty()"))
-                # now set appropriate parts of the halo clean where
-                # redundant computation has been performed
-                for field in fields:
-                    # The HaloWriteAccess class provides information
-                    # about how the supplied field is accessed within
-                    # its parent loop
-                    hwa = HaloWriteAccess(field)
-                    if hwa.literal_depth:
-                        # halo access(es) is/are to a fixed depth
-                        halo_depth = hwa.literal_depth
-                        if hwa.dirty_outer:
-                            halo_depth -= 1
-                        if halo_depth > 0:
-                            if field.vector_size > 1:
-                                # the range function below returns
-                                # values from 1 to the vector size
-                                # which is what we require in our
-                                # Fortran code
-                                for index in range(1, field.vector_size+1):
-                                    parent.add(
-                                        CallGen(parent,
-                                                name="{0}({1})%set_clean"
-                                                "({2})".format(
-                                                    field.proxy_name,
-                                                    str(index),
-                                                    halo_depth)))
-                            else:
-                                parent.add(
-                                    CallGen(parent,
-                                            name="{0}%set_clean({1})".
-                                            format(field.proxy_name,
-                                                   halo_depth)))
-                    elif hwa.max_depth:
-                        # halo accesses(s) is/are to the full halo
-                        # depth (-1 if continuous)
-                        halo_depth = "mesh%get_halo_depth()"
-                        if hwa.dirty_outer:
-                            # a continuous field iterating over
-                            # cells leaves the outermost halo
-                            # dirty
-                            halo_depth += "-1"
-                        if field.vector_size > 1:
-                            # the range function below returns
-                            # values from 1 to the vector size
-                            # which is what we require in our
-                            # Fortran code
-                            for index in range(1, field.vector_size+1):
-                                call = CallGen(parent,
-                                               name="{0}({1})%set_clean("
-                                               "{2})".format(
-                                                   field.proxy_name,
-                                                   str(index),
-                                                   halo_depth))
-                                parent.add(call)
-                        else:
-                            call = CallGen(parent, name="{0}%set_clean("
-                                           "{1})".format(field.proxy_name,
-                                                         halo_depth))
-                            parent.add(call)
+                    parent.add(CallGen(parent, name=field.proxy_name +
+                                       "%set_dirty()"))
+        # now set appropriate parts of the halo clean where
+        # redundant computation has been performed
+        for field in fields:
+            # The HaloWriteAccess class provides information about how the
+            # supplied field is accessed within its parent loop
+            hwa = HaloWriteAccess(field, sym_table)
+            if hwa.literal_depth:
+                # halo access(es) is/are to a fixed depth
+                halo_depth = hwa.literal_depth
+                if hwa.dirty_outer:
+                    halo_depth -= 1
+                if halo_depth > 0:
+                    if field.vector_size > 1:
+                        # The range function below returns values from 1 to the
+                        # vector size, as required in our Fortran code.
+                        for index in range(1, field.vector_size+1):
+                            parent.add(CallGen(
+                                parent, name=f"{field.proxy_name}({index})%"
+                                f"set_clean({halo_depth})"))
+                    else:
+                        parent.add(CallGen(
+                            parent, name=f"{field.proxy_name}%set_clean("
+                            f"{halo_depth})"))
+            elif hwa.max_depth:
+                # halo accesses(s) is/are to the full halo
+                # depth (-1 if continuous)
+                halo_depth = sym_table.lookup_with_tag(
+                    "max_halo_depth_mesh").name
 
-                if use_omp_master:
-                    # I am within an OpenMP Do directive so protect
-                    # set_dirty() and set_clean() with OpenMP Master
-                    parent.add(DirectiveGen(parent, "omp", "end",
-                                            "master", ""))
-                parent.add(CommentGen(parent, ""))
+                if hwa.dirty_outer:
+                    # a continuous field iterating over cells leaves the
+                    # outermost halo dirty
+                    halo_depth += "-1"
+                if field.vector_size > 1:
+                    # the range function below returns values from 1 to the
+                    # vector size which is what we require in our Fortran code
+                    for index in range(1, field.vector_size+1):
+                        call = CallGen(parent,
+                                       name=f"{field.proxy_name}({index})%"
+                                       f"set_clean({halo_depth})")
+                        parent.add(call)
+                else:
+                    call = CallGen(parent, name=f"{field.proxy_name}%"
+                                   f"set_clean({halo_depth})")
+                    parent.add(call)
+
+        if use_omp_master:
+            # I am within an OpenMP Do directive so protect
+            # set_dirty() and set_clean() with OpenMP Master
+            parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
+        parent.add(CommentGen(parent, ""))
 
 
 class DynKern(CodedKern):
@@ -7602,8 +7909,37 @@ class DynKern(CodedKern):
         '''
         Getter for the name of the colourmap associated with this kernel call.
 
-        :return: name of the colourmap (Fortran array)
+        :returns: name of the colourmap (Fortran array).
         :rtype: str
+
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
+                               colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self._is_intergrid:
+            invoke = self.ancestor(InvokeSchedule).invoke
+            if self not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    f"Colourmap information for kernel '{self.name}' has "
+                    f"not yet been initialised")
+            cmap = invoke.meshes.intergrid_kernels[self].colourmap
+        else:
+            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+        return cmap
+
+    @property
+    def last_cell_all_colours(self):
+        '''
+        Getter for the name of the array holding the index of the last cell of
+        each colour.
+
+        :returns: name of the array.
+        :rtype: str
+
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
@@ -7613,14 +7949,14 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self.name not in invoke.meshes.intergrid_kernels:
+            if self not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
-        else:
-            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
-        return cmap
+            return invoke.meshes.intergrid_kernels[self].last_cell_var
+
+        return self.scope.symbol_table.lookup_with_tag(
+            "last_cell_all_colours").name
 
     @property
     def ncolours_var(self):
@@ -7638,11 +7974,11 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self.name not in invoke.meshes.intergrid_kernels:
+            if self not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
+            ncols = invoke.meshes.intergrid_kernels[self].ncolours_var
         else:
             ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols

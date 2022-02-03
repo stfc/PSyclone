@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1037,6 +1037,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
     if dist_mem:
         zero_sum_decls = (
             "      USE scalar_mod, ONLY: scalar_type\n"
+            "      USE mesh_mod, ONLY: mesh_type\n"
             "      REAL, intent(out) :: asum\n"
             "      TYPE(field_type), intent(in) :: f1\n"
             "      TYPE(scalar_type) global_sum\n"
