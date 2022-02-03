@@ -98,6 +98,9 @@
 	are directives and may also help compilers produce more efficient
 	code.
 
+	33) PR #1592 for #1585. Add a PSyIR clause node and start implementing
+	clauses for the OpenMP directives.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

@@ -205,8 +205,8 @@ def test_omptaskloop_apply(monkeypatch):
 
     code = str(psy.gen)
 
+    print(code)
     clauses = " nogroup"
-
     assert (
         "    !$omp parallel default(shared), private(i,j)\n" +
         "      !$omp master\n" +
@@ -218,7 +218,7 @@ def test_omptaskloop_apply(monkeypatch):
         "      !$omp end master\n" +
         "      !$omp end parallel" in code)
 
-    assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
+    assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
     def validate(self, options):
