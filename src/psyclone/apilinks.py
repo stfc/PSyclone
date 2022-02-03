@@ -15,7 +15,7 @@ def setup(app):
     Sets-up this Sphinx plugin.
 
     '''
-    def ref_link_role(rawtext, text, lineno, inliner, options={},
+    def ref_link_role(role, rawtext, text, lineno, inliner, options={},
                       content=[]):
         '''
         Handler routine called when the ':ref_guide:' role is encountered.
