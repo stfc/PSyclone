@@ -275,7 +275,10 @@ class NemoArrayRange2LoopTrans(Transformation):
             Range, if the Range node is not part of an ArrayReference, \
             if the Range node is not the outermost Range node of the \
             ArrayReference or if that ArrayReference does not \
-            consitute the left hand side of an Assignment node.
+            constitute the left hand side of an Assignment node.
+        :raises TransformationError: if the node argument has nested array \
+            expressions with Ranges or is an invalid tree with ranges in \
+            multiple locations of a structure of arrays.
 
         '''
         # Am I Range node?

@@ -50,7 +50,7 @@ from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.nemo import NemoKern, NemoLoop
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Range, Literal
 from psyclone.errors import InternalError
 from psyclone.configuration import Config
 
@@ -300,30 +300,29 @@ def test_apply_non_existing_bound_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_structure_of_arrays(fortran_writer):
+def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     '''Check that the apply method works when the assignment expression
     contains structures of arrays.
 
     '''
-    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment1 = schedule[0]
-    assignment2 = schedule[1]
-    assignment3 = schedule[2]
-    assignment4 = schedule[3]
     trans = NemoArrayRange2LoopTrans()
 
     # Case 1: SoA in the RHS
-    array_ref = assignment1.lhs
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        umask(:,:,:) = mystruct%field(:,:,:) + mystruct%field2%field(:,:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     trans.apply(array_ref.children[2])
     trans.apply(array_ref.children[1])
     trans.apply(array_ref.children[0])
-
-    result = fortran_writer(schedule)
+    result = fortran_writer(psyir)
     assert (
-        "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
+        "  do jk = 1, UBOUND(umask, 3), 1\n"
+        "    do jj = 1, UBOUND(umask, 2), 1\n"
+        "      do ji = 1, UBOUND(umask, 1), 1\n"
         "        umask(ji,jj,jk) = mystruct%field(ji,jj,jk) "
         "+ mystruct%field2%field(ji,jj,jk)\n"
         "      enddo\n"
@@ -331,45 +330,63 @@ def test_apply_structure_of_arrays(fortran_writer):
         "  enddo\n" in result)
 
     # Case 2: SoA in the LHS
-    array_ref = assignment2.lhs
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field2%field(:,:,:) = 0.0d0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     trans.apply(array_ref.member.member.children[2])
     trans.apply(array_ref.member.member.children[1])
     trans.apply(array_ref.member.member.children[0])
-    result = fortran_writer(schedule)
+    result = fortran_writer(psyir)
     assert (
-        "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
+        "  do jk = 1, UBOUND(mystruct%field2%field, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field2%field, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field2%field, 1), 1\n"
         "        mystruct%field2%field(ji,jj,jk) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
 
     # Case 3: SoAoS in the LHS
-    array_ref = assignment3.lhs
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field3(:,:,:)%field4 = 0.0d0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     trans.apply(array_ref.member.children[3])
     trans.apply(array_ref.member.children[2])
     trans.apply(array_ref.member.children[1])
-    result = fortran_writer(schedule)
+    result = fortran_writer(psyir)
     assert (
-        "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
+        "  do jk = 1, UBOUND(mystruct%field3, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field3, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field3, 1), 1\n"
         "        mystruct%field3(ji,jj,jk)%field4 = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
 
     # Case 4: SoAoS in the LHS and SoA in the RHS
-    array_ref = assignment4.lhs
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     trans.apply(array_ref.member.children[3])
     trans.apply(array_ref.member.children[2])
     trans.apply(array_ref.member.children[1])
-    result = fortran_writer(schedule)
+    result = fortran_writer(psyir)
     assert (
-        "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
+        "  do jk = 1, UBOUND(mystruct%field3, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field3, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field3, 1), 1\n"
         "        mystruct%field3(ji,jj,jk)%field4 = "
         "mystruct%field2%field(ji,jj,jk)\n"
         "      enddo\n"
@@ -377,26 +394,31 @@ def test_apply_structure_of_arrays(fortran_writer):
         "  enddo\n" in result)
 
 
-def test_apply_structure_of_arrays_multiple_arrays(fortran_writer):
+def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
+                                                   fortran_writer):
     '''Check that the apply method works when the assignment expression
     contains structures of arrays with multiple array accessors.
 
     '''
-    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment5 = schedule[4]
     trans = NemoArrayRange2LoopTrans()
 
-    # Case 5: 2 array accessors in LHS but only one has ranges
-    array_ref = assignment5.lhs
+    # Case 1: 2 array accessors in LHS but only one has ranges
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field2(4, 3)%field(:,:,:) = mystruct%field2(5, 8)%field(:,:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     trans.apply(array_ref.member.member.children[2])
     trans.apply(array_ref.member.member.children[1])
     trans.apply(array_ref.member.member.children[0])
-    result = fortran_writer(schedule)
+    result = fortran_writer(psyir)
+    print(result)
     assert (
-        "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
+        "  do jk = 1, UBOUND(mystruct%field2(4,3)%field, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field2(4,3)%field, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field2(4,3)%field, 1), 1\n"
         "        mystruct%field2(4,3)%field(ji,jj,jk) = "
         "mystruct%field2(5,8)%field(ji,jj,jk)\n"
         "      enddo\n"
@@ -404,33 +426,49 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_writer):
         "  enddo\n" in result)
 
 
-def test_apply_nested_structure_of_arrays():
+def test_validate_unsupported_structure_of_arrays(fortran_reader):
     '''Check that nested structure_of_arrays are not supported. '''
-    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment6 = schedule[5]
-    assignment7 = schedule[6]
-    assignment8 = schedule[7]
     trans = NemoArrayRange2LoopTrans()
 
-    # Case 6: 2 array accessors in LHS and both have ranges
-    array_ref = assignment6.lhs
+    # Case 1: 2 array accessors in LHS and both have ranges
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field2(4)%field(:,:,:) = 0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    array_ref.member.indices[0].replace_with(Range.create(
+        Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.member.member.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "
             "transformation does not support array assignments that contain "
             "nested Range structures, but found:\n" in str(info.value))
 
-    # Case 7: Nested SoA currently causes an InternalError
-    array_ref = assignment7.lhs
+    # Case 2: Nested array in another array
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field5(indices(:)) = 0.0d0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.member.indices[0].indices[0])
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "
             "transformation does not support array assignments that contain "
             "nested Range structures, but found:\n" in str(info.value))
 
-    # Case 8: Nested SoA currently causes an InternalError
-    array_ref = assignment8.lhs
+    # Case 3: Nested array in another array which also have Ranges
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        umask(:,mystruct%field2%field3(:),:) = &
+            mystruct%field(mystruct%field2%field3(:),:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "
