@@ -26,6 +26,11 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
 
+# Add the location of our extension that enables the :ref_guide: role (which
+# makes the URL used for links to the Reference Guide configurable).
+docs_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(docs_dir, "_ext"))
+
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -37,7 +42,7 @@ needs_sphinx = '1.8'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
-              'sphinxcontrib.bibtex', 'psyclone.apilinks']
+              'sphinxcontrib.bibtex', 'apilinks']
 bibtex_bibfiles = ['../bibliography/references.bib']
 
 # GITHUB_PR_NUMBER is set in .github/workflows/python-package.yml when

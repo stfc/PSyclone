@@ -14,6 +14,9 @@ def setup(app):
     '''
     Sets-up this Sphinx plugin.
 
+    :param app: the Sphinx application object.
+    :type app: :py:class:`sphinx.application.Sphinx`
+
     '''
     def ref_link_role(role, rawtext, text, lineno, inliner, options={},
                       content=[]):

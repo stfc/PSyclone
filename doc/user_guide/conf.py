@@ -19,13 +19,13 @@
 # pylint: disable=invalid-name
 
 import os
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-# sys.path.insert(0, os.path.abspath('.'))
+import sys
 
 docs_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here.
+sys.path.insert(0, os.path.join(docs_dir, "_ext"))
 
 # -- General configuration ----------------------------------------------------
 
@@ -38,7 +38,7 @@ needs_sphinx = '1.8'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
-              'sphinxcontrib.bibtex', 'psyclone.apilinks']
+              'sphinxcontrib.bibtex', 'apilinks']
 bibtex_bibfiles = ['../bibliography/references.bib']
 
 # GITHUB_PR_NUMBER is set in .github/workflows/python-package.yml when
