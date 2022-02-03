@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -535,7 +535,8 @@ def test_omp_loop_directive_validate_global_constraints():
     assert ("OMPLoopDirective must have a Loop as child of its associated "
             "schedule but found 'Assignment" in str(err.value))
 
-    # Check with an OMPLoop and a single Loop inside
+    # Check with an OMPLoop and a single Loop inside but without a proper
+    # region ancestor
     stmt.detach()
     loop = Loop.create(variable,
                        Literal('1', INTEGER_TYPE),
@@ -543,7 +544,16 @@ def test_omp_loop_directive_validate_global_constraints():
                        Literal('1', INTEGER_TYPE),
                        [stmt])
     omploop.dir_body.addchild(loop)
-    omploop.validate_global_constraints()  # This is valid
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must be inside a OMPTargetDirective or a "
+            "OMPParallelDirective, but 'OMPLoopDirective[]' is not."
+            in str(err.value))
+
+    # Insert block in a OMP Parallel region
+    ompparallel = OMPParallelDirective()
+    omploop.replace_with(ompparallel)
+    ompparallel.dir_body.addchild(omploop)
 
     # Check with an OMPLoop and collapse is 2 but just one loop inside
     omploop.collapse = 2

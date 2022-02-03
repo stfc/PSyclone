@@ -64,6 +64,33 @@
 	22) PR #1485 for #1429. Create correct variable intents for
 	generated adjoint kernel code.
 
+	23) PR #1228 towards #753. The GOcean API now uses PSyIR for the Algorithm
+	layer.
+
+	24) PR #1526 for #1430. Fixes and improves support for array
+	ranges in psyad.
+
+	25) PR #1500 for #1487. Improvements to NEMO arrayrange2loop
+	transformation.
+
+	26) PR #1541 for #1513. Adds a 2D loop-tiling transformation.
+
+	27) PR #1533 for #1523. Adds SymPy symbols for Fortran names
+	in the tools.symbolic_maths module.
+
+	28) PR #1579 for #1550. Removes duplicated use statements produced
+	by the Fortran backend.
+
+	29) PR #1518 for #1506. Bugfix for WHEREs involving derived types.
+
+	30) PR #1578 for #1517. Uses dependency analysis to check for
+	loop-carried dependencies when attempting to parallelise a loop.
+	Also improves validation checks at code-generation time to ensure
+	that any OMP Loop directive is within a Target or Parallel region.
+
+	31) PR #1598 towards #282. Removes reference to the Dynamo 0.1 API
+	in the documentation.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

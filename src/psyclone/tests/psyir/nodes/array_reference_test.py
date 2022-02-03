@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,6 +87,20 @@ def test_array_create():
     check_links(array, children)
     result = FortranWriter().arrayreference_node(array)
     assert result == "temp(i,j,1)"
+
+
+def test_array_is_array():
+    '''Test that an ArrayReference is marked as being an array.
+
+    '''
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    children = [Reference(symbol_i), Reference(symbol_j),
+                Literal("1", INTEGER_SINGLE_TYPE)]
+    array = ArrayReference.create(symbol_temp, children)
+    assert array.is_array is True
 
 
 def test_array_create_invalid1():
@@ -441,30 +455,30 @@ def test_array_indices():
     array._children = [one.copy(), "hello"]
     with pytest.raises(InternalError) as err:
         _ = array.indices
-    assert ("ArrayReference malformed or incomplete: child 1 must by a "
-            "psyir.nodes.DataNode or Range representing an array-index "
-            "expression but found 'str'" in str(err.value))
+    assert ("ArrayReference malformed or incomplete: child 1 of array 'test' "
+            "must be a psyir.nodes.DataNode or Range representing an array-"
+            "index expression but found 'str'" in str(err.value))
     # Remove the children altogether
     array._children = []
     with pytest.raises(InternalError) as err:
         _ = array.indices
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but found none"
-            in str(err.value))
+            "children representing array-index expressions but array 'test' "
+            "has none" in str(err.value))
 
 
-def test_array_matching_access():
-    ''' Test the _matching_access() method for an ArrayReference. '''
+def test_array_same_array():
+    ''' Test the is_same_array() method for an ArrayReference. '''
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
     test_sym = DataSymbol("test",
                           ArrayType(REAL_TYPE, [10]))
     array = ArrayReference.create(test_sym, [one])
     # Something other than a Reference won't match
-    assert array._matching_access(one) is False
+    assert array.is_same_array(one) is False
     # An ArrayReference should match
-    array2 = ArrayReference(test_sym, [two])
-    assert array._matching_access(array2) is True
+    array2 = ArrayReference.create(test_sym, [two])
+    assert array.is_same_array(array2) is True
     # A Reference to the array symbol should also match
     bare_array = Reference(test_sym)
-    assert array._matching_access(bare_array) is True
+    assert array.is_same_array(bare_array) is True
