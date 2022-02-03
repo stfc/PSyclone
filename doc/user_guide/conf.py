@@ -70,7 +70,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PSyclone'
-copyright = u'2017-2021, STFC Daresbury Laboratory'
+copyright = u'2017-2022, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -312,7 +312,7 @@ epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
     'Sergi Siso'
 epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
     'and Sergi Siso'
-epub_copyright = u'2017-2021, STFC'
+epub_copyright = copyright
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

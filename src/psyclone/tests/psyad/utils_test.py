@@ -37,7 +37,9 @@
 utils.py file within the psyad directory.
 
 '''
-from psyclone.psyad.utils import node_is_active, node_is_passive
+from psyclone.psyad.utils import node_is_active, node_is_passive, negate_expr
+from psyclone.psyir.nodes import Literal, UnaryOperation, Reference
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
 
 
 # node_is_active and node_is_passive functions
@@ -73,3 +75,34 @@ def test_active_passive(fortran_reader):
     assert not node_is_active(assignment, [])
     assert node_is_passive(assignment, [symbol_c])
     assert not node_is_active(assignment, [symbol_c])
+
+
+def test_negate_expr(fortran_writer):
+    '''Test that the negate_expr function negates a PSyIR expression by
+    multiplying it by minus one.
+
+    '''
+    # positive literal value
+    literal = Literal("1", INTEGER_TYPE)
+    result = negate_expr(literal)
+    assert fortran_writer(result) == "-1"
+    # negative literal value
+    literal = Literal("-1", INTEGER_TYPE)
+    result = negate_expr(literal)
+    assert fortran_writer(result) == "1"
+    # unary minus
+    minus = UnaryOperation.create(
+        UnaryOperation.Operator.MINUS, Literal("1", INTEGER_TYPE))
+    result = negate_expr(minus)
+    assert isinstance(result, Literal)
+    assert fortran_writer(result) == "1"
+    # unary plus
+    minus = UnaryOperation.create(
+        UnaryOperation.Operator.PLUS, Literal("1", INTEGER_TYPE))
+    result = negate_expr(minus)
+    # assert isinstance(result, Literal)
+    assert fortran_writer(result) == "-1 * (+1)"
+    # expression
+    expr = Reference(DataSymbol("a", INTEGER_TYPE))
+    result = negate_expr(expr)
+    assert fortran_writer(result) == "-1 * a"

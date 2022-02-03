@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,15 @@ class Reference(DataNode):
         self.symbol = symbol
 
     @property
+    def is_array(self):
+        ''':returns: if this reference is an array.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return False
+
+    @property
     def symbol(self):
         ''' Return the referenced symbol.
 
@@ -85,8 +94,8 @@ class Reference(DataNode):
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError(
-                "The Reference symbol setter expects a PSyIR Symbol object "
-                "but found '{0}'.".format(type(symbol).__name__))
+                f"The Reference symbol setter expects a PSyIR Symbol object "
+                f"but found '{type(symbol).__name__}'.")
         self._symbol = symbol
 
     @property
@@ -108,21 +117,10 @@ class Reference(DataNode):
         :return: text description of this node.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[name:'" + self.name + "']"
+        return f"{self.coloured_name(colour)}[name:'{self.name}']"
 
     def __str__(self):
         return self.node_str(False)
-
-    def math_equal(self, other):
-        ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: True if the self has the same results as other.
-        :rtype: bool
-        '''
-        if not super(Reference, self).math_equal(other):
-            return False
-        return self.name == other.name
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this reference, and \

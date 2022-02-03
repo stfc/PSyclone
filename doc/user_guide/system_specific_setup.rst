@@ -80,9 +80,9 @@ to the latest version::
 
     > sudo pip install --upgrade pip
 
-Next you need to install the ``fparser`` and ``pyparsing`` packages::
+Next you need to install the ``fparser``, ``pyparsing`` and ``sympy`` packages::
 
-    > sudo pip install fparser pyparsing 
+    > sudo pip install fparser pyparsing sympy 
 
 .. tip::
 
@@ -95,14 +95,14 @@ Next you need to install the ``fparser`` and ``pyparsing`` packages::
     all pip commands. This flag requests that the packages be installed locally
     for the current user rather than requiring root access::
 
-        > pip install --user fparser pyparsing
+        > pip install --user fparser pyparsing sympy
 
     You may remove the use of ``sudo`` and add the ``--user`` option to all
     pip commands described in this document.
 
     Uninstalling is simply a matter of doing::
 
-       > sudo pip uninstall fparser pyparsing
+       > sudo pip uninstall fparser pyparsing sympy
 
 PSyclone supports the ability to output a schedule dependency graph
 using the graphviz package. This is optional and the associated

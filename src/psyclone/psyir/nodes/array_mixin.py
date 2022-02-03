@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ import six
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
@@ -72,6 +73,15 @@ class ArrayMixin(object):
         '''
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
+
+    @property
+    def is_array(self):
+        ''':returns: if this instance indicates an array access.
+        :rtype: bool
+
+        '''
+        # pylint: disable=no-self-use
+        return True
 
     def get_signature_and_indices(self):
         '''
@@ -102,13 +112,13 @@ class ArrayMixin(object):
         '''
         if not isinstance(index, int):
             raise TypeError(
-                "The index argument should be an integer but found '{0}'."
-                "".format(type(index).__name__))
+                f"The index argument should be an integer but found "
+                f"'{type(index).__name__}'.")
         if index > len(self.indices)-1:
             raise ValueError(
-                "In ArrayReference '{0}' the specified index '{1}' must be "
-                "less than the number of dimensions '{2}'."
-                "".format(self.name, index, len(self.indices)))
+                f"In ArrayReference '{self.name}' the specified index "
+                f"'{index}' must be less than the number of dimensions "
+                f"'{len(self.indices)}'.")
 
     def is_lower_bound(self, index):
         '''Returns True if the specified array index contains a Range node
@@ -142,7 +152,7 @@ class ArrayMixin(object):
         if not isinstance(lower.children[0], Reference):
             return False
 
-        if not self._matching_access(lower.children[0]):
+        if not self.is_same_array(lower.children[0]):
             return False
 
         if not (isinstance(lower.children[1], Literal) and
@@ -184,51 +194,56 @@ class ArrayMixin(object):
         if not isinstance(upper.children[0], Reference):
             return False
 
-        if not self._matching_access(upper.children[0]):
+        if not self.is_same_array(upper.children[0]):
             return False
 
-        if not (isinstance(upper.children[1], Literal) and
+        return (isinstance(upper.children[1], Literal) and
                 upper.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER
-                and upper.children[1].value == str(index+1)):
-            return False
-        return True
+                and upper.children[1].value == str(index+1))
 
-    def _matching_access(self, node):
+    def is_same_array(self, node):
         '''
-        Examines the full structure access represented by the supplied node
-        to see whether it is the same as the one for this node. Any indices
-        on the innermost member access are ignored. e.g.
+        Checks that the provided array is the same as this node (including the
+        chain of parent accessor expressions if the array is part of a
+        Structure). If the array is part of a structure then any indices on
+        the innermost member access are ignored, e.g.
         A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
 
-        :returns: True if the structure accesses match, False otherwise.
+        :param node: the node representing the access that is to be compared \
+                     with this node.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
+                    :py:class:`psyclone.psyir.nodes.Member`
+
+        :returns: True if the array accesses match, False otherwise.
         :rtype: bool
 
         '''
-        if isinstance(self, Reference):
-            if not isinstance(node, Reference):
-                return False
-            # This node is a reference so just compare symbol names.
-            return self.symbol.name == node.symbol.name
-
-        # This node is somewhere within a structure access so we need to
-        # get the parent Reference and keep a record of how deep this node
-        # is within the structure access. e.g. if this node was the
-        # StructureMember 'b' in a%c%b%d then its depth would be 2.
-        current = self
-        depth = 1
-        while current.parent and not isinstance(current.parent, Reference):
-            depth += 1
-            current = current.parent
-        parent_ref = current.parent
-        if not parent_ref:
+        if not isinstance(node, (Member, Reference)):
             return False
+
+        if isinstance(self, Member):
+            # This node is somewhere within a structure access so we need to
+            # get the parent Reference and keep a record of how deep this node
+            # is within the structure access. e.g. if this node was the
+            # StructureMember 'b' in a%c%b%d then its depth would be 2.
+            depth = 1
+            current = self
+            while current.parent and not isinstance(current.parent, Reference):
+                depth += 1
+                current = current.parent
+            parent_ref = current.parent
+            if not parent_ref:
+                return False
+        else:
+            depth = 0
+            parent_ref = self
 
         # Now we have the parent Reference and the depth, we can construct the
         # Signatures and compare them to the required depth.
         self_sig, self_indices = parent_ref.get_signature_and_indices()
         node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig[:depth+1] != node_sig[:depth+1]:
+        if self_sig[:depth+1] != node_sig[:]:
             return False
 
         # We use the FortranWriter to simplify the job of comparing array-index
@@ -293,16 +308,16 @@ class ArrayMixin(object):
         '''
         if not self._children:
             raise InternalError(
-                "{0} malformed or incomplete: must have one or more "
-                "children representing array-index expressions but found "
-                "none.".format(type(self).__name__))
+                f"{type(self).__name__} malformed or incomplete: must have "
+                f"one or more children representing array-index expressions "
+                f"but array '{self.name}' has none.")
         for idx, child in enumerate(self._children):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child {1} must by a psyir."
-                    "nodes.DataNode or Range representing an array-index "
-                    "expression but found '{2}'".format(
-                        type(self).__name__, idx, type(child).__name__))
+                    f"{type(self).__name__} malformed or incomplete: child "
+                    f"{idx} of array '{self.name}' must be a psyir.nodes."
+                    f"DataNode or Range representing an array-index "
+                    f"expression but found '{type(child).__name__}'")
         return self.children
 
 

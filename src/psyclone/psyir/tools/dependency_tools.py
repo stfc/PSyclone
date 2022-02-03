@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -42,7 +43,8 @@
 from __future__ import absolute_import, print_function
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import (AccessType, Signature, SymbolicMaths,
+                           VariablesAccessInfo)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -274,10 +276,10 @@ class DependencyTools(object):
                 self._add_info("Not a nested loop.")
                 return False
 
-        if loop.loop_type not in self._loop_types_to_parallelise:
-            self._add_info("Loop has wrong loop type '{0}'.".
-                           format(loop.loop_type))
-            return False
+        if self._loop_types_to_parallelise:
+            if loop.loop_type not in self._loop_types_to_parallelise:
+                self._add_info(f"Loop has wrong loop type '{loop.loop_type}'.")
+                return False
         return True
 
     # -------------------------------------------------------------------------
@@ -355,9 +357,11 @@ class DependencyTools(object):
         # b(j) = a(j-1) + a(j+1)
         # a(j) = c(j)
 
+        sym_maths = SymbolicMaths.get()
+
         first_index = all_indices[0]
         for index in all_indices[1:]:
-            if not first_index.math_equal(index):
+            if not sym_maths.equal(first_index, index):
                 self._add_warning("Variable '{0}' is written and is accessed "
                                   "using indices '{1}' and '{2}' and can "
                                   "therefore not be parallelised."
@@ -396,8 +400,12 @@ class DependencyTools(object):
 
         # Now we have at least two accesses. If the first access is a WRITE,
         # then the variable is not used in a reduction. This relies on sorting
-        # the accesses by location.
-        if all_accesses[0].access_type == AccessType.WRITE:
+        # the accesses by location. Note that an argument to a kernel can have
+        # a 'READWRITE' access because, in that case, all we know is what the
+        # kernel metadata tells us. However, we do know that such an access is
+        # *not* a reduction because that would have 'SUM' access.
+        if all_accesses[0].access_type in (AccessType.WRITE,
+                                           AccessType.READWRITE):
             return True
 
         # Otherwise there is a read first, which would indicate that this loop
