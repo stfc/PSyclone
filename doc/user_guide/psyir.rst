@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -184,6 +184,7 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``RegionDirective``:
    .. automethod:: psyclone.psyir.nodes.RegionDirective.dir_body()
+   .. automethod:: psyclone.psyir.nodes.RegionDirective.clauses()
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
