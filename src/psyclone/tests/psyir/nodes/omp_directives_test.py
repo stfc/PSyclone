@@ -399,6 +399,12 @@ def test_omp_taskwait_validate_global_constraints():
             in str(excinfo.value))
 
 
+def test_omp_taskwait_clauses():
+    ''' Test the clauses property of the OMPTaskwait directive. '''
+    omp_taskwait = OMPTaskwaitDirective()
+    assert omp_taskwait.clauses == []
+
+
 def test_omp_taskloop_strings():
     ''' Test the begin_string and end_string methods of the
         OMPTaskloop directive '''
