@@ -79,8 +79,8 @@ by the command:
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels
-    -api API              choose a particular api from ['dynamo0.1',
-                          'dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo'],
+    -api API              choose a particular api from ['dynamo0.3',
+                          'gocean0.1', 'gocean1.0', 'nemo'],
                           default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
@@ -141,7 +141,7 @@ If your code uses an API that is different to the default then you can
 specify this as an argument to the ``psyclone`` command.
 ::
 
-    > psyclone -api dynamo0.1 alg.f90
+    > psyclone -api gocean1.0 alg.f90
 
 File output
 -----------
