@@ -544,7 +544,7 @@ def test_main_invalid_api(capsys):
     # The error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("Unsupported API 'madeup' specified. Supported API's "
+    expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
                        "are ['dynamo0.3', 'gocean0.1', 'gocean1.0', "
                        "'nemo'].\n")
     assert output == expected_output
@@ -577,7 +577,7 @@ def test_main_api():
     # 3) Check that a config option will overwrite the default
     Config._instance = None
     Config.get()
-    # This config file specifies the gocean1.0 as the default api
+    # This config file specifies the gocean1.0 as the default API
     config_name = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0",
                                 "gocean_default.cfg"))

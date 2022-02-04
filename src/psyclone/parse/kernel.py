@@ -310,10 +310,9 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             fparser.logging.disable(fparser.logging.CRITICAL)
             parse_tree = fpapi.parse(fname)
         except Exception as err:
-            six.raise_from(ParseError(
-                "BuiltInKernelTypeFactory:create: Failed to parse the meta-"
-                "data for PSyclone built-ins in file '{0}'.".format(fname)),
-                err)
+            raise ParseError(
+                f"BuiltInKernelTypeFactory:create: Failed to parse the meta-"
+                f"data for PSyclone built-ins in file '{fname}'.") from err
 
         # Now we have the parse tree, call our parent class to create \
         # the object

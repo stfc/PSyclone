@@ -31,7 +31,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 
 ! Description: single function specified in an invoke call with the
 ! kernel in a different directory to this algorithm file to test the

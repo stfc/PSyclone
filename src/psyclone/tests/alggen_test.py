@@ -40,7 +40,7 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.alg_gen import NoInvokesError, adduse
+from psyclone.alg_gen import adduse
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
 from psyclone.errors import InternalError
@@ -418,14 +418,14 @@ def test_multiple_stencil_same_name():
             "f3, f4, extent, f3_direction)") in output
 
 
-# sample code for use in subsequent adduse tests.
+# Sample code for use in subsequent adduse tests.
 CODE = ("program test\n"
         "  integer :: i\n"
         "  i=0\n"
         "end program test\n")
 
 
-# utility function for parsing code, used in subsequent adduse tests.
+# Utility function for parsing code, used in subsequent adduse tests.
 def get_parse_tree(code, parser):
     '''Utility function that takes Fortran code as a string and returns an
     fparser2 parse tree of the code. Pass in an instance of the parser
@@ -444,7 +444,7 @@ def get_parse_tree(code, parser):
     reader = FortranStringReader(code)
     return parser(reader)
 
-# function adduse tests These should be moved in #240.
+# Function adduse tests These should be moved in #240.
 
 
 @pytest.mark.parametrize("location", [None, "lilliput"])

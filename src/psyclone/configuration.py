@@ -267,7 +267,7 @@ class Config(object):
                 "Error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self), err)
 
-        # API for psyclone
+        # API for PSyclone
         if "DEFAULTAPI" in self._config["DEFAULT"]:
             self._api = self._config['DEFAULT']['DEFAULTAPI']
         else:
@@ -359,7 +359,7 @@ class Config(object):
         for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
-                    self._api_conf[api] = DynConfig(self, self._config[api])
+                    self._api_conf[api] = LFRicConfig(self, self._config[api])
                 elif api == "gocean0.1":
                     # For now we use the same class as gocean1.0.
                     # However, we use it to read a different section of the
@@ -388,7 +388,7 @@ class Config(object):
                 required. If none is specified, returns the config for the
                 default API.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
+        :rtype: One of :py:class:`psyclone.configuration.LFRicConfig`,
                 :py:class:`psyclone.configuration.GOceanConfig` or None.
 
         :raises ConfigurationError: if api is not in the list of supported \
@@ -811,7 +811,7 @@ class APISpecificConfig(object):
 
 
 # =============================================================================
-class DynConfig(APISpecificConfig):
+class LFRicConfig(APISpecificConfig):
     '''
     LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
     specific to the LFRic (Dynamo 0.3) API.
@@ -841,7 +841,7 @@ class DynConfig(APISpecificConfig):
     '''
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, config, section):
-        super(DynConfig, self).__init__(section)
+        super().__init__(section)
         # Ref. to parent Config object
         self._config = config
         # Initialise redundant computation setting
@@ -1341,6 +1341,6 @@ class NemoConfig(APISpecificConfig):
 __all__ = ["APISpecificConfig",
            "Config",
            "ConfigurationError",
-           "DynConfig",
+           "LFRicConfig",
            "GOceanConfig",
            "NemoConfig"]

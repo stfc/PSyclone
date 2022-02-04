@@ -2570,9 +2570,10 @@ class Argument(object):
 
     @property
     def argument_type(self):
-        '''Returns the type of the argument. APIs that do not have this
+        '''
+        Returns the type of the argument. APIs that do not have this
         concept (such as GOcean0.1) can use this base class version
-        which just returns "field" in all cases. API's with this
+        which just returns "field" in all cases. APIs with this
         concept can override this method.
 
         :returns: the API type of the kernel argument.
