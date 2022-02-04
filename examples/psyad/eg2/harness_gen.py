@@ -1,7 +1,8 @@
 import sys
 
 from psyclone.domain.lfric.algorithm.alg_gen import (
-    create_alg_driver, create_invoke_call, construct_kernel_args)
+    create_alg_driver, create_invoke_call, construct_kernel_args,
+    initialise_field)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
@@ -113,9 +114,11 @@ if __name__ == "__main__":
     for sym, space in kern_args.fields:
         input_sym = input_symbols[sym]
         if isinstance(sym.datatype, DataTypeSymbol):
+            initialise_field(prog, input_sym, space)
             kernel_list.append(("setval_random", [sym.name]))
             kernel_list.append(("setval_X", [input_sym.name, sym.name]))
         elif isinstance(sym.datatype, ArrayType):
+            initialise_field(prog, input_sym, space)
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
                 kernel_list.append(("setval_random",

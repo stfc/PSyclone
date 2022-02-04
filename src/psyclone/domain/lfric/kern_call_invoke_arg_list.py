@@ -41,6 +41,7 @@ of a Kernel as required by an `invoke` of that kernel.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataSymbol,
                                     DataTypeSymbol, DeferredType, SymbolTable,
                                     ContainerSymbol, ImportInterface)
@@ -57,7 +58,8 @@ class KernCallInvokeArgList(ArgOrdering):
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if supplied symbol table is of incorrect type.
-
+    :raises InternalError: if a function space is found for which we cannot \
+                           generate a mapping entry to an actual space.
     '''
     def __init__(self, kern, symbol_table):
         super().__init__(kern)
@@ -69,6 +71,22 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+
+        self._fs_map = {}
+        const = LFRicConstants()
+        for space in const.VALID_FUNCTION_SPACE_NAMES:
+            if "any_" not in space:
+                self._fs_map[space] = space
+            elif space == "any_w2":
+                self._fs_map[space] = "w2"
+            elif "any_space_" in space:
+                self._fs_map[space] = const.CONTINUOUS_FUNCTION_SPACES[0]
+            elif "any_discontinuous_space" in space:
+                self._fs_map[space] = const.DISCONTINUOUS_FUNCTION_SPACES[0]
+            else:
+                raise InternalError(
+                    f"Error constructing mapping of meta-data function spaces "
+                    f"to actual spaces: cannot handle '{space}'")
 
     @property
     def fields(self):
@@ -174,7 +192,8 @@ class KernCallInvokeArgList(ArgOrdering):
 
         sym = self._symtab.new_symbol(argvect.name,
                                       symbol_type=DataSymbol, datatype=dtype)
-        self._fields.append((sym, argvect.function_space.orig_name))
+        self._fields.append((sym,
+                             self._fs_map[argvect.function_space.orig_name]))
         self.append(sym.name)
 
     def field(self, arg, var_accesses=None):
@@ -192,7 +211,7 @@ class KernCallInvokeArgList(ArgOrdering):
         ftype = self._symtab.lookup("field_type")
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=ftype)
-        self._fields.append((sym, arg.function_space.orig_name))
+        self._fields.append((sym, self._fs_map[arg.function_space.orig_name]))
         self.append(sym.name)
 
     def stencil(self, arg, var_accesses=None):

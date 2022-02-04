@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory.
 
 '''This module tools for creating standalone LFRic algorithm-layer code.
 
@@ -227,6 +227,12 @@ def create_function_spaces(prog, fspaces):
 
 def initialise_field(prog, sym, space):
     '''
+    :param prog: the routine to which to add initialisation code.
+    :type prog: :py:class:`psyclone.psyir.nodes.Routine`
+    :param sym: the symbol representing the LFRic field.
+    :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param str space: the function space of the field.
+
     '''
     if isinstance(sym.datatype, DataTypeSymbol):
         # Single field argument.
@@ -306,8 +312,6 @@ def construct_kernel_args(prog, kern):
     # when setting up the kernel arguments and the information on their
     # respective function spaces extracted from the kernel metadata.
     for sym, space in kern_args.fields:
-        if space == "any_w2":
-            space = "w2"
         initialise_field(prog, sym, space)
 
     for qr_sym, shape in kern_args.quadrature_objects:
