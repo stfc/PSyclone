@@ -156,9 +156,9 @@ if __name__ == "__main__":
                     ArrayReference.create(ip_sym,
                                           [Literal(str(dim), INTEGER_TYPE)]),
                     Literal("0.0", rdef_type)))
-            kernel_list.append(("X_innerproduct_X",
-                                [f"{ip_sym.name}({dim})",
-                                 f"{sym.name}({dim})"]))
+                kernel_list.append(("X_innerproduct_X",
+                                    [f"{ip_sym.name}({dim})",
+                                     f"{sym.name}({dim})"]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -199,10 +199,10 @@ if __name__ == "__main__":
                     ArrayReference.create(ip_sym,
                                           [Literal(str(dim), INTEGER_TYPE)]),
                     Literal("0.0", rdef_type)))
-            kernel_list.append(("X_innerproduct_Y",
-                                [f"{ip_sym.name}({dim})",
-                                 f"{sym.name}({dim})",
-                                 f"{input_sym.name}({dim})"]))
+                kernel_list.append(("X_innerproduct_Y",
+                                    [f"{ip_sym.name}({dim})",
+                                     f"{sym.name}({dim})",
+                                     f"{input_sym.name}({dim})"]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "

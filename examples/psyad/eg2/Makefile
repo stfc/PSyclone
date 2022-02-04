@@ -59,7 +59,7 @@ transform: tl_hydrostatic_kernel_mod.F90 ../../lfric/eg20/alg_gen.py
 	# Ultimately this will use the new `python-kern` command but that is
 	# still being developed.
 	python ./harness_gen.py tl_hydrostatic_kernel_type ./tl_hydrostatic_kernel_mod.F90
-	${PSYCLONE} -api dynamo0.3 -opsy psy.f90 -oalg alg.f90 main_alg.x90
+	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 main_alg.x90
 
 compile: alg.f90 psy.f90 test_harness.exe
 
