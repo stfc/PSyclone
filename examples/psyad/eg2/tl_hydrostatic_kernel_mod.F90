@@ -255,12 +255,13 @@ subroutine tl_hydrostatic_code(nlayers,          &
           !*** Issue #1581. We generate incorrect code for this assignment
           !*** due to the implicit loop. Replaced with an explicit loop
           !*** for now.
-          ! grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
-          !                                   + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2)
+          !*** grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
+          !***                                   + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2)
           do idx = 1, 3
             grad_theta_v_at_quad(idx) = grad_theta_v_at_quad(idx)         &
                + theta_v_e(df)*wt_diff_basis(idx,df,qp1,qp2)
           end do
+          !*** End of replacement code.
         end do
         ! Calculation
         do df = 1, ndf_w2
@@ -274,6 +275,9 @@ subroutine tl_hydrostatic_code(nlayers,          &
           !***             cp * exner_at_quad * (                           &
           !***             ls_theta_v_at_quad * dv                          &
           !***           + dot_product( ls_grad_theta_v_at_quad(:),v) )
+          !*** Use a simplified form so that grad_term is given a value
+          grad_term = cp * ls_exner_at_quad * theta_v_at_quad * dv
+          !*** end of modified code
           r_u( map_w2(df) + k ) = r_u( map_w2(df) + k ) &
                                 + wqp_h(qp1)*wqp_v(qp2)*grad_term
         end do
