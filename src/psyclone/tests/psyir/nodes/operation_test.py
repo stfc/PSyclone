@@ -35,10 +35,11 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
-''' Performs pytest tests on the Operation PSyIR node and its sub-classes. '''
 
-# pylint: disable=protected-access
+'''Performs pytest tests on the Operation PSyIR node and its
+sub-classes.
 
+'''
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \

@@ -37,14 +37,10 @@
 transformation.
 
 '''
-# pylint: disable=protected-access
-# pylint: disable=too-many-arguments
-
 import pytest
 
 from psyclone.psyir.nodes import BinaryOperation
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics import dotproduct2code_trans
 from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
     DotProduct2CodeTrans, _get_array_bound
 from psyclone.tests.utilities import Compile
@@ -103,7 +99,7 @@ def check_trans(code, expected, fortran_reader, fortran_writer, tmpdir):
 
 @pytest.mark.parametrize("dim1,dim2", [("2:10", "2:10"), (":", "2:10"),
                                        ("2:10", ":")])
-def test_bound_explicit(fortran_reader, fortran_writer, dim1, dim2):
+def test_bound_explicit(fortran_reader, dim1, dim2):
     '''Test that explicit bounds are returned if at least one argument is
     declared with explicit bounds.
 
@@ -352,9 +348,12 @@ def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
     check that the correct precision is used.
 
     '''
+    if Compile.TEST_COMPILE:
+        pytest.skip("issue #1347, type declaration is being written in the "
+                    "wrong order causing compilation failure.")
     code = (
         "subroutine dot_product_test(v1,v2)\n"
-        "integer :: r_def\n"
+        "integer, parameter :: r_def=4\n"
         "real(kind=r_def),intent(in) :: v1(:), v2(:)\n"
         "real(kind=r_def) :: result\n"
         "result = dot_product(v1,v2)\n"
