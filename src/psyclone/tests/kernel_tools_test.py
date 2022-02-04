@@ -78,7 +78,7 @@ def test_run(capsys, tmpdir):
 
 
 def test_run_version(capsys):
-    ''' Test that theflag requesting version information works correctly. '''
+    ''' Test that the flag requesting version information works correctly. '''
     with pytest.raises(SystemExit):
         kernel_tools.run(["-v", "not-a-file.f90"])
     result, _ = capsys.readouterr()

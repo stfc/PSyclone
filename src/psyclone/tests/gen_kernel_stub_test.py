@@ -36,16 +36,17 @@
 
 ''' Tests for the gen_kernel_stub module. '''
 
-from __future__ import absolute_import
-
+import os
 import pytest
+
+import fparser
 
 from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import ParseError
 
 
-def test_failures(monkeypatch, capsys):
+def test_failures():
     '''Tests various failures of the generate() call.
     '''
     # Test empty API (and file not found)
@@ -65,3 +66,12 @@ def test_failures(monkeypatch, capsys):
         generate(__file__, api="dynamo0.3")
     assert ("Kernel stub generator: Code appears to be invalid "
             "Fortran" in str(err.value))
+
+
+def test_gen_success():
+    ''' Test for successful completion of the generate() function. '''
+    base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3")
+    ptree = generate(os.path.join(base_path, "testkern_mod.F90"),
+                     api="dynamo0.3")
+    assert isinstance(ptree, fparser.one.block_statements.Module)
