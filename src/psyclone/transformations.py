@@ -66,6 +66,7 @@ from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, \
     OMPTargetDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 
@@ -165,8 +166,10 @@ class KernelTrans(Transformation):
 
 class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     '''
-    Adds an orphaned directive to a loop indicating that it should be
-    parallelised.
+    Adds an abstract directive (it needs to be specified by sub-classing this
+    transformation) to a loop indicating that it should be parallelised. It
+    performs some data dependency checks to guarantee that the loop can be
+    parallelised without changing the semantics of it.
 
     '''
     # The types of node that must be excluded from the section of PSyIR
@@ -210,6 +213,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 colours.
         :raises TransformationError: if 'collapse' is supplied with an \
                 invalid number of loops.
+        :raises TransformationError: if there is a data dependency that \
+                prevents the parallelisation of the loop.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
@@ -249,6 +254,28 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 raise TransformationError(
                     "Cannot apply COLLAPSE({0}) clause to a loop nest "
                     "containing only {1} loops".format(collapse, loop_count))
+
+        # Check that there are no loop-carried dependencies
+        dep_tools = DependencyTools()
+
+        try:
+            if not dep_tools.can_loop_be_parallelised(node,
+                                                      only_nested_loops=False):
+
+                # The DependencyTools also returns False for things that are
+                # not an issue, so we ignore specific messages.
+                for message in dep_tools.get_all_messages():
+                    if "is only written once." in message:
+                        continue
+                    messages = "\n".join(dep_tools.get_all_messages())
+                    raise TransformationError(
+                        f"Dependency analysis failed with the following "
+                        f"messages:\n{messages}")
+        except (KeyError, InternalError):
+            # LFRic still has symbols that don't exist in the symbol_table
+            # until the gen_code() step, so the dependency analysis raises
+            # KeyErrors in some cases. We ignore this for now.
+            pass
 
     def apply(self, node, options=None):
         '''

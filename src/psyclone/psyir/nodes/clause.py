@@ -30,22 +30,30 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified S. Siso, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-include ../../common.mk
+''' This module contains the Clause abstract node implementation '''
 
-transform: omp_levels
-.PHONY: omp_levels
+import abc
+from psyclone.psyir.nodes.node import Node
 
 
-omp_levels:
-	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
+class Clause(Node, metaclass=abc.ABCMeta):
+    '''
+    Base abstract class for all clauses.
+    '''
+    _children_valid_format = None
+    _text_name = "Clause"
+    # The base string for this clause, e.g. nowait or private
+    _clause_string = None
 
-compile: transform
-	@echo "No compilation supported for nemo/eg2"
+    @property
+    def clause_string(self):
+        '''
+        Returns the clause string for this Clause
 
-run: compile
-	@echo "No run targets for nemo/eg2"
+        :rtype: str
+        '''
+        return self._clause_string
