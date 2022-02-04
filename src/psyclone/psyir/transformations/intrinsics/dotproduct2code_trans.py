@@ -171,6 +171,11 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         '''Perform checks to ensure that it is valid to apply the
         DotProduct2CodeTran transformation to the supplied node.
 
+        Note, this validation does not check for invalid argument
+        combinations to dot_product (e.g. different precision or
+        different datatypes) as that should have already been picked
+        up when creating the PSyIR.
+
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: a dictionary with options for transformations.

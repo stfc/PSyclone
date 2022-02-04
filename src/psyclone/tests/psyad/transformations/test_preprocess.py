@@ -33,19 +33,19 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A module to perform pytest tests on the code in the script.py file
-within the psyad/transformations directory
+'''A module to perform pytest tests on the code in the preprocess.py
+file within the psyad/transformations directory
 
 '''
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyad.transformations.script import preprocess_trans
+from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.tests.utilities import Compile
 
 
-def test_script_no_change():
-    '''test that the script does not modify the PSyIR if the script
-    transformations are not applicable to its contents.
+def test_preprocess_no_change():
+    '''Test that the preprocess script does not modify the PSyIR if the
+    script's transformations are not applicable to its contents.
 
     '''
     code = (
@@ -61,8 +61,11 @@ def test_script_no_change():
     assert result == code
 
 
-def test_script_dotproduct(tmpdir):
-    '''test that the script replaces a dotproduct with equivalent code.'''
+def test_preprocess_dotproduct(tmpdir):
+    '''Test that the preprocess script replaces a dotproduct with
+    equivalent code.
+
+    '''
     code = (
         "program test\n"
         "real :: a, b(10), c(10)\n"

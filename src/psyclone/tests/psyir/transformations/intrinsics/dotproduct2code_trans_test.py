@@ -36,6 +36,12 @@
 '''Module containing tests for the DotProduct2CodeTrans
 transformation.
 
+Note, there are no tests for invalid argument combinations to
+dot_product (e.g. different precision or different datatypes) as this
+is not checked in the validate() method in DotProduct2CodeTrans. This
+is because invalid argument combinations should have already been
+picked up when creating the PSyIR.
+
 '''
 import pytest
 
