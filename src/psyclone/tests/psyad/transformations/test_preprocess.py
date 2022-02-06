@@ -61,7 +61,7 @@ def test_preprocess_no_change():
     assert result == code
 
 
-def test_preprocess_dotproduct(tmpdir):
+def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
     '''Test that the preprocess script replaces a dotproduct with
     equivalent code.
 
@@ -84,16 +84,14 @@ def test_preprocess_dotproduct(tmpdir):
         "  enddo\n"
         "  a = res_dot_product\n\n"
         "end program test\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir)
-    writer = FortranWriter()
-    result = writer(psyir)
+    result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_preprocess_matmul(tmpdir):
+def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
     '''Test that the preprocess script replaces a matmul with equivalent
     code. Mix with a dot_product to make sure both get transformed.
 
@@ -126,11 +124,8 @@ def test_preprocess_matmul(tmpdir):
         "  enddo\n"
         "  a = res_dot_product\n\n"
         "end program test\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir)
-    writer = FortranWriter()
-    result = writer(psyir)
-    print(result)
+    result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
