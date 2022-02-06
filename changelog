@@ -104,6 +104,9 @@
 	34) PR #1599 for #282. Removes Dynamo 0.1 API code and tests (removes
 	the API completely).
 
+	35) PR #1556 for #1490. Adds a dotproduct2code transformation and
+	extends PSyAD to make use of it.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
