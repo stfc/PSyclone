@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,9 +65,15 @@ from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
+from psyclone.psyir.transformations.loop_tiling_2d_trans \
+    import LoopTiling2DTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
+    DotProduct2CodeTrans
+
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
@@ -80,6 +86,7 @@ __all__ = ['ChunkLoopTrans',
            'ReadOnlyVerifyTrans',
            'RegionTrans',
            'Abs2CodeTrans',
+           'LoopSwapTrans',
            'LoopTrans',
            'LoopFuseTrans',
            'Matmul2CodeTrans',
@@ -89,4 +96,5 @@ __all__ = ['ChunkLoopTrans',
            'ArrayRange2LoopTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistTrans',
-           'OMPTaskwaitTrans']
+           'OMPTaskwaitTrans',
+           'LoopTiling2DTrans']

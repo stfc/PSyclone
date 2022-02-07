@@ -39,8 +39,10 @@
 ''' This module contains the Literal node implementation.'''
 
 from __future__ import absolute_import
+
 import re
 import six
+
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, ArrayType
 
@@ -144,15 +146,3 @@ class Literal(DataNode):
         return "{0}[value:'{1}', {2}]".format(
             self.coloured_name(colour),
             self._value, str(self.datatype))
-
-    def math_equal(self, other):
-        ''':param other: the node to compare self with.
-        :type other: py:class:`psyclone.psyir.nodes.Node`
-
-        :return: if the self has the same results as other.
-        :type: bool
-
-        '''
-        if not isinstance(other, Literal):
-            return False
-        return self.value == other.value

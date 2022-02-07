@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -335,10 +335,16 @@ def test_dynamo():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
-
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_accesses = VariablesAccessInfo(schedule)
     assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
-            "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "
+            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, "
+            "m2: READ, map_w1: READ, map_w2: READ, "
             "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
             "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
@@ -423,118 +429,29 @@ def test_user_defined_variables(parser):
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test_prog").schedule
-
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_accesses = VariablesAccessInfo(loops)
     assert var_accesses[Signature(("a", "b", "c"))].is_written
     assert var_accesses[Signature(("e", "f"))].is_written
-
-
-def test_math_equal(parser):
-    '''Tests the math_equal function of nodes in the PSyIR.'''
-
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    integer :: x(2,2), a(2,2), b, c, i, j, k
-                                    x = a                 !  0
-                                    x = a                 !  1
-                                    x = b                 !  2
-                                    x = a+12*b*sin(c)     !  3
-                                    x = 12*b*sin(c)+a     !  4
-                                    x = i+j               !  5
-                                    x = j+i               !  6
-                                    x = i-j               !  7
-                                    x = j-i               !  8
-                                    x = max(1, 2, 3, 4)   !  9
-                                    x = max(1, 2, 3)      ! 10
-                                    x = a(1,2)            ! 11
-                                    x = i+j+k             ! 12
-                                    x = j+i+k             ! 13
-                                    end program test_prog
-                                 ''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    # Compare a and a
-    exp0 = schedule[0].rhs
-    exp1 = schedule[1].rhs
-    assert exp0.math_equal(exp1)
-
-    # Different node types: assignment and expression
-    assert not schedule[0].math_equal(exp1)
-
-    # Compare a and b
-    assert not exp1.math_equal(schedule[2].rhs)
-
-    # Compare a+12*b... and 12*b...+a - both commutative and
-    # complex expression
-    assert schedule[3].rhs.math_equal(schedule[4].rhs)
-
-    # Compare i+j and j+i - we do support _simple_ commutative changes:
-    exp5 = schedule[5].rhs
-    exp6 = schedule[6].rhs
-    assert exp5.math_equal(exp6)
-
-    # Compare i-j and j-i
-    exp7 = schedule[7].rhs
-    assert not exp7.math_equal(schedule[8].rhs)
-
-    # Same node type, but different number of children
-    # max(1, 2, 3, 4) and max(1, 2, 3)
-    exp9 = schedule[9].rhs
-    assert not exp9.math_equal(schedule[10].rhs)
-
-    # Compare a and a(1,2), which triggers the recursion in Reference
-    # to be false.
-    assert not exp0.math_equal(schedule[11].rhs)
-
-    # Compare i+j and max(1,2,3,4) to trigger different types
-    # in the recursion in BinaryOperator
-    assert not exp5.math_equal(exp9)
-
-    # Different operator: j+i vs i-j. Do not compare
-    # i+j with i-j, since this will not trigger the
-    # additional tests in commutative law handling
-    assert not exp6.math_equal(exp7)
-
-    # i+j+k and j+i+k are the same - note that i and j are
-    # on the same node, since the expression is stored as
-    # (i+j)+j. See #533 and test_math_equal_limitations
-    exp12 = schedule[12].rhs
-    assert exp12.math_equal(schedule[13].rhs)
-
-
-@pytest.mark.xfail(reason="Limitation when using commutative law - #533")
-def test_math_equal_limitations(parser):
-    '''Shows that the current math_equal implementation can not
-    detect that i+j+k and i+k+j are the same.
-
-    '''
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    x = i+j+k
-                                    x = i+k+j
-                                    end program test_prog
-                                 ''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    # Compare i+j+k and i+k+j - they should be equal, but due to
-    # TODO #533 it is not detected.
-    exp0 = schedule[0].rhs
-    exp1 = schedule[1].rhs
-    assert exp0.math_equal(exp1)
 
 
 def test_lfric_ref_element():
     '''Test handling of variables if an LFRic's RefElement is used.
 
     '''
-    _, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "normals_to_faces: READ" in var_info
     assert "out_normals_to_faces: READ" in var_info
@@ -546,7 +463,13 @@ def test_lfric_operator():
     handled correctly.
 
     '''
-    _, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
@@ -557,7 +480,13 @@ def test_lfric_cma():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "ncell_2d: READ" in var_info
     assert "cma_op1_alpha: READ" in var_info
@@ -579,7 +508,13 @@ def test_lfric_cma2():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "cma_indirection_map_aspc1_field_a: READ" in var_info
     assert "cma_indirection_map_aspc2_field_b: READ" in var_info
@@ -589,7 +524,13 @@ def test_lfric_stencils():
     '''Test that stencil parameters are correctly detected.
 
     '''
-    _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_stencil_size: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
@@ -600,8 +541,14 @@ def test_lfric_various_basis():
     functionality work as expected.
 
     '''
-    _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "basis_w3_qr: READ" in var_info
     assert "diff_basis_w0_qr: READ" in var_info
@@ -617,8 +564,14 @@ def test_lfric_field_bc_kernel():
     array fix are created correctly.
 
     '''
-    _, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "boundary_dofs_a: READ" in var_info
 
@@ -628,8 +581,14 @@ def test_lfric_stencil_xory_vector():
     or y with a vector field are created.
 
     '''
-    _, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_direction: READ" in var_info
 
@@ -639,8 +598,14 @@ def test_lfric_operator_bc_kernel():
     detects the right implicit paramaters.
 
     '''
-    _, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "boundary_dofs_op_a: READ" in var_info
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Performs pytest tests on the Operation PSyIR node and its sub-classes. '''
+'''Performs pytest tests on the Operation PSyIR node and its
+sub-classes.
 
+'''
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
@@ -168,6 +170,30 @@ def test_binaryoperation_children_validation():
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
+def test_binaryoperation_is_elemental():
+    '''Test that the is_elemental method properly returns if an operation is
+    elemental in each BinaryOperation.
+
+    '''
+    # SUM, MATMUL, SIZE, LBOUND, UBOUND and DOT_PRODUCT are not
+    # elemental
+    not_elemental = [
+        BinaryOperation.Operator.SUM,
+        BinaryOperation.Operator.SIZE,
+        BinaryOperation.Operator.MATMUL,
+        BinaryOperation.Operator.LBOUND,
+        BinaryOperation.Operator.UBOUND,
+        BinaryOperation.Operator.DOT_PRODUCT
+    ]
+
+    for binary_operator in BinaryOperation.Operator:
+        operation = BinaryOperation(binary_operator)
+        if binary_operator in not_elemental:
+            assert not operation.is_elemental()
+        else:
+            assert operation.is_elemental()
+
+
 # Test UnaryOperation class
 def test_unaryoperation_initialization():
     ''' Check the initialization method of the UnaryOperation class works
@@ -263,6 +289,25 @@ def test_unaryoperation_children_validation():
             "format is: 'DataNode'.") in str(excinfo.value)
 
 
+def test_unaryoperation_is_elemental():
+    '''Test that the is_elemental method properly returns if an operation is
+    elemental in each UnaryOperation.
+
+    '''
+    # SUM is not elemental
+    not_elemental = [
+        UnaryOperation.Operator.SUM,
+    ]
+
+    for unary_operator in UnaryOperation.Operator:
+        operation = UnaryOperation(unary_operator)
+        if unary_operator in not_elemental:
+            assert not operation.is_elemental()
+        else:
+            assert operation.is_elemental()
+
+
+# Test NaryOperation class
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
@@ -346,6 +391,24 @@ def test_naryoperation_children_validation():
         nary.addchild(statement)
     assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
             "format is: '[DataNode]+'.") in str(excinfo.value)
+
+
+def test_naryoperation_is_elemental():
+    '''Test that the is_elemental method properly returns if an operation is
+    elemental in each NaryOperation.
+
+    '''
+    # SUM is not elemental
+    not_elemental = [
+        NaryOperation.Operator.SUM,
+    ]
+
+    for nary_operator in NaryOperation.Operator:
+        operation = NaryOperation(nary_operator)
+        if nary_operator in not_elemental:
+            assert not operation.is_elemental()
+        else:
+            assert operation.is_elemental()
 
 
 def test_operations_can_be_copied():

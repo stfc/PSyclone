@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following APIs; dynamo versions 0.1 and 0.3
+.. currently supports the following APIs; nemo, lfric (dynamo0.3)
 .. and gocean versions 0.1 and 1.0.
 .. 
 .. config.py
