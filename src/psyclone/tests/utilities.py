@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -467,8 +467,7 @@ def get_base_path(api):
     # Define the mapping of supported APIs to Fortran directories
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
-    api_2_path = {"dynamo0.1": "dynamo0p1",
-                  "dynamo0.3": "dynamo0p3",
+    api_2_path = {"dynamo0.3": "dynamo0p3",
                   "nemo": "../nemo/test_files",
                   "gocean1.0": "gocean1p0"}
     try:

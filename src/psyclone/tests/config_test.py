@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 # different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-API = dynamo0.3
+DEFAULTAPI = dynamo0.3
 DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
@@ -298,8 +298,7 @@ def test_read_values():
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['dynamo0.1', 'dynamo0.3',
-                        'gocean1.0', 'nemo']
+    assert api_list == ['dynamo0.3', 'gocean1.0', 'nemo']
     # The default API for kernel stub generation
     api = _config.default_stub_api
     assert isinstance(api, six.text_type)
@@ -338,8 +337,8 @@ def test_api_not_in_list(tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^API = .*$",
-                     "API = invalid",
+    content = re.sub(r"^DEFAULTAPI = .*$",
+                     "DEFAULTAPI = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config")
@@ -477,9 +476,9 @@ def test_wrong_api():
         _ = _config.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api_conf("dynamo0.1")
+        _ = _config.api_conf("nemo")
     assert ("Configuration file did not contain a section for the "
-            "'dynamo0.1' API" in str(err.value))
+            "'nemo' API" in str(err.value))
     with pytest.raises(ValueError) as err:
         _config.api = "invalid"
     assert "'invalid' is not a valid API" in str(err.value)

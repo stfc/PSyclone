@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -141,8 +141,8 @@ Entry                   Description
 ======================= =======================================================
 DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
                         conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone ("dynamo0.1", "dynamo0.3",
-                        "gocean1.0" and "nemo"). If there is no
+                        APIs supported by PSyclone ("dynamo0.3", "gocean1.0"
+                        and "nemo"). If there is no
                         API specified and there is only one API-specific
                         section in the config file loaded, this API will be
                         used. This value can be overwritten by the command
