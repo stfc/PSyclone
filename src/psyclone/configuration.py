@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,8 +97,7 @@ class Config(object):
     _instance = None
 
     # List of supported API by PSyclone
-    _supported_api_list = ["dynamo0.1", "dynamo0.3",
-                           "gocean0.1", "gocean1.0", "nemo"]
+    _supported_api_list = ["dynamo0.3", "gocean0.1", "gocean1.0", "nemo"]
 
     # List of supported stub API by PSyclone
     _supported_stub_api_list = ["dynamo0.3"]
@@ -268,9 +267,9 @@ class Config(object):
                 "Error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self), err)
 
-        # API for psyclone
-        if "API" in self._config["DEFAULT"]:
-            self._api = self._config['DEFAULT']['API']
+        # API for PSyclone
+        if "DEFAULTAPI" in self._config["DEFAULT"]:
+            self._api = self._config['DEFAULT']['DEFAULTAPI']
         else:
             self._api = Config._default_api
             # Test if we have exactly one section (besides DEFAULT).
@@ -360,13 +359,7 @@ class Config(object):
         for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
-                    self._api_conf[api] = DynConfig(self, self._config[api])
-                elif api == "dynamo0.1":
-                    # For now we use the same class as dynamo0.3.
-                    # However, we use it to read a different section of the
-                    # config file, so the dynamo0.1 mapping will be correctly
-                    # used.
-                    self._api_conf[api] = DynConfig(self, self._config[api])
+                    self._api_conf[api] = LFRicConfig(self, self._config[api])
                 elif api == "gocean0.1":
                     # For now we use the same class as gocean1.0.
                     # However, we use it to read a different section of the
@@ -395,7 +388,7 @@ class Config(object):
                 required. If none is specified, returns the config for the
                 default API.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
+        :rtype: One of :py:class:`psyclone.configuration.LFRicConfig`,
                 :py:class:`psyclone.configuration.GOceanConfig` or None.
 
         :raises ConfigurationError: if api is not in the list of supported \
@@ -818,10 +811,10 @@ class APISpecificConfig(object):
 
 
 # =============================================================================
-class DynConfig(APISpecificConfig):
+class LFRicConfig(APISpecificConfig):
     '''
     LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
-    specific to the LFRic (Dynamo 0.3) API and Dynamo 0.1 API.
+    specific to the LFRic (Dynamo 0.3) API.
 
     :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
@@ -848,7 +841,7 @@ class DynConfig(APISpecificConfig):
     '''
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, config, section):
-        super(DynConfig, self).__init__(section)
+        super().__init__(section)
         # Ref. to parent Config object
         self._config = config
         # Initialise redundant computation setting
@@ -861,123 +854,111 @@ class DynConfig(APISpecificConfig):
         # Number of ANY_SPACE and ANY_DISCONTINUOUS_SPACE function spaces
         self._num_any_space = None
         self._num_any_discontinuous_space = None
-        # Set mandatory keys
-        # TODO: to be fully populated here for LFRic (Dynamo0.3) API in #282
-        # when Dynamo0.1 API is removed.
-        self._mandatory_keys = []
 
-        # TODO: This "if" clause will become redundant in #282 as there will be
-        # just LFRic (Dynamo0.3) API configuration
-        if section.name == "dynamo0.3":
-            # Define and check mandatory keys
-            self._mandatory_keys = ["access_mapping",
-                                    "compute_annexed_dofs",
-                                    "supported_fortran_datatypes",
-                                    "default_kind",
-                                    "run_time_checks",
-                                    "num_any_space",
-                                    "num_any_discontinuous_space"]
-            mdkeys = set(self._mandatory_keys)
-            if not mdkeys.issubset(set(section.keys())):
-                raise ConfigurationError(
-                    "Missing mandatory configuration option in the '[{0}]' "
-                    "section of the configuration file '{1}'. "
-                    "Valid options are: {2}."
-                    .format(section.name, config.filename,
-                            self._mandatory_keys))
+        # Define and check mandatory keys
+        self._mandatory_keys = ["access_mapping",
+                                "compute_annexed_dofs",
+                                "supported_fortran_datatypes",
+                                "default_kind",
+                                "run_time_checks",
+                                "num_any_space",
+                                "num_any_discontinuous_space"]
+        mdkeys = set(self._mandatory_keys)
+        if not mdkeys.issubset(set(section.keys())):
+            raise ConfigurationError(
+                f"Missing mandatory configuration option in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}'. Valid options are: "
+                f"{self._mandatory_keys}.")
 
-            # Parse setting for redundant computation over annexed dofs
-            try:
-                self._compute_annexed_dofs = section.getboolean(
-                    "compute_annexed_dofs")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing COMPUTE_ANNEXED_DOFS in the "
-                    "'[{0}]' section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for redundant computation over annexed dofs
+        try:
+            self._compute_annexed_dofs = section.getboolean(
+                "compute_annexed_dofs")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing COMPUTE_ANNEXED_DOFS in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}': {str(err)}.",
+                config=self._config) from err
 
-            # Parse setting for run_time_checks flag
-            try:
-                self._run_time_checks = section.getboolean(
-                    "run_time_checks")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing RUN_TIME_CHECKS in the '[{0}]' "
-                    "section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for run_time_checks flag
+        try:
+            self._run_time_checks = section.getboolean(
+                "run_time_checks")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing RUN_TIME_CHECKS in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}': {str(err)}.",
+                config=self._config) from err
 
-            # Parse setting for the supported Fortran datatypes. No
-            # need to check whether the keyword is found as it is
-            # mandatory (and therefore already checked).
-            self._supported_fortran_datatypes = section.getlist(
-                "supported_fortran_datatypes")
+        # Parse setting for the supported Fortran datatypes. No
+        # need to check whether the keyword is found as it is
+        # mandatory (and therefore already checked).
+        self._supported_fortran_datatypes = section.getlist(
+            "supported_fortran_datatypes")
 
-            # Parse setting for default kinds (precisions). No need to
-            # check whether the keyword is found as it is mandatory
-            # (and therefore already checked).
-            kind_list = section.getlist("default_kind")
-            all_kinds = self.create_dict_from_list(kind_list)
-            # Set default kinds (precisions) from config file
-            # Check for valid datatypes (filter to remove empty values)
-            datatypes = set(filter(None, all_kinds.keys()))
-            if datatypes != set(self._supported_fortran_datatypes):
-                raise ConfigurationError(
-                    "Fortran datatypes in the 'default_kind' mapping in the "
-                    "'[{0}]' section of the configuration file '{1}' do "
-                    "not match the supported Fortran datatypes {2}."
-                    .format(section.name, config.filename,
-                            self._supported_fortran_datatypes))
-            # Check for valid kinds (filter to remove any empty values)
-            datakinds = set(filter(None, all_kinds.values()))
-            if len(datakinds) != len(set(self._supported_fortran_datatypes)):
-                raise ConfigurationError(
-                    "Supplied kind parameters {0} in the '[{1}]' section "
-                    "of the configuration file '{2}' do not define the "
-                    "default kind for one or more supported datatypes {3}."
-                    .format(sorted(datakinds), section.name, config.filename,
-                            self._supported_fortran_datatypes))
-            self._default_kind = all_kinds
+        # Parse setting for default kinds (precisions). No need to
+        # check whether the keyword is found as it is mandatory
+        # (and therefore already checked).
+        kind_list = section.getlist("default_kind")
+        all_kinds = self.create_dict_from_list(kind_list)
+        # Set default kinds (precisions) from config file
+        # Check for valid datatypes (filter to remove empty values)
+        datatypes = set(filter(None, all_kinds.keys()))
+        if datatypes != set(self._supported_fortran_datatypes):
+            raise ConfigurationError(
+                f"Fortran datatypes in the 'default_kind' mapping in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}' do not match the supported Fortran "
+                f"datatypes {self._supported_fortran_datatypes}.")
+        # Check for valid kinds (filter to remove any empty values)
+        datakinds = set(filter(None, all_kinds.values()))
+        if len(datakinds) != len(set(self._supported_fortran_datatypes)):
+            raise ConfigurationError(
+                f"Supplied kind parameters {sorted(datakinds)} in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}' do not define the default kind for "
+                f"one or more supported datatypes "
+                f"{self._supported_fortran_datatypes}.")
+        self._default_kind = all_kinds
 
-            # Parse setting for the number of ANY_SPACE function spaces
-            # (check for an invalid value and numbers <= 0)
-            try:
-                self._num_any_space = section.getint("NUM_ANY_SPACE")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing NUM_ANY_SPACE in the '[{0}]' "
-                    "section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for the number of ANY_SPACE function spaces
+        # (check for an invalid value and numbers <= 0)
+        try:
+            self._num_any_space = section.getint("NUM_ANY_SPACE")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing NUM_ANY_SPACE in the '[{section.name}]' "
+                f"section of the configuration file '{config.filename}': "
+                f"{str(err)}.", config=self._config) from err
 
-            if self._num_any_space <= 0:
-                raise ConfigurationError(
-                    "The supplied number of ANY_SPACE function spaces "
-                    "in the '[{0}]' section of the configuration "
-                    "file '{1}' must be greater than 0 but found {2}."
-                    .format(section.name, config.filename,
-                            self._num_any_space))
+        if self._num_any_space <= 0:
+            raise ConfigurationError(
+                f"The supplied number of ANY_SPACE function spaces "
+                f"in the '[{section.name}]' section of the configuration "
+                f"file '{config.filename}' must be greater than 0 but found "
+                f"{self._num_any_space}.")
 
-            # Parse setting for the number of ANY_DISCONTINUOUS_SPACE
-            # function spaces (checks for an invalid value and numbers <= 0)
-            try:
-                self._num_any_discontinuous_space = section.getint(
-                    "NUM_ANY_DISCONTINUOUS_SPACE")
-            except ValueError as err:
-                six.raise_from(ConfigurationError(
-                    "Error while parsing NUM_ANY_DISCONTINUOUS_SPACE in the "
-                    "'[{0}]' section of the configuration file '{1}': {2}."
-                    .format(section.name, config.filename, str(err)),
-                    config=self._config), err)
+        # Parse setting for the number of ANY_DISCONTINUOUS_SPACE
+        # function spaces (checks for an invalid value and numbers <= 0)
+        try:
+            self._num_any_discontinuous_space = section.getint(
+                "NUM_ANY_DISCONTINUOUS_SPACE")
+        except ValueError as err:
+            raise ConfigurationError(
+                f"Error while parsing NUM_ANY_DISCONTINUOUS_SPACE in the "
+                f"'[{section.name}]' section of the configuration file "
+                f"'{config.filename}': {str(err)}.",
+                config=self._config) from err
 
-            if self._num_any_discontinuous_space <= 0:
-                raise ConfigurationError(
-                    "The supplied number of ANY_DISCONTINUOUS_SPACE function "
-                    "spaces in the '[{0}]' section of the configuration "
-                    "file '{1}' must be greater than 0 but found {2}."
-                    .format(section.name, config.filename,
-                            self._num_any_discontinuous_space))
+        if self._num_any_discontinuous_space <= 0:
+            raise ConfigurationError(
+                f"The supplied number of ANY_DISCONTINUOUS_SPACE function "
+                f"spaces in the '[{section.name}]' section of the "
+                f"configuration file '{config.filename}' must be greater than "
+                f"0 but found {self._num_any_discontinuous_space}.")
 
     @property
     def compute_annexed_dofs(self):
@@ -1360,6 +1341,6 @@ class NemoConfig(APISpecificConfig):
 __all__ = ["APISpecificConfig",
            "Config",
            "ConfigurationError",
-           "DynConfig",
+           "LFRicConfig",
            "GOceanConfig",
            "NemoConfig"]
