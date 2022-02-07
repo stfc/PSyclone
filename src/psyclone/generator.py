@@ -398,7 +398,7 @@ def main(args):
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported API's are "
+        print("Unsupported API '{0}' specified. Supported APIs are "
               "{1}.".format(args.api, Config.get().supported_apis),
               file=sys.stderr)
         sys.exit(1)
