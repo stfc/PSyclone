@@ -428,6 +428,24 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     check(haloex, "max_halo_depth_mesh")
 
 
+def test_write_cont_dirty(tmpdir):
+    ''' Check that the correct halo-exchange call is added before a
+    kernel that has a field on any space with a gh_write access. '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.1.1_halo_cont_write.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # We should only have one halo exchange - for the second field argument
+    # which is on a continuous space and is read.
+    hexchs = schedule.walk(DynHaloExchange)
+    assert len(hexchs) == 1
+    assert hexchs[0].field.name == "f2"
+    # The field that is written to should be marked as dirty.
+    code = str(psy.gen)
+    assert "CALL f1_proxy%set_dirty()\n" in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_setval_x_then_user(tmpdir, monkeypatch):
     ''' Check that the correct halo exchanges are added if redundant
     computation is enabled for a built-in kernel called before a
