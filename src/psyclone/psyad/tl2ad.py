@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ import logging
 from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
+from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
@@ -89,6 +90,13 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     # TL Language-level PSyIR
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
+
+    # Addressing issue #1238 will allow the view() method to be output
+    # to the logger.
+    # logger.debug(tl_psyir.view())
+
+    # Apply any required transformations to the TL PSyIR
+    preprocess_trans(tl_psyir)
 
     # Addressing issue #1238 will allow the view() method to be output
     # to the logger.

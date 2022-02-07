@@ -211,10 +211,11 @@ class BinaryOperation(Operation):
         # Array Query Operators
         'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
-        'MATMUL'
+        'MATMUL', 'DOT_PRODUCT'
         ])
     _non_elemental_ops = [Operator.SUM, Operator.MATMUL, Operator.SIZE,
-                          Operator.LBOUND, Operator.UBOUND]
+                          Operator.LBOUND, Operator.UBOUND,
+                          Operator.DOT_PRODUCT]
     '''Arithmetic operators:
 
     .. function:: POW(arg0, arg1) -> type(arg0)
@@ -274,6 +275,15 @@ class BinaryOperation(Operation):
         `array1`.
 
     .. note:: The type of data in `array1` and `array2` must be the
+        same and the resultant data will also have the same
+        type. Currently only REAL data is supported.
+
+    .. function:: DOT_PRODUCT(vector1, vector2) -> scalar
+
+       :returns: the result of performing a dot product on two equal \
+           sized vectors.
+
+    .. note:: The type of data in `vector1` and `vector2` must be the
         same and the resultant data will also have the same
         type. Currently only REAL data is supported.
 

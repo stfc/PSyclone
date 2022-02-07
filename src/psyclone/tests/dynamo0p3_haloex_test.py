@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -279,8 +279,8 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="mesh%get_halo_depth()-1",
-          f2depth="mesh%get_halo_depth()")
+    check(schedule, f1depth="max_halo_depth_mesh-1",
+          f2depth="max_halo_depth_mesh")
 
 
 def test_gh_inc_nohex_4(tmpdir, monkeypatch):
@@ -356,8 +356,8 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="mesh%get_halo_depth()-1",
-          f2depth="mesh%get_halo_depth()")
+    check(schedule, f1depth="max_halo_depth_mesh-1",
+          f2depth="max_halo_depth_mesh")
 
 
 def test_gh_inc_max(tmpdir, monkeypatch, annexed):
@@ -417,7 +417,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop2idx])
     # f1 halo exchange should be depth max(1,max-1)
     haloex = schedule.children[haloidx]
-    check(haloex, "max(mesh%get_halo_depth()-1,1)")
+    check(haloex, "max(max_halo_depth_mesh-1,1)")
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
@@ -425,7 +425,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop1idx])
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]
-    check(haloex, "mesh%get_halo_depth()")
+    check(haloex, "max_halo_depth_mesh")
 
 
 def test_setval_x_then_user(tmpdir, monkeypatch):
