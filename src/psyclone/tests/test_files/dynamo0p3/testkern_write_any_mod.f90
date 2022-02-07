@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,9 @@
 ! Modified: I. Kavcic, Met Office
 !           A. R. Porter, STFC Daresbury Lab
 
-! A kernel which writes to a field on any_space.
+! A kernel which writes to a field on any_space. Such a kernel must guarantee
+! that any writes to a given shared entity are for the same value and that the
+! first access to such an entity is a write.
 module testkern_write_any_mod
 
   use constants_mod
