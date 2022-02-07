@@ -41,11 +41,11 @@ from __future__ import absolute_import
 import re
 
 from psyclone.core import SymbolicMaths
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
     ArrayReference, Routine, Container, FileContainer
 from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
     ImportInterface, RoutineSymbol
-from psyclone.errors import GenerationError
 
 
 class AlgorithmInvokeCall(Call):
@@ -217,11 +217,11 @@ class AlgorithmInvokeCall(Call):
             # we temporarily replicate this functionality. Eventually we
             # will merge. Note, a better future solution could be to use
             # the closest ancestor routine instead.
-            nodes = self.root.walk((Routine, Container))
-            nodes = [node for node in nodes if not
-                     isinstance(node, FileContainer)]
-            node = nodes[0]
-            self._psylayer_container_root_name = f"psy_{node.name}"
+            for node in self.root.walk((Routine, Container)):
+                if not isinstance(node, FileContainer):
+                    self._psylayer_container_root_name = f"psy_{node.name}"
+                    return
+            raise InternalError("No Routine or Container node found.")
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call

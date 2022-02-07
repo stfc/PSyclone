@@ -41,12 +41,10 @@ translation of PSyIR to PSyclone Algorithm PSyIR and PSyclone
 Algorithm PSyIR to processed PSyIR.
 
 '''
-
-# pylint: disable=protected-access
-
 from __future__ import absolute_import
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation, Container
@@ -316,7 +314,9 @@ def test_aic_createpsylayersymbolrootnames():
     '''Check that the create_psylayer_symbol_root_names method behaves in
     the expected way when the name comes from a subroutine, a module
     and when it has a filecontainer, i.e. it creates and stores a root
-    name for a routine_symbol and a container symbol.
+    name for a routine symbol and a container symbol. Also check that
+    it raises the expected exception if no FileContainer or Routine
+    nodes are found in the tree.
 
     '''
     code = (
@@ -361,6 +361,13 @@ def test_aic_createpsylayersymbolrootnames():
     psyir.detach()
     invoke = psyir.children[0][0]
     _check_alg_names(invoke, "psy_my_mod")
+
+    # No modules or FileContainers (should not happen)
+    invoke._psylayer_container_root_name = None
+    invoke.detach()
+    with pytest.raises(InternalError) as error:
+        invoke.create_psylayer_symbol_root_names()
+    assert "No Routine or Container node found." in str(error.value)
 
 
 def test_aic_lowertolanguagelevel_error():
