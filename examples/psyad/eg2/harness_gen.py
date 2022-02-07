@@ -20,10 +20,14 @@ from psyclone.psyir.symbols import (INTEGER_TYPE, ArrayType, DataTypeSymbol,
 def _compute_inner_products(prog, scalars, field_sums, sum_sym):
     '''
     :param prog: the Routine to which to add PSyIR.
+    :type prog:
     :param scalars: the scalars to include in the sum.
+    :type scalars:
     :param field_sums: the results of all of the inner products of the \
                        various field arguments.
+    :type field_sums:
     :param sum_sym: the symbol into which to accumulate the final sum.
+    :type sum_sym:
 
     '''
     prog.addchild(Assignment.create(Reference(sum_sym),
