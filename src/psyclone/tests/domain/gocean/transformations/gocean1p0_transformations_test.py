@@ -105,12 +105,19 @@ def test_loop_fuse_error():
         lftrans.apply(schedule.children[0], schedule.children[1].children[0])
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
+    # Also check if they have different field_spaces
+    schedule.children[1].field_space = "go_cv"
+    with pytest.raises(TransformationError) as err:
+        lftrans.apply(schedule.children[0], schedule.children[1])
+    assert ("Cannot fuse loops that are over different grid-point types: "
+            "go_cu and go_cv" in str(err.value))
+
     # Also check when one of them is a Loop but not of the GOcean API
     loop = schedule.children[1]
     loop.replace_with(Loop())
     with pytest.raises(TransformationError) as err:
         lftrans.apply(schedule.children[0], schedule.children[1])
-    assert " Both nodes must be of the same GOLoop class." in str(err.value)
+    assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
 
 def test_omp_parallel_loop(tmpdir, fortran_writer):

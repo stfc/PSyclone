@@ -86,8 +86,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         if not (isinstance(node1, psyclone.gocean1p0.GOLoop) and
                 isinstance(node2, psyclone.gocean1p0.GOLoop)):
             raise TransformationError(f"Error in {self.name} transformation. "
-                                      "Both nodes must be of the same "
-                                      "GOLoop class.")
+                                      f"Both nodes must be of the same "
+                                      f"GOLoop class.")
 
         super(GOceanLoopFuseTrans, self).validate(node1, node2,
                                                   options=options)
@@ -95,8 +95,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         if node1.field_space != node2.field_space:
             raise TransformationError(
                 f"Error in {self.name} transformation. Cannot "
-                "fuse loops that are over different grid-point types: "
-                "{node1.field_space} {node2.field_space}")
+                f"fuse loops that are over different grid-point types: "
+                f"{node1.field_space} and {node2.field_space}")
 
 
 # For automatic documentation generation
