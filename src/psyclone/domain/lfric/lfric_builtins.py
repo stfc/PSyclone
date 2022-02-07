@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1347,27 +1347,23 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: X_innerproduct_Y (real-valued fields)"
 
-    def lower_to_language_level(self):
+    def gen_code(self, parent):
         '''
-        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by an Assignment node.
+        Generates LFRic API specific PSy code for a call to the
+        X_innerproduct_Y Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Get indexed references for each of the field (proxy) arguments.
-        arg_refs = self.get_indexed_field_argument_references()
-        # Get a reference for the kernel scalar argument.
-        scalar_args = self.get_scalar_argument_references()
-
-        # Create the PSyIR for the kernel:
-        #      innprod_flds = innprod_flds + proxy0%data(df) * proxy1%data(df)
-        lhs = scalar_args[0]
-        innprod_flds = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                              arg_refs[0], arg_refs[1])
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                     lhs.copy(), innprod_flds)
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
+        # We sum the DoF-wise product of the supplied real-valued fields.
+        # The real scalar variable holding the sum is initialised to zero
+        # in the PSy layer.
+        innprod_name = self._reduction_ref(self._arguments.args[0].name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
+        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
@@ -1378,27 +1374,22 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: X_innerproduct_X (real-valued fields)"
 
-    def lower_to_language_level(self):
+    def gen_code(self, parent):
         '''
-        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by an Assignment node.
+        Generates LFRic API specific PSy code for a call to the
+        X_innerproduct_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Get indexed references for each of the field (proxy) arguments.
-        arg_refs = self.get_indexed_field_argument_references()
-        # Get a reference for the kernel scalar argument.
-        scalar_args = self.get_scalar_argument_references()
-
-        # Create the PSyIR for the kernel:
-        #      innprod_fld = innprod_fld + proxy0%data(df) * proxy0%data(df)
-        lhs = scalar_args[0]
-        innprod_fld = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                             arg_refs[0], arg_refs[0])
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                     lhs.copy(), innprod_fld)
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
+        # We sum the DoF-wise product of the supplied real-valued fields.
+        # The real scalar variable holding the sum is initialised to zero
+        # in the PSy layer.
+        innprod_name = self._reduction_ref(self._arguments.args[0].name)
+        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = innprod_name + " + " + field_name + "*" + field_name
+        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
 # ------------------------------------------------------------------- #
@@ -1413,25 +1404,21 @@ class LFRicSumXKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Sum a real-valued field"
 
-    def lower_to_language_level(self):
+    def gen_code(self, parent):
         '''
-        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by an Assignment node.
+        Generates LFRic API specific PSy code for a call to the
+        sum_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Get indexed references for each of the field (proxy) arguments.
-        arg_refs = self.get_indexed_field_argument_references()
-        # Get a reference for the kernel scalar argument.
-        scalar_args = self.get_scalar_argument_references()
-
-        # Create the PSyIR for the kernel:
-        #      sum_fld = sum_fld + proxy0%data(df)
-        lhs = scalar_args[0]
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                     lhs.copy(), arg_refs[0])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
+        # Sum all the elements of a real-valued field. The real scalar
+        # variable holding the sum is initialised to zero in the PSy layer.
+        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        sum_name = self._reduction_ref(self._arguments.args[0].name)
+        rhs_expr = sum_name + " + " + field_name
+        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
 # ------------------------------------------------------------------- #
@@ -1514,8 +1501,8 @@ class LFRicIntXKern(LFRicBuiltIn):
 class LFRicIntXPlusYKern(LFRicXPlusYKern):
     ''' Add corresponding elements of two, integer-valued, fields, `X`
     and `Y`, and return the result as a third, integer-valued, field, `Z`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicXPlusYKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicXPlusYKern`.
 
     '''
     def __str__(self):
@@ -1526,8 +1513,8 @@ class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
     ''' Add each element of an integer-valued field, `X`, to the
     corresponding element of another integer-valued field, `Y`, and
     store the result back in `X`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicIncXPlusYKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncXPlusYKern`.
 
     '''
     def __str__(self):
@@ -1538,8 +1525,8 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     ''' Add an integer scalar value, `a`, to each element of an
     integer-valued field, `X`, and return the result as a second,
     integer-valued, field, `Y`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicAPlusXKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicAPlusXKern`.
 
     '''
     def __str__(self):
@@ -1550,8 +1537,8 @@ class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
     ''' Add an integer scalar value, `a`, to each element of an
     integer-valued field, `X`, and return the result in the
     same field.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicIncAPlusXKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncAPlusXKern`.
 
     '''
     def __str__(self):
@@ -1567,8 +1554,8 @@ class LFRicIntXMinusYKern(LFRicXMinusYKern):
     ''' Subtract each element of an integer-valued field, `Y`, from
     the corresponding element of another, integer-valued, field, `X`,
     and return the result as a third, integer-valued, field, `Z`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicXMinusYKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicXMinusYKern`.
 
     '''
     def __str__(self):
@@ -1579,8 +1566,8 @@ class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     ''' Subtract each element of an integer-valued field, `Y`, from
     the corresponding element of another, integer-valued, field, `X`,
     and store the result back in `X`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicIncXMinusYKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncXMinusYKern`.
 
     '''
     def __str__(self):
@@ -1620,8 +1607,8 @@ class LFRicIntXTimesYKern(LFRicXTimesYKern):
     ''' Multiply each element of one, integer-valued, field, `X`, by
     the corresponding element of another, integer-valued, field, `Y`,
     and return the result as a third, integer-valued, field, `Z`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicXTimesYKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicXTimesYKern`.
 
     '''
     def __str__(self):
@@ -1632,8 +1619,8 @@ class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
     ''' Multiply each element of one, integer-valued, field, `X`, by
     the corresponding element of another, integer-valued, field, `Y`,
     and store the result back in `X`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicIncXTimesYKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncXTimesYKern`.
 
     '''
     def __str__(self):
@@ -1649,8 +1636,8 @@ class LFRicIntATimesXKern(LFRicATimesXKern):
     ''' Multiply each element of the first, integer-valued, field, `X`,
     by an integer scalar, `a`, and return the result as a second,
     integer-valued, field `Y` (`Y = a*X`).
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicATimesXKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicATimesXKern`.
 
     '''
     def __str__(self):
@@ -1660,8 +1647,8 @@ class LFRicIntATimesXKern(LFRicATimesXKern):
 class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
     ''' Multiply each element of an integer-valued field, `X` by
     an integer scalar, `a`, and store the result back in `X`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicIncATimesXKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncATimesXKern`.
 
     '''
     def __str__(self):
@@ -1676,8 +1663,8 @@ class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
 class LFRicIntSetvalCKern(LFRicSetvalCKern):
     ''' Assign a single constant integer scalar value, `c`, to all
     elements of an integer-valued field, `X`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicSetvalCKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicSetvalCKern`.
 
     '''
     def __str__(self):
@@ -1689,8 +1676,8 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
     ''' Copy one element of an integer-valued field (second argument),
     `X`, to the corresponding element of another, integer-valued,
     field (first argument), `Y`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicSetvalXKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicSetvalXKern`.
 
     '''
     def __str__(self):
@@ -1706,8 +1693,8 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
 class LFRicIntSignXKern(LFRicSignXKern):
     ''' Returns the sign of an integer-valued field elements using the
     Fortran intrinsic `sign` function, `Y = sign(a, X)`.
-    Inherits the `gen_code` method from the real-valued built-in
-    equivalent `LFRicSignXKern`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicSignXKern`.
 
     '''
     def __str__(self):

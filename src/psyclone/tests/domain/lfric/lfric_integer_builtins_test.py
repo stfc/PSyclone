@@ -70,7 +70,7 @@ def setup():
 # ------------- Adding integer fields --------------------------------------- #
 
 
-def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     Z = X + Y where X and Y are integer-valued fields. Also check that we
@@ -125,6 +125,15 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -147,7 +156,8 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem,
+                          fortran_writer):
     ''' Test that 1) the str method of LFRicIntIncXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     X = X + Y where X and Y are integer-valued fields. Test with and without
@@ -185,6 +195,15 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -341,7 +360,7 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem,
 # ------------- Subtracting integer fields ---------------------------------- #
 
 
-def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X - Y where Z, X and Y are integer-valued fields. Test
@@ -386,6 +405,15 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -407,7 +435,8 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem,
+                           fortran_writer):
     ''' Test that 1) the str method of LFRicIntIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - Y where X and Y are integer-valued fields. Test with and
@@ -450,6 +479,15 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -609,7 +647,7 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem,
 # ------------- Multiplying integer fields ---------------------------------- #
 
 
-def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X*Y where Z, X and Y are integer-valued fields. Test
@@ -664,6 +702,15 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -684,7 +731,8 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
+                           fortran_writer):
     ''' Test that 1) the str method of LFRicIntIncXTimesYKern returns
     the expected string and 2) we generate correct code for the built-in
     operation X = X*Y where X and Y are integer-valued fields. Test with and
@@ -729,6 +777,15 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -912,7 +969,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,
 # ------------- Setting integer field elements to an integer value ---------- #
 
 
-def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntSetvalCKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = c where 'c' is an integer constant scalar value and X
@@ -965,6 +1022,18 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = c\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        # Check the type of the scalar
+        scalar = loop.scope.symbol_table.lookup("c")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = c\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -985,7 +1054,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntSetvalXKern returns the
     expected string and 2) we generate correct code for the built-in operation
     Y = X where X and Y are integer-valued fields. Also test with and
@@ -1037,6 +1106,14 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
@@ -1060,7 +1137,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Sign of integer field elements ------------------------------ #
 
 
-def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIntSignXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = sign(a, X) where 'a' is an integer scalar and Y and X
@@ -1090,11 +1167,19 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
@@ -1102,7 +1187,7 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
