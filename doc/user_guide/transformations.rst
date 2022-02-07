@@ -121,7 +121,7 @@ The same ``options`` dictionary will be used when calling ``validate``.
 Available transformations
 -------------------------
 
-Most transformations are generic as the schedule structure is
+Some transformations are generic as the schedule structure is
 independent of the API, however it often makes sense to specialise
 these for a particular API by adding API-specific errors checks. Some
 transformations are API-specific. Currently these different types of
@@ -557,50 +557,98 @@ Interactive
 To apply a transformation interactively we first parse and analyse the
 code. This allows us to generate a "vanilla" PSy layer. For example::
 
+    >>> with open('example.f90', 'w') as example_file:
+    ...     _ = example_file.write(
+    ...             "program example\n"
+    ...             "  use field_mod, only: field_type\n"
+    ...             "  type(field_type) :: field\n"
+    ...             "  call invoke(setval_c(field, 0.0))\n"
+    ...             "end program example\n")
+
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
 
-    # This example uses the LFRic (Dynamo 0.3) API
+    # This example uses the LFRic (dynamo0.3) API
     >>> api = "dynamo0.3"
 
     # Parse the file containing the algorithm specification and
     # return the Abstract Syntax Tree and invokeInfo objects
-    >>> ast, invokeInfo = parse("dynamo.F90", api=api)
+    >>> ast, invokeInfo = parse("example.f90", api=api)
 
     # Create the PSy-layer object using the invokeInfo
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> psy = PSyFactory(api, distributed_memory=False).create(invokeInfo)
 
     # Optionally generate the vanilla PSy layer fortran
     >>> print(psy.gen)
+      MODULE example_psy
+        USE constants_mod, ONLY: r_def, i_def
+        USE field_mod, ONLY: field_type, field_proxy_type
+        IMPLICIT NONE
+        CONTAINS
+        SUBROUTINE invoke_0(field)
+          TYPE(field_type), intent(in) :: field
+          INTEGER df
+          INTEGER(KIND=i_def) loop0_start, loop0_stop
+          TYPE(field_proxy_type) field_proxy
+          INTEGER(KIND=i_def) undf_aspc1_field
+          !
+          ! Initialise field and/or operator proxies
+          !
+          field_proxy = field%get_proxy()
+          !
+          ! Initialise number of DoFs for aspc1_field
+          !
+          undf_aspc1_field = field_proxy%vspace%get_undf()
+          !
+          ! Set-up all of the loop bounds
+          !
+          loop0_start = 1
+          loop0_stop = undf_aspc1_field
+          !
+          ! Call our kernels
+          !
+          DO df=loop0_start,loop0_stop
+            field_proxy%data(df) = 0.0
+          END DO
+          !
+        END SUBROUTINE invoke_0
+      END MODULE example_psy
 
 We then extract the particular schedule we are interested
 in. For example::
 
     # List the various invokes that the PSy layer contains
     >>> print(psy.invokes.names)
+    dict_keys(['invoke_0'])
 
     # Get the required invoke
-    >>> invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    >>> invoke = psy.invokes.get('invoke_0')
 
     # Get the schedule associated with the required invoke
-    >>> schedule = invoke.schedule
-    >>> schedule.view()
-
+    > schedule = invoke.schedule
+    > schedule.view()
+    InvokeSchedule[invoke='invoke_0', dm=True]
+        0: Loop[type='dof', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
+            Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+            Schedule[]
+                0: BuiltIn setval_c(field,0.0)
 
 Now we have the schedule we can create and apply a transformation to
 it to create a new schedule and then replace the original schedule
 with the new one. For example::
 
     # Create an OpenMPParallelLoopTrans
-    >>> from psyclone.transformations import OMPParallelLoopTrans
-    >>> ol = OMPParallelLoopTrans()
+    > from psyclone.transformations import OMPParallelLoopTrans
+    > ol = OMPParallelLoopTrans()
 
     # Apply it to the loop schedule of the selected invoke
-    >>> ol.apply(schedule.children[0])
-    >>> schedule.view()
+    > ol.apply(schedule.children[0])
+    > schedule.view()
 
     # Generate the Fortran code for the new PSy layer
-    >> print(psy.gen)
+    > print(psy.gen)
 
 .. _sec_transformations_script:
 
@@ -638,38 +686,39 @@ example ...
 PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
-.. autofunction:: psyclone.generator.generate
-          :noindex:
+###.. autofunction:: psyclone.generator.generate
+###          :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
 ::
 
-    def trans(psy):
-        ...
-        return psy
+    >>> def trans(psy):
+    ...     # ...
+    ...     return psy
 
 It is up to the script what it does with the PSy object. The example
 below does the same thing as the example in the
 :ref:`sec_transformations_interactive` section.
 ::
 
-    def trans(psy):
-        from psyclone.transformations import OMPParallelLoopTrans
-        invoke = psy.invokes.get('invoke_0_v3_kernel_type')
-        schedule = invoke.schedule
-        ol = OMPParallelLoopTrans()
-        ol.apply(schedule.children[0])
-        return psy
+    >>> def trans(psy):
+    ...     from psyclone.transformations import OMPParallelLoopTrans
+    ...     invoke = psy.invokes.get('invoke_0_v3_kernel_type')
+    ...     schedule = invoke.schedule
+    ...     ol = OMPParallelLoopTrans()
+    ...     ol.apply(schedule.children[0])
+    ...     return psy
 
 In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
 optional **trans_alg** function may also be supplied. This function
 accepts **PSyIR** (reprenting the algorithm layer) as an argument and
-returns **PSyIR** i.e.: ::
+returns **PSyIR** i.e.:
+::
 
-   def trans_alg(psyir):
-       ...
-       return psyir
+   >>> def trans_alg(psyir):
+   ...     # ...
+   ...    return psyir
 
 As with the `trans()` function it is up to the script what it does with
 the algorithm PSyIR. Note that the `trans_alg()` script is applied to

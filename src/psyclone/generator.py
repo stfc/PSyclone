@@ -73,7 +73,7 @@ from psyclone.version import __VERSION__
 API_WITHOUT_ALGORITHM = ["nemo"]
 
 
-def handle_script(script_name, info, function_name="trans"):
+def handle_script(script_name, info, function_name, is_optional=False):
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -84,7 +84,9 @@ def handle_script(script_name, info, function_name="trans"):
     :type info: :py:class:`psyclone.psyGen.PSy` or \
         :py:class:`psyclone.psyir.nodes.Node`
     :param str function_name: the name of the function to call in the \
-        script. Defaults to "trans".
+        script.
+    :param bool is_optional: whether the function is optional or \
+        not. Defaults to False.
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension \
@@ -116,18 +118,14 @@ def handle_script(script_name, info, function_name="trans"):
                 "the '.py' extension".format(filename))
         try:
             transmod = __import__(filename)
-        except ImportError:
-            # pylint: disable=raise-missing-from
+        except ImportError as error:
             raise GenerationError(
-                "generator: attempted to import '{0}' but script file "
-                "'{1}' has not been found".
-                format(filename, script_name))
-        except SyntaxError:
-            # pylint: disable=raise-missing-from
+                f"generator: attempted to import '{filename}' but script "
+                f"file '{script_name}' has not been found") from error
+        except SyntaxError as error:
             raise GenerationError(
-                "generator: attempted to import '{0}' but script file "
-                "'{1}' is not valid python".
-                format(filename, script_name))
+                f"generator: attempted to import '{filename}' but script "
+                f"file '{script_name}' is not valid python") from error
         if callable(getattr(transmod, function_name, None)):
             try:
                 func_call = getattr(transmod, function_name)
@@ -144,7 +142,7 @@ def handle_script(script_name, info, function_name="trans"):
                     "following exception during execution "
                     "...\n{1}\nPlease check your script".format(
                         script_name, e_str))
-        elif function_name != "trans_alg":
+        elif not is_optional:
             raise GenerationError(
                 f"generator: attempted to import '{filename}' but script file "
                 f"'{script_name}' does not contain a '{function_name}' "
@@ -249,12 +247,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
-            handle_script(script_name, psy)
-
-        # Add profiling nodes to schedule if automatic profiling has
-        # been requested.
-        for invoke in psy.invokes.invoke_list:
-            Profiler.add_profile_nodes(invoke.schedule, Loop)
+            handle_script(script_name, psy, "trans")
 
     alg_gen = None
 
@@ -269,7 +262,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            handle_script(script_name, psyir, function_name="trans_alg")
+            handle_script(script_name, psyir, "trans_alg", is_optional=True)
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -282,15 +275,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            handle_script(script_name, psy)
-
-        # Add profiling nodes to schedule if automatic profiling has
-        # been requested.
-        for invoke in psy.invokes.invoke_list:
-            Profiler.add_profile_nodes(invoke.schedule, Loop)
+            handle_script(script_name, psy, "trans")
 
     elif api not in API_WITHOUT_ALGORITHM:
         alg_gen = Alg(ast, psy).gen
+
+    # Add profiling nodes to schedule if automatic profiling has
+    # been requested.
+    for invoke in psy.invokes.invoke_list:
+        Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     return alg_gen, psy.gen
 
