@@ -1,7 +1,7 @@
 # Tutorial 1, Part 2: Update fields on a generic function space
 
 In this part of the [first tutorial](../README.md), we will use the
-[stub-generation](https://psyclone.readthedocs.io/en/stable/stub_gen.html)
+[stub-generation](https://psyclone.readthedocs.io/en/stable/psyclone_kern.html)
 functionality of the PSyclone kernel tool to
 create the argument list and declarations for a generic kernel that
 assigns a value to a field on any function space. For this we will use
