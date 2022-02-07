@@ -38,11 +38,7 @@
 ''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
     pytest. '''
 
-# imports
-from __future__ import absolute_import, print_function
-
 import os
-import subprocess
 import pytest
 
 import fparser
@@ -169,9 +165,8 @@ def test_load_meta_wrong_type():
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     const = LFRicConstants()
-    assert ("DynKern.load_meta() expected one of {0} but found "
-            "'gh_hedge'".format(const.VALID_ARG_TYPE_NAMES)
-            in str(excinfo.value))
+    assert (f"DynKern.load_meta() expected one of {const.VALID_ARG_TYPE_NAMES}"
+            f" but found 'gh_hedge'" in str(excinfo.value))
 
 
 def test_intent():
@@ -654,24 +649,3 @@ def test_sub_name():
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in str(generated_code)
-
-
-def test_kernel_stub_usage():
-    ''' Check that the kernel-stub generator prints a usage message
-    if no arguments are supplied. '''
-
-    usage_msg = (
-        "usage: psyclone-kern [-h] [-gen {alg,stub}] [-o OUT_FILE] [-api API]")
-    out = subprocess.run(['psyclone-kern'], check=False,
-                         stderr=subprocess.PIPE, encoding="utf-8").stderr
-    assert usage_msg in out
-
-
-def test_kernel_stub_gen_cmd_line():
-    ''' Check that we can call the kernel-stub generator from the
-    command line. '''
-
-    out = subprocess.check_output(["psyclone-kern", "-gen", "stub",
-                                   os.path.join(BASE_PATH, "simple.f90")])
-
-    assert SIMPLE in out.decode('utf-8')

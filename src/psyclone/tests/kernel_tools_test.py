@@ -200,3 +200,16 @@ def test_file_output(monkeypatch, mode, tmpdir):
     with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
         content = infile.read()
         assert "the_answer = 42" in content
+
+
+def test_no_args_usage_msg(capsys):
+    ''' Check that kernel_tools.run() prints a usage message
+    if no arguments are supplied. '''
+
+    usage_msg = (
+        "usage: psyclone-kern [-h] [-gen {alg,stub}] [-o OUT_FILE] [-api API]")
+    with pytest.raises(SystemExit):
+        kernel_tools.run([])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert usage_msg in err

@@ -84,8 +84,12 @@ def run(args):
     # in case that the user specifies a different config file.
     Config.get(do_not_load_file=True)
 
+    # We specify the name of the program so that the expected messages are
+    # produced if running within pytest.
     parser = argparse.ArgumentParser(
+        prog="psyclone-kern",
         description='Run the PSyclone kernel generator on a particular file.')
+
     parser.add_argument('-gen', choices=GEN_MODES.keys(), default="stub",
                         help="what to generate for the supplied kernel "
                         "(alg=algorithm layer, stub=kernel-stub "
