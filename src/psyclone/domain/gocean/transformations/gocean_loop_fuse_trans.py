@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,19 +85,18 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         '''
         if not (isinstance(node1, psyclone.gocean1p0.GOLoop) and
                 isinstance(node2, psyclone.gocean1p0.GOLoop)):
-            raise TransformationError("Error in {0} transformation. "
+            raise TransformationError(f"Error in {self.name} transformation. "
                                       "Both nodes must be of the same "
-                                      "GOLoop class.".format(self.name))
+                                      "GOLoop class.")
 
         super(GOceanLoopFuseTrans, self).validate(node1, node2,
                                                   options=options)
 
         if node1.field_space != node2.field_space:
             raise TransformationError(
-                "Error in {0} transformation. Cannot "
+                f"Error in {self.name} transformation. Cannot "
                 "fuse loops that are over different grid-point types: "
-                "{1} {2}".format(self.name, node1.field_space,
-                                 node2.field_space))
+                "{node1.field_space} {node2.field_space}")
 
 
 # For automatic documentation generation

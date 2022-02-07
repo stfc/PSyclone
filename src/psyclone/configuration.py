@@ -104,7 +104,7 @@ class Config(object):
 
     # The default API, i.e. the one to be used if neither a command line
     # option is specified nor is the API in the config file used.
-    _default_api = u"dynamo0.3"
+    _default_api = "dynamo0.3"
 
     # The default scheme to use when (re)naming transformed kernels.
     # By default we support multiple, different versions of any given

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1320,7 +1320,7 @@ def test_acc_data_grid_copyin(tmpdir):
     assert pcopy in code
     # Check that we flag that the fields are now on the device
     for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
-        assert "{0}%data_on_device = .true.".format(obj) in code
+        assert f"{obj}%data_on_device = .true." in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -1522,9 +1522,8 @@ def test_acc_enter_directive_infrastructure_setup():
     # Check that each field data_on_device and read_from_device_f have been
     # initialised
     for field in ["cv_fld", "p_fld", "v_fld"]:
-        assert "{0}%data_on_device = .true.\n".format(field) in gen
-        assert ("{0}%read_from_device_f => read_from_device\n".format(field)
-                in gen)
+        assert f"{field}%data_on_device = .true.\n" in gen
+        assert f"{field}%read_from_device_f => read_from_device\n" in gen
 
 
 def test_acc_enter_directive_infrastructure_setup_error():
@@ -1719,5 +1718,4 @@ def test_all_go_loop_trans_base_validate(monkeypatch):
                 else:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
-                "{0}.validate() does not call LoopTrans.validate()".format(
-                    name)
+                f"{name}.validate() does not call LoopTrans.validate()"

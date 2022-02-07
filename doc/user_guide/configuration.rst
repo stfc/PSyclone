@@ -193,8 +193,8 @@ access_mapping          This field defines the strings that are used by a
                         read, write, read+write, increment,
                         read+increment and summation access by
                         PSyclone. Sum is a form of reduction. The
-                        GOcean API do not support increment or sum,
-                        so they only define three mappings for read,
+                        GOcean API does not support increment or sum,
+                        so it only defines three mappings for read,
                         write, and readwrite.
 ======================= =======================================================
 
