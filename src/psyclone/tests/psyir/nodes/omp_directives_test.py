@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
-    Reference, OMPDeclareTargetDirective
+    Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -83,8 +84,8 @@ def test_ompdo_constructor():
     with pytest.raises(InternalError) as err:
         # pylint: disable=pointless-statement
         ompdo.dir_body
-    assert ("malformed or incomplete. It should have a single Schedule as a "
-            "child but found: []" in str(err.value))
+    assert ("malformed or incomplete. It should have a Schedule as child 0 "
+            "but found: []" in str(err.value))
     child = schedule.children[0].detach()
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
@@ -134,6 +135,12 @@ def test_directive_get_private(monkeypatch):
     rtrans.apply(schedule.children[0])
     directive = schedule.children[0]
     assert isinstance(directive, OMPParallelDirective)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot generate the list of
+    # private variables until that is under way. Ultimately this will be
+    # replaced by a `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     # Now check that _get_private_list returns what we expect
     pvars = directive._get_private_list()
     assert pvars == ['cell']
@@ -217,12 +224,20 @@ def test_omp_single_strings(nowait):
     single.apply(schedule[0], {"nowait": nowait})
     omp_single = schedule[0]
 
-    nowait_str = ""
-    if nowait:
-        nowait_str = " nowait"
-
-    assert omp_single.begin_string() == "omp single" + nowait_str
+    assert omp_single.begin_string() == "omp single"
     assert omp_single.end_string() == "omp end single"
+
+
+def test_omp_single_validate_child():
+    ''' Test the validate_child method of the OMPSingle class '''
+    sched = Schedule()
+    nowait = OMPNowaitClause()
+    lit = Literal("32", INTEGER_TYPE)
+    assert OMPSingleDirective._validate_child(0, sched) is True
+    assert OMPSingleDirective._validate_child(1, nowait) is True
+    assert OMPSingleDirective._validate_child(0, lit) is False
+    assert OMPSingleDirective._validate_child(1, lit) is False
+    assert OMPSingleDirective._validate_child(2, lit) is False
 
 
 def test_omp_single_validate_global_constraints():
@@ -390,17 +405,25 @@ def test_omp_taskwait_validate_global_constraints():
             in str(excinfo.value))
 
 
+def test_omp_taskwait_clauses():
+    ''' Test the clauses property of the OMPTaskwait directive. '''
+    omp_taskwait = OMPTaskwaitDirective()
+    assert omp_taskwait.clauses == []
+
+
 def test_omp_taskloop_strings():
     ''' Test the begin_string and end_string methods of the
         OMPTaskloop directive '''
     omp_taskloop = OMPTaskloopDirective()
-    omp_tl2 = OMPTaskloopDirective(num_tasks=32, nogroup=True)
-    omp_tl3 = OMPTaskloopDirective(grainsize=32)
 
     assert omp_taskloop.begin_string() == "omp taskloop"
     assert omp_taskloop.end_string() == "omp end taskloop"
-    assert omp_tl2.begin_string() == "omp taskloop num_tasks(32), nogroup"
-    assert omp_tl3.begin_string() == "omp taskloop grainsize(32)"
+
+
+def test_omp_taskloop_clauses():
+    ''' Test the clauses property of the OMPTaskloop directive. '''
+    omp_taskloop = OMPTaskloopDirective()
+    assert omp_taskloop.clauses == []
 
 
 def test_omp_taskloop_init():
@@ -448,6 +471,25 @@ def test_omptaskloop_nogroup(nogroup):
     assert taskwait.nogroup == nogroup
 
 
+def test_omp_taskloop_validate_child():
+    ''' Test the validate_child method of the OMPTaskloopDirective
+    Class. '''
+    sched = Schedule()
+    gsclause = OMPGrainsizeClause(children=[Literal("1", INTEGER_TYPE)])
+    ntclause = OMPNumTasksClause(children=[Literal("1", INTEGER_TYPE)])
+    ngclause = OMPNogroupClause()
+    lit = Literal("1", INTEGER_TYPE)
+    assert OMPTaskloopDirective._validate_child(0, sched) is True
+    assert OMPTaskloopDirective._validate_child(1, gsclause) is True
+    assert OMPTaskloopDirective._validate_child(1, ntclause) is True
+    assert OMPTaskloopDirective._validate_child(1, ngclause) is True
+    assert OMPTaskloopDirective._validate_child(2, ngclause) is True
+    assert OMPTaskloopDirective._validate_child(3, ngclause) is False
+    assert OMPTaskloopDirective._validate_child(0, lit) is False
+    assert OMPTaskloopDirective._validate_child(1, lit) is False
+    assert OMPTaskloopDirective._validate_child(2, lit) is False
+
+
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
@@ -464,6 +506,19 @@ def test_omp_taskloop_validate_global_constraints():
     assert ("OMPTaskloopDirective must be inside an OMP "
             "Serial region but could not find an ancestor node"
             in str(excinfo.value))
+
+    # Ensure a taskloop clause can't have two nogroup clauses.
+    taskloop = schedule.children[0]
+    taskloop.addchild(OMPNogroupClause())
+    taskloop.addchild(OMPNogroupClause())
+    singletrans = OMPSingleTrans()
+    paralleltrans = OMPParallelTrans()
+    singletrans.apply(taskloop)
+    paralleltrans.apply(schedule.children[0])
+    with pytest.raises(GenerationError) as excinfo:
+        taskloop.validate_global_constraints()
+    assert ("OMPTaskloopDirective has two Nogroup clauses as "
+            "children which is not allowed." in str(excinfo.value))
 
 
 # Test OMPTargetDirective
@@ -550,7 +605,8 @@ def test_omp_loop_directive_validate_global_constraints():
     assert ("OMPLoopDirective must have a Loop as child of its associated "
             "schedule but found 'Assignment" in str(err.value))
 
-    # Check with an OMPLoop and a single Loop inside
+    # Check with an OMPLoop and a single Loop inside but without a proper
+    # region ancestor
     stmt.detach()
     loop = Loop.create(variable,
                        Literal('1', INTEGER_TYPE),
@@ -558,7 +614,16 @@ def test_omp_loop_directive_validate_global_constraints():
                        Literal('1', INTEGER_TYPE),
                        [stmt])
     omploop.dir_body.addchild(loop)
-    omploop.validate_global_constraints()  # This is valid
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must be inside a OMPTargetDirective or a "
+            "OMPParallelDirective, but 'OMPLoopDirective[]' is not."
+            in str(err.value))
+
+    # Insert block in a OMP Parallel region
+    ompparallel = OMPParallelDirective()
+    omploop.replace_with(ompparallel)
+    ompparallel.dir_body.addchild(omploop)
 
     # Check with an OMPLoop and collapse is 2 but just one loop inside
     omploop.collapse = 2
