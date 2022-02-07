@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -980,9 +980,10 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
         # redundantly (out to the L1 halo)
-        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
-        assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
+        assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
+    assert "DO cell=loop0_start,loop0_stop\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_proxy%local_stencil, afield_proxy%data, "
@@ -1101,10 +1102,11 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
         # The kernel only *reads* from a CMA operator and writes to a
         # field on a discontinuous space - therefore we do not need to
         # loop out into the L1 halo.
-        assert code.count("DO cell=1,mesh%get_last_edge_cell()") == 2
+        assert code.count("loop0_stop = mesh%get_last_edge_cell()") == 2
     else:
-        assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
-        assert "DO cell=1,field_c_proxy%vspace%get_ncell()" in code
+        assert "loop0_stop = field_a_proxy%vspace%get_ncell()" in code
+        assert "loop0_stop = field_c_proxy%vspace%get_ncell()" in code
+
     # Check any_discontinuous_space_1
     assert ("CALL columnwise_op_app_anydspace_kernel_code(cell, "
             "ncell_2d, field_a_proxy%data, field_b_proxy%data, "
@@ -1193,9 +1195,9 @@ def test_cma_matrix_matrix(tmpdir, dist_mem):
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
         # redundantly (out to the L1 halo)
-        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
-        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+        assert "loop0_stop = cma_opc_proxy%fs_from%get_ncell()\n" in code
 
     assert ("CALL columnwise_op_mul_kernel_code(cell, "
             "ncell_2d, "
@@ -1232,9 +1234,9 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
     if dist_mem:
         # When distributed-memory is enabled then we compute operators
         # redundantly (out to the L1 halo)
-        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
-        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+        assert "loop0_stop = cma_opc_proxy%fs_from%get_ncell()\n" in code
 
     assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
             "ncell_2d, "
@@ -1296,11 +1298,14 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
         # redundantly (out to the L1 halo). Since the field that the
         # CMA operator is applied to is on any-space, we must assume
         # the worst and also loop out to L1 for it too.
-        assert code.count("DO cell=1,mesh%get_last_halo_cell(1)\n") == 3
+        assert code.count("_stop = mesh%get_last_halo_cell(1)\n") == 3
     else:
-        assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
-        assert "DO cell=1,field_a_proxy%vspace%get_ncell()\n" in code
-        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+        assert ("      loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n"
+                "      loop1_start = 1\n"
+                "      loop1_stop = field_a_proxy%vspace%get_ncell()\n"
+                "      loop2_start = 1\n"
+                "      loop2_stop = cma_opc_proxy%fs_from%get_ncell()\n"
+                in code)
 
     assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
             "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "

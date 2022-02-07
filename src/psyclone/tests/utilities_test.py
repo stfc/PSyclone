@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -151,7 +151,6 @@ def test_get_invoke():
 
     get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
     get_invoke("test14_module_inline_same_kernel.f90", "gocean1.0", idx=0)
-    get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
     get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     # Check that dist_mem is being accepted:
     get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0, dist_mem=True)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: I. Kavcic, Met Office
+# Authors: I. Kavcic, Met Office
+#          A. R. Porter, STFC Daresbury Laboratory
 
 ''' This module tests the support for integer built-in operations in the
     LFRic API using pytest. Currently all built-in operations are 'pointwise'
@@ -97,6 +98,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     output = (
         "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
         "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      TYPE(integer_field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n")
     assert output in code
 
@@ -111,19 +113,25 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f3\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f3\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -165,18 +173,25 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         output = (
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
     else:
         output = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -217,9 +232,11 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -234,15 +251,16 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert isinstance(scalar.datatype, ScalarType)
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
         output_dm = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -282,9 +300,11 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem,
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -295,15 +315,16 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem,
         kern.lower_to_language_level()
         loop = first_invoke.schedule[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a + f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
         output_dm = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -353,19 +374,25 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f3\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f3\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -411,18 +438,25 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
     else:
         output = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -470,9 +504,11 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -483,15 +519,16 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a - f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
         output_dm = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -531,9 +568,11 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem,
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -544,15 +583,16 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem,
         kern.lower_to_language_level()
         loop = first_invoke.schedule[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a - f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
         output_dm = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -597,6 +637,7 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "    SUBROUTINE invoke_0(f3, f1, f2)\n"
             "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
+            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
             "      TYPE(integer_field_proxy_type) f3_proxy, f1_proxy, "
             "f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -611,18 +652,25 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f3\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f3\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
     else:
         output = (
+            "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -669,19 +717,25 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
@@ -733,9 +787,14 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      !\n"
             "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
@@ -744,15 +803,16 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         kern.lower_to_language_level()
         loop = first_invoke.schedule[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f2, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
         output_dm = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -798,6 +858,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,
             "      INTEGER(KIND=i_def), intent(in) :: a_scalar\n"
             "      TYPE(integer_field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
+            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
             "      TYPE(integer_field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
@@ -809,9 +870,14 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,
             "      !\n"
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -821,14 +887,16 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem,
         kern.lower_to_language_level()
         loop = first_invoke.schedule[0]
         code = fortran_writer(loop)
-        assert ("do df = 1, undf_aspc1_f1, 1\n"
+        assert ("do df = loop0_start, loop0_stop, 1\n"
                 "  f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "enddo" in code)
     else:
         output_dm = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -874,6 +942,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "      INTEGER(KIND=i_def), intent(in) :: c\n"
             "      TYPE(integer_field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
+            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
             "      TYPE(integer_field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
@@ -885,18 +954,24 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f1\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = c\n"
             "      END DO")
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = c\n"
             "      END DO\n"
             "      !\n"
@@ -938,6 +1013,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "    SUBROUTINE invoke_0(f2, f1)\n"
             "      TYPE(integer_field_type), intent(in) :: f2, f1\n"
             "      INTEGER df\n"
+            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
             "      TYPE(integer_field_proxy_type) f2_proxy, f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
             "      !\n"
@@ -950,18 +1026,24 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1003,9 +1085,11 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
@@ -1013,10 +1097,11 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
@@ -1072,6 +1157,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2\n"
             "      TYPE(integer_field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
+            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
             "      TYPE(integer_field_proxy_type) f1_proxy\n"
             "      TYPE(field_proxy_type) f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
@@ -1085,9 +1171,14 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
             "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=1,undf_aspc1_f2\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = real(f1_proxy%data(df), r_def)\n"
             "      END DO\n"
             "      !\n"
@@ -1095,10 +1186,11 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
     else:
         output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      DO df=loop0_start,loop0_stop\n"
             "        f2_proxy%data(df) = real(f1_proxy%data(df), r_def)\n"
             "      END DO\n"
             "      !\n"

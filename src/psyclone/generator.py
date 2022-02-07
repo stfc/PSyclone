@@ -1,9 +1,7 @@
-#!/usr/bin/env python2.7
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -380,7 +378,7 @@ def main(args):
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported API's are "
+        print("Unsupported API '{0}' specified. Supported APIs are "
               "{1}.".format(args.api, Config.get().supported_apis),
               file=sys.stderr)
         sys.exit(1)
