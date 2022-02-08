@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021 Science and Technology Facilities Council.
+# Copyright (c) 2019-2022 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -520,6 +520,7 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(operator_type), intent(in) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:), "
         "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
         "      INTEGER(KIND=i_def) diff_dim_w0, dim_w3, diff_dim_w2\n"
@@ -532,6 +533,7 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert decl_output in generated_code
     output = (
@@ -550,6 +552,7 @@ def test_operator_different_spaces(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => mapping_proxy%fs_from%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -596,6 +599,11 @@ def test_operator_different_spaces(tmpdir):
         "      CALL qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (coord_proxy(1)%is_dirty(depth=1)) THEN\n"
@@ -610,7 +618,7 @@ def test_operator_different_spaces(tmpdir):
         "        CALL coord_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
@@ -673,7 +681,7 @@ def test_operator_nofield_different_space(tmpdir):
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
     # We compute operators redundantly (out to the L1 halo)
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -691,10 +699,73 @@ def test_operator_nofield_scalar(tmpdir):
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen)
+
+
+def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
+    ''' Tests that an operator with no field and a
+    scalar argument is implemented correctly in the PSy layer when both
+    are obtained by dereferencing derived type objects. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "10.6.1_operator_no_field_scalar_deref.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    gen = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
+    assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert ("qr_init_quadrature_symmetrical%compute_function(BASIS, "
+            "opbox_my_mapping_proxy%fs_from, dim_w2, ndf_w2, "
+            "basis_w2_qr_init_quadrature_symmetrical)" in gen)
+    if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
+    else:
+        assert (
+            "loop0_stop = opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
+    assert (
+        "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
+        "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
+        "basis_w2_qr_init_quadrature_symmetrical, "
+        "np_xy_qr_init_quadrature_symmetrical, "
+        "np_z_qr_init_quadrature_symmetrical, "
+        "weights_xy_qr_init_quadrature_symmetrical, "
+        "weights_z_qr_init_quadrature_symmetrical)" in gen)
+
+
+def test_operator_deref(tmpdir, dist_mem):
+    ''' Tests that we generate correct names for an operator in the PSy
+    layer when obtained by de-referencing a derived type in the Algorithm
+    layer. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert (
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, coord, a, qr)"
+        in generated_code)
+    assert "TYPE(operator_type), intent(in) :: mm_w0_op" in generated_code
+    assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
+    assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
+    assert (
+        "CALL testkern_operator_code(cell, nlayers, "
+        "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
+        "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, a, "
+        "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
+        "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+        "weights_z_qr)" in generated_code)
 
 
 def test_operator_no_dofmap_lookup():

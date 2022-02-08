@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -260,11 +260,14 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
         assert result.count("_proxy%halo_exchange(depth=extent)") == 4
-        assert result.count("DO cell=1,mesh%get_last_edge_cell()") == 2
+        assert "loop0_stop = mesh%get_last_edge_cell()" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
     else:
         assert "halo_exchange(depth=extent)" not in result
-        assert "DO cell=1,f0_proxy%vspace%get_ncell()" in result
-        assert "DO cell=1,f3_proxy%vspace%get_ncell()" in result
+        assert "loop0_stop = f0_proxy%vspace%get_ncell()" in result
+        assert "loop1_stop = f3_proxy%vspace%get_ncell()" in result
+    assert "DO cell=loop0_start,loop0_stop" in result
+    assert "DO cell=loop1_start,loop1_stop" in result
 
 
 def test_stencil_args_unique_1(dist_mem, tmpdir):

@@ -84,6 +84,7 @@ def test_field(tmpdir):
         "      REAL(KIND=r_def), intent(in) :: a\n"
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
@@ -123,9 +124,14 @@ def test_field(tmpdir):
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
+        "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -135,6 +141,141 @@ def test_field(tmpdir):
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
     assert output in str(generated_code)
+
+
+def test_field_deref(tmpdir, dist_mem):
+    ''' Tests that a call with a set of fields (some obtained by
+    de-referencing derived types) and no basis functions produces
+    correct code.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.13_single_invoke_field_deref.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    output = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, "
+        "est_m2)\n"
+        "      USE testkern_mod, ONLY: testkern_code\n")
+    assert output in generated_code
+    if dist_mem:
+        output = "      USE mesh_mod, ONLY: mesh_type\n"
+        assert output in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output = (
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
+        "est_m2_proxy\n"
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n")
+    assert output in generated_code
+    if dist_mem:
+        output = "      TYPE(mesh_type), pointer :: mesh => null()\n"
+        assert output in generated_code
+    output = (
+        "      !\n"
+        "      ! Initialise field and/or operator proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      est_f2_proxy = est_f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      est_m2_proxy = est_m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n")
+    assert output in generated_code
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      ! Create a mesh object\n"
+            "      !\n"
+            "      mesh => f1_proxy%vspace%get_mesh()\n"
+        )
+        assert output in generated_code
+    output = (
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2 => est_f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w3 => est_m2_proxy%vspace%get_whole_dofmap()\n"
+        "      !\n")
+    assert output in generated_code
+    output = (
+        "      ! Initialise number of DoFs for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2\n"
+        "      !\n"
+        "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w3\n"
+        "      !\n"
+        "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
+        "      !\n")
+    assert output in generated_code
+    if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
+        output = (
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL m1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      DO cell=loop0_start,loop0_stop\n")
+        assert output in generated_code
+    else:
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=loop0_start,loop0_stop\n")
+        assert output in generated_code
+    output = (
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+        "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "      END DO\n")
+    assert output in generated_code
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !")
+        assert output in generated_code
 
 
 def test_field_fs(tmpdir):
@@ -162,6 +303,7 @@ def test_field_fs(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
         "m4, f5, f6, m5, m6, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
@@ -178,6 +320,7 @@ def test_field_fs(tmpdir):
         "ndf_w2trace, undf_w2trace, ndf_w2htrace, undf_w2htrace, "
         "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
         "undf_any_w2\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -204,6 +347,7 @@ def test_field_fs(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -286,6 +430,11 @@ def test_field_fs(tmpdir):
         "      ndf_any_w2 = m7_proxy%vspace%get_ndf()\n"
         "      undf_any_w2 = m7_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -336,7 +485,7 @@ def test_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
@@ -443,6 +592,7 @@ def test_int_field_fs(tmpdir):
         "      TYPE(integer_field_type), intent(in) :: f1, f2, m1, m2, f3, "
         "f4, m3, m4, f5, f6, m5, m6, f7, f8, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
@@ -461,6 +611,7 @@ def test_int_field_fs(tmpdir):
         "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
         "undf_any_w2, ndf_aspc1_f8, undf_aspc1_f8, ndf_adspc1_m7, "
         "undf_adspc1_m7\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output in generated_code
     output = (
@@ -489,6 +640,7 @@ def test_int_field_fs(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -583,6 +735,11 @@ def test_int_field_fs(tmpdir):
         "      ndf_adspc1_m7 = m7_proxy%vspace%get_ndf()\n"
         "      undf_adspc1_m7 = m7_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -641,7 +798,7 @@ def test_int_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_fs_int_field_code(nlayers, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, f3_proxy%data, "
@@ -823,6 +980,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "      TYPE(integer_field_type), intent(in) :: i1, i2, n1, n2, "
         "i3, i4, n3, n4, i5, i6, n5, n6, i7, i8, n7\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(integer_field_proxy_type) i1_proxy, i2_proxy, n1_proxy, "
         "n2_proxy, i3_proxy, i4_proxy, n3_proxy, n4_proxy, i5_proxy, "
@@ -844,6 +1003,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "      ! Create a mesh object\n"
             "      !\n"
             "      mesh => i1_proxy%vspace%get_mesh()\n"
+            "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
             "      !\n")
     output += (
         "      ! Look-up dofmaps for each function space\n"
@@ -900,13 +1060,11 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert kern2_call in generated_code
     # Check loop bounds for kernel calls
     if not dist_mem:
-        kern1_loop = "DO cell=1,i2_proxy%vspace%get_ncell()\n"
-        kern2_loop = "DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        assert "loop0_stop = i2_proxy%vspace%get_ncell()\n" in generated_code
+        assert "loop1_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
     else:
-        kern1_loop = "DO cell=1,mesh%get_last_halo_cell(1)\n"
-        kern2_loop = "DO cell=1,mesh%get_last_halo_cell(1)\n"
-    assert kern1_loop in generated_code
-    assert kern2_loop in generated_code
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
+        assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in generated_code
     # Check that the field halo flags after the kernel calls
     if dist_mem:
         halo1_flags = (

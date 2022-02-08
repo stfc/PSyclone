@@ -107,8 +107,6 @@ def test_regiondirective_children_validation():
     datanode = Literal("1", INTEGER_TYPE)
     schedule = Schedule()
 
-    # TODO #1388 The error messages from RegionDirective and
-    # StandaloneDirective are unclear as they inherit from their parent class.
     # First child
     with pytest.raises(GenerationError) as excinfo:
         directive.children[0] = datanode
@@ -127,8 +125,6 @@ def test_standalonedirective_children_validation():
     cdir = StandaloneDirective()
     schedule = Schedule()
 
-    # TODO #1388 The error messages from RegionDirective and
-    # StandaloneDirective are unclear as they inherit from their parent class.
     # test adding child
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
