@@ -38,7 +38,6 @@
 ''' Performs py.test tests on the support for KIND parameters in the
     fparser2 PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
