@@ -698,7 +698,7 @@ class OMPDeclareTargetTrans(Transformation):
         for child in node.children:
             if isinstance(child, OMPDeclareTargetDirective):
                 return  # The routine is already marked with OMPDeclareTarget
-        node.insert(0, OMPDeclareTargetDirective())
+        node.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.

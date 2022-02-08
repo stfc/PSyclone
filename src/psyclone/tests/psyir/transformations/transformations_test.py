@@ -55,7 +55,8 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans, \
+    OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -272,6 +273,36 @@ def test_omptargettrans(sample_psyir):
     assert isinstance(loops[1].parent.parent, OMPTargetDirective)
     assert len(tree.walk(Routine)[0].children) == 1
     assert loops[0].parent.parent is loops[1].parent.parent
+
+
+def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
+    ''' Test OMPTargetTrans works as expected with the different options. '''
+
+    # Try to insert a OMPDeclareTarget just on the wrong node type
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    loop = sample_psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(loop)
+    assert ("The OMPDeclareTargetTrans must be applied to a Routine, but "
+            "found: 'Loop'." in str(err.value))
+
+    # Insert a OMPDeclareTarget just on a Routine
+    routine = sample_psyir.walk(Routine)[0]
+    ompdeclaretargettrans.apply(routine)
+    expected = '''\
+subroutine my_subroutine()
+  integer, dimension(10,10) :: a
+  integer :: i
+  integer :: j
+
+  !$omp declare target
+  do i = 1, 10, 1
+'''
+    assert expected in fortran_writer(sample_psyir)
+
+    # If the OMPDeclareTarget directive is already there don't repeate it
+    ompdeclaretargettrans.apply(routine)
+    assert expected in fortran_writer(sample_psyir)
 
 
 def test_omplooptrans_properties():

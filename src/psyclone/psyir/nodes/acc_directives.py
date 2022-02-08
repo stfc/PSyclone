@@ -106,7 +106,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
 
     def gen_code(self, parent):
         '''Generate the fortran ACC Routine Directive and any associated
-        code
+        code.
 
         :param parent: the parent Node in the Schedule to which to add our \
                        content.
