@@ -113,6 +113,9 @@
 	37) PR #1565 for #1505. Fix bug with UnknownFortranTypes inside other
 	fparser frontend declarations.
 
+	38) PR #1603 for #1566. Fparser reader parses derived types with
+	contains statements as UnknownFortranType.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
