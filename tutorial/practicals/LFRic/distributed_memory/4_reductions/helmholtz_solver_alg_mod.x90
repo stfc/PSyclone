@@ -74,6 +74,10 @@ contains
     type(field_type),    pointer :: mt_lumped_inv => null()
     type(field_type) :: div_star
 
+    ! scaled_matrix_vector_kernel_type in the following invoke has
+    ! been modified so that the operator argument has been replaced by
+    ! a field. This change allows this code to be used to demonstrate
+    ! PSyclone's support for reductions.
     call invoke( setval_c(grad_p, 0.0_r_def),                                &
                  scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &
                                                   hb_inv),                   &

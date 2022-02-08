@@ -74,6 +74,10 @@ contains
     type(field_type),    pointer :: mt_lumped_inv => null()
     type(field_type) :: div_star
 
+    ! Note, the version of scaled_matrix_vector_kernel_type used in this
+    ! invoke has been modified so that it no longer takes an operator as
+    ! argument in order that the code may be used to demonstrate redundant
+    ! computation.
     call invoke( setval_c(grad_p, 0.0_r_def),                                &
                  scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &
                                                   hb_inv),                   &

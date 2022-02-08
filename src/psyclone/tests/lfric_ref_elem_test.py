@@ -202,7 +202,6 @@ def test_refelem_arglist_err():
 
 
 def test_refelem_gen(tmpdir):
-
     ''' Basic test for code-generation for an invoke containing a single
     kernel requiring reference-element properties. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "23.1_ref_elem_invoke.f90"),
@@ -334,7 +333,7 @@ def test_all_faces_refelem_gen(tmpdir):
 def test_refelem_no_rdef(tmpdir):
     '''Check that the PSy-layer declares r_def if there is a reference
     element specified in the metadata but the arguments are not of
-    type r_def. This is rquired as array arguments associated with the
+    type r_def. This is required as array arguments associated with the
     reference element have precision r_def. In this example there is a
     field of type r_solver.
 

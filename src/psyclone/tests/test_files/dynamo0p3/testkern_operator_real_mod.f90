@@ -31,6 +31,10 @@
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Lab
 
+! Kernel containing an operator, real field (vector), real scalar and
+! requires a quadrature argument to be passed from the algorithm
+! layer.
+
 module testkern_operator_real_mod
 
   use argument_mod

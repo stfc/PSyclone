@@ -188,7 +188,6 @@ def test_multi_function_multi_invokes():
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_1" in gen
     assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_0" in gen
     assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
@@ -201,7 +200,6 @@ def test_multi_function_invoke_qr():
     alg, _ = generate(os.path.join(
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
     assert "USE testkern_mod, ONLY: testkern_type" in gen
     assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
@@ -212,7 +210,6 @@ def test_invoke_argnames():
     alg, _ = generate(os.path.join(
         BASE_PATH, "5_alg_field_array.f90"), api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE single_function_psy, ONLY: invoke_0" in gen
     assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
             "f1(index, index2(index3)), iflag(2), a(index1), "
@@ -251,7 +248,6 @@ def test_deref_derived_type_args():
                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert (
         "CALL invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
         "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
@@ -267,7 +263,6 @@ def test_multi_deref_derived_type_args():
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert (
         "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
         "obj_a % obj_b % iflag, obj_b % obj_a % iflag)"
@@ -299,7 +294,6 @@ def test_single_stencil_xory1d():
     path = os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4, f2_extent, f2_direction)") in output
 
@@ -320,7 +314,6 @@ def test_single_stencil_xory1d_literal():
         BASE_PATH, "19.5_single_stencil_xory1d_literal.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4)") in output
 
@@ -330,7 +323,6 @@ def test_multiple_stencils():
     path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, f2_extent, f3_extent, f3_direction)") in output
 
@@ -341,7 +333,6 @@ def test_multiple_stencil_same_name_direction():
     path = os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
@@ -351,7 +342,6 @@ def test_multiple_kernels_stencils():
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert "USE multiple_stencil_psy, ONLY: invoke_0" in output
     assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
             "f3_direction, direction)") in output
@@ -364,7 +354,6 @@ def test_multiple_stencil_same_name_case():
         BASE_PATH, "19.11_multiple_stencils_mixed_case.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
@@ -384,7 +373,6 @@ def test_multiple_stencil_same_name():
     path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
 

@@ -31,6 +31,11 @@
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Lab
 
+! An example of a kernel that provides an interface to different
+! kernel implementations which support different precision (of the
+! real operator, field and scalar arguments). In this example 32 and
+! 64 bit implementations are provided.
+
 module mixed_mod
 
   use argument_mod,      only : arg_type,                         &

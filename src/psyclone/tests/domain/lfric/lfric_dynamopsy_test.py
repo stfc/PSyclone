@@ -113,8 +113,10 @@ def test_dynamopsy_names():
 
 
 def test_dynamopsy_inf_modules():
-    '''Check that the infrastructure_modules() method of DynamoPSy behaves
-    as expected.
+    '''Check that the infrastructure_modules() method of DynamoPSy (which
+    is implemented as a property) behaves as expected. In this case we
+    check that it returns the values set up in the initialisation of
+    an instance of DynamoPSy.
 
     '''
     dynamo_psy = DynamoPSy(DummyInvokeInfo())
@@ -124,7 +126,8 @@ def test_dynamopsy_inf_modules():
 
 def test_dynamopsy_gen_no_invoke():
     '''Check that the gen() method of DynamoPSy behaves as expected for a
-    minimal psy-layer with no invoke calls.
+    minimal psy-layer when the algorithm layer does not contain any
+    invoke calls.
 
     '''
     expected_result = (
@@ -139,10 +142,11 @@ def test_dynamopsy_gen_no_invoke():
 
 
 def test_dynamopsy_gen():
-    '''Check that the gen() method of DynamoPSy behaves as expected for a
-    psy-layer with invoke calls. Simply check the invoke calls are
-    generated as we check the rest of the generation for the
-    DynamoPSy() gen() method in the previous test.
+    '''Check that the gen() method of DynamoPSy behaves as expected when
+    generating a psy-layer from an algorithm layer containing invoke
+    calls. Simply check the invoke calls are generated as we check the
+    rest of the generation for the DynamoPSy() gen() method in the
+    previous test.
 
     '''
     _, invoke_info = parse(
