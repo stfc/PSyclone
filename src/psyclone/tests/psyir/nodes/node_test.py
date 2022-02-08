@@ -47,10 +47,10 @@ from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
-    BinaryOperation
+    BinaryOperation, ArrayReference
 
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -525,8 +525,10 @@ def test_dag_names():
 
     # Classes without the dag_name specialised should show the name of the
     # class and the relative position to the ancestor routine
-    assert schedule.children[4].start_expr.dag_name == "Literal_6"
-
+    dtype = ArrayType(INTEGER_TYPE, [10])
+    sym = DataSymbol("array", dtype)
+    aref = ArrayReference.create(sym, [Literal("2", INTEGER_TYPE)])
+    assert aref.children[0].dag_name == "Literal_1"
     # Some classes have their own specialisation of the dag_name
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
@@ -538,8 +540,8 @@ def test_dag_names():
             "kernel_testkern_code_10")
 
     # If there is no ancestor routine, the index is the absolute position
-    loop = schedule.children[4].detach()
-    assert loop.start_expr.dag_name == "Literal_1"
+    idx = aref.children[0].detach()
+    assert idx.dag_name == "Literal_0"
 
     # GlobalSum and BuiltIn also have specialised dag_names
     _, invoke_info = parse(

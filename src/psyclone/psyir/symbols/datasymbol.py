@@ -144,8 +144,11 @@ class DataSymbol(TypedSymbol):
             instance, or 5) the provided PSyIR expression is unsupported.
 
         '''
-        from psyclone.psyir.nodes import Node, Literal, Operation, Reference
-        from psyclone.psyir.symbols import ScalarType, ArrayType
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import (Node, Literal, Operation, Reference,
+                                          CodeBlock)
+        from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType
+
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(
@@ -161,12 +164,13 @@ class DataSymbol(TypedSymbol):
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
-                    if not isinstance(node, (Literal, Operation, Reference)):
+                    if not isinstance(node, (Literal, Operation, Reference,
+                                             CodeBlock)):
                         raise ValueError(
-                            "Error setting constant value for symbol '{0}'. "
-                            "PSyIR static expressions can only contain PSyIR "
-                            "literal, operation or reference nodes but found:"
-                            " {1}".format(self.name, node))
+                            f"Error setting constant value for symbol "
+                            f"'{self.name}'. PSyIR static expressions can only"
+                            f" contain PSyIR Literal, Operation, Reference or "
+                            f"CodeBlock nodes but found: {node}")
                 self._constant_value = new_value
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
