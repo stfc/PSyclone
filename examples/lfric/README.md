@@ -360,9 +360,9 @@ psyclone advection_alg_mod.x90
 # 'true' in the config file and re-run psyclone.
 ```
 
-## Example 19: Mixed-precision
+## Example 19: Mixed precision
 
-This example shows the use of the LFRic mixed precision support to
+This example shows the use of the LFRic mixed-precision support to
 call a kernel with scalars, fields and operators of different
 precision.
 

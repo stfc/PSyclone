@@ -4833,8 +4833,8 @@ class DynBasisFunctions(DynCollection):
                 infrastructure_modules[const_mod]
             if kind not in const_mod_list:
                 # Record that we will need to import the kind for a
-                # declaration (associated with quadrature) from the
-                # appropriate infrastructure module
+                # declaration (associated with quadrature) from
+                # the appropriate infrastructure module
                 const_mod_list.append(kind)
 
             # Get the quadrature proxy

@@ -144,8 +144,7 @@ class LFRicBuiltInCallFactory(object):
         return dofloop
 
 
-@six.add_metaclass(abc.ABCMeta)
-class LFRicBuiltIn(BuiltIn):
+class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     '''
     Abstract base class for a node representing a call to an LFRic Built-in.
 
@@ -409,6 +408,7 @@ class LFRicBuiltIn(BuiltIn):
                 if arg.is_scalar]
 
 
+@six.add_metaclass(abc.ABCMeta)
 class LFRicXKern(LFRicBuiltIn):
     '''Abstract class providing functionaliy to convert a field of
     one type to a field of another type. If [Datatype] (stored in
@@ -422,12 +422,14 @@ class LFRicXKern(LFRicBuiltIn):
     _field_type = None
 
     def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
+        '''Generates LFRic API specific PSy code for a call to the
         [datatype]_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises InternalError: if the _field_type variable is not set \
+            correctly.
 
         '''
         # Subclass must set _field_type
@@ -441,7 +443,7 @@ class LFRicXKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         precision = self._arguments.args[0].precision
-        rhs_expr = (f"{self._field_type}({field_name1}, {precision})")
+        rhs_expr = f"{self._field_type}({field_name1}, {precision})"
         parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
         # Import the precision variable if it is not already imported
         const = LFRicConstants()

@@ -35,7 +35,7 @@
 #          J. Henrichs, Bureau of Meteorology
 # Modifications: R. W. Ford, STFC Daresbury Lab
 
-# The compiler to use may be specified via the F90 environment
+# The compiler to use may be specified via the F90 environment variable
 #
 # export F90=gfortran
 # export F90FLAGS="-g -O0"
@@ -49,13 +49,16 @@ F90FLAGS ?= -g -O0
 
 OBJ = helmholtz_solver_alg_psy.o helmholtz_solver_alg_mod.o scaled_matrix_vector_kernel_mod.o
 
-EXEC = compiles
+EXEC = will_not_run.exe
 LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_PATH)
 
+# This example will not run as no mesh is set up and the data is not
+# initialised in the algorithm layer. The example was simply designed
+# to check that the generated code would compile.
 run: compile
 	@echo "Running not supported for lfric/eg11"
 
@@ -63,11 +66,11 @@ compile: transform $(EXEC)
 
 transform: helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90
 
-helmholtz_solver_alg_psy.f90: helmholtz_solver_alg_mod.x90
-	${PSYCLONE} -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg /dev/null $<
+helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_mod.x90
+	${PSYCLONE} -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
 
-helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_mod.x90
-	${PSYCLONE} -opsy /dev/null -oalg helmholtz_solver_alg_mod.f90 $<
+#helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_mod.x90
+#	${PSYCLONE} -opsy /dev/null -oalg helmholtz_solver_alg_mod.f90 $<
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
