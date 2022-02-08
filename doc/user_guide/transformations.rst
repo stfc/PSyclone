@@ -202,6 +202,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DotProduct2CodeTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
     :noindex:
