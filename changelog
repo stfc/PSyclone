@@ -107,6 +107,9 @@
 	35) PR #1556 for #1490. Adds a dotproduct2code transformation and
 	extends PSyAD to make use of it.
 
+	36) PR #1597 towards #753. Fixes naming bugs in GOcean Algorithm
+	PSyIR.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
