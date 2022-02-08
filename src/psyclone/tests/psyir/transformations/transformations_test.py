@@ -276,9 +276,9 @@ def test_omptargettrans(sample_psyir):
 
 
 def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
-    ''' Test OMPTargetTrans works as expected with the different options. '''
+    ''' Test OMPDeclareTargetTrans works as expected.'''
 
-    # Try to insert a OMPDeclareTarget just on the wrong node type
+    # Try to insert a OMPDeclareTarget on a wrong node type
     ompdeclaretargettrans = OMPDeclareTargetTrans()
     loop = sample_psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
@@ -286,7 +286,7 @@ def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
     assert ("The OMPDeclareTargetTrans must be applied to a Routine, but "
             "found: 'Loop'." in str(err.value))
 
-    # Insert a OMPDeclareTarget just on a Routine
+    # Insert a OMPDeclareTarget on a Routine
     routine = sample_psyir.walk(Routine)[0]
     ompdeclaretargettrans.apply(routine)
     expected = '''\
@@ -300,7 +300,7 @@ subroutine my_subroutine()
 '''
     assert expected in fortran_writer(sample_psyir)
 
-    # If the OMPDeclareTarget directive is already there don't repeate it
+    # If the OMPDeclareTarget directive is already there do not repeat it
     ompdeclaretargettrans.apply(routine)
     assert expected in fortran_writer(sample_psyir)
 

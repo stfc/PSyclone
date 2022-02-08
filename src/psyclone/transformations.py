@@ -681,7 +681,6 @@ class OMPDeclareTargetTrans(Transformation):
                     A(i, j) = 0
                 end do
             end do
-            !$omp end target
         end subroutine
 
     '''
