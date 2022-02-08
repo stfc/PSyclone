@@ -155,8 +155,9 @@ def test_dynamopsy_gen():
         api="dynamo0.3")
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
+    print(result)
     assert (
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_code(nlayers, ginger, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
@@ -168,6 +169,6 @@ def test_dynamopsy_gen():
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"
-        "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+        "      DO df=loop1_start,loop1_stop\n"
         "        f1_proxy%data(df) = 0.0_r_def\n"
         "      END DO\n" in result)

@@ -63,7 +63,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
-    InvokeSchedule
+    InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
@@ -1015,23 +1015,25 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
 
 
 def test_reduction_no_set_precision(monkeypatch, dist_mem):
-    ''' Test that the zero_reduction_variable() method generates correct
-    code when a reduction argument does not have a defined precision (only
-    a zero summation value is generated in this case).
+    '''Test that the zero_reduction_variable() method generates correct
+    code when a reduction argument does not have a defined
+    precision. Only a zero value (without precision i.e. 0.0 not
+    0.0_r_def) is generated in this case.
 
     '''
-    # Set precision of 'real' scalar arguments in LFRic to an empty string
-    const = LFRicConstants()
-    monkeypatch.setitem(
-        const.DATA_TYPE_MAP, name="reduction",
-        value={"module": "scalar_mod", "type": "scalar_type",
-               "proxy_type": None, "intrinsic": "real", "kind": ""})
-    # Generate code for sum_X built-in with no precision for zero reduction
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
+
+    # A reduction argument will always have a precision value so we
+    # need to monkeypatch the it.
+    schedule = psy.invokes.invoke_list[0].schedule
+    builtin = schedule.walk(BuiltIn)[0]
+    arg = builtin.arguments.args[0]
+    arg._precision = ""
+    
     generated_code = str(psy.gen)
 
     if dist_mem:

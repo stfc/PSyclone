@@ -705,69 +705,6 @@ def test_operator_nofield_scalar(tmpdir):
             "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
-    ''' Tests that an operator with no field and a
-    scalar argument is implemented correctly in the PSy layer when both
-    are obtained by dereferencing derived type objects. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "10.6.1_operator_no_field_scalar_deref.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    gen = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    if dist_mem:
-        assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
-    assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
-    assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert ("qr_init_quadrature_symmetrical%compute_function(BASIS, "
-            "opbox_my_mapping_proxy%fs_from, dim_w2, ndf_w2, "
-            "basis_w2_qr_init_quadrature_symmetrical)" in gen)
-    if dist_mem:
-        assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    else:
-        assert (
-            "loop0_stop = opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
-    assert (
-        "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
-        "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
-        "basis_w2_qr_init_quadrature_symmetrical, "
-        "np_xy_qr_init_quadrature_symmetrical, "
-        "np_z_qr_init_quadrature_symmetrical, "
-        "weights_xy_qr_init_quadrature_symmetrical, "
-        "weights_z_qr_init_quadrature_symmetrical)" in gen)
-
-
-def test_operator_deref(tmpdir, dist_mem):
-    ''' Tests that we generate correct names for an operator in the PSy
-    layer when obtained by de-referencing a derived type in the Algorithm
-    layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    generated_code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    assert (
-        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, coord, a, qr)"
-        in generated_code)
-    assert "TYPE(operator_type), intent(in) :: mm_w0_op" in generated_code
-    assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
-    assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
-    assert (
-        "CALL testkern_operator_code(cell, nlayers, "
-        "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
-        "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, a, "
-        "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
-        "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-        "weights_z_qr)" in generated_code)
-
-
 def test_operator_no_dofmap_lookup():
     ''' Check that we use a field rather than an operator to look-up
     a dofmap, even when the operator precedes the field in the argument

@@ -1974,6 +1974,7 @@ def test_r_solver(tmpdir):
         "      TYPE(r_solver_field_type), intent(in) :: f1, f2\n"
         "      TYPE(field_type), intent(in) :: f3, f4\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(field_proxy_type) f3_proxy, f4_proxy\n"
         "      TYPE(r_solver_field_proxy_type) f1_proxy, f2_proxy\n"
@@ -4285,6 +4286,8 @@ def test_mixed_precision_args():
         "      TYPE(operator_type), intent(in) :: operator_r_def\n"
         "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
         "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
@@ -4292,5 +4295,6 @@ def test_mixed_precision_args():
         "      TYPE(field_proxy_type) field_r_def_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w0\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert expected in generated_code

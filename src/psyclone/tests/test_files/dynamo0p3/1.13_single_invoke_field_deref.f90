@@ -40,11 +40,14 @@ program single_invoke
   ! object is passed by dereferencing an "estate_type" object.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
-  use estate_mod,    only: estate_type
   use testkern_mod,  only: testkern_type
 
   implicit none
 
+  type estate_type
+     type(field_type) :: f2,m2
+  end type estate_type
+  
   type(field_type)  :: f1, m1
   type(estate_type) :: est
   real(r_def)       :: a
