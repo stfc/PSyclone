@@ -557,26 +557,28 @@ Interactive
 To apply a transformation interactively we first parse and analyse the
 code. This allows us to generate a "vanilla" PSy layer. For example::
 
-    >>> with open('example.f90', 'w') as example_file:
-    ...     _ = example_file.write(
-    ...             "program example\n"
-    ...             "  use field_mod, only: field_type\n"
-    ...             "  type(field_type) :: field\n"
-    ...             "  call invoke(setval_c(field, 0.0))\n"
-    ...             "end program example\n")
-
-    >>> from psyclone.parse.algorithm import parse
+    >>> from fparser.common.readfortran import FortranStringReader
+    >>> from psyclone.parse.algorithm import Parser
     >>> from psyclone.psyGen import PSyFactory
+    >>> from fparser.two.parser import ParserFactory
+
+    >>> example_str = (
+    ...     "program example\n"
+    ...     "  use field_mod, only: field_type\n"
+    ...     "  type(field_type) :: field\n"
+    ...     "  call invoke(setval_c(field, 0.0))\n"
+    ...     "end program example\n")
+
+    >>> parser = ParserFactory().create(std="f2008")
+    >>> reader = FortranStringReader(example_str)
+    >>> ast = parser(reader)
+    >>> invoke_info = Parser().invoke_info(ast)
 
     # This example uses the LFRic (dynamo0.3) API
     >>> api = "dynamo0.3"
 
-    # Parse the file containing the algorithm specification and
-    # return the Abstract Syntax Tree and invokeInfo objects
-    >>> ast, invokeInfo = parse("example.f90", api=api)
-
     # Create the PSy-layer object using the invokeInfo
-    >>> psy = PSyFactory(api, distributed_memory=False).create(invokeInfo)
+    >>> psy = PSyFactory(api, distributed_memory=False).create(invoke_info)
 
     # Optionally generate the vanilla PSy layer fortran
     >>> print(psy.gen)
