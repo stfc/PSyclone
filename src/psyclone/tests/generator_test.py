@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -114,8 +114,8 @@ def test_invalid_api():
 
     '''
     with pytest.raises(GenerationError):
-        generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
-                              "1_single_function.f90"), api="invalid")
+        generate(os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+                 api="invalid")
 
 
 def test_invalid_kernel_paths():
@@ -125,11 +125,10 @@ def test_invalid_kernel_paths():
 
     '''
     with pytest.raises(IOError) as info:
-        generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
-                              "1_single_function.f90"),
-                 api="dynamo0.1",
-                 kernel_paths=[os.path.join(BASE_PATH, "dynamo0p1"),
-                               "does_not_exist"])
+        generate(os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+                 api="dynamo0.3",
+                 kernel_paths=[
+                     os.path.join(BASE_PATH, "dynamo0p3"), "does_not_exist"])
     assert "Kernel search path 'does_not_exist' not found" in str(info.value)
 
 
@@ -151,13 +150,12 @@ def test_correct_kernel_paths():
     path that does not contain the required kernel.
 
     '''
-    _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1",
-                    kernel_paths=[
-                        os.path.join(
-                            BASE_PATH, "dynamo0p1", "kernels3", "dead_end"),
-                        os.path.join(BASE_PATH, "dynamo0p1", "kernels")])
+    _, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
+        api="dynamo0.3",
+        kernel_paths=[
+            os.path.join(BASE_PATH, "dynamo0p3", "kernels", "dead_end"),
+            os.path.join(BASE_PATH, "dynamo0p3", "kernels", "in_here")])
 
 
 def test_same_kernel_paths():
@@ -165,19 +163,23 @@ def test_same_kernel_paths():
     same as the algorithm code directory and a path is specified.
 
     '''
-    path = os.path.join(BASE_PATH, "dynamo0p1", "algorithm")
-    _, _ = generate(os.path.join(path, "1_single_function.f90"),
-                    api="dynamo0.1", kernel_paths=[path])
+    path = os.path.join(BASE_PATH, "dynamo0p3")
+    _, _ = generate(os.path.join(path, "1_single_invoke.f90"),
+                    api="dynamo0.3", kernel_paths=[path])
 
 
 def test_similar_kernel_name():
     '''Checks that the generator does not match incorrect files.'''
 
-    _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
-                                 "algorithm", "1_single_function.f90"),
-                    api="dynamo0.1",
-                    kernel_paths=[
-                        os.path.join(BASE_PATH, "dynamo0p1", "kernels2")])
+    with pytest.raises(ParseError) as info:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3",
+            kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels",
+                                       "dead_end", "no_really")])
+    assert ("Kernel file 'testkern_mod.[fF]90' not found in"
+            in str(info.value))
+    assert "kernels/dead_end/no_really" in str(info.value)
 
 
 def test_recurse_correct_kernel_paths():
@@ -186,11 +188,10 @@ def test_recurse_correct_kernel_paths():
     recursion through subdirectories is required.
 
     '''
-    _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1",
-                                 "algorithm", "1_single_function.f90"),
-                    api="dynamo0.1",
-                    kernel_paths=[os.path.join(
-                        BASE_PATH, "dynamo0p1", "kernels3")])
+    _, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
+        api="dynamo0.3",
+        kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels")])
 
 
 def test_script_file_not_found():
@@ -543,9 +544,9 @@ def test_main_invalid_api(capsys):
     # The error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("Unsupported API 'madeup' specified. Supported API's "
-                       "are ['dynamo0.1', 'dynamo0.3', "
-                       "'gocean0.1', 'gocean1.0', 'nemo'].\n")
+    expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
+                       "are ['dynamo0.3', 'gocean0.1', 'gocean1.0', "
+                       "'nemo'].\n")
     assert output == expected_output
 
 
@@ -569,16 +570,18 @@ def test_main_api():
                              "test_files", "gocean1p0",
                              "single_invoke.f90"))
 
+    assert Config.get().api != "gocean1.0"
     main([filename, "-api", "gocean1.0"])
     assert Config.get().api == "gocean1.0"
 
     # 3) Check that a config option will overwrite the default
     Config._instance = None
     Config.get()
-    # This config file specifies the gocean1.0 api
+    # This config file specifies the gocean1.0 as the default API
     config_name = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0",
-                                "new_iteration_space.psyclone"))
+                                "gocean_default.cfg"))
+    assert Config.get().api != "gocean1.0"
     main([filename, "--config", config_name])
     assert Config.get().api == "gocean1.0"
 
@@ -588,13 +591,12 @@ def test_main_api():
     Config.get()
 
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p1",
-                             "1_kg_inline.f90"))
+                             "test_files", "dynamo0p3", "1_single_invoke.f90"))
 
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
-    main([filename, "--config", config_name, "-api", "dynamo0.1"])
-    assert Config.get().api == "dynamo0.1"
+    main([filename, "--config", config_name, "-api", "dynamo0.3"])
+    assert Config.get().api == "dynamo0.3"
 
 
 def test_main_directory_arg(capsys):
