@@ -63,12 +63,12 @@ PyPI using ``pip install``, see :ref:`getting-going-env-pypi` for
 more detailed information.
 
 Alternatively, PSyclone can be downloaded from GitHub - either see |release|
-in the ``Releases`` `tab <https://github.com/stfc/PSyclone/releases>`_
+in the ``Tags`` `tab <https://github.com/stfc/PSyclone/tags>`_
 on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
 .. parsed-literal::
-   > wget https://github.com/stfc/PSyclone/releases/\ |release|\ .tar.gz
+   > wget \https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
    > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\
