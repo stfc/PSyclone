@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,8 @@
 
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+# For more information see:
+#   https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
 name: PSyclone tests and examples
 
@@ -49,13 +50,14 @@ on:
     branches: [ master ]
 jobs:
   markdown-link-check:
-    # Check all markdown files for dead links
+    # Check all markdown files for dead links. See the 'mlc_config.json'
+    # file in the project root directory for configuration.
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
   sphinx-link-check:
-    # Check all Sphinx documentation for dead links
+    # Check all Sphinx documentation for dead links.
     runs-on: ubuntu-latest
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
@@ -80,11 +82,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
-      with:
-        # Python 3.10 breaks sphinxcontrib-bibtex
-        # (from collections import MutableSet does not work anymore,
-        # must be from collections.abc ...), so switch to python 3.8
-        python-version: 3.8.10
+      #with:
+      #  # Python 3.10 breaks sphinxcontrib-bibtex
+      #  # (from collections import MutableSet does not work anymore,
+      #  # must be from collections.abc ...), so switch to python 3.8
+      #  python-version: 3.8.10
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
     - run: cd doc/developer_guide; make doctest
