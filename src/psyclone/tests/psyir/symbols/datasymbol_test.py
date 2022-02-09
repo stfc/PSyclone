@@ -41,12 +41,16 @@
 from __future__ import absolute_import
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+
 from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol
-from psyclone.psyir.nodes import Literal, Reference, BinaryOperation, Return
+from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
+                                  CodeBlock)
 
 
 def test_datasymbol_initialisation():
@@ -218,9 +222,9 @@ def test_datasymbol_constant_value_setter_invalid():
     ct_expr = Return()
     with pytest.raises(ValueError) as error:
         _ = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=ct_expr)
-    assert "Error setting constant value for symbol 'a'. PSyIR static " \
-        "expressions can only contain PSyIR literal, operation or reference" \
-        " nodes but found:" in str(error.value)
+    assert ("Error setting constant value for symbol 'a'. PSyIR static "
+            "expressions can only contain PSyIR Literal, Operation, Reference "
+            "or CodeBlock nodes but found:" in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', INTEGER_SINGLE_TYPE, interface=ArgumentInterface(),
@@ -262,6 +266,22 @@ def test_datasymbol_is_constant():
     sym = DataSymbol('a', INTEGER_SINGLE_TYPE)
     assert not sym.is_constant
     sym.constant_value = 9
+    assert sym.is_constant
+
+
+@pytest.mark.usefixtures("parser")
+def test_datasymbol_is_constant_codeblock():
+    ''' Test that a DataSymbol can have a CodeBlock as its constant value. '''
+    sym = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    reader = FortranStringReader(
+        "INTEGER, PARAMETER :: a=SELECTED_REAL_KIND(6,37)")
+    fparser2spec = Fortran2003.Specification_Part(reader).children[0]
+    # We want the first child of the Initialization node in the parse tree as
+    # the basis for our CodeBlock
+    inits = Fortran2003.walk(fparser2spec, Fortran2003.Initialization)
+    cblock = CodeBlock([inits[0].children[1]], CodeBlock.Structure.EXPRESSION)
+    assert not sym.is_constant
+    sym.constant_value = cblock
     assert sym.is_constant
 
 

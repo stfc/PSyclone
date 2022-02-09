@@ -244,10 +244,15 @@ specified directory:
 Transformation script
 ---------------------
 
-By default the ``psyclone`` command will generate 'vanilla' PSy layer
-code. The -s option allows a Python script to be specified which can
-transform the PSy layer. This option is discussed in more detail in
-the :ref:`sec_transformations_script` section.
+By default the ``psyclone`` command will generate 'vanilla'
+Algorithm-layer and PSy-layer code with unmodified kernels for the
+gocean1.0 and lfric (dynamo0.3) APIs. For the nemo API, ``psyclone``
+will not perform any transformations on the input code.
+
+The -s option allows a Python script to be specified which can contain
+PSyclone transformations to transform the code. This option is
+discussed in more detail in the :ref:`sec_transformations_script`
+section.
 
 .. _fort_line_length:
 
