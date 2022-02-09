@@ -115,11 +115,11 @@ def run(args):
         'output Fortran. Use \'output\' to apply line-length limit to output '
         'Fortran only.')
 
-    parser.add_argument("--config", help="Config file with "
+    parser.add_argument("--config", help="config file with "
                         "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
-        help=f"Display version information ({__VERSION__})")
+        help=f"display version information ({__VERSION__})")
 
     args = parser.parse_args(args)
 

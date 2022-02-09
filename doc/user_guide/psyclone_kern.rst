@@ -83,9 +83,8 @@ The ``psyclone-kern`` command has the following arguments:
                             (alg=algorithm layer, stub=kernel-stub subroutine).
 			    Defaults to stub.
       -o OUT_FILE           filename for created code.
-      -api API              choose a particular API from ['dynamo0.1',
-                            'dynamo0.3', 'gocean0.1', 'gocean1.0',
-                            'nemo'], default 'dynamo0.3'.
+      -api API              choose a particular API from ['dynamo0.3',
+                            'gocean1.0', 'nemo'], default 'dynamo0.3'.
       -I INCLUDE, --include INCLUDE
                             path to Fortran INCLUDE or module files
       -l {off,all,output}, --limit {off,all,output}
@@ -94,11 +93,8 @@ The ``psyclone-kern`` command has the following arguments:
                             apply limit to both input and output
                             Fortran. Use 'output' to apply line-length
                             limit to output Fortran only.
-      --config CONFIG       Config file with PSyclone specific options.
-      -v, --version         Display version information (\ |release|\ )
-
-Those specific to stub or algorithm generation are covered in the appropriate
-sections below.
+      --config CONFIG       config file with PSyclone specific options.
+      -v, --version         display version information (\ |release|\ )
 
 The ``-o`` option allows the user to specify that the output should be
 written to a particular file. If this is not specified then the Python
