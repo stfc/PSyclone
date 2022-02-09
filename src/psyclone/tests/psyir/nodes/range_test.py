@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -211,7 +211,7 @@ def test_range_str():
     assert erange.node_str(colour=False) == str(erange)
 
 
-def test_range_view(capsys):
+def test_range_view():
     ''' Check that calling view() on an array with a child Range works
     as expected. '''
     # Create the PSyIR for 'my_array(1, 1:10)'
@@ -221,8 +221,7 @@ def test_range_view(capsys):
     array = ArrayReference.create(DataSymbol("my_array", array_type),
                                   [Literal("1", INTEGER_SINGLE_TYPE),
                                    erange])
-    array.view()
-    stdout, _ = capsys.readouterr()
+    output = array.view()
     arrayref = colored("ArrayReference", ArrayReference._colour)
     literal = colored("Literal", Literal._colour)
     rangestr = colored("Range", Range._colour)
@@ -234,7 +233,7 @@ def test_range_view(capsys):
             2*indent + literal + "[value:'1', Scalar<INTEGER, SINGLE>]\n" +
             2*indent + literal + "[value:'10', Scalar<INTEGER, SINGLE>]\n" +
             2*indent + literal + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
-            in stdout)
+            in output)
 
 
 def test_range_children_validation():

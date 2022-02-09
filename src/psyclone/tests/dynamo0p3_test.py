@@ -2200,14 +2200,15 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_view(capsys):
-    ''' Test that the halo exchange view method returns what we expect. '''
+def test_halo_exchange_view():
+    '''Test that the halo exchange view method returns what we expect.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
-    schedule.view()
-    result, _ = capsys.readouterr()
+    result = schedule.view()
 
     # Ensure we test for text containing the correct (colour) control codes
     sched = colored("InvokeSchedule", InvokeSchedule._colour)

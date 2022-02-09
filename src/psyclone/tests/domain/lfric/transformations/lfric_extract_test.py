@@ -274,8 +274,7 @@ def test_extract_node_representation(capsys):
     etrans.apply(children)
 
     # Test view() method
-    schedule.view()
-    output, _ = capsys.readouterr()
+    output = schedule.view()
     expected_output = colored("Extract", ExtractNode._colour)
     assert expected_output in output
 

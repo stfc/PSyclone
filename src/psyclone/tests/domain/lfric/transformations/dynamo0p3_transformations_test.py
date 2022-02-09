@@ -3629,9 +3629,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
             rtrans.apply(child)
-    schedule.view()
-    # only display reprod in schedule view if a reduction
-    result, _ = capsys.readouterr()
+    result = schedule.view()
     if dist_mem:  # annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=True]\n" +

@@ -166,6 +166,10 @@ def test_node_depth():
     for child in schedule.children[3].children:
         assert child.depth == 3
 
+# TODO
+#def test_node_view():
+#    ''' Test the view method '''
+#    exit(1)
 
 def test_node_position():
     '''
