@@ -52,8 +52,11 @@ def setup(app):
     :type app: :py:class:`sphinx.application.Sphinx`
 
     '''
-    def ref_link_role(role, rawtext, text, lineno, inliner, options={},
-                      content=[]):
+    # The interface to the handler is defined by Sphinx and we don't
+    # use all of the arguments.
+    # pylint: disable=unused-argument,too-many-arguments
+    def ref_link_role(role, rawtext, text, lineno, inliner, options=None,
+                      content=None):
         '''
         Handler routine called when the ':ref_guide:' role is encountered.
 
@@ -61,6 +64,11 @@ def setup(app):
         the 'ref_guide_base' Sphinx configuration variable.
 
         '''
+        if not options:
+            options = {}
+        if not content:
+            content = []
+
         items = text.split()
         ref = app.config.ref_guide_base + items[-1]
         if len(items) > 1:
@@ -73,8 +81,10 @@ def setup(app):
         return [node], []
 
     # Define a new Sphinx configuration variable that will be used to
-    # store the base URL to use when generating links.
-    app.add_config_value('ref_guide_base', 'http://localhost/', False)
+    # store the base URL to use when generating links. We give it a default
+    # value of '' so that its value must be set in the conf.py configuration
+    # file of the Sphinx document.
+    app.add_config_value('ref_guide_base', default='', rebuild='env')
 
     # Define the new role and assign it our new handler.
     app.add_role('ref_guide', ref_link_role)

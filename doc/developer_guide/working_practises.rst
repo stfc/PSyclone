@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -439,16 +439,16 @@ computational cost (so that we 'fail fast'):
  3. The code base, examples and tutorials are lint'ed with flake8.
     (Configuration of flake8 is performed in ``setup.cfg``.)
 
- 3. All links within the Sphinx documentation (rst files) are checked (see
+ 4. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 4. All of the examples are tested (for Python versions 3.6, 3.8 and 3.10.0)
+ 5. All of the examples are tested (for Python versions 3.6, 3.8 and 3.10.0)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 5. The full test suite is run for Python versions 3.6, 3.8 and 3.10.0 but
+ 6. The full test suite is run for Python versions 3.6, 3.8 and 3.10.0 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -505,7 +505,9 @@ a *local* version of the Reference Guide rather than the one on RTD. For
 this to work, any links to the Reference Guide must be parameterised
 so that the correct URL can be generated, depending upon whether or not
 link checking is being performed. This parameterisation is achieved by
-implementing a Sphinx `plugin <https://www.sphinx-doc.org/en/master/extdev/index.html>`_ which provides the `\:ref_guide\:` role. (The source for this
+implementing a Sphinx
+`plugin <https://www.sphinx-doc.org/en/master/extdev/index.html>`_ which
+provides the `\:ref_guide\:` role. (The source for this
 plugin may be found in the ``PSyclone/docs/_ext/apilinks.py`` file.) The format
 to use when adding a link to the Reference Guide is then, e.g.::
 

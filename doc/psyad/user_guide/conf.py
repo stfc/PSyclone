@@ -11,9 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
-
+import sys
 
 # -- Project information -----------------------------------------------------
 
@@ -24,14 +22,21 @@ author = 'Rupert Ford and Andrew Porter'
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
 
+docs_dir = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here.
+sys.path.insert(0, os.path.join(docs_dir, "_ext"))
 
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
+# ones. The definition of 'apilinks' is in PSyclone/doc/_ext/apilinks.py.
 extensions = [
-    'sphinx.ext.imgmath', 'sphinx.ext.autodoc', 'sphinx.ext.intersphinx']
+    'sphinx.ext.imgmath', 'sphinx.ext.autodoc', 'sphinx.ext.intersphinx',
+    'apilinks']
 
 
 # GITHUB_PR_NUMBER is set in .github/workflows/python-package.yml when

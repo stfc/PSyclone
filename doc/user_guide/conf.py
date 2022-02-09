@@ -35,6 +35,7 @@ needs_sphinx = '1.8'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
+# The definition of 'apilinks' is in PSyclone/doc/_ext/apilinks.py.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
@@ -74,8 +75,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'PSyclone'
-copyright = u'2017-2022, STFC Daresbury Laboratory'
+project = 'PSyclone'
+copyright = '2017-2022, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -90,7 +91,8 @@ copyright = u'2017-2022, STFC Daresbury Laboratory'
 # src/psyclone
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 BASE_PATH = os.path.dirname(os.path.dirname(BASE_PATH))
-with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
+          encoding="utf-8") as f:
     exec(f.read())
 version = __SHORT_VERSION__
 release = __VERSION__
@@ -232,8 +234,8 @@ latex_elements = {
 # (source start file, target name, title, author,
 #  documentclass [howto/manual]).
 latex_documents = [
-    ('index', 'psyclone.tex', u'PSyclone Documentation',
-     u'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
+    ('index', 'psyclone.tex', 'PSyclone Documentation',
+     'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
      'Andrew Porter and Sergi Siso', 'manual'),
 ]
 
@@ -361,7 +363,8 @@ linkcheck_anchors = True
 # puma is using an old https server and that causes errors in linkcheck.
 # Despite its name 'collab.metoffice.../twiki' requires authenticated access.
 linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
-                    r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf']
+                    r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
+                    r'LFRicDocumentationPapers/lfric_documentation.pdf']
 
 
 # Configuration for intersphinx: refer to the Python standard library and
