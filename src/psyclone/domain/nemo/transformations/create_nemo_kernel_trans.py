@@ -82,6 +82,7 @@ class CreateNemoKernelTrans(Transformation):
                                 BinaryOperation[operator:'MUL']
                                     Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
                                     Reference[name:'ji']
+    <BLANKLINE>
 
     The resulting Schedule contains a NemoKern (displayed as an
     'InlinedKern' by the view() method).

@@ -79,6 +79,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
                         BinaryOperation[operator:'MUL']
                             Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
                             Reference[name:'ji']
+    <BLANKLINE>
 
     The root node of this example has been transformed from a Routine into a
     NemoInvokeSchedule.

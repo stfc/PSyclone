@@ -81,6 +81,7 @@ class CreateNemoPSyTrans(Transformation):
                                 BinaryOperation[operator:'MUL']
                                     Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
                                     Reference[name:'ji']
+    <BLANKLINE>
 
     The result of this transformation is that the root `Routine` has
     been converted into a `NemoInvokeSchedule`, the `Loop` is now a

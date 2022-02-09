@@ -77,6 +77,7 @@ class CreateNemoLoopTrans(Transformation):
                         BinaryOperation[operator:'MUL']
                             Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
                             Reference[name:'ji']
+    <BLANKLINE>
 
     As shown above, the resulting Schedule now contains a NemoLoop, indicated
     by the "type='lon'" (for 'longitude') annotation for the Loop node.
