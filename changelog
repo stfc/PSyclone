@@ -78,6 +78,50 @@
 	27) PR #1533 for #1523. Adds SymPy symbols for Fortran names
 	in the tools.symbolic_maths module.
 
+	28) PR #1579 for #1550. Removes duplicated use statements produced
+	by the Fortran backend.
+
+	29) PR #1518 for #1506. Bugfix for WHEREs involving derived types.
+
+	30) PR #1578 for #1517. Uses dependency analysis to check for
+	loop-carried dependencies when attempting to parallelise a loop.
+	Also improves validation checks at code-generation time to ensure
+	that any OMP Loop directive is within a Target or Parallel region.
+
+	31) PR #1598 towards #282. Removes reference to the Dynamo 0.1 API
+	in the documentation.
+
+	32) PR #1462 for #451. Make LFRic loop bounds constant within the
+	PSy-layer with any function calls or structure accesses looking up
+	bounds information being computed separately beforehand. This can
+	help compilers correctly compile the code, particularly when there
+	are directives and may also help compilers produce more efficient
+	code.
+
+	33) PR #1592 for #1585. Add a PSyIR clause node and start implementing
+	clauses for the OpenMP directives.
+
+	34) PR #1599 for #282. Removes Dynamo 0.1 API code and tests (removes
+	the API completely).
+
+	35) PR #1556 for #1490. Adds a dotproduct2code transformation and
+	extends PSyAD to make use of it.
+
+	36) PR #1597 towards #753. Fixes naming bugs in GOcean Algorithm
+	PSyIR.
+
+	37) PR #1565 for #1505. Fix bug with UnknownFortranTypes inside other
+	fparser frontend declarations.
+
+	38) PR #1603 for #1566. Fparser reader parses derived types with
+	contains statements as UnknownFortranType.
+
+	39) PR #1602 towards #753. A new PSyclone script entry point (the
+	trans_alg function) can be used to transform the Alg-layer (currently
+	just for the gocean API).
+
+	40) PR #1601 for #1600. Removes the GOcean 0.1 API.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

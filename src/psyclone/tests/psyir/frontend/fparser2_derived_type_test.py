@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -240,6 +240,35 @@ def test_parse_derived_type(use_stmt, type_name):
     assert isinstance(posn.datatype, ArrayType)
     var = symtab.lookup("var")
     assert var.datatype is sym
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_derived_type_contains():
+    ''' Check that we get a DataTypeSymbol of UnknownFortranType if a
+    derived-type definition has a CONTAINS section. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type my_type\n"
+                                 "  integer :: flag\n"
+                                 "  real, dimension(3) :: posn\n"
+                                 "contains\n"
+                                 "  procedure :: init => obesdv_setup\n"
+                                 "end type my_type\n"
+                                 "type(my_type) :: var\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("my_type")
+    # It should still be a DataTypeSymbol but its type is unknown.
+    assert isinstance(sym, DataTypeSymbol)
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert sym.datatype.declaration == '''\
+TYPE :: my_type
+  INTEGER :: flag
+  REAL, DIMENSION(3) :: posn
+  CONTAINS
+  PROCEDURE :: init => obesdv_setup
+END TYPE my_type'''
 
 
 @pytest.mark.usefixtures("f2008_parser")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -142,15 +142,15 @@ def test_am_is_lower_upper_bound():
     assert amem2.is_upper_bound(1) is True
 
 
-def test_am_matching_access():
-    ''' Test the _matching_access method of ArrayMember. '''
+def test_am_same_array():
+    ''' Test the is_same_array method of ArrayMember. '''
     one = nodes.Literal("1", symbols.INTEGER_TYPE)
     two = nodes.Literal("2", symbols.INTEGER_TYPE)
     amem1 = nodes.ArrayMember.create(
         "subdomains",
         [one.copy(), nodes.Literal("2", symbols.INTEGER_TYPE)])
     # Check when the ArrayMember has no parent Reference
-    result = amem1._matching_access(
+    result = amem1.is_same_array(
         nodes.Reference(symbols.DataSymbol("fake",
                                            symbols.INTEGER_TYPE)))
     assert result is False
@@ -160,18 +160,19 @@ def test_am_matching_access():
     ref1 = nodes.StructureReference.create(sym1, ["data"])
     # Reference is to a different symbol
     ref2 = nodes.StructureReference.create(sym2, [("data", [one.copy()])])
-    assert ref2.member._matching_access(ref1) is False
+    assert ref2.member.is_same_array(ref1) is False
     # Reference is to a different member of the same symbol
     ref2 = nodes.StructureReference.create(sym1, [("xvals", [one.copy()])])
-    assert ref2.member._matching_access(ref1) is False
+    assert ref2.member.is_same_array(ref1) is False
     ref1 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("xobs", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref2.member._matching_access(ref1) is True
+    assert ref1.member.is_same_array(ref2) is True
+    assert ref2.member.is_same_array(ref1) is False
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("yobs", [one.copy()])])
     amem = ref2.member.member  # "yobs"
-    assert amem._matching_access(ref1) is False
+    assert amem.is_same_array(ref1) is False
     # The same 'signature' (a%b%c) but where b is an array access in one
     # case. This may not be possible in Fortran but we need to exercise
     # all conditions.
@@ -181,7 +182,7 @@ def test_am_matching_access():
                                                   ("b", [one.copy()]),
                                                   ("c", [one.copy()])])
     amem = ref2.walk(nodes.ArrayMember)[0]
-    assert amem._matching_access(ref1) is False
+    assert amem.is_same_array(ref1) is False
     # Same 'signature' but with one array access having more dimensions.
     ref1 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
                                                   ("b", [one.copy()]),
@@ -191,7 +192,7 @@ def test_am_matching_access():
                                                          one.copy()]),
                                                   ("c", [one.copy()])])
     amem = ref2.walk(nodes.ArrayMember)[0]
-    assert amem._matching_access(ref1) is False
+    assert amem.is_same_array(ref1) is False
     # Same 'signature' but with one array access having a different index.
     ref1 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
                                                   ("b", [one.copy(),
@@ -202,24 +203,23 @@ def test_am_matching_access():
                                                          two.copy()]),
                                                   ("c", [one.copy()])])
     amem = ref2.walk(nodes.ArrayMember)[0]
-    assert amem._matching_access(ref1) is False
+    assert amem.is_same_array(ref1) is False
     # Reference to an element of the same array
     ref1 = nodes.StructureReference.create(sym1, ["data"])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref2.member._matching_access(ref1) is True
+    assert ref2.member.is_same_array(ref1) is True
     # Reference to an ArrayOfStructures
     array_sym = symbols.DataSymbol("grids",
                                    symbols.ArrayType(grid_type, [two.copy()]))
     ref1 = nodes.ArrayOfStructuresReference.create(array_sym, [one.copy()],
                                                    ["data"])
-    assert ref1._matching_access(nodes.Reference(array_sym))
+    assert ref1.is_same_array(nodes.Reference(array_sym))
     # member being compared is not at the bottom of a derived-type access
     ref1 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
-                                                  ("b", [one.copy()]),
-                                                  ("d", [one.copy()])])
+                                                  ("b", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("a", [one.copy()]),
                                                   ("b", [one.copy()]),
                                                   ("c", [one.copy()])])
     amem = ref2.member.member
     assert amem.name == "b"
-    assert amem._matching_access(ref1)
+    assert amem.is_same_array(ref1)

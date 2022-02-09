@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by: J. Henrichs, Bureau of Meteorology,
 ..              I. Kavcic, Met Office
 
@@ -141,8 +141,8 @@ Entry                   Description
 ======================= =======================================================
 DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
                         conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone ("dynamo0.1", "dynamo0.3",
-                        "gocean0.1", "gocean1.0" and "nemo"). If there is no
+                        APIs supported by PSyclone ("dynamo0.3", "gocean1.0"
+                        and "nemo"). If there is no
                         API specified and there is only one API-specific
                         section in the config file loaded, this API will be
                         used. This value can be overwritten by the command
@@ -193,8 +193,8 @@ access_mapping          This field defines the strings that are used by a
                         read, write, read+write, increment,
                         read+increment and summation access by
                         PSyclone. Sum is a form of reduction. The
-                        GOcean APIs do not support increment or sum,
-                        so they only define three mappings for read,
+                        GOcean API does not support increment or sum,
+                        so it only defines three mappings for read,
                         write, and readwrite.
 ======================= =======================================================
 

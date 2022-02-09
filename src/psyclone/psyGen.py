@@ -214,12 +214,8 @@ class PSyFactory(object):
         # Conditional run-time importing is a part of this factory
         # implementation.
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.1":
-            from psyclone.dynamo0p1 import DynamoPSy as PSyClass
-        elif self._type == "dynamo0.3":
+        if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOPSy as PSyClass
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy as PSyClass
         elif self._type == "nemo":
@@ -902,6 +898,12 @@ class HaloExchange(Statement):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
+        # Keep a reference to the SymbolTable associated with the
+        # InvokeSchedule.
+        self._symbol_table = None
+        isched = self.ancestor(InvokeSchedule)
+        if isched:
+            self._symbol_table = isched.symbol_table
 
     @property
     def vector_index(self):
@@ -2419,9 +2421,8 @@ class Argument(object):
     def argument_type(self):
         '''
         Returns the type of the argument. APIs that do not have this
-        concept (such as GOcean0.1 and Dynamo0.1) can use this
-        base class version which just returns "field" in all
-        cases. API's with this concept can override this method.
+        concept can use this base class version which just returns "field"
+        in all cases. APIs with this concept can override this method.
 
         :returns: the API type of the kernel argument.
         :rtype: str

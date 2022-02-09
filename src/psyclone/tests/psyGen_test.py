@@ -1025,6 +1025,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
     if dist_mem:
         zero_sum_decls = (
             "      USE scalar_mod, ONLY: scalar_type\n"
+            "      USE mesh_mod, ONLY: mesh_type\n"
             "      REAL, intent(out) :: asum\n"
             "      TYPE(field_type), intent(in) :: f1\n"
             "      TYPE(scalar_type) global_sum\n"

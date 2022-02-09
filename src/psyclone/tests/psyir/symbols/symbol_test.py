@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -426,7 +426,7 @@ def test_symbol_resolve_deferred(monkeypatch):
     assert new_sym.is_import
 
 
-def test_symbol_array_handling(fortran_reader):
+def test_symbol_array_handling():
     '''Verifies the handling of arrays together with access information.
 
     '''
@@ -440,9 +440,6 @@ def test_symbol_array_handling(fortran_reader):
     assert "No array information is available for the symbol 'a'." \
         in str(error.value)
 
-    # Import additional tests from access_info_test to reach 100% coverage
-    # for the is_array_access function. Import these tests locally only.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.tests.core.access_info_test import \
-        test_symbol_array_detection
-    test_symbol_array_detection(fortran_reader)
+    # A generic symbol (no datatype) without an explicit array access
+    # expression is not considered to have array access.
+    assert not asym.is_array_access()

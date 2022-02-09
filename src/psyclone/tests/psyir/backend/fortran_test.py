@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer, \
-    Assignment, IfBlock
+    Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
+    OMPParallelDirective, Loop, OMPNumTasksClause
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -551,15 +552,8 @@ def test_fw_gen_use(fortran_writer):
 
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, my_sub\n"
-                      "use my_module\n")
-
-    symbol2 = DataSymbol("dummy2", DeferredType(),
-                         interface=ImportInterface(container_symbol))
-    symbol_table.add(symbol2)
-    result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
-                      "use my_module\n")
+    assert "use my_module, only : dummy1, my_sub" not in result
+    assert "use my_module\n" in result
 
     # container2 has no symbols associated with it and has not been marked
     # as having a wildcard import. It should therefore result in a USE
@@ -575,6 +569,9 @@ def test_fw_gen_use(fortran_writer):
     result = fortran_writer.gen_use(container2, symbol_table)
     assert result == "use my_mod2\n"
     # Wrong type for first argument
+    symbol2 = DataSymbol("dummy2", DeferredType(),
+                         interface=ImportInterface(container_symbol))
+    symbol_table.add(symbol2)
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_use(symbol2, symbol_table)
     assert ("expects a ContainerSymbol as its first argument but got "
@@ -1708,6 +1705,36 @@ def test_fw_range_structureref(fortran_writer):
                                               [Range.create(start, stop)])])
     result = fortran_writer(ref)
     assert result == "my_grid%data(:)"
+
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   Reference(array_symbol), one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  Reference(array_symbol), one.copy())
+    range2 = Range.create(start, stop)
+    result = fortran_writer(
+        ArrayOfStructuresReference.create(array_symbol, [range2],
+                                          [("data", [range2.copy()])]))
+    assert (result ==
+            "my_grids(:)%data(LBOUND(my_grids, 1):UBOUND(my_grids, 1))")
+
+    symbol = DataSymbol("field", DeferredType())
+    int_one = Literal("1", INTEGER_TYPE)
+    lbound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        StructureReference.create(symbol, ["first"]), int_one.copy())
+    ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        StructureReference.create(symbol, ["first"]), int_one.copy())
+    my_range = Range.create(lbound, ubound)
+    ref = ArrayOfStructuresReference.create(symbol, [my_range.copy()],
+                                            ["first",
+                                             ("second", [my_range.copy()])])
+    result = fortran_writer(ref)
+    assert (result ==
+            "field(LBOUND(field%first, 1):"
+            "UBOUND(field%first, 1))%first%second(LBOUND(field%first, 1):"
+            "UBOUND(field%first, 1))")
+
     data_ref = Reference(array_symbol)
     start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                    data_ref.copy(), two.copy())
@@ -2248,3 +2275,44 @@ def test_fw_comments(fortran_writer):
         "  end subroutine my_routine  ! My routine inline comment\n\n"
         "end module my_container  ! My container inline comment\n")
     assert expected == fortran_writer(container)
+
+
+def test_fw_directive_with_clause(fortran_reader, fortran_writer):
+    '''Test that a PSyIR directive with clauses is translated to
+    the required Fortran code.
+
+    '''
+    # Generate PSyIR from Fortran code.
+    code = (
+        "program test\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i\n"
+        "  real :: a(n)\n"
+        "  do i=1,n\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test")
+    container = fortran_reader.psyir_from_source(code)
+    schedule = container.children[0]
+    loops = schedule.walk(Loop)
+    loop = loops[0].detach()
+    directive = OMPTaskloopDirective(children=[loop], num_tasks=32,
+                                     nogroup=True)
+    master = OMPMasterDirective(children=[directive])
+    parallel = OMPParallelDirective(children=[master])
+    schedule.addchild(parallel, 0)
+    assert '''!$omp parallel default(shared), private(i)
+  !$omp master
+  !$omp taskloop num_tasks(32) nogroup
+  do i = 1, n, 1
+    a(i) = 0.0
+  enddo
+  !$omp end taskloop
+  !$omp end master
+  !$omp end parallel''' in fortran_writer(container)
+
+
+def test_fw_clause(fortran_writer):
+    '''Test that a PSyIR clause is translated to the correct Fortran code.'''
+    clause = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    assert "num_tasks(32)" in fortran_writer(clause)

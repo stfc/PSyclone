@@ -168,7 +168,7 @@ def test_lfricalgorithminvoke_call_root_name():
     assert isinstance(args[0], Reference)
     assert args[0].symbol.name == "field1"
     call1 = psyir.children[0][1]
-    assert call1.routine.name == "test_1"
+    assert call1.routine.name == "invoke_test_1"
     assert call1.routine.is_import
     assert call1.routine.interface.container_symbol.name == "psy_alg1"
     args = call1.children

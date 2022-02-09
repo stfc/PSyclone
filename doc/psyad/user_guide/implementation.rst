@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -363,6 +363,37 @@ active then the loop statement is considered to be active. In this case:
           :math:`1` (or :math:`-1`) is a common case PSyclone will
           therefore avoid generating any loop-bound offset code in
           this case.
+
+Intrinsics
+----------
+
+If an intrinsic function, such as ``matmul`` or ``transpose``, is
+found in a tangent-linear code and it contains active variables then
+it must be transformed to its associated adjoint form.
+
+If an unsupported intrinsic function is found then PSyAD will raise an
+exception.
+
+The only supported intrinsic at this time is ``dot_product``.
+
+If a ``dot_product`` intrinsic is found in the tangent-linear code it
+is first transformed into equivalent inline code before the code is
+transformed to its adjoint form. The PSyIR ``DotProduct2CodeTrans``
+transformation is used by PSyAD to perform this transformation. See
+the :ref:`user_guide:available_trans` section of the user guide for
+more information.
+
+.. note:: At the moment all ``dot_product`` instrinsics are transformed
+	  irrespective of whether they act on active variables or not.
+
+.. note:: Note, the transformed tangent-linear code can contain new
+          variables, some of which might be active. Any such active
+          variables will need to be specified as active on the PSyAD
+          command-line using the ``-a`` flag even though they do not
+          (yet) exist in the tangent linear code. Eventually such
+          variables will be detected automatically by PSyAD, see issue
+          #1595.
+
 
 Test Harness
 ++++++++++++
