@@ -286,7 +286,7 @@ def test_wrong_kernel_paths():
         generate(os.path.join(BASE_PATH, "dynamo0p3",
                               "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3",
-                 kernel_paths=[os.path.join(BASE_PATH, "gocean0p1")])
+                 kernel_paths=[os.path.join(BASE_PATH, "gocean1p0")])
 
 
 def test_correct_kernel_paths():
@@ -635,8 +635,7 @@ def test_main_invalid_api(capsys):
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
-                       "are ['dynamo0.3', 'gocean0.1', 'gocean1.0', "
-                       "'nemo'].\n")
+                       "are ['dynamo0.3', 'gocean1.0', 'nemo'].\n")
     assert output == expected_output
 
 
