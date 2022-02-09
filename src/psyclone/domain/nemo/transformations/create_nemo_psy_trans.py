@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Module providing a transformation from a generic PSyIR representation of
    a PSy layer into a NEMO-specific one.
@@ -64,7 +65,7 @@ class CreateNemoPSyTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
     >>> trans.apply(psyir)
-    >>> psyir.view()
+    >>> print(psyir.view())
     FileContainer[None]
         NemoInvokeSchedule[invoke='sub']
             0: Loop[type='lon', field_space='None', it_space='None']

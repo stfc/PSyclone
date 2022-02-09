@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ class CreateNemoKernelTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
-    >>> psyir.view()
+    >>> print(psyir.view())
     FileContainer[None]
         Routine[name:'sub']
             0: Loop[type='None', field_space='None', it_space='None']
