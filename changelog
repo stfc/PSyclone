@@ -116,6 +116,10 @@
 	38) PR #1603 for #1566. Fparser reader parses derived types with
 	contains statements as UnknownFortranType.
 
+	39) PR #1602 towards #753. A new PSyclone script entry point (the
+	trans_alg function) can be used to transform the Alg-layer (currently
+	just for the gocean API).
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
