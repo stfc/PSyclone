@@ -508,15 +508,18 @@ def _kind_find_or_create(name, symbol_table):
     parameter. If the supplied Symbol Table (or one of its ancestors)
     does not contain an appropriate entry then one is created. If it does
     contain a matching entry then it must be either a Symbol or a
-    DataSymbol. If it is a DataSymbol then it must have a datatype of
-    'integer' or 'deferred'. If it is deferred then the fact that we now
-    know that this Symbol represents a KIND
-    parameter means that we can change the datatype to be 'integer'.
+    DataSymbol.
+
+    If it is a DataSymbol then it must have a datatype of
+    'integer', 'deferred' or 'unknown'. If it is deferred then the fact
+    that we now know that this Symbol represents a KIND parameter means we
+    can change the datatype to be 'integer'.
+
     If the existing symbol is a generic Symbol then it is replaced with
     a new DataSymbol of type 'integer'.
 
     :param str name: the name of the variable holding the KIND value.
-    :param symbol_table: the Symbol Table associated with the code being\
+    :param symbol_table: the Symbol Table associated with the code being \
                          processed.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -530,6 +533,7 @@ def _kind_find_or_create(name, symbol_table):
 
     '''
     lower_name = name.lower()
+
     try:
         kind_symbol = symbol_table.lookup(lower_name)
         # pylint: disable=unidiomatic-typecheck
@@ -558,10 +562,11 @@ def _kind_find_or_create(name, symbol_table):
                     "variable '{0}' used as a kind parameter but it is not"
                     "a 'deferred', 'unknown' or 'scalar integer' type.".
                     format(lower_name))
-            # A KIND parameter must be of type integer so set it here
-            # (in case it was previously 'deferred'). We don't know
-            # what precision this is so set it to the default.
-            kind_symbol.datatype = default_integer_type()
+            # A KIND parameter must be of type integer so set it here if it
+            # was previously 'deferred'. We don't know what precision this is
+            # so set it to the default.
+            if isinstance(kind_symbol.datatype, DeferredType):
+                kind_symbol.datatype = default_integer_type()
         else:
             raise TypeError(
                 "A symbol representing a kind parameter must be an "
@@ -861,6 +866,7 @@ class Fparser2Reader(object):
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
+        ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
         ('int', BinaryOperation.Operator.INT),
         ('real', BinaryOperation.Operator.REAL),
         ('sign', BinaryOperation.Operator.SIGN),
@@ -1876,6 +1882,13 @@ class Fparser2Reader(object):
         # Populate this StructureType by processing the components of
         # the derived type
         try:
+            # We don't yet support derived-type definitions with a CONTAINS
+            # section.
+            contains = walk(decl, Fortran2003.Contains_Stmt)
+            if contains:
+                raise NotImplementedError(
+                    "Derived-type definition has a CONTAINS statement.")
+
             # Re-use the existing code for processing symbols
             local_table = SymbolTable(
                 default_visibility=default_compt_visibility)

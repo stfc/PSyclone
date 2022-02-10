@@ -44,6 +44,7 @@ Algorithm PSyIR to processed PSyIR.
 from __future__ import absolute_import
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
     BinaryOperation, Container
@@ -111,6 +112,34 @@ def check_call(call, routine_name, container_name, args_info):
                     assert indices[idx2].symbol.name == index_info
                 else:  # BinaryOperation
                     assert isinstance(indices[idx2], BinaryOperation)
+
+
+def _check_alg_names(invoke, module_name):
+    '''Utility function to check that the
+    create_psylayer_symbol_root_names method creates the expected
+    names.
+
+    :param invoke: the invoke call for which names are being created.
+    :type invoke: \
+        :py:class:`psyclone.domain.common.algorithm.psyir.AlgorithmInvokeCall`
+    :param str module_name: the expected module name.
+
+    '''
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    assert invoke._psylayer_routine_root_name is None
+    assert invoke._psylayer_container_root_name is None
+
+    invoke.create_psylayer_symbol_root_names()
+
+    assert invoke._psylayer_routine_root_name == "invoke_0_kern"
+    assert invoke._psylayer_container_root_name == module_name
+
+    # Check that the names are only created once.
+    routine_root_name_tmp = invoke._psylayer_routine_root_name
+    container_root_name_tmp = invoke._psylayer_container_root_name
+    invoke.create_psylayer_symbol_root_names()
+    assert invoke._psylayer_routine_root_name is routine_root_name_tmp
+    assert invoke._psylayer_container_root_name is container_root_name_tmp
 
 
 def test_algorithminvokecall():
@@ -251,7 +280,7 @@ def test_aic_defroutinerootname():
     for name in [" a  description ", "' a__description '",
                  "\" a  description \""]:
         call._name = name
-        assert call._def_routine_root_name() == "a__description"
+        assert call._def_routine_root_name() == "invoke_a__description"
 
 
 def test_aic_defroutineroot_name_error():
@@ -283,8 +312,11 @@ def test_aic_defroutineroot_name_error():
 
 def test_aic_createpsylayersymbolrootnames():
     '''Check that the create_psylayer_symbol_root_names method behaves in
-    the expected way, i.e. creates and stores a root name for a
-    routine_symbol and a container symbol.
+    the expected way when the name comes from a subroutine, a module
+    and when it has a filecontainer, i.e. it creates and stores a root
+    name for a routine symbol and a container symbol. Also check that
+    it raises the expected exception if no FileContainer or Routine
+    nodes are found in the tree.
 
     '''
     code = (
@@ -295,23 +327,47 @@ def test_aic_createpsylayersymbolrootnames():
         "  call invoke(kern(field1))\n"
         "end subroutine alg1\n")
 
+    # FileContainer and Routine (subroutine)
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0][0]
-    assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._psylayer_routine_root_name is None
-    assert invoke._psylayer_container_root_name is None
+    _check_alg_names(invoke, "psy_alg1")
 
-    invoke.create_psylayer_symbol_root_names()
+    # Routine, no FileContainer
+    psyir = create_alg_psyir(code)
+    psyir = psyir.children[0]
+    psyir.detach()
+    invoke = psyir[0]
+    _check_alg_names(invoke, "psy_alg1")
 
-    assert invoke._psylayer_routine_root_name == "invoke_0_kern"
-    assert invoke._psylayer_container_root_name == "psy_alg1"
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "end subroutine alg1\n"
+        "end module my_mod\n")
 
-    # Check that the names are only created once.
-    routine_root_name_tmp = invoke._psylayer_routine_root_name
-    container_root_name_tmp = invoke._psylayer_container_root_name
-    invoke.create_psylayer_symbol_root_names()
-    assert invoke._psylayer_routine_root_name is routine_root_name_tmp
-    assert invoke._psylayer_container_root_name is container_root_name_tmp
+    # File container and module
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0].children[0][0]
+    _check_alg_names(invoke, "psy_my_mod")
+
+    # Module, no FileContainer
+    psyir = create_alg_psyir(code)
+    psyir = psyir.children[0]
+    psyir.detach()
+    invoke = psyir.children[0][0]
+    _check_alg_names(invoke, "psy_my_mod")
+
+    # No modules or FileContainers (should not happen)
+    invoke._psylayer_container_root_name = None
+    invoke.detach()
+    with pytest.raises(InternalError) as error:
+        invoke.create_psylayer_symbol_root_names()
+    assert "No Routine or Container node found." in str(error.value)
 
 
 def test_aic_lowertolanguagelevel_error():
@@ -432,7 +488,7 @@ def test_aic_lowertolanguagelevel_multi():
     assert len(psyir.walk(KernelFunctor)) == 0
 
     call = psyir.children[0][0]
-    check_call(call, "multi_kern_invoke", "psy_alg1",
+    check_call(call, "invoke_multi_kern_invoke", "psy_alg1",
                [(Reference, "field1"),
                 (ArrayReference, "field2", ["i"]),
                 (ArrayReference, "field2", ["j"]),

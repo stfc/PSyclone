@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors A. B. G. Chalk
+# Authors A. B. G. Chalk, STFC Daresbury Lab
 '''
 API-agnostic tests for OpenMP task transformation classes.
 '''
@@ -149,7 +149,7 @@ def test_omptaskloop_apply(monkeypatch):
         "      !$omp end master\n" +
         "      !$omp end parallel" in code)
 
-    assert taskloop_node.begin_string() == "omp taskloop{0}".format(clauses)
+    assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
     def validate(self, options):

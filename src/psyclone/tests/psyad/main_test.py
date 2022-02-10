@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -263,7 +263,7 @@ def test_main_tangentlinearerror(tmpdir, capsys):
         "a = b\n"
         "end program test\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
-    with open(filename, "w") as my_file:
+    with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
         main(["-a", "b", "--", filename])
@@ -283,7 +283,7 @@ def test_main_keyerror(tmpdir, capsys):
 
     '''
     filename = six.text_type(tmpdir.join("tl.f90"))
-    with open(filename, "w") as my_file:
+    with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     with pytest.raises(SystemExit) as info:
         main(["-a", "doesnotexist", "--", filename])
@@ -308,7 +308,7 @@ def test_main_not_implemented_error(tmpdir, capsys):
         "end subroutine test\n"
         "end module my_mod\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
-    with open(filename, "w") as my_file:
+    with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
         main(["-a", "a", "b", "-t", "--", filename])
@@ -317,6 +317,23 @@ def test_main_not_implemented_error(tmpdir, capsys):
     assert error == ""
     assert "'a' is of intrinsic type 'Intrinsic.REAL'" in output
     assert "This is not currently supported" in output
+
+
+def test_main_new_var(tmpdir):
+    '''Test that the main() function works when -a specifies a variable
+    name that does not exist in the original code but gets created as
+    part of the internal support for transformations.
+
+    '''
+    code = (
+        "program test\n"
+        "real :: a, b(10), c(10)\n"
+        "a = dot_product(b(:), c(:))\n"
+        "end program test\n")
+    filename = str(tmpdir.join("tl.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main(["-a", "a", "b", "res_dot_product", "--", filename])
 
 
 # writing to stdout
@@ -331,7 +348,7 @@ def test_main_stdout(tmpdir, capsys):
         "  a = 0.0\n\n"
         "end program test_adj\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
-    with open(filename, "w") as my_file:
+    with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     main(["-a", "a", "--", filename])
     output, error = capsys.readouterr()
@@ -352,13 +369,13 @@ def test_main_fileout(tmpdir, capsys):
         "end program test_adj\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
-    with open(filename_in, "w") as my_file:
+    with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     main([filename_in, "-oad", filename_out, "-a", "a"])
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    with open(filename_out, 'r') as my_file:
+    with open(filename_out, 'r', encoding='utf-8') as my_file:
         data = my_file.read()
     assert expected in data
 
@@ -367,7 +384,7 @@ def test_main_t_option(tmpdir, capsys):
     ''' Test that the -t option causes the test harness to be generated. '''
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
-    with open(filename_in, "w") as my_file:
+    with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
     main([filename_in, "-oad", filename_out, "-t", "-a", "field"])
     output, error = capsys.readouterr()
@@ -383,14 +400,14 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     harness_out = str(tmpdir.join("harness.f90"))
-    with open(filename_in, "w") as my_file:
+    with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
     main([filename_in, "-a", "field", "-oad", filename_out,
           "-otest", harness_out] + extra_args)
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
-    with open(harness_out, 'r') as my_file:
+    with open(harness_out, 'r', encoding='utf-8') as my_file:
         data = my_file.read()
     assert EXPECTED_HARNESS_CODE in data
 
@@ -412,7 +429,7 @@ def test_main_verbose(tmpdir, capsys, caplog):
         "end program test\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
-    with open(filename_in, "w") as my_file:
+    with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(tl_code)
     with caplog.at_level(logging.DEBUG):
         main([filename_in, "-v", "-a", "a", "-oad", filename_out])
@@ -434,7 +451,7 @@ def test_main_otest_verbose(tmpdir, caplog):
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     harness_out = str(tmpdir.join("harness.f90"))
-    with open(filename_in, "w") as my_file:
+    with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
     with caplog.at_level(logging.DEBUG):
         main([filename_in, "-v", "-oad", filename_out, "-otest", harness_out])

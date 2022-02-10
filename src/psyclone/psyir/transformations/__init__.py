@@ -71,6 +71,8 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
+    DotProduct2CodeTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
