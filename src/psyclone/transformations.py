@@ -45,25 +45,19 @@ from __future__ import absolute_import, print_function
 
 import abc
 
-from fparser.two.utils import walk
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Subroutine_Subprogram, \
-    Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
-    Implicit_Part, Comment
-
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule, BuiltIn
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, \
+from psyclone.psyir.nodes import Loop, Assignment, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective, \
-    OMPTargetDirective, OMPDeclareTargetDirective
+    OMPTargetDirective, OMPDeclareTargetDirective, ACCRoutineDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.tools import DependencyTools
@@ -2840,64 +2834,32 @@ class ACCRoutineTrans(KernelTrans):
         '''
         return "ACCRoutineTrans"
 
-    def apply(self, kern, options=None):
+    def apply(self, node, options=None):
         '''
-        Modifies the AST of the supplied kernel so that it contains an
-        '!$acc routine' OpenACC directive.
-        This transformation affects the f2pygen and the PSyIR trees of
-        this kernel.
+        Add the '!$acc routine' OpenACC directive into the code of the
+        supplied kernel.
 
-        :param kern: the kernel object to transform.
-        :type kern: :py:class:`psyclone.psyGen.Kern`
+        :param node: the kernel object to transform.
+        :type node: :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if we fail to find the subroutine \
-                                     corresponding to the kernel object.
-
         '''
-        # pylint: disable=too-many-locals
-
         # Check that we can safely apply this transformation
-        self.validate(kern, options)
-
-        # Get the fparser2 AST of the kernel
-        ast = kern.ast
-        # Find the kernel subroutine in the fparser2 parse tree
-        kern_sub = None
-        subroutines = walk(ast.content, Subroutine_Subprogram)
-        for sub in subroutines:
-            for child in sub.content:
-                if isinstance(child, Subroutine_Stmt) and \
-                   str(child.items[1]) == kern.name:
-                    kern_sub = sub
-                    break
-            if kern_sub:
-                break
-        # Find the last declaration statement in the subroutine
-        spec = walk(kern_sub.content, Specification_Part)[0]
-        posn = -1
-        for idx, node in enumerate(spec.content):
-            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
-                posn = idx
-                break
-        # Create the directive and insert it
-        cmt = Comment(FortranStringReader("!$acc routine",
-                                          ignore_comments=False))
-        if posn == -1:
-            spec.content.append(cmt)
-        else:
-            spec.content.insert(posn, cmt)
+        self.validate(node, options)
 
         # Flag that the kernel has been modified
-        kern.modified = True
+        node.modified = True
 
-        # Add the 'cmt' directive into the PSyIR as a CodeBlock
-        kernel_schedule = kern.get_kernel_schedule()
-        kernel_schedule.addchild(
-            CodeBlock([cmt], CodeBlock.Structure.STATEMENT), 0)
+        # Get the schedule representing the kernel subroutine
+        kernel_schedule = node.get_kernel_schedule()
 
-    def validate(self, kern, options=None):
+        for child in kernel_schedule.children:
+            if isinstance(child, ACCRoutineDirective):
+                return  # The routine is already marked with ACCRoutine
+        kernel_schedule.children.insert(0, ACCRoutineDirective())
+
+    def validate(self, node, options=None):
         '''
         Perform checks that the supplied kernel can be transformed.
 
@@ -2910,20 +2872,19 @@ class ACCRoutineTrans(KernelTrans):
         :raises TransformationError: if any of the symbols in the kernel are \
                             accessed via a module use statement.
         '''
-        from psyclone.psyGen import BuiltIn
-        if isinstance(kern, BuiltIn):
+        if isinstance(node, BuiltIn):
             raise TransformationError(
-                "Applying ACCRoutineTrans to a built-in kernel is not yet "
-                "supported and kernel '{0}' is of type '{1}'".
-                format(kern.name, type(kern)))
+                f"Applying ACCRoutineTrans to a built-in kernel is not yet "
+                f"supported and kernel '{node.name}' is of type "
+                f"'{type(node).__name__}'")
 
         # Perform general validation checks. In particular this checks that
         # the PSyIR of the kernel body can be constructed.
-        super(ACCRoutineTrans, self).validate(kern, options)
+        super(ACCRoutineTrans, self).validate(node, options)
 
         # Check that the kernel does not access any data or routines via a
         # module 'use' statement
-        sched = kern.get_kernel_schedule()
+        sched = node.get_kernel_schedule()
         imported_variables = sched.symbol_table.imported_symbols
         if imported_variables:
             raise TransformationError(
@@ -2934,7 +2895,7 @@ class ACCRoutineTrans(KernelTrans):
                 "If the symbols represent external routines then PSyclone "
                 "cannot currently transform this kernel for execution on an "
                 "OpenACC device (issue #342).".
-                format(kern.name, [sym.name for sym in imported_variables]))
+                format(node.name, [sym.name for sym in imported_variables]))
 
 
 class ACCKernelsTrans(RegionTrans):

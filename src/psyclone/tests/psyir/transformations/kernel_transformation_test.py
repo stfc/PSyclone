@@ -42,14 +42,14 @@ import os
 import re
 import pytest
 
-from fparser.two.utils import walk
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
+from psyclone.gocean1p0 import GOKern
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Container, Routine, FileContainer
+from psyclone.psyir.nodes import Routine, FileContainer
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -118,11 +118,9 @@ def test_accroutine_module_use():
             " they must first" in str(err.value))
 
 
-def test_accroutine():
+def test_accroutine(fortran_writer):
     ''' Test that we can transform a kernel by adding a "!$acc routine"
     directive to it. '''
-    from psyclone.gocean1p0 import GOKern
-    from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
@@ -130,23 +128,12 @@ def test_accroutine():
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
     rtrans.apply(kern)
-    # The transformation should have populated the fparser2 AST of
-    # the kernel...
-    assert kern._fp2_ast
-    assert isinstance(kern._fp2_ast, Fortran2003.Program)
-    # Check AST contains directive
-    comments = walk(kern._fp2_ast.content, Fortran2003.Comment)
-    assert len(comments) == 1
-    assert str(comments[0]) == "!$acc routine"
-    # Check that directive is in correct place (end of declarations)
-    gen = str(kern._fp2_ast)
-    assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
-            "sshn_v, hu, hv, un, vn\n"
-            "    !$acc routine\n"
-            "    ssha(ji, jj) = 0.0_go_wp\n" in gen)
+    # Check that there is a acc routine directive in the kernel
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert "!$acc routine\n" in code
 
 
-def test_accroutine_empty_kernel():
+def test_accroutine_empty_kernel(fortran_writer):
     ''' Check that the directive goes at the end of the declarations,
     even when the rest of the kernel is empty. '''
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
@@ -155,8 +142,8 @@ def test_accroutine_empty_kernel():
     rtrans = ACCRoutineTrans()
     rtrans.apply(kernels[0])
     # Check that directive is in correct place (end of declarations)
-    gen = str(kernels[0]._fp2_ast).lower()
-    assert "!$acc routine\n  end subroutine testkern_code" in gen
+    code = fortran_writer(kernels[0].get_kernel_schedule())
+    assert "!$acc routine\n\nend subroutine testkern_code" in code
 
 
 def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
