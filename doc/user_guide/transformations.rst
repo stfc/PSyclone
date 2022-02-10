@@ -755,6 +755,7 @@ transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
 * an **OpenMP Target** directive
+* an **OpenMP Declare Target** directive
 * an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive

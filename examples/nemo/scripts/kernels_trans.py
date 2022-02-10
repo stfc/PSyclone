@@ -78,6 +78,7 @@ PGI_VERSION = 1940  # i.e. 19.4
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
+ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to automatically add profiling calls around
@@ -663,6 +664,13 @@ def trans(psy):
                   format(invoke.name))
             continue
 
+        # In the lib_fortran file we just annotate each schedule (routine)
+        # with the OpenACC Routine Directive
+        if psy.name == "psy_lib_fortran_psy":
+            print("Transforming routine {0}:".format(invoke.name))
+            ACC_ROUTINE_TRANS.apply(sched)
+            continue
+
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
         if invoke.name.lower() not in ACC_IGNORE:
@@ -678,7 +686,5 @@ def trans(psy):
         add_profiling(sched.children)
 
         sched.view()
-
-        invoke.schedule = sched
 
     return psy

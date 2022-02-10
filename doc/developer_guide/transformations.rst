@@ -71,9 +71,6 @@ The `ast` property of the `psyclone.psyGen.Kern` class is responsible
 for performing this translation the first time it is called. It also
 stores the resulting AST in `Kern._fp2_ast` for return by future calls.
 
-See `psyclone.transformations.ACCRoutineTrans` for an example of directly
-manipulating the fparser2 AST.
-
 Alternatively, one can call the `psyclone.psyGen.CodedKern.get_kernel_schedule()`
 to generate the PSyIR representation of the kernel code. 
 
