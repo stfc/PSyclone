@@ -237,8 +237,8 @@ def test_acckernelsdirective_gencode(default_present):
     if default_present:
         string = " default(present)"
     assert (
-        "      !$acc kernels{0}\n"
-        "      DO cell=loop0_start,loop0_stop\n".format(string) in code)
+        f"      !$acc kernels{string}\n"
+        f"      DO cell=loop0_start,loop0_stop\n" in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)

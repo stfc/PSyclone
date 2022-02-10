@@ -665,7 +665,7 @@ class OMPDeclareTargetTrans(Transformation):
     ...     end subroutine
     ...     """
     >>> omptargettrans = OMPDeclareTargetTrans()
-    >>> omptargettrans.apply(tree.walk(Routine))
+    >>> omptargettrans.apply(tree.walk(Routine)[0])
 
     will generate:
 
@@ -705,7 +705,7 @@ class OMPDeclareTargetTrans(Transformation):
         :param node: the PSyIR node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         :raises TransformationError: if the node is not a Routine
 

@@ -206,13 +206,12 @@ def test_omptaskloop_apply(monkeypatch):
 
     code = str(psy.gen)
 
-    print(code)
     clauses = " nogroup"
     assert (
-        "    !$omp parallel default(shared), private(i,j)\n" +
-        "      !$omp master\n" +
-        "      !$omp taskloop{0}\n".format(clauses) +
-        "      DO" in code)
+        f"    !$omp parallel default(shared), private(i,j)\n" +
+        f"      !$omp master\n" +
+        f"      !$omp taskloop{clauses}\n" +
+        f"      DO" in code)
     assert (
         "      END DO\n" +
         "      !$omp end taskloop\n" +
