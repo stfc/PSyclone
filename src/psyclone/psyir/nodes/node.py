@@ -796,7 +796,7 @@ class Node(object):
 
     def view(self, depth=0, colour=True, indent="    ", _index=None):
         '''Output a human readable description of the current node and all of
-        its children as a string.
+        its descendents as a string.
 
         :param int depth: depth of the tree hierarchy for output \
             text. Defaults to 0.
@@ -804,8 +804,11 @@ class Node(object):
             output. Defaults to True.
         :param str indent: the indent to apply as the depth \
             increases. Defaults to 4 spaces.
-        :param int _index: the position of this Node wrt its siblings \
+        :param int _index: the position of this node wrt its siblings \
             or None. Defaults to None.
+
+        :returns: a representation of this node and its descendents.
+        :rtype: str
 
         :raises TypeError: if one of the arguments is the wrong type.
         :raises ValueError: if the depth argument is negative.
