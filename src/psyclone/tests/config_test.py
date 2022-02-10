@@ -298,7 +298,7 @@ def test_read_values():
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo']
+    assert api_list == ['dynamo0.3', 'gocean1.0', 'nemo']
     # The default API for kernel stub generation
     api = _config.default_stub_api
     assert isinstance(api, six.text_type)
