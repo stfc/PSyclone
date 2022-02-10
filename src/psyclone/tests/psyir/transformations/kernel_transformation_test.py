@@ -97,11 +97,8 @@ def test_accroutine_err(monkeypatch):
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
-    assert(
-        "Failed to create PSyIR version of kernel code for kernel "
-        "'testkern_code'. Error reported is Generation Error: Unexpected "
-        "kernel AST. Could not find subroutine: testkern_code."
-        in str(err.value))
+    assert ("Failed to create PSyIR version of kernel code for kernel "
+            "'testkern_code'." in str(err.value))
 
 
 def test_accroutine_module_use():
@@ -118,7 +115,7 @@ def test_accroutine_module_use():
             " they must first" in str(err.value))
 
 
-def test_accroutine(fortran_writer):
+def test_accroutine_to_kern(fortran_writer):
     ''' Test that we can transform a kernel by adding a "!$acc routine"
     directive to it. '''
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
@@ -130,6 +127,22 @@ def test_accroutine(fortran_writer):
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
     code = fortran_writer(kern.get_kernel_schedule())
+    assert "!$acc routine\n" in code
+
+
+def test_accroutine_to_routine(fortran_writer):
+    ''' Test that we can transform a routine by adding a "!$acc routine"
+    directive to it. '''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    assert isinstance(kern, GOKern)
+    rtrans = ACCRoutineTrans()
+    assert rtrans.name == "ACCRoutineTrans"
+    routine = kern.get_kernel_schedule()
+    rtrans.apply(routine)
+    # Check that there is a acc routine directive in the routine
+    code = fortran_writer(routine)
     assert "!$acc routine\n" in code
 
 

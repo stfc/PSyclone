@@ -49,7 +49,7 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule, BuiltIn
 from psyclone.psyir import nodes
@@ -121,7 +121,6 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.errors import GenerationError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
@@ -2804,9 +2803,9 @@ class ACCEnterDataTrans(Transformation):
                                       "region - cannot add an enter data.")
 
 
-class ACCRoutineTrans(KernelTrans):
+class ACCRoutineTrans(Transformation):
     '''
-    Transform a kernel subroutine by adding a "!$acc routine" directive
+    Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
     For example:
 
@@ -2837,10 +2836,11 @@ class ACCRoutineTrans(KernelTrans):
     def apply(self, node, options=None):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
-        supplied kernel.
+        supplied kernel or routine.
 
         :param node: the kernel object to transform.
-        :type node: :py:class:`psyclone.psyGen.Kern`
+        :type node: :py:class:`psyclone.psyGen.Kern` or \
+                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -2848,54 +2848,74 @@ class ACCRoutineTrans(KernelTrans):
         # Check that we can safely apply this transformation
         self.validate(node, options)
 
-        # Flag that the kernel has been modified
-        node.modified = True
+        if isinstance(node, Kern):
+            # Flag that the kernel has been modified
+            node.modified = True
 
-        # Get the schedule representing the kernel subroutine
-        kernel_schedule = node.get_kernel_schedule()
+            # Get the schedule representing the kernel subroutine
+            routine = node.get_kernel_schedule()
+        else:
+            routine = node
 
-        for child in kernel_schedule.children:
+        # Insert the directive to the routine if it doesn't already exist
+        for child in routine.children:
             if isinstance(child, ACCRoutineDirective):
                 return  # The routine is already marked with ACCRoutine
-        kernel_schedule.children.insert(0, ACCRoutineDirective())
+        routine.children.insert(0, ACCRoutineDirective())
 
     def validate(self, node, options=None):
         '''
-        Perform checks that the supplied kernel can be transformed.
+        Perform checks that the supplied kernel or routine can be transformed.
 
-        :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Kern`
+        :param node: the kernel which is the target of the transformation.
+        :type node: :py:class:`psyclone.psyGen.Kern` or \
+                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if the target kernel is a built-in.
+        :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the target is a built-in kernel.
+        :raises TransformationError: if it is a kernel but without an \
+                                     associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are \
-                            accessed via a module use statement.
+                                     accessed via a module use statement.
         '''
-        if isinstance(node, BuiltIn):
-            raise TransformationError(
-                f"Applying ACCRoutineTrans to a built-in kernel is not yet "
-                f"supported and kernel '{node.name}' is of type "
-                f"'{type(node).__name__}'")
-
-        # Perform general validation checks. In particular this checks that
-        # the PSyIR of the kernel body can be constructed.
         super(ACCRoutineTrans, self).validate(node, options)
 
-        # Check that the kernel does not access any data or routines via a
-        # module 'use' statement
-        sched = node.get_kernel_schedule()
-        imported_variables = sched.symbol_table.imported_symbols
-        if imported_variables:
+        if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
-                "The Symbol Table for kernel '{0}' contains the following "
-                "symbol(s) with imported interface: {1}. If these symbols "
-                "represent data then they must first be converted to kernel "
-                "arguments using the KernelImportsToArguments transformation. "
-                "If the symbols represent external routines then PSyclone "
-                "cannot currently transform this kernel for execution on an "
-                "OpenACC device (issue #342).".
-                format(node.name, [sym.name for sym in imported_variables]))
+                f"Target of a kernel transformation must be a sub-class of "
+                f"Kern or Routine but got '{type(node).__name__}'")
+
+        # If it is a kernel call it must have an accessible implementation
+        if isinstance(node, Kern):
+            if isinstance(node, BuiltIn):
+                raise TransformationError(
+                    f"Applying ACCRoutineTrans to a built-in kernel is not yet"
+                    f" supported and kernel '{node.name}' is of type "
+                    f"'{type(node).__name__}'")
+
+            # Get the PSyIR routine from the associated kernel
+            try:
+                kernel_schedule = node.get_kernel_schedule()
+            except GenerationError as error:
+                raise TransformationError(
+                    f"Failed to create PSyIR version of kernel code for "
+                    f"kernel '{node.name}'.") from error
+
+            # Check that the kernel does not access any data or routines via a
+            # module 'use' statement
+            imported_variables = kernel_schedule.symbol_table.imported_symbols
+            if imported_variables:
+                raise TransformationError(
+                    f"The Symbol Table for kernel '{node.name}' contains the "
+                    f"following symbol(s) with imported interface: "
+                    f"{[sym.name for sym in imported_variables]}. If these "
+                    f"symbols represent data then they must first be converted"
+                    f" to kernel arguments using the KernelImportsToArguments "
+                    f"transformation. If the symbols represent external "
+                    f"routines then PSyclone cannot currently transform this "
+                    f"kernel for execution on an OpenACC device (issue #342).")
 
 
 class ACCKernelsTrans(RegionTrans):
