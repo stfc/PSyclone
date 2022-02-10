@@ -119,7 +119,7 @@ NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
                       "q_sat", "rho_air",
-                      "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
+                      "visc_air", "sbc_dcy", "glob_sum",
                       "glob_sum_full", "ptr_sj", "ptr_sjk",
                       "interp1", "interp2", "interp3", "integ_spline"])
 
@@ -506,7 +506,7 @@ def add_profiling(children):
 
     :param children: sibling nodes in the PSyIR to which to attempt to add \
                      profiling regions.
-    :type childre: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     if not children:
@@ -670,7 +670,7 @@ def trans(psy):
             add_kernels(sched.children)
         else:
             print("Addition of OpenACC to routine {0} disabled!".
-                  format(invoke.name.lower()))
+                  format(invoke.name))
 
         # Add profiling instrumentation
         print("Adding profiling of non-OpenACC regions to routine {0}".
