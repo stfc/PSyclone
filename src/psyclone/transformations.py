@@ -710,6 +710,36 @@ class OMPDeclareTargetTrans(Transformation):
                 f"The OMPDeclareTargetTrans must be applied to a Routine, "
                 f"but found: '{type(node).__name__}'.")
 
+        # Check that the kernel does not access any data or routines via a
+        # module 'use' statement or that are not captured by the SymbolTable
+        for candidate in node.walk((nodes.Reference, nodes.CodeBlock)):
+            if isinstance(candidate, nodes.CodeBlock):
+                names = candidate.get_symbol_names()
+            else:
+                names = [candidate.name]
+            for name in names:
+                try:
+                    candidate.scope.symbol_table.lookup(
+                        name, scope_limit=candidate.ancestor(nodes.Routine))
+                except KeyError as err:
+                    raise TransformationError(
+                        f"Kernel '{node.name}' contains accesses to data "
+                        f"(variable '{name}') that are not captured in the "
+                        f"PSyIR Symbol Table(s) within Routine scope. Cannot "
+                        f"transform such a kernel.") from err
+
+        imported_variables = node.symbol_table.imported_symbols
+        if imported_variables:
+            raise TransformationError(
+                f"The Symbol Table for kernel '{node.name}' contains the "
+                f"following symbol(s) with imported interface: "
+                f"{[sym.name for sym in imported_variables]}. If these "
+                f"symbols represent data then they must first be converted"
+                f" to kernel arguments using the KernelImportsToArguments "
+                f"transformation. If the symbols represent external "
+                f"routines then PSyclone cannot currently transform this "
+                f"kernel for execution on an OpenACC device (issue #342).")
+
 
 class OMPLoopTrans(ParallelLoopTrans):
     '''

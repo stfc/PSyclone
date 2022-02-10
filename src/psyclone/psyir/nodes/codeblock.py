@@ -39,6 +39,8 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from enum import Enum
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -131,6 +133,14 @@ class CodeBlock(Statement, DataNode):
         '''
         return self.coloured_name(colour) + \
             "[" + str(list(map(type, self._fp2_nodes))) + "]"
+
+    def get_symbol_names(self):
+        '''
+        :returns: the list of symbol names used inside the CodeBock.
+        :rtype: list of str
+        '''
+        parse_tree = self.get_ast_nodes
+        return [node.string for node in walk(parse_tree, Fortran2003.Name)]
 
     def __str__(self):
         return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
