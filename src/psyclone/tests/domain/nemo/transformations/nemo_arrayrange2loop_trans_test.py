@@ -426,7 +426,6 @@ def test_apply_with_array_with_hidden_accessor():
     schedule = invoke_info.schedule
     assignment1 = schedule[0]
     assignment2 = schedule[1]
-    schedule.symbol_table.view()
     # This test expects arg1 is parsed as ArrayType and arg2 as UnknownType
     assert isinstance(schedule.symbol_table.lookup("arg1").datatype,
                       ArrayType)
@@ -445,7 +444,6 @@ def test_apply_with_array_with_hidden_accessor():
     # it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
-    print(str(info.value))
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
             "<UnknownFortranType" in str(info.value))

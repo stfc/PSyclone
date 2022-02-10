@@ -676,7 +676,7 @@ class InvokeSchedule(Routine):
     >>> invokes.names
     >>> invoke = invokes.get("name")
     >>> schedule = invoke.schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \

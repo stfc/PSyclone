@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,10 +62,9 @@ class GOOpenCLTrans(Transformation):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> ocl_trans = GOOpenCLTrans()
     >>> ocl_trans.apply(schedule)
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
-
     # Specify which OpenCL command queue to use for management operations like
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
