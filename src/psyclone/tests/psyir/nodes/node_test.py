@@ -43,18 +43,18 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes.node import (ChildrenList, Node,
-                                       _graphviz_digraph_class)
-from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
-    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
-    BinaryOperation, ArrayReference
 
-from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType
-from psyclone.psyGen import PSyFactory, Kern
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
+    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
+    BinaryOperation, ArrayReference, Range
+from psyclone.psyir.nodes.node import ChildrenList, Node, \
+    _graphviz_digraph_class
+from psyclone.psyir.symbols import DataSymbol, SymbolError, \
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType
 from psyclone.tests.utilities import get_invoke
 # pylint: disable=redefined-outer-name
 from psyclone.psyir.nodes.node import colored
@@ -166,10 +166,108 @@ def test_node_depth():
     for child in schedule.children[3].children:
         assert child.depth == 3
 
-# TODO
-#def test_node_view():
-#    ''' Test the view method '''
-#    exit(1)
+
+def test_node_view():
+    '''Test that the view() method gives the expected output with
+    different argument values. The node has children to test that
+    information is passed and received from any children as
+    expected. Range is chosen as an example, but it could be any node.
+
+    '''
+    range_node = Range.create(
+        Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE))
+
+    # default argument values
+    result = range_node.view()
+    literal_str_col = colored("Literal", Literal._colour)
+    range_str_col = colored("Range", Range._colour)
+    expected = (
+        f"{range_str_col}[]\n"
+        f"    {literal_str_col}[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        f"    {literal_str_col}[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        f"    {literal_str_col}[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+    # no colour
+    result = range_node.view(colour=False)
+    expected = (
+        "Range[]\n"
+        "    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "    Literal[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        "    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+    # different indent
+    result = range_node.view(colour=False, indent=" ")
+    expected = (
+        "Range[]\n"
+        " Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        " Literal[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        " Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+    # diferent depth
+    result = range_node.view(colour=False, indent="--", depth=1)
+    expected = (
+        "--Range[]\n"
+        "----Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "----Literal[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        "----Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+
+def test_node_view_schedule():
+    '''Test that the view() method gives the expected output when the
+    parent of the node is a schedule (they should be indexed). A
+    Routine node and its children is given as an example but it could
+    be any tree containing a schedule.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol_table.add(symbol)
+    assignment1 = Assignment.create(Reference(symbol),
+                                    Literal("0.0", REAL_TYPE))
+    assignment2 = Assignment.create(Reference(symbol),
+                                    Literal("1.0", REAL_TYPE))
+    routine_node = Routine.create(
+        "my_sub", symbol_table, [assignment1, assignment2])
+    result = routine_node.view(colour=False)
+    expected = (
+        "Routine[name:'my_sub']\n"
+        "    0: Assignment[]\n"
+        "        Reference[name:'tmp']\n"
+        "        Literal[value:'0.0', Scalar<REAL, UNDEFINED>]\n"
+        "    1: Assignment[]\n"
+        "        Reference[name:'tmp']\n"
+        "        Literal[value:'1.0', Scalar<REAL, UNDEFINED>]\n")
+    assert result == expected
+
+
+def test_node_view_error():
+    '''Test that the view() method raises the expected exception when
+    an incorrect argument is supplied.
+
+    '''
+    test_node = Literal("1.0", REAL_TYPE)
+
+    with pytest.raises(TypeError) as error:
+        test_node.view(depth=None)
+    assert ("depth argument should be an int but found NoneType."
+            in str(error.value))
+    with pytest.raises(ValueError) as error:
+        test_node.view(depth=-1)
+    assert ("depth argument should be a positive integer but found -1."
+            in str(error.value))
+    with pytest.raises(TypeError) as error:
+        test_node.view(colour=None)
+    assert ("colour argument should be a bool but found NoneType."
+            in str(error.value))
+    with pytest.raises(TypeError) as error:
+        test_node.view(indent=None)
+    assert ("indent argument should be a str but found NoneType."
+            in str(error.value))
+
 
 def test_node_position():
     '''
@@ -919,7 +1017,6 @@ def test_lower_to_language_level(monkeypatch):
     # Check all children have been visited
     for child in testnode.children:
         # This member only exists in the monkeypatched version
-        # pylint:disable=no-member
         assert child._visited_flag
 
 
