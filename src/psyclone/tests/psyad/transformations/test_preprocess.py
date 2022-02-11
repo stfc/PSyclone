@@ -129,3 +129,31 @@ def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
+    '''Test that the preprocess script replaces assignments that contain
+    arrays that use range notation with equivalent code that uses
+    explicit loops.
+
+    '''
+    code = (
+        "program test\n"
+        "real :: a(10), b(10), c(10)\n"
+        "a(:) = b(:) * c(:)\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  real, dimension(10) :: a\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n"
+        "  integer :: idx\n\n"
+        "  do idx = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "    a(idx) = b(idx) * c(idx)\n"
+        "  enddo\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir)
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
