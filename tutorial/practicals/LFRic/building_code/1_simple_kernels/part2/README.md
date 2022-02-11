@@ -1,8 +1,8 @@
 # Tutorial 1, Part 2: Update fields on a generic function space
 
 In this part of the [first tutorial](../README.md), we will use the
-PSyclone [kernel stub generator](
-https://psyclone.readthedocs.io/en/stable/stub_gen.html) to
+[stub-generation](https://psyclone.readthedocs.io/en/stable/psyclone_kern.html)
+functionality of the PSyclone kernel tool to
 create the argument list and declarations for a generic kernel that
 assigns a value to a field on any function space. For this we will use
 the supplied kernel stub file [`setval_field_any_kernel_mod.f90`](
@@ -67,10 +67,10 @@ the LFRic infrastructure module `argument_mod`, so the statement
 The kernel `setval_field_any_code()` subroutine body is empty and needs
 to be populated. As in [Part 1](../part1), we will first create the code
 for the argument list and declarations by running the PSyclone kernel
-stub generator:
+tool:
 
 ```shell
-genkernelstub setval_field_any_kernel_mod.f90
+psyclone-kern setval_field_any_kernel_mod.f90
 ```
 
 and then replace the empty kernel subroutine body with the generated
@@ -87,10 +87,10 @@ statement each, so in this case of long argument names they may overrun
 the free-form Fortran line-length limit of 132 characters and PSyclone
 will complain when building the code (see e.g. [here](
 https://psyclone.readthedocs.io/en/stable/line_length.html)). To wrap
-long lines just use the `-l` flag when running the stub generator, e.g.
+long lines just use the `-l output` flag when running the kernel tool, e.g.
 
 ```shell
-genkernelstub -l setval_field_any_kernel_mod.f90
+psyclone-kern -l output setval_field_any_kernel_mod.f90
 ```
 
 ---
@@ -154,10 +154,10 @@ arguments:
 identifier.
 
 The argument list has changed significantly so we need to run the
-kernel stub generator to update the argument list and declarations.
+kernel tool to update the argument list and declarations.
 
 Replace the kernel subroutine header and the declarations with the
-ones produced by the kernel stub generator. The generated header is:
+ones produced by the kernel tool. The generated header is:
 
 ```fortran
     SUBROUTINE add_fields_any_code(nlayers, field_1_aspc1_field_1, &

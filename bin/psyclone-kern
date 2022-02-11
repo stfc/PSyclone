@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A python script and python function to generate an empty kernel
-    subroutine with the required arguments and datatypes (which we
-    call a stub) when presented with Kernel Metadata.
+'''A Python driver script for the PSyclone kernel utilities tool.
 '''
+
+import sys
+from psyclone.kernel_tools import run
 
 
 if __name__ == "__main__":
 
-    from psyclone.gen_kernel_stub import run
-    run()
+    run(sys.argv[1:])

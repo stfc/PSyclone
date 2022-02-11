@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,69 +34,27 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 
-''' Tests for the kernel-stub generator. '''
+''' Tests for the gen_kernel_stub module. '''
 
-from __future__ import absolute_import
 import os
-import sys
 import pytest
 
+import fparser
 
-def test_run(monkeypatch, capsys, tmpdir):
-    ''' Basic test for the run() routine. '''
-    from psyclone.gen_kernel_stub import run
-    # Use a dynamo 0.3 kernel so that we check that the default API
-    # (dynamo 0.3) is picked up correctly
-    kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    # Use monkeypatch to spoof some command-line arguments - first with --limit
-    monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file),
-                                      "--limit"])
-    run()
-    result, _ = capsys.readouterr()
-    assert "Kernel stub code:" in result
-    assert "MODULE testkern_w0_mod" in result
-
-    # Test without --limit, but with -o:
-    psy_file = tmpdir.join("psy.f90")
-    monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file),
-                                      "-api", "dynamo0.3", "-o",
-                                      str(psy_file)])
-    run()
-    result, _ = capsys.readouterr()
-
-    # Now read output file into a string and check:
-    with psy_file.open("r") as psy:
-        output = psy.read()
-    assert "MODULE testkern_w0_mod" in str(output)
+from psyclone.errors import GenerationError
+from psyclone.gen_kernel_stub import generate
+from psyclone.parse.algorithm import ParseError
 
 
-# -----------------------------------------------------------------------------
-
-def test_failures(monkeypatch, capsys):
-    '''Tests various failures of the generate call.
+def test_failures():
+    '''Tests various failures of the generate() call.
     '''
-
-    from psyclone.gen_kernel_stub import generate, run
-    from psyclone.parse.algorithm import ParseError
-    from psyclone.errors import GenerationError
-
-    # Test error handling of command line options
-    with pytest.raises(SystemExit) as err:
-        # Use monkeypatch to spoof some command-line arguments
-        monkeypatch.setattr(sys, "argv", ["genkernelstub",
-                                          str("/does_not_exist")])
-        run()
-    result, _ = capsys.readouterr()
-    assert ("Error: Kernel stub generator: File '/does_not_exist' "
-            "not found" in str(result))
-
     # Test empty API (and file not found)
     with pytest.raises(IOError) as err:
         generate("/does_not_exist", api="")
     assert "File '/does_not_exist' not found" in str(err.value)
 
-    # CHeck invalid API
+    # Check invalid API
     with pytest.raises(GenerationError) as err:
         generate("filename", api="invalid")
     assert ("Error: Kernel stub generator: Unsupported API 'invalid' "
@@ -108,3 +66,12 @@ def test_failures(monkeypatch, capsys):
         generate(__file__, api="dynamo0.3")
     assert ("Kernel stub generator: Code appears to be invalid "
             "Fortran" in str(err.value))
+
+
+def test_gen_success():
+    ''' Test for successful completion of the generate() function. '''
+    base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3")
+    ptree = generate(os.path.join(base_path, "testkern_mod.F90"),
+                     api="dynamo0.3")
+    assert isinstance(ptree, fparser.one.block_statements.Module)
