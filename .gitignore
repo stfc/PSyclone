@@ -2,6 +2,7 @@
 *~
 *.a
 *.o
+gnu_opt_report.txt
 *.mod
 *.MOD
 .cache

@@ -360,6 +360,19 @@ psyclone advection_alg_mod.x90
 # 'true' in the config file and re-run psyclone.
 ```
 
+## Example 20: Algorithm Generation
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm layer for a kernel. A makefile is provide that also
+runs ``psyclone`` to create an executable program from the generated
+algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+```sh
+cd eg20/
+psyclone-kern --alg-gen ../code/testkern_mod.F90
+```
+
 ## Code
 
 Location of LFRic algorithm and kernel code that is used by two or

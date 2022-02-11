@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,39 +30,67 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
-# Modified R. W. Ford, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I. Kavcic, Met Office
 
-'''Module for the LFRic domain.
-'''
+# The compiler to use may be specified via the F90 environment
+#
+# export F90=gfortran
+# export F90FLAGS="-Wall -g -fcheck=bound"
 
-# The order here is not alphabetical, but important because
-# there are various dependencies between the modules (e.g.
-# KernCallAccArgList imports KernCallArgList, ArgOrdering
-# imports LFRicArgDescriptor, ...).
-from psyclone.domain.lfric.function_space import FunctionSpace
-from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
-from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
-from psyclone.domain.lfric.kern_call_invoke_arg_list import \
-    KernCallInvokeArgList
-from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
-from psyclone.domain.lfric.kernel_interface import KernelInterface
+include ../../common.mk
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric import FunctionSpace
+GENERATED_FILES = main_psy.f90 main_alg.[fx]90 testkern_mod.F90 *.o *.mod $(EXEC)
 
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicConstants']
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
+
+OBJ = main_psy.o main_alg.o testkern_mod.o
+
+EXEC = example
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+F90FLAGS += -I$(LFRIC_PATH)
+
+run: compile
+	./example
+
+compile: transform $(EXEC)
+
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
+
+# Dependencies
+main_psy.o:	testkern_mod.o
+testkern_mod.o: $(LFRIC_LIB)
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+%.F90:
+	ln -s ../code/$@ .
+
+# Keep the generated psy and alg files
+.precious: main_psy.f90 main_alg.f90
+
+# Create an algorithm layer that will 'invoke' our kernel
+main_alg.x90: testkern_mod.F90 alg_gen.py
+	python alg_gen.py ../code/testkern_mod.F90
+
+transform: main_psy.f90
+
+main_psy.f90:	main_alg.x90
+	${PSYCLONE} -d ../code -opsy main_psy.f90 -oalg main_alg.f90 $<
+
+allclean: clean
+	make -C $(LFRIC_PATH) allclean

@@ -335,7 +335,6 @@ class ArgOrdering(object):
         if self._kern.qr_required:
             self.quad_rule(var_accesses=var_accesses)
 
-    @abc.abstractmethod
     def cell_position(self, var_accesses=None):
         '''Add cell position information.
 
@@ -346,7 +345,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
@@ -359,7 +357,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
@@ -371,7 +368,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh (including halos) to the
         argument list and stores this access in var_accesses (if supplied).
@@ -383,7 +379,6 @@ class ArgOrdering(object):
 
         '''
 
-    @abc.abstractmethod
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Add the number of columns in the mesh (excluding halos) to the
         argument list and stores this access in var_accesses (if supplied).
@@ -588,7 +583,6 @@ class ArgOrdering(object):
         ndf_name = function_space.ndf_name
         self.append(ndf_name, var_accesses)
 
-    @abc.abstractmethod
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
