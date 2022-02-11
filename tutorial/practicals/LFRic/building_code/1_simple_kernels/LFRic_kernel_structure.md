@@ -146,8 +146,7 @@ object. As a rule, object data are `private` as illustrated in the
 
 ### Argument list and declarations
 
-Running the PSyclone
-[kernel stub generator](https://psyclone.readthedocs.io/en/stable/stub_gen.html)
+Running the PSyclone [kernel tool](https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) 
 on `setval_field_w0_kernel_mod.f90` produces the argument list and
 declarations for the `setval_field_w0_code`, enclosed in a module:
 
@@ -206,9 +205,9 @@ ordering arguments is to put arguments that are written to first.
 The full PSyclone LFRic API specification of the argument ordering for
 the [general LFRic user-defined kernels](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#rules-for-general-purpose-kernels)
-is quite complex, hence making the [kernel-stub generator](
-https://psyclone.readthedocs.io/en/stable/stub_gen.html) a very useful
-development tool.
+is quite complex, hence making the [PSyclone kernel tool](
+https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) very useful
+for development.
 
 LFRic kernels can update more than one field and/or operator arguments.
 However, scalar arguments in user-defined LFRic kernels must be
