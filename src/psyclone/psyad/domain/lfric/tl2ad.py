@@ -1,23 +1,56 @@
-import sys
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2022, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
+''' Provides LFRic-specific PSyclone adjoint functionality. '''
+
+from fparser import api as fpapi
 from psyclone.domain.lfric.algorithm.alg_gen import (
     create_alg_driver, create_invoke_call, construct_kernel_args,
     initialise_field)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
-from psyclone.line_length import FortLineLength
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
-from psyclone.psyad.tl2ad import _create_real_comparison
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Assignment, Reference, ArrayReference,
-                                  Call, Literal, BinaryOperation)
-from psyclone.psyir.symbols import (INTEGER_TYPE, ArrayType, DataTypeSymbol,
-                                    ImportInterface, ContainerSymbol,
-                                    ScalarType,
-                                    DataSymbol, DeferredType, RoutineSymbol)
+from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
+                                  Literal, BinaryOperation)
+from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
+                                    ScalarType, ArrayType, RoutineSymbol,
+                                    DataTypeSymbol,
+                                    DataSymbol, INTEGER_TYPE, DeferredType)
 
 
-def _compute_inner_products(prog, scalars, field_sums, sum_sym):
+def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     '''
     :param prog: the Routine to which to add PSyIR.
     :type prog:
@@ -31,7 +64,7 @@ def _compute_inner_products(prog, scalars, field_sums, sum_sym):
 
     '''
     prog.addchild(Assignment.create(Reference(sum_sym),
-                                    Literal("0.0", rdef_type)))
+                                    Literal("0.0", sum_sym.datatype)))
     for scalar in scalars:
         prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                       Reference(scalar[0]),
@@ -60,17 +93,24 @@ def _compute_inner_products(prog, scalars, field_sums, sum_sym):
                 prog.addchild(Assignment.create(Reference(sum_sym), add_op))
 
 
-if __name__ == "__main__":
+def generate_lfric_adjoint_test(tl_source):
+    '''
+    :param str kernel_name: name of the TL LFRic kernel.
+    :param str kernel_path: location of the source file for the kernel.
 
+    :returns: PSyIR of an Algorithm that tests the adjoint of the specified \
+              LFRic TL kernel.
+    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+    '''
     prog = create_alg_driver("main", 10)
     table = prog.symbol_table
 
-    kernel_name = sys.argv[1]
-    kernel_path = sys.argv[2]
-
     # Parse the kernel metadata (this still uses fparser1 as that's what
     # the meta-data handling is currently based upon).
-    parse_tree = get_kernel_parse_tree(kernel_path)
+    parse_tree = fpapi.parse(tl_source)
+    # TODO need some way of getting this.
+    kernel_name = "tl_hydrostatic_kernel_type"
 
     # Get the name of the module that contains the kernel and create a
     # ContainerSymbol for it.
@@ -82,10 +122,6 @@ if __name__ == "__main__":
                                       interface=ImportInterface(kernel_mod))
     adj_routine = table.new_symbol(kernel_name+"_adj",
                                    interface=ImportInterface(adj_mod))
-    #rand_kernel_mod = table.new_symbol("set_random_kernel_mod",
-    #                                   symbol_type=ContainerSymbol)
-    #rand_kernel_routine = table.new_symbol(
-    #    "set_random_kernel_type", interface=ImportInterface(rand_kernel_mod))
 
     # Construct a DynKern using the metadata. This is used when constructing
     # the kernel argument list.
@@ -178,7 +214,7 @@ if __name__ == "__main__":
                                   datatype=rdef_type)
 
     scalars = zip(kern_args.scalars, kern_args.scalars)
-    _compute_inner_products(prog, scalars, field_ip_symbols, inner1_sym)
+    _compute_lfric_inner_products(prog, scalars, field_ip_symbols, inner1_sym)
 
     # Call the adjoint kernel.
     kernel_list = [(adj_routine.name, kern_args.arglist)]
@@ -222,17 +258,13 @@ if __name__ == "__main__":
                                   datatype=rdef_type)
     scalars = zip(kern_args.scalars,
                   [input_symbols[sym] for sym in kern_args.scalars])
-    _compute_inner_products(prog, scalars, field_ip_symbols, inner2_sym)
+    _compute_lfric_inner_products(prog, scalars, field_ip_symbols, inner2_sym)
 
     # Finally, compare the two inner products.
-    stmts = _create_real_comparison(table, kern, inner1_sym, inner2_sym)
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyad.tl2ad import create_real_comparison
+    stmts = create_real_comparison(table, kern, inner1_sym, inner2_sym)
     for stmt in stmts:
         prog.addchild(stmt)
 
-    writer = FortranWriter()
-    gen_code = writer(prog)
-    fll = FortLineLength()
-    output = fll.process(gen_code)
-
-    with open("main_alg.x90", "w", encoding="utf-8") as fmain:
-        print(output, file=fmain)
+    return prog

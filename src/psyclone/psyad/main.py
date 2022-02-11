@@ -114,7 +114,7 @@ def main(args):
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
-            tl_fortran_str, args.active, create_test=generate_test)
+            args.api, tl_fortran_str, args.active, create_test=generate_test)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
