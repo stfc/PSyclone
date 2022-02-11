@@ -43,6 +43,7 @@ from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.lfric import generate_lfric_adjoint_test
+from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
@@ -92,6 +93,13 @@ def generate_adjoint_str(api, tl_fortran_str, active_variables,
     # TL Language-level PSyIR
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
+
+    # Addressing issue #1238 will allow the view() method to be output
+    # to the logger.
+    # logger.debug(tl_psyir.view())
+
+    # Apply any required transformations to the TL PSyIR
+    preprocess_trans(tl_psyir)
 
     # Addressing issue #1238 will allow the view() method to be output
     # to the logger.

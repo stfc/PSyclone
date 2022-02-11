@@ -1406,6 +1406,29 @@ class FortranWriter(LanguageWriter):
             result += self._visit(child)
         return result
 
+    def clause_node(self, node):
+        '''This method is called when a Clause instance is found in the
+        PSyIR tree. It returns the clause and its children as a string.
+
+        :param node: a Clause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Clause`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        result = node.clause_string
+
+        if len(node.children) > 0:
+            result = result + "("
+            child_list = []
+            for child in node.children:
+                child_list.append(self._visit(child))
+            result = result + ", ".join(child_list)
+            result = result + ")"
+
+        return result
+
     def regiondirective_node(self, node):
         '''This method is called when a RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
@@ -1418,14 +1441,24 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [f"{self._nindent}!${node.begin_string()}\n"]
+        result = f"{self._nindent}!${node.begin_string()}"
+
+        clause_list = []
+        for clause in node.clauses:
+            clause_list.append(self._visit(clause))
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result = result + " "
+        result = result + " ".join(clause_list)
+        result = result + "\n"
+
         for child in node.dir_body:
-            result_list.append(self._visit(child))
+            result = result + self._visit(child)
 
         end_string = node.end_string()
         if end_string:
-            result_list.append(f"{self._nindent}!${end_string}\n")
-        return "".join(result_list)
+            result = result + f"{self._nindent}!${end_string}\n"
+        return result
 
     def standalonedirective_node(self, node):
         '''This method is called when a StandaloneDirective instance is found
@@ -1438,9 +1471,21 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result_list = [f"{self._nindent}!${node.begin_string()}\n"]
+        result = f"{self._nindent}!${node.begin_string()}"
 
-        return "".join(result_list)
+        clause_list = []
+        # Currently no standalone directives have clauses associated
+        # so this code is left commented out. If a standalone directive
+        # is added with clauses, this should be added in.
+        # for clause in node.clauses:
+        #     clause_list.append(self._visit(clause))
+        # Add a space only if there are clauses
+        # if len(clause_list) > 0:
+        #     result = result + " "
+        result = result + " ".join(clause_list)
+        result = result + "\n"
+
+        return result
 
     def call_node(self, node):
         '''Translate the PSyIR call node to Fortran.
