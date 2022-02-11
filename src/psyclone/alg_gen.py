@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2014-2020, Science and Technology Facilities Council.
+# Copyright (c) 2014-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,22 @@
 exception-handling to translate the original algorithm file into one
 that can be compiled and linked with the generated PSy code.
 
+It also provides the generate() function that, given kernel metadata, will
+create suitable algorithm-layer code which invokes that kernel.
+
 '''
 
 from __future__ import absolute_import
-from psyclone.errors import PSycloneError
+# fparser contains classes that are generated at run time.
+# pylint: disable=no-name-in-module
+from fparser.two.Fortran2003 import (Main_Program, Module, Use_Stmt,
+                                     Subroutine_Subprogram, Call_Stmt,
+                                     Section_Subscript_List,
+                                     Function_Subprogram, Specification_Part)
+# pylint: enable=no-name-in-module
+from fparser.two.utils import Base, walk
+
+from psyclone.errors import GenerationError, InternalError, PSycloneError
 
 
 class NoInvokesError(PSycloneError):
@@ -102,11 +114,6 @@ class Alg(object):
         :rtype: :py:class:`fparser.two.utils.Base`
 
         '''
-
-        from fparser.two.utils import walk
-        # pylint: disable=no-name-in-module
-        from fparser.two.Fortran2003 import Call_Stmt, Section_Subscript_List
-
         idx = 0
         # Walk through all statements looking for procedure calls
         for statement in walk(self._ast.content, Call_Stmt):
@@ -168,17 +175,10 @@ def adduse(location, name, only=None, funcnames=None):
     '''
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-branches
-    from fparser.two.Fortran2003 import Main_Program, Module, \
-        Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
-        Specification_Part
-    from fparser.two.utils import Base
-    from psyclone.errors import GenerationError, InternalError
-
     if not isinstance(location, Base):
         raise GenerationError(
-            "alg_gen.py:adduse: Location argument must be a sub-class of "
-            "fparser.two.utils.Base but got: {0}.".format(
-                type(location).__name__))
+            f"alg_gen.py:adduse: Location argument must be a sub-class of "
+            f"fparser.two.utils.Base but got: {type(location).__name__}.")
 
     if funcnames:
         # funcnames have been provided for the only clause.
@@ -206,8 +206,7 @@ def adduse(location, name, only=None, funcnames=None):
     my_funcnames = funcnames
     if funcnames is None:
         my_funcnames = []
-    use = Use_Stmt("use {0}{1} {2}".format(name, only_str,
-                                           ", ".join(my_funcnames)))
+    use = Use_Stmt(f"use {name}{only_str} {', '.join(my_funcnames)}")
 
     # find the parent program statement containing the specified location
     parent_prog_statement = None
@@ -229,16 +228,33 @@ def adduse(location, name, only=None, funcnames=None):
         # We currently only support program, subroutine and function
         # as ancestors
         raise NotImplementedError(
-            "alg_gen.py:adduse: Unsupported parent code found '{0}'. "
-            "Currently support is limited to program, subroutine and "
-            "function.".format(str(type(parent_prog_statement))))
+            f"alg_gen.py:adduse: Unsupported parent code found "
+            f"'{type(parent_prog_statement)}'. Currently support is limited "
+            f"to program, subroutine and function.")
     if not isinstance(parent_prog_statement.content[1], Specification_Part):
         raise InternalError(
-            "alg_gen.py:adduse: The second child of the parent code "
-            "(content[1]) is expected to be a specification part but "
-            "found '{0}'.".format(repr(parent_prog_statement.content[1])))
+            f"alg_gen.py:adduse: The second child of the parent code "
+            f"(content[1]) is expected to be a specification part but "
+            f"found '{repr(parent_prog_statement.content[1])}'.")
 
     # add the use statement as the first child of the specification
     # part of the program
     spec_part = parent_prog_statement.content[1]
     spec_part.content.insert(0, use)
+
+
+def generate(kernel_filename, api):
+    '''
+    Given a kernel filename, creates an algorithm layer that invokes that
+    kernel for the specified PSyclone API.
+
+    # TODO #1555 implement this routine.
+
+    :param str kernel_filename: name of a file containing kernel metadata.
+    :param str api: the PSyclone API that the metadata conforms to.
+
+    :raises NotImplementedError: this routine is just a stub.
+
+    '''
+    raise NotImplementedError("Algorithm generation from kernel metadata is "
+                              "not yet implemented - #1555.")
