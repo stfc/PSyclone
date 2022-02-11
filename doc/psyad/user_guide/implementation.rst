@@ -380,8 +380,8 @@ The only supported intrinsics at this time are ``dot_product`` and
 If a ``dot_product`` or ``matmul`` intrinsic is found in the
 tangent-linear code it is first transformed into equivalent inline
 code before the code is transformed to its adjoint form. The PSyIR
-``DotProduct2CodeTrans`` or ``Matmul2CodeTrans`` transformation
-respectively is used by PSyAD to perform this transformation. See the
+``DotProduct2CodeTrans`` or ``Matmul2CodeTrans`` transformations are
+used to perform these manipulations. See the
 :ref:`user_guide:available_trans` section of the user guide for more
 information on these transformations.
 

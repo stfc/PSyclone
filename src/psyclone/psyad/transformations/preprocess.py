@@ -61,8 +61,6 @@ def preprocess_trans(kernel_psyir):
         if oper.operator == BinaryOperation.Operator.DOT_PRODUCT:
             # Apply DOT_PRODUCT transformation
             dot_product_trans.apply(oper)
-
-    for oper in kernel_psyir.walk(BinaryOperation):
-        if oper.operator == BinaryOperation.Operator.MATMUL:
+        elif oper.operator == BinaryOperation.Operator.MATMUL:
             # Apply MATMUL transformation
             matmul_trans.apply(oper)
