@@ -82,14 +82,15 @@ def test_single_function_named_invoke():
 def test_invoke_named_invoke():
     ''' Test that we correctly handle a named invoke call where the
     naming string already begins with "invoke_" '''
-    alg, _ = generate(
+    gen, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "1.0.5_invoke_named_invoke.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_invoke_psy, ONLY: invoke_important" in gen
-    assert "CALL invoke_important(a, f1, f2, m1, m2)" in gen
+    print(gen)
+    # RF: TODO: ERROR: generating: psy_single_invoke and invoke_invoke_important
+    assert "use single_invoke_psy, only: invoke_important" in gen
+    assert "call invoke_important(a, f1, f2, m1, m2)" in gen
 
 
 def test_multi_kernel_named_invoke():

@@ -58,6 +58,7 @@ from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -240,24 +241,29 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             raise IOError(
                 "Kernel search path '{0}' not found".format(kernel_path))
 
-    ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                             kernel_paths=kernel_paths,
-                             line_length=line_length)
-    if api != "gocean1.0":
+    _, invoke_info = parse(filename, api=api, invoke_name="invoke",
+                           kernel_paths=kernel_paths,
+                           line_length=line_length)
+
+    if api in API_WITHOUT_ALGORITHM:
+        alg_gen = None
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
 
-    alg_gen = None
+    else: # lfric or gocean1.0 API
 
-    if api == "gocean1.0":
         # Create language-level PSyIR from the Fortran file
         reader = FortranReader()
         psyir = reader.psyir_from_file(filename)
 
-        # Raise to Algorithm PSyIR
-        alg_trans = AlgTrans()
+        # Raise to domain-specific Algorithm PSyIR
+        if api == "gocean1.0":
+            alg_trans = AlgTrans()
+        else:
+            alg_trans = LFRicAlgTrans()
+            # alg_trans = AlgTrans()
         alg_trans.apply(psyir)
 
         if script_name is not None:
@@ -277,8 +283,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for psy-layer optimisations
             handle_script(script_name, psy, "trans")
 
-    elif api not in API_WITHOUT_ALGORITHM:
-        alg_gen = Alg(ast, psy).gen
+    # RF: TODO: remove Alg
+    # elif api not in API_WITHOUT_ALGORITHM:
+    #    alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
     # been requested.
