@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -119,6 +119,42 @@ def test_apply_multi_assignments():
         "    enddo\n"
         "  enddo\n")
     assert expected in result
+
+
+def test_apply_with_structures(fortran_reader, fortran_writer):
+    '''Check that the PSyIR is transformed as expected when the
+    expressions contain a mix of arrays and structures in the same
+    reference.
+
+    '''
+    trans = NemoAllArrayRange2LoopTrans()
+
+    # The outer dimension is already set
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: constant = 3
+        integer :: jk
+        base%field(constant)%array(:,:,jk) = 1
+    end subroutine test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert "base%field(constant)%array(ji,jj,jk) = 1" in result
+
+    # The inner dimension is already set
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: jf = 3, jpi = 3, jpim1 = 1
+        ptab(jf)%pt2d(jpi,:,:) = ptab(jf)%pt2d(jpim1,:,:)
+    end subroutine test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert "ptab(jf)%pt2d(jpi,jj,jk) = ptab(jf)%pt2d(jpim1,jj,jk)" in result
 
 
 def test_apply_calls_validate():

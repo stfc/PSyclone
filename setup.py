@@ -163,7 +163,7 @@ if __name__ == '__main__':
                           'six', 'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
-            'doc': ["sphinx", "sphinxcontrib.bibtex < 2.0.0",
+            'doc': ["sphinx", "sphinxcontrib.bibtex",
                     "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
             'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",

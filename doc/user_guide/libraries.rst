@@ -152,7 +152,7 @@ available and can be downloaded from `<https://github.com/stfc/dl_esm_inf>`_.
 
 Some libraries require NetCDF for compilation. Installation of NetCDF is
 described in details in the `hands-on practicals documentation
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples>`_.
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_.
 
 Profiling wrapper libraries that depend on external tools (e.g. dl_timer)
 require these tools be installed and configured beforehand.
