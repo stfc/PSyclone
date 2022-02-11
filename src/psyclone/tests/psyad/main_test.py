@@ -63,6 +63,7 @@ TEST_MOD = (
 EXPECTED_HARNESS_CODE = ('''program adj_test
   use my_mod, only : kern
   use my_mod_adj, only : kern_adj
+  implicit none
   integer, parameter :: array_extent = 20
   real, parameter :: overall_tolerance = 1500.0
   real :: inner1
@@ -344,6 +345,7 @@ def test_main_stdout(tmpdir, capsys):
     '''
     expected = (
         "program test_adj\n"
+        "  implicit none\n"
         "  real :: a\n\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
@@ -364,6 +366,7 @@ def test_main_fileout(tmpdir, capsys):
     '''
     expected = (
         "program test_adj\n"
+        "  implicit none\n"
         "  real :: a\n\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")

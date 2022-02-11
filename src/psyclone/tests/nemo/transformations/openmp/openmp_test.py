@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,7 @@ def test_omp_explicit_gen():
 
     expected = (
         "program explicit_do\n"
+        "  implicit none\n"
         "  integer, parameter :: jpi = 2\n"
         "  integer, parameter :: jpj = 4\n"
         "  integer, parameter :: jpk = 6\n"

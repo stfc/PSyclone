@@ -106,6 +106,7 @@ def test_generate_adjoint_str_trans():
         "end program test\n")
     expected = (
         "program test_adj\n"
+        "  implicit none\n"
         "  real :: a\n"
         "  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n"
@@ -281,6 +282,7 @@ def test_generate_adjoint(fortran_reader):
         "end program test\n")
     expected_ad_fortran_str = (
         "program test_adj\n"
+        "  implicit none\n"
         "  real :: a\n  real :: b\n  real :: c\n\n"
         "  b = b + a\n"
         "  c = c + a\n"
@@ -308,6 +310,7 @@ def test_generate_adjoint_kind(fortran_reader):
     expected_ad_fortran_str = (
         "program test_adj\n"
         "  use kinds_mod, only : r_def\n"
+        "  implicit none\n"
         "  real(kind=r_def) :: a\n  real(kind=r_def) :: b\n  "
         "real(kind=r_def) :: c\n\n"
         "  b = b + a\n"
@@ -723,6 +726,7 @@ def test_generate_harness_constant_kind(fortran_reader, fortran_writer):
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
     harness = fortran_writer(test_psyir)
     assert ("  use my_mod_adj, only : kern_adj\n"
+            "  implicit none\n"
             "  integer, parameter :: r_def = 8\n" in harness)
     assert ("  real(kind=r_def), dimension(npts) :: field\n"
             "  real(kind=r_def), dimension(npts) :: field_input" in harness)

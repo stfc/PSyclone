@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,7 @@ TL_CODE = (
     "end program test\n")
 EXPECTED_ADJ_CODE = (
     "program test\n"
+    "  implicit none\n"
     "  real :: a\n  real :: b\n  real :: c\n\n"
     "  b = b + a\n"
     "  c = c + a\n"
@@ -100,10 +101,10 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
 
     '''
     # Add "subroutine / end subroutine" lines to the incoming code.
-    input_code = ("subroutine test()\n{0}end subroutine test\n"
-                  "".format(tl_fortran))
-    expected_output_code = ("subroutine test()\n{0}end subroutine test\n"
-                            "".format(expected_ad_fortran))
+    input_code = f"subroutine test()\n{tl_fortran}end subroutine test\n"
+    expected_output_code = (f"subroutine test()\n"
+                            f"  implicit none\n{expected_ad_fortran}"
+                            f"end subroutine test\n")
 
     # Translate the tangent-linear code to PSyIR.
     reader = FortranReader()

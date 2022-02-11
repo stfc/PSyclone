@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,8 +81,9 @@ def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
         Defaults to 0.
 
     '''
-    input_code = "program test\n{0}end program test\n".format(code)
-    output_code = "program test\n{0}end program test\n".format(expected_result)
+    input_code = f"program test\n  implicit none\n{code}end program test\n"
+    output_code = (f"program test\n  implicit none\n{expected_result}end "
+                   f"program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     assignment = psyir.walk(Assignment)[statement]
@@ -341,6 +342,7 @@ def test_inlined_kern(tmpdir):
         "end program test\n")
     expected_result = (
         "program test\n"
+        "  implicit none\n"
         "  real, dimension(10,10,10) :: a\n"
         "  integer :: jpi\n  integer :: jpj\n  integer :: jpk\n"
         "  integer :: jj\n  integer :: ji\n\n"
@@ -397,6 +399,7 @@ def test_apply_multi_iterator(tmpdir):
         "end program test")
     expected_code = (
         "program test\n"
+        "  implicit none\n"
         "  real, dimension(10,10) :: a\n"
         "  integer :: i\n  integer :: j\n  integer :: jj\n\n"
         "  do j = 1, 10, 1\n"
@@ -432,6 +435,7 @@ def test_apply_same_iterator(tmpdir):
         "end program test")
     expected_code = (
         "program test\n"
+        "  implicit none\n"
         "  real, dimension(10,10,10) :: a\n"
         "  integer :: i\n  integer :: jk\n\n"
         "  do i = 1, 5, 1\n"
@@ -465,6 +469,7 @@ def test_apply_index_order(tmpdir):
         "end program test")
     expected_code = (
         "program test\n"
+        "  implicit none\n"
         "  real, dimension(10,10,10) :: a\n"
         "  integer :: i\n  integer :: j\n  integer :: jk\n\n"
         "  do j = 1, 10, 1\n"

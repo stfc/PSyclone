@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,6 +100,7 @@ def test_explicit_loop(parser):
 
     code = str(psy.gen).lower()
     assert ("program do_loop\n"
+            "  implicit none\n"
             "  integer, parameter :: jpj = 13\n"
             "  integer :: ji\n"
             "  real, dimension(jpj) :: sto_tmp\n"

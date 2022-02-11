@@ -134,16 +134,19 @@ def test_zero(tmpdir):
         "  a = 0.0\n")
     active_variables = ["a"]
     ad_fortran = (
+        "  implicit none\n"
         "  real :: a\n\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
     # Direct Addressed Array
     tl_fortran = (
+        "  implicit none\n"
         "  integer, parameter :: n=10\n"
         "  real :: a(n)\n"
         "  a(n) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
+        "  implicit none\n"
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n\n"
         "  a(n) = 0.0\n\n")
@@ -156,6 +159,7 @@ def test_zero(tmpdir):
         "  a(b(n)) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
+        "  implicit none\n"
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  integer, dimension(n) :: b\n\n"
@@ -168,6 +172,7 @@ def test_zero(tmpdir):
         "  a(:) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
+        "  implicit none\n"
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n\n"
         "  a(:) = 0.0\n\n")
@@ -179,6 +184,7 @@ def test_zero(tmpdir):
         "  a(2:n-2) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
+        "  implicit none\n"
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n\n"
         "  a(2:n - 2) = 0.0\n\n")
@@ -682,6 +688,7 @@ def test_different_indices(tmpdir):
         "  a(i) = a(i+1)+b(i)+b(i-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
+        "  implicit none\n"
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: i\n\n"
         "  a(i + 1) = a(i + 1) + a(i)\n"
@@ -706,6 +713,7 @@ def test_same_indices_ordering(tmpdir):
         "  a(i+1) = a(1+i)+b(i)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
+        "  implicit none\n"
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer :: i\n\n"
         "  b(i) = b(i) + a(i + 1)\n\n")

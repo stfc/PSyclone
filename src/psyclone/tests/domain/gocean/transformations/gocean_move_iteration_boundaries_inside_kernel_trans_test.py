@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -173,6 +173,7 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
     expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
   use compute_cu_mod, only : compute_cu_code
   use time_smooth_mod, only : time_smooth_code
+  implicit none
   type(r2d_field), intent(inout) :: cu_fld
   type(r2d_field), intent(inout) :: p_fld
   type(r2d_field), intent(inout) :: u_fld

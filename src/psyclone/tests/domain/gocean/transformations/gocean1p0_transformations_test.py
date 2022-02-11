@@ -1503,6 +1503,7 @@ def test_acc_enter_directive_infrastructure_setup():
     SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
       USE iso_c_binding, ONLY: c_ptr
       USE kind_params_mod, ONLY: go_wp
+      IMPLICIT NONE
       TYPE(c_ptr), intent(in) :: from
       REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
       INTEGER, intent(in) :: startx

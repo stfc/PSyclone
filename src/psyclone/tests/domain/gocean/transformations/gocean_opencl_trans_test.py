@@ -305,6 +305,7 @@ def test_invoke_opencl_initialisation_grid():
     subroutine initialise_grid_device_buffers(field)
       use fortcl, only: create_ronly_buffer
       use field_mod
+      implicit none
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
@@ -329,6 +330,7 @@ c_sizeof(field%grid%'''
       use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
       use clfortran
       use ocl_utils_mod, only: check_status
+      implicit none
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
       integer(kind=c_intptr_t), pointer :: cmd_queues(:)
@@ -417,6 +419,7 @@ def test_opencl_routines_initialisation(kernel_outputdir):
       use kind_params_mod, only: go_wp
       use clfortran
       use fortcl, only: get_cmd_queues
+      implicit none
       type(c_ptr), intent(in) :: from
       real(kind=go_wp), intent(inout), dimension(:, :), target :: to
       integer, intent(in) :: startx
@@ -465,6 +468,7 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
       use kind_params_mod, only: go_wp
       use clfortran
       use fortcl, only: get_cmd_queues
+      implicit none
       real(kind=go_wp), intent(in), dimension(:, :), target :: from
       type(c_ptr), intent(in) :: to
       integer, intent(in) :: startx
@@ -510,6 +514,7 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     subroutine initialise_device_buffer(field)
       use fortcl, only: create_rw_buffer
       use field_mod
+      implicit none
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
@@ -545,6 +550,7 @@ def test_psy_init_defaults(kernel_outputdir):
     expected = '''
     SUBROUTINE psy_init()
       USE fortcl, ONLY: add_kernels, ocl_env_init
+      IMPLICIT NONE
       CHARACTER(LEN=30) kernel_names(1)
       INTEGER :: ocl_device_num = 1
       LOGICAL, SAVE :: initialised = .FALSE.
@@ -623,6 +629,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
     SUBROUTINE psy_init()
       USE parallel_mod, ONLY: get_rank
       USE fortcl, ONLY: add_kernels, ocl_env_init
+      IMPLICIT NONE
       CHARACTER(LEN=30) kernel_names(1)
       INTEGER :: ocl_device_num = 1
       LOGICAL, SAVE :: initialised = .FALSE.
@@ -992,6 +999,7 @@ def test_set_kern_args(kernel_outputdir):
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      IMPLICIT NONE
       INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
       INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld
       INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: p_fld
@@ -1056,6 +1064,7 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      IMPLICIT NONE
       INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
       INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld
       INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_out_fld
@@ -1095,6 +1104,7 @@ tmask, xstart, xstop_1, ystart, ystop)
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
+      IMPLICIT NONE
       INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
       REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
       INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld
