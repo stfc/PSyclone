@@ -42,7 +42,7 @@
     1. use the metadata to construct an appropriate Fortran subroutine stub
        for completion by a kernel developer;
     2. construct an Algorithm-layer driver program that performs the necessary
-       setup and then `invoke`s the supplied kernel.
+       setup and then calls the supplied kernel with an `invoke`.
 
 '''
 
