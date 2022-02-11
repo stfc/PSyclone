@@ -127,6 +127,11 @@
 	42) PR #1586 for #1559. Adds support for SoA and AoSoA in the
 	Range2Loop transformation.
 
+	43) PR #1574 towards #1555. Replaces gen_kernel_stub script with
+	psyclone-kern. This more generic script can be extended to other
+	kernel modification options in the future (in particular
+	generating an algorithm layer from a kernel).
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -170,7 +170,7 @@ if __name__ == '__main__':
                      "pytest-pylint", "pytest-flakes", "pytest-pep257"],
         },
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/genkernelstub', 'bin/psyad'],
+        scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
         data_files=[
             ('share/psyclone',
              ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
