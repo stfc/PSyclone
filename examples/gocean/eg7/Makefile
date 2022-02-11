@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile pip_requirements.txt
-include src/psyclone/parse/lfric_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
-recursive-include tutorial *.ipynb
-recursive-include lib *.py *.sh *.md Makefile *.mk *.jinja *90 doxyfile
+# Author: S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
+
+include ../../common.mk
+
+GENERATED_FILES += 
+ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+
+.PHONY: transform
+
+transform:
+	${PSYCLONE} -nodm -s ./alg_transform.py -api gocean1.0 alg.f90 \
+		-oalg /dev/null -opsy /dev/null

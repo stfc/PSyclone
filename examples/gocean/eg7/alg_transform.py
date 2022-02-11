@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,23 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile pip_requirements.txt
-include src/psyclone/parse/lfric_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
-recursive-include tutorial *.ipynb
-recursive-include lib *.py *.sh *.md Makefile *.mk *.jinja *90 doxyfile
+# Author: R. W. Ford, STFC Daresbury Lab
+
+'''Python script intended to be passed to the 'psyclone' command
+via its -s option. This script demonstrates the use of the
+optional trans_alg() function which gives access to PSyclone's
+internal representation of the algorithm layer.
+
+'''
+from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall
+
+
+def trans(psy):
+    '''The trans function is required for the script to be valid.'''
+    return psy
+
+
+def trans_alg(psyir):
+    '''Output algorithm layer invoke information.'''
+    for invoke in psyir.walk(AlgorithmInvokeCall):
+        invoke.view()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README*
-include CONTRIBUTING.md
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile pip_requirements.txt
-include src/psyclone/parse/lfric_builtins_mod.f90
-include config/*.cfg
-recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
-recursive-include tutorial *.ipynb
-recursive-include lib *.py *.sh *.md Makefile *.mk *.jinja *90 doxyfile
+# Author R. W. Ford STFC Daresbury Lab
+
+'''Null PSyclone transformation script that only includes an example
+of the 'trans()' function which is required for a valid script file.
+'''
+
+
+def trans(psy):
+    '''Function to modify the algorithm layer PSyIR. This function is
+    designed to be called by the psyclone script.
+
+    :param psy: PSyclone's representation of the PSy-layer code.
+    :type psy: :class:py:`psyclone.gocean1p0.GOPSy`
+
+    :returns: modified algorithm-layer code.
+    :rtype: :class:py:`psyclone.gocean1p0.GOPSy`
+
+    '''
+    return psy

@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _psyclone_command:
@@ -80,8 +80,7 @@ by the command:
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['dynamo0.3',
-                          'gocean0.1', 'gocean1.0', 'nemo'],
-                          default 'dynamo0.3'.
+                          'gocean1.0', 'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
@@ -245,10 +244,15 @@ specified directory:
 Transformation script
 ---------------------
 
-By default the ``psyclone`` command will generate 'vanilla' PSy layer
-code. The -s option allows a Python script to be specified which can
-transform the PSy layer. This option is discussed in more detail in
-the :ref:`sec_transformations_script` section.
+By default the ``psyclone`` command will generate 'vanilla'
+Algorithm-layer and PSy-layer code with unmodified kernels for the
+gocean1.0 and lfric (dynamo0.3) APIs. For the nemo API, ``psyclone``
+will not perform any transformations on the input code.
+
+The -s option allows a Python script to be specified which can contain
+PSyclone transformations to transform the code. This option is
+discussed in more detail in the :ref:`sec_transformations_script`
+section.
 
 .. _fort_line_length:
 

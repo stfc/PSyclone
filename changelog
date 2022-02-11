@@ -107,6 +107,26 @@
 	35) PR #1556 for #1490. Adds a dotproduct2code transformation and
 	extends PSyAD to make use of it.
 
+	36) PR #1597 towards #753. Fixes naming bugs in GOcean Algorithm
+	PSyIR.
+
+	37) PR #1565 for #1505. Fix bug with UnknownFortranTypes inside other
+	fparser frontend declarations.
+
+	38) PR #1603 for #1566. Fparser reader parses derived types with
+	contains statements as UnknownFortranType.
+
+	39) PR #1602 towards #753. A new PSyclone script entry point (the
+	trans_alg function) can be used to transform the Alg-layer (currently
+	just for the gocean API).
+
+	40) PR #1601 for #1600. Removes the GOcean 0.1 API.
+
+	41) PR #1410 for #1398. Add Sphinx docs link checking in the CI.
+
+	42) PR #1586 for #1559. Adds support for SoA and AoSoA in the
+	Range2Loop transformation.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
