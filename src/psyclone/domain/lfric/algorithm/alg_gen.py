@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 
-'''This module tools for creating standalone LFRic algorithm-layer code.
+'''This module contains tools for creating standalone LFRic
+   algorithm-layer code.
 
 '''
 
@@ -42,7 +43,10 @@ from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
+from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, CodeBlock, Call, Assignment,
                                   Reference, Literal)
 from psyclone.psyir.symbols import (
@@ -258,7 +262,17 @@ def initialise_field(prog, sym, space):
 
 
 def initialise_quadrature(prog, qr_sym, shape):
-    ''' '''
+    '''
+    Adds the necessary declarations and intialisation for the supplied
+    quadrature to the supplied routine.
+
+    :param prog: the routine to which to add suitable declarations etc.
+    :type prog:
+    :param qr_sym: the symbol representing a quadrature object.
+    :type qr_sym:
+    :param str shape: the shape of the quadrature.
+
+    '''
     table = prog.symbol_table
     try:
         qr_rule_sym = table.lookup("quadrature_rule")
@@ -291,12 +305,21 @@ def initialise_quadrature(prog, qr_sym, shape):
 
 
 def construct_kernel_args(prog, kern):
-    ''' '''
-    # Construct a list of which function spaces the field argument(s)
-    # are on.
+    '''
+    Extends the supplied routine with all the declarations and initialisation
+    required for the arguments of the supplied kernel.
+
+    :param prog: the routine to which to add the declarations etc.
+    :type prog: :py:class:`psyclone.psyir.nodes.Routine`
+    :param kern: the kernel for which we are to create arguments.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    '''
+    # Construct a list of the names of the function spaces that the field
+    # argument(s) are on.
     function_spaces = []
-    for descriptor in kern.fs_descriptors.descriptors:
-        name = descriptor.fs_name.lower()
+    for fspace in kern.arguments.unique_fss:
+        name = fspace.orig_name.lower()
         if name == "any_w2":
             # ANY_W2 means 'any W2 space' - it is not in and of itself
             # a valid function space so change it to W2.
@@ -341,3 +364,71 @@ def create_invoke_call(call_list):
         ptree = Fortran2003.Structure_Constructor(reader)
         invoke_args.append(CodeBlock([ptree], CodeBlock.Structure.EXPRESSION))
     return Call.create(RoutineSymbol("invoke"), invoke_args)
+
+
+def generate(kernel_path):
+    '''
+    :param str kernel_path: location of Kernel source code.
+
+    :returns: Fortran algorithm code.
+    :rtype: str
+
+    '''
+    prog = create_alg_driver("lfric_alg", 20)
+    table = prog.symbol_table
+
+    # Parse the kernel metadata (this still uses fparser1 as that's what
+    # the meta-data handling is currently based upon).
+    parse_tree = get_kernel_parse_tree(kernel_path)
+
+    # Get the name of the module that contains the kernel and create a
+    # ContainerSymbol for it.
+    kernel_mod_name = parse_tree.content[0].name
+    # TODO this assumes that the LFRic naming scheme is strictly adhered to!
+    # It would be much better if we could query the meta-data for the name
+    # of the kernel.
+    kernel_name = kernel_mod_name.replace("_mod", "_type")
+
+    kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
+    kernel_routine = table.new_symbol(kernel_name,
+                                      interface=ImportInterface(kernel_mod))
+
+    ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
+                                                      name=kernel_name)
+    # Construct a DynKern using the metadata. This is used when constructing
+    # the kernel argument list.
+    kern = DynKern()
+    kern.load_meta(ktype)
+
+    # Declare and initialise the data structures required by the kernel
+    # arguments.
+    kern_args = construct_kernel_args(prog, kern)
+
+    # Initialise argument values.
+    for sym in kern_args.scalars:
+        prog.addchild(Assignment.create(Reference(sym),
+                                        Literal("0", INTEGER_TYPE)))
+
+    # We use the setval_c builtin to initialise all fields to zero.
+    kernel_list = []
+    for sym, space in kern_args.fields:
+        if isinstance(sym.datatype, DataTypeSymbol):
+            kernel_list.append(("setval_c", [sym.name, "0.0_r_def"]))
+        elif isinstance(sym.datatype, ArrayType):
+            for dim in range(int(sym.datatype.shape[0].lower.value),
+                             int(sym.datatype.shape[0].upper.value)+1):
+                kernel_list.append(("setval_c", [f"{sym.name}({dim})",
+                                                 "0.0_r_def"]))
+        else:
+            raise InternalError(
+                f"Expected a field symbol to either be of ArrayType or have "
+                f"a type specified by a DataTypeSymbol but found "
+                f"{sym.datatype} for field '{sym.name}'")
+
+    # Finally, add the kernel itself to the list for the invoke().
+    kernel_list.append((kernel_routine.name, kern_args.arglist))
+
+    # Create the 'call invoke(...)' for the list of kernels.
+    prog.addchild(create_invoke_call(kernel_list))
+
+    return FortranWriter()(prog)

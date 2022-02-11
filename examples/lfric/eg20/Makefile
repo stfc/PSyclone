@@ -83,12 +83,15 @@ testkern_mod.o: $(LFRIC_LIB)
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
 
-# Create an algorithm layer that will 'invoke' our kernel
-main_alg.x90: testkern_mod.F90 alg_gen.py
-	python alg_gen.py ../code/testkern_mod.F90
+# Use the psyclone-kern tool to create an algorithm layer that will
+# 'invoke' our kernel
+main_alg.x90: testkern_mod.F90
+	${KERNEL_ALG_GEN} -api dynamo0.3 -o main_alg.x90 ../code/testkern_mod.F90
 
 transform: main_psy.f90
 
+# Process the generated algorithm layer with PSyclone to generate a compilable
+# algorithm file and a suitable PSy-layer subroutine.
 main_psy.f90:	main_alg.x90
 	${PSYCLONE} -d ../code -opsy main_psy.f90 -oalg main_alg.f90 $<
 

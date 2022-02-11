@@ -248,13 +248,18 @@ def generate(kernel_filename, api):
     Given a kernel filename, creates an algorithm layer that invokes that
     kernel for the specified PSyclone API.
 
-    # TODO #1555 implement this routine.
-
     :param str kernel_filename: name of a file containing kernel metadata.
     :param str api: the PSyclone API that the metadata conforms to.
 
-    :raises NotImplementedError: this routine is just a stub.
+    :returns: Fortran algorithm code.
+    :rtype: str
+
+    :raises NotImplementedError: if any API other than dynamo0.3 is specified.
 
     '''
+    if api == "dynamo0.3":
+        from psyclone.domain.lfric.algorithm.alg_gen import generate
+        return generate(kernel_filename)
+
     raise NotImplementedError("Algorithm generation from kernel metadata is "
                               "not yet implemented - #1555.")
