@@ -51,8 +51,9 @@ transform:
 	@echo "Harness generation not yet supported"
 
 # It is not yet possible to compile the adjoint code into an object
-# file as the intents are incorrect (see issue #1429) and the metadata
-# code pointer is invalid (see issue #1453).
+# file and run it, as the metadata is incorrect (see issue #1453) and
+# the harness generation does not understand all of the argument
+# datatypes and how to initialise them (see issue #1555).
 compile: transform
 	@echo "Harness compilation not yet supported"
 
