@@ -132,6 +132,9 @@
 	kernel modification options in the future (in particular
 	generating an algorithm layer from a kernel).
 
+	44) PR #1607 for #1559. Transform MATRIX_MULTIPLY to equivalent
+	code before creating adjoint.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
