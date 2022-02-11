@@ -65,11 +65,12 @@ def main(args):
     # reflect this workaround.
     def msg():
         '''Function to overide the argpass usage message'''
-        return ("psyad [-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+        return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
+                "[-otest TEST_FILENAME] "
                 "-a ACTIVE [ACTIVE ...] -- filename")
 
     parser = argparse.ArgumentParser(
-        description="Run the PSyclone adjoint code generator on an LFRic "
+        description="Run the PSyclone adjoint code generator on a "
         "tangent-linear kernel file", usage=msg())
     parser.add_argument(
         '-a', '--active', nargs='+', help='names of active variables',
@@ -81,6 +82,9 @@ def main(args):
         '-t', '--gen-test',
         help='generate a standalone unit test for the adjoint code',
         action='store_true')
+    parser.add_argument('-api', default="",
+                        help='the PSyclone API that the TL kernel conforms '
+                        'to (if any).')
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
