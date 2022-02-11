@@ -51,12 +51,13 @@ transform: psy.f90
 psy.f90 alg.f90: main_alg.x90 tl_hydrostatic_kernel_mod_adj.f90
 	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 main_alg.x90
 
-# Note, one of the variables provided in
-# the psyad command line below (res_dot_product) did not exist in the
-# original code and is a by-product of psyad replacing a dot_product
-# intrinsic with equivalent code. This and all other local variables
-# will not need to be specified on the command line once issue #1556
-# has been addressed.tl_hydrostatic_kernel_mod_adj.x90 main_alg.x90: tl_hydrostatic_kernel_mod.F90
+# Note, one of the variables provided in the psyad command line below
+# (res_dot_product) did not exist in the original code and is a
+# by-product of psyad replacing a dot_product intrinsic with
+# equivalent code. This and all other local variables will not need to
+# be specified on the command line once issue #1556 has been
+# addressed.
+tl_hydrostatic_kernel_mod_adj.x90 main_alg.x90: tl_hydrostatic_kernel_mod.F90
 	$(PSYAD) -api dynamo0.3 tl_hydrostatic_kernel_mod.F90 -otest main_alg.x90 -oad tl_hydrostatic_kernel_mod_adj.x90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 
 tl_hydrostatic_kernel_mod_adj.f90: tl_hydrostatic_kernel_mod_adj.x90
