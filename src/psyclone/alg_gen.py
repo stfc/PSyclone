@@ -261,5 +261,5 @@ def generate(kernel_filename, api):
         from psyclone.domain.lfric.algorithm.alg_gen import generate
         return generate(kernel_filename)
 
-    raise NotImplementedError("Algorithm generation from kernel metadata is "
-                              "not yet implemented - #1555.")
+    raise NotImplementedError(f"Algorithm generation from kernel metadata is "
+                              f"not yet implemented for API '{api}'")

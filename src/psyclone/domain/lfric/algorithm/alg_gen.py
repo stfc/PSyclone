@@ -54,6 +54,13 @@ from psyclone.psyir.symbols import (
     ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE)
 
 
+# The order of the finite-element scheme that will be used by any generated
+# algorithm layer.
+ELEMENT_ORDER = "1"
+# The number of data values held at each dof location.
+NDATA_SIZE = "20"
+
+
 def create_alg_driver(name, nlayers):
     '''
     Creates a standalone LFRic program with the necessary infrastructure
@@ -174,10 +181,6 @@ END PROGRAM {name}
                      datatype=INTEGER_TYPE,
                      interface=ImportInterface(
                          table.lookup("constants_mod")))
-    ndata_sz = table.new_symbol("ndata_sz", symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
-    prog.addchild(Assignment.create(Reference(ndata_sz),
-                                    Literal("20", INTEGER_TYPE)))
 
     return prog
 
@@ -185,7 +188,9 @@ END PROGRAM {name}
 def create_function_spaces(prog, fspaces):
     '''
     Adds PSyIR to the supplied Routine that declares and intialises the
-    specified function spaces.
+    specified function spaces. The order of these spaces is set by the
+    `ELEMENT_ORDER` constant at the top of this module. The number of data
+    values at each dof location is set by the `NDATA_SIZE` module constant.
 
     :param prog: the routine to which to add declarations and initialisation.
     :type prog: :py:class:`psyclone.psyir.nodes.Routine`
@@ -195,10 +200,18 @@ def create_function_spaces(prog, fspaces):
     '''
     table = prog.symbol_table
 
+    # The order of the finite-element scheme.
     order = table.new_symbol("element_order", tag="element_order",
                              symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE,
-                             constant_value=Literal("1", INTEGER_TYPE))
+                             constant_value=Literal(ELEMENT_ORDER,
+                                                    INTEGER_TYPE))
+
+    # The number of data values to be held at each dof location.
+    ndata_sz = table.new_symbol("ndata_sz", symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE)
+    prog.addchild(Assignment.create(Reference(ndata_sz),
+                                    Literal(NDATA_SIZE, INTEGER_TYPE)))
 
     # Initialise the function spaces required by the kernel arguments.
     for space in fspaces:
