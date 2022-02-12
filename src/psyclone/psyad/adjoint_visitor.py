@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,9 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
-                                  CodeBlock, BinaryOperation)
-from psyclone.psyir.symbols import ArgumentInterface
+                                  CodeBlock, BinaryOperation, Assignment,
+                                  Container)
+from psyclone.psyir.symbols import ArgumentInterface, REAL_TYPE
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -131,6 +132,14 @@ class AdjointVisitor(PSyIRVisitor):
         # this.
         node_copy = node.copy()
         node_copy.children = []
+
+        print (type(node.parent))
+        if isinstance(node.parent, (Routine, Container)):
+            # Local active variables need to be zero'ed.
+            self._logger.debug("Zero-ing local active variables")
+            for active_variable in self._active_variables:
+                if active_variable.is_local:
+                    node_copy.children.append(Assignment.create(Reference(active_variable), Literal("0.0", REAL_TYPE)))
 
         # Split active and passive nodes.
         self._logger.debug("Adding passive code into new schedule")
