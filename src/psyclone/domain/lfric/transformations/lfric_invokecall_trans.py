@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,12 +40,12 @@ uses specialised classes.
 '''
 from fparser.two.Fortran2003 import Actual_Arg_Spec
 
-from psyclone.psyir.nodes import ArrayReference
-
 from psyclone.domain.common.transformations import InvokeCallTrans
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
     LFRicKernelFunctor, LFRicAlgorithmInvokeCall
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+from psyclone.psyir.nodes import ArrayReference
+from psyclone.psyir.symbols import UnresolvedInterface, LocalInterface
 
 
 class LFRicInvokeCallTrans(InvokeCallTrans):
@@ -104,6 +104,11 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
             for (node_type, type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
                 calls.append(node_type.create(type_symbol, args))
+
+        symbol = call.scope.symbol_table.lookup("invoke")
+        if isinstance(symbol.interface, UnresolvedInterface):
+            # No need to try to resolve the invoke call
+            symbol._interface = LocalInterface()
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)
