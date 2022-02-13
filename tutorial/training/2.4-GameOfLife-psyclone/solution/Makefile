@@ -1,8 +1,8 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -O0
-ROOT_DIR := $(abspath $(dir $(this_file))../..)
-SHARED_DIR ?= $(ROOT_DIR)/external/PSyclone/external
+ROOT_DIR := $(abspath $(dir $(this_file))../../../..)
+SHARED_DIR ?= $(ROOT_DIR)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
@@ -22,7 +22,7 @@ INCL=-I$(INF_INC)
 LIBS=-L$(INF_INC) -l_fd
 
 # Limit output to 132 charactere
-PSYCLONE=psyclone --config ../../external/PSyclone/config/psyclone.cfg \
+PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 		-l output -nodm  \
 		-s ./inline.py
 

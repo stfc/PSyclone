@@ -1,12 +1,12 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -Ofast -fopenmp
-SHARED_DIR ?= ../external/PSyclone/external
-INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
+ROOT_DIR ?= ../../..
+INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 
-PSY_DATA_DIR = ../external/PSyclone/lib/extract/netcdf/dl_esm_inf
+PSY_DATA_DIR = $(ROOT_DIR)/lib/extract/netcdf/dl_esm_inf
 PSY_DATA_LIB = $(PSY_DATA_DIR)/lib_kernel_data_netcdf.a
 PSY_DATA_INCLUDE = -I $(PSY_DATA_DIR)
 
@@ -28,7 +28,7 @@ INCL=-I$(INF_INC)
 LIBS=-L$(INF_INC) -l_fd $(PSY_DATA_LIB)
 
 # Limit output to 132 charactere
-PSYCLONE=psyclone --config ../external/PSyclone/config/psyclone.cfg \
+PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 		-l output -nodm
 
 $(EXE): dl_esm_inf $(PSY_DATA_LIB) $(OBJ)
