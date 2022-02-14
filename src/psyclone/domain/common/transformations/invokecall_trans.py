@@ -246,10 +246,6 @@ class InvokeCallTrans(Transformation):
                 self._specialise_symbol(type_symbol)
                 calls.append(KernelFunctor.create(type_symbol, args))
 
-        symbol = call.scope.symbol_table.lookup("invoke")
-        if isinstance(symbol.interface, UnresolvedInterface):
-            # No need to try to resolve the invoke call
-            symbol._interface = LocalInterface()
         invoke_call = AlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)

@@ -271,6 +271,30 @@ class AlgorithmInvokeCall(Call):
         call = Call.create(routine_symbol, arguments)
         self.replace_with(call)
 
+        # Remove original invoke symbol if there are no other
+        # references to it. This is not strictly necessary but it
+        # tidies things up and can avoid an exception being raised in
+        # the Fortran Writer as the invoke symbol has an
+        # UnresolvedInterface.
+
+        first = True
+        while first or symbol_table.parent_symbol_table():
+            if first:
+                symbol_table = call.scope.symbol_table
+                first = False
+            else:
+                symbol_table = symbol_table.parent_symbol_table()
+            try:
+                invoke_symbol = symbol_table.lookup("invoke")
+            except KeyError:
+                continue
+            invokes = list(symbol_table.node.walk(AlgorithmInvokeCall))
+            if not invokes:
+                symbol_table.remove(invoke_symbol)
+            break
+        else:
+            raise InternalError("No invoke symbol found")
+
 
 class KernelFunctor(Reference):
     '''Object containing a kernel call, a description of its required

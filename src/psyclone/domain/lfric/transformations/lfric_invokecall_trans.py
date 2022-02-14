@@ -105,11 +105,6 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                 self._specialise_symbol(type_symbol)
                 calls.append(node_type.create(type_symbol, args))
 
-        symbol = call.scope.symbol_table.lookup("invoke")
-        if isinstance(symbol.interface, UnresolvedInterface):
-            # No need to try to resolve the invoke call
-            symbol._interface = LocalInterface()
-
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
