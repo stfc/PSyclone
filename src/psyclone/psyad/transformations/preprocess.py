@@ -39,12 +39,13 @@ translated to adjoint PSyIR.
 
 '''
 from psyclone.psyir.nodes import BinaryOperation
-from psyclone.psyir.transformations import DotProduct2CodeTrans
+from psyclone.psyir.transformations import (DotProduct2CodeTrans,
+                                            Matmul2CodeTrans)
 
 
 def preprocess_trans(kernel_psyir):
-    '''PSyclone kernel transformation script which replaces dotproduct
-    intrinsics with equivalent code and returns the modified
+    '''PSyclone kernel transformation script which replaces dotproduct and
+    matmul intrinsics with equivalent code and returns the modified
     psyir. This is called internally by the PSyAD script before
     transforming the code to its adjoint form.
 
@@ -54,8 +55,12 @@ def preprocess_trans(kernel_psyir):
 
     '''
     dot_product_trans = DotProduct2CodeTrans()
+    matmul_trans = Matmul2CodeTrans()
 
     for oper in kernel_psyir.walk(BinaryOperation):
         if oper.operator == BinaryOperation.Operator.DOT_PRODUCT:
             # Apply DOT_PRODUCT transformation
             dot_product_trans.apply(oper)
+        elif oper.operator == BinaryOperation.Operator.MATMUL:
+            # Apply MATMUL transformation
+            matmul_trans.apply(oper)

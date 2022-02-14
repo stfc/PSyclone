@@ -56,7 +56,7 @@ def test_compiler_works(tmpdir):
 
     old_pwd = tmpdir.chdir()
     try:
-        with open("hello_world.f90", "w") as ffile:
+        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
         Compile(tmpdir).compile_file("hello_world.f90", link=True)
     finally:
@@ -72,7 +72,7 @@ def test_compiler_with_flags(tmpdir):
     Compile.skip_if_compilation_disabled()
     old_pwd = tmpdir.chdir()
     try:
-        with open("hello_world.f90", "w") as ffile:
+        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
         _compile = Compile(tmpdir)
         _compile._f90flags = "not-a-flag"
@@ -95,7 +95,7 @@ def test_build_invalid_fortran(tmpdir):
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     old_pwd = tmpdir.chdir()
     try:
-        with open("hello_world.f90", "w") as ffile:
+        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(invalid_code)
         _compile = Compile(tmpdir)
         with pytest.raises(CompileError) as excinfo:
@@ -114,7 +114,7 @@ def test_find_fortran_file(tmpdir):
     assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo.value)
     old_pwd = tmpdir.chdir()
     try:
-        with open("hello_world.f90", "w") as ffile:
+        with open("hello_world.f90", "w", encoding="utf-8") as ffile:
             ffile.write(HELLO_CODE)
         name = Compile.find_fortran_file([str(tmpdir)], "hello_world")
         assert name.endswith("hello_world.f90")
@@ -146,10 +146,9 @@ def test_compile_str(monkeypatch, tmpdir):
 def test_get_invoke():
     '''Tests get_invokes. '''
 
-    # First test all 5 valid APIs - we only make sure that no exception
+    # First test all 3 valid APIs - we only make sure that no exception
     # is raised, so no assert required
 
-    get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
     get_invoke("test14_module_inline_same_kernel.f90", "gocean1.0", idx=0)
     get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     # Check that dist_mem is being accepted:

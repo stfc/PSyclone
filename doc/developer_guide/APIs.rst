@@ -50,8 +50,8 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following APIs; nemo, lfric (dynamo0.3)
-.. and gocean versions 0.1 and 1.0.
+.. currently supports the following APIs: nemo, lfric (dynamo0.3)
+.. and gocean.
 .. 
 .. config.py
 .. ---------

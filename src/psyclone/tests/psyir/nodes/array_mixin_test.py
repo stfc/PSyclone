@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''A python script and python function to generate an empty kernel
-    subroutine with the required arguments and datatypes (which we
-    call a stub) when presented with Kernel Metadata.
-'''
+''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
+
+import pytest
+from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
+    Range, Literal
+from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
+    INTEGER_TYPE
 
 
-if __name__ == "__main__":
+def test_get_outer_range_index():
+    '''Check that the get_outer_range_index method returns the outermost index
+    of the children list that is a range. Use ArrayReference and
+    ArrayOfStructuresReference as concrete implementations of ArrayMixins.
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
+    array = ArrayReference.create(symbol, [Range(), Range(), Range()])
+    assert array.get_outer_range_index() == 2
 
-    from psyclone.gen_kernel_stub import run
-    run()
+    symbol = DataSymbol("my_symbol", DeferredType())
+    aos = ArrayOfStructuresReference.create(
+        symbol, [Range(), Range(), Range()], ["nx"])
+    assert aos.get_outer_range_index() == 3  # +1 for the member child
+
+
+def test_get_outer_range_index_error():
+    '''Check that the get_outer_range_index method raises an IndexError if
+    no range exist as child of the given array. Us eArrayReference as concrete
+    implementation of ArrayMixin.
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
+    array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
+    with pytest.raises(IndexError):
+        _ = array.get_outer_range_index()

@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _psyclone_command:
@@ -80,8 +80,7 @@ by the command:
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['dynamo0.3',
-                          'gocean0.1', 'gocean1.0', 'nemo'],
-                          default 'dynamo0.3'.
+                          'gocean1.0', 'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
@@ -115,12 +114,12 @@ algorithm file::
 
 If the algorithm file is invalid for some reason, the command should
 return with an appropriate error. For example, if we use the Python
-``genkernelstub`` script as an algorithm file we get the following::
+``psyclone-kern`` script as an algorithm file we get the following::
 
-    > psyclone <PSYCLONEHOME>/bin/genkernelstub
-    ...
-        1:#!/usr/bin/env python <== no parse pattern found for "#" in 'BeginSource' block.
-    'Parse Error: Fatal error in external fparser tool'
+    > psyclone <PSYCLONEHOME>/bin/psyclone-kern
+    Parse Error: algorithm.py:parse_fp2: Syntax error in file '<PSYCLONEHOME>/bin/psyclone-kern':
+    at line 1
+    >>>#!/usr/bin/env python
 
 If the algorithm file is valid then the modified algorithm code and
 the generated PSy code will be output to the terminal screen.
