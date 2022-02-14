@@ -1050,10 +1050,11 @@ methods implemented except for the following:
 * ``LFRicIntXKern``,
 * ``LFRicRealXKern``.
 
-The sum and inner product BuiltIns require implementing PSyIR representation
-in the ``GlobalSum`` class in ``psyGen.py``. Conversions from ``real`` to
-``int`` and vice-versa require the target precisions be available as symbols,
-which is being implemented as a part of the mixed precision support.
+The sum and inner product BuiltIns require extending PSyIR to handle
+reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
+``real`` to ``int`` and vice-versa require the target precisions be
+available as symbols, which is being implemented as a part of the mixed
+precision support.
 
 GOcean1.0
 =========
