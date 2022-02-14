@@ -41,7 +41,6 @@ of a Kernel as required by an `invoke` of that kernel.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
-from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataSymbol,
                                     DataTypeSymbol, DeferredType, SymbolTable,
                                     ContainerSymbol, ImportInterface)
@@ -58,8 +57,7 @@ class KernCallInvokeArgList(ArgOrdering):
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if supplied symbol table is of incorrect type.
-    :raises InternalError: if a function space is found for which we cannot \
-                           generate a mapping entry to an actual space.
+
     '''
     def __init__(self, kern, symbol_table):
         super().__init__(kern)
@@ -71,22 +69,6 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields = []
         self._scalars = []
         self._qr_objects = []
-
-        self._fs_map = {}
-        const = LFRicConstants()
-        for space in const.VALID_FUNCTION_SPACE_NAMES:
-            if "any_" not in space:
-                self._fs_map[space] = space
-            elif space == "any_w2":
-                self._fs_map[space] = "w2"
-            elif "any_space_" in space:
-                self._fs_map[space] = const.CONTINUOUS_FUNCTION_SPACES[0]
-            elif "any_discontinuous_space" in space:
-                self._fs_map[space] = const.DISCONTINUOUS_FUNCTION_SPACES[0]
-            else:
-                raise InternalError(
-                    f"Error constructing mapping of meta-data function spaces "
-                    f"to actual spaces: cannot handle '{space}'")
 
     @property
     def fields(self):
@@ -155,7 +137,7 @@ class KernCallInvokeArgList(ArgOrdering):
                                   self._symtab.lookup("i_def"))
         else:
             raise NotImplementedError(
-                f"Scalar of type '{scalar_arg.data_type}' not supported.")
+                f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")
 
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,
@@ -193,7 +175,8 @@ class KernCallInvokeArgList(ArgOrdering):
         sym = self._symtab.new_symbol(argvect.name,
                                       symbol_type=DataSymbol, datatype=dtype)
         self._fields.append((sym,
-                             self._fs_map[argvect.function_space.orig_name]))
+                             LFRicConstants().specific_function_space(
+                                 argvect.function_space.orig_name)))
         self.append(sym.name)
 
     def field(self, arg, var_accesses=None):
@@ -211,7 +194,9 @@ class KernCallInvokeArgList(ArgOrdering):
         ftype = self._symtab.lookup("field_type")
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=ftype)
-        self._fields.append((sym, self._fs_map[arg.function_space.orig_name]))
+        self._fields.append((sym,
+                             LFRicConstants().specific_function_space(
+                                 arg.function_space.orig_name)))
         self.append(sym.name)
 
     def stencil(self, arg, var_accesses=None):
@@ -268,8 +253,7 @@ class KernCallInvokeArgList(ArgOrdering):
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
-        this access in var_accesses. This method passes through to the
-        :py:meth:`KernCallInvokeArgList.stencil_unknown_extent method`.
+        this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -278,8 +262,11 @@ class KernCallInvokeArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
+        :raises NotImplementedError: stencils are not yet supported.
+
         '''
-        self.stencil_unknown_extent(arg, var_accesses)
+        raise NotImplementedError(
+            "stencil_2d_unknown_extent not yet implemented.")
 
     def operator(self, arg, var_accesses=None):
         '''Add the operator argument. If supplied it also stores this access
@@ -292,23 +279,11 @@ class KernCallInvokeArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        '''
-        self.append(arg.name, var_accesses)
-
-    def fs_compulsory_field(self, function_space, var_accesses=None):
-        '''Add compulsory arguments associated with this function space to
-        the list. Since these are only added in the PSy layer, there's nothing
-        to do at the Algorithm layer.
-
-        :param function_space: the function space for which the compulsory \
-            arguments are added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        :raises NotImplementedError: operators are not yet supported.
 
         '''
+        raise NotImplementedError(
+            "Operators are not yet supported.")
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.
