@@ -52,9 +52,6 @@ class LFRicConstants():
     used after the config file has been read.
     It stores all values in class variables (to avoid re-evaluating them).
 
-    :raises InternalError: if an unsupported function-space name is found \
-        while constructing a lookup-table from meta-data name to actual space.
-
     '''
     HAS_BEEN_INITIALISED = False
 
