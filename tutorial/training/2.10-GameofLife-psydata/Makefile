@@ -1,10 +1,7 @@
+EXE = gol
+API = gocean
 
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -Ofast -fopenmp
-ROOT_DIR ?= ../../..
-INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
-INF_INC = $(INF_DIR)/src
-INF_LIB = $(INF_DIR)/src/lib_fd.a
+include ../common.mk
 
 PSY_DATA_DIR = $(ROOT_DIR)/lib/profiling/simple_timing
 PSY_DATA_LIB = $(PSY_DATA_DIR)/libsimple_timing.a
@@ -19,18 +16,16 @@ PSY_SRC = time_step_alg_mod.x90
 
 OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
 EXE = gol
-LDFLAGS ?=
 
-.PHONY: clean dl_esm_inf
+.PHONY: allclean clean
 
-INCL=-I$(INF_INC)
-LIBS=-L$(INF_INC) -l_fd $(PSY_DATA_LIB)
+LDFLAGS += $(PSY_DATA_LIB)
 
 # Limit output to 132 charactere
 PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 		-l output -nodm
 
-$(EXE): dl_esm_inf $(PSY_DATA_LIB) $(OBJ)
+$(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LIBS) -o $(EXE)
 
 run: $(EXE)
@@ -48,16 +43,8 @@ time_step_alg_mod_psy.o: compute_born_mod.o
 
 # External libs
 # -------------
-dl_esm_inf:
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
-
 $(PSY_DATA_LIB):
 	$(MAKE) -C $(PSY_DATA_DIR)
-
-# Compilation rules
-# -----------------
-%.o: %.f90
-	$(F90) -c $(F90FLAGS) $(INCL) $<
 
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 

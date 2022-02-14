@@ -1,10 +1,7 @@
+EXE = gol
+API = gocean
 
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -O0
-ROOT_DIR ?= ../../..
-INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
-INF_INC = $(INF_DIR)/src
-INF_LIB = $(INF_DIR)/src/lib_fd.a
+include ../common.mk
 
 SRC = gol.f90 read_config_mod.f90 compute_die_mod.f90               \
 	  compute_born_mod.f90 combine_mod.f90 count_neighbours_mod.f90 \
@@ -12,21 +9,16 @@ SRC = gol.f90 read_config_mod.f90 compute_die_mod.f90               \
 PSY_SRC = time_step_alg_mod.x90 
 
 OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
-EXE = gol
-LDFLAGS ?=
 
-.PHONY: clean dl_esm_inf
-
-INCL=-I$(INF_INC)
-LIBS=-L$(INF_INC) -l_fd
+.PHONY: allclean clean
 
 # Limit output to 132 charactere
 PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 		-l output -nodm  \
 		-s ./inline.py
 
-$(EXE): dl_esm_inf $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LIBS) -o $(EXE)
+$(EXE): $(INF_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
 	./$(EXE) config.glider
@@ -41,15 +33,6 @@ time_step_alg_mod.o: combine_mod.o compute_born_mod.o compute_die_mod.o \
 	count_neighbours_mod.o output_field_mod.o time_step_alg_mod_psy.o
 time_step_alg_mod_psy.o: compute_born_mod.o
 
-# External libs
-# -------------
-dl_esm_inf:
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
-
-# Compilation rules
-# -----------------
-%.o: %.f90
-	$(F90) -c $(F90FLAGS) $(INCL) $<
 
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
