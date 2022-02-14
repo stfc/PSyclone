@@ -132,13 +132,24 @@ def test_unexpected_exception(monkeypatch, capsys):
 
 def test_run_alg_gen(capsys):
     ''' Check that the kernel_tools run method attempts to generate an
-    algorithm layer if requested. Currently this raises a
-    NotImplementedError. '''
+    algorithm layer if requested. '''
+    kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+    kernel_tools.run(["-gen", "alg", str(kern_file)])
+    out, err = capsys.readouterr()
+    assert not err
+    assert "Algorithm code:\n program lfric_alg\n" in out
+
+
+def test_run_alg_gen_unsupported_api(capsys):
+    ''' Test that the expected message is output if an API is specified for
+    which algorithm-generation is not supported. '''
     with pytest.raises(SystemExit):
-        kernel_tools.run(["-gen", "alg", str("/does_not_exist")])
+        kernel_tools.run(["-api", "gocean1.0", "-gen", "alg",
+                          str("/does_not_exist")])
     _, err = capsys.readouterr()
-    assert ("Algorithm generation from kernel metadata is not yet "
-            "implemented - #1555" in err)
+    assert ("Algorithm generation from kernel metadata is not yet implemented "
+            "for API 'gocean1.0'" in err)
 
 
 def test_invalid_gen_arg(capsys, monkeypatch):

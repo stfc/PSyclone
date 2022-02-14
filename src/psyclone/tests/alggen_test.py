@@ -621,10 +621,30 @@ def test_adduse_nospec(parser):
 
 def test_generate_notimplemented():
     '''
-    Check that calling :py:func:`psyclone.alg_gen.generate` raises the
-    expected error. (This function will be implemented as part of #1555.)
+    Check that calling :py:func:`psyclone.alg_gen.generate` with an
+    unsupported API raises the expected error.
 
     '''
     with pytest.raises(NotImplementedError) as err:
-        alg_gen.generate(None, None)
-    assert "not yet implemented - #1555" in str(err.value)
+        alg_gen.generate(None, "gocean1.0")
+    assert ("Algorithm generation from kernel metadata is not yet implemented "
+            "for API 'gocean1.0'" in str(err.value))
+
+
+def test_generate_dynamo0p3(monkeypatch):
+    '''
+    Check that calling :py:func:`psyclone.alg_gen.generate` for the dynamo0.3
+    API results in the appropriate, LFRic-specific `generate` being called.
+    '''
+    from psyclone.domain.lfric.algorithm import alg_gen
+
+    # Since we really only want to check that the correct method is called,
+    # we monkeypatch it so that it raises an error we can check for.
+    def my_gen(_1, _2):
+        raise NotImplementedError("This is just a test")
+
+    monkeypatch.setattr(alg_gen, "generate", my_gen)
+
+    with pytest.raises(NotImplementedError) as err:
+        alg_gen.generate("does_not_exist", "dynamo0.3")
+    assert "This is just a test" in str(err.value)
