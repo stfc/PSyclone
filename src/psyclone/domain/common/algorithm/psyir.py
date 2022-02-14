@@ -206,6 +206,9 @@ class AlgorithmInvokeCall(Call):
         in the symbol table, and we don't want to add anything related
         to the lower level PSyIR to the symbol table before lowering.
 
+        :raises InternalError: if no Routine or Container is found in \
+            the PSyIR tree contains this node.
+
         '''
         if not self._psylayer_routine_root_name:
             self._psylayer_routine_root_name = self._def_routine_root_name()
@@ -226,6 +229,10 @@ class AlgorithmInvokeCall(Call):
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
         node.
+
+        :raises InternalError: if an invoke symbol is not found in any \
+            symbol tables attached to nodes that are ancestors if this \
+            node.
 
         '''
         self.create_psylayer_symbol_root_names()
