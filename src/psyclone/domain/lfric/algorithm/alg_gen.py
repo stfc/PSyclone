@@ -42,7 +42,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
@@ -328,16 +328,15 @@ def construct_kernel_args(prog, kern):
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
+    const = LFRicConstants()
     # Construct a list of the names of the function spaces that the field
-    # argument(s) are on.
+    # argument(s) are on. We use LFRicConstants.specific_function_space() to
+    # ensure that any 'wildcard' names in the meta-data are converted to
+    # an appropriate, specific function space.
     function_spaces = []
     for fspace in kern.arguments.unique_fss:
         name = fspace.orig_name.lower()
-        if name == "any_w2":
-            # ANY_W2 means 'any W2 space' - it is not in and of itself
-            # a valid function space so change it to W2.
-            name = "w2"
-        function_spaces.append(name)
+        function_spaces.append(const.specific_function_space(name))
     create_function_spaces(prog, set(function_spaces))
 
     # Construct the argument list and add suitable symbols to the table.
