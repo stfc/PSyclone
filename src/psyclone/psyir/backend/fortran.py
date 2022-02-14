@@ -1051,7 +1051,6 @@ class FortranWriter(LanguageWriter):
             exec_statements += self._visit(child)
         result += (
             f"{imports}"
-            f"{self._nindent}implicit none\n"
             f"{declarations}\n"
             f"{exec_statements}\n")
 
