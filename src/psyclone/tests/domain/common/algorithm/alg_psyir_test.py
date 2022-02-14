@@ -555,6 +555,63 @@ def test_aic_lowertolanguagelevel_multi_invoke():
     assert call2.routine.interface.container_symbol.name == "psy_alg1_1"
 
 
+def test_aic_lowertolanguagelevel_invoke_symbols():
+    '''Check that the lower_to_language_level method removes the
+    appropriate invoke symbols when these symbols are within symbol
+    tables that are connected to different parts of the PSyIR tree,
+    including where the nodes are ancestors of each other.
+
+    '''
+    code = (
+        "module mod1\n"
+        "contains\n"
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern1\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern1(field))\n"
+        "end subroutine alg1\n"
+        "subroutine alg2()\n"
+        "  use kern_mod, only : kern2\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern2(field))\n"
+        "end subroutine alg2\n"
+        "end module\n")
+
+    psyir = create_alg_psyir(code)
+    # Add an invoke symbol to the module (Container node)
+    container = psyir.children[0]
+    assert isinstance(container, Container)
+    container.symbol_table.add(RoutineSymbol("invoke"))
+
+    invoke1 = container.children[0][0]
+    assert isinstance(invoke1, AlgorithmInvokeCall)
+    invoke2 = container.children[1][0]
+    assert isinstance(invoke2, AlgorithmInvokeCall)
+
+    assert invoke1.scope.symbol_table.lookup(
+        "invoke", scope_limit=invoke1.scope)
+    assert invoke2.scope.symbol_table.lookup(
+        "invoke", scope_limit=invoke2.scope)
+
+    psyir.lower_to_language_level()
+
+    call1 = container.children[0][0]
+    call2 = container.children[1][0]
+    with pytest.raises(KeyError) as info:
+        assert call1.scope.symbol_table.lookup(
+            "invoke", scope_limit=call1.scope)
+    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
+    with pytest.raises(KeyError) as info:
+        assert call2.scope.symbol_table.lookup(
+            "invoke", scope_limit=call2.scope)
+    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
+
+    container = psyir.children[0]
+    assert container.symbol_table.lookup("invoke")
+
+
 def test_kernelfunctor():
     '''Check that an instance of KernelFunctor class can be created. Also
     check that the symbol method works as expected.
