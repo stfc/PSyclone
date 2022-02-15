@@ -144,3 +144,18 @@ def test_initialise_field(fortran_writer):
         alg_gen.initialise_field(prog, sym, "w2")
     assert ("Expected a field symbol to either be of ArrayType or have a type "
             "specified by a DataTypeSymbol but found Scalar" in str(err.value))
+
+
+def test_initialise_quadrature():
+    ''' The the initialise_quadrature function. '''
+    prog = Routine("quad_prog", is_program=True)
+    table = prog.symbol_table
+    quad_container = table.new_symbol(
+        "quadrature_xyoz_mod", symbol_type=ContainerSymbol)
+    quad_type = table.new_symbol(
+        "quadrature_xyoz_type", symbol_type=DataTypeSymbol,
+        datatype=DeferredType(), interface=ImportInterface(quad_container))
+    sym = table.new_symbol(rule.psy_name, symbol_type=DataSymbol,
+                           datatype=quad_type)
+
+    alg_gen.initialise_quadrature(prog, sym, "gh_quadrature_xyoz")

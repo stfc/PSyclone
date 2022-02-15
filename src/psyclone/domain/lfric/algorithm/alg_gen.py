@@ -299,9 +299,9 @@ def initialise_quadrature(prog, qr_sym, shape):
     quadrature to the supplied routine.
 
     :param prog: the routine to which to add suitable declarations etc.
-    :type prog:
+    :type prog: :py:class:`psyclone.psyir.nodes.Routine`
     :param qr_sym: the symbol representing a quadrature object.
-    :type qr_sym:
+    :type qr_sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param str shape: the shape of the quadrature.
 
     '''
