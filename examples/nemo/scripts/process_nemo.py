@@ -67,7 +67,7 @@ PROFILE_ONLY = ["bdyini.f90", "bdydta.f90", "bdyvol.f90",
                 "iceforcing.f90",
                 "iceistate.f90",
                 "icethd_ent.f90", "icethd_zdf.f90",
-                "icethd_dh.f90", "iom.f90", "iom_nf90.f90"
+                "icethd_dh.f90", "iom.f90", "iom_nf90.f90",
                 "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
                 "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                 "obs_surf_def.f90", "obs_read_prof.f90", "obs_read_surf.f90",
