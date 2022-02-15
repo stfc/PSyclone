@@ -40,7 +40,9 @@ import pytest
 from psyclone.domain.lfric.algorithm import alg_gen
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import ContainerSymbol
+from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
+                                    DataTypeSymbol, ImportInterface, ArrayType,
+                                    ScalarType)
 
 
 def test_create_alg_driver_wrong_arg_type():
@@ -111,3 +113,34 @@ def test_create_function_spaces(fortran_writer):
         assert (f"vector_space_{space} = function_space_type(mesh, "
                 f"element_order, {space}, ndata_sz)" in gen)
         assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
+
+
+def test_initialise_field(fortran_writer):
+    ''' Test that the initialise_field() function works as expected for both
+    individual fields and field vectors. '''
+    prog = Routine("my_test", is_program=True)
+    table = prog.symbol_table
+    fmod = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
+    ftype = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                             datatype=DeferredType(),
+                             interface=ImportInterface(fmod))
+    # First - a single field argument.
+    sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
+    alg_gen.initialise_field(prog, sym, "w3")
+    gen = fortran_writer(prog)
+    assert ("CALL field1 % initialise(vector_space = vector_space_w3_ptr, "
+            "name = 'field1')" in gen)
+    # Second - a field vector.
+    dtype = ArrayType(ftype, [3])
+    sym = table.new_symbol("fieldv2", symbol_type=DataSymbol, datatype=dtype)
+    alg_gen.initialise_field(prog, sym, "w2")
+    gen = fortran_writer(prog)
+    for idx in range(1, 4):
+        assert (f"CALL fieldv2({idx}) % initialise(vector_space = "
+                f"vector_space_w2_ptr, name = 'fieldv2')" in gen)
+    # Third - invalid type.
+    sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    with pytest.raises(InternalError) as err:
+        alg_gen.initialise_field(prog, sym, "w2")
+    assert ("Expected a field symbol to either be of ArrayType or have a type "
+            "specified by a DataTypeSymbol but found Scalar" in str(err.value))
