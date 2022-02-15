@@ -440,13 +440,7 @@ def main(args):
     except Exception:  # pylint: disable=broad-except
         print("Error, unexpected exception, please report to the authors:",
               file=sys.stderr)
-        exc_type, exc_value, exc_tb = sys.exc_info()
-        print("Description ...", file=sys.stderr)
-        print(exc_value, file=sys.stderr)
-        print("Type ...", file=sys.stderr)
-        print(exc_type, file=sys.stderr)
-        print("Stacktrace ...", file=sys.stderr)
-        traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
+        traceback.print_exception(*sys.exc_info(), file=sys.stderr)
         sys.exit(1)
     if args.limit != 'off':
         # Limit the line length of the output Fortran to ensure it conforms

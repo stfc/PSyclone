@@ -292,7 +292,8 @@ class AlgorithmInvokeCall(Call):
             else:
                 symbol_table = symbol_table.parent_symbol_table()
             try:
-                invoke_symbol = symbol_table.lookup("invoke")
+                invoke_symbol = symbol_table.lookup(
+                    "invoke", scope_limit=symbol_table.node)
             except KeyError:
                 continue
             invokes = list(symbol_table.node.walk(AlgorithmInvokeCall))

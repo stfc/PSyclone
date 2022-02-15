@@ -47,10 +47,10 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
-    BinaryOperation, Container
+    BinaryOperation, Container, Loop, Literal
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, Symbol, REAL_TYPE
+    StructureType, Symbol, REAL_TYPE, DataSymbol, INTEGER_TYPE
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError
@@ -610,6 +610,34 @@ def test_aic_lowertolanguagelevel_invoke_symbols():
 
     container = psyir.children[0]
     assert container.symbol_table.lookup("invoke")
+
+
+def test_aic_lowertolanguagelevel_invoke_symbols_scope():
+    '''Check that the lower_to_language_level method removes the
+    appropriate invoke symbol when it is in a different scope to the
+    invoke call.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg\n")
+    psyir = create_alg_psyir(code)
+    # Move the invoke so the invoke symbol is in a different scope to
+    # the invoke call.
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    symbol = invoke.scope.symbol_table.new_symbol(
+        root_name="i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    loop = Loop.create(
+        symbol, Literal("0", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+        Literal("1", INTEGER_TYPE), [invoke.detach()])
+    psyir.children[0].children.append(loop)
+
+    psyir.lower_to_language_level()
 
 
 def test_kernelfunctor():
