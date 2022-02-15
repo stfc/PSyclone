@@ -38,6 +38,8 @@
 import pytest
 
 from psyclone.domain.lfric.algorithm import alg_gen
+from psyclone.psyir.nodes import Routine
+from psyclone.psyir.symbols import ContainerSymbol
 
 
 def test_create_alg_driver_wrong_arg_type():
@@ -52,3 +54,27 @@ def test_create_alg_driver_wrong_arg_type():
         alg_gen._create_alg_driver("my_test", "5")
     assert ("Supplied number of vertical levels must be an int but got "
             "'str'" in str(err.value))
+
+
+def test_create_alg_driver(fortran_writer):
+    ''' Test the correct operation of _create_alg_driver(). '''
+    psyir = alg_gen._create_alg_driver("my_prog", 8)
+    assert isinstance(psyir, Routine)
+    assert psyir.symbol_table.lookup("r_def")
+    # TODO #284 ideally we'd test that the generated code compiles.
+    gen = fortran_writer(psyir)
+    assert "program my_prog" in gen
+    assert "uniform_extrusion_type(0.0_r_def, 100.0_r_def, 8)" in gen
+
+
+def test_create_function_spaces_no_spaces(fortran_writer):
+    ''' Check that a Routine is populated as expected, even when there
+    are no actual function spaces. '''
+    prog = Routine("my_test", is_program=True)
+    prog.symbol_table.new_symbol("fs_continuity_mod",
+                                 symbol_type=ContainerSymbol)
+    alg_gen._create_function_spaces(prog, [])
+    assert prog.symbol_table.lookup("element_order")
+    assert prog.symbol_table.lookup("ndata_sz")
+    gen = fortran_writer(prog)
+    assert f"ndata_sz = {alg_gen.NDATA_SIZE}" in gen

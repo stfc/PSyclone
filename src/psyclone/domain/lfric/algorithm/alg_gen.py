@@ -194,7 +194,7 @@ END PROGRAM {name}
     return prog
 
 
-def create_function_spaces(prog, fspaces):
+def _create_function_spaces(prog, fspaces):
     '''
     Adds PSyIR to the supplied Routine that declares and intialises the
     specified function spaces. The order of these spaces is set by the
@@ -346,7 +346,7 @@ def construct_kernel_args(prog, kern):
     for fspace in kern.arguments.unique_fss:
         name = fspace.orig_name.lower()
         function_spaces.append(const.specific_function_space(name))
-    create_function_spaces(prog, set(function_spaces))
+    _create_function_spaces(prog, set(function_spaces))
 
     # Construct the argument list and add suitable symbols to the table.
     kern_args = KernCallInvokeArgList(kern, prog.symbol_table)
