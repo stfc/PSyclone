@@ -206,6 +206,8 @@ def _create_function_spaces(prog, fspaces):
     :param fspaces: the names of the required function spaces.
     :type fspaces: list[str]
 
+    :raises InternalError: if a function space is supplied that is not a \
+                           recognised LFRic function space.
     '''
     table = prog.symbol_table
 
@@ -223,7 +225,15 @@ def _create_function_spaces(prog, fspaces):
                                     Literal(NDATA_SIZE, INTEGER_TYPE)))
 
     # Initialise the function spaces required by the kernel arguments.
+    const = LFRicConstants()
+
     for space in fspaces:
+
+        if space.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
+            raise InternalError(
+                f"Function space '{space}' is not a valid LFRic function "
+                f"space (one of {const.VALID_FUNCTION_SPACE_NAMES})")
+
         table.new_symbol(f"{space}", tag=f"{space}", symbol_type=DataSymbol,
                          datatype=DeferredType(),
                          interface=ImportInterface(

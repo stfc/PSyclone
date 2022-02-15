@@ -38,6 +38,7 @@
 import pytest
 
 from psyclone.domain.lfric.algorithm import alg_gen
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import ContainerSymbol
 
@@ -78,3 +79,35 @@ def test_create_function_spaces_no_spaces(fortran_writer):
     assert prog.symbol_table.lookup("ndata_sz")
     gen = fortran_writer(prog)
     assert f"ndata_sz = {alg_gen.NDATA_SIZE}" in gen
+
+
+def test_create_function_spaces_invalid_space():
+    ''' Check that the expected error is raised if an invalid function-space
+    name is supplied. '''
+    prog = Routine("my_test", is_program=True)
+    prog.symbol_table.new_symbol("fs_continuity_mod",
+                                 symbol_type=ContainerSymbol)
+    with pytest.raises(InternalError) as err:
+        alg_gen._create_function_spaces(prog, ["w3", "wwrong", "w1"])
+    assert ("Function space 'wwrong' is not a valid LFRic function space "
+            "(one of [" in str(err.value))
+
+
+def test_create_function_spaces(fortran_writer):
+    ''' Check that a Routine is populated correctly when valid function-space
+    names are supplied. '''
+    prog = Routine("my_test", is_program=True)
+    fs_mod_sym = prog.symbol_table.new_symbol("fs_continuity_mod",
+                                              symbol_type=ContainerSymbol)
+    alg_gen._create_function_spaces(prog, ["w3", "w1"])
+    gen = fortran_writer(prog)
+    for space in ["w1", "w3"]:
+        sym = prog.symbol_table.lookup(space)
+        assert sym.interface.container_symbol is fs_mod_sym
+        assert (f"TYPE(function_space_type), TARGET :: vector_space_{space}"
+                in gen)
+        assert (f"TYPE(function_space_type), POINTER :: "
+                f"vector_space_{space}_ptr" in gen)
+        assert (f"vector_space_{space} = function_space_type(mesh, "
+                f"element_order, {space}, ndata_sz)" in gen)
+        assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
