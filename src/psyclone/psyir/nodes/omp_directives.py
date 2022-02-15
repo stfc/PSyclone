@@ -55,6 +55,7 @@ from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
 from psyclone.psyir.nodes.schedule import Schedule
@@ -150,6 +151,24 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         '''
         # pylint: disable=no-self-use
         return "omp declare target"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this directive is not the first statement \
+            in a routine.
+
+        '''
+        if self.parent and (not isinstance(self.parent, Routine) or
+                            self.parent.children[0] is not self):
+            raise GenerationError(
+                f"A OMPDeclareTargetDirective can only be found as a child 0 "
+                f"of a Routine. But found as child {self.position} of a "
+                f"{type(self.parent).__name__}.")
+
+        super().validate_global_constraints()
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
