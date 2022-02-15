@@ -44,11 +44,13 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
     OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
@@ -208,14 +210,14 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared), private(i,j)\n" +
-        f"      !$omp master\n" +
-        f"      !$omp taskloop{clauses}\n" +
+        f"    !$omp parallel default(shared), private(i,j)\n"
+        f"      !$omp master\n"
+        f"      !$omp taskloop{clauses}\n"
         f"      DO" in code)
     assert (
-        "      END DO\n" +
-        "      !$omp end taskloop\n" +
-        "      !$omp end master\n" +
+        "      END DO\n"
+        "      !$omp end taskloop\n"
+        "      !$omp end master\n"
         "      !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
@@ -300,8 +302,55 @@ subroutine my_subroutine()
     assert expected in fortran_writer(sample_psyir)
 
     # If the OMPDeclareTarget directive is already there do not repeat it
+    previous_num_children = len(routine.children)
     ompdeclaretargettrans.apply(routine)
-    assert expected in fortran_writer(sample_psyir)
+    assert previous_num_children == len(routine.children)
+
+
+def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
+    ''' Test that the ompdelcaretarget is not added if there is any global
+    symbol'''
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    routine = sample_psyir.walk(Routine)[0]
+    ref1 = sample_psyir.walk(Reference)[0]
+
+    # Symbol not defined in the symbol table will be considered global
+    ref1.symbol = DataSymbol("new_symbol", INTEGER_TYPE)
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
+            "'new_symbol') that are not captured in the PSyIR Symbol "
+            "Table(s) within Routine scope. Cannot transform such a kernel."
+            in str(err.value))
+
+    # If it is local but comes from an import it is also a global
+    routine.symbol_table.add(ref1.symbol)
+    ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("The Symbol Table for kernel 'my_subroutine' contains the "
+            "following symbol(s) with imported interface: ['new_symbol']. "
+            "If these symbols represent data then they must first be "
+            "converted to kernel arguments using the KernelImportsToArguments "
+            "transformation. If the symbols represent external routines then "
+            "PSyclone cannot currently transform this kernel for execution on "
+            "an OpenMP target." in str(err.value))
+
+    # If the symbol is inside a CodeBlock it is also captured
+    reader = FortranStringReader('''
+    subroutine mytest
+        not_declared1 = not_declared1 + not_declared2
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children[0].content[1].content[0].items,
+                      CodeBlock.Structure.EXPRESSION)
+    ref1.replace_with(block)
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
+            "'not_declared1') that are not captured in the PSyIR Symbol "
+            "Table(s) within Routine scope. Cannot transform such a kernel."
+            in str(err.value))
 
 
 def test_omplooptrans_properties():

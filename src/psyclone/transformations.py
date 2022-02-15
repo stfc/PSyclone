@@ -738,7 +738,7 @@ class OMPDeclareTargetTrans(Transformation):
                 f" to kernel arguments using the KernelImportsToArguments "
                 f"transformation. If the symbols represent external "
                 f"routines then PSyclone cannot currently transform this "
-                f"kernel for execution on an OpenACC device (issue #342).")
+                f"kernel for execution on an OpenMP target.")
 
 
 class OMPLoopTrans(ParallelLoopTrans):

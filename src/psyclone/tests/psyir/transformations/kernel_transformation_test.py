@@ -145,6 +145,11 @@ def test_accroutine_to_routine(fortran_writer):
     code = fortran_writer(routine)
     assert "!$acc routine\n" in code
 
+    # Even if applied multiple times the Directive is only there once
+    previous_num_children = len(routine.children)
+    rtrans.apply(routine)
+    assert previous_num_children == len(routine.children)
+
 
 def test_accroutine_empty_kernel(fortran_writer):
     ''' Check that the directive goes at the end of the declarations,
