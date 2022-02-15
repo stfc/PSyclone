@@ -421,8 +421,13 @@ associated with the current coarse cell.)
 Cell iterators: Continuous
 --------------------------
 
+Note that if PSyclone does not know whether a modified field is
+discontinuous or continuous (because e.g. its function space is given
+as ``ANY_SPACE_*`` in kernel metadata) then it must assume it is continuous.
+
 When a kernel is written to iterate over cells and modify a continuous
-field, PSyclone always computes dofs on owned cells and redundantly
+field, PSyclone always (with the exception of ``GH_WRITE`` access -
+see below) computes dofs on owned cells and redundantly
 computes dofs in the level-1 halo (or to depth 2 if the field is on
 the fine mesh of an inter-grid kernel - see :ref:`multigrid`). Users
 can apply a redundant computation transformation to increase the halo
@@ -431,9 +436,11 @@ compute the level-1 halo. The reason for this is to ensure that the
 shared dofs on cells on the edge of the partition (both owned and
 annexed) are always correctly computed. Note that the outermost halo
 dofs are not correctly computed and therefore the outermost halo of
-the modified field is dirty after redundant computation. Also note
-that if we do not know whether a modified field is discontinuous or
-continuous then we must assume it is continuous.
+the modified field is dirty after redundant computation. Since shared
+dofs for a field with ``GH_WRITE`` access are guaranteed to have the
+same, correct value written to them, independent of whether or not
+the current cell 'owns' them, there is no need to perform redundant
+computation in this case.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby
 no redundant computation is performed and partial-sum results are
