@@ -97,14 +97,14 @@ class Config(object):
     _instance = None
 
     # List of supported API by PSyclone
-    _supported_api_list = ["dynamo0.3", "gocean0.1", "gocean1.0", "nemo"]
+    _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
 
     # List of supported stub API by PSyclone
     _supported_stub_api_list = ["dynamo0.3"]
 
     # The default API, i.e. the one to be used if neither a command line
     # option is specified nor is the API in the config file used.
-    _default_api = u"dynamo0.3"
+    _default_api = "dynamo0.3"
 
     # The default scheme to use when (re)naming transformed kernels.
     # By default we support multiple, different versions of any given
@@ -360,11 +360,6 @@ class Config(object):
             if api in self._config:
                 if api == "dynamo0.3":
                     self._api_conf[api] = LFRicConfig(self, self._config[api])
-                elif api == "gocean0.1":
-                    # For now we use the same class as gocean1.0.
-                    # However, we use it to read a different section of the
-                    # config file
-                    self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "nemo":

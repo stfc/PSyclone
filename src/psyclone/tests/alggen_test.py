@@ -37,10 +37,11 @@
 ''' Tests for the algorithm generation (re-writing) as implemented
     in alg_gen.py '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.alg_gen import adduse
+
+from fparser.common.readfortran import FortranStringReader
+from psyclone import alg_gen
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
 from psyclone.errors import InternalError
@@ -187,7 +188,6 @@ def test_multi_function_multi_invokes():
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_1" in gen
     assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_0" in gen
     assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
@@ -200,7 +200,6 @@ def test_multi_function_invoke_qr():
     alg, _ = generate(os.path.join(
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
     assert "USE testkern_mod, ONLY: testkern_type" in gen
     assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
@@ -211,7 +210,6 @@ def test_invoke_argnames():
     alg, _ = generate(os.path.join(
         BASE_PATH, "5_alg_field_array.f90"), api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert "USE single_function_psy, ONLY: invoke_0" in gen
     assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
             "f1(index, index2(index3)), iflag(2), a(index1), "
@@ -250,7 +248,6 @@ def test_deref_derived_type_args():
                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert (
         "CALL invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
         "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
@@ -266,7 +263,6 @@ def test_multi_deref_derived_type_args():
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
     assert (
         "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
         "obj_a % obj_b, obj_b % obj_a)"
@@ -318,8 +314,8 @@ def test_single_stencil_broken():
     path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="dynamo0.3")
-        assert "expected '5' arguments in the algorithm layer but found '4'" \
-               in str(excinfo.value)
+    assert ("expected '5' arguments in the algorithm layer but found '4'"
+            in str(excinfo.value))
 
 
 def test_single_stencil_xory1d():
@@ -328,7 +324,6 @@ def test_single_stencil_xory1d():
     path = os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4, f2_extent, f2_direction)") in output
 
@@ -349,7 +344,6 @@ def test_single_stencil_xory1d_literal():
         BASE_PATH, "19.5_single_stencil_xory1d_literal.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4)") in output
 
@@ -359,7 +353,6 @@ def test_multiple_stencils():
     path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, f2_extent, f3_extent, f3_direction)") in output
 
@@ -370,7 +363,6 @@ def test_multiple_stencil_same_name_direction():
     path = os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
@@ -380,7 +372,6 @@ def test_multiple_kernels_stencils():
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert "USE multiple_stencil_psy, ONLY: invoke_0" in output
     assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
             "f3_direction, direction)") in output
@@ -393,7 +384,6 @@ def test_multiple_stencil_same_name_case():
         BASE_PATH, "19.11_multiple_stencils_mixed_case.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
@@ -404,8 +394,8 @@ def test_single_stencil_xory1d_scalar():
     path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="dynamo0.3")
-        assert ("literal is not a valid value for a stencil direction"
-                in str(excinfo.value))
+    assert ("literal is not a valid value for a stencil direction"
+            in str(excinfo.value))
 
 
 def test_multiple_stencil_same_name():
@@ -413,7 +403,6 @@ def test_multiple_stencil_same_name():
     path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
     output = str(alg)
-    print(output)
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
 
@@ -440,7 +429,6 @@ def get_parse_tree(code, parser):
     :rtype: :py:class:`fparser.two.utils.Base`
 
     '''
-    from fparser.common.readfortran import FortranStringReader
     reader = FortranStringReader(code)
     return parser(reader)
 
@@ -455,7 +443,7 @@ def test_adduse_invalid_location(location):
     '''
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        adduse(location, name)
+        alg_gen.adduse(location, name)
     assert ("Location argument must be a sub-class of fparser.two.utils.Base "
             "but got: " in str(excinfo.value))
 
@@ -470,7 +458,7 @@ def test_adduse_only_names1(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -489,7 +477,7 @@ def test_adduse_only_names2(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -508,7 +496,7 @@ def test_adduse_only_names3(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -522,7 +510,7 @@ def test_adduse_only_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name, only=True)
+    alg_gen.adduse(location, name, only=True)
     assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -536,7 +524,7 @@ def test_adduse_noonly_names(parser):
     parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
-    adduse(location, name, funcnames=["a", "b", "c"])
+    alg_gen.adduse(location, name, funcnames=["a", "b", "c"])
     assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -551,7 +539,7 @@ def test_adduse_onlyfalse_names(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        adduse(location, name, only=False, funcnames=["a", "b", "c"])
+        alg_gen.adduse(location, name, only=False, funcnames=["a", "b", "c"])
     assert ("If the 'funcnames' argument is provided and has content, "
             "then the 'only' argument must not be set to "
             "'False'.") in str(excinfo.value)
@@ -567,7 +555,7 @@ def test_adduse_noonly_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    adduse(location, name)
+    alg_gen.adduse(location, name)
     assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -586,7 +574,7 @@ def test_adduse_noprogparent(parser):
     name = "my_use"
 
     with pytest.raises(GenerationError) as excinfo:
-        adduse(location, name)
+        alg_gen.adduse(location, name)
     assert ("The specified location is invalid as it has no parent in the "
             "parse tree that is a program, module, subroutine or "
             "function.") in str(excinfo.value)
@@ -605,7 +593,7 @@ def test_adduse_unsupportedparent1(parser):
     name = "my_use"
 
     with pytest.raises(NotImplementedError) as excinfo:
-        adduse(location, name)
+        alg_gen.adduse(location, name)
     assert ("Currently support is limited to program, subroutine and "
             "function.") in str(excinfo.value)
 
@@ -625,7 +613,18 @@ def test_adduse_nospec(parser):
     name = "my_use"
 
     with pytest.raises(InternalError) as excinfo:
-        adduse(location, name)
+        alg_gen.adduse(location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
             "('PROGRAM', Name('test'))'.") in str(excinfo.value)
+
+
+def test_generate_notimplemented():
+    '''
+    Check that calling :py:func:`psyclone.alg_gen.generate` raises the
+    expected error. (This function will be implemented as part of #1555.)
+
+    '''
+    with pytest.raises(NotImplementedError) as err:
+        alg_gen.generate(None, None)
+    assert "not yet implemented - #1555" in str(err.value)
