@@ -663,12 +663,13 @@ def trans(psy):
             print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
 
-        # In the lib_fortran file we just annotate each schedule (routine)
-        # with the OpenACC Routine Directive
+        # In the lib_fortran file we annotate each routine that does not
+        # have a Loop or a Call with the OpenACC Routine Directive
         if psy.name == "psy_lib_fortran_psy":
-            print("Transforming routine {0}:".format(invoke.name))
-            ACC_ROUTINE_TRANS.apply(sched)
-            continue
+            if not sched.walk(Loop) and not sched.walk(Call):
+                print(f"Transforming {invoke.name} with acc routine")
+                ACC_ROUTINE_TRANS.apply(sched)
+                continue
 
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
