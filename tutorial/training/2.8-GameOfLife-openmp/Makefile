@@ -12,9 +12,6 @@ OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
 
 .PHONY: allclean clean
 
-INCL=-I$(INF_INC)
-LIBS=-L$(INF_INC) -l_fd
-
 # Limit output to 132 charactere
 PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 		-l output -nodm

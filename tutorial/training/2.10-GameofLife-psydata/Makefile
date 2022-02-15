@@ -26,7 +26,7 @@ PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 		-l output -nodm
 
 $(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LIBS) -o $(EXE)
+	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
 	./$(EXE) config.glider

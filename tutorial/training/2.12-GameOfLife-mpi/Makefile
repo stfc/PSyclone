@@ -2,6 +2,7 @@ EXE = gol
 API = gocean
 
 include ../common.mk
+INF_LIB = $(INF_DIR)/src/lib_dm.a
 
 SRC = gol.f90 read_config_mod.f90 compute_die_mod.f90               \
 	  compute_born_mod.f90 combine_mod.f90 count_neighbours_mod.f90 \

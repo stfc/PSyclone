@@ -7,15 +7,11 @@ SRC = gol.f90 read_config_mod.f90 time_step_mod.f90 compute_die_mod.f90 \
 	  compute_born_mod.f90 combine_mod.f90 count_neighbours_mod.f90     \
 	  output_field_mod.f90
 OBJ = $(SRC:%.f90=%.o)
-LDFLAGS ?=
 
 .PHONY: allclean clean
 
-INCL=-I$(INF_INC)
-LIBS=-L$(INF_INC) -l_fd
-
 $(EXE): $(INF_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LIBS) -o $(EXE)
+	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
 	./$(EXE) config.glider
