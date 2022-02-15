@@ -61,7 +61,7 @@ ELEMENT_ORDER = "1"
 NDATA_SIZE = "20"
 
 
-def create_alg_driver(name, nlayers):
+def _create_alg_driver(name, nlayers):
     '''
     Creates a standalone LFRic program with the necessary infrastructure
     set-up calls contained in a CodeBlock.
@@ -72,7 +72,16 @@ def create_alg_driver(name, nlayers):
     :returns: an LFRic program.
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+    :raises TypeError: if either of the supplied arguments are of the wrong \
+                       type.
     '''
+    if not isinstance(name, str):
+        raise TypeError(f"Supplied program name must be a str but got "
+                        f"'{type(name).__name__}'")
+    if not isinstance(nlayers, int):
+        raise TypeError(f"Supplied number of vertical levels must be an int "
+                        f"but got '{type(nlayers).__name__}'")
+
     prog = Routine(name, is_program=True)
     table = prog.symbol_table
 
@@ -386,7 +395,7 @@ def generate(kernel_path):
     :rtype: str
 
     '''
-    prog = create_alg_driver("lfric_alg", 20)
+    prog = _create_alg_driver("lfric_alg", 20)
     table = prog.symbol_table
 
     # Parse the kernel metadata (this still uses fparser1 as that's what
