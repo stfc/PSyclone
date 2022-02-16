@@ -42,7 +42,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
                                     DataTypeSymbol, ImportInterface, ArrayType,
-                                    ScalarType)
+                                    ScalarType, INTEGER_TYPE)
 
 
 def test_create_alg_driver_wrong_arg_type():
@@ -146,16 +146,49 @@ def test_initialise_field(fortran_writer):
             "specified by a DataTypeSymbol but found Scalar" in str(err.value))
 
 
-def test_initialise_quadrature():
-    ''' The the initialise_quadrature function. '''
+def test_initialise_quadrature(fortran_writer):
+    ''' Tests for the initialise_quadrature function with the supported
+    XYoZ shape. '''
     prog = Routine("quad_prog", is_program=True)
     table = prog.symbol_table
+    table.new_symbol("element_order", tag="element_order",
+                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyoz_mod", symbol_type=ContainerSymbol)
     quad_type = table.new_symbol(
         "quadrature_xyoz_type", symbol_type=DataTypeSymbol,
         datatype=DeferredType(), interface=ImportInterface(quad_container))
-    sym = table.new_symbol(rule.psy_name, symbol_type=DataSymbol,
-                           datatype=quad_type)
+    sym = table.new_symbol("qr", symbol_type=DataSymbol, datatype=quad_type)
 
     alg_gen.initialise_quadrature(prog, sym, "gh_quadrature_xyoz")
+    # Check that new symbols have been added.
+    assert table.lookup("quadrature_rule_gaussian_mod")
+    qtype = table.lookup("quadrature_rule_gaussian_type")
+    qrule = table.lookup("quadrature_rule")
+    assert qrule.datatype is qtype
+    # Check that the constructor is called in the generated code.
+    gen = fortran_writer(prog)
+    assert ("qr = quadrature_xyoz_type(element_order + 3, quadrature_rule)"
+            in gen)
+
+
+def test_initialise_quadrature_unsupported_shape():
+    ''' Test that the initialise_quadrature function raises the expected error
+    for an unsupported quadrature shape. '''
+    prog = Routine("quad_prog", is_program=True)
+    table = prog.symbol_table
+    table.new_symbol("element_order", tag="element_order",
+                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    # Setup symbols that would normally be created in KernCallInvokeArgList.
+    quad_container = table.new_symbol(
+        "quadrature_xyz_mod", symbol_type=ContainerSymbol)
+    quad_type = table.new_symbol(
+        "quadrature_xyz_type", symbol_type=DataTypeSymbol,
+        datatype=DeferredType(), interface=ImportInterface(quad_container))
+    sym = table.new_symbol("qr", symbol_type=DataSymbol, datatype=quad_type)
+
+    with pytest.raises(NotImplementedError) as err:
+        alg_gen.initialise_quadrature(prog, sym, "gh_quadrature_xyz")
+    assert ("Initialisation for quadrature of type 'gh_quadrature_xyz' is "
+            "not yet implemented." in str(err.value))
