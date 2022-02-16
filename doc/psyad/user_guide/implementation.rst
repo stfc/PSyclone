@@ -374,17 +374,20 @@ it must be transformed to its associated adjoint form.
 If an unsupported intrinsic function is found then PSyAD will raise an
 exception.
 
-The only supported intrinsic at this time is ``dot_product``.
+The only supported intrinsics at this time are ``dot_product`` and
+``matmul``.
 
-If a ``dot_product`` intrinsic is found in the tangent-linear code it
-is first transformed into equivalent inline code before the code is
-transformed to its adjoint form. The PSyIR ``DotProduct2CodeTrans``
-transformation is used by PSyAD to perform this transformation. See
-the :ref:`user_guide:available_trans` section of the user guide for
-more information.
+If a ``dot_product`` or ``matmul`` intrinsic is found in the
+tangent-linear code it is first transformed into equivalent inline
+code before the code is transformed to its adjoint form. The PSyIR
+``DotProduct2CodeTrans`` or ``Matmul2CodeTrans`` transformations are
+used to perform these manipulations. See the
+:ref:`user_guide:available_trans` section of the user guide for more
+information on these transformations.
 
-.. note:: At the moment all ``dot_product`` instrinsics are transformed
-	  irrespective of whether they act on active variables or not.
+.. note:: At the moment all ``dot_product`` and ``matmul`` instrinsics
+	  are transformed irrespective of whether they act on active
+	  variables or not.
 
 .. note:: Note, the transformed tangent-linear code can contain new
           variables, some of which might be active. Any such active

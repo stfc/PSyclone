@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 
-'''A python script and python function to generate an empty kernel
-    subroutine with the required arguments and datatypes (which we
-    call a stub) when presented with Kernel Metadata.
+'''Null PSyclone transformation script that only includes an example
+of the 'trans()' function which is required for a valid script file.
 '''
 
 
-if __name__ == "__main__":
+def trans(psy):
+    '''Function to modify the algorithm layer PSyIR. This function is
+    designed to be called by the psyclone script.
 
-    from psyclone.gen_kernel_stub import run
-    run()
+    :param psy: PSyclone's representation of the PSy-layer code.
+    :type psy: :class:py:`psyclone.gocean1p0.GOPSy`
+
+    :returns: modified algorithm-layer code.
+    :rtype: :class:py:`psyclone.gocean1p0.GOPSy`
+
+    '''
+    return psy

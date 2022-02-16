@@ -247,9 +247,6 @@ class KernelTypeFactory(object):
         if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)
-        if self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOKernelType
-            return GOKernelType(parse_tree, name=name)
         if self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(parse_tree, name=name)

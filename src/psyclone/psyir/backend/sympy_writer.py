@@ -58,7 +58,7 @@ class SymPyWriter(FortranWriter):
     expects to be Max).
     It additionally supports accesses to structure types. A full description
     can be found in the manual:
-    https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
+    https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
 
     :param type_map: Optional initial mapping that contains the SymPy data \
         type of each reference in the expressions. This is the result of the \
@@ -141,7 +141,7 @@ class SymPyWriter(FortranWriter):
         It takes care of all Fortran specific conversion required (e.g.
         constants with kind specification, ...), including the renaming of
         member accesses, as described in
-        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#internal-details
+        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
 
         :param list_of_expressions: the list of expressions which are to be \
             converted into SymPy-parsable strings.

@@ -217,8 +217,6 @@ class PSyFactory(object):
         # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOPSy as PSyClass
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy as PSyClass
         elif self._type == "nemo":
@@ -2581,9 +2579,8 @@ class Argument(object):
     def argument_type(self):
         '''
         Returns the type of the argument. APIs that do not have this
-        concept (such as GOcean0.1) can use this base class version
-        which just returns "field" in all cases. APIs with this
-        concept can override this method.
+        concept can use this base class version which just returns "field"
+        in all cases. APIs with this concept can override this method.
 
         :returns: the API type of the kernel argument.
         :rtype: str

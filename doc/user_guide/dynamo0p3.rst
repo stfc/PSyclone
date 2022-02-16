@@ -51,14 +51,8 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core (see :ref:`introduction`). The Met Office
-Collaboration Wiki (login required) provides more detailed information
-about the dynamical core's `formulation
-<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_formulation.pdf>`_
-and `data model
-<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
-
-The GungHo dynamical core with atmospheric physics parameterisation
+based GungHo dynamical core (see :ref:`introduction`).
+This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
 The LFRic repository and the associated wiki are hosted at the `Met Office
@@ -66,7 +60,9 @@ Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
 The code is BSD-licensed, however browsing the `LFRic wiki
 <https://code.metoffice.gov.uk/trac/lfric/wiki>`_ and
 `code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_
-requires login access to MOSRS.
+requires login access to MOSRS. For more technical details on the
+implementation of LFRic, please see the `LFRic documentation
+<https://code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf>`_.
 
 .. _dynamo0.3-api-algorithm:
 
