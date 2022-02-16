@@ -61,7 +61,7 @@ def test_preprocess_no_change():
     assert result == code
 
 
-def test_preprocess_dotproduct(tmpdir):
+def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
     '''Test that the preprocess script replaces a dotproduct with
     equivalent code.
 
@@ -84,10 +84,48 @@ def test_preprocess_dotproduct(tmpdir):
         "  enddo\n"
         "  a = res_dot_product\n\n"
         "end program test\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir)
-    writer = FortranWriter()
-    result = writer(psyir)
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
+    '''Test that the preprocess script replaces a matmul with equivalent
+    code. Mix with a dot_product to make sure both get transformed.
+
+    '''
+    code = (
+        "program test\n"
+        "real :: a, b(10), c(10), d(10,10)\n"
+        "b = matmul(d,c)\n"
+        "a = dot_product(b(:), c(:))\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  real :: a\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n"
+        "  real, dimension(10,10) :: d\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: i_1\n"
+        "  real :: res_dot_product\n\n"
+        "  do i = 1, 10, 1\n"
+        "    b(i) = 0.0\n"
+        "    do j = 1, 10, 1\n"
+        "      b(i) = b(i) + d(i,j) * c(j)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  res_dot_product = 0.0\n"
+        "  do i_1 = 1, 10, 1\n"
+        "    res_dot_product = res_dot_product + b(i_1) * c(i_1)\n"
+        "  enddo\n"
+        "  a = res_dot_product\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir)
+    result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
