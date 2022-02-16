@@ -392,6 +392,30 @@ def test_aic_lowertolanguagelevel_error():
             in str(info.value))
 
 
+def test_aic_lowertolanguagelevel_error2():
+    '''Check that the lower_to_language_level method raises the expected
+    exception when no invoke symbol is found in the PSyIR.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+    symbol_table = invoke.scope.symbol_table
+    invoke_symbol = symbol_table.lookup("invoke")
+    symbol_table.remove(invoke_symbol)
+
+    with pytest.raises(InternalError) as info:
+        invoke.lower_to_language_level()
+    assert "No invoke symbol found." in str(info.value)
+
+
 def test_aic_lowertolanguagelevel_expr():
     '''Check that the lower_to_language_level method deals correctly with
     simple associative expresssions, i.e. i+1 is the same as 1+i.

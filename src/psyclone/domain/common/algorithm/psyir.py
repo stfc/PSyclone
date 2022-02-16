@@ -301,7 +301,7 @@ class AlgorithmInvokeCall(Call):
                 symbol_table.remove(invoke_symbol)
             break
         else:
-            raise InternalError("No invoke symbol found")
+            raise InternalError("No invoke symbol found.")
 
 
 class KernelFunctor(Reference):
