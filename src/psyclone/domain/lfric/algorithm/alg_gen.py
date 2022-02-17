@@ -43,15 +43,18 @@ from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
+from psyclone.domain.lfric.algorithm import (
+    LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Routine, CodeBlock, Call, Assignment,
-                                  Reference, Literal)
+from psyclone.psyir.nodes import (Routine, CodeBlock, Assignment, Reference,
+                                  ArrayReference, Literal)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE)
+    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, Symbol,
+    ScalarType)
 
 
 # The order of the finite-element scheme that will be used by any generated
@@ -388,13 +391,13 @@ def create_invoke_call(call_list):
     :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
     '''
-    invoke_args = []
-    for call in call_list:
-        reader = FortranStringReader(
-            f"{call[0]}({','.join(call[1])})")
-        ptree = Fortran2003.Structure_Constructor(reader)
-        invoke_args.append(CodeBlock([ptree], CodeBlock.Structure.EXPRESSION))
-    return Call.create(RoutineSymbol("invoke"), invoke_args)
+    #invoke_args = []
+    #for call in call_list:
+    #    reader = FortranStringReader(
+    #        f"{call[0]}({','.join(call[1])})")
+    #    ptree = Fortran2003.Structure_Constructor(reader)
+    #    invoke_args.append(CodeBlock([ptree], CodeBlock.Structure.EXPRESSION))
+    #return Call.create(RoutineSymbol("invoke"), invoke_args)
 
 
 def generate(kernel_path):
@@ -441,15 +444,27 @@ def generate(kernel_path):
                                         Literal("0", INTEGER_TYPE)))
 
     # We use the setval_c builtin to initialise all fields to zero.
+    setval_c = table.new_symbol("setval_c", symbol_type=DataTypeSymbol)
+    rdef = table.lookup("r_def")
+    rdef_type = ScalarType(Symbol.Datatype.REAL, rdef)
     kernel_list = []
     for sym, space in kern_args.fields:
         if isinstance(sym.datatype, DataTypeSymbol):
-            kernel_list.append(("setval_c", [sym.name, "0.0_r_def"]))
+            kernel_list.append(
+                LFRicBuiltinFunctor.create(setval_c,
+                                           [Reference(sym),
+                                            Literal("0.0", rdef_type)]))
+            #kernel_list.append(("setval_c", [sym.name, "0.0_r_def"]))
         elif isinstance(sym.datatype, ArrayType):
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                kernel_list.append(("setval_c", [f"{sym.name}({dim})",
-                                                 "0.0_r_def"]))
+                ref = ArrayReference.create(sym, [Literal(dim, INTEGER_TYPE)])
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(setval_c, [ref,
+                                                          Literal("0.0",
+                                                                  rdef_type)]))
+                #kernel_list.append(("setval_c", [f"{sym.name}({dim})",
+                #                                 "0.0_r_def"]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -457,9 +472,13 @@ def generate(kernel_path):
                 f"{sym.datatype} for field '{sym.name}'")
 
     # Finally, add the kernel itself to the list for the invoke().
+    LFRicKernelFunctor.create(kernel_routine, [TODO])
     kernel_list.append((kernel_routine.name, kern_args.arglist))
 
     # Create the 'call invoke(...)' for the list of kernels.
-    prog.addchild(create_invoke_call(kernel_list))
+    #prog.addchild(create_invoke_call(kernel_list))
+
+    invoke_sym = prog.table.new_symbol("invoke", symbol_type=RoutineSymbol)
+    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, args, 0))
 
     return FortranWriter()(prog)

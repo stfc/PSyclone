@@ -37,12 +37,22 @@
 
 import pytest
 
+from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.domain.lfric.algorithm import alg_gen
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
                                     DataTypeSymbol, ImportInterface, ArrayType,
                                     ScalarType, INTEGER_TYPE)
+
+
+@pytest.fixture(name="prog", scope="function")
+def create_prog_fixture():
+    '''
+    :returns: a PSyIR Routine node representing a program.
+    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+    '''
+    return Routine("test_prog", is_program=True)
 
 
 def test_create_alg_driver_wrong_arg_type():
@@ -70,10 +80,9 @@ def test_create_alg_driver(fortran_writer):
     assert "uniform_extrusion_type(0.0_r_def, 100.0_r_def, 8)" in gen
 
 
-def test_create_function_spaces_no_spaces(fortran_writer):
+def test_create_function_spaces_no_spaces(prog, fortran_writer):
     ''' Check that a Routine is populated as expected, even when there
     are no actual function spaces. '''
-    prog = Routine("my_test", is_program=True)
     prog.symbol_table.new_symbol("fs_continuity_mod",
                                  symbol_type=ContainerSymbol)
     alg_gen._create_function_spaces(prog, [])
@@ -83,10 +92,9 @@ def test_create_function_spaces_no_spaces(fortran_writer):
     assert f"ndata_sz = {alg_gen.NDATA_SIZE}" in gen
 
 
-def test_create_function_spaces_invalid_space():
+def test_create_function_spaces_invalid_space(prog):
     ''' Check that the expected error is raised if an invalid function-space
     name is supplied. '''
-    prog = Routine("my_test", is_program=True)
     prog.symbol_table.new_symbol("fs_continuity_mod",
                                  symbol_type=ContainerSymbol)
     with pytest.raises(InternalError) as err:
@@ -95,10 +103,9 @@ def test_create_function_spaces_invalid_space():
             "(one of [" in str(err.value))
 
 
-def test_create_function_spaces(fortran_writer):
+def test_create_function_spaces(prog, fortran_writer):
     ''' Check that a Routine is populated correctly when valid function-space
     names are supplied. '''
-    prog = Routine("my_test", is_program=True)
     fs_mod_sym = prog.symbol_table.new_symbol("fs_continuity_mod",
                                               symbol_type=ContainerSymbol)
     alg_gen._create_function_spaces(prog, ["w3", "w1"])
@@ -115,10 +122,9 @@ def test_create_function_spaces(fortran_writer):
         assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
 
 
-def test_initialise_field(fortran_writer):
+def test_initialise_field(prog, fortran_writer):
     ''' Test that the initialise_field() function works as expected for both
     individual fields and field vectors. '''
-    prog = Routine("my_test", is_program=True)
     table = prog.symbol_table
     fmod = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
     ftype = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -146,10 +152,9 @@ def test_initialise_field(fortran_writer):
             "specified by a DataTypeSymbol but found Scalar" in str(err.value))
 
 
-def test_initialise_quadrature(fortran_writer):
+def test_initialise_quadrature(prog, fortran_writer):
     ''' Tests for the initialise_quadrature function with the supported
     XYoZ shape. '''
-    prog = Routine("quad_prog", is_program=True)
     table = prog.symbol_table
     table.new_symbol("element_order", tag="element_order",
                      symbol_type=DataSymbol, datatype=INTEGER_TYPE)
@@ -173,10 +178,9 @@ def test_initialise_quadrature(fortran_writer):
             in gen)
 
 
-def test_initialise_quadrature_unsupported_shape():
+def test_initialise_quadrature_unsupported_shape(prog):
     ''' Test that the initialise_quadrature function raises the expected error
     for an unsupported quadrature shape. '''
-    prog = Routine("quad_prog", is_program=True)
     table = prog.symbol_table
     table.new_symbol("element_order", tag="element_order",
                      symbol_type=DataSymbol, datatype=INTEGER_TYPE)
@@ -192,3 +196,40 @@ def test_initialise_quadrature_unsupported_shape():
         alg_gen.initialise_quadrature(prog, sym, "gh_quadrature_xyz")
     assert ("Initialisation for quadrature of type 'gh_quadrature_xyz' is "
             "not yet implemented." in str(err.value))
+
+
+def test_construct_kernel_args(prog, dynkern, fortran_writer):
+    ''' Tests for the construct_kernel_args() function. Since this function
+    primarily calls _create_function_spaces(), initialise_field(),
+    KernCallInvokeArgList.generate() and initialise_quadrature(), all of which
+    have their own tests, there isn't a lot to test here. '''
+    prog.symbol_table.new_symbol("fs_continuity_mod",
+                                 symbol_type=ContainerSymbol)
+    field_mod = prog.symbol_table.new_symbol("field_mod",
+                                             symbol_type=ContainerSymbol)
+    prog.symbol_table.new_symbol("r_def", symbol_type=DataSymbol,
+                                 datatype=INTEGER_TYPE)
+    prog.symbol_table.new_symbol("i_def", symbol_type=DataSymbol,
+                                 datatype=INTEGER_TYPE)
+    prog.symbol_table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                                 datatype=DeferredType(),
+                                 interface=ImportInterface(field_mod))
+    kargs = alg_gen.construct_kernel_args(prog, dynkern)
+
+    assert isinstance(kargs, KernCallInvokeArgList)
+    gen = fortran_writer(prog)
+    spaces = ["w0", "w1", "w2", "w3", "wtheta"]
+    assert f"use fs_continuity_mod, only : {', '.join(spaces)}" in gen
+    for space in spaces:
+        assert (f"vector_space_{space} = function_space_type(mesh, "
+                f"element_order, {space}, ndata_sz)" in gen)
+        assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
+    for idx in range(2, 7):
+        assert f"CALL field_{idx}" in gen
+    assert ("qr_xyoz = quadrature_xyoz_type(element_order + 3, "
+            "quadrature_rule)" in gen)
+    # TODO #240 - test for compilation.
+
+
+def test_create_invoke_call():
+    ''' '''
