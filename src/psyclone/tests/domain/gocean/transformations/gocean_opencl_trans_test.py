@@ -182,8 +182,8 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
     otrans.apply(sched)
     generated_code = fortran_writer(sched).lower()
 
-    assert ("use fortcl, only : get_cmd_queues, get_kernel_by_name, "
-            "get_num_cmd_queues" in generated_code)
+    assert ("use fortcl, only : get_cmd_queues, get_kernel_by_name"
+            in generated_code)
     assert "use clfortran" in generated_code
     assert "use iso_c_binding" in generated_code
 
@@ -214,7 +214,6 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
     assert "integer :: ierr" in generated_code
     assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
             in generated_code)
-    assert "integer :: num_cmd_queues" in generated_code
 
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -247,48 +246,48 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     assert "integer :: ierr" in generated_code
     assert ("integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"
             in generated_code)
-    assert "integer :: num_cmd_queues" in generated_code
 
     # Test that a conditional 'first_time' code is generated with the
     # expected initialisation statements:
     # - Call psy_init
-    # - Set num_cmd_queues and cmd_queues pointers
+    # - Set cmd_queues pointers
     # - OpenCL kernel setters
     # - Initialization of all OpenCL field buffers
     # - Call set_arg of the kernels (with necessary boundary and cl_mem
     #   buffers initialisation)
     # - Write data into the OpenCL buffers
     expected = '''\
+  ! initialise opencl runtime, kernels and buffers
   if (first_time) then
     call psy_init()
+    cmd_queues => get_cmd_queues()
     kernel_compute_cu_code = get_kernel_by_name('compute_cu_code')
     call initialise_device_buffer(cu_fld)
     call initialise_device_buffer(p_fld)
     call initialise_device_buffer(u_fld)
-  end if
-  num_cmd_queues = get_num_cmd_queues()
-  cmd_queues => get_cmd_queues()
-  xstart = cu_fld%internal%xstart
-  xstop = cu_fld%internal%xstop
-  ystart = cu_fld%internal%ystart
-  ystop = cu_fld%internal%ystop
-  cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
-  p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
-  u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
-  call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
+    ! do a set_args now so subsequent writes place the data appropriately
+    cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+    p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+    u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
+    call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
-  if (first_time) then
-  '''
+    ! write data to the device'''
     assert expected in generated_code
 
+    # The write_to_device() can appear in any order in the following 3 lines
+    lines = generated_code.split('\n')
+    idx = lines.index('    ! write data to the device')
+    candidates = '\n'.join(lines[idx+1:idx+4])
+    assert "call u_fld%write_to_device()" in candidates
+    assert "call cu_fld%write_to_device()" in candidates
+    assert "call p_fld%write_to_device()" in candidates
 
-    # TODO: Search for this 3 lines in any order, since they come from a set
-    # call p_fld%write_to_device()
-    # call u_fld%write_to_device()
-    # call cu_fld%write_to_device()
+    # Just before the end of the subroutine first_time is set to False
+    expected = '''\
+  first_time = .false.
 
-    # Search the final first_time block with:
-    # first_time = .false.
+end subroutine'''
+    assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -370,40 +369,42 @@ c_sizeof(field%grid%area_t(1,1))'''
     # Check that during the first time set-up the previous routines are called
     # for a kernel which contains a grid property access.
     expected = '''
+      xstart = out_fld%internal%xstart
+      xstop = out_fld%internal%xstop
+      ystart = out_fld%internal%ystart
+      ystop = out_fld%internal%ystop
+      ! initialise opencl runtime, kernels and buffers
       if (first_time) then
         call psy_init
+        cmd_queues => get_cmd_queues()
         kernel_compute_kernel_code = get_kernel_by_name('compute_kernel_code')
         call initialise_device_buffer(out_fld)
         call initialise_device_buffer(in_out_fld)
         call initialise_device_buffer(in_fld)
         call initialise_device_buffer(dx)
         call initialise_grid_device_buffers(in_fld)
-      end if
-      num_cmd_queues = get_num_cmd_queues()
-      cmd_queues => get_cmd_queues()
-      xstart = out_fld%internal%xstart
-      xstop = out_fld%internal%xstop
-      ystart = out_fld%internal%ystart
-      ystop = out_fld%internal%ystop
-      out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
-      in_out_fld_cl_mem = \
-transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
-      in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
-      dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
-      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
-      call compute_kernel_code_set_args(kernel_compute_kernel_code, \
+        ! do a set_args now so subsequent writes place the data appropriately
+        out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
+        in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
+        in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
+        dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
+        gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
+        call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
-      if (first_time) then'''
+        ! write data to the device'''
     assert expected in generated_code
 
-    # TODO: Check this statement that can be in any order
-    # call out_fld%write_to_device
-    # call in_out_fld%write_to_device
-    # call in_fld%write_to_device
-    # call dx%write_to_device
-    # call write_grid_buffers(in_fld)
+    # The write_to_device() can appear in any order in the following 5 lines
+    lines = generated_code.split('\n')
+    idx = lines.index('        ! write data to the device')
+    candidates = '\n'.join(lines[idx+1:idx+6])
+    assert "call out_fld%write_to_device" in candidates
+    assert "call in_out_fld%write_to_device" in candidates
+    assert "call in_fld%write_to_device" in candidates
+    assert "call dx%write_to_device" in candidates
+    assert "call write_grid_buffers(in_fld)" in candidates
 
     # TODO 284: Currently this example cannot be compiled because it needs to
     # import a module which won't be found on kernel_outputdir
@@ -695,29 +696,8 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
-    # Set the boundaries for this kernel
-    expected = '''
-      xstart = cu_fld%internal%xstart
-      xstop = cu_fld%internal%xstop
-      ystart = cu_fld%internal%ystart
-      ystop = cu_fld%internal%ystop'''
-
-    # Cast dl_esm_inf pointers to cl_mem handlers
-    #expected += '''
-    #  cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
-    #  p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
-    #  u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
-
-    # Call the set_args subroutine with the boundaries corrected for the
-    # OpenCL 0-indexing
-    # expected += '''
-    #  CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-# cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
-# xstart - 1, xstop - 1, \
-# ystart - 1, ystop - 1)'''
-
     # Set up globalsize and localsize values
-    expected += '''
+    expected = '''
       globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
       localsize = (/64, 1/)'''
 
@@ -736,6 +716,20 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         expected += '''
       ierr = clFinish(cmd_queues(1))
       CALL check_status('Errors before compute_cu_code launch', ierr)'''
+
+    # Cast dl_esm_inf pointers to cl_mem handlers
+    expected += '''
+      cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
+      u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
+
+    # Call the set_args subroutine with the boundaries corrected for the
+    # OpenCL 0-indexing
+    expected += '''
+      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
+xstart - 1, xstop - 1, \
+ystart - 1, ystop - 1)'''
 
     expected += '''
       ! Launch the kernel
@@ -967,7 +961,7 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
       ierr = clFinish(cmd_queues(2))
-      ! Launch the kernel'''
+      p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)'''
 
     haloexbarrier = '''
       ierr = clFinish(cmd_queues(2))
@@ -1164,86 +1158,6 @@ def test_set_arg_const_scalar():
     assert ("Cannot generate OpenCL for Invokes that contain kernel arguments"
             " which are a literal, but found the literal '0' used as an "
             "argument in invoke 'invoke_0_bc_ssh'." in str(err.value))
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_kernel_code_generation():
-    ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
-    the expected OpenCL code. Note this test doesn't prepare the kernel to
-    conform to OpenCL GOcean expected interface, see
-    test_opencl_prepared_kernel_code_generation for that.
-    '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
-    kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
-    kschedule = kernel.get_kernel_schedule()
-
-    expected_code = (
-        "__kernel void compute_cu_code(\n"
-        "  __global double * restrict cu,\n"
-        "  __global double * restrict p,\n"
-        "  __global double * restrict u\n"
-        "  ){\n"
-        "  int cuLEN1 = get_global_size(0);\n"
-        "  int cuLEN2 = get_global_size(1);\n"
-        "  int pLEN1 = get_global_size(0);\n"
-        "  int pLEN2 = get_global_size(1);\n"
-        "  int uLEN1 = get_global_size(0);\n"
-        "  int uLEN2 = get_global_size(1);\n"
-        "  int i = get_global_id(0);\n"
-        "  int j = get_global_id(1);\n"
-        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
-        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
-        "}\n\n"
-        )
-
-    openclwriter = OpenCLWriter()
-    assert expected_code == openclwriter(kschedule)
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_code_generation_with_boundary_mask():
-    ''' Tests that OpenCL kernel generated after applying the
-    GOMoveIterationBoundariesInsideKernelTrans has the 4 boundary values as
-    kernel arguments and has a masking statement at the beginning of the
-    executable code.
-    '''
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
-    kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
-    trans = GOMoveIterationBoundariesInsideKernelTrans()
-    trans.apply(kernel)
-    kschedule = kernel.get_kernel_schedule()
-
-    expected_code = (
-        "__kernel void compute_cu_code(\n"
-        "  __global double * restrict cu,\n"
-        "  __global double * restrict p,\n"
-        "  __global double * restrict u,\n"
-        "  int xstart,\n"
-        "  int xstop,\n"
-        "  int ystart,\n"
-        "  int ystop\n"
-        "  ){\n"
-        "  int cuLEN1 = get_global_size(0);\n"
-        "  int cuLEN2 = get_global_size(1);\n"
-        "  int pLEN1 = get_global_size(0);\n"
-        "  int pLEN2 = get_global_size(1);\n"
-        "  int uLEN1 = get_global_size(0);\n"
-        "  int uLEN2 = get_global_size(1);\n"
-        "  int i = get_global_id(0);\n"
-        "  int j = get_global_id(1);\n"
-        "  if ((((i < xstart) || (i > xstop)) || ((j < ystart) ||"
-        " (j > ystop)))) {\n"
-        "    return;\n"
-        "  }\n"
-        "  cu[i + j * cuLEN1] = ((0.5e0 * (p[(i + 1) + j * pLEN1]"
-        " + p[i + j * pLEN1])) * u[i + j * uLEN1]);\n"
-        "}\n\n"
-        )
-
-    openclwriter = OpenCLWriter()
-    assert expected_code == openclwriter(kschedule)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")

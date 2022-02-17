@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ class GOOpenCLTrans(Transformation):
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
 
-    # TODO #1134: These are class attributes because multiple invokes may have
+    # TODO #1572: These are class attributes because multiple invokes may need
     # to generate a single OpenCL environment (e.g. to share the device data
     # pointers) and therefore guarantee the same properties, but this hasn't
     # been tested. PSycloneBench ShallowWater could be an example of this.
@@ -136,13 +136,13 @@ class GOOpenCLTrans(Transformation):
         if isinstance(node, InvokeSchedule):
             if not isinstance(node, GOInvokeSchedule):
                 raise TransformationError(
-                    "OpenCL generation is currently only supported for the "
-                    "GOcean API but got an InvokeSchedule of type: '{0}'".
-                    format(type(node).__name__))
+                    f"OpenCL generation is currently only supported for the "
+                    f"GOcean API but got an InvokeSchedule of type: "
+                    f"'{type(node).__name__}'")
         else:
             raise TransformationError(
-                "Error in GOOpenCLTrans: the supplied node must be a (sub-"
-                "class of) InvokeSchedule but got {0}".format(type(node)))
+                f"Error in GOOpenCLTrans: the supplied node must be a (sub-"
+                f"class of) InvokeSchedule but got {type(node)}")
 
         # Validate options map
         valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
@@ -151,41 +151,40 @@ class GOOpenCLTrans(Transformation):
                 # All current options should contain boolean values
                 if not isinstance(value, bool):
                     raise TransformationError(
-                        "InvokeSchedule OpenCL option '{0}' "
-                        "should be a boolean.".format(key))
+                        f"InvokeSchedule OpenCL option '{key}' should be a "
+                        f"boolean.")
             else:
                 raise TransformationError(
-                    "InvokeSchedule does not support the OpenCL option '{0}'. "
-                    "The supported options are: {1}."
-                    "".format(key, valid_options))
+                    f"InvokeSchedule does not support the OpenCL option "
+                    f"'{key}'. The supported options are: {valid_options}.")
 
         # Validate that the options are valid with previously generated OpenCL
         if self._transformed_invokes > 0:
             if ('enable_profiling' in options and
                     self._enable_profiling != options['enable_profiling']):
                 raise TransformationError(
-                    "Can't generate an OpenCL Invoke with enable_profiling='"
-                    "{0}' since a previous transformation used a different "
-                    "value, and their OpenCL environments must match."
-                    "".format(options['enable_profiling']))
+                    f"Can't generate an OpenCL Invoke with enable_profiling='"
+                    f"{options['enable_profiling']}' since a previous "
+                    f"transformation used a different value, and their OpenCL"
+                    f" environments must match.")
 
             if ('out_of_order' in options and
                     self._out_of_order != options['out_of_order']):
                 raise TransformationError(
-                    "Can't generate an OpenCL Invoke with out_of_order='{0}' "
-                    "since a previous transformation used a different value, "
-                    "and their OpenCL environments must match."
-                    "".format(options['out_of_order']))
+                    f"Can't generate an OpenCL Invoke with out_of_order='"
+                    f"{options['out_of_order']}' since a previous "
+                    f"transformation used a different value, and their OpenCL "
+                    f"environments must match.")
 
         # Now we need to check that none of the invoke arguments is a literal
         args = args_filter(node.args, arg_types=["scalar"])
         for arg in args:
             if arg.is_literal:
                 raise TransformationError(
-                    "Cannot generate OpenCL for Invokes that contain kernel "
-                    "arguments which are a literal, but found the literal "
-                    "'{0}' used as an argument in invoke '{1}'."
-                    "".format(arg.name, node.name))
+                    f"Cannot generate OpenCL for Invokes that contain kernel "
+                    f"arguments which are a literal, but found the literal "
+                    f"'{arg.name}' used as an argument in invoke "
+                    f"'{node.name}'.")
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
@@ -196,13 +195,13 @@ class GOOpenCLTrans(Transformation):
             global_variables = ksched.symbol_table.imported_symbols
             if global_variables:
                 raise TransformationError(
-                    "The Symbol Table for kernel '{0}' contains the following "
-                    "symbols with 'global' scope: {1}. An OpenCL kernel cannot"
-                    " call other kernels and all of the data it accesses must "
-                    "be passed by argument. Use the KernelImportsToArguments "
-                    "transformation to convert such symbols to kernel "
-                    "arguments first.".
-                    format(kern.name, [sym.name for sym in global_variables]))
+                    f"The Symbol Table for kernel '{kern.name}' contains the "
+                    f"following symbols with 'global' scope: "
+                    f"{[sym.name for sym in global_variables]}. An OpenCL "
+                    f"kernel cannot call other kernels and all of the data it "
+                    f"accesses must be passed by argument. Use the "
+                    f"KernelImportsToArguments transformation to convert such "
+                    f"symbols to kernel arguments first.")
 
         # In OpenCL all kernel loops should iterate the whole grid
         for kernel in node.kernels():
@@ -213,11 +212,11 @@ class GOOpenCLTrans(Transformation):
                     inner_loop.iteration_space == "go_all_pts" and
                     outer_loop.iteration_space == "go_all_pts"):
                 raise TransformationError(
-                    "The kernel '{0}' does not iterate over all grid points. "
-                    "This is a necessary requirement for generating "
-                    "the OpenCL code and can be done by applying the "
-                    "GOMoveIterationBoundariesInsideKernelTrans to each kernel"
-                    " before the GOOpenCLTrans.".format(kernel.name))
+                    f"The kernel '{kernel.name}' does not iterate over all "
+                    f"grid points. This is a necessary requirement for "
+                    f"generating the OpenCL code and can be done by applying "
+                    f"the GOMoveIterationBoundariesInsideKernelTrans to each "
+                    f"kernel before the GOOpenCLTrans.")
 
     def apply(self, node, options=None):
         '''
@@ -255,9 +254,7 @@ class GOOpenCLTrans(Transformation):
         self._transformed_invokes += 1
 
         # Get end_barrier option
-        _end_barrier = True
-        if 'end_barrier' in options:
-            _end_barrier = options['end_barrier']
+        end_barrier = options.get('end_barrier', True)
 
         # Update the maximum value that the queue_number have.
         for kernel in node.coded_kernels():
@@ -276,7 +273,7 @@ class GOOpenCLTrans(Transformation):
         for kern in node.coded_kernels():
             self._insert_ocl_arg_setter_routine(node.root, kern)
 
-        # Insert fortcl, clfotran and c_iso_binding import statement
+        # Insert fortcl, clfortran and c_iso_binding import statement
         fortcl = ContainerSymbol("fortcl")
         node.symbol_table.add(fortcl)
         get_num_cmd_queues = RoutineSymbol(
@@ -289,21 +286,23 @@ class GOOpenCLTrans(Transformation):
         node.symbol_table.add(get_cmd_queues)
         node.symbol_table.add(get_kernel_by_name)
         clfortran = ContainerSymbol("clfortran")
-        clfortran.wildcard_import = True
         node.symbol_table.add(clfortran)
         cl_finish = RoutineSymbol(
                 "clFinish", interface=ImportInterface(clfortran))
         cl_launch = RoutineSymbol(
                 "clEnqueueNDRangeKernel",
                 interface=ImportInterface(clfortran))
+        node.symbol_table.add(cl_finish)
+        node.symbol_table.add(cl_launch)
         iso_c_binding = ContainerSymbol("iso_c_binding")
-        iso_c_binding.wildcard_import = True
         node.symbol_table.add(iso_c_binding)
         c_loc = RoutineSymbol(
                 "C_LOC", interface=ImportInterface(iso_c_binding))
         c_null = DataSymbol(
                 "C_NULL_PTR", datatype=INTEGER_TYPE,
                 interface=ImportInterface(iso_c_binding))
+        node.symbol_table.add(c_loc)
+        node.symbol_table.add(c_null)
 
         # Include the check_status subroutine if we are in debug_mode
         if api_config.debug_mode:
@@ -313,10 +312,7 @@ class GOOpenCLTrans(Transformation):
             node.symbol_table.add(ocl_utils)
             node.symbol_table.add(check_status)
 
-        # Declare local variables needed on a OpenCL PSy-layer invoke
-        nqueues = node.symbol_table.new_symbol(
-            "num_cmd_queues", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues")  # Was SAVE
+        # Declare local variables needed by an OpenCL PSy-layer invoke
         qlist = node.symbol_table.new_symbol(
             "cmd_queues", symbol_type=DataSymbol,
             datatype=UnknownFortranType(
@@ -331,12 +327,6 @@ class GOOpenCLTrans(Transformation):
         flag = node.symbol_table.new_symbol(
             "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             tag="opencl_error")
-        # size_bytes = node.symbol_table.new_symbol(
-        #    "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        #    tag="opencl_bytes")
-        # write_event = node.symbol_table.new_symbol(
-        #    "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        #    tag="opencl_wevent")
         global_size = node.symbol_table.new_symbol(
             "globalsize", symbol_type=DataSymbol,
             datatype=UnknownFortranType(
@@ -346,28 +336,30 @@ class GOOpenCLTrans(Transformation):
             datatype=UnknownFortranType(
                 "integer(kind=c_size_t), target :: localsize(2)"))
 
-        # Create a first_time condition that we will reuse (copy) below
-        first_time_template = IfBlock.create(Reference(first), [])
+        # Bring all the boundaries at the beginning (since we are going to
+        # use them during the setup block - and they don't change)
+        boundary_vars = []
+        for tag, symbol in node.symbol_table.tags_dict.items():
+            if tag.startswith(("xstart_", "xstop_", "ystart_", "ystop_")):
+                boundary_vars.append(symbol)
+        cursor = 0
+        for assignment in node.walk(Assignment):
+            if assignment.lhs.symbol in boundary_vars:
+                node.children.insert(cursor, assignment.detach())
+                cursor += 1
 
         # Create block of code to execute only the first time:
-        cursor = 0
-        setup_block = first_time_template.copy()
-        node.children.insert(cursor, setup_block)
-        cursor = cursor + 1
-        setup_block.if_body.addchild(Call.create(psy_init, []))
-        setup_block.preceeding_comment = \
+        setup_block = IfBlock.create(Reference(first), [])
+        setup_block.preceding_comment = \
             "Initialise OpenCL runtime, kernels and buffers"
+        node.children.insert(cursor, setup_block)
+        setup_block.if_body.addchild(Call.create(psy_init, []))
 
-        # Set up queue_list and num_queues
-        node.children.insert(cursor, Assignment.create(
-                                        Reference(nqueues),
-                                        Call.create(get_num_cmd_queues, [])))
-        cursor = cursor + 1
+        # Set up cmd_queues pointer
         ptree = Fortran2003.Pointer_Assignment_Stmt(
-            "{0} => {1}()".format(qlist.name, get_cmd_queues.name))
+            f"{qlist.name} => {get_cmd_queues.name}()")
         cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
-        node.children.insert(cursor, cblock)
-        cursor = cursor + 1
+        setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers
         for kern in node.coded_kernels():
@@ -416,48 +408,52 @@ class GOOpenCLTrans(Transformation):
                     except KeyError:
                         node.symbol_table.new_symbol(
                             name, tag=name, symbol_type=DataSymbol,
-                            # TODO #1134: We could import the kind symbols from
-                            # a iso_c_binding global container.
                             datatype=UnknownFortranType(
                                 "INTEGER(KIND=c_intptr_t) :: " + name))
 
         # Now call all the set_args routines because in some platforms (e.g.
-        # in Xiling FPGA) knowing which arguments each kernel is going to use
+        # in Xilinx FPGA) knowing which arguments each kernel is going to use
         # allows the write operation to place the data into the appropriate
         # memory bank.
+        first_statement_comment = False
         kernel_names = set()
         for kern in node.coded_kernels():
             if kern.name not in kernel_names:
                 kernel_names.add(kern.name)
                 callblock = self._generate_set_args_call(kern, node.scope)
                 for child in callblock.pop_all_children():
-                    node.children.insert(cursor, child.copy())
-                    cursor = cursor + 1
+                    setup_block.if_body.addchild(child)
+                    if not first_statement_comment:
+                        child.preceding_comment = (
+                            "Do a set_args now so subsequent writes place the "
+                            "data appropriately")
+                        first_statement_comment = True
 
         # Now we can insert calls to write_to_device method for each buffer
-        # and the grid writing call is there is one (in a new first time block)
-        first_time_block = first_time_template.copy()
+        # and the grid writing call if there is one (in a new first time block)
+        first_statement_comment = False
         for field in initialised_fields:
             call = Call.create(
                 RoutineSymbol(field.name+"%write_to_device"), [])
-            first_time_block.if_body.addchild(call)
+            setup_block.if_body.addchild(call)
+            if not first_statement_comment:
+                call.preceding_comment = "Write data to the device"
+                first_statement_comment = True
 
         if there_is_a_grid_buffer:
             fieldarg = node.coded_kernels()[0].arguments.find_grid_access()
             field = node.symbol_table.lookup(fieldarg.name)
             call = Call.create(write_grid_buf, [Reference(field)])
-            first_time_block.if_body.addchild(call)
-
-        node.children.insert(cursor, first_time_block)
-        cursor = cursor + 1
+            setup_block.if_body.addchild(call)
 
         # We will just mark the nodes we are replacing as deleting them inside
         # the loop would break the PSy-layer backward_dependency method in the
-        # following iterations. We will detach all this nodes after the loop.
+        # following iterations. We will detach all these nodes after the loop.
         nodes_to_detach = []
 
+        # Transform each kernel call loop construct to its equivalent FortCL
+        # statements
         for kern in node.coded_kernels():
-
             outerloop = kern.ancestor(GOLoop).ancestor(GOLoop)
 
             # Set up globalsize and localsize arrays
@@ -468,13 +464,13 @@ class GOOpenCLTrans(Transformation):
                 .format(garg.name)
             assig = Assignment.create(
                     Reference(global_size),
-                    Literal("(/{0}, {1}/)".format(num_x, num_y),
+                    Literal(f"(/{num_x}, {num_y}/)",
                             ArrayType(INTEGER_TYPE, [2])))
             node.children.insert(outerloop.position, assig)
             local_size_value = kern.opencl_options['local_size']
             assig = Assignment.create(
                     Reference(local_size),
-                    Literal("(/{0}, 1/)".format(local_size_value),
+                    Literal(f"(/{local_size_value}, 1/)",
                             ArrayType(INTEGER_TYPE, [2])))
             node.children.insert(outerloop.position, assig)
 
@@ -533,6 +529,9 @@ class GOOpenCLTrans(Transformation):
                 self._add_ready_check(node, outerloop.position, check_status,
                                       kern.name, flag, cl_finish,
                                       cmd_queue.copy())
+            callblock = self._generate_set_args_call(kern, node.scope)
+            for child in callblock.pop_all_children():
+                node.children.insert(outerloop.position, child)
 
             # Then we call the clEnqueueNDRangeKernel
             assig = Assignment.create(
@@ -596,7 +595,7 @@ class GOOpenCLTrans(Transformation):
         for node_to_detach in nodes_to_detach:
             node_to_detach.detach()
 
-        if _end_barrier:
+        if end_barrier:
             self._add_end_barrier(node, flag, cl_finish, qlist)
 
         # And at the very end always makes sure that first_time value is False
@@ -686,9 +685,8 @@ class GOOpenCLTrans(Transformation):
 
         '''
         # First check the launch return value
-        message = Literal(
-            "{0} clEnqueueNDRangeKernel".format(kernel_name),
-            CHARACTER_TYPE)
+        message = Literal(f"{kernel_name} clEnqueueNDRangeKernel",
+                          CHARACTER_TYPE)
         check = Call.create(check_status, [message, Reference(flag)])
         node.children.insert(position, check)
 
@@ -699,8 +697,7 @@ class GOOpenCLTrans(Transformation):
         node.children.insert(position + 1, barrier)
 
         # And check the kernel executed successfully
-        message = Literal("Errors during {0}".format(kernel_name),
-                          CHARACTER_TYPE)
+        message = Literal(f"Errors during {kernel_name}", CHARACTER_TYPE)
         check = Call.create(check_status, [message, Reference(flag)])
         node.children.insert(position + 2, check)
 
@@ -728,7 +725,7 @@ class GOOpenCLTrans(Transformation):
                     Reference(flag),
                     Call.create(cl_finish, [cmd_queue]))
         node.children.insert(position, barrier)
-        message = Literal("Errors before {0} launch".format(kernel_name),
+        message = Literal(f"Errors before {kernel_name} launch",
                           CHARACTER_TYPE)
         check = Call.create(check_status, [message, Reference(flag)])
         node.children.insert(position + 1, check)
@@ -738,16 +735,15 @@ class GOOpenCLTrans(Transformation):
         to remove the 'go_wp' precision symbol which can't be generated
         by OpenCL. We assume 'go_wp' is a OpenCL double.
 
-        :param kernel: the kernel for which to generate the set_args.
-        :type kernel: :py:class:`psyclone.gocean1p0.GOKern`
-        :param scope: scope node where the set_args will be added.
-        :type symtab: :py:class:`psyclone.psyir.nodes.ScopingNode`
+        :param kernel: the kernel to insert.
+        :type kernel: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         '''
         if not self._kernels_file:
             self._kernels_file = FileContainer("opencl_kernels")
 
-        # Create a copy of the kernel and remove precision symbols
+        # Create a copy of the kernel and remove precision symbols since they
+        # are not supported in the OpenCL backend.
         kernel_copy = kernel.get_kernel_schedule().copy()
         symtab = kernel_copy.symbol_table
 
@@ -766,25 +762,33 @@ class GOOpenCLTrans(Transformation):
         if 'go_wp' in symtab:
             del symtab._symbols['go_wp']
 
-        # Insert kernel in the OpenCL kernels file
-        self._kernels_file.addchild(kernel_copy)
+        # Insert kernel in the OpenCL kernels file if it doesn't already exist
+        for routine in self._kernels_file.walk(Routine):
+            if routine.name == kernel.name:
+                break  # if it exist re-use existing one
+                # TODO 1572: Here we assume that in the same Invoke (scope) a
+                # kernel with the same name will be the same kernel, but that
+                # may not be true when doing multiple invokes.
+        else:
+            self._kernels_file.addchild(kernel_copy)
 
     def _output_opencl_kernels_file(self):
-        ''' Write the OpenCL kernels file to the filesystem using the
-        OpenCL backend.
+        ''' Write the OpenCL kernels file to a file using the OpenCL backend.
 
         '''
+
+        # TODO 1013: The code below duplicates some logic of the CodedKern
+        # rename_and_write method. Ideally this should be moved out of
+        # the AST and transformations and put into some kind of IOManager.
+
         ocl_writer = OpenCLWriter(kernels_local_size=64)
-        new_name = ""
         new_kern_code = ocl_writer(self._kernels_file)
 
-        # TODO: The code below duplicates some logic inside CodedKern
         fdesc = None
         name_idx = -1
         while not fdesc:
             name_idx += 1
-
-            new_name = "opencl_kernels_{0}.cl".format(name_idx)
+            new_name = f"opencl_kernels_{name_idx}.cl"
 
             try:
                 # Atomically attempt to open the new kernel file (in case
@@ -804,16 +808,21 @@ class GOOpenCLTrans(Transformation):
 
     @staticmethod
     def _generate_set_args_call(kernel, scope):
-        ''' Generate the Call statement to the set_args subroutine for the
+        '''
+        Generate the Call statement to the set_args subroutine for the
         provided kernel.
 
-        :param kernel: the kernel for which to generate the set_args.
-        :type kernel: :py:class:`psyclone.gocean1p0.GOKern`
-        :param scope: scope node where the set_args will be added.
-        :type symtab: :py:class:`psyclone.psyir.nodes.ScopingNode`
+        :param kernel: the kernel for which to generate a call to its \
+            arg_setter subroutine.
+        :type kernel: :py:class:`psyclone.psyGen.CodedKern`
+        :param scope: The node representing the scope where the call \
+            statements will be inserted.
+        :type scope: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        :returns: a block of statements that represent the set_args call
+        :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        # Return all the code for the call inside a Schedule
         call_block = Schedule()
 
         # Retrieve symbol table and kernel symbol
@@ -837,12 +846,6 @@ class GOOpenCLTrans(Transformation):
                 f"OpenCL code for kernel '{kernel.name}'. Make sure to apply "
                 f"the GOMoveIterationBoundariesInsideKernelTrans before "
                 f"attempting the OpenCL code generation.") from err
-
-        # Initialise the boundary assignments statements
-        # FIXME: Can this go away?
-        for node in scope.walk(Assignment):
-            if node.lhs.symbol.name in boundaries:
-                call_block.addchild(node.copy())
 
         api_config = Config.get().api_conf("gocean1.0")
         # Prepare the argument list for the set_args routine
@@ -997,13 +1000,13 @@ class GOOpenCLTrans(Transformation):
                                 Call.create(c_loc, [Reference(variable)])])
             assignment = Assignment.create(Reference(ierr), call)
             argsetter.addchild(assignment)
-            emsg = "clSetKernelArg: arg {0} of {1}".format(index, kernel.name)
+            emsg = f"clSetKernelArg: arg {index} of {kernel.name}"
             call = Call.create(check_status, [Literal(emsg, CHARACTER_TYPE),
                                               Reference(ierr)])
             argsetter.addchild(call)
 
         argsetter.children[0].preceding_comment = \
-            "Set the arguments for the {0} OpenCL Kernel".format(kernel.name)
+            f"Set the arguments for the {kernel.name} OpenCL Kernel"
 
         # Add the subroutine as child of the provided node
         node.addchild(argsetter)
@@ -1025,10 +1028,9 @@ class GOOpenCLTrans(Transformation):
         '''
         symtab = node.symbol_table
         try:
-            # TODO #1134: The init routine may need to be regenerated if there
-            # are multiple Invokes (multiple applies of this transformation),
-            # because _max_queue_number may have increased and we need to load
-            # the kernels of both invokes.
+            # TODO #1572: The ocl_init routine may need to be regenerated if
+            # there are multiple Invokes because _max_queue_number may have
+            # increased and we need to load the kernels of both invokes.
             return symtab.lookup_with_tag("ocl_init_routine")
         except KeyError:
             # If the Symbol does not exist, the rest of this method
@@ -1049,47 +1051,40 @@ class GOOpenCLTrans(Transformation):
         if devices_per_node > 1 and distributed_memory:
             additional_uses += "USE parallel_mod, ONLY: get_rank"
             additional_stmts += \
-                ("ocl_device_num = mod(get_rank() - 1, {0}) + 1"
-                 "".format(devices_per_node))
+                f"ocl_device_num = mod(get_rank()-1, {devices_per_node}) + 1"
 
         # Get a set of all kernel names in the Container. This implementation
         # currently assumes all of them will be available in OpenCL
         unique_kernels = {kernel.name for kernel in node.coded_kernels()}
 
         # Code of the subroutine in Fortran
-        code = '''
+        code = f'''
         subroutine psy_init()
-          {0}
+          {additional_uses}
           use fortcl, only: ocl_env_init, add_kernels
-          character(len=30) kernel_names({1})
+          character(len=30) kernel_names({len(unique_kernels)})
           integer :: ocl_device_num=1
           logical, save :: initialised=.false.
           ! Check to make sure we only execute this routine once
           if (.not. initialised) then
             initialised = .true.
             ! Initialise the opencl environment/device
-            {2}
-            call ocl_env_init({3}, ocl_device_num, {4}, {5})
+            {additional_stmts}
+            call ocl_env_init({self._max_queue_number}, ocl_device_num, &
+                {".true." if self._enable_profiling else ".false."}, &
+                {".true." if self._out_of_order else ".false."})
             ! The kernels this psy layer module requires
-        '''.format(
-                additional_uses,
-                len(unique_kernels),
-                additional_stmts,
-                self._max_queue_number,
-                ".true." if self._enable_profiling else ".false.",
-                ".true." if self._out_of_order else ".false.",
-                )
+        '''
 
         for index, kernel_name in enumerate(unique_kernels):
-            code += "kernel_names({0}) = \"{1}\"\n".format(index + 1,
-                                                           kernel_name)
+            code += f"kernel_names({index + 1}) = \"{kernel_name}\"\n"
 
-        code += '''\
+        code += f'''\
             ! Create the opencl kernel objects. This expects to find all of
             ! the compiled kernels in FORTCL_KERNELS_FILE environment variable
-            call add_kernels({0}, kernel_names)
+            call add_kernels({len(unique_kernels)}, kernel_names)
           end if
-        end subroutine psy_init'''.format(len(unique_kernels))
+        end subroutine psy_init'''
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -1150,33 +1145,35 @@ class GOOpenCLTrans(Transformation):
                 real_arrays.append(prop.fortran.format("field"))
 
         # Code of the subroutine in Fortran
-        code = '''
+        code = f'''
         subroutine initialise_device_grid(field)
             USE fortcl, ONLY: create_ronly_buffer
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
-            IF (.not. c_associated({2}_device)) THEN
+            IF (.not. c_associated({int_arrays[0]}_device)) THEN
                 ! Create integer grid fields
-                size_in_bytes = int({0}*{1}, 8) * c_sizeof({2}(1,1))
-        '''.format(num_x, num_y, int_arrays[0])
+                size_in_bytes = int({num_x}*{num_y}, 8) * &
+                    c_sizeof({int_arrays[0]}(1,1))
+        '''
 
         for int_array in int_arrays:
-            code += '''
-                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
-                                      {0}_device)
-            '''.format(int_array)
+            code += f'''
+                {int_array}_device = transfer( &
+                    create_ronly_buffer(size_in_bytes), {int_array}_device)
+            '''
 
-        code += '''
+        code += f'''
                 ! Create real grid buffers
-                size_in_bytes = int({0} * {1}, 8) * c_sizeof({2}(1,1))
-        '''.format(num_x, num_y, real_arrays[0])
+                size_in_bytes = int({num_x} * {num_y}, 8) * &
+                                    c_sizeof({real_arrays[0]}(1,1))
+        '''
 
         for real_array in real_arrays:
-            code += '''
-                {0}_device = transfer(create_ronly_buffer(size_in_bytes), &
-                                      {0}_device)
-            '''.format(real_array)
+            code += f'''
+                {real_array}_device = transfer( &
+                    create_ronly_buffer(size_in_bytes), {real_array}_device)
+            '''
 
         code += '''
             END IF
@@ -1229,7 +1226,7 @@ class GOOpenCLTrans(Transformation):
         num_y = props["go_grid_ny"].fortran.format("field")
 
         # Code of the subroutine in Fortran
-        code = '''
+        code = f'''
         subroutine write_device_grid(field)
             USE fortcl, ONLY: get_cmd_queues
             use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
@@ -1242,17 +1239,18 @@ class GOOpenCLTrans(Transformation):
             integer :: ierr
             cmd_queues => get_cmd_queues()
             ! Integer grid buffers
-            size_in_bytes = int({0} * {1}, 8) * &
+            size_in_bytes = int({num_x} * {num_y}, 8) * &
                             c_sizeof(field%grid%tmask(1,1))
             cl_mem = transfer(field%grid%tmask_device, cl_mem)
-            ierr = clEnqueueWriteBuffer(cmd_queues({2}), &
+            ierr = clEnqueueWriteBuffer( &
+                        cmd_queues({self._OCL_MANAGEMENT_QUEUE}), &
                         cl_mem, CL_TRUE, 0_8, size_in_bytes, &
                         C_LOC(field%grid%tmask), 0, C_NULL_PTR, C_NULL_PTR)
             CALL check_status("clEnqueueWriteBuffer tmask", ierr)
             ! Real grid buffers
-            size_in_bytes = int({0} * {1}, 8) * &
+            size_in_bytes = int({num_x} * {num_y}, 8) * &
                             c_sizeof(field%grid%area_t(1,1))
-        '''.format(num_x, num_y, self._OCL_MANAGEMENT_QUEUE)
+        '''
         write_str = '''
             cl_mem = transfer(field%grid%{0}_device, cl_mem)
             ierr = clEnqueueWriteBuffer(cmd_queues({1}), &
@@ -1304,7 +1302,7 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_read_func").name
 
         # Code of the subroutine in Fortran
-        code = '''
+        code = f'''
         subroutine read_sub(from, to, startx, starty, nx, ny, blocking)
             USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
             USE ocl_utils_mod, ONLY: check_status
@@ -1332,14 +1330,15 @@ class GOOpenCLTrans(Transformation):
                     size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
                     offset_in_bytes = int(size(to, 1) * (i-1) + (startx-1)) &
                                       * c_sizeof(to(1,1))
-                    ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
+                    ierr = clEnqueueReadBuffer( &
+                        cmd_queues({self._OCL_MANAGEMENT_QUEUE}), cl_mem, &
                         CL_FALSE, offset_in_bytes, size_in_bytes, &
                         C_LOC(to(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
                     CALL check_status("clEnqueueReadBuffer", ierr)
                 enddo
                 if (blocking) then
                     CALL check_status("clFinish on read", &
-                        clFinish(cmd_queues({0})))
+                        clFinish(cmd_queues({self._OCL_MANAGEMENT_QUEUE})))
                 endif
             else
                 ! Copy across the whole starty:starty+ny rows in a single
@@ -1347,13 +1346,14 @@ class GOOpenCLTrans(Transformation):
                 size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
                 offset_in_bytes = int(size(to,1)*(starty-1), 8) &
                                   * c_sizeof(to(1,1))
-                ierr = clEnqueueReadBuffer(cmd_queues({0}), cl_mem, &
+                ierr = clEnqueueReadBuffer( &
+                    cmd_queues({self._OCL_MANAGEMENT_QUEUE}), cl_mem, &
                     CL_TRUE, offset_in_bytes, size_in_bytes, &
                     C_LOC(to(1,starty)), 0, C_NULL_PTR, C_NULL_PTR)
                 CALL check_status("clEnqueueReadBuffer", ierr)
             endif
         end subroutine read_sub
-        '''.format(self._OCL_MANAGEMENT_QUEUE)
+        '''
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -1395,7 +1395,7 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_write_func").name
 
         # Code of the subroutine in Fortran
-        code = '''
+        code = f'''
         subroutine write_sub(from, to, startx, starty, nx, ny, blocking)
             USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
             USE ocl_utils_mod, ONLY: check_status
@@ -1423,14 +1423,15 @@ class GOOpenCLTrans(Transformation):
                     size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
                     offset_in_bytes = int(size(from, 1) * (i-1) + (startx-1)) &
                                       * c_sizeof(from(1,1))
-                    ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
+                    ierr = clEnqueueWriteBuffer( &
+                        cmd_queues({self._OCL_MANAGEMENT_QUEUE}), cl_mem, &
                         CL_FALSE, offset_in_bytes, size_in_bytes, &
                         C_LOC(from(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
                     CALL check_status("clEnqueueWriteBuffer", ierr)
                 enddo
                 if (blocking) then
                     CALL check_status("clFinish on write", &
-                        clFinish(cmd_queues({0})))
+                        clFinish(cmd_queues({self._OCL_MANAGEMENT_QUEUE})))
                 endif
             else
                 ! Copy across the whole starty:starty+ny rows in a single
@@ -1438,13 +1439,14 @@ class GOOpenCLTrans(Transformation):
                 size_in_bytes = int(size(from,1) * ny, 8) * c_sizeof(from(1,1))
                 offset_in_bytes = int(size(from,1) * (starty-1)) &
                                   * c_sizeof(from(1,1))
-                ierr = clEnqueueWriteBuffer(cmd_queues({0}), cl_mem, &
+                ierr = clEnqueueWriteBuffer(&
+                    cmd_queues({self._OCL_MANAGEMENT_QUEUE}), cl_mem, &
                     CL_TRUE, offset_in_bytes, size_in_bytes, &
                     C_LOC(from(1, starty)), 0, C_NULL_PTR, C_NULL_PTR)
                 CALL check_status("clEnqueueWriteBuffer", ierr)
             endif
         end subroutine write_sub
-        '''.format(self._OCL_MANAGEMENT_QUEUE)
+        '''
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
@@ -1500,26 +1502,26 @@ class GOOpenCLTrans(Transformation):
         write_fp = symtab.lookup_with_tag("ocl_write_func").name
 
         # Code of the subroutine in Fortran
-        code = '''
+        code = f'''
         subroutine initialise_device_buffer(field)
             USE fortcl, ONLY: create_rw_buffer
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
             IF (.NOT. field%data_on_device) THEN
-                size_in_bytes = int({0}*{1}, 8) * &
-                                    c_sizeof({2}(1,1))
+                size_in_bytes = int({num_x} * {num_y}, 8) * &
+                                    c_sizeof({host_buff}(1,1))
                 ! Create buffer on device, we store it without type information
                 ! on the dl_esm_inf pointer (transfer/static_cast to void*)
                 field%device_ptr = transfer( &
                     create_rw_buffer(size_in_bytes), &
                     field%device_ptr)
                 field%data_on_device = .true.
-                field%read_from_device_f => {3}
-                field%write_to_device_f => {4}
+                field%read_from_device_f => {read_fp}
+                field%write_to_device_f => {write_fp}
             END IF
         end subroutine initialise_device_buffer
-        '''.format(num_x, num_y, host_buff, read_fp, write_fp)
+        '''
 
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()

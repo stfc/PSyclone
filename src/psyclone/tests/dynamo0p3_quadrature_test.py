@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,7 @@ def test_field_xyoz(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -126,6 +127,7 @@ def test_field_xyoz(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -182,6 +184,11 @@ def test_field_xyoz(tmpdir):
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -200,7 +207,7 @@ def test_field_xyoz(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
@@ -285,6 +292,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -316,6 +324,7 @@ def test_face_qr(tmpdir, dist_mem):
         init_output += ("      ! Create a mesh object\n"
                         "      !\n"
                         "      mesh => f1_proxy%vspace%get_mesh()\n"
+                        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
                         "      !\n")
     init_output += (
         "      ! Look-up dofmaps for each function space\n"
@@ -371,9 +380,14 @@ def test_face_qr(tmpdir, dist_mem):
         "ndf_w3, basis_w3_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "      !\n")
+        "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n")
     if dist_mem:
         init_output2 += (
+            "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -394,15 +408,13 @@ def test_face_qr(tmpdir, dist_mem):
             "      !\n")
     else:
         init_output2 += (
+            "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
+            "      !\n"
             "      ! Call our kernels\n")
     assert init_output2 in generated_code
-    if dist_mem:
-        compute_output = (
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    else:
-        compute_output = (
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
-    compute_output += (
+
+    compute_output = (
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
         "f2_proxy%data, "

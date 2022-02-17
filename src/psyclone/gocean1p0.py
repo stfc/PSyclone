@@ -54,7 +54,7 @@ import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
-    Pointer_Assignment_Stmt, Subroutine_Subprogram
+    Pointer_Assignment_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
@@ -62,8 +62,8 @@ from psyclone.core import Signature
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
+from psyclone.f2pygen import DeclGen, UseGen, ModuleGen, SubroutineGen, \
+    TypeDeclGen, PSyIRGen
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -76,17 +76,9 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
     ACCKernelsDirective, Container, ACCUpdateDirective
-from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
-    DataTypeSymbol, UnresolvedInterface, UnknownFortranType, BOOLEAN_TYPE, \
-    REAL_TYPE
-
-
-# Specify which OpenCL command queue to use for management operations like
-# data transfers when generating an OpenCL PSy-layer
-# TODO #1134: This value should be moved to the GOOpenCLTrans when the
-# transformation logic is also moved there.
-_OCL_MANAGEMENT_QUEUE = 1
+from psyclone.psyir.symbols import SymbolTable, ScalarType, INTEGER_TYPE, \
+    DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
+    UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
 
 
 class GOPSy(PSy):
@@ -247,23 +239,6 @@ class GOInvoke(Invoke):
         return result
 
     @property
-    def unique_args_rscalars(self):
-        '''
-        :returns: the unique arguments that are scalars of type real \
-                  (defined as those that are go_r_scalar 'space').
-        :rtype: list of str.
-
-        '''
-        result = []
-        for call in self._schedule.kernels():
-            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
-                                   include_literals=False):
-                if arg.space.lower() == "go_r_scalar" and \
-                   arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    @property
     def unique_args_iscalars(self):
         '''
         :returns: the unique arguments that are scalars of type integer \
@@ -287,9 +262,14 @@ class GOInvoke(Invoke):
         by the associated invoke call in the algorithm layer). This
         consists of the PSy invocation subroutine and the declaration of
         its arguments.
+
         :param parent: the node in the generated AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+
         '''
+        # TODO 1010: GOcean doesn't use this method anymore and it can be
+        # deleted, but some tests still call it directly.
+
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
@@ -306,19 +286,10 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # Add the subroutine argument declarations for integer and real scalars
-        r_args = []
         i_args = []
         for argument in self.schedule.symbol_table.argument_datasymbols:
-            if argument.name in self.unique_args_rscalars:
-                r_args.append(argument.name)
             if argument.name in self.unique_args_iscalars:
                 i_args.append(argument.name)
-
-        if r_args:
-            my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
-                                       intent="inout", kind="go_wp",
-                                       entity_decls=r_args)
-            invoke_sub.add(my_decl_rscalars)
 
         if i_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
@@ -2350,6 +2321,11 @@ class GOHaloExchange(HaloExchange):
         appropriate library method.
 
         '''
+        # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
+
+        # TODO 886: Currently only stencils of depth 1 are accepted by this
+        # API, so the HaloExchange is hardcoded to depth 1.
+
         # Call the halo_exchange routine with depth argument to 1
         # Currently we create an symbol name with % as a workaround of not
         # having type bound routines.
@@ -2357,26 +2333,6 @@ class GOHaloExchange(HaloExchange):
                                 self._halo_exchange_name)
         call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
         self.replace_with(call_node)
-
-    def gen_code(self, parent):
-        '''GOcean specific code generation for this class.
-
-        :param parent: an f2pygen object that will be the parent of \
-            f2pygen objects created in this method.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
-
-        # TODO 886: Currently only stencils of depth 1 are accepted by this
-        # API, so the HaloExchange is hardcoded to depth 1.
-
-        parent.add(
-            CallGen(
-                parent, name=self._field.name +
-                "%" + self._halo_exchange_name +
-                "(depth=1)"))
-        parent.add(CommentGen(parent, ""))
 
 
 # For Sphinx AutoAPI documentation generation

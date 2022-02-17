@@ -38,11 +38,12 @@ algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-from fparser.two.Fortran2003 import Structure_Constructor
+from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
+    Name, Char_Literal_Constant
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
-    RoutineSymbol
+    RoutineSymbol, UnresolvedInterface, LocalInterface
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.psyGen import Transformation
@@ -56,6 +57,10 @@ class InvokeCallTrans(Transformation):
     nodes.
 
     '''
+    def __init__(self):
+        super().__init__()
+        self._call_name = None
+
     @staticmethod
     def _parse_args(code_block, fp2_node):
         '''Return the arguments from a Structure Constructor stored as a
@@ -120,30 +125,51 @@ class InvokeCallTrans(Transformation):
             symbol.datatype = StructureType()
 
     def _validate_fp2_node(self, fp2_node):
-        '''Separate validation routine for an fparser2 node within a code
-        block. This is separated to make it simpler to subclass.
+        '''Validation routine for an fparser2 node within a code block.
 
-        :param fp2_node: an fparser2 Structure Constructor node.
+        :param fp2_node: an fparser2 Structure Constructor or Actual \
+            Arg Spec node.
         :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor` or \
+            :py:class:`fparser.two.Fortran2003.Actual_Arg_Spec
 
-        :raises TransformationError: if the fparser2 node is not a \
-            Structure Constructor.
+        :raises TransformationError: if the named argument is not in \
+            the expected form.
+        :raises TransformationError: if more than one named argument \
+            is found.
+        :raises TransformationError: if the fparser2 node is not the \
+            expected type.
 
         '''
-        if not isinstance(fp2_node, Structure_Constructor):
+        if isinstance(fp2_node, Structure_Constructor):
+            pass
+        elif isinstance(fp2_node, Actual_Arg_Spec):
+            if not (isinstance(fp2_node.children[0], Name) and
+                    fp2_node.children[0].string.lower() == "name" and
+                    isinstance(fp2_node.children[1], Char_Literal_Constant)):
+                raise TransformationError(
+                    f"Error in {self.name} transformation. If there is a "
+                    f"named argument, it must take the form name='str', but "
+                    f"found '{str(fp2_node)}'.")
+            if self._call_name:
+                raise TransformationError(
+                    f"Error in {self.name} transformation. There should be at "
+                    f"most one named argument in an invoke, but there are at "
+                    f"least two: {self._call_name} and "
+                    f"{fp2_node.children[1].string}.")
+            self._call_name = fp2_node.children[1].string
+        else:
             raise TransformationError(
-                "Error in {0} transformation. The supplied call "
-                "argument contains a CodeBlock with content "
-                "({1}) which is not a StructureConstructor."
-                "".format(self.name, type(fp2_node).__name__))
+                f"Error in {self.name} transformation. Expecting an algorithm "
+                f"invoke codeblock to contain either Structure-Constructor or "
+                f"actual-arg-spec, but found '{type(fp2_node).__name__}'.")
 
-    def validate(self, call, options=None):
-        '''Validate the call argument.
+    def validate(self, node, options=None):
+        '''Validate the node argument.
 
-        :param call: a PSyIR call node capturing an invoke call in \
+        :param node: a PSyIR call node capturing an invoke call in \
             generic PSyIR.
-        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -156,17 +182,19 @@ class InvokeCallTrans(Transformation):
             PSyIR ArrayReference or CodeBlock.
 
         '''
-        if not isinstance(call, Call):
+        self._call_name = None
+
+        if not isinstance(node, Call):
             raise TransformationError(
-                "Error in {0} transformation. The supplied call argument "
-                "should be a `Call` node but found '{1}'."
-                "".format(self.name, type(call).__name__))
-        if not call.routine.name.lower() == "invoke":
+                f"Error in {self.name} transformation. The supplied call "
+                f"argument should be a `Call` node but found "
+                f"'{type(node).__name__}'.")
+        if not node.routine.name.lower() == "invoke":
             raise TransformationError(
-                "Error in {0} transformation. The supplied call argument "
-                "should be a `Call` node with name 'invoke' but found '{1}'."
-                "".format(self.name, call.routine.name))
-        for arg in call.children:
+                f"Error in {self.name} transformation. The supplied call "
+                f"argument should be a `Call` node with name 'invoke' but "
+                f"found '{node.routine.name}'.")
+        for arg in node.children:
             if isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
@@ -174,10 +202,9 @@ class InvokeCallTrans(Transformation):
                     self._validate_fp2_node(fp2_node)
             else:
                 raise TransformationError(
-                    "Error in {0} transformation. The arguments to this "
-                    "invoke call are expected to be a CodeBlock or an "
-                    "ArrayReference, but found '{1}'."
-                    "".format(self.name, type(arg).__name__))
+                    f"Error in {self.name} transformation. The arguments to "
+                    f"this invoke call are expected to be a CodeBlock or an "
+                    f"ArrayReference, but found '{type(arg).__name__}'.")
 
     def apply(self, call, index, options=None):
         ''' Apply the transformation to the supplied node.
@@ -193,29 +220,38 @@ class InvokeCallTrans(Transformation):
         '''
         self.validate(call, options=options)
 
-        kernel_calls = []
+        call_name = None
+        calls = []
         for call_arg in call.children:
+
             arg_info = []
             if isinstance(call_arg, ArrayReference):
-                # Structure constructor mis-parsed as an array
-                # reference.
-                type_symbol = call_arg.symbol
+                # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
+                type_symbol = call_arg.symbol
                 arg_info.append((type_symbol, args))
             else:
-                # CodeBlock containing a structure constructor
                 for fp2_node in call_arg._fp2_nodes:
-                    type_symbol = self._get_symbol(call, fp2_node)
-                    args = self._parse_args(call_arg, fp2_node)
-                    arg_info.append((type_symbol, args))
+                    if isinstance(fp2_node, Actual_Arg_Spec):
+                        # This child is a named argument.
+                        call_name = fp2_node.children[1].string
+                    else:
+                        # This child is a kernel
+                        type_symbol = InvokeCallTrans._get_symbol(
+                            call, fp2_node)
+                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                        arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
-                kernel_calls.append(KernelFunctor.create(
-                    type_symbol, args))
+                calls.append(KernelFunctor.create(type_symbol, args))
 
+        symbol = call.scope.symbol_table.lookup("invoke")
+        if isinstance(symbol.interface, UnresolvedInterface):
+            # No need to try to resolve the invoke call
+            symbol._interface = LocalInterface()
         invoke_call = AlgorithmInvokeCall.create(
-            call.routine, kernel_calls, index)
+            call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
     @property

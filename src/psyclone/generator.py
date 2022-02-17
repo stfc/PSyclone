@@ -1,9 +1,7 @@
-#!/usr/bin/env python2.7
-# -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,12 +57,15 @@ import six
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.domain.common.transformations import AlgTrans
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop
 from psyclone.version import __VERSION__
 
@@ -72,19 +73,29 @@ from psyclone.version import __VERSION__
 API_WITHOUT_ALGORITHM = ["nemo"]
 
 
-def handle_script(script_name, psy):
-    '''Loads and applies the specified script to the given psy layer.
-    The 'trans' function of the script is called with psy as parameter.
-    :param script_name: Name of the script to load.
-    :type script_name: string
-    :param psy: The psy layer to which the script is applied.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :raises IOError: If the file is not found.
-    :raises GenerationError: if the file does not have .py extension
+def handle_script(script_name, info, function_name, is_optional=False):
+    '''Loads and applies the specified script to the given algorithm or
+    psy layer. The relevant script function (in 'function_name') is
+    called with 'info' as the argument.
+
+    :param str script_name: name of the script to load.
+    :param info: PSyclone representation of the algorithm or psy layer \
+        to which the script is applied.
+    :type info: :py:class:`psyclone.psyGen.PSy` or \
+        :py:class:`psyclone.psyir.nodes.Node`
+    :param str function_name: the name of the function to call in the \
+        script.
+    :param bool is_optional: whether the function is optional or \
+        not. Defaults to False.
+
+    :raises IOError: if the file is not found.
+    :raises GenerationError: if the file does not have .py extension \
         or can not be imported.
-    :raises GenerationError: if trans() can not be called.
-    :raises GenerationError: if any exception is raised when trans()
-        was called.
+    :raises GenerationError: if the script function can not be called.
+
+    :raises GenerationError: if any exception is raised when the \
+        script function is called.
+
     '''
     sys_path_appended = False
     try:
@@ -107,21 +118,18 @@ def handle_script(script_name, psy):
                 "the '.py' extension".format(filename))
         try:
             transmod = __import__(filename)
-        except ImportError:
-            # pylint: disable=raise-missing-from
+        except ImportError as error:
             raise GenerationError(
-                "generator: attempted to import '{0}' but script file "
-                "'{1}' has not been found".
-                format(filename, script_name))
-        except SyntaxError:
-            # pylint: disable=raise-missing-from
+                f"generator: attempted to import '{filename}' but script "
+                f"file '{script_name}' has not been found") from error
+        except SyntaxError as error:
             raise GenerationError(
-                "generator: attempted to import '{0}' but script file "
-                "'{1}' is not valid python".
-                format(filename, script_name))
-        if callable(getattr(transmod, 'trans', None)):
+                f"generator: attempted to import '{filename}' but script "
+                f"file '{script_name}' is not valid python") from error
+        if callable(getattr(transmod, function_name, None)):
             try:
-                psy = transmod.trans(psy)
+                func_call = getattr(transmod, function_name)
+                info = func_call(info)
             except Exception:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 lines = traceback.format_exception(exc_type, exc_value,
@@ -134,11 +142,11 @@ def handle_script(script_name, psy):
                     "following exception during execution "
                     "...\n{1}\nPlease check your script".format(
                         script_name, e_str))
-        else:
+        elif not is_optional:
             raise GenerationError(
-                "generator: attempted to import '{0}' but script file "
-                "'{1}' does not contain a 'trans()' function".
-                format(filename, script_name))
+                f"generator: attempted to import '{filename}' but script file "
+                f"'{script_name}' does not contain a '{function_name}' "
+                f"function")
     except Exception as msg:
         if sys_path_appended:
             os.sys.path.pop()
@@ -208,7 +216,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     if distributed_memory is None:
         distributed_memory = Config.get().distributed_memory
 
-    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
         api = Config.get().default_api
     else:
@@ -236,20 +243,47 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
-    psy = PSyFactory(api, distributed_memory=distributed_memory)\
-        .create(invoke_info)
-    if script_name is not None:
-        handle_script(script_name, psy)
+    if api != "gocean1.0":
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+        if script_name is not None:
+            handle_script(script_name, psy, "trans")
+
+    alg_gen = None
+
+    if api == "gocean1.0":
+        # Create language-level PSyIR from the Fortran file
+        reader = FortranReader()
+        psyir = reader.psyir_from_file(filename)
+
+        # Raise to Algorithm PSyIR
+        alg_trans = AlgTrans()
+        alg_trans.apply(psyir)
+
+        if script_name is not None:
+            # Call the optimisation script for algorithm optimisations
+            handle_script(script_name, psyir, "trans_alg", is_optional=True)
+
+        # Create Fortran from Algorithm PSyIR
+        writer = FortranWriter()
+        alg_gen = writer(psyir)
+
+        # Create the PSy-layer
+        # TODO: issue #753 replace invoke_info with alg psyir
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
+        if script_name is not None:
+            # Call the optimisation script for psy-layer optimisations
+            handle_script(script_name, psy, "trans")
+
+    elif api not in API_WITHOUT_ALGORITHM:
+        alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
     # been requested.
     for invoke in psy.invokes.invoke_list:
         Profiler.add_profile_nodes(invoke.schedule, Loop)
-
-    if api not in API_WITHOUT_ALGORITHM:
-        alg_gen = Alg(ast, psy).gen
-    else:
-        alg_gen = None
 
     return alg_gen, psy.gen
 
@@ -357,7 +391,7 @@ def main(args):
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported API's are "
+        print("Unsupported API '{0}' specified. Supported APIs are "
               "{1}.".format(args.api, Config.get().supported_apis),
               file=sys.stderr)
         sys.exit(1)
@@ -391,8 +425,8 @@ def main(args):
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print("Warning: {0}".format(exc_value))
-        # no invoke calls were found in the algorithm file so we need
-        # not need to process it, or generate any psy layer code so
+        # no invoke calls were found in the algorithm file so we do
+        # not need to process it, or generate any psy layer code, so
         # output the original algorithm file and set the psy file to
         # be empty
         alg_file = open(args.filename)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,8 +46,8 @@ from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCEnterDataDirective, \
-    ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
+from psyclone.psyir.nodes import (ACCKernelsDirective, Schedule,
+                                  ACCUpdateDirective, ACCLoopDirective)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
     ACCKernelsTrans
@@ -237,7 +237,7 @@ def test_acckernelsdirective_gencode(default_present):
         string = " default(present)"
     assert (
         "      !$acc kernels{0}\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
+        "      DO cell=loop0_start,loop0_stop\n".format(string) in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)

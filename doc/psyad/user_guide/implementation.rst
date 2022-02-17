@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,14 @@ Representation). A PSyIR visitor has been written that visits each
 node in the PSyIR tree and transforms each node into its adjoint form. Once
 this is complete, the PSyIR representation is then written back out as
 code.
+
+If the supplied tangent-linear code contains active variables that are
+passed by argument then the intent of those arguments may change when
+translating to their adjoint form. The new intents are determined as a
+final step in the visitor for a PSyIR :ref:`Schedule <psyir_schedule>`
+node: dependence analysis is used to identify the way in which each
+argument is being accessed in the adjoint code and the ``intent`` is
+updated appropriately.
 
 
 Active Variables
@@ -279,6 +287,42 @@ Transformation
 .. autoclass:: psyclone.psyad.transformations.AssignmentTrans
       :members: apply
 
+.. _psyir_schedule:
+
+Sequence of Statements (PSyIR Schedule)
+---------------------------------------
+
+The PSyIR captures a sequence of statements as children of a
+'Schedule' node. In PSyclone a sequence of statements in a tangent
+linear code are transformed to to their adjoint form by implementing
+the following rules:
+
+1) Each statement is examined to see whether it contains any active
+variables. A statement that contains one or more active variables is
+classed as an ``active statement`` and a statement that does not
+contain any active variables is classed as a ``passive statement``.
+
+2) Any passive statements are left unchanged and immediately output
+as PSyIR in the same order as they were found in the tangent linear
+code. Therefore the resulting sequence of statements in the adjoint
+code will contains all passive statements before all active
+statements.
+
+3) The order of any active tangent-linear statements are then reversed
+and the rules associated with each statement type are applied
+individually to each statement and the resultant PSyIR returned.
+
+.. note:: At the moment the only statements supported within a
+          sequence of statements are assignments and loops. If other
+          types of statement are found then an exception will be
+          raised.
+
+.. warning:: The above rules are invalid if a passive variable is
+             modified and that passive variable is read both before
+             and after it is modified from within active statements or
+             loops. This case is not checked in this version, see
+             issue #1458.
+
 Loop
 ----
 
@@ -320,39 +364,36 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
-Sequence of Statements (PSyIR Schedule)
----------------------------------------
+Intrinsics
+----------
 
-The PSyIR captures a sequence of statements as children of a
-'Schedule' node. In PSyclone a sequence of statements in a tangent
-linear code are transformed to to their adjoint form by implementing
-the following rules:
+If an intrinsic function, such as ``matmul`` or ``transpose``, is
+found in a tangent-linear code and it contains active variables then
+it must be transformed to its associated adjoint form.
 
-1) Each statement is examined to see whether it contains any active
-variables. A statement that contains one or more active variables is
-classed as an ``active statement`` and a statement that does not
-contain any active variables is classed as a ``passive statement``.
+If an unsupported intrinsic function is found then PSyAD will raise an
+exception.
 
-2) Any passive statements are left unchanged and immediately output
-as PSyIR in the same order as they were found in the tangent linear
-code. Therefore the resulting sequence of statements in the adjoint
-code will contains all passive statements before all active
-statements.
+The only supported intrinsic at this time is ``dot_product``.
 
-3) The order of any active tangent-linear statements are then reversed
-and the rules associated with each statement type are applied
-individually to each statement and the resultant PSyIR returned.
+If a ``dot_product`` intrinsic is found in the tangent-linear code it
+is first transformed into equivalent inline code before the code is
+transformed to its adjoint form. The PSyIR ``DotProduct2CodeTrans``
+transformation is used by PSyAD to perform this transformation. See
+the :ref:`user_guide:available_trans` section of the user guide for
+more information.
 
-.. note:: At the moment the only statements supported within a
-          sequence of statements are assignments and loops. If other
-          types of statement are found then an exception will be
-          raised.
+.. note:: At the moment all ``dot_product`` instrinsics are transformed
+	  irrespective of whether they act on active variables or not.
 
-.. warning:: The above rules are invalid if a passive variable is
-             modified and that passive variable is read both before
-             and after it is modified from within active statements or
-             loops. This case is not checked in this version, see
-             issue #1458.
+.. note:: Note, the transformed tangent-linear code can contain new
+          variables, some of which might be active. Any such active
+          variables will need to be specified as active on the PSyAD
+          command-line using the ``-a`` flag even though they do not
+          (yet) exist in the tangent linear code. Eventually such
+          variables will be detected automatically by PSyAD, see issue
+          #1595.
+
 
 Test Harness
 ++++++++++++
