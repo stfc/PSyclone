@@ -220,12 +220,17 @@ class AlgorithmInvokeCall(Call):
             # the closest ancestor routine instead.
             for node in self.root.walk((Routine, Container)):
                 if not isinstance(node, FileContainer):
-                    self._psylayer_container_root_name = self._container_root_name(node)
+                    self._psylayer_container_root_name = \
+                        self._def_container_root_name(node)
                     return
             raise InternalError("No Routine or Container node found.")
 
-    def _container_root_name(self, node):
-        ''' xxx '''
+    @staticmethod
+    def _def_container_root_name(node):
+        '''
+        :returns: the root name to use for the container.
+        :rtype: str
+        '''
         return f"psy_{node.name}"
 
     def lower_to_language_level(self):

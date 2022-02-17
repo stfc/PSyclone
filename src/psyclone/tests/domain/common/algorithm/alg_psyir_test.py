@@ -47,7 +47,7 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
-    BinaryOperation, Container
+    BinaryOperation, Container, Routine, FileContainer
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, Symbol, REAL_TYPE
@@ -282,6 +282,16 @@ def test_aic_defroutinerootname():
         call._name = name
         assert call._def_routine_root_name() == "invoke_a__description"
 
+    # lowering should not prepend "invoke" if the invoke call has a
+    # name starting with "invoke"
+    symbol_name = "dummy"
+    kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
+    routine = RoutineSymbol("hello")
+    index = 3
+    call = AlgorithmInvokeCall(routine, index, name="invoke_1")
+    call.children = [kernel_functor]
+    assert call._def_routine_root_name() == "invoke_1"
+
 
 def test_aic_defroutineroot_name_error():
     '''Check that the _def_routine_root_name() internal method raises the
@@ -368,6 +378,27 @@ def test_aic_createpsylayersymbolrootnames():
     with pytest.raises(InternalError) as error:
         invoke.create_psylayer_symbol_root_names()
     assert "No Routine or Container node found." in str(error.value)
+
+
+def test_aic_defcontainerrootname():
+    '''Check that _def_container_root_name returns the expected value'''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "end subroutine alg1\n")
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    result_node = None
+    for node in psyir.root.walk((Routine, Container)):
+        if not isinstance(node, FileContainer):
+            result_node = node
+    assert result_node
+    name = invoke._def_container_root_name(result_node)
+    assert name == "psy_alg1"
 
 
 def test_aic_lowertolanguagelevel_error():
