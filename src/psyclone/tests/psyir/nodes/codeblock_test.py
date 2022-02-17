@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -107,7 +107,7 @@ def test_codeblock_get_symbol_names(parser):
     used inside the CodeBlock.'''
     reader = FortranStringReader('''
     subroutine mytest
-        a = b + c
+        a = b + sqrt(c)
     end subroutine mytest''')
     prog = parser(reader)
     block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
@@ -116,3 +116,4 @@ def test_codeblock_get_symbol_names(parser):
     assert "c" in block.get_symbol_names()
     assert "mytest" in block.get_symbol_names()
     assert "subroutine" not in block.get_symbol_names()
+    assert "sqrt" not in block.get_symbol_names()

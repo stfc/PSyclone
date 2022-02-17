@@ -319,8 +319,8 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
     assert ("Kernel 'my_subroutine' contains accesses to data (variable "
-            "'new_symbol') that are not captured in the PSyIR Symbol "
-            "Table(s) within Routine scope. Cannot transform such a kernel."
+            "'new_symbol') that are not present in the Symbol Table(s) within "
+            "the scope of this routine. Cannot transform such a kernel."
             in str(err.value))
 
     # If it is local but comes from an import it is also a global
@@ -342,14 +342,14 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
         not_declared1 = not_declared1 + not_declared2
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children[0].content[1].content[0].items,
+    block = CodeBlock(prog.children[0].children[1].children[0].children,
                       CodeBlock.Structure.EXPRESSION)
     ref1.replace_with(block)
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
     assert ("Kernel 'my_subroutine' contains accesses to data (variable "
-            "'not_declared1') that are not captured in the PSyIR Symbol "
-            "Table(s) within Routine scope. Cannot transform such a kernel."
+            "'not_declared1') that are not present in the Symbol Table(s) "
+            "within the scope of this routine. Cannot transform such a kernel."
             in str(err.value))
 
 

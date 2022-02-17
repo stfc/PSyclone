@@ -151,10 +151,10 @@ class KernelTrans(Transformation):
                     var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except KeyError as err:
                 raise TransformationError(
-                    "Kernel '{0}' contains accesses to data (variable '{1}') "
-                    "that are not captured in the PSyIR Symbol Table(s) "
-                    "within KernelSchedule scope. Cannot transform such a "
-                    "kernel.".format(kern.name, var.name)) from err
+                    f"Kernel '{kern.name}' contains accesses to data (variable"
+                    f" '{var.name}') that are not present in the Symbol Table"
+                    f"(s) within KernelSchedule scope. Cannot transform such a"
+                    f" kernel.") from err
 
 
 class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
@@ -719,14 +719,13 @@ class OMPDeclareTargetTrans(Transformation):
                 names = [candidate.name]
             for name in names:
                 try:
-                    candidate.scope.symbol_table.lookup(
-                        name, scope_limit=candidate.ancestor(nodes.Routine))
+                    candidate.scope.symbol_table.lookup(name, scope_limit=node)
                 except KeyError as err:
                     raise TransformationError(
                         f"Kernel '{node.name}' contains accesses to data "
-                        f"(variable '{name}') that are not captured in the "
-                        f"PSyIR Symbol Table(s) within Routine scope. Cannot "
-                        f"transform such a kernel.") from err
+                        f"(variable '{name}') that are not present in the "
+                        f"Symbol Table(s) within the scope of this routine. "
+                        f"Cannot transform such a kernel.") from err
 
         imported_variables = node.symbol_table.imported_symbols
         if imported_variables:
@@ -2866,9 +2865,10 @@ class ACCRoutineTrans(Transformation):
     def apply(self, node, options=None):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
-        supplied kernel or routine.
+        supplied Kernel (in a PSyKAl API such as GOcean or LFRic) or directly
+        in the supplied Routine.
 
-        :param node: the kernel object to transform.
+        :param node: the kernel call or routine implementation to transform.
         :type node: :py:class:`psyclone.psyGen.Kern` or \
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
@@ -2925,13 +2925,16 @@ class ACCRoutineTrans(Transformation):
                     f" supported and kernel '{node.name}' is of type "
                     f"'{type(node).__name__}'")
 
-            # Get the PSyIR routine from the associated kernel
+            # Get the PSyIR routine from the associated kernel If there is an
+            # exception (this could mean that there is no associated tree
+            # or that the frontend failed to convert it into PSyIR) reraise it
+            # as a TransformationError
             try:
                 kernel_schedule = node.get_kernel_schedule()
-            except GenerationError as error:
+            except Exception as error:
                 raise TransformationError(
-                    f"Failed to create PSyIR version of kernel code for "
-                    f"kernel '{node.name}'.") from error
+                    f"Failed to retrieve PSyIR for kernel '{node.name}'. "
+                    f"Cannot transform such a kernel.") from error
 
             # Check that the kernel does not access any data or routines via a
             # module 'use' statement

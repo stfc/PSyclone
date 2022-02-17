@@ -666,7 +666,7 @@ def trans(psy):
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or a Call with the OpenACC Routine Directive
         if psy.name == "psy_lib_fortran_psy":
-            if not sched.walk(Loop) and not sched.walk(Call):
+            if not sched.walk((Loop, Call)):
                 print(f"Transforming {invoke.name} with acc routine")
                 ACC_ROUTINE_TRANS.apply(sched)
                 continue
@@ -680,7 +680,8 @@ def trans(psy):
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
 
         # Add profiling instrumentation
-        print(f"Adding profiling of non-OpenACC regions to routine {invoke.name}")
+        print(f"Adding profiling of non-OpenACC regions to routine "
+              f"{invoke.name}")
         add_profiling(sched.children)
 
         sched.view()

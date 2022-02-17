@@ -164,8 +164,8 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         if self.parent and (not isinstance(self.parent, Routine) or
                             self.parent.children[0] is not self):
             raise GenerationError(
-                f"A OMPDeclareTargetDirective can only be found as a child 0 "
-                f"of a Routine. But found as child {self.position} of a "
+                f"A OMPDeclareTargetDirective must be the first child (index "
+                f"0) of a Routine but found one as child {self.position} of a "
                 f"{type(self.parent).__name__}.")
 
         super().validate_global_constraints()

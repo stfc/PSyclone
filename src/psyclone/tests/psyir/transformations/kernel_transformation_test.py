@@ -97,8 +97,8 @@ def test_accroutine_err(monkeypatch):
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
-    assert ("Failed to create PSyIR version of kernel code for kernel "
-            "'testkern_code'." in str(err.value))
+    assert ("Failed to retrieve PSyIR for kernel 'testkern_code'. Cannot "
+            "transform such a kernel." in str(err.value))
 
 
 def test_accroutine_module_use():
@@ -149,19 +149,6 @@ def test_accroutine_to_routine(fortran_writer):
     previous_num_children = len(routine.children)
     rtrans.apply(routine)
     assert previous_num_children == len(routine.children)
-
-
-def test_accroutine_empty_kernel(fortran_writer):
-    ''' Check that the directive goes at the end of the declarations,
-    even when the rest of the kernel is empty. '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kernels[0])
-    # Check that directive is in correct place (end of declarations)
-    code = fortran_writer(kernels[0].get_kernel_schedule())
-    assert "!$acc routine\n\nend subroutine testkern_code" in code
 
 
 def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
@@ -437,7 +424,7 @@ def test_no_inline_global_var():
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha') that are not captured in the PSyIR Symbol Table(s) "
+            "'alpha') that are not present in the Symbol Table(s) "
             "within KernelSchedule scope." in str(err.value))
 
 

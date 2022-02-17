@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -143,4 +143,4 @@ class CodeBlock(Statement, DataNode):
         return [node.string for node in walk(parse_tree, Fortran2003.Name)]
 
     def __str__(self):
-        return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
+        return f"CodeBlock[{len(self._fp2_nodes)} nodes]"

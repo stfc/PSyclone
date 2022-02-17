@@ -562,8 +562,9 @@ def test_omp_declare_target_directive_validate_global_constraints():
     subroutine.children.insert(0, target.copy())
     with pytest.raises(GenerationError) as err:
         target.validate_global_constraints()
-    assert ("A OMPDeclareTargetDirective can only be found as a child 0 of a "
-            "Routine. But found as child 1 of a Routine." in str(err.value))
+    assert ("A OMPDeclareTargetDirective must be the first child (index 0) of "
+            "a Routine but found one as child 1 of a Routine."
+            in str(err.value))
 
 
 # Test OMPLoopDirective
