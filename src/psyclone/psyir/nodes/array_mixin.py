@@ -320,6 +320,21 @@ class ArrayMixin(object):
                     f"expression but found '{type(child).__name__}'")
         return self.children
 
+    def get_outer_range_index(self):
+        ''' Return the index of the child that represents the outermost
+        array dimension with a Range construct.
+
+        :returns: the outermost index of the children that is a Range node.
+        :rtype: int
+
+        :raises IndexError: if the array does not contain a Range node.
+
+        '''
+        for child in reversed(self.indices):
+            if isinstance(child, Range):
+                return child.position
+        raise IndexError
+
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayMixin']
