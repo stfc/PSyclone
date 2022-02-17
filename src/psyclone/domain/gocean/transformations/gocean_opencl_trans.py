@@ -479,21 +479,9 @@ class GOOpenCLTrans(Transformation):
 
             # Check that the global_size is multiple of the local_size
             if api_config.debug_mode:
-                check = BinaryOperation.create(
-                            BinaryOperation.Operator.NE,
-                            BinaryOperation.create(
-                                BinaryOperation.Operator.REM,
-                                Literal(str(num_x), INTEGER_TYPE),
-                                Literal(str(local_size_value), INTEGER_TYPE)
-                                ),
-                            Literal("0", INTEGER_TYPE))
-                message = ("Global size is not a multiple of local size ("
-                           "mandatory in OpenCL < 2.0).")
-                error = Call.create(check_status,
-                                    [Literal(message, CHARACTER_TYPE),
-                                     Literal("-1", INTEGER_TYPE)])
-                ifblock = IfBlock.create(check, [error])
-                node.children.insert(outerloop.position, ifblock)
+                self._add_divisibility_check(node, outerloop.position,
+                                             check_status, num_x,
+                                             local_size_value)
 
             # Retrieve kernel symbol
             kernelsym = node.symbol_table.lookup_with_tag(
@@ -510,13 +498,14 @@ class GOOpenCLTrans(Transformation):
 
             # If the dependency is a loop containing a kernel, add a barrier if
             # the previous kernels were dispatched in a different command queue
-            if dependency and dependency.coded_kernels():
+            if dependency:
                 for kernel_dep in dependency.coded_kernels():
                     previous_queue = kernel_dep.opencl_options['queue_number']
                     if previous_queue != queue_number:
                         # If the backward dependency is being executed in
                         # another queue we add a barrier to make sure the
-                        # previous kernel has finished before this one starts.
+                        # previous kernel has finished before this halo
+                        # exchange starts.
                         barrier = Assignment.create(
                                     Reference(flag),
                                     Call.create(cl_finish, [
@@ -538,19 +527,11 @@ class GOOpenCLTrans(Transformation):
                                             INTEGER_TYPE)])]))
                 node.children.insert(outerloop.position, barrier)
 
+            # Check that everything has succeeded before the kernel launch
             if api_config.debug_mode:
-                # Check that everything has succeeded before the kernel launch,
-                # since kernel executions are asynchronous, we insert a
-                # clFinish command as a barrier to make sure everything until
-                # here has been executed.
-                barrier = Assignment.create(
-                            Reference(flag),
-                            Call.create(cl_finish, [cmd_queue.copy()]))
-                node.children.insert(outerloop.position, barrier)
-                message = Literal("Errors before {0} launch".format(kern.name),
-                                  CHARACTER_TYPE)
-                check = Call.create(check_status, [message, Reference(flag)])
-                node.children.insert(outerloop.position, check)
+                self._add_ready_check(node, outerloop.position, check_status,
+                                      kern.name, flag, cl_finish,
+                                      cmd_queue.copy())
 
             # Then we call the clEnqueueNDRangeKernel
             assig = Assignment.create(
@@ -582,30 +563,18 @@ class GOOpenCLTrans(Transformation):
 
             # Add additional checks if we are in debug mode
             if api_config.debug_mode:
-
-                # First check the launch return value
-                message = Literal(
-                    "{0} clEnqueueNDRangeKernel".format(kern.name),
-                    CHARACTER_TYPE)
-                check = Call.create(check_status, [message, Reference(flag)])
-                node.children.insert(outerloop.position, check)
-
-                # Then add a barrier and check that the kernel executed
-                # successfully
-                barrier = Assignment.create(
-                            Reference(flag),
-                            Call.create(cl_finish, [cmd_queue.copy()]))
-                node.children.insert(outerloop.position, barrier)
-                message = Literal("Errors during {0}".format(kern.name),
-                                  CHARACTER_TYPE)
-                check = Call.create(check_status, [message, Reference(flag)])
-                node.children.insert(outerloop.position, check)
+                self._add_kernel_check(node, outerloop.position, check_status,
+                                       kern.name, flag, cl_finish,
+                                       cmd_queue.copy())
 
             nodes_to_detach.append(outerloop)
 
         # If we execute the kernels asynchronously, we need to add wait
-        # statements before the PSy-layer operations that depend on them
+        # statements before the halo exchanges to guarantee that the data
+        # has been updated
         for possible_dependent_node in node.walk(HaloExchange):
+            # The backward_dependences returns the last Loop with a kernel
+            # that has a dependency with this halo exchange
             dependency = possible_dependent_node.backward_dependence()
             if dependency:
                 for kernel_dep in dependency.coded_kernels():
@@ -627,18 +596,7 @@ class GOOpenCLTrans(Transformation):
             node_to_detach.detach()
 
         if _end_barrier:
-            # We need a clFinish for each of the queues in the implementation
-            added_comment = False
-            for num in range(1, self._max_queue_number + 1):
-                queue = ArrayReference.create(qlist, [Literal(str(num),
-                                                      INTEGER_TYPE)])
-                node.addchild(
-                    Assignment.create(
-                        Reference(flag), Call.create(cl_finish, [queue])))
-                if not added_comment:
-                    node.children[-1].preceding_comment = \
-                        "Wait until all kernels have finished"
-                    added_comment = True
+            self._add_end_barrier(node, flag, cl_finish, qlist)
 
         # And at the very end always makes sure that first_time value is False
         assign = Assignment.create(Reference(first),
@@ -647,6 +605,132 @@ class GOOpenCLTrans(Transformation):
         node.addchild(assign)
 
         self._output_opencl_kernels_file()
+
+    def _add_end_barrier(self, node, flag, cl_finish, qlist):
+        ''' Append into the given node a OpenCL Wait operation for each of
+        the OpenCL queues in use.
+
+        :param node: PSyIR node where to append the barrier.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param flag: PSyIR symbol to use as flag.
+        :type flag: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param cl_finish: PSyIR symbol of the barrier routine.
+        :type cl_finish: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param qlist: PSyIR symbol of the OpenCL queues array.
+        :type qlist: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        # We need a clFinish for each of the queues in the implementation
+        added_comment = False
+        for num in range(1, self._max_queue_number + 1):
+            queue = ArrayReference.create(qlist, [Literal(str(num),
+                                                  INTEGER_TYPE)])
+            node.addchild(
+                Assignment.create(
+                    Reference(flag), Call.create(cl_finish, [queue])))
+            if not added_comment:
+                node.children[-1].preceding_comment = \
+                    "Wait until all kernels have finished"
+                added_comment = True
+
+    @staticmethod
+    def _add_divisibility_check(node, position, check_status, global_size,
+                                local_size):
+        ''' Insert into node a check that the global_size is exactly
+        divisible by the local size.
+
+        :param node: where to insert the divisibility check.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param int position: location where to insert the divisibilitay check.
+        :param check_status: PSyIR symbol of the check routine.
+        :type check_status: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param str global_size: string representing the global_size symbol.
+        :param int local_size: size of the OpenCL local work_group.
+
+        '''
+        check = BinaryOperation.create(
+                    BinaryOperation.Operator.NE,
+                    BinaryOperation.create(
+                        BinaryOperation.Operator.REM,
+                        Literal(str(global_size), INTEGER_TYPE),
+                        Literal(str(local_size), INTEGER_TYPE)
+                        ),
+                    Literal("0", INTEGER_TYPE))
+        message = ("Global size is not a multiple of local size ("
+                   "mandatory in OpenCL < 2.0).")
+        error = Call.create(check_status,
+                            [Literal(message, CHARACTER_TYPE),
+                             Literal("-1", INTEGER_TYPE)])
+        ifblock = IfBlock.create(check, [error])
+        node.children.insert(position, ifblock)
+
+    @staticmethod
+    def _add_kernel_check(node, position, check_status, kernel_name,
+                          flag, cl_finish, cmd_queue):
+        ''' Insert into node a check that the kernel has been launched and
+        has been executed successfully.
+
+        :param node: where to insert the kernel check.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param int position: location where to insert the kernel check.
+        :param check_status: PSyIR symbol of the check routine.
+        :type check_status: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param str kernel_name: name of the kernel being checked.
+        :param flag: PSyIR symbol to use as flag.
+        :type flag: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param cl_finish: PSyIR symbol of the barrier routine.
+        :type cl_finish: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param cmd_queue: PSyIR symbol of the OpenCL command queues array.
+        :type cmd_queue: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        # First check the launch return value
+        message = Literal(
+            "{0} clEnqueueNDRangeKernel".format(kernel_name),
+            CHARACTER_TYPE)
+        check = Call.create(check_status, [message, Reference(flag)])
+        node.children.insert(position, check)
+
+        # Then add a barrier
+        barrier = Assignment.create(
+                    Reference(flag),
+                    Call.create(cl_finish, [cmd_queue]))
+        node.children.insert(position + 1, barrier)
+
+        # And check the kernel executed successfully
+        message = Literal("Errors during {0}".format(kernel_name),
+                          CHARACTER_TYPE)
+        check = Call.create(check_status, [message, Reference(flag)])
+        node.children.insert(position + 2, check)
+
+    @staticmethod
+    def _add_ready_check(node, position, check_status, kernel_name,
+                         flag, cl_finish, cmd_queue):
+        ''' Insert into node a check that verifies if everything in the
+        command queues previous to a kernel launch has completed successfully.
+
+        :param node: where to insert the kernel check.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param int position: location where to insert the kernel check.
+        :param check_status: PSyIR symbol of the check routine.
+        :type check_status: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param str kernel_name: name of the kernel being checked.
+        :param flag: PSyIR symbol to use as flag.
+        :type flag: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param cl_finish: PSyIR symbol of the barrier routine.
+        :type cl_finish: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param cmd_queue: PSyIR symbol of the OpenCL command queues array.
+        :type cmd_queue: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        barrier = Assignment.create(
+                    Reference(flag),
+                    Call.create(cl_finish, [cmd_queue]))
+        node.children.insert(position, barrier)
+        message = Literal("Errors before {0} launch".format(kernel_name),
+                          CHARACTER_TYPE)
+        check = Call.create(check_status, [message, Reference(flag)])
+        node.children.insert(position + 1, check)
 
     def _insert_kernel_code_in_opencl_file(self, kernel):
         if not self._kernels_file:
@@ -707,6 +791,7 @@ class GOOpenCLTrans(Transformation):
 
         :param parent: parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
 
         '''
         # Return all the code for the call inside a Schedule
@@ -800,10 +885,10 @@ class GOOpenCLTrans(Transformation):
         subroutine doesn't exist it also generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
         :param kernel: the kernel call for which to provide the arg_setter \
                        subroutine.
-        :param type: :py:class:`psyclone.psyGen.CodedKern`
+        :type kernel: :py:class:`psyclone.psyGen.CodedKern`
 
         :returns: the symbol representing the arg_setter subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -913,7 +998,7 @@ class GOOpenCLTrans(Transformation):
         generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol representing the OpenCL initialisation subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -1007,7 +1092,7 @@ class GOOpenCLTrans(Transformation):
         already exist it also generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol of the grid buffer initialisation subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -1098,7 +1183,7 @@ class GOOpenCLTrans(Transformation):
         subroutine doesn't already exist it also generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol representing the grid buffers writing subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -1180,7 +1265,7 @@ class GOOpenCLTrans(Transformation):
         it also generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol of the buffer data retrieving subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -1271,7 +1356,7 @@ class GOOpenCLTrans(Transformation):
         it also generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: the symbol of the buffer writing subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
@@ -1362,7 +1447,7 @@ class GOOpenCLTrans(Transformation):
         it also generates it.
 
         :param node: the container where the new subroutine will be inserted.
-        :param type: :py:class:`psyclone.psyir.nodes.Container`
+        :type node: :py:class:`psyclone.psyir.nodes.Container`
         :returns: the symbol of the buffer initialisation subroutine.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 

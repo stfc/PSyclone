@@ -236,7 +236,6 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
 
     # Test that the necessary variables are declared at the beginning
     # of the invoke
-    print(generated_code)
     assert "integer(kind=c_size_t), target :: localsize(2)" in generated_code
     assert "integer(kind=c_size_t), target :: globalsize(2)" in generated_code
     assert "integer(kind=c_intptr_t) :: u_fld_cl_mem" in generated_code
