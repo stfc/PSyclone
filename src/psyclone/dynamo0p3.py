@@ -9126,13 +9126,18 @@ class DynKernelArgument(KernelArgument):
             alg_datatype, alg_precision = alg_datatype_info
 
         if arg_info and arg_info.form == "collection":
-            if alg_datatype in ["abstract_vector_type", "field_vector_type"]:
+            if alg_datatype == "field_vector_type":
                 # This is a field that has been passed by de-referencing
                 # from a field_vector_type. The type of fields within
                 # field_vector_type is always field_type.
                 alg_datatype = "field_type"
+            elif alg_datatype == "r_solver_field_vector_type":
+                # This is a field that has been passed by de-referencing
+                # from an r_solver_field_vector_type. The type of fields within
+                # r_solver_field_vector_type is always r_solver_field_type.
+                alg_datatype = "r_solver_field_type"
             else:
-                # The collection datatype is not recognised.
+                # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
         if self.is_scalar:

@@ -1786,19 +1786,60 @@ def test_dynkernelargument_idtp_vector_field():
     de-referenced to a field in an invoke argument list.
 
     '''
-    # Use one of the examples to create an instance of
-    # DynKernelArgument that describes a field declared as a vector
-    # field.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.6_mixed_precision_solver_vector.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    field_argument = psy.invokes.invoke_list[0].schedule.args[1]
-    assert field_argument.is_field
-    assert field_argument._precision == "r_def"
-    assert field_argument._data_type == "field_type"
-    assert field_argument._proxy_data_type == "field_proxy_type"
-    assert field_argument._module_name == "field_mod"
+    for index in range(1, 3):
+        field_argument = psy.invokes.invoke_list[0].schedule.args[index]
+        assert field_argument.is_field
+        assert field_argument._precision == "r_def"
+        assert field_argument._data_type == "field_type"
+        assert field_argument._proxy_data_type == "field_proxy_type"
+        assert field_argument._module_name == "field_mod"
+
+
+def test_dynkernelargument_idtp_r_solver_vector_field():
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class for a field that is part of an r_solver_vector_field (a
+    collection of fields used in the solver code) in the algorithm
+    layer and is de-referenced to an r_solver_field in an invoke
+    argument list.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.6.2_mixed_precision_rsolver_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    for index in range(1, 3):
+        field_argument = psy.invokes.invoke_list[0].schedule.args[index]
+        assert field_argument.is_field
+        assert field_argument._precision == "r_solver"
+        assert field_argument._data_type == "r_solver_field_type"
+        assert field_argument._proxy_data_type == "r_solver_field_proxy_type"
+        assert field_argument._module_name == "r_solver_field_mod"
+
+
+def test_dynkernelargument_idtp_abstract_vector_field():
+    '''Test the _init_data_type_properties method in the DynKernelArgument
+    class for a field that is part of an abstract_vector_field (a
+    collection of fields used in the solver code) in the algorithm
+    layer and is de-referenced to a field in an invoke argument
+    list. This raises an exception as PSyclone is not able to
+    determine the type (it only sees abstract_vector_type, see issue
+    #1614).
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(
+            BASE_PATH, "26.7_mixed_precision_abstract_solver_vector.f90"),
+        api=TEST_API)
+    with pytest.raises(GenerationError) as info:
+        _ = PSyFactory(
+            TEST_API, distributed_memory=False).create(invoke_info)
+    assert ("It was not possible to determine the field type from the "
+            "algorithm layer for argument 'x_vector' in kernel "
+            "'testkern_code'." in str(info.value))
 
 
 def test_dynkernelargument_idtp_r_solver_operator():

@@ -31,12 +31,12 @@
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
 !
-! Example where the original field is dereferenced from an
-! abstract_vector_type and therefore has no type information. However,
-! a pointer is used that points to the field within the appropriate
-! select clause and it is of type field_vector_type. As the pointer is
-! passed in to the invoke call, PSyclone knows the argument is a
-! field_vector_type which can only contain fields of type field_type.
+! Example where the field is dereferenced from an abstract_vector_type
+! and therefore has no type information. The LFRic rules state that an
+! abstract_vector_type can only be of type field_vector_type in LFRic
+! code and all fields within a field_vector_type are of type
+! field_type. This is checked at runtime by the algorithm code using a
+! select statement.
 
 module vector_type
 
@@ -60,12 +60,10 @@ contains
     class(some_type), intent(inout) :: self
     class (abstract_vector_type), intent(inout) :: x
     type(field_type), intent(inout) :: m1, m2
-    type(field_vector_type), pointer :: x_ptr
     real(r_def) :: a
     select type (x)
     type is (field_vector_type)
-       xptr => x
-      call invoke(testkern_type(a, x_ptr%vector(1), self%vec_type(1)%vector(1), m1, m2))
+      call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
     class default
       print *,"Error"
     end select

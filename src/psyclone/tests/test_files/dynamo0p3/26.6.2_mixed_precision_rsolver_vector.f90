@@ -31,12 +31,11 @@
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford STFC Daresbury Lab
 !
-! Example where the original field is dereferenced from an
-! abstract_vector_type and therefore has no type information. However,
-! a pointer is used that points to the field within the appropriate
-! select clause and it is of type field_vector_type. As the pointer is
-! passed in to the invoke call, PSyclone knows the argument is a
-! field_vector_type which can only contain fields of type field_type.
+! Example where the field is dereferenced from an r_solver_vector_type
+! and therefore has no type information. The LFRic rules state that an
+! r_solver_vector_type can only contain fields of type
+! r_solver_field_type in LFRic code. This is checked at runtime by the
+! algorithm code using a select statement.
 
 module vector_type
 
@@ -49,7 +48,7 @@ module vector_type
 contains
 
   type :: some_type
-     type(field_vector_type) :: vec_type(10)
+     type(r_solver_field_vector_type) :: vec_type(10)
    contains
      procedure, public :: my_sub
   end type some_type
@@ -58,17 +57,10 @@ contains
 
   subroutine my_sub(self, x, m1, m2)
     class(some_type), intent(inout) :: self
-    class (abstract_vector_type), intent(inout) :: x
+    type(r_solver_field_vector_type), intent(inout) :: x
     type(field_type), intent(inout) :: m1, m2
-    type(field_vector_type), pointer :: x_ptr
     real(r_def) :: a
-    select type (x)
-    type is (field_vector_type)
-       xptr => x
-      call invoke(testkern_type(a, x_ptr%vector(1), self%vec_type(1)%vector(1), m1, m2))
-    class default
-      print *,"Error"
-    end select
+    call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
   end subroutine my_sub
 
 end module vector_type
