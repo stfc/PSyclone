@@ -59,6 +59,10 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         '''
         return isinstance(child, (LFRicKernelFunctor, LFRicBuiltinFunctor))
 
+    def _container_root_name(self, node):
+        ''' xxx '''
+        return f"{node.name}_psy"
+
 
 class LFRicBuiltinFunctor(KernelFunctor):
     '''Object containing an LFRic builtin call, a description of its
