@@ -36,7 +36,7 @@
 '''This module contains the GOcean-specific OpenCL transformation.
 '''
 
-import six
+import os
 
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
@@ -44,6 +44,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
     HaloExchange
+from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
@@ -313,7 +314,6 @@ class GOOpenCLTrans(Transformation):
             node.symbol_table.add(check_status)
 
         # Declare local variables needed on a OpenCL PSy-layer invoke
-        int_array_2d = ArrayType(INTEGER_TYPE, [2])
         nqueues = node.symbol_table.new_symbol(
             "num_cmd_queues", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues")  # Was SAVE
@@ -468,13 +468,14 @@ class GOOpenCLTrans(Transformation):
                 .format(garg.name)
             assig = Assignment.create(
                     Reference(global_size),
-                    Literal("(/{0}, {1}/)".format(num_x, num_y), int_array_2d))
+                    Literal("(/{0}, {1}/)".format(num_x, num_y),
+                            ArrayType(INTEGER_TYPE, [2])))
             node.children.insert(outerloop.position, assig)
             local_size_value = kern.opencl_options['local_size']
             assig = Assignment.create(
                     Reference(local_size),
                     Literal("(/{0}, 1/)".format(local_size_value),
-                            int_array_2d))
+                            ArrayType(INTEGER_TYPE, [2])))
             node.children.insert(outerloop.position, assig)
 
             # Check that the global_size is multiple of the local_size
@@ -733,6 +734,16 @@ class GOOpenCLTrans(Transformation):
         node.children.insert(position + 1, check)
 
     def _insert_kernel_code_in_opencl_file(self, kernel):
+        ''' Insert the given kernel into a OpenCL file. For this we need
+        to remove the 'go_wp' precision symbol which can't be generated
+        by OpenCL. We assume 'go_wp' is a OpenCL double.
+
+        :param kernel: the kernel for which to generate the set_args.
+        :type kernel: :py:class:`psyclone.gocean1p0.GOKern`
+        :param scope: scope node where the set_args will be added.
+        :type symtab: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
         if not self._kernels_file:
             self._kernels_file = FileContainer("opencl_kernels")
 
@@ -740,6 +751,12 @@ class GOOpenCLTrans(Transformation):
         kernel_copy = kernel.get_kernel_schedule().copy()
         symtab = kernel_copy.symbol_table
 
+        # TODO #898: Removing symbols is not properly supported by PSyIR
+        # because we have to deal with all references to it. In this case we
+        # implement manually a conversion of all 'go_wp' to a double precision
+        # and remove the symbol because we guarantee that it just appear in the
+        # declarations of other symbols (symtab.datasymbols).
+        # pylint: disable=protected-access
         for sym in symtab.datasymbols:
             # Not all types have the 'precision' attribute (e.g. DeferredType)
             if (hasattr(sym.datatype, "precision") and
@@ -753,9 +770,10 @@ class GOOpenCLTrans(Transformation):
         self._kernels_file.addchild(kernel_copy)
 
     def _output_opencl_kernels_file(self):
+        ''' Write the OpenCL kernels file to the filesystem using the
+        OpenCL backend.
 
-        from psyclone.psyir.backend.opencl import OpenCLWriter
-        import os
+        '''
         ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_name = ""
         new_kern_code = ocl_writer(self._kernels_file)
@@ -784,14 +802,15 @@ class GOOpenCLTrans(Transformation):
         # Close the new kernel file
         os.close(fdesc)
 
-    def _generate_set_args_call(self, kernel, scope):
-        '''
-        Generate the Call statement to the set_args subroutine for the
+    @staticmethod
+    def _generate_set_args_call(kernel, scope):
+        ''' Generate the Call statement to the set_args subroutine for the
         provided kernel.
 
-        :param parent: parent subroutine in f2pygen AST of generated code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
+        :param kernel: the kernel for which to generate the set_args.
+        :type kernel: :py:class:`psyclone.gocean1p0.GOKern`
+        :param scope: scope node where the set_args will be added.
+        :type symtab: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         '''
         # Return all the code for the call inside a Schedule
@@ -813,11 +832,11 @@ class GOOpenCLTrans(Transformation):
                 symbol = symtab.lookup_with_tag(tag)
                 boundaries.append(symbol.name)
         except KeyError as err:
-            six.raise_from(GenerationError(
-                "Boundary symbol tag '{0}' not found while generating the "
-                "OpenCL code for kernel '{1}'. Make sure to apply the "
-                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
-                " the OpenCL code generation.".format(tag, kernel.name)), err)
+            raise GenerationError(
+                f"Boundary symbol tag '{tag}' not found while generating the "
+                f"OpenCL code for kernel '{kernel.name}'. Make sure to apply "
+                f"the GOMoveIterationBoundariesInsideKernelTrans before "
+                f"attempting the OpenCL code generation.") from err
 
         # Initialise the boundary assignments statements
         # FIXME: Can this go away?
