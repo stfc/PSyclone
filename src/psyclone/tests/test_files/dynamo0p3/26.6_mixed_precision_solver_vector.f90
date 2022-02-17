@@ -64,7 +64,7 @@ contains
     real(r_def) :: a
     select type (x)
     type is (field_vector_type)
-       xptr => x
+       x_ptr => x
       call invoke(testkern_type(a, x_ptr%vector(1), self%vec_type(1)%vector(1), m1, m2))
     class default
       print *,"Error"

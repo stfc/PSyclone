@@ -528,6 +528,46 @@ contains `integer` data with precision `i_def`). If an unsupported
 field type is found then PSyclone will abort with a message that
 indicates the problem.
 
+Field Vectors
++++++++++++++
+
+If PSyclone finds an argument that is declared as a
+`field_vector_type` or `r_solver_field_vector_type` it will assume
+that the actual field being referenced is of type `field_type` or
+`r_solver_field_type` respectively.
+
+If PSyclone finds an argument that is declared as an
+`abstract_field_type` then it will not know the actual type of the
+argument and will raise an exception::
+
+    ! ...
+    class (abstract_vector_type), intent(inout) :: x
+    ! ...
+    select type (x)
+    type is (field_vector_type)
+      call invoke(testkern_type(x%vector(1)))
+    class default
+      print *,"Error"
+    end select
+    ! ...
+
+The suggested solution to this is to add a pointer to the code that is
+of the required type. This pointer can then be associated with the
+argument and passed into the routine::
+
+    ! ...
+    class (abstract_vector_type), intent(inout) :: x
+    type(field_vector_type), pointer :: x_ptr
+    ! ...
+    select type (x)
+    type is (field_vector_type)
+      x_ptr => x
+      call invoke(testkern_type(x_ptr%vector(1)))
+    class default
+      print *,"Error"
+    end select
+    ! ...
+
 Scalars
 +++++++
 
