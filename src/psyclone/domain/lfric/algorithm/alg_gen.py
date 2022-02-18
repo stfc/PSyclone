@@ -444,9 +444,10 @@ def generate(kernel_path):
                                         Literal("0", INTEGER_TYPE)))
 
     # We use the setval_c builtin to initialise all fields to zero.
-    setval_c = table.new_symbol("setval_c", symbol_type=DataTypeSymbol)
+    setval_c = table.new_symbol("setval_c", symbol_type=DataTypeSymbol,
+                                datatype=DeferredType())
     rdef = table.lookup("r_def")
-    rdef_type = ScalarType(Symbol.Datatype.REAL, rdef)
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     kernel_list = []
     for sym, space in kern_args.fields:
         if isinstance(sym.datatype, DataTypeSymbol):
@@ -454,7 +455,6 @@ def generate(kernel_path):
                 LFRicBuiltinFunctor.create(setval_c,
                                            [Reference(sym),
                                             Literal("0.0", rdef_type)]))
-            #kernel_list.append(("setval_c", [sym.name, "0.0_r_def"]))
         elif isinstance(sym.datatype, ArrayType):
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
@@ -472,13 +472,13 @@ def generate(kernel_path):
                 f"{sym.datatype} for field '{sym.name}'")
 
     # Finally, add the kernel itself to the list for the invoke().
-    LFRicKernelFunctor.create(kernel_routine, [TODO])
-    kernel_list.append((kernel_routine.name, kern_args.arglist))
+    #LFRicKernelFunctor.create(kernel_routine, [TODO])
+    #kernel_list.append((kernel_routine.name, kern_args.arglist))
 
     # Create the 'call invoke(...)' for the list of kernels.
     #prog.addchild(create_invoke_call(kernel_list))
 
-    invoke_sym = prog.table.new_symbol("invoke", symbol_type=RoutineSymbol)
-    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, args, 0))
+    invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
+    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
 
     return FortranWriter()(prog)

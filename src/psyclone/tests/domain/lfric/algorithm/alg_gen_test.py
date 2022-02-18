@@ -35,6 +35,7 @@
 
 ''' pytest tests for the LFRic-specifc algorithm-generation functionality. '''
 
+import os
 import pytest
 
 from psyclone.domain.lfric import KernCallInvokeArgList
@@ -44,6 +45,11 @@ from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
                                     DataTypeSymbol, ImportInterface, ArrayType,
                                     ScalarType, INTEGER_TYPE)
+# Constants
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))),
+    "test_files", "dynamo0p3")
 
 
 @pytest.fixture(name="prog", scope="function")
@@ -231,5 +237,8 @@ def test_construct_kernel_args(prog, dynkern, fortran_writer):
     # TODO #240 - test for compilation.
 
 
-def test_create_invoke_call():
+def test_generate(fortran_writer):
     ''' '''
+    psyir = alg_gen.generate(os.path.join(BASE_PATH, "testkern_mod.F90"))
+    print(fortran_writer(psyir))
+    assert 0
