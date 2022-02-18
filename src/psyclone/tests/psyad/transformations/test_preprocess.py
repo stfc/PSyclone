@@ -163,6 +163,5 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir)
     result = fortran_writer(psyir)
-    print(result)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
