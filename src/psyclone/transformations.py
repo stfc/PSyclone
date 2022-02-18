@@ -124,8 +124,8 @@ class KernelTrans(Transformation):
 
         if not isinstance(kern, Kern):
             raise TransformationError(
-                "Target of a kernel transformation must be a sub-class of "
-                "psyGen.Kern but got '{0}'".format(type(kern).__name__))
+                f"Target of a kernel transformation must be a sub-class of "
+                f"psyGen.Kern but got '{type(kern).__name__}'")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR
@@ -133,15 +133,14 @@ class KernelTrans(Transformation):
         try:
             kernel_schedule = kern.get_kernel_schedule()
         except GenerationError as error:
-            message = ("Failed to create PSyIR version of kernel code for "
-                       "kernel '{0}'. Error reported is {1}."
-                       "".format(kern.name, str(error.value)))
-            raise TransformationError(message) from error
+            raise TransformationError(
+                f"Failed to create PSyIR for kernel '{kern.name}'. "
+                f"Cannot transform such a kernel.") from error
         except SymbolError as err:
             raise TransformationError(
-                "Kernel '{0}' contains accesses to data that are not captured "
-                "in the PSyIR Symbol Table(s) ({1}). Cannot transform such a "
-                "kernel.".format(kern.name, str(err.args[0]))) from err
+                f"Kernel '{kern.name}' contains accesses to data that are not "
+                f"present in the Symbol Table(s). Cannot "
+                f"transform such a kernel.") from err
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
@@ -2933,7 +2932,7 @@ class ACCRoutineTrans(Transformation):
                 kernel_schedule = node.get_kernel_schedule()
             except Exception as error:
                 raise TransformationError(
-                    f"Failed to retrieve PSyIR for kernel '{node.name}'. "
+                    f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
             # Check that the kernel does not access any data or routines via a

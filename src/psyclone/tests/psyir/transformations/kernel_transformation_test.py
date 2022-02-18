@@ -366,13 +366,23 @@ def test_kernel_trans_validate(monkeypatch):
     kernels = sched.walk(Kern)
     kernel = kernels[0]
 
-    def dummy_func():
-        '''Simple Dummy function that raises SymbolError.'''
+    def raise_symbol_error():
+        '''Simple function that raises SymbolError.'''
         from psyclone.psyir.symbols import SymbolError
         raise SymbolError("error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", dummy_func)
+    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
     assert ("'kernel_with_global_code' contains accesses to data that are "
-            "not captured in the PSyIR Symbol Table(s) (error)."
-            "" in str(err.value))
+            "not present in the Symbol Table(s). Cannot transform such a "
+            "kernel." in str(err.value))
+
+    def raise_gen_error():
+        '''Simple function that raises GenerationError.'''
+        from psyclone.errors import GenerationError
+        raise GenerationError("error")
+    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_gen_error)
+    with pytest.raises(TransformationError) as err:
+        kernel_trans.apply(kernel)
+    assert ("Failed to create PSyIR for kernel 'kernel_with_global_code'. "
+            "Cannot transform such a kernel." in str(err.value))
