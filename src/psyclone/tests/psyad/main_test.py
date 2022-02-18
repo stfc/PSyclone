@@ -345,6 +345,7 @@ def test_main_stdout(tmpdir, capsys):
     expected = (
         "program test_adj\n"
         "  real :: a\n\n"
+        "  a = 0.0\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
@@ -365,6 +366,7 @@ def test_main_fileout(tmpdir, capsys):
     expected = (
         "program test_adj\n"
         "  real :: a\n\n"
+        "  a = 0.0\n"
         "  a = 0.0\n\n"
         "end program test_adj\n")
     filename_in = str(tmpdir.join("tl.f90"))

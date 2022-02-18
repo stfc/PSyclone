@@ -49,7 +49,7 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
                                   Container)
-from psyclone.psyir.symbols import ArgumentInterface, REAL_TYPE
+from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -133,13 +133,22 @@ class AdjointVisitor(PSyIRVisitor):
         node_copy = node.copy()
         node_copy.children = []
 
-        print (type(node.parent))
         if isinstance(node.parent, (Routine, Container)):
             # Local active variables need to be zero'ed.
-            self._logger.debug("Zero-ing local active variables")
+            self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
                 if active_variable.is_local:
-                    node_copy.children.append(Assignment.create(Reference(active_variable), Literal("0.0", REAL_TYPE)))
+                    datatype = active_variable.datatype.intrinsic.name
+                    if datatype == "REAL":
+                        value = "0.0"
+                    elif datatype == "INTEGER":
+                        value = "0"
+                    else:
+                        raise Exception("XXX")
+                    node_copy.children.append(
+                        Assignment.create(
+                            Reference(active_variable),
+                            Literal(value, active_variable.datatype)))
 
         # Split active and passive nodes.
         self._logger.debug("Adding passive code into new schedule")

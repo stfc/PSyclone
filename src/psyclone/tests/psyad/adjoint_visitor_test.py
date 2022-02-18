@@ -58,6 +58,9 @@ TL_CODE = (
 EXPECTED_ADJ_CODE = (
     "program test\n"
     "  real :: a\n  real :: b\n  real :: c\n\n"
+    "  a = 0.0\n"
+    "  b = 0.0\n"
+    "  c = 0.0\n"
     "  b = b + a\n"
     "  c = c + a\n"
     "  a = 0.0\n\n"
@@ -285,6 +288,8 @@ def test_schedule_active_assign(tmpdir, fortran_writer):
         "  real :: w\n  real :: x\n"
         "  real :: y\n  real :: z\n\n"
         ""
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n  d = 0.0\n"
+        ""
         "  a = a + y * c\n"
         "  c = 0.0\n"
         ""
@@ -314,6 +319,9 @@ def test_schedule_inactive_assign(tmpdir, fortran_writer):
         "  real :: c\n  real :: d\n"
         "  real :: w\n  real :: x\n"
         "  real :: y\n  real :: z\n\n"
+        ""
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n  d = 0.0\n"
+        ""
         "  w = x * y * z\n"
         "  x = y\n"
         "  z = z / w\n\n")
@@ -339,6 +347,8 @@ def test_schedule_mixed(tmpdir, fortran_writer):
         "  real :: c\n  real :: d\n"
         "  real :: w\n  real :: x\n"
         "  real :: y\n  real :: z\n\n"
+        ""
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n  d = 0.0\n"
         ""
         "  x = y * z\n"
         "  z = x + y\n"
@@ -528,8 +538,7 @@ def test_loop_node_passive(fortran_reader):
     tl_psyir = fortran_reader.psyir_from_source(TL_LOOP_CODE)
     tl_loop = tl_psyir.walk(Loop)[0]
     adj_visitor = AdjointVisitor(["d", "e"])
-    ad_psyir = adj_visitor._visit(tl_psyir)
-    ad_loop = ad_psyir.walk(Loop)[0]
+    _ = adj_visitor._visit(tl_psyir)
 
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor.loop_node(tl_loop)
@@ -556,7 +565,6 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     '''
     code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)
     tl_psyir = fortran_reader.psyir_from_source(code)
-    tl_loop = tl_psyir.walk(Loop)[0]
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     ad_psyir = adj_visitor(tl_psyir)
     ad_loop = ad_psyir.walk(Loop)[0]
