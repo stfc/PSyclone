@@ -1699,7 +1699,7 @@ def test_acc_kernels_error():
             " and dynamo0.3 front-ends" in str(err.value))
 
 
-def test_accroutine_module_use():
+def test_accroutinetrans_module_use():
     ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
     use statement. '''
     _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
@@ -1713,7 +1713,7 @@ def test_accroutine_module_use():
             " they must first" in str(err.value))
 
 
-def test_accroutine_to_kern(fortran_writer):
+def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     ''' Test that we can transform a kernel by adding a "!$acc routine"
     directive to it. '''
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
@@ -1727,8 +1727,18 @@ def test_accroutine_to_kern(fortran_writer):
     code = fortran_writer(kern.get_kernel_schedule())
     assert "!$acc routine\n" in code
 
+    # If the kernel schedule is not accessible, the transformation fails
+    def raise_gen_error():
+        '''Simple function that raises GenerationError.'''
+        raise GenerationError("error")
+    monkeypatch.setattr(kern, "get_kernel_schedule", raise_gen_error)
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kern)
+    assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
+            "transform such a kernel." in str(err.value))
 
-def test_accroutine_to_routine(fortran_writer):
+
+def test_accroutinetrans_with_routine(fortran_writer):
     ''' Test that we can transform a routine by adding a "!$acc routine"
     directive to it. '''
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
@@ -1747,6 +1757,19 @@ def test_accroutine_to_routine(fortran_writer):
     previous_num_children = len(routine.children)
     rtrans.apply(routine)
     assert previous_num_children == len(routine.children)
+
+
+def test_accroutinetrans_with_invalid_node():
+    ''' Test that ACCRoutineTrans raises the appropriate error when a node
+    that is not a Routine or a Kern is provided.'''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched[0]
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kern)
+    assert ("The ACCRoutineTrans must be applied to a sub-class of Kern or "
+            "Routine but got 'GOLoop'." in str(err.value))
 
 
 def test_all_go_loop_trans_base_validate(monkeypatch):

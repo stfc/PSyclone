@@ -2913,8 +2913,8 @@ class ACCRoutineTrans(Transformation):
 
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
-                f"Target of a kernel transformation must be a sub-class of "
-                f"Kern or Routine but got '{type(node).__name__}'")
+                f"The ACCRoutineTrans must be applied to a sub-class of "
+                f"Kern or Routine but got '{type(node).__name__}'.")
 
         # If it is a kernel call it must have an accessible implementation
         if isinstance(node, Kern):
