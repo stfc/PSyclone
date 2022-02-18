@@ -47,7 +47,6 @@ from psyclone.transformations import ACCRoutineTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
-from psyclone.gocean1p0 import GOKern
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Routine, FileContainer
 
@@ -69,86 +68,6 @@ def teardown_function():
     ''' This function is called automatically after every test in this
     file. It ensures that any existing configuration object is deleted. '''
     Config._instance = None
-
-
-def test_accroutine_err(monkeypatch):
-    ''' Check that we raise the expected error if we can't find the
-    source of the kernel subroutine. '''
-    import fparser
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    kern = kernels[0]
-    assert isinstance(kern, Kern)
-    # Edit the fparser1 AST of the kernel so that it does not have a
-    # subroutine of the correct name
-    ast = kern._module_code
-    mod = ast.content[0]
-    # Find the subroutine statement
-    for child in mod.content:
-        if isinstance(child, fparser.one.block_statements.Subroutine):
-            sub = child
-    # Find the end subroutine statement
-    for child in sub.content:
-        if isinstance(child, fparser.one.block_statements.EndSubroutine):
-            end = child
-    monkeypatch.setattr(sub, "name", "some_other_name")
-    monkeypatch.setattr(end, "name", "some_other_name")
-    rtrans = ACCRoutineTrans()
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kern)
-    assert ("Failed to retrieve PSyIR for kernel 'testkern_code'. Cannot "
-            "transform such a kernel." in str(err.value))
-
-
-def test_accroutine_module_use():
-    ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
-    use statement. '''
-    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
-                           idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    rtrans = ACCRoutineTrans()
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kernels[0])
-    assert ("imported interface: ['rdt']. If these symbols represent data then"
-            " they must first" in str(err.value))
-
-
-def test_accroutine_to_kern(fortran_writer):
-    ''' Test that we can transform a kernel by adding a "!$acc routine"
-    directive to it. '''
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    assert isinstance(kern, GOKern)
-    rtrans = ACCRoutineTrans()
-    assert rtrans.name == "ACCRoutineTrans"
-    rtrans.apply(kern)
-    # Check that there is a acc routine directive in the kernel
-    code = fortran_writer(kern.get_kernel_schedule())
-    assert "!$acc routine\n" in code
-
-
-def test_accroutine_to_routine(fortran_writer):
-    ''' Test that we can transform a routine by adding a "!$acc routine"
-    directive to it. '''
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    assert isinstance(kern, GOKern)
-    rtrans = ACCRoutineTrans()
-    assert rtrans.name == "ACCRoutineTrans"
-    routine = kern.get_kernel_schedule()
-    rtrans.apply(routine)
-    # Check that there is a acc routine directive in the routine
-    code = fortran_writer(routine)
-    assert "!$acc routine\n" in code
-
-    # Even if applied multiple times the Directive is only there once
-    previous_num_children = len(routine.children)
-    rtrans.apply(routine)
-    assert previous_num_children == len(routine.children)
 
 
 def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):

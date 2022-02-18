@@ -46,10 +46,12 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
+from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
-from psyclone.transformations import ACCKernelsTrans, \
+from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
     OMPParallelTrans, MoveTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, OMPLoopTrans, \
     ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans
@@ -1695,6 +1697,56 @@ def test_acc_kernels_error():
         accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
             " and dynamo0.3 front-ends" in str(err.value))
+
+
+def test_accroutine_module_use():
+    ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
+    use statement. '''
+    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
+                           idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0])
+    assert ("imported interface: ['rdt']. If these symbols represent data then"
+            " they must first" in str(err.value))
+
+
+def test_accroutine_to_kern(fortran_writer):
+    ''' Test that we can transform a kernel by adding a "!$acc routine"
+    directive to it. '''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    assert isinstance(kern, GOKern)
+    rtrans = ACCRoutineTrans()
+    assert rtrans.name == "ACCRoutineTrans"
+    rtrans.apply(kern)
+    # Check that there is a acc routine directive in the kernel
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert "!$acc routine\n" in code
+
+
+def test_accroutine_to_routine(fortran_writer):
+    ''' Test that we can transform a routine by adding a "!$acc routine"
+    directive to it. '''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    assert isinstance(kern, GOKern)
+    rtrans = ACCRoutineTrans()
+    assert rtrans.name == "ACCRoutineTrans"
+    routine = kern.get_kernel_schedule()
+    rtrans.apply(routine)
+    # Check that there is a acc routine directive in the routine
+    code = fortran_writer(routine)
+    assert "!$acc routine\n" in code
+
+    # Even if applied multiple times the Directive is only there once
+    previous_num_children = len(routine.children)
+    rtrans.apply(routine)
+    assert previous_num_children == len(routine.children)
 
 
 def test_all_go_loop_trans_base_validate(monkeypatch):
