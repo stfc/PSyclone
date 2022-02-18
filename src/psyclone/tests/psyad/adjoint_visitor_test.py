@@ -498,19 +498,19 @@ def test_loop_node_bounds_error(fortran_reader):
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The lower bound of a loop should not contain active variables, "
-            "but found lo in 'lo'" in str(info.value))
+            "but found 'lo' in 'lo'" in str(info.value))
     # upper bound
     adj_visitor = AdjointVisitor(["a", "b", "c", "hi"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The upper bound of a loop should not contain active variables, "
-            "but found hi in 'hi'" in str(info.value))
+            "but found 'hi' in 'hi'" in str(info.value))
     # step
     adj_visitor = AdjointVisitor(["a", "b", "c", "step"])
     with pytest.raises(VisitorError) as info:
         _ = adj_visitor(tl_psyir)
     assert ("The step of a loop should not contain active variables, "
-            "but found step in 'step'" in str(info.value))
+            "but found 'step' in 'step'" in str(info.value))
     # loop variable
     adj_visitor = AdjointVisitor(["a", "b", "c", "i"])
     with pytest.raises(VisitorError) as info:
@@ -519,7 +519,7 @@ def test_loop_node_bounds_error(fortran_reader):
             in str(info.value))
 
 
-def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer):
+def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
     '''Test that the loop_node method does not raise an exception if an
     active variable is found in a loop bound but is the first argument
     to one of the LBOUND or UBOUND intrinsic functions as these
@@ -553,6 +553,7 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer):
     ad_psyir = adj_visitor(tl_psyir)
     result = fortran_writer(ad_psyir)
     assert result == expected_ad_code
+    assert Compile(tmpdir).string_compiles(result)
 
     # active variables within 2nd arg of lbound or ubound are not OK
     tl_code = (
@@ -568,7 +569,7 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer):
     with pytest.raises(VisitorError) as error:
         _ = adj_visitor(tl_psyir)
     assert ("The upper bound of a loop should not contain active variables, "
-            "but found b in 'UBOUND(a, b)'." in str(error.value))
+            "but found 'b' in 'UBOUND(a, b)'." in str(error.value))
 
 
 def test_loop_node_passive(fortran_reader):
@@ -612,11 +613,11 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     ad_loop = ad_psyir.walk(Loop)[0]
     result = fortran_writer(ad_loop)
     expected_result = (
-        "do i = {0}\n"
-        "  b(i) = b(i) + a(i)\n"
-        "  c(i) = c(i) + a(i)\n"
-        "  a(i) = 0.0\n"
-        "enddo\n".format(out_bounds))
+        f"do i = {out_bounds}\n"
+        f"  b(i) = b(i) + a(i)\n"
+        f"  c(i) = c(i) + a(i)\n"
+        f"  a(i) = 0.0\n"
+        f"enddo\n")
     assert result == expected_result
 
 

@@ -266,13 +266,13 @@ class AdjointVisitor(PSyIRVisitor):
                 if ref.symbol in self._active_variables:
                     # Ignore LBOUND and UBOUND
                     if not (isinstance(ref.parent, BinaryOperation) and
-                            ref is ref.parent.children[0] and
+                            ref.position == 0 and
                             ref.parent.operator in [
                                 BinaryOperation.Operator.LBOUND,
                                 BinaryOperation.Operator.UBOUND]):
                         raise VisitorError(
                             f"The {description} of a loop should not contain "
-                            f"active variables, but found {ref.name} in "
+                            f"active variables, but found '{ref.name}' in "
                             f"'{self._writer(expr)}'.")
 
         if node_is_active(Reference(node.variable), self._active_variables):

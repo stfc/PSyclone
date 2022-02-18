@@ -139,21 +139,30 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
     '''
     code = (
         "program test\n"
-        "real :: a(10), b(10), c(10)\n"
-        "a(:) = b(:) * c(:)\n"
+        "real, dimension(10,10,10) :: a,b,c,d\n"
+        "a(:,1,:) = b(:,1,:) * c(:,1,:)\n"
+        "d(1,1,1) = 0.0\n"
+        "print *, \"hello\"\n"
         "end program test\n")
     expected = (
         "program test\n"
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n"
-        "  integer :: idx\n\n"
-        "  do idx = LBOUND(a, 1), UBOUND(a, 1), 1\n"
-        "    a(idx) = b(idx) * c(idx)\n"
-        "  enddo\n\n"
+        "  real, dimension(10,10,10) :: a\n"
+        "  real, dimension(10,10,10) :: b\n"
+        "  real, dimension(10,10,10) :: c\n"
+        "  real, dimension(10,10,10) :: d\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  do idx = LBOUND(a, 3), UBOUND(a, 3), 1\n"
+        "    do idx_1 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,1,idx)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  d(1,1,1) = 0.0\n"
+        "  PRINT *, \"hello\"\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir)
     result = fortran_writer(psyir)
+    print(result)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)

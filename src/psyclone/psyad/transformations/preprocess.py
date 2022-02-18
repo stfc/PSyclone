@@ -60,6 +60,8 @@ def preprocess_trans(kernel_psyir):
 
     # Replace array-ranges with explicit loops
     for assignment in kernel_psyir.walk(Assignment):
+        # Repeatedly apply the transformation until there are no more
+        # array ranges in this assignment.
         while True:
             try:
                 arrayrange2loop_trans.apply(assignment)
