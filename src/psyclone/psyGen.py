@@ -1888,19 +1888,8 @@ class CodedKern(Kern):
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
         # the  FORTCL_KERNELS_FILE environment variable)
         if not self.ancestor(InvokeSchedule).opencl:
-            if self._kern_schedule:
-                # A PSyIR kernel schedule has been created. This means
-                # that the PSyIR has been modified and will be used to
-                # generate modified kernel code. Therefore the PSyIR
-                # should be modified rather than the parse tree. This
-                # if test, and the associated else, are only required
-                # whilst old style (direct fp2) transformations still
-                # exist - #490.
-
-                # Rename PSyIR module and kernel names.
-                self._rename_psyir(new_suffix)
-            else:
-                self._rename_ast(new_suffix)
+            # Rename PSyIR module and kernel names.
+            self._rename_psyir(new_suffix)
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
@@ -1978,6 +1967,9 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
 
         '''
+        # We need to get the kernel schedule before modifying self.name
+        kern_schedule = self.get_kernel_schedule()
+
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
@@ -1991,7 +1983,6 @@ class CodedKern(Kern):
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
 
-        kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
 
@@ -2016,71 +2007,6 @@ class CodedKern(Kern):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(
                     orig_kern_name, new_kern_name)
-
-    def _rename_ast(self, suffix):
-        '''
-        Renames all quantities (module, kernel routine, kernel derived type)
-        in the kernel AST by inserting the supplied suffix. The resulting
-        names follow the PSyclone naming convention (modules end with "_mod",
-        types with "_type" and kernels with "_code").
-
-        :param str suffix: the string to insert into the quantity names.
-        '''
-        from fparser.two.utils import walk
-
-        # Use the suffix we have determined to create a new kernel name.
-        # This will conform to the PSyclone convention of ending in "_code"
-        orig_mod_name = self.module_name[:]
-        orig_kern_name = self.name[:]
-
-        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
-        new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
-
-        # Query the fparser2 AST to determine the name of the type that
-        # contains the kernel subroutine as a type-bound procedure
-        orig_type_name = ""
-        new_type_name = ""
-        dtypes = walk(self.ast.content, Fortran2003.Derived_Type_Def)
-        for dtype in dtypes:
-            tbound_proc = walk(dtype.content,
-                               Fortran2003.Type_Bound_Procedure_Part)
-            names = walk(tbound_proc[0].content, Fortran2003.Name)
-            if str(names[-1]) == self.name:
-                # This is the derived type for this kernel. Now we need
-                # its name...
-                tnames = walk(dtype.content, Fortran2003.Type_Name)
-                orig_type_name = str(tnames[0])
-
-                # The new name for the type containing kernel metadata will
-                # conform to the PSyclone convention of ending in "_type"
-                new_type_name = self._new_name(orig_type_name, suffix, "_type")
-                # Rename the derived type. We do this here rather than
-                # search for Type_Name in the AST again below. We loop over
-                # the list of type names so as to ensure we rename the type
-                # in the end-type statement too.
-                for name in tnames:
-                    if str(name) == orig_type_name:
-                        name.string = new_type_name
-
-        # Change the name of this kernel and the associated module
-        self.name = new_kern_name[:]
-        self._module_name = new_mod_name[:]
-
-        # Construct a dictionary for mapping from old kernel/type/module
-        # names to the corresponding new ones
-        rename_map = {orig_mod_name: new_mod_name,
-                      orig_kern_name: new_kern_name,
-                      orig_type_name: new_type_name}
-
-        # Re-write the values in the AST
-        names = walk(self.ast.content, Fortran2003.Name)
-        for name in names:
-            try:
-                new_value = rename_map[str(name)]
-                name.string = new_value[:]
-            except KeyError:
-                # This is not one of the names we are looking for
-                continue
 
     @property
     def modified(self):

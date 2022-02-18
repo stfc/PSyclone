@@ -55,42 +55,20 @@ Transformations
 Kernel Transformations
 ======================
 
-PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the
-language AST or by translating the language AST to PSyIR, applying the
-transformation in the PSyIR and using one of the back-ends to generate
-the resulting code.
-
-For now, both methods only support the fparser2 AST for kernel code.
-This AST is obtained by converting the fparser1 AST (stored
-when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2.
-(Note that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.)
-The `ast` property of the `psyclone.psyGen.Kern` class is responsible
-for performing this translation the first time it is called. It also
-stores the resulting AST in `Kern._fp2_ast` for return by future calls.
-
-Alternatively, one can call the `psyclone.psyGen.CodedKern.get_kernel_schedule()`
-to generate the PSyIR representation of the kernel code. 
+PSyclone is able to perform kernel transformations by obtaining the PSyIR
+representation of the kernel with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
-
-The language AST to PSyIR transformation is done using a PSyIR front-end.
-This are found in the `psyclone.psyir.frontend` module. 
-The only currently available front-end is `Fparser2Reader` but this can
-be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
-sub-class).
-The naming convention used for the PSyIR front-ends is
-<API><languageAST>Reader.
-
-.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
-    :members:
 
 The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
+
+In addition to modifying the kernel PSyIR with the desired transformations,
+the `modified` flag of the `CodedKern` node has to be set. This will let
+PSyclone know which kernel files it may have to rename and rewrite
+during the code generation.
 
 Raising Transformations
 =======================
