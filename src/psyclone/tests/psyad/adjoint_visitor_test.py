@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -238,10 +238,12 @@ def test_create_schedule_logger(caplog, fortran_reader):
     with caplog.at_level(logging.DEBUG):
         _ = adj_visitor._visit(tl_schedule)
     assert "Transforming Schedule" in caplog.text
+    assert "Zero-ing any local active variables" in caplog.text
     assert "Adding passive code into new schedule" in caplog.text
     assert "Reversing order of active code" in caplog.text
     assert ("Processing active code and adding results into new schedule"
             in caplog.text)
+    assert "Transforming active assignment" in caplog.text
 
 
 def test_create_schedule_active_variables(fortran_reader):
@@ -364,6 +366,102 @@ def test_schedule_mixed(tmpdir, fortran_writer):
         "  c = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
                   fortran_writer)
+
+
+@pytest.mark.parametrize("datatype,precision,value",
+                         [("real", "r_def", "0.0"), ("integer", "i_def", "0")])
+def test_schedule_zero(tmpdir, fortran_writer, datatype, precision, value):
+    '''Test the visitor schedule_node method sets active variables with
+    the real and integer datatypes to zero. Tests for both scalars and
+    arrays, with and without specified precision.
+
+    '''
+    tl_fortran = (
+        f"  integer, parameter :: n=10\n"
+        f"  integer, parameter :: {precision}=8\n"
+        f"  {datatype} :: a\n"
+        f"  {datatype} :: b(n)\n"
+        f"  {datatype}(kind={precision}) :: c\n"
+        f"  {datatype}(kind={precision}) :: d(n)\n")
+    active_variables = ["a", "b", "c", "d"]
+    ad_fortran = (
+        f"  integer, parameter :: n = 10\n"
+        f"  integer, parameter :: {precision} = 8\n"
+        f"  {datatype} :: a\n"
+        f"  {datatype}, dimension(n) :: b\n"
+        f"  {datatype}(kind={precision}) :: c\n"
+        f"  {datatype}(kind={precision}), dimension(n) :: d\n\n"
+        f"  a = {value}\n"
+        f"  b = {value}\n"
+        f"  c = {value}_{precision}\n"
+        f"  d = {value}_{precision}\n\n")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
+
+
+def test_schedule_zero_global(fortran_reader, fortran_writer, tmpdir):
+    '''Test the visitor schedule_node does not zero non-local data.'''
+
+    tl_fortran = (
+        "subroutine global_test(a)\n"
+        "  real, intent(in) :: a\n"
+        "  real :: b\n"
+        "end subroutine global_test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    tl_schedule = tl_psyir.children[0]
+    adj_visitor = AdjointVisitor(["a", "b"])
+    ad_psyir = adj_visitor(tl_schedule)
+    ad_fortran = fortran_writer(ad_psyir)
+    assert ad_fortran == (
+        "subroutine global_test(a)\n"
+        "  real, intent(out) :: a\n"
+        "  real :: b\n\n"
+        "  b = 0.0\n\n"
+        "end subroutine global_test\n")
+    assert Compile(tmpdir).string_compiles(ad_fortran)
+
+
+def test_schedule_zero_datatype_error1(fortran_reader):
+    '''Test the visitor schedule_node method raises the expected exception
+    if an unsupported datatype (a structure in this test) is found for
+    a local active variable. Supported types are scalars and arrays.
+
+    '''
+    tl_fortran = (
+        "program structure_test\n"
+        "  type :: field_type\n"
+        "    real :: data(10)\n"
+        "  end type\n"
+        "  type(field_type) :: a\n"
+        "end program structure_test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    tl_schedule = tl_psyir.children[0]
+    adj_visitor = AdjointVisitor(["a"])
+    with pytest.raises(NotImplementedError) as info:
+        _ = adj_visitor.schedule_node(tl_schedule)
+    assert ("Active local variables can only be scalars and arrays, but "
+            "found 'a: <field_type : DataTypeSymbol, Local>'."
+            in str(info.value))
+
+
+def test_schedule_zero_datatype_error2(fortran_reader):
+    '''Test the visitor schedule_node method raises the expected exception
+    if an unsupported intrinsic datatype (logical in this test) is
+    found for a local active variable.
+
+    '''
+    tl_fortran = (
+        "program logical_test\n"
+        "  logical :: l\n"
+        "end program logical_test\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    tl_schedule = tl_psyir.children[0]
+    adj_visitor = AdjointVisitor(["l"])
+    with pytest.raises(NotImplementedError) as info:
+        _ = adj_visitor.schedule_node(tl_schedule)
+    assert ("Datatype 'BOOLEAN' is not supported (for active local variable "
+            "'l'. Supported types are 'REAL' and 'INTEGER'."
+            in str(info.value))
 
 
 @pytest.mark.xfail(reason="Incorrect code is output if the variable in an "

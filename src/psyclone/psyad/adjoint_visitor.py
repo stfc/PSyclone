@@ -134,17 +134,26 @@ class AdjointVisitor(PSyIRVisitor):
         node_copy.children = []
 
         if isinstance(node.parent, (Routine, Container)):
-            # Local active variables need to be zero'ed.
+            # Zero local active variables.
             self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
                 if active_variable.is_local:
+                    if not (active_variable.is_scalar or
+                            active_variable.is_array):
+                        # Issue #1627 structures are not allowed.
+                        raise NotImplementedError(
+                            f"Active local variables can only be scalars and "
+                            f"arrays, but found '{active_variable}'.")
                     datatype = active_variable.datatype.intrinsic.name
                     if datatype == "REAL":
                         value = "0.0"
                     elif datatype == "INTEGER":
                         value = "0"
                     else:
-                        raise Exception("XXX")
+                        raise NotImplementedError(
+                            f"Datatype '{datatype}' is not supported (for "
+                            f"active local variable '{active_variable.name}'. "
+                            f"Supported types are 'REAL' and 'INTEGER'.")
                     node_copy.children.append(
                         Assignment.create(
                             Reference(active_variable),
