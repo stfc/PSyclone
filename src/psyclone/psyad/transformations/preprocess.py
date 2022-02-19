@@ -38,9 +38,9 @@ any required tranformations to the tangent linear PSyIR before it is
 translated to adjoint PSyIR.
 
 '''
-from psyclone.psyir.nodes import BinaryOperation
-from psyclone.psyir.transformations import (DotProduct2CodeTrans,
-                                            Matmul2CodeTrans)
+from psyclone.psyir.nodes import BinaryOperation, Assignment
+from psyclone.psyir.transformations import DotProduct2CodeTrans, \
+    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
 
 
 def preprocess_trans(kernel_psyir):
@@ -56,6 +56,17 @@ def preprocess_trans(kernel_psyir):
     '''
     dot_product_trans = DotProduct2CodeTrans()
     matmul_trans = Matmul2CodeTrans()
+    arrayrange2loop_trans = ArrayRange2LoopTrans()
+
+    # Replace array-ranges with explicit loops
+    for assignment in kernel_psyir.walk(Assignment):
+        # Repeatedly apply the transformation until there are no more
+        # array ranges in this assignment.
+        while True:
+            try:
+                arrayrange2loop_trans.apply(assignment)
+            except TransformationError:
+                break
 
     for oper in kernel_psyir.walk(BinaryOperation):
         if oper.operator == BinaryOperation.Operator.DOT_PRODUCT:

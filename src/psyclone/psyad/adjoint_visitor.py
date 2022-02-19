@@ -282,15 +282,25 @@ class AdjointVisitor(PSyIRVisitor):
                 "A loop node should not be visited before a schedule, "
                 "as the latter sets up the active variables.")
 
-        # Check that variables in loop bounds and the iterator are passive.
+        # Check that variables in loop bounds and the iterator are
+        # passive, unless they are part of the 1st argument to an
+        # LBOUND or UBOUND function, as this is used to determine
+        # the size of the array, not modify its content.
         for expr, description in [(node.start_expr, "lower bound"),
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
-            if node_is_active(expr, self._active_variables):
-                raise VisitorError(
-                    "The {0} of a loop should not contain active "
-                    "variables, but found '{1}'".format(
-                        description, self._writer(expr)))
+            for ref in expr.walk(Reference):
+                if ref.symbol in self._active_variables:
+                    # Ignore LBOUND and UBOUND
+                    if not (isinstance(ref.parent, BinaryOperation) and
+                            ref.position == 0 and
+                            ref.parent.operator in [
+                                BinaryOperation.Operator.LBOUND,
+                                BinaryOperation.Operator.UBOUND]):
+                        raise VisitorError(
+                            f"The {description} of a loop should not contain "
+                            f"active variables, but found '{ref.name}' in "
+                            f"'{self._writer(expr)}'.")
 
         if node_is_active(Reference(node.variable), self._active_variables):
             raise VisitorError(

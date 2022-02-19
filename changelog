@@ -135,6 +135,17 @@
 	44) PR #1607 for #1559. Transform MATRIX_MULTIPLY to equivalent
 	code before creating adjoint.
 
+	45) PR #1527 towards #1525. Adds lower_to_language_level methods
+	to all LFRic builtins with the exception of those involving
+	reductions or type casting.
+
+	50) PR #1616 for #1615. Fixes list of files to profile in NEMO
+	kernels script plus some other typos.
+
+	51) PR #1621 for #1581. Extends PSyAD to make use of the
+	ArrayRange2Loop transformation to remove any array ranges before
+	constructing the adjoint.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

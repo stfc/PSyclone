@@ -752,7 +752,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm in code
 
 
-def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + Y where 'a' is a real scalar and Z, X and Y
@@ -804,12 +804,21 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = a * f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -817,7 +826,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -831,7 +840,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + Y where 'a' is a real scalar and X and Y are
@@ -881,12 +890,21 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = a * f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -894,7 +912,7 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -908,7 +926,7 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X + b*Y where 'b' is a real scalar and X and Y are
@@ -959,11 +977,20 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "b*f2_proxy%data(df)\n"
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) + "
+                "b * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -972,7 +999,7 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "b*f2_proxy%data(df)\n"
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -985,7 +1012,7 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + b*Y where 'a' and 'b' are real scalars and Z, X
@@ -1036,12 +1063,21 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
-            "b*f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = a * f1_proxy%data(df) + "
+                "b * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1049,8 +1085,8 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
-            "b*f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1063,7 +1099,8 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
+                        fortran_writer):
     ''' Test that 1) the str method of LFRicIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + b*Y where 'a' and 'b' are real scalars and X
@@ -1114,12 +1151,21 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
-            "b*f2_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = a * f1_proxy%data(df) + "
+                "b * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -1127,8 +1173,8 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
-            "b*f2_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1141,7 +1187,7 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAXPlusAYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*(X + Y) where 'a' is a real scalar and Z, X and
@@ -1177,6 +1223,15 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = a * (f1_proxy%data(df) + "
+                "f2_proxy%data(df))\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1201,7 +1256,7 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Subtracting (scaled) real fields ---------------------------- #
 
 
-def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXMinusYKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Z = X - Y where Z, X and Y are real-valued fields. Test with and without
@@ -1245,6 +1300,15 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1266,7 +1330,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - Y where X and Y are real-valued fields. Test with and
@@ -1309,6 +1373,15 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -1465,7 +1538,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm in code
 
 
-def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X - Y where 'a' is a real scalar and Z, X and Y
@@ -1516,12 +1589,21 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = a * f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1529,7 +1611,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1543,7 +1625,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X - b*Y where 'b' is a real scalar and Z, X and Y
@@ -1595,11 +1677,20 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "b*f2_proxy%data(df)\n"
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) - "
+                "b * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1608,7 +1699,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "b*f2_proxy%data(df)\n"
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1621,7 +1712,8 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem,
+                        fortran_writer):
     ''' Test that 1) the str method of LFRicIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - b*Y where 'b' is a real scalar and X and Y are
@@ -1672,11 +1764,20 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "b*f2_proxy%data(df)\n"
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) - "
+                "b * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -1685,7 +1786,7 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "b*f2_proxy%data(df)\n"
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1698,7 +1799,7 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
+def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicAXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X - b*Y where 'a' and 'b' are real scalars and Z, X
@@ -1749,12 +1850,21 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
-            "b*f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = a * f1_proxy%data(df) - "
+                "b * f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1762,8 +1872,8 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
-            "b*f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
+            "b * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1779,7 +1889,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Multiplying (scaled) real fields ---------------------------- #
 
 
-def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXTimesYKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Z = X*Y where Z, X and Y are real-valued fields. Test with and without
@@ -1825,6 +1935,15 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -1845,7 +1964,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X*Y where X and Y are real-valued fields. Test with and
@@ -1889,6 +2008,15 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -1910,7 +2038,8 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
+                        fortran_writer):
     ''' Test that 1) the str method of LFRicIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X*Y where 'a' is a real scalar and X and Y are
@@ -1958,6 +2087,15 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "    END SUBROUTINE invoke_0")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = a * f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -2140,7 +2278,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 # ------------- Dividing real fields ---------------------------------------- #
 
 
-def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X/Y where Z, X and Y are fields real-valued. Test with and
@@ -2184,6 +2322,15 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f3_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
@@ -2205,7 +2352,8 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
+                          fortran_writer):
     ''' Test that 1) the str method of LFRicIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X/Y where X and Y are real-valued fields. Test with and
@@ -2248,6 +2396,15 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "f2_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "enddo" in code)
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -2414,7 +2571,8 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
 # ------------- Raising a real field to a scalar ---------------------------- #
 
 
-def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
+                         fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
@@ -2456,6 +2614,18 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n")
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar power
+        scalar = loop.scope.symbol_table.lookup("a_scalar")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
+                "enddo") in code
     else:
         output = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -2479,7 +2649,8 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
                 in code)
 
 
-def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
+def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
+                        fortran_writer):
     ''' Test that 1) the str method of LFRicIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
@@ -2525,6 +2696,18 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n")
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar power
+        scalar = loop.scope.symbol_table.lookup("i_scalar")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
+                "enddo") in code
     else:
         output = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -2555,7 +2738,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Setting real field elements to a real value ----------------- #
 
 
-def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
+def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicSetvalCKern returns the expected
     string and 2) we generate correct code for the built-in operation
     X = c where 'c' is a real constant scalar value and X is a real-valued
@@ -2608,6 +2791,18 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = c\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        # Check the type of the scalar
+        scalar = loop.scope.symbol_table.lookup("c")
+        assert isinstance(scalar.datatype, ScalarType)
+        assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = c\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -2628,7 +2823,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicSetvalXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = X where X and Y are real-valued fields. Also test with and without
@@ -2671,6 +2866,14 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
@@ -2918,7 +3121,7 @@ def test_sum_X(tmpdir, dist_mem):
 # ------------- Sign of real field elements --------------------------------- #
 
 
-def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     ''' Test that 1) the str method of LFRicSignXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = sign(a, X) where 'a' is a real scalar and Y and X
@@ -2948,11 +3151,19 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
         assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+                "enddo") in code
     else:
         output_dm_2 = (
             "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
@@ -2960,7 +3171,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = sign(a, f1_proxy%data(df))\n"
+            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3218,7 +3429,7 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
+            "        f3_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -3231,7 +3442,7 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
+            "        f3_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -3290,8 +3501,8 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
-            "0.8*f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = 0.5d0 * f1_proxy%data(df) + "
+            "0.8 * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -3303,8 +3514,8 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
-            "0.8*f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = 0.5d0 * f1_proxy%data(df) + "
+            "0.8 * f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3360,7 +3571,7 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = sign(- 2.0_r_def, "
+            "        f2_proxy%data(df) = SIGN(-2.0_r_def, "
             "f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
@@ -3373,7 +3584,7 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = sign(- 2.0_r_def, "
+            "        f2_proxy%data(df) = SIGN(-2.0_r_def, "
             "f1_proxy%data(df))\n"
             "      END DO\n"
             "      !\n"
