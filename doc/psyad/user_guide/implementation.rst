@@ -306,7 +306,8 @@ the tangent linear code then they may need to be zero'ed in the
 adjoint form. The current implementation does not try to determine
 which local active variables need to be zero'ed and instead zero's all
 of them. This approach is always safe but may zero some variables when
-it is not required.
+it is not required. The current implementation sets arrays to zero, it
+does not use array notation or loops.
 
 2) Each statement is examined to see whether it contains any active
 variables. A statement that contains one or more active variables is
