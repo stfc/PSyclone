@@ -651,6 +651,8 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10) :: a\n"
         "  real, dimension(2) :: b\n"
         "  integer :: i\n\n"
+        "  a = 0.0\n"
+        "  b = 0.0\n"
         "  do i = UBOUND(a, 1) - MOD(UBOUND(a, 1) - LBOUND(a, 1), "
         "2 * UBOUND(b, 1)), LBOUND(a, 1), -1 * (2 * UBOUND(b, 1))\n"
         "    a(i) = 0.0\n"
