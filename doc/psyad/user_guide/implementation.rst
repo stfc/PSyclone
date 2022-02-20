@@ -68,7 +68,7 @@ trajectory) variables. The active variables are the ones that are
 transformed and reversed, whereas the passive (trajectory) variables
 remain unchanged.
 
-.. Note:: it should be possisble to only need to specify global
+.. Note:: it should be possible to only need to specify global
 	  variables (ones with a lifetime beyond the code i.e. passed
 	  in via argument, modules etc.) as local variables will
 	  inherit being active or passive based on how they are
@@ -280,6 +280,10 @@ divides then it is is, in fact, valid and should not result in an
 exception. For example :math:`A=x(/y/B)` is equivalent to
 :math:`A=(x/y)B`. Issue #1348 captures this current limitation.
 
+When zero-ing active variables (see step 1 in the
+:ref:`psyir_schedule` section) only variables that are scalars or
+arrays and are of type REAL or INTEGER are currently supported. Issues
+#1627 captures this limitation.
 
 Transformation
 **************
@@ -297,18 +301,25 @@ The PSyIR captures a sequence of statements as children of a
 linear code are transformed to to their adjoint form by implementing
 the following rules:
 
-1) Each statement is examined to see whether it contains any active
+1) If there are any active variables that are local to the Schedule in
+the tangent linear code then they may need to be zero'ed in the
+adjoint form. The current implementation does not try to determine
+which local active variables need to be zero'ed and instead zero's all
+of them. This approach is always safe but may zero some variables when
+it is not required.
+
+2) Each statement is examined to see whether it contains any active
 variables. A statement that contains one or more active variables is
 classed as an ``active statement`` and a statement that does not
 contain any active variables is classed as a ``passive statement``.
 
-2) Any passive statements are left unchanged and immediately output
+3) Any passive statements are left unchanged and immediately output
 as PSyIR in the same order as they were found in the tangent linear
 code. Therefore the resulting sequence of statements in the adjoint
 code will contains all passive statements before all active
 statements.
 
-3) The order of any active tangent-linear statements are then reversed
+4) The order of any active tangent-linear statements are then reversed
 and the rules associated with each statement type are applied
 individually to each statement and the resultant PSyIR returned.
 
