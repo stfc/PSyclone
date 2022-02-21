@@ -44,12 +44,11 @@ subroutine read_config(grid, initial, time_steps)
                      (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_PERIODIC/),  &
                      GO_OFFSET_SW)
 
-    ! 3) Create the domain decomposition - we are just using 1 process
-    !    Add a 1 element boundary region around the grid, so our overall
-    !    grid size is n_cols+2 and n_rows+1. The boundary region will be
-    !    filled with 0, and avoids tests when counting neighbours later.
-    call grid%decompose(n_cols+2, n_rows+2, ndomains=1, &
-                        halo_width=0)
+    ! 3) Create the domain decomposition - we are just using 1 process.
+    !    The halo is used to store the boundary condition (in this
+    !    case just 0s)
+    call grid%decompose(n_cols, n_rows, ndomains=1, &
+                        halo_width=1)
 
     ! 4) Grid init
     call grid_init(grid, dxarg=1.0_8, dyarg=1.0_8)
@@ -73,9 +72,9 @@ subroutine get_initial_state(field, n_rows, n_cols)
 
     integer :: line_count, ios, x, y, dx, dy
 
-    ! TODO: halo vs boundary region.
-    dx = field%internal%xstart
-    dy = field%internal%ystart
+    ! Convert halo-free index in config file to index with halo
+    dx = field%internal%xstart - 1
+    dy = field%internal%ystart - 1
     line_count = 0
 
     do

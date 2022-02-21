@@ -27,10 +27,10 @@ contains
 
         ! The outer elements is the 'boundary' area, which is set to 0.
         ! We only loop over the internal points
-        xstart = c%internal%xstart+1
-        xstop  = c%internal%xstop-1
-        ystart = c%internal%ystart+1
-        ystop  = c%internal%ystop-1
+        xstart = c%internal%xstart
+        xstop  = c%internal%xstop
+        ystart = c%internal%ystart
+        ystop  = c%internal%ystop
 
         do j=ystart, ystop
             do i=xstart, xstop

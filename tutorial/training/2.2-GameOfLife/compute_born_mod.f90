@@ -28,10 +28,10 @@ contains
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
-        xstart = current%internal%xstart+1
-        xstop  = current%internal%xstop-1
-        ystart = current%internal%ystart+1
-        ystop  = current%internal%ystop-1
+        xstart = current%internal%xstart
+        xstop  = current%internal%xstop
+        ystart = current%internal%ystart
+        ystop  = current%internal%ystop
 
         do j=ystart, ystop
             do i=xstart, xstop

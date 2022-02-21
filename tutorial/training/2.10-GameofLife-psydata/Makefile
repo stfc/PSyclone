@@ -32,7 +32,7 @@ run: $(EXE)
 	./$(EXE) config.glider
 
 test: $(EXE)
-	./$(EXE) config.glider | tail -n 12 | diff - ./glider.correct
+	./$(EXE) config.glider | tail -n 18  | head -n 12| diff - ./glider.correct
 
 # Dependencies:
 # -------------
@@ -49,9 +49,7 @@ $(PSY_DATA_LIB):
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
 %.f90: %.x90 Makefile
-	#$(PSYCLONE) --profile invokes -api gocean1.0 -oalg $*.f90 \
-	#	-opsy $*_psy.f90 $<
-	$(PSYCLONE) -s ./nan.py -api gocean1.0 -oalg $*.f90 \
+	$(PSYCLONE) --profile invokes -api gocean1.0 -oalg $*.f90 \
 		-opsy $*_psy.f90 $<
 
 # Clean

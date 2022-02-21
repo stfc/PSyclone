@@ -15,8 +15,8 @@ OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
 
 # Limit output to 132 charactere
 PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-		-l output -nodm  \
-		-s ./inline.py
+		-l output -dm
+		# does not work with halo exchange -s ./inline.py
 
 $(EXE): $(INF_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)

@@ -13,10 +13,10 @@ contains
 
         integer                     :: j, xstart, xstop, ystart, ystop
 
-        xstart = field%internal%xstart+1
-        xstop  = field%internal%xstop-1
-        ystart = field%internal%ystart+1
-        ystop  = field%internal%ystop-1
+        xstart = field%internal%xstart
+        xstop  = field%internal%xstop
+        ystart = field%internal%ystart
+        ystop  = field%internal%ystop
 
         do j=ystart, ystop
             write(*,"(99F2.0)") field%data(xstart:xstop, j)
