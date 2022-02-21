@@ -364,6 +364,19 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
+Array Notation
+--------------
+
+Array notation in tangent-linear codes is translated into equivalent
+loops before the tangent-linear code is transformed into its
+adjoint. This is performed as the rules that are applied to transform
+a tangent-linear code into its adjoint are not always correct when
+array notation is used.
+
+.. note:: At the moment all array notation is translated into
+	  equivalent loops irrespective of whether the associated
+	  variables are active or not.
+
 Intrinsics
 ----------
 
@@ -386,8 +399,8 @@ used to perform these manipulations. See the
 information on these transformations.
 
 .. note:: At the moment all ``dot_product`` and ``matmul`` instrinsics
-	  are transformed irrespective of whether they act on active
-	  variables or not.
+	  are transformed irrespective of whether their arguments and
+	  return values are (or contain) active variables or not.
 
 .. note:: Note, the transformed tangent-linear code can contain new
           variables, some of which might be active. Any such active
