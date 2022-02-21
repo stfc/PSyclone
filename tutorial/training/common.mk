@@ -9,7 +9,8 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR := $(abspath $(dir $(this_file))../..)
 
 ifeq ($(API), gocean)
-	INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
+	#INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
+	INF_DIR ?= $(HOME)/work/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
 	INF_LIB = $(INF_DIR)/src/lib_fd.a
 endif
