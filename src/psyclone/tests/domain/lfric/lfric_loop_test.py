@@ -44,6 +44,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.configuration import Config
+from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
@@ -441,6 +442,102 @@ def test_dynloop_load_unexpected_func_space():
     assert ("Generation Error: Unexpected function space found. Expecting "
             "one of " + str(const.VALID_FUNCTION_SPACES) +
             " but found 'broken'" in str(err.value))
+
+
+def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
+    ''' Test that the load() method sets the loop bounds correctly when
+    supplied with a Builtin kernel. We test with both possible settings of
+    api_config.compute_annexed_dofs.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    # First create a working instance of the DynLoop class.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # Now get access to the DynLoop and its associated Builtin kernel.
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    kernel = loop.loop_body[0]
+    new_loop0 = DynLoop(parent=schedule)
+    new_loop0.load(kernel)
+    if dist_mem and annexed:
+        assert new_loop0._upper_bound_name == "nannexed"
+    else:
+        assert new_loop0._upper_bound_name == "ndofs"
+
+
+def test_loop_load_bound_names_continuous(dist_mem):
+    ''' Test that the load() method sets the loop bounds names as
+    expected when given a user-supplied kernel that updates fields on
+    continuous function spaces. '''
+    # First create a working instance of the DynLoop class.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # Now get access to the DynLoop and its associated kernel.
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    kernel = loop.loop_body[0]
+    new_loop0 = DynLoop(parent=schedule)
+    assert new_loop0._lower_bound_name is None
+    assert new_loop0._upper_bound_name is None
+    new_loop0.load(kernel)
+    assert new_loop0._lower_bound_name == "start"
+    # This kernel has GH_INC access for a field on a continuous space.
+    if dist_mem:
+        assert new_loop0._upper_bound_name == "cell_halo"
+    else:
+        assert new_loop0._upper_bound_name == "ncells"
+    # Patch it so that a second field has GH_WRITE access. As there is still
+    # a GH_INC, this should make no difference to the loop bounds.
+    kernel.args[2]._access = AccessType.WRITE
+    new_loop1 = DynLoop(parent=schedule)
+    new_loop1.load(kernel)
+    if dist_mem:
+        assert new_loop1._upper_bound_name == "cell_halo"
+    else:
+        assert new_loop1._upper_bound_name == "ncells"
+    # Patch it again to change the GH_INC argument into a GH_WRITE. The loop
+    # bound should no longer go into the halo.
+    kernel.args[1]._access = AccessType.WRITE
+    new_loop2 = DynLoop(parent=schedule)
+    new_loop2.load(kernel)
+    assert new_loop2._upper_bound_name == "ncells"
+
+
+def test_loop_load_bound_names_anyspace(dist_mem):
+    ''' Test that the load() method sets the loop bounds names as
+    expected when given a user-supplied kernel that updates fields on
+    unknown ('anyspace') function spaces. '''
+    # First create a working instance of the DynLoop class.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11_any_space.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # Now get access to the DynLoop and its associated kernel.
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    kernel = loop.loop_body[0]
+    new_loop0 = DynLoop(parent=schedule)
+    assert new_loop0._lower_bound_name is None
+    assert new_loop0._upper_bound_name is None
+    new_loop0.load(kernel)
+    assert new_loop0._lower_bound_name == "start"
+    # As the updated argument is on 'anyspace' we have to assume that it is
+    # continuous and loop into the halo if DM is enabled.
+    if dist_mem:
+        assert new_loop0._upper_bound_name == "cell_halo"
+    else:
+        assert new_loop0._upper_bound_name == "ncells"
+    # Patch the kernel so that the updated argument has GH_WRITE access
+    # instead of GH_INC. We no longer need to loop into the halo to get correct
+    # results for annexed dofs.
+    kernel.args[0]._access = AccessType.WRITE
+    new_loop1 = DynLoop(parent=schedule)
+    new_loop1.load(kernel)
+    assert new_loop1._upper_bound_name == "ncells"
 
 
 def test_unsupported_halo_read_access():

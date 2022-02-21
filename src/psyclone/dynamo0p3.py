@@ -6920,13 +6920,27 @@ class DynLoop(Loop):
                 elif (self.field_space.orig_name in
                       const.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
-                    self.set_upper_bound("cell_halo", index=1)
+                    # unless the only arguments that are updated all have
+                    # GH_WRITE access. The only time such an access is
+                    # permitted for a field on a continuous space is when the
+                    # kernel is implemented such that any writes to a given
+                    # shared dof are guaranteed to write the same value. There
+                    # is therefore no need to iterate into the L1 halo in order
+                    # to get correct values for annexed dofs.
+                    if not kern.all_updates_are_writes:
+                        self.set_upper_bound("cell_halo", index=1)
+                    else:
+                        self.set_upper_bound("ncells")
                 elif (self.field_space.orig_name in
                       const.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
-                    # it is.
-                    self.set_upper_bound("cell_halo", index=1)
+                    # it is. Again, if the only arguments that are updated have
+                    # GH_WRITE access then we can relax this condition.
+                    if not kern.all_updates_are_writes:
+                        self.set_upper_bound("cell_halo", index=1)
+                    else:
+                        self.set_upper_bound("ncells")
                 else:
                     raise GenerationError(
                         "Unexpected function space found. Expecting one of "
@@ -8035,6 +8049,21 @@ class DynKern(CodedKern):
         :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
         '''
         return self._mesh_properties
+
+    @property
+    def all_updates_are_writes(self):
+        '''
+        :returns: true if all of the arguments updated by this kernel have \
+                  GH_WRITE access, false otherwise.
+        :rtype: bool
+
+        '''
+        accesses = set(arg.access for arg in self.args)
+        all_writes = AccessType.all_write_accesses()
+        all_writes.remove(AccessType.WRITE)
+        if not accesses.intersection(set(all_writes)):
+            return True
+        return False
 
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
