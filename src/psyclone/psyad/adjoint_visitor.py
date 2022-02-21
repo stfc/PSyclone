@@ -224,6 +224,41 @@ class AdjointVisitor(PSyIRVisitor):
             raise VisitorError(
                 "An assignment node should not be visited before a schedule, "
                 "as the latter sets up the active variables.")
+
+        # Deal with any associativitity issues.
+        # e.g. a(x + y) => ax + ay.
+        # These could potentially be done inside the
+        # AssignmentTrans transformation instead.
+
+        # if mult or divide and inactive on one side and multiple
+        # active on other side separated by = or - then multiply
+        from psyclone.psyad.utils import node_is_active
+        from psyclone.psyir.nodes import ArrayReference
+        if node_is_active(node.rhs, self._active_variables):
+            found = True
+            while found:
+                found = False
+                for mult in node.rhs.walk(BinaryOperation):
+                    if mult.operator == BinaryOperation.Operator.MUL:
+                        # LHS inactive RHS + or - and active for both
+                        if node_is_passive(mult.children[0], self._active_variables) and \
+                           isinstance(mult.children[1], BinaryOperation) and \
+                           mult.children[1].operator in [BinaryOperation.Operator.ADD, BinaryOperation.Operator.SUB] and \
+                           node_is_active(mult.children[1].children[0], self._active_variables) and \
+                           node_is_active(mult.children[1].children[1], self._active_variables):
+                            found = True
+                            inactive = mult.children[0]
+                            active0 = mult.children[1].children[0]
+                            active1 = mult.children[1].children[1]
+                            binary_op = mult.children[1]
+
+                            mult_op = BinaryOperation.Operator.MUL
+                            mult0 = BinaryOperation.create(mult_op, inactive.detach(), active0.detach())
+                            mult1 = BinaryOperation.create(mult_op, inactive.copy(), active1.detach())
+                            binary_op.children.extend([mult0, mult1])
+                            mult.replace_with(binary_op.detach())
+                        
+        
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
         # Temporary parent schedule required by the transformation.
