@@ -142,6 +142,10 @@
 	50) PR #1616 for #1615. Fixes list of files to profile in NEMO
 	kernels script plus some other typos.
 
+	51) PR #1621 for #1581. Extends PSyAD to make use of the
+	ArrayRange2Loop transformation to remove any array ranges before
+	constructing the adjoint.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
