@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,27 @@
 Parsing Code
 ############
 
-The PSyclone `parse` module is responsible for parsing science
-(algorithm and kernel) code and extracting the required information
-for the algorithm translation and PSy generation phases.
+The original way to parse code was to use the PSyclone `parse` module
+which is responsible for parsing science (algorithm and kernel) code
+and extracting the required information for the algorithm translation
+and PSy generation phases. This is gradually being replaced by the use
+of the PSyIR and its front-ends and back-ends.
 
-The `parse` module contains modules for parsing algorithm
-(`algorithm.py`) and kernel (`kernel.py`) code as well as a utility
-module (`utils.py`) for common functionality.
+The current status is that the GOcean API uses PSyIR to capture and
+output algorithm code. This is achieved by first reading the algorithm
+file into generic PSyIR, then specialising the PSyIR (raising) to have
+GOcean-specific classes for invoke an kernel calls, then applying any
+transformations if required, then lowering the GOcean-specific classes
+back down to generic PSyIR (which also translates invoke's and kernel
+calls to an appropriate call to the PSy-layer) and finally using the
+Fortran back-end to output the tranformed code. The same approach is
+in development for algorithm-layer code for the LFRic API, but
+currently the original approach is used.
+
+In the original approach the `parse` module contains modules for
+parsing algorithm (`algorithm.py`) and kernel (`kernel.py`) code as
+well as a utility module (`utils.py`) for common functionality. This
+approach is discussed further in the following sections.
 
 Parsing Algorithm Code
 ======================
