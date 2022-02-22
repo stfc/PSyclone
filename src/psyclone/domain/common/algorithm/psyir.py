@@ -207,7 +207,7 @@ class AlgorithmInvokeCall(Call):
         to the lower level PSyIR to the symbol table before lowering.
 
         :raises InternalError: if no Routine or Container is found in \
-            the PSyIR tree contains this node.
+            the PSyIR tree containing this node.
 
         '''
         if not self._psylayer_routine_root_name:
@@ -231,7 +231,7 @@ class AlgorithmInvokeCall(Call):
         node.
 
         :raises InternalError: if an invoke symbol is not found in any \
-            symbol tables attached to nodes that are ancestors if this \
+            symbol tables attached to nodes that are ancestors of this \
             node.
 
         '''
@@ -278,30 +278,24 @@ class AlgorithmInvokeCall(Call):
         call = Call.create(routine_symbol, arguments)
         self.replace_with(call)
 
-        # Remove original invoke symbol if there are no other
-        # references to it. This is not strictly necessary but it
-        # tidies things up and can avoid an exception being raised in
-        # the Fortran Writer as the invoke symbol has an
-        # UnresolvedInterface.
+        # Remove original 'invoke' symbol if there are no other
+        # references to it. This keeps the symbol table up-to-date and
+        # also avoids an exception being raised in the Fortran Writer
+        # as the invoke symbol has an UnresolvedInterface.
 
-        first = True
-        while first or symbol_table.parent_symbol_table():
-            if first:
-                symbol_table = call.scope.symbol_table
-                first = False
-            else:
-                symbol_table = symbol_table.parent_symbol_table()
+        symbol_table = call.scope.symbol_table
+        while symbol_table:
             try:
                 invoke_symbol = symbol_table.lookup(
                     "invoke", scope_limit=symbol_table.node)
             except KeyError:
+                symbol_table = symbol_table.parent_symbol_table()
                 continue
-            invokes = list(symbol_table.node.walk(AlgorithmInvokeCall))
-            if not invokes:
+            if not symbol_table.node.walk(AlgorithmInvokeCall):
                 symbol_table.remove(invoke_symbol)
             break
         else:
-            raise InternalError("No invoke symbol found.")
+            raise InternalError("No 'invoke' symbol found.")
 
 
 class KernelFunctor(Reference):

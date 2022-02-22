@@ -413,7 +413,7 @@ def test_aic_lowertolanguagelevel_error2():
 
     with pytest.raises(InternalError) as info:
         invoke.lower_to_language_level()
-    assert "No invoke symbol found." in str(info.value)
+    assert "No 'invoke' symbol found." in str(info.value)
 
 
 def test_aic_lowertolanguagelevel_expr():
@@ -462,7 +462,7 @@ def test_aic_lowertolanguagelevel_single():
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 1
-    assert invoke.scope.symbol_table.lookup("invoke")
+    assert "invoke" in invoke.scope.symbol_table._symbols
 
     # Don't call create_psylayer_symbol_root_names() here. This is to
     # check that lower_to_language_level() creates the names if
@@ -472,9 +472,7 @@ def test_aic_lowertolanguagelevel_single():
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelFunctor)) == 0
     invoke = psyir.children[0][0]
-    with pytest.raises(KeyError) as info:
-        invoke.scope.symbol_table.lookup("invoke")
-    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
+    assert "invoke" not in invoke.scope.symbol_table._symbols
 
     call = psyir.children[0][0]
     check_call(call, "invoke_0_kern1", "psy_alg1",
@@ -553,24 +551,33 @@ def test_aic_lowertolanguagelevel_multi_invoke():
     assert isinstance(invoke2, AlgorithmInvokeCall)
     assert len(psyir.walk(AlgorithmInvokeCall)) == 2
     assert len(psyir.walk(KernelFunctor)) == 2
-    assert invoke1.scope.symbol_table.lookup("invoke")
-    assert invoke2.scope.symbol_table.lookup("invoke")
+    assert "invoke" in invoke1.scope.symbol_table._symbols
+    assert "invoke" in invoke2.scope.symbol_table._symbols
 
     # Don't call create_psylayer_symbol_root_names() here. This is to
     # check that lower_to_language_level() creates the names if
     # needed.
-    psyir.lower_to_language_level()
+
+    # Just lower one of the invoke's. The 'invoke' symbol should still
+    # exist.
+    invoke1.lower_to_language_level()
+    call1 = psyir.children[0][0]
+    assert not isinstance(call1, AlgorithmInvokeCall)
+    assert isinstance(invoke2, AlgorithmInvokeCall)
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 1
+    assert len(psyir.walk(KernelFunctor)) == 1
+    assert "invoke" in call1.scope.symbol_table._symbols
+    assert "invoke" in invoke2.scope.symbol_table._symbols
+
+    # Now lower the second invoke. The 'invoke' symbol should be
+    # removed.
+    invoke2.lower_to_language_level()
+    call2 = psyir.children[0][1]
 
     assert len(psyir.walk(AlgorithmInvokeCall)) == 0
     assert len(psyir.walk(KernelFunctor)) == 0
-    call1 = psyir.children[0][0]
-    with pytest.raises(KeyError) as info:
-        call1.scope.symbol_table.lookup("invoke")
-    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
-    call2 = psyir.children[0][1]
-    with pytest.raises(KeyError) as info:
-        call2.scope.symbol_table.lookup("invoke")
-    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
+    assert "invoke" not in call1.scope.symbol_table._symbols
+    assert "invoke" not in call2.scope.symbol_table._symbols
 
     assert call1.routine.name == "invoke_0_kern1_1"
     assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
@@ -614,26 +621,18 @@ def test_aic_lowertolanguagelevel_invoke_symbols():
     invoke2 = container.children[1][0]
     assert isinstance(invoke2, AlgorithmInvokeCall)
 
-    assert invoke1.scope.symbol_table.lookup(
-        "invoke", scope_limit=invoke1.scope)
-    assert invoke2.scope.symbol_table.lookup(
-        "invoke", scope_limit=invoke2.scope)
+    assert "invoke" in invoke1.scope.symbol_table._symbols
+    assert "invoke" in invoke2.scope.symbol_table._symbols
 
     psyir.lower_to_language_level()
 
     call1 = container.children[0][0]
     call2 = container.children[1][0]
-    with pytest.raises(KeyError) as info:
-        assert call1.scope.symbol_table.lookup(
-            "invoke", scope_limit=call1.scope)
-    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
-    with pytest.raises(KeyError) as info:
-        assert call2.scope.symbol_table.lookup(
-            "invoke", scope_limit=call2.scope)
-    assert "Could not find 'invoke' in the Symbol Table." in str(info.value)
+    assert "invoke" not in call1.scope.symbol_table._symbols
+    assert "invoke" not in call2.scope.symbol_table._symbols
 
     container = psyir.children[0]
-    assert container.symbol_table.lookup("invoke")
+    assert "invoke" in container.symbol_table._symbols
 
 
 def test_aic_lowertolanguagelevel_invoke_symbols_scope():
@@ -661,7 +660,17 @@ def test_aic_lowertolanguagelevel_invoke_symbols_scope():
         Literal("1", INTEGER_TYPE), [invoke.detach()])
     psyir.children[0].children.append(loop)
 
+    assert "invoke" not in invoke.scope.symbol_table._symbols
+    assert "invoke" in loop.scope.symbol_table._symbols
+
     psyir.lower_to_language_level()
+
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
+    assert len(psyir.walk(KernelFunctor)) == 0
+    loop = psyir.children[0][0]
+    invoke = loop.loop_body[0]
+    assert "invoke" not in invoke.scope.symbol_table._symbols
+    assert "invoke" not in loop.scope.symbol_table._symbols
 
 
 def test_kernelfunctor():

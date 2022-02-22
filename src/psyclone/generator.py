@@ -269,7 +269,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         alg_gen = writer(psyir)
 
         # Create the PSy-layer
-        # TODO: issue #753 replace invoke_info with alg psyir
+        # TODO: issue #1629 replace invoke_info with alg psyir
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
