@@ -44,7 +44,6 @@
 
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyGen import BuiltIn
@@ -408,8 +407,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 if arg.is_scalar]
 
 
-@six.add_metaclass(abc.ABCMeta)
-class LFRicXKern(LFRicBuiltIn):
+class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
     '''Abstract class providing functionaliy to convert a field of
     one type to a field of another type. If [Datatype] (stored in
     _field_type) is the particular datatype to convert to and

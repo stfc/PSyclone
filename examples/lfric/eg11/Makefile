@@ -69,9 +69,6 @@ transform: helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90
 helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_mod.x90
 	${PSYCLONE} -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
 
-#helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_mod.x90
-#	${PSYCLONE} -opsy /dev/null -oalg helmholtz_solver_alg_mod.f90 $<
-
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 

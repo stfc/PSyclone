@@ -144,9 +144,9 @@ def test_dynamopsy_gen_no_invoke():
 def test_dynamopsy_gen():
     '''Check that the gen() method of DynamoPSy behaves as expected when
     generating a psy-layer from an algorithm layer containing invoke
-    calls. Simply check the invoke calls are generated as we check the
-    rest of the generation for the DynamoPSy() gen() method in the
-    previous test.
+    calls. Simply check that the PSy-layer code for the invoke call is
+    generated as we check the rest of the generation for the
+    DynamoPSy() gen() method in the previous test.
 
     '''
     _, invoke_info = parse(
@@ -155,7 +155,6 @@ def test_dynamopsy_gen():
         api="dynamo0.3")
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
-    print(result)
     assert (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
