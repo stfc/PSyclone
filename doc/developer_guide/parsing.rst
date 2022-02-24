@@ -52,9 +52,9 @@ of the PSyIR and its front-ends and back-ends.
 The current status is that the GOcean API uses PSyIR to capture and
 output algorithm code. This is achieved by first reading the algorithm
 file into generic PSyIR, then specialising the PSyIR (raising) to have
-GOcean-specific classes for invoke an kernel calls, then applying any
+GOcean-specific classes for invoke and kernel calls, then applying any
 transformations if required, then lowering the GOcean-specific classes
-back down to generic PSyIR (which also translates invoke's and kernel
+back down to generic PSyIR (which also translates invokes and kernel
 calls to an appropriate call to the PSy-layer) and finally using the
 Fortran back-end to output the tranformed code. The same approach is
 in development for algorithm-layer code for the LFRic API, but

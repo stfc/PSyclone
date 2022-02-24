@@ -469,8 +469,8 @@ def test_aic_lowertolanguagelevel_single():
     # needed.
     invoke.lower_to_language_level()
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
     invoke = psyir.children[0][0]
     assert "invoke" not in invoke.scope.symbol_table._symbols
 
@@ -513,8 +513,8 @@ def test_aic_lowertolanguagelevel_multi():
     invoke.create_psylayer_symbol_root_names()
     invoke.lower_to_language_level()
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
 
     call = psyir.children[0][0]
     check_call(call, "invoke_multi_kern_invoke", "psy_alg1",
@@ -574,8 +574,8 @@ def test_aic_lowertolanguagelevel_multi_invoke():
     invoke2.lower_to_language_level()
     call2 = psyir.children[0][1]
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
     assert "invoke" not in call1.scope.symbol_table._symbols
     assert "invoke" not in call2.scope.symbol_table._symbols
 
@@ -665,8 +665,8 @@ def test_aic_lowertolanguagelevel_invoke_symbols_scope():
 
     psyir.lower_to_language_level()
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
     loop = psyir.children[0][0]
     invoke = loop.loop_body[0]
     assert "invoke" not in invoke.scope.symbol_table._symbols
@@ -724,7 +724,7 @@ def test_kernelfunctor_create(cls):
     # pylint: disable=unidiomatic-typecheck
     assert type(klr) is cls
     assert klr._symbol == symbol
-    assert len(klr.children) == 0
+    assert not klr.children
 
     arg = Reference(Symbol("dummy"))
     klr = KernelFunctor.create(symbol, [arg])

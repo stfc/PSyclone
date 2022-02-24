@@ -404,5 +404,5 @@ of Nodes that have a direct translation into target language concepts.
 
 .. note:: Using the language backends to generate the PSy-layer code
  is supported by the Nemo and GOcean APIs. For the GOcean API the
- algorithm-layer is also transformed using the language
+ algorithm-layer is also generated using the language
  backends. LFRic support is still under development, see #1010.

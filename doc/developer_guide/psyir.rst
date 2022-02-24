@@ -702,7 +702,7 @@ domain specific.
 To obtain domain-specific concepts the language-level PSyIR can be
 specialised or extended. In LFRic there are specialisations for
 kernel-layer datatypes and symbols. For the algorithm layer in both
-GOcean1.0 and LFRic there are specialisations for invoke's and kernel
+GOcean1.0 and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
 The LFRic PSyIR
@@ -749,7 +749,7 @@ The Algorithm-layer subclasses will be used to:
 2) help with reasoning about the algorithm layer e.g. to check that
    the algorithm layer and kernel metadata match.
 
-3) Generating LFRic Algorithm-layer PSyIR e.g. in psyclone-kern.
+3) generate the LFRic Algorithm-layer PSyIR e.g. in psyclone-kern.
 
 Algorithm-layer Classes
 -----------------------
