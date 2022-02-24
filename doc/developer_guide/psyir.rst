@@ -691,21 +691,35 @@ class, for example:
 From the language-level PSyIR nodes, Container, Routine and Statement have
 the CommentableMixin trait.
 
+Domain-Specific PSyIR
+=====================
+
+The discussion so far has been about generic language-level
+PSyIR. This is located in the ``psyir`` directory and contains nodes,
+symbols, transformations, front-ends and back-ends. None of this is
+domain specific.
+
+To obtain domain-specific concepts the language-level PSyIR can be
+specialised or extended. In LFRic there are specialisations for
+kernel-layer datatypes and symbols. For the algorithm layer in both
+GOcean1.0 and LFRic there are specialisations for invokes and kernel
+calls. This is discussed further in the following sections.
 
 The LFRic PSyIR
 ===============
 
 The LFRic PSyIR is a set of subclasses of the PSyIR which captures
-LFRic-specific datatypes and associated symbols. These subclasses are
-work in progress and at the moment are limited to a subset of the
-datatypes passed into LFRic kernels by argument and by use
-association. Over time these will be expanded to support a) all LFRic
-kernel datatypes, b) all LFRic PSyIR datatypes, c) LFRic calls (InvokeCall
-and KernCall), d) subroutines (KernRoutine etc), e) derived quantities
-e.g. iterator variables and eventually f) higher level LFRic PSyIR
-concepts, which will not be concerned with symbol tables and datatypes.
+LFRic-specific routines, datatypes and associated symbols. These
+subclasses are work in progress and at the moment are limited to 1) a
+subset of the datatypes passed into LFRic kernels by argument and by
+use association and 2) LFRic calls (InvokeCall and KernCall) in the
+LFRic algorithm-layer. Over time these will be expanded to support a)
+all LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c)
+subroutines (KernRoutine etc), d) derived quantities e.g. iterator
+variables and eventually e) higher level LFRic PSyIR concepts, which
+will not be concerned with symbol tables and datatypes.
 
-These subclasses will be used to:
+The Kernel-layer subclasses will be used to:
 
 1) check that the data types, dimensions, intent etc. of a coded
    kernel's subroutine arguments conform to the expected datatypes,
@@ -728,12 +742,31 @@ These subclasses will be used to:
 4) generate the PSy-layer, replacing the existing
    ``kern_call_arg_list`` and ``gen_call`` routines.
 
-Classes
--------
+The Algorithm-layer subclasses will be used to:
 
-The LFRic PSyIR is captured in ``domain/lfric/psyir.py``. The relevant
-classes are generated to avoid boilerplate code and to make it simpler
-to change the LFRic infrastructure classes in the future.
+1) help with transforming the algorithm layer.
+
+2) help with reasoning about the algorithm layer e.g. to check that
+   the algorithm layer and kernel metadata match.
+
+3) generate the LFRic Algorithm-layer PSyIR e.g. in psyclone-kern.
+
+Algorithm-layer Classes
+-----------------------
+
+The LFRic PSyIR for the Algorithm layer is captured in
+``domain/lfric/algorithm/psyir.py``. Three classes are currently
+provided, one to capture an invoke call, ``LFRicAlgorithmInvokeCall``
+and two to capture Builtin and (coded) Kernel calls within an invoke
+call, ``LFRicBuiltinFunctor`` and ``LFRicKernelFunctor`` respectively.
+
+Kernel-layer Classes
+--------------------
+
+The LFRic PSyIR for the Kernel layer is captured in
+``domain/lfric/psyir.py``. The relevant classes are generated to avoid
+boilerplate code and to make it simpler to change the LFRic
+infrastructure classes in the future.
 
 The idea is to declare different classes for the different
 concepts. For example ``NumberOfDofsDataType()`` and
@@ -793,3 +826,17 @@ Eventually the definition of lfric datatypes should be moved to the
 LFRic PSyIR, but at the moment there is a lot of information defined
 in the ``DynCollection`` subclasses. This will need to be addressed
 over time.
+
+The GOcean PSyIR
+================
+
+GOcean makes use of algorithm-layer PSyIR specialisations.
+
+Algorithm-layer Classes
+-----------------------
+
+The GOcean PSyIR for the Algorithm layer is captured in
+``domain/common/algorithm/psyir.py``. Two classes are currently
+provided, one to capture an invoke call, ``AlgorithmInvokeCall``
+and the other to capture (coded) Kernel calls within an invoke
+call, ``KernelFunctor``.
