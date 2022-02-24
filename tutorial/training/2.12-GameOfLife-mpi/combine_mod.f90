@@ -9,7 +9,7 @@ module combine_mod
     public combine, combine_code
     type, extends(kernel_type) :: combine
        type(go_arg), dimension(3) :: meta_args =       &
-            (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),  & ! field
+            (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE),  & ! field
                go_arg(GO_READ,  GO_CT, GO_POINTWISE),  & ! field
                go_arg(GO_READ,  GO_CT, GO_POINTWISE)   & ! field
              /)

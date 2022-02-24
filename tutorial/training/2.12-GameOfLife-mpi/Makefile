@@ -1,8 +1,11 @@
+my_default:
+	F90=mpif90 INF_DIR=$$HOME/work/dl_esm_inf/finite_difference $(MAKE) default
+
 EXE = gol
 API = gocean
 
+INF_LIB = $(INF_DIR)/src/lib_dm_fd.a
 include ../common.mk
-INF_LIB = $(INF_DIR)/src/lib_dm.a
 
 SRC = gol.f90 read_config_mod.f90 compute_die_mod.f90               \
 	  compute_born_mod.f90 combine_mod.f90 count_neighbours_mod.f90 \

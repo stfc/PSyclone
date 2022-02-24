@@ -21,6 +21,7 @@ subroutine read_config(grid, initial, time_steps)
 
     character(len=256)           :: filename
     integer                      :: n_rows, n_cols
+    real(kind=8), dimension(:,:), allocatable :: initial_state
 
     call getarg(1, filename)
 
@@ -44,36 +45,40 @@ subroutine read_config(grid, initial, time_steps)
                      (/GO_BC_EXTERNAL,GO_BC_EXTERNAL,GO_BC_EXTERNAL/),  &
                      GO_OFFSET_SW)
 
-    ! 3) Create the domain decomposition - we are just using 1 process
-    call grid%decompose(n_cols+2, n_rows+2, ndomains=4, &
+    ! 3) Create the domain decomposition - we are using 4 process,
+    !    allow for a boundary size of 1 (so +2 for n_cols/n_rows)
+    !    and need a halo size of 1
+    call grid%decompose(n_cols, n_rows, ndomains=4, &
                         halo_width=1)
 
     ! 4) Grid init
     call grid_init(grid, dxarg=1.0_8, dyarg=1.0_8)
 
     ! Now we can use the grid to create the field that stores the
-    ! initial data:
-    initial = r2d_field(grid, GO_T_POINTS)
+    ! initial data.
+    allocate(initial_state(n_cols, n_rows))
 
-    call get_initial_state(initial, n_rows, n_cols)
+    call get_initial_state(initial_state, n_rows, n_cols)
+
+    initial = r2d_field(grid, grid_points = GO_T_POINTS,   &
+                        init_global_data = initial_state)
 
     close(15)
 
 end subroutine read_config
 
 ! ----------------------------------------------------------------------------
-subroutine get_initial_state(field, n_rows, n_cols)
+subroutine get_initial_state(initial_state, n_rows, n_cols)
     USE field_mod, only            : r2d_field
     implicit none
-    TYPE(r2d_field), intent(inout) :: field
+    real(kind=8), dimension(:,:), allocatable :: initial_state
     integer, intent(in)            :: n_rows, n_cols
 
-    integer :: line_count, ios, x, y, dx, dy
+    integer :: line_count, ios, x, y
 
-    dx = field%internal%xstart
-    dy = field%internal%ystart
     line_count = 0
 
+    initial_state = 0.0
     do
         read(15, *, iostat=ios) x, y
         ! Read till end of file
@@ -81,7 +86,7 @@ subroutine get_initial_state(field, n_rows, n_cols)
             exit
         endif
         if (x>=1 .and. x<=n_cols .and. y>=1 .and. y<=n_rows) then
-            field%data(x+dx, y+dy) = 1.0_8
+            initial_state(x, y) = 1.0_8
         else
             print *,"Ignoring line ",line_count,": ",x, y
         endif

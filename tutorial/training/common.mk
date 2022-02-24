@@ -12,11 +12,11 @@ ifeq ($(API), gocean)
 	#INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_DIR ?= $(HOME)/work/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
-	INF_LIB = $(INF_DIR)/src/lib_fd.a
+	INF_LIB ?= $(INF_DIR)/src/lib_fd.a
 endif
 
 INCL = -I$(INF_INC)
-LIBS = -L$(INF_INC) -l_fd
+LIBS = $(INF_LIB)
 
 LDFLAGS += $(LIBS)
 F90FLAGS += $(INCL)
@@ -28,7 +28,7 @@ default: $(EXE)
 $(INF_LIB):
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 $(INF_DIR)/src/lib_dm.a:
-	$(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
+	MPI=yes $(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
 # Compilation rules
 # -----------------
