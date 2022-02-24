@@ -146,6 +146,9 @@
 	ArrayRange2Loop transformation to remove any array ranges before
 	constructing the adjoint.
 
+	52) PR #1622 towards #1618. Fixes code generation for PSyIR of
+	Algorithm Layer by removing `invoke` symbol during lowering.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
