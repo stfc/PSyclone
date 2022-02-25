@@ -2924,7 +2924,7 @@ class ACCRoutineTrans(Transformation):
                     f" supported and kernel '{node.name}' is of type "
                     f"'{type(node).__name__}'")
 
-            # Get the PSyIR routine from the associated kernel If there is an
+            # Get the PSyIR routine from the associated kernel. If there is an
             # exception (this could mean that there is no associated tree
             # or that the frontend failed to convert it into PSyIR) reraise it
             # as a TransformationError

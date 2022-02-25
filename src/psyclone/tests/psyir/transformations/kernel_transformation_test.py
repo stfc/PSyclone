@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
-#              I. Kavcic, Met Office.
+#              I. Kavcic, Met Office
 #              S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for kernel transformations. '''
@@ -43,14 +43,17 @@ import os
 import re
 import pytest
 
+from psyclone.configuration import Config
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.generator import GenerationError
+from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
-    Dynamo0p3KernelConstTrans
-from psyclone.psyGen import Kern
-from psyclone.generator import GenerationError
-from psyclone.configuration import Config
-from psyclone.psyir.nodes import Routine, FileContainer
+    Dynamo0p3KernelConstTrans, KernelModuleInlineTrans
 
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -107,7 +110,6 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
             break
     assert found
 
-    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     # If compilation fails this will raise an exception
     GOcean1p0Build(kernel_outputdir).compile_file(filename)
 
@@ -320,7 +322,6 @@ def test_2kern_trans(kernel_outputdir):
 
 def test_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
                            api="dynamo0.3", idx=0)
     sched = invoke.schedule
@@ -335,7 +336,6 @@ def test_builtin_no_trans():
 def test_no_inline_global_var():
     ''' Check that we refuse to in-line a kernel that accesses a global
     variable. '''
-    from psyclone.transformations import KernelModuleInlineTrans
     inline_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
@@ -359,7 +359,6 @@ def test_kernel_trans_validate(monkeypatch):
     a the subclass.
 
     '''
-    from psyclone.transformations import KernelModuleInlineTrans
     kernel_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
@@ -369,7 +368,6 @@ def test_kernel_trans_validate(monkeypatch):
 
     def raise_symbol_error():
         '''Simple function that raises SymbolError.'''
-        from psyclone.psyir.symbols import SymbolError
         raise SymbolError("error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
@@ -380,7 +378,6 @@ def test_kernel_trans_validate(monkeypatch):
 
     def raise_gen_error():
         '''Simple function that raises GenerationError.'''
-        from psyclone.errors import GenerationError
         raise GenerationError("error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", raise_gen_error)
     with pytest.raises(TransformationError) as err:

@@ -1499,8 +1499,7 @@ class CodedKern(Kern):
         '''
         Returns a PSyIR Schedule representing the kernel code. The Schedule
         is just generated on first invocation, this allows us to retain
-        transformations that may subsequently be applied to the Schedule
-        (but will not adapt to transformations applied to the fparser2 AST).
+        transformations that may subsequently be applied to the Schedule.
 
         :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
