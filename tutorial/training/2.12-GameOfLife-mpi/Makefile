@@ -25,10 +25,10 @@ $(EXE): $(INF_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
-	./$(EXE) config.glider
+	mpirun -np 4 ./$(EXE) config.glider
 
 test: $(EXE)
-	./$(EXE) config.glider | tail -n 12 | diff - ./glider.correct
+	mpirun -np 4 ./$(EXE) config.glider | tail -n 12 | diff - ./glider.correct
 
 # Dependencies:
 # -------------
