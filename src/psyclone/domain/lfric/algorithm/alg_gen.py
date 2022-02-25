@@ -391,7 +391,7 @@ def generate(kernel_path):
     '''
     Generates LFRic algorithm code that calls the supplied kernel through
     an 'invoke'. All of the arguments required by the kernel are constructed
-    and intialised appropriately.
+    and intialised appropriately. Fields and scalars are all set to unity.
 
     :param str kernel_path: location of Kernel source code.
 
@@ -446,12 +446,12 @@ def generate(kernel_path):
     # with the routine we are constructing.
     kern_args = construct_kernel_args(prog, kern)
 
-    # Initialise argument values to zero.
+    # Initialise argument values to unity.
     for sym in kern_args.scalars:
         prog.addchild(Assignment.create(Reference(sym),
-                                        Literal("0", INTEGER_TYPE)))
+                                        Literal("1", INTEGER_TYPE)))
 
-    # We use the setval_c builtin to initialise all fields to zero.
+    # We use the setval_c builtin to initialise all fields to unity.
     setval_c = table.new_symbol("setval_c", symbol_type=DataTypeSymbol,
                                 datatype=DeferredType())
     rdef = table.lookup("r_def")
@@ -462,15 +462,16 @@ def generate(kernel_path):
             kernel_list.append(
                 LFRicBuiltinFunctor.create(setval_c,
                                            [Reference(sym),
-                                            Literal("0.0", rdef_type)]))
+                                            Literal("1.0", rdef_type)]))
         elif isinstance(sym.datatype, ArrayType):
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                ref = ArrayReference.create(sym, [Literal(dim, INTEGER_TYPE)])
+                ref = ArrayReference.create(sym, [Literal(str(dim),
+                                                          INTEGER_TYPE)])
                 kernel_list.append(
-                    LFRicBuiltinFunctor.create(setval_c, [ref,
-                                                          Literal("0.0",
-                                                                  rdef_type)]))
+                    LFRicBuiltinFunctor.create(setval_c,
+                                               [ref, Literal("1.0",
+                                                             rdef_type)]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "

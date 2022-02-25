@@ -265,7 +265,16 @@ def test_generate_invalid_field_type(monkeypatch):
             str(err.value))
 
 
-def test_generate(fortran_writer):
+def test_generate_with_scalar():
+    ''' Check that the generate() method returns the expected Fortran for a
+    valid LFRic kernel that has a scalar argument. '''
+    code = alg_gen.generate(os.path.join(BASE_PATH,
+                                         "testkern_mod.f90"))
+    print(code)
+    assert 0
+
+
+def test_generate_with_vector():
     ''' Test that the generate() method returns the expected Fortran for a
     valid LFRic kernel that takes a field vector. '''
     code = alg_gen.generate(os.path.join(BASE_PATH,
