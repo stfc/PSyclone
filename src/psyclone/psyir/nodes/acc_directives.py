@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,36 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 @six.add_metaclass(abc.ABCMeta)
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
     ''' Base class for all standalone OpenACC directive statements. '''
+
+
+class ACCRoutineDirective(ACCStandaloneDirective):
+    ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
+
+    def gen_code(self, parent):
+        '''Generate the fortran ACC Routine Directive and any associated
+        code.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "acc", "begin", "routine", ""))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc routine". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "acc routine"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
@@ -752,4 +782,4 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 __all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
            "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
            "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
-           "ACCDirective"]
+           "ACCDirective", "ACCRoutineDirective"]

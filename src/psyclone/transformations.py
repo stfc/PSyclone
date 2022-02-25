@@ -45,25 +45,19 @@ from __future__ import absolute_import, print_function
 
 import abc
 
-from fparser.two.utils import walk
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Subroutine_Subprogram, \
-    Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
-    Implicit_Part, Comment
-
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynInvokeSchedule
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule
+from psyclone.psyGen import Transformation, Kern, InvokeSchedule, BuiltIn
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import CodeBlock, Loop, Assignment, \
+from psyclone.psyir.nodes import Loop, Assignment, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective, \
-    OMPTargetDirective
+    OMPTargetDirective, OMPDeclareTargetDirective, ACCRoutineDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.tools import DependencyTools
@@ -127,12 +121,11 @@ class KernelTrans(Transformation):
                                      because there are symbols of unknown type.
 
         '''
-        from psyclone.errors import GenerationError
 
         if not isinstance(kern, Kern):
             raise TransformationError(
-                "Target of a kernel transformation must be a sub-class of "
-                "psyGen.Kern but got '{0}'".format(type(kern).__name__))
+                f"Target of a kernel transformation must be a sub-class of "
+                f"psyGen.Kern but got '{type(kern).__name__}'")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR
@@ -140,15 +133,14 @@ class KernelTrans(Transformation):
         try:
             kernel_schedule = kern.get_kernel_schedule()
         except GenerationError as error:
-            message = ("Failed to create PSyIR version of kernel code for "
-                       "kernel '{0}'. Error reported is {1}."
-                       "".format(kern.name, str(error.value)))
-            raise TransformationError(message) from error
+            raise TransformationError(
+                f"Failed to create PSyIR for kernel '{kern.name}'. "
+                f"Cannot transform such a kernel.") from error
         except SymbolError as err:
             raise TransformationError(
-                "Kernel '{0}' contains accesses to data that are not captured "
-                "in the PSyIR Symbol Table(s) ({1}). Cannot transform such a "
-                "kernel.".format(kern.name, str(err.args[0]))) from err
+                f"Kernel '{kern.name}' contains accesses to data that are not "
+                f"present in the Symbol Table(s). Cannot "
+                f"transform such a kernel.") from err
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
@@ -158,10 +150,10 @@ class KernelTrans(Transformation):
                     var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except KeyError as err:
                 raise TransformationError(
-                    "Kernel '{0}' contains accesses to data (variable '{1}') "
-                    "that are not captured in the PSyIR Symbol Table(s) "
-                    "within KernelSchedule scope. Cannot transform such a "
-                    "kernel.".format(kern.name, var.name)) from err
+                    f"Kernel '{kern.name}' contains accesses to data (variable"
+                    f" '{var.name}') that are not present in the Symbol Table"
+                    f"(s) within KernelSchedule scope. Cannot transform such a"
+                    f" kernel.") from err
 
 
 class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
@@ -641,7 +633,110 @@ class OMPTargetTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-        return None, None
+
+class OMPDeclareTargetTrans(Transformation):
+    '''
+    Adds an OpenMP declare target directive to the specified routine.
+
+    For example:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import OMPDeclareTargetTrans
+    >>>
+    >>> tree = FortranReader().psyir_from_source("""
+    ...     subroutine my_subroutine(A)
+    ...         integer, dimension(10, 10), intent(inout) :: A
+    ...         integer :: i
+    ...         integer :: j
+    ...         do i = 1, 10
+    ...             do j = 1, 10
+    ...                 A(i, j) = 0
+    ...             end do
+    ...         end do
+    ...     end subroutine
+    ...     """
+    >>> omptargettrans = OMPDeclareTargetTrans()
+    >>> omptargettrans.apply(tree.walk(Routine)[0])
+
+    will generate:
+
+    .. code-block:: fortran
+
+        subroutine my_subroutine(A)
+            integer, dimension(10, 10), intent(inout) :: A
+            integer :: i
+            integer :: j
+            !$omp declare target
+            do i = 1, 10
+                do j = 1, 10
+                    A(i, j) = 0
+                end do
+            end do
+        end subroutine
+
+    '''
+    def apply(self, node, options=None):
+        ''' Insert an OMPDeclareTargetDirective inside the provided routine.
+
+        :param node: the PSyIR routine to insert the directive into.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: dict of str:values or None
+
+        '''
+        self.validate(node, options)
+        for child in node.children:
+            if isinstance(child, OMPDeclareTargetDirective):
+                return  # The routine is already marked with OMPDeclareTarget
+        node.children.insert(0, OMPDeclareTargetDirective())
+
+    def validate(self, node, options=None):
+        ''' Check that an OMPDeclareTargetDirective can be inserted.
+
+        :param node: the PSyIR node to validate.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: dict of str:values or None
+
+        :raises TransformationError: if the node is not a Routine
+
+        '''
+        super().validate(node, options=options)
+        # Check that the supplied Node is a Routine
+        if not isinstance(node, Routine):
+            raise TransformationError(
+                f"The OMPDeclareTargetTrans must be applied to a Routine, "
+                f"but found: '{type(node).__name__}'.")
+
+        # Check that the kernel does not access any data or routines via a
+        # module 'use' statement or that are not captured by the SymbolTable
+        for candidate in node.walk((nodes.Reference, nodes.CodeBlock)):
+            if isinstance(candidate, nodes.CodeBlock):
+                names = candidate.get_symbol_names()
+            else:
+                names = [candidate.name]
+            for name in names:
+                try:
+                    candidate.scope.symbol_table.lookup(name, scope_limit=node)
+                except KeyError as err:
+                    raise TransformationError(
+                        f"Kernel '{node.name}' contains accesses to data "
+                        f"(variable '{name}') that are not present in the "
+                        f"Symbol Table(s) within the scope of this routine. "
+                        f"Cannot transform such a kernel.") from err
+
+        imported_variables = node.symbol_table.imported_symbols
+        if imported_variables:
+            raise TransformationError(
+                f"The Symbol Table for kernel '{node.name}' contains the "
+                f"following symbol(s) with imported interface: "
+                f"{[sym.name for sym in imported_variables]}. If these "
+                f"symbols represent data then they must first be converted"
+                f" to kernel arguments using the KernelImportsToArguments "
+                f"transformation. If the symbols represent external "
+                f"routines then PSyclone cannot currently transform this "
+                f"kernel for execution on an OpenMP target.")
 
 
 class OMPLoopTrans(ParallelLoopTrans):
@@ -2736,9 +2831,9 @@ class ACCEnterDataTrans(Transformation):
                                       "region - cannot add an enter data.")
 
 
-class ACCRoutineTrans(KernelTrans):
+class ACCRoutineTrans(Transformation):
     '''
-    Transform a kernel subroutine by adding a "!$acc routine" directive
+    Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
     For example:
 
@@ -2766,101 +2861,93 @@ class ACCRoutineTrans(KernelTrans):
         '''
         return "ACCRoutineTrans"
 
-    def apply(self, kern, options=None):
+    def apply(self, node, options=None):
         '''
-        Modifies the AST of the supplied kernel so that it contains an
-        '!$acc routine' OpenACC directive.
-        This transformation affects the f2pygen and the PSyIR trees of
-        this kernel.
+        Add the '!$acc routine' OpenACC directive into the code of the
+        supplied Kernel (in a PSyKAl API such as GOcean or LFRic) or directly
+        in the supplied Routine.
 
-        :param kern: the kernel object to transform.
-        :type kern: :py:class:`psyclone.psyGen.Kern`
+        :param node: the kernel call or routine implementation to transform.
+        :type node: :py:class:`psyclone.psyGen.Kern` or \
+                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if we fail to find the subroutine \
-                                     corresponding to the kernel object.
-
         '''
-        # pylint: disable=too-many-locals
-
         # Check that we can safely apply this transformation
-        self.validate(kern, options)
+        self.validate(node, options)
 
-        # Get the fparser2 AST of the kernel
-        ast = kern.ast
-        # Find the kernel subroutine in the fparser2 parse tree
-        kern_sub = None
-        subroutines = walk(ast.content, Subroutine_Subprogram)
-        for sub in subroutines:
-            for child in sub.content:
-                if isinstance(child, Subroutine_Stmt) and \
-                   str(child.items[1]) == kern.name:
-                    kern_sub = sub
-                    break
-            if kern_sub:
-                break
-        # Find the last declaration statement in the subroutine
-        spec = walk(kern_sub.content, Specification_Part)[0]
-        posn = -1
-        for idx, node in enumerate(spec.content):
-            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
-                posn = idx
-                break
-        # Create the directive and insert it
-        cmt = Comment(FortranStringReader("!$acc routine",
-                                          ignore_comments=False))
-        if posn == -1:
-            spec.content.append(cmt)
+        if isinstance(node, Kern):
+            # Flag that the kernel has been modified
+            node.modified = True
+
+            # Get the schedule representing the kernel subroutine
+            routine = node.get_kernel_schedule()
         else:
-            spec.content.insert(posn, cmt)
+            routine = node
 
-        # Flag that the kernel has been modified
-        kern.modified = True
+        # Insert the directive to the routine if it doesn't already exist
+        for child in routine.children:
+            if isinstance(child, ACCRoutineDirective):
+                return  # The routine is already marked with ACCRoutine
+        routine.children.insert(0, ACCRoutineDirective())
 
-        # Add the 'cmt' directive into the PSyIR as a CodeBlock
-        kernel_schedule = kern.get_kernel_schedule()
-        kernel_schedule.addchild(
-            CodeBlock([cmt], CodeBlock.Structure.STATEMENT), 0)
-
-    def validate(self, kern, options=None):
+    def validate(self, node, options=None):
         '''
-        Perform checks that the supplied kernel can be transformed.
+        Perform checks that the supplied kernel or routine can be transformed.
 
-        :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.Kern`
+        :param node: the kernel which is the target of the transformation.
+        :type node: :py:class:`psyclone.psyGen.Kern` or \
+                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if the target kernel is a built-in.
+        :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the target is a built-in kernel.
+        :raises TransformationError: if it is a kernel but without an \
+                                     associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are \
-                            accessed via a module use statement.
+                                     accessed via a module use statement.
         '''
-        from psyclone.psyGen import BuiltIn
-        if isinstance(kern, BuiltIn):
-            raise TransformationError(
-                "Applying ACCRoutineTrans to a built-in kernel is not yet "
-                "supported and kernel '{0}' is of type '{1}'".
-                format(kern.name, type(kern)))
+        super(ACCRoutineTrans, self).validate(node, options)
 
-        # Perform general validation checks. In particular this checks that
-        # the PSyIR of the kernel body can be constructed.
-        super(ACCRoutineTrans, self).validate(kern, options)
-
-        # Check that the kernel does not access any data or routines via a
-        # module 'use' statement
-        sched = kern.get_kernel_schedule()
-        imported_variables = sched.symbol_table.imported_symbols
-        if imported_variables:
+        if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
-                "The Symbol Table for kernel '{0}' contains the following "
-                "symbol(s) with imported interface: {1}. If these symbols "
-                "represent data then they must first be converted to kernel "
-                "arguments using the KernelImportsToArguments transformation. "
-                "If the symbols represent external routines then PSyclone "
-                "cannot currently transform this kernel for execution on an "
-                "OpenACC device (issue #342).".
-                format(kern.name, [sym.name for sym in imported_variables]))
+                f"The ACCRoutineTrans must be applied to a sub-class of "
+                f"Kern or Routine but got '{type(node).__name__}'.")
+
+        # If it is a kernel call it must have an accessible implementation
+        if isinstance(node, Kern):
+            if isinstance(node, BuiltIn):
+                raise TransformationError(
+                    f"Applying ACCRoutineTrans to a built-in kernel is not yet"
+                    f" supported and kernel '{node.name}' is of type "
+                    f"'{type(node).__name__}'")
+
+            # Get the PSyIR routine from the associated kernel. If there is an
+            # exception (this could mean that there is no associated tree
+            # or that the frontend failed to convert it into PSyIR) reraise it
+            # as a TransformationError
+            try:
+                kernel_schedule = node.get_kernel_schedule()
+            except Exception as error:
+                raise TransformationError(
+                    f"Failed to create PSyIR for kernel '{node.name}'. "
+                    f"Cannot transform such a kernel.") from error
+
+            # Check that the kernel does not access any data or routines via a
+            # module 'use' statement
+            imported_variables = kernel_schedule.symbol_table.imported_symbols
+            if imported_variables:
+                raise TransformationError(
+                    f"The Symbol Table for kernel '{node.name}' contains the "
+                    f"following symbol(s) with imported interface: "
+                    f"{[sym.name for sym in imported_variables]}. If these "
+                    f"symbols represent data then they must first be converted"
+                    f" to kernel arguments using the KernelImportsToArguments "
+                    f"transformation. If the symbols represent external "
+                    f"routines then PSyclone cannot currently transform this "
+                    f"kernel for execution on an OpenACC device (issue #342).")
 
 
 class ACCKernelsTrans(RegionTrans):
