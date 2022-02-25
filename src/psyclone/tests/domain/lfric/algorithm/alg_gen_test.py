@@ -237,8 +237,38 @@ def test_construct_kernel_args(prog, dynkern, fortran_writer):
     # TODO #240 - test for compilation.
 
 
+def test_generate_invalid_kernel(tmpdir):
+    ''' Check that the generate() function raises NotImplementedError if the
+    supplied kernel file does not follow LFRic naming conventions. '''
+    kern_file = os.path.join(tmpdir, "fake_kern.f90")
+    with open(kern_file, "w", encoding='utf-8') as ffile:
+        print('''module my_mod_wrong
+end module my_mod_wrong''', file=ffile)
+    with pytest.raises(NotImplementedError) as err:
+        alg_gen.generate(kern_file)
+    assert ("fake_kern.f90) contains a module named 'my_mod_wrong' which does "
+            "not follow " in str(err.value))
+
+
+def test_generate_invalid_field_type(monkeypatch):
+    ''' Check that we get the expected internal error if a field object of
+    the wrong type is encountered. '''
+    # This requires that we monkeypatch the KernCallInvokeArgList class so
+    # that it returns an invalid field symbol.
+
+    monkeypatch.setattr(KernCallInvokeArgList, "fields",
+                        [(DataSymbol("fld", DeferredType()), None)])
+    with pytest.raises(InternalError) as err:
+        alg_gen.generate(os.path.join(BASE_PATH, "testkern_mod.F90"))
+    assert ("field symbol to either be of ArrayType or have a type specified "
+            "by a DataTypeSymbol but found DeferredType for field 'fld'" in
+            str(err.value))
+
+
 def test_generate(fortran_writer):
-    ''' '''
-    psyir = alg_gen.generate(os.path.join(BASE_PATH, "testkern_mod.F90"))
-    print(fortran_writer(psyir))
+    ''' Test that the generate() method returns the expected Fortran for a
+    valid LFRic kernel that takes a field vector. '''
+    code = alg_gen.generate(os.path.join(BASE_PATH,
+                                         "testkern_anyw2_vector_mod.f90"))
+    print(code)
     assert 0

@@ -39,8 +39,8 @@
 '''
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
 
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
 from psyclone.domain.lfric.algorithm import (
@@ -53,8 +53,7 @@ from psyclone.psyir.nodes import (Routine, CodeBlock, Assignment, Reference,
                                   ArrayReference, Literal)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, Symbol,
-    ScalarType)
+    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType)
 
 
 # The order of the finite-element scheme that will be used by any generated
@@ -266,11 +265,17 @@ def _create_function_spaces(prog, fspaces):
 
 def initialise_field(prog, sym, space):
     '''
+    Creates the PSyIR for initialisation of the field or field vector
+    represented by the supplied symbol and adds it to the supplied
+    routine.
+
     :param prog: the routine to which to add initialisation code.
     :type prog: :py:class:`psyclone.psyir.nodes.Routine`
     :param sym: the symbol representing the LFRic field.
     :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param str space: the function space of the field.
+
+    :raises InternalError: if the supplied symbols is of the wrong type.
 
     '''
     if isinstance(sym.datatype, DataTypeSymbol):
@@ -307,6 +312,8 @@ def initialise_quadrature(prog, qr_sym, shape):
     :type qr_sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param str shape: the shape of the quadrature.
 
+    :raises NotImplementedError: if the quadrature shape is anything other \
+                                 than gh_quadrature_xyoz.
     '''
     table = prog.symbol_table
     try:
@@ -349,6 +356,9 @@ def construct_kernel_args(prog, kern):
     :param kern: the kernel for which we are to create arguments.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
+    :returns: object capturing all of the kernel arguments.
+    :rtype: :py:class:`psyclone.domain.lfric.KernCallInvokeArgList`
+
     '''
     const = LFRicConstants()
     # Construct a list of the names of the function spaces that the field
@@ -377,37 +387,25 @@ def construct_kernel_args(prog, kern):
     return kern_args
 
 
-def create_invoke_call(call_list):
-    '''
-    Create the PSyIR for a `call invoke(...)`. Each argument is actually a
-    Fortran structure constructor so we create CodeBlocks for them. Since
-    'invoke' only exists in the DSL, we create a RoutineSymbol for it but
-    never add it to a symbol table.
-
-    :param call_list: list of kernel and argument names.
-    :type call_list: list of (str, list of str)
-
-    :returns: a Call describing this invoke.
-    :rtype: :py:class:`psyclone.psyir.nodes.Call`
-
-    '''
-    #invoke_args = []
-    #for call in call_list:
-    #    reader = FortranStringReader(
-    #        f"{call[0]}({','.join(call[1])})")
-    #    ptree = Fortran2003.Structure_Constructor(reader)
-    #    invoke_args.append(CodeBlock([ptree], CodeBlock.Structure.EXPRESSION))
-    #return Call.create(RoutineSymbol("invoke"), invoke_args)
-
-
 def generate(kernel_path):
     '''
+    Generates LFRic algorithm code that calls the supplied kernel through
+    an 'invoke'. All of the arguments required by the kernel are constructed
+    and intialised appropriately.
+
     :param str kernel_path: location of Kernel source code.
 
     :returns: Fortran algorithm code.
     :rtype: str
 
+    :raises NotImplementedError: if the specified kernel file does not \
+        follow the LFRic naming convention by having a module with a name \
+        ending in '_mod'.
+    :raises InternalError: if a symbol representing a field object does not \
+        have the correct type.
+
     '''
+    # Create PSyIR for a skeleton driver routine.
     prog = _create_alg_driver("lfric_alg", 20)
     table = prog.symbol_table
 
@@ -418,13 +416,22 @@ def generate(kernel_path):
     # Get the name of the module that contains the kernel and create a
     # ContainerSymbol for it.
     kernel_mod_name = parse_tree.content[0].name
-    # TODO this assumes that the LFRic naming scheme is strictly adhered to!
-    # It would be much better if we could query the meta-data for the name
-    # of the kernel.
-    kernel_name = kernel_mod_name.replace("_mod", "_type")
+    # TODO #1453. The current meta-data parsing requires that we specify
+    # the name of the kernel. It would be much better if we could query the
+    # meta-data for the name of the kernel. For now we require that the LFRic
+    # naming scheme is strictly adhered to (since this is simpler than trying
+    # to walk through the deprecated fparser1 parse tree).
+    if not kernel_mod_name.endswith("_mod"):
+        raise NotImplementedError(
+            f"The supplied kernel ({kernel_path}) contains a module named "
+            f"'{kernel_mod_name}' which does not follow the LFRic naming "
+            f"convention of ending in '_mod'.")
+    kernel_name = kernel_mod_name[:-4] + "_type"
 
     kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
     kernel_routine = table.new_symbol(kernel_name,
+                                      symbol_type=DataTypeSymbol,
+                                      datatype=DeferredType(),
                                       interface=ImportInterface(kernel_mod))
 
     ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
@@ -435,10 +442,11 @@ def generate(kernel_path):
     kern.load_meta(ktype)
 
     # Declare and initialise the data structures required by the kernel
-    # arguments.
+    # arguments. Appropriate symbols are added to the symbol table associated
+    # with the routine we are constructing.
     kern_args = construct_kernel_args(prog, kern)
 
-    # Initialise argument values.
+    # Initialise argument values to zero.
     for sym in kern_args.scalars:
         prog.addchild(Assignment.create(Reference(sym),
                                         Literal("0", INTEGER_TYPE)))
@@ -449,7 +457,7 @@ def generate(kernel_path):
     rdef = table.lookup("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     kernel_list = []
-    for sym, space in kern_args.fields:
+    for sym, _ in kern_args.fields:
         if isinstance(sym.datatype, DataTypeSymbol):
             kernel_list.append(
                 LFRicBuiltinFunctor.create(setval_c,
@@ -463,8 +471,6 @@ def generate(kernel_path):
                     LFRicBuiltinFunctor.create(setval_c, [ref,
                                                           Literal("0.0",
                                                                   rdef_type)]))
-                #kernel_list.append(("setval_c", [f"{sym.name}({dim})",
-                #                                 "0.0_r_def"]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -472,13 +478,19 @@ def generate(kernel_path):
                 f"{sym.datatype} for field '{sym.name}'")
 
     # Finally, add the kernel itself to the list for the invoke().
-    #LFRicKernelFunctor.create(kernel_routine, [TODO])
-    #kernel_list.append((kernel_routine.name, kern_args.arglist))
+    arg_nodes = []
+    for arg in kern_args.arglist:
+        arg_nodes.append(Reference(table.lookup(arg)))
+    kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
+    kernel_list.append(kern)
 
     # Create the 'call invoke(...)' for the list of kernels.
-    #prog.addchild(create_invoke_call(kernel_list))
-
     invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
     prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
 
     return FortranWriter()(prog)
+
+
+# For automatic API documentation.
+__all__ = ["initialise_field", "initialise_quadrature",
+           "construct_kernel_args", "generate"]
