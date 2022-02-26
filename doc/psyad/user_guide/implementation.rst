@@ -282,7 +282,7 @@ exception. For example :math:`A=x(/y/B)` is equivalent to
 
 When zero-ing active variables (see step 1 in the
 :ref:`psyir_schedule` section) only variables that are scalars or
-arrays and are of type REAL or INTEGER are currently supported. Issues
+arrays and are of type REAL or INTEGER are currently supported. Issue
 #1627 captures this limitation.
 
 Transformation

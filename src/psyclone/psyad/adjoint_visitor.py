@@ -133,7 +133,7 @@ class AdjointVisitor(PSyIRVisitor):
         node_copy = node.copy()
         node_copy.children = []
 
-        if isinstance(node.parent, (Routine, Container)):
+        if isinstance(node, Routine):
             # Zero local active variables.
             self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
@@ -152,8 +152,9 @@ class AdjointVisitor(PSyIRVisitor):
                     else:
                         raise NotImplementedError(
                             f"Datatype '{datatype}' is not supported (for "
-                            f"active local variable '{active_variable.name}'. "
-                            f"Supported types are 'REAL' and 'INTEGER'.")
+                            f"active local variable "
+                            f"'{active_variable.name}'). Supported types are "
+                            f"'REAL' and 'INTEGER'.")
                     node_copy.children.append(
                         Assignment.create(
                             Reference(active_variable),
