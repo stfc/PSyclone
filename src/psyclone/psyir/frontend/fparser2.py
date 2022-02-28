@@ -3368,10 +3368,22 @@ class Fparser2Reader(object):
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
-        binary_op = BinaryOperation(operator, parent=parent)
+        # Capture the names of any named args
+        named_args = []
+        new_arg_nodes = []
+        found_named_arg = False
+        for arg_node in arg_nodes:
+            if isinstance(arg_node, Fortran2003.Actual_Arg_Spec):
+                named_args.append(arg_node.children[0].string)
+                new_arg_nodes.append(arg_node.children[1])
+                found_named_arg = True
+            else:
+                named_args.append(None)
+                new_arg_nodes.append(arg_node)
+        binary_op = BinaryOperation(operator, parent=parent, named_args=named_args)
 
-        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
-        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
+        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
+        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
 
         return binary_op
 

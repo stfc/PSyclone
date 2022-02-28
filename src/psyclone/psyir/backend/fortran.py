@@ -1498,8 +1498,13 @@ class FortranWriter(LanguageWriter):
         '''
 
         result_list = []
-        for child in node.children:
-            result_list.append(self._visit(child))
+        for idx, child in enumerate(node.children):
+            if node.named_args:
+                arg_name = node.named_args[idx]
+                if arg_name:
+                    result_list.append(f"{arg_name}={self._visit(child)}")
+                else:
+                    result_list.append(self._visit(child))
         args = ", ".join(result_list)
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"

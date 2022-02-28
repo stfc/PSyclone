@@ -1865,6 +1865,39 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     if expected_type is not CodeBlock:
         assert assign.rhs._operator == expected_op, \
             "Fails when parsing '" + code + "'"
+        # **** UnaryOp should be [None]?
+        # **** BinaryOp should be [None, None]?
+        # *** NaryOp should be [None, ...]???
+        # TODO TEST: same length as args list
+        # TODO TEST: each entry is None
+
+
+@pytest.mark.parametrize(
+    "code, expected_type, expected_op, expected_names",
+     [('x = sum(a, dim=1)', BinaryOperation, BinaryOperation.Operator.SUM, [None, "dim"]),
+      ('x = sum(a, mask=.true.)', BinaryOperation, BinaryOperation.Operator.SUM, [None, "mask"]),
+      ('x = sum(a, dim=1, mask=.true.)', NaryOperation, NaryOperation.Operator.SUM, [None, "dim", "mask"]),
+      ('x = sum(a, mask=.true., dim=1)', NaryOperation, NaryOperation.Operator.SUM, [None, "mask", "dim"]),
+      ('x = sum(a, 1, mask=.true.)', NaryOperation, NaryOperation.Operator.SUM, [None, None, "mask"])])
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_intrinsics_named_args(code, expected_type, expected_op, expected_names, symbol_table):
+    '''Test that fparser2 Intrinsic_Function_Reference nodes with named
+    args are handled appropriately.
+
+    '''
+    processor = Fparser2Reader()
+    fake_parent = Schedule(symbol_table=symbol_table)
+    reader = FortranStringReader(code)
+    fp2node = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fp2node])
+    assign = fake_parent.children[0]
+    assert isinstance(assign, Assignment)
+    assert isinstance(assign.rhs, expected_type), \
+        "Fails when parsing '" + code + "'"
+    if expected_type is not CodeBlock:
+        assert assign.rhs._operator == expected_op, \
+            "Fails when parsing '" + code + "'"
+        assert assign.rhs._named_args == expected_names
 
 
 @pytest.mark.usefixtures("f2008_parser")

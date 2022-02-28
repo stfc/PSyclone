@@ -71,7 +71,7 @@ class Operation(DataNode):
     _text_name = "Operation"
     _colour = "blue"
 
-    def __init__(self, operator, parent=None):
+    def __init__(self, operator, parent=None, named_args=None):
         super(Operation, self).__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
@@ -80,6 +80,7 @@ class Operation(DataNode):
                 f"{type(self).__name__}.Operator but found "
                 f"{type(operator).__name__}.")
         self._operator = operator
+        self._named_args = named_args
 
     @property
     def operator(self):
