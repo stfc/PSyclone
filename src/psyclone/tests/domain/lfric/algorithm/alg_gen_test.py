@@ -269,15 +269,32 @@ def test_generate_with_scalar():
     ''' Check that the generate() method returns the expected Fortran for a
     valid LFRic kernel that has a scalar argument. '''
     code = alg_gen.generate(os.path.join(BASE_PATH,
-                                         "testkern_mod.f90"))
-    print(code)
-    assert 0
+                                         "testkern_mod.F90"))
+    assert "real(kind=r_def) :: rscalar_1" in code
+    assert ("  rscalar_1 = 1\n"
+            "  call invoke_0(field_2, field_3, field_4, field_5, rscalar_1)"
+            in code)
 
 
 def test_generate_with_vector():
     ''' Test that the generate() method returns the expected Fortran for a
     valid LFRic kernel that takes a field vector. '''
     code = alg_gen.generate(os.path.join(BASE_PATH,
-                                         "testkern_anyw2_vector_mod.f90"))
-    print(code)
-    assert 0
+                                         "testkern_coord_w0_mod.f90"))
+    assert '''\
+  type(field_type) :: field_1
+  type(field_type), dimension(3) :: field_2
+  type(field_type) :: field_3
+''' in code
+
+    assert ("  CALL field_1 % initialise(vector_space = vector_space_w0_ptr, "
+            "name = 'field_1')\n"
+            "  CALL field_2(1) % initialise(vector_space = "
+            "vector_space_w0_ptr, name = 'field_2')\n"
+            "  CALL field_2(2) % initialise(vector_space = "
+            "vector_space_w0_ptr, name = 'field_2')\n"
+            "  CALL field_2(3) % initialise(vector_space = "
+            "vector_space_w0_ptr, name = 'field_2')\n"
+            "  CALL field_3 % initialise(vector_space = vector_space_w0_ptr, "
+            "name = 'field_3')\n"
+            "  call invoke_0(field_1, field_2, field_3)\n" in code)

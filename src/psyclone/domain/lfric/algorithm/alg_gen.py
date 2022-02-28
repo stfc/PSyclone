@@ -50,7 +50,7 @@ from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, CodeBlock, Assignment, Reference,
-                                  ArrayReference, Literal)
+                                  Literal)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
     ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType)
@@ -401,8 +401,6 @@ def generate(kernel_path):
     :raises NotImplementedError: if the specified kernel file does not \
         follow the LFRic naming convention by having a module with a name \
         ending in '_mod'.
-    :raises InternalError: if a symbol representing a field object does not \
-        have the correct type.
 
     '''
     # Create PSyIR for a skeleton driver routine.
@@ -451,32 +449,17 @@ def generate(kernel_path):
         prog.addchild(Assignment.create(Reference(sym),
                                         Literal("1", INTEGER_TYPE)))
 
-    # We use the setval_c builtin to initialise all fields to unity.
-    setval_c = table.new_symbol("setval_c", symbol_type=DataTypeSymbol,
-                                datatype=DeferredType())
+    # We use the setval_c builtin to initialise all fields to unity. We can't
+    # put this symbol in the symbol table because it doesn't exist anywhere.
+    setval_c = DataTypeSymbol("setval_c", DeferredType())
+
     rdef = table.lookup("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     kernel_list = []
     for sym, _ in kern_args.fields:
-        if isinstance(sym.datatype, DataTypeSymbol):
-            kernel_list.append(
-                LFRicBuiltinFunctor.create(setval_c,
-                                           [Reference(sym),
-                                            Literal("1.0", rdef_type)]))
-        elif isinstance(sym.datatype, ArrayType):
-            for dim in range(int(sym.datatype.shape[0].lower.value),
-                             int(sym.datatype.shape[0].upper.value)+1):
-                ref = ArrayReference.create(sym, [Literal(str(dim),
-                                                          INTEGER_TYPE)])
-                kernel_list.append(
-                    LFRicBuiltinFunctor.create(setval_c,
-                                               [ref, Literal("1.0",
-                                                             rdef_type)]))
-        else:
-            raise InternalError(
-                f"Expected a field symbol to either be of ArrayType or have "
-                f"a type specified by a DataTypeSymbol but found "
-                f"{sym.datatype} for field '{sym.name}'")
+        kernel_list.append(
+            LFRicBuiltinFunctor.create(setval_c, [Reference(sym),
+                                                  Literal("1.0", rdef_type)]))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
