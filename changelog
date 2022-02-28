@@ -149,6 +149,13 @@
 	52) PR #1622 towards #1618. Fixes code generation for PSyIR of
 	Algorithm Layer by removing `invoke` symbol during lowering.
 
+	53) PR #1609 for #1584, #1041 and #490. Adds transformation to
+	add OpenMP target directive to routines and updates existing
+	one for OpenACC to use PSyIR instead of parse tree.
+
+	54) PR #1625 for #1606. Fixes bug in PSyAD by ensuring that all
+	local, active variables are initialised to zero.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

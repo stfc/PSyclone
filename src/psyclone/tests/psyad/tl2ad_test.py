@@ -111,6 +111,7 @@ def test_generate_adjoint_str_trans():
         "  real, dimension(10) :: c\n"
         "  integer :: i\n"
         "  real :: res_dot_product\n\n"
+        "  a = 0.0\n  b = 0.0\n  res_dot_product = 0.0\n"
         "  res_dot_product = res_dot_product + a\n"
         "  a = 0.0\n"
         "  do i = 10, 1, -1\n"
@@ -282,6 +283,7 @@ def test_generate_adjoint(fortran_reader):
     expected_ad_fortran_str = (
         "program test_adj\n"
         "  real :: a\n  real :: b\n  real :: c\n\n"
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
@@ -310,6 +312,7 @@ def test_generate_adjoint_kind(fortran_reader):
         "  use kinds_mod, only : r_def\n"
         "  real(kind=r_def) :: a\n  real(kind=r_def) :: b\n  "
         "real(kind=r_def) :: c\n\n"
+        "  a = 0.0_r_def\n  b = 0.0_r_def\n  c = 0.0_r_def\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
