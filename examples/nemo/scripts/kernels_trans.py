@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. M. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. M. Nobre, S. Siso, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
 directives to NEMO style code.  In order to use
@@ -78,6 +78,7 @@ PGI_VERSION = 1940  # i.e. 19.4
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
+ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to automatically add profiling calls around
@@ -662,6 +663,14 @@ def trans(psy):
             print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
 
+        # In the lib_fortran file we annotate each routine that does not
+        # have a Loop or a Call with the OpenACC Routine Directive
+        if psy.name == "psy_lib_fortran_psy":
+            if not sched.walk((Loop, Call)):
+                print(f"Transforming {invoke.name} with acc routine")
+                ACC_ROUTINE_TRANS.apply(sched)
+                continue
+
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
         if invoke.name.lower() not in ACC_IGNORE:
@@ -671,11 +680,10 @@ def trans(psy):
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
 
         # Add profiling instrumentation
-        print(f"Adding profiling of non-OpenACC regions to routine {invoke.name}")
+        print(f"Adding profiling of non-OpenACC regions to routine "
+              f"{invoke.name}")
         add_profiling(sched.children)
 
         sched.view()
-
-        invoke.schedule = sched
 
     return psy
