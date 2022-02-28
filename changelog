@@ -153,6 +153,9 @@
 	add OpenMP target directive to routines and updates existing
 	one for OpenACC to use PSyIR instead of parse tree.
 
+	54) PR #1625 for #1606. Fixes bug in PSyAD by ensuring that all
+	local, active variables are initialised to zero.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
