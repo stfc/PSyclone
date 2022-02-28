@@ -595,8 +595,8 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
-Example 18: Special Accesses of Continous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example containing one kernel with a ``GH_READINC`` access and one
 with a ``GH_WRITE`` access, both for continuous fields. A kernel with

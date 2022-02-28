@@ -335,7 +335,7 @@ the LFRic code. For more details please refer to the relevant
 [eg17/README.md](./eg17) document.
 
 
-## Example 18: Special Accesses of Continous Fields - Incrementing After Reading and Writing Before (Potentially) Reading.
+## Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading.
 
 This example shows the use of kernel with a ``GH_READINC`` access and
 a kernel with a ``GH_WRITE`` access, both for continuous fields. ``GH_READINC``
