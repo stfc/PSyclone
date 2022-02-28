@@ -608,6 +608,20 @@ able to remove a halo exchange, or at least reduce its depth by one,
 in certain circumstances, whereas a ``GH_READINC`` is not able to take
 advantage of this optimisation.
 
+Example 20: Algorithm Generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm layer for a kernel. A makefile is provide that also
+runs ``psyclone`` to create an executable program from the generated
+algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+.. code-block:: bash
+
+    cd eg20/
+    psyclone-kern -gen alg ../code/testkern_mod.F90
+
 
 NEMO
 ----

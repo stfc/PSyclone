@@ -275,7 +275,7 @@ def initialise_field(prog, sym, space):
     :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param str space: the function space of the field.
 
-    :raises InternalError: if the supplied symbols is of the wrong type.
+    :raises InternalError: if the supplied symbol is of the wrong type.
 
     '''
     if isinstance(sym.datatype, DataTypeSymbol):
@@ -339,9 +339,6 @@ def initialise_quadrature(prog, qr_sym, shape):
             CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)))
 
     else:
-        # Quadrature rule on lateral faces only
-        # qrf = quadrature_face_type(nqp_exact, .true., .false., &
-        #                            reference_element, quadrature_rule)
         raise NotImplementedError(f"Initialisation for quadrature of type "
                                   f"'{shape}' is not yet implemented.")
 
