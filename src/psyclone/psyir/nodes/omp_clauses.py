@@ -39,6 +39,7 @@ nodes.'''
 
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.reference import Reference
 
 
 class OMPNowaitClause(Clause):
@@ -115,3 +116,83 @@ class OMPNogroupClause(Clause):
     _children_valid_format = None
     _text_name = "NogroupClause"
     _clause_string = "nogroup"
+
+class OMPPrivateClause(Clause):
+    '''
+    OpenMP private clause. This is used to declare variables as private
+    to an OpenMP region.
+    '''
+    _children_valid_format = "[Reference]*"
+    _text_name = "PrivateClause"
+    _clause_string = "private"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Any number of Reference nodes are allowed.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, Reference)
+
+    def __eq__(self, other):
+        if not isinstance(other, OMPPrivateClause):
+            return False
+        if len(self._children) != len(other._children):
+            return False
+        for i in len(self._children):
+            if self._children[i] != other._children[i]:
+                return False
+        return True
+
+class OMPDefaultClause(Clause):
+    '''
+    OpenMP Default clause. Used to determine the default declaration for
+    variables used in an OpenMP region.
+    '''
+
+    class DefaultClauseTypes(Enum):
+        '''Enumeration of the different types of OMPDefaultClause supported
+        in PSyclone'''
+        SHARED=0
+        NONE=1
+        FIRSTPRIVATE=2
+
+    _children_valid_format = None
+    _text_name = "DefaultClause"
+
+    @property
+    def _clause_string(self):
+        clause_string = "default("
+        if self._clause_type == OMPDefaultClause.DefaultClauseTypes.SHARED:
+            clause_string = clause_string + "shared)"
+        elif self._clause_type == OMPDefaultClause.DefaultClauseTypes.NONE:
+            clause_string = clause_string + "none)"
+        elif (self._clause_type == 
+                OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE):
+            clause_string = clause_string + "firstprivate)"
+        return clause_string
+
+
+    def __init__(self, clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED):
+        if not isinstance(clause_type, OMPDefaultClause.DefaultClauseTypes):
+            raise TypeError(
+                    "OMPDefaultClause expected 'clause_type' argument of type "
+                    "OMPDefaultClause.DefaultClauseTypes but found '{0}'"
+                    .format(type(clause_type).__name__))
+        self._clause_type = clause_type
+
+def OMPReductionClause(Clause):
+    '''
+    OpenMP Reduction clause. Not yet used
+    '''
+    _children_valid_format = "[Reference]+"
+    _text_name = "ReferenceClause"
+    # FIXME Reduction string and operator 

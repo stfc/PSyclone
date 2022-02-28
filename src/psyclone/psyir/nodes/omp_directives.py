@@ -439,23 +439,35 @@ class OMPMasterDirective(OMPSerialDirective):
 class OMPParallelDirective(OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive. '''
 
+    _children_valid_format = ("Schedule, OMPDefaultClause, [OMPPrivateClause], "
+                              "[OMPReductionClause]*")
+
+    def __init__(self, children=None, parent=None):
+       super(OMPParallelDirective).__init__(children=children, parent=parent)
+       self.addchild(OMPDefaultClause(clause_type=
+           OMPDefaultClause.DefaultClauseTypes.SHARED))
+
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
         from psyclone.psyGen import zero_reduction_variables
 
-        private_list = self._get_private_list()
+        private_clause = self._get_private_list()
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
             # we will use a private thread index variable
             thread_idx = self.scope.symbol_table.\
-                lookup_with_tag("omp_thread_index").name
-            private_list.append(thread_idx)
+                lookup_with_tag("omp_thread_index")
+            private_clause.addchild(Reference(thread_idx))
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
-        private_str = ",".join(private_list)
+        if len(self._children) >= 3 and private_clause != self._children[2]:
+            if isinstance(self._children[2], OMPPrivateClause):
+                self._children[2] = private_clause
+            else:
+                self.addchild(private_clause, index=2)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -484,9 +496,11 @@ class OMPParallelDirective(OMPRegionDirective):
 
         zero_reduction_variables(calls, parent)
 
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
-                                "default(shared), private({0})".
-                                format(private_str)))
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel", ""))
+
+
+        for child in self.clauses:
+            child.gen_code(parent)
 
         if reprod_red_call_list:
             # add in a local thread index
@@ -523,15 +537,17 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        result = "omp parallel default(shared)"
+        result = "omp parallel"
         # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
-        private_list = self._get_private_list()
-        private_str = ",".join(private_list)
+        private_clause = self._get_private_list()
+        if len(self._children) >= 3 and private_clause != self._children[2]:
+            if isinstance(self._children[2], OMPPrivateClause):
+                self._children[2] = private_clause
+            else:
+                self.addchild(private_clause, index=2)
 
-        if private_str:
-            result = "{0}, private({1})".format(result, private_str)
         return result
 
     def end_string(self):
@@ -552,8 +568,9 @@ class OMPParallelDirective(OMPRegionDirective):
         and any variables that have been declared private by a Kernel
         within the directive.
 
-        :returns: list of variables to declare as thread private.
-        :rtype: list of str
+        :returns: A private clause containing the variables that need to be
+                  private for this directive.
+        :rtype: :py:class:`psyclone.psyir.nodes.omp_clauses.OMPPrivateClause`
 
         :raises InternalError: if a Kernel has local variable(s) but they \
                                aren't named.
@@ -613,7 +630,15 @@ class OMPParallelDirective(OMPRegionDirective):
         # reproducible results
         list_result = list(result)
         list_result.sort()
-        return list_result
+
+        # Create the OMPPrivateClause corresponding to the results
+        priv_clause = OMPPrivateClause()
+        symbol_table = my_node.scope.symbol_table
+        for ref_name in list_result:
+            symbol = symbol_table.lookup(ref_name)
+            ref = Reference(symbol)
+            priv_clause.addchild(ref)
+        return priv_clause
 
     def validate_global_constraints(self):
         '''
