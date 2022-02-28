@@ -938,9 +938,8 @@ modes depend upon the argument type and the function space it is on:
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
-| GH_FIELD               | Continuous                   | GH_READ, GH_INC,   |
-|                        |                              | GH_WRITE,          |
-|                        |                              | GH_READINC         |
+| GH_FIELD               | Continuous                   | GH_READ, GH_WRITE, |
+|                        |                              | GH_INC, GH_READINC | 
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -957,20 +956,20 @@ in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
 ``GH_READWRITE`` as its access pattern must typically (see below) be
-on a horizontally- discontinuous function space (see
+on a horizontally-discontinuous function space (see
 :ref:`lfric-function-space` for the list of discontinuous function
 spaces). Parallelisation of the loop over the horizontal domain for a
-kernel that updates such a field will not require colouring for either
+Kernel that updates such a field will not require colouring for either
 of the above cases (since there are no shared entities).
 
-There is however an exception to this - certain kernels may write to
-shared entities but each kernel iteration is guaranteed to write the
+There is however an exception to this - certain Kernels may write to
+shared entities but each Kernel iteration is guaranteed to write the
 *same value* to a given shared DoF. In this case, provided that the
 first access to any such shared DoF is a write, the loop containing
-such a kernel may be parallelised without colouring. Therefore,
+such a Kernel may be parallelised without colouring. Therefore,
 ``GH_WRITE`` access is permitted for ``GH_FIELD`` arguments on
-continuous function spaces.  Obviously care must be taken to ensure
-that the kernel implementation satisfies the constraints just
+continuous function spaces. Obviously, care must be taken to ensure
+that the Kernel implementation satisfies the constraints just
 described as PSyclone cannot currently check this.
 
 If a field is described as being on ``ANY_SPACE_*``, there is currently no

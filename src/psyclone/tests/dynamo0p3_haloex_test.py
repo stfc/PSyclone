@@ -430,7 +430,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
 
 def test_write_cont_dirty(tmpdir):
     ''' Check that the correct halo-exchange call is added before a
-    kernel that has a field on any space with a gh_write access. '''
+    kernel that has a field on any space with a 'gh_write' access. '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.1.1_halo_cont_write.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)

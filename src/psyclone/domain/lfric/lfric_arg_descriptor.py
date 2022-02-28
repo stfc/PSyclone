@@ -307,7 +307,7 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if a field on a continuous function space \
                             passed to a kernel that operates on cell-columns \
                             does not have a valid access (one of [READ, WRITE,\
-                            INC]).
+                            INC, READINC]).
         :raises ParseError: if the kernel operates on the domain and is \
                             passed a field on a continuous space.
         :raises InternalError: if an invalid value for operates_on is \

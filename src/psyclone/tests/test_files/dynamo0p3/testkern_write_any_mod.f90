@@ -35,7 +35,7 @@
 ! Modified: I. Kavcic, Met Office
 !           A. R. Porter, STFC Daresbury Lab
 
-! A kernel which writes to a field on any_space. Such a kernel must guarantee
+! A kernel which writes to a field on 'any_space'. Such a kernel must guarantee
 ! that any writes to a given shared entity are for the same value and that the
 ! first access to such an entity is a write.
 module testkern_write_any_mod
@@ -47,7 +47,7 @@ module testkern_write_any_mod
 
   implicit none
 
-  ! Description: function spaces with one continuous (any_space_1)
+  ! Description: function spaces with one continuous ('any_space_1')
   ! field writer.
   type, extends(kernel_type) :: testkern_write_any_type
      type(arg_type), dimension(2) :: meta_args = (/                        &
