@@ -47,7 +47,7 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
-    BinaryOperation, Container, Routine, FileContainer, Loop, Literal
+    BinaryOperation, Container, Loop, Literal
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, Symbol, REAL_TYPE, DataSymbol, INTEGER_TYPE
@@ -392,12 +392,8 @@ def test_aic_defcontainerrootname():
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    result_node = None
-    for node in psyir.root.walk((Routine, Container)):
-        if not isinstance(node, FileContainer):
-            result_node = node
-    assert result_node
-    name = invoke._def_container_root_name(result_node)
+    routine_node = psyir.children[0]
+    name = invoke._def_container_root_name(routine_node)
     assert name == "psy_alg1"
 
 
