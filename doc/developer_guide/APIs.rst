@@ -418,6 +418,8 @@ For inter-grid kernels, it is the coarse mesh that provides the iteration
 space. (The kernel is passed a list of the cells in the fine mesh that are
 associated with the current coarse cell.)
 
+.. _iterators_continuous:
+
 Cell iterators: Continuous
 --------------------------
 

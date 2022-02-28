@@ -1511,14 +1511,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # schedule.view()
 
-    Colouring in the Dynamo 0.3 API is subject to the following rules:
+    Colouring in the LFRic (Dynamo 0.3) API is subject to the following rules:
 
-    * Only kernels with an iteration space of CELLS and which modify a
-      continuous field require colouring. Any other type of loop will
-      cause this transformation to raise an exception.
-    * A kernel may have at most one field with 'INC' access
+    * Only kernels with an iteration space of CELLS and which increment a
+      continuous field require colouring. Kernels that update a discontinuous
+      field will cause this transformation to raise an exception. Kernels that
+      only write a continuous field also do not require colouring but are
+      permitted.
+    * A kernel may have at most one field with 'INC' access.
     * A separate colour map will be required for each field that is coloured
-      (if an invoke contains >1 kernel call)
+      (if an invoke contains >1 kernel call).
 
     '''
     def __str__(self):

@@ -335,9 +335,10 @@ the LFRic code. For more details please refer to the relevant
 [eg17/README.md](./eg17) document.
 
 
-## Example 18: Incrementing a Continuous Field After Reading It
+## Example 18: Special Accesses of Continous Fields - Incrementing After Reading and Writing Before (Potentially) Reading.
 
-This example shows the use of a ``GH_READINC`` access. ``GH_READINC``
+This example shows the use of kernel with a ``GH_READINC`` access and
+a kernel with a ``GH_WRITE`` access, both for continuous fields. ``GH_READINC``
 access indicates that a field is first read within a kernel and then
 subsequently incremented. The field must, therefore, be on a
 continuous function space. The only difference from a PSyclone code
@@ -350,7 +351,16 @@ line in the generated code. if you manually change the metadata to
 ``GH_INC`` in this example and ensure that the configuration file has
 ``COMPUTE_ANNEXED_DOFS`` set to ``true``, you will see that this halo
 exchange is not generated (although the generated code would then be
-invalid). To run:
+invalid).
+
+``GH_WRITE`` when used for a continuous field means that the kernel
+guarantees to write the same value to a given shared entity, independent
+of which cell is currently being updated. This means that annexed dofs
+on owned cells will be correctly computed without the need to iterate
+into the L1 halo and thus the outer loop limit is always
+``last_edge_cell``, irrespective of whether distributed memory is turned on.
+
+To run:
 
 ```sh
 cd eg18/
