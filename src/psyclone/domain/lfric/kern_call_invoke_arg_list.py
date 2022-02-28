@@ -177,7 +177,7 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields.append((sym,
                              LFRicConstants().specific_function_space(
                                  argvect.function_space.orig_name)))
-        self.append(sym.name)
+        self.append(sym.name, var_accesses, mode=argvect.access)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -197,7 +197,7 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields.append((sym,
                              LFRicConstants().specific_function_space(
                                  arg.function_space.orig_name)))
-        self.append(sym.name)
+        self.append(sym.name, var_accesses, mode=arg.access)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
@@ -318,7 +318,7 @@ class KernCallInvokeArgList(ArgOrdering):
                                           symbol_type=DataSymbol,
                                           datatype=quad_type)
             self._qr_objects.append((sym, shape))
-            self.append(sym.name)
+            self.append(sym.name, var_accesses)
 
 
 # ============================================================================
