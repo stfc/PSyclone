@@ -44,18 +44,21 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
     OMPDoDirective, OMPLoopDirective, OMPTargetDirective, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPTargetTrans, \
+    OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -205,17 +208,16 @@ def test_omptaskloop_apply(monkeypatch):
 
     code = str(psy.gen)
 
-    print(code)
     clauses = " nogroup"
     assert (
-        "    !$omp parallel default(shared), private(i,j)\n" +
-        "      !$omp master\n" +
-        "      !$omp taskloop{0}\n".format(clauses) +
-        "      DO" in code)
+        f"    !$omp parallel default(shared), private(i,j)\n"
+        f"      !$omp master\n"
+        f"      !$omp taskloop{clauses}\n"
+        f"      DO" in code)
     assert (
-        "      END DO\n" +
-        "      !$omp end taskloop\n" +
-        "      !$omp end master\n" +
+        "      END DO\n"
+        "      !$omp end taskloop\n"
+        "      !$omp end master\n"
         "      !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
@@ -272,6 +274,83 @@ def test_omptargettrans(sample_psyir):
     assert isinstance(loops[1].parent.parent, OMPTargetDirective)
     assert len(tree.walk(Routine)[0].children) == 1
     assert loops[0].parent.parent is loops[1].parent.parent
+
+
+def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
+    ''' Test OMPDeclareTargetTrans works as expected.'''
+
+    # Try to insert a OMPDeclareTarget on a wrong node type
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    loop = sample_psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(loop)
+    assert ("The OMPDeclareTargetTrans must be applied to a Routine, but "
+            "found: 'Loop'." in str(err.value))
+
+    # Insert a OMPDeclareTarget on a Routine
+    routine = sample_psyir.walk(Routine)[0]
+    ompdeclaretargettrans.apply(routine)
+    expected = '''\
+subroutine my_subroutine()
+  integer, dimension(10,10) :: a
+  integer :: i
+  integer :: j
+
+  !$omp declare target
+  do i = 1, 10, 1
+'''
+    assert expected in fortran_writer(sample_psyir)
+
+    # If the OMPDeclareTarget directive is already there do not repeat it
+    previous_num_children = len(routine.children)
+    ompdeclaretargettrans.apply(routine)
+    assert previous_num_children == len(routine.children)
+
+
+def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
+    ''' Test that the ompdelcaretarget is not added if there is any global
+    symbol'''
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    routine = sample_psyir.walk(Routine)[0]
+    ref1 = sample_psyir.walk(Reference)[0]
+
+    # Symbol not defined in the symbol table will be considered global
+    ref1.symbol = DataSymbol("new_symbol", INTEGER_TYPE)
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
+            "'new_symbol') that are not present in the Symbol Table(s) within "
+            "the scope of this routine. Cannot transform such a kernel."
+            in str(err.value))
+
+    # If it is local but comes from an import it is also a global
+    routine.symbol_table.add(ref1.symbol)
+    ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("The Symbol Table for kernel 'my_subroutine' contains the "
+            "following symbol(s) with imported interface: ['new_symbol']. "
+            "If these symbols represent data then they must first be "
+            "converted to kernel arguments using the KernelImportsToArguments "
+            "transformation. If the symbols represent external routines then "
+            "PSyclone cannot currently transform this kernel for execution on "
+            "an OpenMP target." in str(err.value))
+
+    # If the symbol is inside a CodeBlock it is also captured
+    reader = FortranStringReader('''
+    subroutine mytest
+        not_declared1 = not_declared1 + not_declared2
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children[0].children[1].children[0].children,
+                      CodeBlock.Structure.EXPRESSION)
+    ref1.replace_with(block)
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
+            "'not_declared1') that are not present in the Symbol Table(s) "
+            "within the scope of this routine. Cannot transform such a kernel."
+            in str(err.value))
 
 
 def test_omplooptrans_properties():

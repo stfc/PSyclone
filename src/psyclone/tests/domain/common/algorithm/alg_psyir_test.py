@@ -47,10 +47,10 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, ArrayReference, \
-    BinaryOperation, Container, Routine, FileContainer
+    BinaryOperation, Container, Routine, FileContainer, Loop, Literal
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, Symbol, REAL_TYPE
+    StructureType, Symbol, REAL_TYPE, DataSymbol, INTEGER_TYPE
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.errors import GenerationError
@@ -423,6 +423,30 @@ def test_aic_lowertolanguagelevel_error():
             in str(info.value))
 
 
+def test_aic_lowertolanguagelevel_error2():
+    '''Check that the lower_to_language_level method raises the expected
+    exception when no invoke symbol is found in the PSyIR.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg1\n")
+
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0]
+    symbol_table = invoke.scope.symbol_table
+    invoke_symbol = symbol_table.lookup("invoke")
+    symbol_table.remove(invoke_symbol)
+
+    with pytest.raises(InternalError) as info:
+        invoke.lower_to_language_level()
+    assert "No 'invoke' symbol found." in str(info.value)
+
+
 def test_aic_lowertolanguagelevel_expr():
     '''Check that the lower_to_language_level method deals correctly with
     simple associative expresssions, i.e. i+1 is the same as 1+i.
@@ -447,9 +471,11 @@ def test_aic_lowertolanguagelevel_expr():
 def test_aic_lowertolanguagelevel_single():
     '''Check that the lower_to_language_level method works as expected
     when it has a single kernel with multiple fields of the same
-    name. Also check that the lower_to_language_level creates the
-    required routine and container symbols if they have not already
-    been created.
+    name. Also check that the lower_to_language_level method creates
+    the required routine and container symbols if they have not
+    already been created. Also check that the lower_to_language_level
+    method removes the invoke symbol from the appropriate symbol
+    table.
 
     '''
     code = (
@@ -467,14 +493,17 @@ def test_aic_lowertolanguagelevel_single():
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert len(psyir.walk(AlgorithmInvokeCall)) == 1
     assert len(psyir.walk(KernelFunctor)) == 1
+    assert "invoke" in invoke.scope.symbol_table._symbols
 
     # Don't call create_psylayer_symbol_root_names() here. This is to
     # check that lower_to_language_level() creates the names if
     # needed.
     invoke.lower_to_language_level()
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
+    invoke = psyir.children[0][0]
+    assert "invoke" not in invoke.scope.symbol_table._symbols
 
     call = psyir.children[0][0]
     check_call(call, "invoke_0_kern1", "psy_alg1",
@@ -515,8 +544,8 @@ def test_aic_lowertolanguagelevel_multi():
     invoke.create_psylayer_symbol_root_names()
     invoke.lower_to_language_level()
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
 
     call = psyir.children[0][0]
     check_call(call, "invoke_multi_kern_invoke", "psy_alg1",
@@ -530,7 +559,9 @@ def test_aic_lowertolanguagelevel_multi_invoke():
     '''Check that the lower_to_language_level method works as expected
     when it has multiple invoke's. Also purposely add existing
     algorithm names that clash with root names to make sure generated
-    names are correct.
+    names are correct. Also check that the lower_to_language_level
+    method removes the invoke symbol from the appropriate symbol table
+    when the second invoke is lowered.
 
     '''
     code = (
@@ -544,27 +575,133 @@ def test_aic_lowertolanguagelevel_multi_invoke():
         "end subroutine alg1\n")
 
     psyir = create_alg_psyir(code)
-    invoke = psyir.children[0][0]
+    invoke1 = psyir.children[0][0]
+    invoke2 = psyir.children[0][1]
 
-    assert isinstance(invoke, AlgorithmInvokeCall)
+    assert isinstance(invoke1, AlgorithmInvokeCall)
+    assert isinstance(invoke2, AlgorithmInvokeCall)
     assert len(psyir.walk(AlgorithmInvokeCall)) == 2
     assert len(psyir.walk(KernelFunctor)) == 2
+    assert "invoke" in invoke1.scope.symbol_table._symbols
+    assert "invoke" in invoke2.scope.symbol_table._symbols
 
     # Don't call create_psylayer_symbol_root_names() here. This is to
     # check that lower_to_language_level() creates the names if
     # needed.
-    psyir.lower_to_language_level()
 
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(KernelFunctor)) == 0
-
+    # Just lower one of the invoke's. The 'invoke' symbol should still
+    # exist.
+    invoke1.lower_to_language_level()
     call1 = psyir.children[0][0]
+    assert not isinstance(call1, AlgorithmInvokeCall)
+    assert isinstance(invoke2, AlgorithmInvokeCall)
+    assert len(psyir.walk(AlgorithmInvokeCall)) == 1
+    assert len(psyir.walk(KernelFunctor)) == 1
+    assert "invoke" in call1.scope.symbol_table._symbols
+    assert "invoke" in invoke2.scope.symbol_table._symbols
+
+    # Now lower the second invoke. The 'invoke' symbol should be
+    # removed.
+    invoke2.lower_to_language_level()
+    call2 = psyir.children[0][1]
+
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
+    assert "invoke" not in call1.scope.symbol_table._symbols
+    assert "invoke" not in call2.scope.symbol_table._symbols
+
     assert call1.routine.name == "invoke_0_kern1_1"
     assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
 
-    call2 = psyir.children[0][1]
     assert call2.routine.name == "invoke_1_kern2"
-    assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
+    assert call2.routine.interface.container_symbol.name == "psy_alg1_1"
+
+
+def test_aic_lowertolanguagelevel_invoke_symbols():
+    '''Check that the lower_to_language_level method removes the
+    appropriate invoke symbols when these symbols are within symbol
+    tables that are connected to different parts of the PSyIR tree,
+    including where the nodes are ancestors of each other.
+
+    '''
+    code = (
+        "module mod1\n"
+        "contains\n"
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern1\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern1(field))\n"
+        "end subroutine alg1\n"
+        "subroutine alg2()\n"
+        "  use kern_mod, only : kern2\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern2(field))\n"
+        "end subroutine alg2\n"
+        "end module\n")
+
+    psyir = create_alg_psyir(code)
+    # Add an invoke symbol to the module (Container node)
+    container = psyir.children[0]
+    assert isinstance(container, Container)
+    container.symbol_table.add(RoutineSymbol("invoke"))
+
+    invoke1 = container.children[0][0]
+    assert isinstance(invoke1, AlgorithmInvokeCall)
+    invoke2 = container.children[1][0]
+    assert isinstance(invoke2, AlgorithmInvokeCall)
+
+    assert "invoke" in invoke1.scope.symbol_table._symbols
+    assert "invoke" in invoke2.scope.symbol_table._symbols
+
+    psyir.lower_to_language_level()
+
+    call1 = container.children[0][0]
+    call2 = container.children[1][0]
+    assert "invoke" not in call1.scope.symbol_table._symbols
+    assert "invoke" not in call2.scope.symbol_table._symbols
+
+    container = psyir.children[0]
+    assert "invoke" in container.symbol_table._symbols
+
+
+def test_aic_lowertolanguagelevel_invoke_symbols_scope():
+    '''Check that the lower_to_language_level method removes the
+    appropriate invoke symbol when it is in a different scope to the
+    invoke call.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg\n")
+    psyir = create_alg_psyir(code)
+    # Move the invoke so the invoke symbol is in a different scope to
+    # the invoke call.
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, AlgorithmInvokeCall)
+    symbol = invoke.scope.symbol_table.new_symbol(
+        root_name="i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    loop = Loop.create(
+        symbol, Literal("0", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+        Literal("1", INTEGER_TYPE), [invoke.detach()])
+    psyir.children[0].children.append(loop)
+
+    assert "invoke" not in invoke.scope.symbol_table._symbols
+    assert "invoke" in loop.scope.symbol_table._symbols
+
+    psyir.lower_to_language_level()
+
+    assert not psyir.walk(AlgorithmInvokeCall)
+    assert not psyir.walk(KernelFunctor)
+    loop = psyir.children[0][0]
+    invoke = loop.loop_body[0]
+    assert "invoke" not in invoke.scope.symbol_table._symbols
+    assert "invoke" not in loop.scope.symbol_table._symbols
 
 
 def test_kernelfunctor():
@@ -618,7 +755,7 @@ def test_kernelfunctor_create(cls):
     # pylint: disable=unidiomatic-typecheck
     assert type(klr) is cls
     assert klr._symbol == symbol
-    assert len(klr.children) == 0
+    assert not klr.children
 
     arg = Reference(Symbol("dummy"))
     klr = KernelFunctor.create(symbol, [arg])

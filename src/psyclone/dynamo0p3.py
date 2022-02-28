@@ -8198,8 +8198,7 @@ class DynKern(CodedKern):
         then checked for consistency with the kernel metadata
         here. The Schedule is just generated on first invocation, this
         allows us to retain transformations that may subsequently be
-        applied to the Schedule (but will not adapt to transformations
-        applied to the fparser2 AST).
+        applied to the Schedule.
 
         Once issue #935 is implemented, this routine will return the
         PSyIR Schedule using LFRic-specific PSyIR where possible.
