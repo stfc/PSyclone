@@ -78,12 +78,12 @@ from psyclone.psyir.nodes.directive import Directive, StandaloneDirective, \
 from psyclone.psyir.nodes.acc_directives import ACCDirective, \
     ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, ACCDataDirective, ACCUpdateDirective, \
-    ACCStandaloneDirective, ACCRegionDirective
+    ACCStandaloneDirective, ACCRegionDirective, ACCRoutineDirective
 from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
     OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
-    OMPTargetDirective, OMPLoopDirective
+    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause
@@ -143,6 +143,7 @@ __all__ = [
         'ACCLoopDirective',
         'ACCKernelsDirective',
         'ACCUpdateDirective',
+        'ACCRoutineDirective',
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',
@@ -156,6 +157,7 @@ __all__ = [
         'OMPTaskwaitDirective',
         'OMPTargetDirective',
         'OMPLoopDirective',
+        'OMPDeclareTargetDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',

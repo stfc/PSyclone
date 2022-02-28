@@ -139,6 +139,20 @@
 	to all LFRic builtins with the exception of those involving
 	reductions or type casting.
 
+	50) PR #1616 for #1615. Fixes list of files to profile in NEMO
+	kernels script plus some other typos.
+
+	51) PR #1621 for #1581. Extends PSyAD to make use of the
+	ArrayRange2Loop transformation to remove any array ranges before
+	constructing the adjoint.
+
+	52) PR #1622 towards #1618. Fixes code generation for PSyIR of
+	Algorithm Layer by removing `invoke` symbol during lowering.
+
+	53) PR #1609 for #1584, #1041 and #490. Adds transformation to
+	add OpenMP target directive to routines and updates existing
+	one for OpenACC to use PSyIR instead of parse tree.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
