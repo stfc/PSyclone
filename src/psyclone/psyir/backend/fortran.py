@@ -50,8 +50,9 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
-    Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
+    UnresolvedInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -622,6 +623,7 @@ class FortranWriter(LanguageWriter):
             but is not of UnknownFortranType.
         :raises InternalError: if include_visibility is True and the \
             visibility of the symbol is not of the correct type.
+        :raises VisitorError: if the supplied symbol is of DeferredType.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -657,7 +659,14 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
+        if isinstance(symbol.datatype, DeferredType):
+            raise VisitorError(
+                f"Local Symbol '{symbol.name}' is of DeferredType and "
+                f"therefore no declaration can be created for it. Should it "
+                f"have an ImportInterface?")
+
         self._depth += 1
+
         for member in symbol.datatype.components.values():
             # We always want to specify the visibility of components within
             # a derived type.
