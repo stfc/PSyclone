@@ -3,20 +3,13 @@ API = gocean
 
 include ../common.mk
 
-SRC = gol.f90 read_config_mod.f90 compute_die_mod.f90               \
-	  compute_born_mod.f90 combine_mod.f90 count_neighbours_mod.f90 \
-	  output_field_mod.f90
 PSY_SRC = time_step_alg_mod.x90 
 
-OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
+OBJ = $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
 
-.PHONY: allclean clean
+.PHONY: clean run test
 
-# Limit output to 132 charactere
-PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-		-l output -nodm
-
-$(EXE): $(INF_LIB) $(OBJ)
+$(EXE): $(INF_LIB) $(GOL_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
@@ -25,12 +18,12 @@ run: $(EXE)
 test: $(EXE)
 	./$(EXE) config.glider | tail -n 12 | diff - ./glider.correct
 
+%.f90: %.x90 Makefile
+	$(PSYCLONE) -api gocean1.0 -s ./fuse_loops.py -oalg $*.f90 -opsy $*_psy.f90 $<
+
 # Dependencies:
 # -------------
-gol.o: read_config_mod.o time_step_alg_mod.o
-time_step_alg_mod.o: combine_mod.o compute_born_mod.o compute_die_mod.o \
-	count_neighbours_mod.o output_field_mod.o time_step_alg_mod_psy.o
-time_step_alg_mod_psy.o: compute_born_mod.o
+time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
@@ -43,6 +36,3 @@ time_step_alg_mod_psy.o: compute_born_mod.o
 
 clean:
 	rm -f $(OBJ) $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
-
-allclean: clean
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean

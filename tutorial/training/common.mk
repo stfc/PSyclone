@@ -15,18 +15,30 @@ ifeq ($(API), gocean)
 	INF_LIB ?= $(INF_DIR)/src/lib_fd.a
 endif
 
-INCL = -I$(INF_INC)
-LIBS = $(INF_LIB)
+GOL_DIR = $(ROOT_DIR)/tutorial/training/gol-lib
+GOL_LIB = $(GOL_DIR)/libgol.a
+
+INCL = -I$(INF_INC) -I$(GOL_DIR)
+LIBS = $(GOL_LIB) $(INF_LIB)
 
 LDFLAGS += $(LIBS)
 F90FLAGS += $(INCL)
+
+# Limit output to 132 charactere
+PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
+		-l output -nodm -d $(GOL_DIR)
+
 
 default: $(EXE)
 
 # External libs
 # -------------
+$(GOL_LIB):
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR)
+
 $(INF_LIB):
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
+
 $(INF_DIR)/src/lib_dm.a:
 	MPI=yes $(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
@@ -34,3 +46,11 @@ $(INF_DIR)/src/lib_dm.a:
 # -----------------
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
+
+.PHONY: allclean
+
+# Allclean target
+# ---------------
+allclean: clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean

@@ -9,23 +9,18 @@ PSY_DATA_INCLUDE = -I $(PSY_DATA_DIR)
 
 F90FLAGS += $(PSY_DATA_INCLUDE)
 
-SRC = gol.f90 read_config_mod.f90 compute_die_mod.f90               \
-	  compute_born_mod.f90 combine_mod.f90 count_neighbours_mod.f90 \
-	  output_field_mod.f90
+SRC = gol.f90
 PSY_SRC = time_step_alg_mod.x90 
 
 OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
 EXE = gol
 
-.PHONY: allclean clean
+.PHONY: run test clean
 
 LDFLAGS += $(PSY_DATA_LIB)
 
-# Limit output to 132 charactere
-PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-		-l output -nodm
-
-$(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
+$(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(GOL_LIB) $(OBJ)
+	echo OBJ $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
@@ -36,10 +31,9 @@ test: $(EXE)
 
 # Dependencies:
 # -------------
-gol.o: read_config_mod.o time_step_alg_mod.o
-time_step_alg_mod.o: combine_mod.o compute_born_mod.o compute_die_mod.o \
-	count_neighbours_mod.o output_field_mod.o time_step_alg_mod_psy.o
-time_step_alg_mod_psy.o: compute_born_mod.o
+gol.o: time_step_alg_mod.o
+
+time_step_alg_mod.o:time_step_alg_mod_psy.o
 
 # External libs
 # -------------
@@ -57,6 +51,3 @@ $(PSY_DATA_LIB):
 
 clean:
 	rm -f $(OBJ) $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
-
-allclean: clean
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
