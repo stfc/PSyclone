@@ -153,6 +153,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # The _variables_to_copy are computed dynamically until the
         # _node_lowered flag is set to True, after that re-use the stored ones.
         self._variables_to_copy = []
+        self._variables_to_create = []
         self._node_lowered = False
 
     def gen_code(self, parent):
@@ -240,18 +241,23 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
+        result = "acc enter data"
         # The enter data clauses are given by the _variables_to_copy list
-        var_str = ",".join(self._variables_to_copy)
-        if var_str:
-            copy_in_str = "copyin("+var_str+")"
+        if self._variables_to_copy:
+            copy_in_str = f" copyin({','.join(self._variables_to_copy)})"
         else:
             # There should be at least one variable to copyin.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
                 "within the region.")
+        result += copy_in_str
 
-        return "acc enter data " + copy_in_str
+        if self._variables_to_create:
+            create_str = f" create({','.join(list(self._variables_to_create))})"
+            result += create_str
+
+        return result
 
     def data_on_device(self, parent):
         '''
