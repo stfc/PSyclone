@@ -332,6 +332,8 @@ class NemoLoop(PSyLoop):
 
 class NemoACCEnterDataDirective(ACCEnterDataDirective):
     '''
+    NEMO-specific support for the OpenACC enter data directive.
+
     '''
     def lower_to_language_level(self):
         '''
@@ -348,12 +350,14 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
             # directive)
             # 1. Find all parallel and kernels directives. We store this list
             # for later use in any sub-class.
-            self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                    (ACCParallelDirective, ACCKernelsDirective))
+            routine = self.ancestor(InvokeSchedule)
+            self._acc_dirs = routine.walk((ACCParallelDirective,
+                                           ACCKernelsDirective))
             # 2. For each directive, loop over each of the variables used by
             #    the kernels it contains and add it to our list if we don't
             #    already have it
             self._variables_to_copy = []
+            self._variables_to_create = set()
             for pdir in self._acc_dirs:
                 inputs, outputs = dep_tools.get_in_out_parameters(
                     pdir.children)
@@ -371,7 +375,10 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
                         if name in ["ji", "jj", "jk"]:
                             continue
                         # TODO examine type of sym?
-                        # sym = self.scope.symbol_table.lookup(name)
+                        sym = self.scope.symbol_table.lookup(
+                            name, scope_limit=routine)
+                        if sym.is_local:
+                            self._variables_to_create.add(sym.name)
                         if name not in self._variables_to_copy:
                             self._variables_to_copy.append(name)
             self._node_lowered = True
