@@ -169,6 +169,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # The _sig_list are computed dynamically until the
         # _node_lowered flag is set to True, after that re-use the stored ones.
         self._sig_list = set()
+        self._variables_to_create = []
         self._node_lowered = False
 
     def gen_code(self, parent):
@@ -240,7 +241,13 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
 
         # Variables need lexicographic sorting since sets guarantee no ordering
         # and members of composite variables must appear later in deep copies.
-        return f"acc enter data copyin({','.join(sorted(self._sig_list))})"
+        result = f"acc enter data copyin({','.join(sorted(self._sig_list))}) "
+
+        if self._variables_to_create:
+            create_str = f"create({','.join(list(self._variables_to_create))})"
+            result += create_str
+
+        return result
 
     def data_on_device(self, parent):
         '''
