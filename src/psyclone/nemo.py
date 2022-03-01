@@ -379,7 +379,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
                             name, scope_limit=routine)
                         if sym.is_local:
                             self._variables_to_create.add(sym.name)
-                        if name not in self._variables_to_copy:
+                        elif name not in self._variables_to_copy:
                             self._variables_to_copy.append(name)
             self._node_lowered = True
 
