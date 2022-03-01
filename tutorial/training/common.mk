@@ -1,4 +1,8 @@
-F90 ?= gfortran
+ifeq ($(MPI), yes)
+	F90 ?= mpif90
+else
+	F90 ?= gfortran
+endif
 F90FLAGS ?= -Wall -g -O0
 
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
@@ -12,7 +16,11 @@ ifeq ($(API), gocean)
 	#INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_DIR ?= $(HOME)/work/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
-	INF_LIB ?= $(INF_DIR)/src/lib_fd.a
+	ifeq ($(MPI), yes)
+		INF_LIB ?= $(INF_DIR)/src/lib_dm_fd.a
+	else
+		INF_LIB ?= $(INF_DIR)/src/lib_fd.a
+	endif
 endif
 
 GOL_DIR = $(ROOT_DIR)/tutorial/training/gol-lib
@@ -25,9 +33,13 @@ LDFLAGS += $(LIBS)
 F90FLAGS += $(INCL)
 
 # Limit output to 132 charactere
-PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-		-l output -nodm -d $(GOL_DIR)
-
+ifeq ($(MPI), yes)
+	PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
+			-l output -dm -d $(GOL_DIR)
+else
+	PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
+			-l output -nodm -d $(GOL_DIR)
+endif
 
 default: $(EXE)
 
@@ -37,10 +49,10 @@ $(GOL_LIB):
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR)
 
 $(INF_LIB):
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
 $(INF_DIR)/src/lib_dm.a:
-	MPI=yes $(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
+	$(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
 # Compilation rules
 # -----------------

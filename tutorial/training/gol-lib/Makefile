@@ -12,10 +12,6 @@ OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
 
 .PHONY: allclean clean
 
-# Limit output to 132 charactere
-PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-		-l output -nodm
-
 libgol.a: $(INF_LIB) $(OBJ)
 	$(AR) $(ARFLAGS) libgol.a $(OBJ)
 
