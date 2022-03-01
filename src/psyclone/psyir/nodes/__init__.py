@@ -87,7 +87,8 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPTaskDirective
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause
+    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -164,5 +165,9 @@ __all__ = [
         'OMPGrainsizeClause',
         'OMPNogroupClause',
         'OMPNowaitClause',
-        'OMPNumTasksClause'
+        'OMPNumTasksClause',
+        'OMPPrivateClause'
+        'OMPDefaultClause',
+        'OMPReductionClause',
+        'OMPScheduleClause'
         ]

@@ -37,6 +37,7 @@
 ''' This module contains the implementations of the various OpenMP Directive
 nodes.'''
 
+from enum import Enum
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
@@ -124,7 +125,12 @@ class OMPPrivateClause(Clause):
     '''
     _children_valid_format = "[Reference]*"
     _text_name = "PrivateClause"
-    _clause_string = "private"
+
+    @property
+    def _clause_string(self):
+        if len(self.children) > 0:
+            return "private"
+        return ""
 
     @staticmethod
     def _validate_child(position, child):
@@ -147,7 +153,7 @@ class OMPPrivateClause(Clause):
             return False
         if len(self._children) != len(other._children):
             return False
-        for i in len(self._children):
+        for i in range(len(self._children)):
             if self._children[i] != other._children[i]:
                 return False
         return True
@@ -166,7 +172,7 @@ class OMPDefaultClause(Clause):
         FIRSTPRIVATE=2
 
     _children_valid_format = None
-    _text_name = "DefaultClause"
+    _text_name = "OMPDefaultClause"
 
     @property
     def _clause_string(self):
@@ -181,18 +187,38 @@ class OMPDefaultClause(Clause):
         return clause_string
 
 
-    def __init__(self, clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED):
+    def __init__(self, clause_type=DefaultClauseTypes.SHARED):
         if not isinstance(clause_type, OMPDefaultClause.DefaultClauseTypes):
             raise TypeError(
                     "OMPDefaultClause expected 'clause_type' argument of type "
                     "OMPDefaultClause.DefaultClauseTypes but found '{0}'"
                     .format(type(clause_type).__name__))
         self._clause_type = clause_type
+        super(OMPDefaultClause, self).__init__()
 
-def OMPReductionClause(Clause):
+class OMPScheduleClause(Clause):
+    '''
+    OpenMP Schedule clause used for OMP Do Directives.
+    '''
+    _children_valid_format = "None"
+    _text_name = "OMPScheduleClause"
+    _schedule = ""
+
+    @property
+    def _clause_string(self):
+        return f"schedule({self._schedule})"
+
+    def set_schedule(self, schedule):
+        self._schedule = schedule
+
+    def __init__(self, schedule="static"):
+        self._schedule = schedule
+        super(OMPScheduleClause, self).__init__()
+
+class OMPReductionClause(Clause):
     '''
     OpenMP Reduction clause. Not yet used
     '''
     _children_valid_format = "[Reference]+"
-    _text_name = "ReferenceClause"
+    _text_name = "OMPReductionClause"
     # FIXME Reduction string and operator 

@@ -1456,7 +1456,7 @@ class FortranWriter(LanguageWriter):
             child_list = []
             for child in node.children:
                 child_list.append(self._visit(child))
-            result = result + ", ".join(child_list)
+            result = result + ",".join(child_list)
             result = result + ")"
 
         return result
@@ -1477,7 +1477,11 @@ class FortranWriter(LanguageWriter):
 
         clause_list = []
         for clause in node.clauses:
-            clause_list.append(self._visit(clause))
+            val = self._visit(clause)
+            # Some clauses return empty strings if they should not
+            # generate any output (e.g. private clause with no children).
+            if not (val.isspace() or val == ""):
+                clause_list.append(val)
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "

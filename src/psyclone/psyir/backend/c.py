@@ -457,6 +457,29 @@ class CWriter(LanguageWriter):
                "{0}}}\n".format(self._nindent, variable_name,
                                 start, stop, step, body)
 
+    def clause_node(self, node):
+        '''This method is called when a Clause instance is found in the
+        PSyIR tree. It returns the clause and its children as a string.
+
+        :param node: a Clause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Clause`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        result = node.clause_string
+
+        if len(node.children) > 0:
+            result = result + "("
+            child_list = []
+            for child in node.children:
+                child_list.append(self._visit(child))
+            result = result + ",".join(child_list)
+            result = result + ")"
+
+        return result
+
     def regiondirective_node(self, node):
         '''This method is called when an RegionDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
@@ -470,8 +493,23 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = ["{0}#pragma {1}\n{{\n".format(self._nindent,
+        result_list = ["{0}#pragma {1}".format(self._nindent,
                                                      node.begin_string())]
+
+        clause_list = []
+        for clause in node.clauses:
+            val = self._visit(clause)
+            # Some clauses return empty strings if they should not
+            # generate any output (e.g. private clause with no children).
+            if not (val.isspace() or val == ""):
+                clause_list.append(val)
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result_list.append(" ")
+        result_list.append(" ".join(clause_list))
+        result_list.append("\n{\n")
+
+
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))

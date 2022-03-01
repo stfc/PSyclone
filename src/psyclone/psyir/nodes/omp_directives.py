@@ -61,7 +61,8 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
 
@@ -443,9 +444,30 @@ class OMPParallelDirective(OMPRegionDirective):
                               "[OMPReductionClause]*")
 
     def __init__(self, children=None, parent=None):
-       super(OMPParallelDirective).__init__(children=children, parent=parent)
+       super(OMPParallelDirective, self).__init__(children=children, parent=parent)
        self.addchild(OMPDefaultClause(clause_type=
            OMPDefaultClause.DefaultClauseTypes.SHARED))
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0 and isinstance(child, Schedule):
+            return True
+        if position == 1 and isinstance(child, OMPDefaultClause):
+            return True
+        if position == 2 and isinstance(child, (OMPPrivateClause, OMPReductionClause)):
+            return True
+        if position >= 3 and isinstance(child, OMPReductionClause):
+            return True
+        return False
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
@@ -460,6 +482,7 @@ class OMPParallelDirective(OMPRegionDirective):
             thread_idx = self.scope.symbol_table.\
                 lookup_with_tag("omp_thread_index")
             private_clause.addchild(Reference(thread_idx))
+            thread_idx = thread_idx.name
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
@@ -468,6 +491,8 @@ class OMPParallelDirective(OMPRegionDirective):
                 self._children[2] = private_clause
             else:
                 self.addchild(private_clause, index=2)
+        else:
+            self.addchild(private_clause, index=2)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -496,11 +521,14 @@ class OMPParallelDirective(OMPRegionDirective):
 
         zero_reduction_variables(calls, parent)
 
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel", ""))
+        default_str = self.children[1]._clause_string
+        private_list = []
+        for child in self.children[2].children:
+            private_list.append(child.symbol.name)
+        private_str = "private(" + ",".join(private_list) + ")"
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel", default_str
+                                + ", " + private_str))
 
-
-        for child in self.clauses:
-            child.gen_code(parent)
 
         if reprod_red_call_list:
             # add in a local thread index
@@ -547,6 +575,8 @@ class OMPParallelDirective(OMPRegionDirective):
                 self._children[2] = private_clause
             else:
                 self.addchild(private_clause, index=2)
+        else:
+            self.addchild(private_clause, index=2)
 
         return result
 
@@ -633,7 +663,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # Create the OMPPrivateClause corresponding to the results
         priv_clause = OMPPrivateClause()
-        symbol_table = my_node.scope.symbol_table
+        symbol_table = self.scope.symbol_table
         for ref_name in list_result:
             symbol = symbol_table.lookup(ref_name)
             ref = Reference(symbol)
@@ -1671,11 +1701,39 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         thread-parallel region) and OMPDoDirective (because it
         causes a loop to be parallelised). '''
 
+    _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
+                              "OMPScheduleClause, [OMPReductionClause]*")
+
     def __init__(self, children=[], parent=None, omp_schedule="static"):
         OMPDoDirective.__init__(self,
                                 children=children,
                                 parent=parent,
                                 omp_schedule=omp_schedule)
+        self.addchild(OMPDefaultClause(clause_type=
+           OMPDefaultClause.DefaultClauseTypes.SHARED))
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0 and isinstance(child, Schedule):
+            return True
+        if position == 1 and isinstance(child, OMPDefaultClause):
+            return True
+        if position == 2 and isinstance(child, OMPPrivateClause):
+            return True
+        if position == 3 and isinstance(child, OMPScheduleClause):
+            return True
+        if position >= 4 and isinstance(child, OMPReductionClause):
+            return True
+        return False
 
     def gen_code(self, parent):
 
@@ -1686,13 +1744,26 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_str = ",".join(self._get_private_list())
+        private_clause = self._get_private_list()
+        if len(self._children) >= 3 and private_clause != self._children[2]:
+            if isinstance(self._children[2], OMPPrivateClause):
+                self._children[2] = private_clause
+            else:
+                self.addchild(private_clause, index=2)
+        else:
+            self.addchild(private_clause, index=2)
+        default_str = self.children[1]._clause_string
+        private_list = []
+        for child in self.children[2].children:
+            private_list.append(child.symbol.name)
+        private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "default(shared), private({0}), "
-                                "schedule({1})".
-                                format(private_str, self._omp_schedule) +
+                                default_str + ", " + private_str + 
+                                ", schedule({0})".
+                                format(self._omp_schedule) +
                                 self._reduction_string()))
-        for child in self.children:
+
+        for child in self.dir_body:
             child.gen_code(parent)
 
         # make sure the directive occurs straight after the loop body
@@ -1709,10 +1780,17 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :rtype: str
 
         '''
-        private_str = ",".join(self._get_private_list())
-        return ("omp parallel do default(shared), private({0}), "
-                "schedule({1})".format(private_str, self._omp_schedule) +
-                self._reduction_string())
+        private_clause = self._get_private_list()
+        if len(self._children) >= 3 and private_clause != self._children[2]:
+            if isinstance(self._children[2], OMPPrivateClause):
+                self._children[2] = private_clause
+            else:
+                self.addchild(private_clause, index=2)
+        else:
+            self.addchild(private_clause, index=2)
+        sched_clause = OMPScheduleClause(self._omp_schedule)
+        self.addchild(sched_clause, index=3)
+        return ("omp parallel do" + self._reduction_string())
 
     def end_string(self):
         '''

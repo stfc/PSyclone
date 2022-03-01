@@ -46,6 +46,7 @@ class Clause(Node, metaclass=abc.ABCMeta):
     '''
     _children_valid_format = None
     _text_name = "Clause"
+    _colour = "green"
     # The base string for this clause, e.g. nowait or private
     _clause_string = None
 
