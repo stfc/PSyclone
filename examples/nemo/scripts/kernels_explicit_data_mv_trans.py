@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. M. Nobre, S. Siso, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
 directives to NEMO style code.  In order to use
@@ -62,31 +62,32 @@ from __future__ import print_function
 import logging
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
-from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
 from psyclone.psyir.symbols import ScalarType
-from psyclone.psyir.transformations import ACCUpdateTrans
+from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
+from psyclone.errors import InternalError
 from psyclone.transformations import ACCEnterDataTrans
+from psyclone.psyir.transformations import ACCUpdateTrans
 
 # Which version of the NVIDIA (PGI) compiler we are targetting (different
 # versions have different bugs that we have to workaround).
-PGI_VERSION = 2110  # i.e. 21.1
+PGI_VERSION = 2220  # i.e. 22.2
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
+ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
+ACC_EDATA_TRANS = ACCEnterDataTrans()
+ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
-EDATA_TRANS = ACCEnterDataTrans()
-UPDATE_TRANS = ACCUpdateTrans()
 
 # Whether or not to automatically add profiling calls around
 # un-accelerated regions
-_AUTO_PROFILE = False
+_AUTO_PROFILE = True
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "ice_thd_pnd", "macho", "mpp_", "nemo_gcm",
@@ -123,7 +124,7 @@ NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
                       "psi_h", "psi_m", "psi_m_coare",
                       "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
                       "q_sat", "rho_air",
-                      "Ri_bulk", "visc_air", "sbc_dcy", "glob_sum",
+                      "visc_air", "sbc_dcy", "glob_sum",
                       "glob_sum_full", "ptr_sj", "ptr_sjk",
                       "interp1", "interp2", "interp3", "integ_spline"])
 
@@ -253,7 +254,7 @@ def valid_acc_kernel(node):
     for enode in excluded_nodes:
         if isinstance(enode, (CodeBlock, Return, Call)):
             log_msg(routine_name,
-                    "region contains {0}".format(type(enode).__name__),
+                    f"region contains {type(enode).__name__}",
                     enode)
             return False
 
@@ -275,19 +276,6 @@ def valid_acc_kernel(node):
                         ScalarType.Intrinsic.REAL):
                     log_msg(routine_name,
                             "IF performs comparison with REAL scalar", enode)
-                    return False
-
-            # Comparison of character strings causes a crash at runtime.
-            if PGI_VERSION <= 2170:
-                opn = enode.children[0]
-                if (excluding.ifs_real_scalars and
-                        isinstance(opn, BinaryOperation) and
-                        opn.operator == BinaryOperation.Operator.EQ and
-                        isinstance(opn.children[1], Literal) and
-                        opn.children[1].datatype.intrinsic ==
-                        ScalarType.Intrinsic.CHARACTER):
-                    log_msg(routine_name,
-                            "IF performs comparison with char literal", enode)
                     return False
 
             # We also permit single-statement IF blocks that contain a Loop
@@ -392,7 +380,7 @@ def valid_acc_kernel(node):
                 # We're writing to it so it's not a function call.
                 continue
             log_msg(routine_name,
-                    "Loop contains function call: {0}".format(ref.name), ref)
+                    f"Loop contains function call: {ref.name}", ref)
             return False
     return True
 
@@ -523,7 +511,7 @@ def add_profiling(children):
 
     :param children: sibling nodes in the PSyIR to which to attempt to add \
                      profiling regions.
-    :type childre: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     if not children:
@@ -652,8 +640,8 @@ def try_kernels_trans(nodes):
 
         return True
     except (TransformationError, InternalError) as err:
-        print("Failed to transform nodes: {0}", nodes)
-        print("Error was: {0}".format(str(err)))
+        print(f"Failed to transform nodes: {nodes}")
+        print(f"Error was: {err}")
         return False
 
 
@@ -669,33 +657,39 @@ def trans(psy):
     logging.basicConfig(filename='psyclone.log', filemode='w',
                         level=logging.INFO)
 
-    print("Invokes found:\n{0}\n".format(
-        "\n".join([str(name) for name in psy.invokes.names])))
+    invoke_list = "\n".join([str(name) for name in psy.invokes.names])
+    print(f"Invokes found:\n{invoke_list}\n")
 
     for invoke in psy.invokes.invoke_list:
 
         sched = invoke.schedule
         if not sched:
-            print("Invoke {0} has no Schedule! Skipping...".
-                  format(invoke.name))
+            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
+
+        # In the lib_fortran file we annotate each routine that does not
+        # have a Loop or a Call with the OpenACC Routine Directive
+        if psy.name == "psy_lib_fortran_psy":
+            if not sched.walk((Loop, Call)):
+                print(f"Transforming {invoke.name} with acc routine")
+                ACC_ROUTINE_TRANS.apply(sched)
+                continue
 
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
         if invoke.name.lower() not in ACC_IGNORE:
-            print("Transforming invoke {0}:".format(invoke.name))
+            print(f"Transforming invoke {invoke.name}:")
             have_kernels = add_kernels(sched.children)
             if have_kernels:
-                EDATA_TRANS.apply(sched)
+                ACC_EDATA_TRANS.apply(sched)
         else:
-            print("Addition of OpenACC to routine {0} disabled!".
-                  format(invoke.name.lower()))
+            print(f"Addition of OpenACC to routine {invoke.name} disabled!")
 
-        UPDATE_TRANS.apply(sched, options={"allow-codeblocks": True})
+        ACC_UPDATE_TRANS.apply(sched, options={"allow-codeblocks": True})
 
         # Add profiling instrumentation
-        print("Adding profiling of non-OpenACC regions to routine {0}".
-              format(invoke.name))
+        print(f"Adding profiling of non-OpenACC regions to routine "
+              f"{invoke.name}")
         add_profiling(sched.children)
 
         sched.view()
