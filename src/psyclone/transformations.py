@@ -57,7 +57,8 @@ from psyclone.psyir.nodes import Loop, Assignment, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
     ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
     ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective, \
-    OMPTargetDirective, OMPDeclareTargetDirective, ACCRoutineDirective
+    OMPTargetDirective, OMPDeclareTargetDirective, \
+    ACCRoutineDirective, ACCParallelDirective
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.tools import DependencyTools
@@ -2794,7 +2795,15 @@ class ACCEnterDataTrans(Transformation):
 
         # Add the directive
         data_dir = AccEnterDataDir(parent=sched, children=[])
-        sched.addchild(data_dir, index=0)
+        acc_regions = sched.walk((ACCParallelDirective, ACCKernelsDirective))
+        if acc_regions:
+            current = acc_regions[0]
+            while current not in sched.children:
+                current = current.parent
+            posn = sched.children.index(current)
+        else:
+            posn = 0
+        sched.addchild(data_dir, index=posn)
 
     def validate(self, sched, options=None):
         # pylint: disable=arguments-differ
