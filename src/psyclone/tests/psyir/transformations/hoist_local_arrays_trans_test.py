@@ -190,6 +190,39 @@ def test_apply_multi_arrays(fortran_writer):
         "    a(:,:) = 1.0\n" in code)
 
 
+def test_apply_name_clash(fortran_writer, tmpdir):
+    '''
+    Check that the transformation handles the case where the name of the
+    symbol to be promoted already exists in the container symbol table and the
+    first choice of new name clashes with a symbol in the subroutine.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "  real, allocatable, dimension(:,:), private :: a\n"
+        "contains\n"
+        "subroutine test(nx,ny)\n"
+        "  integer, intent(in) :: nx, ny\n"
+        "  real :: a(nx,ny)\n"
+        "  real :: a_1 = 1.0\n"
+        "  a(:,:) = a_1\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    code = fortran_writer(psyir).lower()
+    assert ("  real, allocatable, dimension(:,:), private :: a\n"
+            "  real, allocatable, dimension(:,:), private :: a_2\n" in code)
+    assert ("    if (.not.allocated(a_2)) then\n"
+            "      allocate(a_2(1 : nx, 1 : ny))\n"
+            "    end if\n"
+            "    a_2(:,:) = a_1\n" in code)
+    assert Compile(tmpdir).string_compiles(code)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = HoistLocalArraysTrans()

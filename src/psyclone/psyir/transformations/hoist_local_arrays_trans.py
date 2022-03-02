@@ -121,9 +121,15 @@ class HoistLocalArraysTrans(Transformation):
             sym.datatype._shape = new_shape
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
-            # TODO handle the case where there's a clash with an existing
-            # symbol at module scope.
-            container.symbol_table.add(sym)
+            # We must allow for the situation where there's a clash with a
+            # symbol already present at container scope.
+            try:
+                container.symbol_table.add(sym)
+            except KeyError:
+                new_name = container.symbol_table.next_available_name(
+                    sym.name, other_table=node.symbol_table)
+                node.symbol_table.rename_symbol(sym, new_name)
+                container.symbol_table.add(sym)
             # Create an allocate statement for the new symbol in
             # the original routine.
             dim_list = [Range.create(dim.lower, dim.upper) for dim
@@ -145,6 +151,7 @@ class HoistLocalArraysTrans(Transformation):
         # routine.
         node.children.insert(0, IfBlock.create(if_expr, body))
 
+        # Finally, remove the hoisted symbols from the routine scope.
         for sym in automatic_arrays:
             # Currently the SymbolTable.remove() method does not support
             # DataSymbols.
