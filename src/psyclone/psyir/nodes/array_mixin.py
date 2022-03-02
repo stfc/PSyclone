@@ -74,6 +74,12 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
+    def __eq__(self, other):
+        '''
+        Defaults to the base == implementation of is
+        '''
+        return self is other
+
     @property
     def is_array(self):
         ''':returns: if this instance indicates an array access.

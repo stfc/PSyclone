@@ -207,9 +207,19 @@ class StructureReference(Reference):
         return ref
 
     def __eq__(self, other):
+        '''
+        Two StructureReferences are equal if they have the same type,
+        symbol and member. If the member is not yet defined, then this
+        reverts to the default check of `self is other`.
+        '''
         eq = type(self) == type(other)
         eq = eq and (self.symbol == other.symbol)
-        eq = eq and (self.member == other.member)
+        try:
+            # If the member is not yet defined, we revert to the
+            # default a is b behaviour
+            eq = eq and (self.member == other.member)
+        except:
+            return self is other
         return eq
 
     def __str__(self):
