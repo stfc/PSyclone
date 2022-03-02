@@ -70,7 +70,8 @@ class ACCUpdateTrans(Transformation):
         # and GPU.
         self._fp_ignore_nodes = (Fortran2003.Allocate_Stmt,
                                  Fortran2003.Deallocate_Stmt,
-                                 Fortran2003.Inquire_Stmt)
+                                 Fortran2003.Inquire_Stmt,
+                                 Fortran2003.Open_Stmt)
 
         super().__init__()
 

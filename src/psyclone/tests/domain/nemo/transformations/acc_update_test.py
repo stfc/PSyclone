@@ -40,14 +40,15 @@
 
 from __future__ import print_function, absolute_import
 
-import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
-from psyclone.psyir.transformations import ACCUpdateTrans
 from psyclone.tests.utilities import Compile
 
 # Constants
@@ -266,8 +267,9 @@ end SUBROUTINE tra_ldf_iso
             in gen_code)
 
 
-def test_codeblock_read(parser):
-    ''' Test that XXXXXXXXXXXXXXXX '''
+def test_codeblock_stop(parser):
+    ''' Test that we insert a STOP if we encounter a CodeBlock that we can't
+    reason about. '''
     code = '''
 subroutine lbc_update()
   use oce, only: tmask, jpi, jpj, jpk
@@ -285,7 +287,32 @@ end subroutine lbc_update
     schedule = psy.invokes.invoke_list[0].schedule
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule, options={"allow-codeblocks": True})
-    schedule.view()
+    assert isinstance(schedule[0], CodeBlock)
+    assert isinstance(schedule[1], CodeBlock)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
-    assert "!$acc update if_present device(jpi,jpj,jpk,tmask)" in gen_code
+    assert ("  stop 'psyclone: lbc_update: manually add acc update statements "
+            "(if required) for the following codeblock...'\n"
+            "  open" in gen_code)
+
+
+def test_codeblock_no_access(parser):
+    ''' Check that we permit a CodeBlock if we are confident it doesn't modify
+    access data. '''
+    code = '''
+subroutine lbc_update()
+  use oce, only: tmask, jpi, jpj, jpk
+
+  open(unit=32, file="some_forcing.dat")
+  write(32, *) "Hello"
+
+end subroutine lbc_update
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_update = ACCUpdateTrans()
+    acc_update.apply(schedule, options={"allow-codeblocks": True})
+    assert len(schedule.children) == 1
+    assert isinstance(schedule[0], CodeBlock)
+    assert isinstance(schedule[0].get_ast_nodes[0], Fortran2003.Open_Stmt)
