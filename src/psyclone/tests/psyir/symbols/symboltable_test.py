@@ -230,8 +230,12 @@ def test_next_available_name_4():
             "'int'." in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = sym_table.next_available_name(shadowing=7)
-    assert ("Argument shadowing should be of type bool but found "
+    assert ("Argument 'shadowing' should be of type bool but found "
             "'int'." in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = sym_table.next_available_name(root_name="groot", other_table="am")
+    assert ("argument 'other_table' should be of type SymbolTable but found "
+            "'str'." in str(excinfo.value))
 
 
 def test_new_symbol_5():
