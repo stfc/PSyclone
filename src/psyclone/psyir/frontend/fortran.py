@@ -121,6 +121,53 @@ class FortranReader(object):
                             "into scope.".format(source_code)), err)
         return fake_parent[0].children[0].detach()
 
+    def psyir_from_statement(self, source_code, symbol_table):
+        '''
+        Generate the PSyIR tree for the supplied Fortran statement.
+        Any symbols referenced in the statement are added to the supplied
+        symbol table.
+
+        :param str source_code: text of the statement to be parsed.
+        :param symbol_table: the SymbolTable in which to search for any \
+                             symbols that are encountered.
+        :returns: PSyIR representing the provided Fortran statement.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises TypeError: if no valid SymbolTable is supplied.
+        :raises ValueError: if the supplied source does not represent a \
+            Fortran expression.
+        :raises SymbolError: if the expression references a symbol which \
+            cannot be found in the symbol table (and there is no way for it \
+            to be brought into scope).
+        '''
+        if not isinstance(symbol_table, SymbolTable):
+            raise TypeError("Must be supplied with a valid SymbolTable but got"
+                            " '{0}'".format(type(symbol_table).__name__))
+        string_reader = FortranStringReader(source_code)
+        try:
+            parse_tree = Fortran2003.Execution_Part(string_reader)
+        except NoMatchError as err:
+            six.raise_from(
+                ValueError("Supplied source does not represent a Fortran "
+                           "statement: '{0}'".format(source_code)), err)
+
+        # Create a fake sub-tree connected to the supplied symbol table so
+        # that we can process the expression and lookup any symbols that it
+        # references.
+        fake_parent = Schedule(symbol_table=symbol_table)
+
+        try:
+            # Process the expression, giving the Schedule we've just
+            # created as the parent.
+            self._processor.process_nodes(fake_parent, [parse_tree])
+        except SymbolError as err:
+            six.raise_from(
+                SymbolError("Statement '{0}' contains symbols which are not "
+                            "present in any symbol table and there are no "
+                            "wildcard imports which might be bringing them "
+                            "into scope.".format(source_code)), err)
+        return fake_parent[0].detach()
+
     def psyir_from_file(self, file_path):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
