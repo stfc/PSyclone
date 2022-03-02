@@ -57,10 +57,13 @@ import six
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall, \
+    KernelFunctor
+from psyclone.domain.common.transformations import AlgTrans, KernTrans
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
+from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
@@ -252,13 +255,36 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     alg_gen = None
 
     if api == "gocean1.0":
-        # Create language-level PSyIR from the Fortran file
+        # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
         psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
         alg_trans = AlgTrans()
         alg_trans.apply(psyir)
+
+        # For each kernel called from the algorithm layer
+        kernels = {}
+        for invoke in psyir.walk(AlgorithmInvokeCall):
+            kernels[invoke] = {}
+            for kern in invoke.walk(KernelFunctor):
+
+                # Find the container that includes this kernel symbol
+                container_symbol = kern.symbol.interface.container_symbol
+
+                # Find the kernel file containing the container
+                filepath = get_kernel_filepath(
+                    container_symbol.name, kernel_paths, filename)
+
+                # Create language-level PSyIR from the kernel file
+                kernel_psyir = reader.psyir_from_file(filepath)
+
+                # Raise to Kernel PSyIR
+                kern_trans = KernTrans()
+                kern_trans.metadata_name = kern.symbol.name
+                kern_trans.apply(kernel_psyir)
+
+                kernels[invoke][kern] = kernel_psyir
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
@@ -269,7 +295,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         alg_gen = writer(psyir)
 
         # Create the PSy-layer
-        # TODO: issue #1629 replace invoke_info with alg psyir
+        # TODO: issue #1629 replace invoke_info with alg and kern psyir
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
