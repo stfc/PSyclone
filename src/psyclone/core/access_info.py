@@ -352,7 +352,7 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             if access.access_type == AccessType.WRITE:
                 result = True
@@ -377,7 +377,7 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             if access.access_type == AccessType.READ:
                 result = True
@@ -405,7 +405,7 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             result = True
         raise ValueError("Reference not found in 'is_accessed_before' for "

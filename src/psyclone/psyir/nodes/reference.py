@@ -64,6 +64,16 @@ class Reference(DataNode):
         super(Reference, self).__init__(parent=parent)
         self.symbol = symbol
 
+    def __eq__(self, other):
+        '''
+        Checks equivalence of two References. References are considered
+        equivalent if they are the same type of Reference and their symbol
+        is the same
+        '''
+        eq = (type(self) == type(other))
+        eq = eq and (self.symbol == other.symbol)
+        return eq
+
     @property
     def is_array(self):
         ''':returns: if this reference is an array.
