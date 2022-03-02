@@ -1438,6 +1438,34 @@ class FortranWriter(LanguageWriter):
             result += self._visit(child)
         return result
 
+    def operandclause_node(self, node):
+        '''This method is called when a OperandClause is
+        found in the PSyIR tree. It returns the clause and its children
+        as a string
+
+        :param node: an OperandClause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.OperandClause`
+
+        :returns: the Fortran code for this node.
+        :rtype: str
+
+        '''
+        if len(node.children) == 0:
+            return ""
+
+        result = node.clause_string
+
+        result = result + "(" + node.operand + ": "
+
+        child_list = []
+        for child in node.children:
+            child_list.append(self._visit(child))
+
+        result = result + ",".join(child_list) + ")"
+
+        return result
+
+
     def clause_node(self, node):
         '''This method is called when a Clause instance is found in the
         PSyIR tree. It returns the clause and its children as a string.

@@ -85,7 +85,7 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
     OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
     OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
     OMPTaskDirective
-from psyclone.psyir.nodes.clause import Clause
+from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause
@@ -113,6 +113,7 @@ __all__ = [
         'Member',
         'NaryOperation',
         'Node',
+        'OperandClause',
         'Operation',
         'Range',
         'Reference',

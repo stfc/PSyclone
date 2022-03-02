@@ -38,7 +38,7 @@
 nodes.'''
 
 from enum import Enum
-from psyclone.psyir.nodes.clause import Clause
+from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 
@@ -215,7 +215,41 @@ class OMPScheduleClause(Clause):
         self._schedule = schedule
         super(OMPScheduleClause, self).__init__()
 
-class OMPReductionClause(Clause):
+class OMPDependClause(OperandClause):
+    '''
+    OpenMP Depend clause used for OpenMP Task directives.
+    '''
+    _children_valid_format = "[Reference]*"
+    _text_name = "OMPDependClause"
+    _clause_string = "depend"
+
+    class DependClauseTypes(Enum):
+        '''Enumeration of the different types of OMPDependClause supported
+        in PSyclone'''
+        IN=0
+        OUT=1
+        INOUT=2
+
+    def __init__(self, depend_type=DependClauseTypes.INOUT):
+        if not isinstance(depend_type, OMPDependClause.DependClauseTypes):
+            raise TypeError(
+                    "OMPDependClause expected 'depend_type' argument of type "
+                    "OMPDependClause.DependClauseTypes but found '{0}'"
+                    .format(type(depend_type).__name__))
+        self._operand = depend_type
+        super(OMPDependClause, self).__init__()
+
+    @property
+    def operand(self):
+        if self._operand == DependClauseTypes.IN:
+            return "in"
+        if self._operand == DependClauseTypes.OUT:
+            return "out"
+        if self._operand == DependClauseTypes.INOUT:
+            return "inout"
+
+
+class OMPReductionClause(OperandClause):
     '''
     OpenMP Reduction clause. Not yet used
     '''

@@ -527,7 +527,7 @@ class OMPParallelDirective(OMPRegionDirective):
             private_list.append(child.symbol.name)
         private_str = "private(" + ",".join(private_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel", default_str
-                                + ", " + private_str))
+                                + " " + private_str))
 
 
         if reprod_red_call_list:
@@ -738,18 +738,18 @@ class OMPTaskDirective(OMPRegionDirective):
         :type ref: TODO
         :param firstprivate_list: The list of firstprivate variables in the \
                                   task region.
-        :type firstprivate_list: List of str.
+        :type firstprivate_list: List of Reference.
         :param private_list: The list of private variables in the task region.
-        :type private_list: List of str.
+        :type private_list: List of Reference.
         :param shared_list: The list of shared variables in the task region.
-        :type shared_list: List of str.
+        :type shared_list: List of Reference.
         :param in_list: The list of input variables in the task region.
-        :type in_list: List of str.
+        :type in_list: List of Reference.
         :param out_list: The list of output variables in the task region.
-        :type out_list: List of str.
+        :type out_list: List of Reference.
         :param parallel_private: The list of private variables in the parent \
                                  parallel region.
-        :type parallel_private: List of str.
+        :type parallel_private: List of Reference.
         :param start_val: Start/init value of outermost Loop contained in the \
                           task region.
         :type start_val: ???
@@ -762,26 +762,21 @@ class OMPTaskDirective(OMPRegionDirective):
 
         FIXME Raises docstring
         '''
-        from psyclone.psyir.backend.fortran import FortranWriter
-        writer = FortranWriter()
         if isinstance(ref, (ArrayReference,
                             ArrayOfStructuresReference)):
             # Resolve ArrayReference (AoSReference)
-            # Read access array. Find the string representing this
-            # array
-            name = ref.symbol.name
             index_list = []
-            # Check if this is private in the parent parallel
+            # Check if this reference is private in the parent parallel
             # region
-            is_private = (name in parallel_private)
+            is_private = (ref in parallel_private)
             # If the reference is private in the parent parallel
             # then it is added to the firstprivate clause for this
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list).
             if is_private:
-                if name not in private_list and name not in \
+                if ref not in private_list and ref not in \
                         firstprivate_list:
-                    firstprivate_list.append(name)
+                    firstprivate_list.append(ref.copy())  #FIXME This should probably be a new Reference to the array symbol.
             else:
                 # The reference is shared. Since it is an array,
                 # we need to check the following restrictions:
@@ -797,17 +792,16 @@ class OMPTaskDirective(OMPRegionDirective):
                 for index in ref.indices:
                     if type(index) is Reference:
                         # Check this is a firstprivate var
-                        index_name = index.symbol.name
-                        index_private = (index_name in 
+                        index_private = (index in 
                                          parallel_private)
                         if index_private:
-                            if index_name in private_list:
-                                index_list.append(index_name)
-                            elif index_name in firstprivate_list:
-                                index_list.append(index_name)
+                            if index in private_list:
+                                index_list.append(index.copy())
+                            elif index in firstprivate_list:
+                                index_list.append(index.copy())
                             else:
-                                firstprivate_list.append(index_name)
-                                index_list.append(index_name)
+                                firstprivate_list.append(index.copy())
+                                index_list.append(index.copy())
                         else:
                             raise GenerationError(
                                     "Shared variable access used "
@@ -829,54 +823,54 @@ class OMPTaskDirective(OMPRegionDirective):
                                 "OMPTaskDirective.".format(
                                     type(index).__name__))
             # Add to in_list: name(index1, index2)
-            dclause = name + "(" + ", ".join(index_list) + ")"
-            in_list.append(dclause)
+            dclause = name + "(" + ", ".join(index_list) + ")" #FIXME Generate clause members
+            in_list.append(dclause) #FIXME This is more complex.
         elif isinstance(ref, StructureReference):
-            # Read access variable. Find the string representing
-            # this reference
-            name = writer(ref.symbol.name)
+            # Read access variable.
             # Check if this is private in the parent parallel 
             # region
-            is_private = (name in parallel_private)
+            # FIXME Structure references should only use the highest-level
+            # symbol in the structure to perform the structure reference
+            # This code may generate the full reference (e.g a%b) instead of
+            # just a so this needs to be checked.
+            is_private = (ref in parallel_private)
             # If the reference is private in the parent parallel,
             # then it is added to the firstprivate clause for this
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list).
             if is_private:
-                if name not in private_list and name not in \
+                if ref not in private_list and ref not in \
                         firstprivate_list:
-                    firstprivate_list.append(name)
+                    firstprivate_list.append(ref.copy())
             else:
                 # Otherwise it was a shared variable. Its not an
                 # array so we just add the name to the in_list
                 # if not already there. If its already in out_list
                 # we still add it as this is the same as an inout
                 # dependency
-                if name not in in_list:
-                    in_list.append(name)
+                if ref not in in_list:
+                    in_list.append(ref.copy())
         elif isinstance(ref, Reference):
-            # Read access variable. Find the string representing
-            # this reference
-            name = ref.symbol.name
+            # Read access variable.
             # Check if this is private in the parent parallel 
             # region
-            is_private = (name in parallel_private)
+            is_private = (ref in parallel_private)
             # If the reference is private in the parent parallel,
             # then it is added to the firstprivate clause for this
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list.
             if is_private:
-                if name not in private_list and name not in \
+                if ref not in private_list and ref not in \
                         firstprivate_list:
-                    firstprivate_list.append(name)
+                    firstprivate_list.append(ref.copy())
             else:
                 # Otherwise it was a shared variable. Its not an
                 # array so we just add the name to the in_list
                 # if not already there. If its already in out_list
                 # we still add it as this is the same as an inout
                 # dependency
-                if name not in in_list:
-                    in_list.append(name)
+                if ref not in in_list:
+                    in_list.append(ref)
 
     @staticmethod
     def handle_binary_op(node, index_strings, firstprivate_list,
@@ -891,15 +885,15 @@ class OMPTaskDirective(OMPRegionDirective):
         :param node: The BinaryOp node to check 
         :type node: TODO
         :param index_strings: The list of indices in the current array access
-        :type index_strings: List of str.
+        :type index_strings: List of Reference.
         :param firstprivate_list: The list of firstprivate variables in the \
                                   task region.
-        :type firstprivate_list: List of str.
+        :type firstprivate_list: List of Reference.
         :param private_list: The list of private variables in the task region.
-        :type private_list: List of str.
+        :type private_list: List of Reference.
         :param parallel_private: The list of private variables in the parent \
                                  parallel region.
-        :type parallel_private: List of str.
+        :type parallel_private: List of Reference.
         :param start_val: Start/init value of outermost Loop contained in the \
                           task region.
         :type start_val: ???
@@ -913,8 +907,6 @@ class OMPTaskDirective(OMPRegionDirective):
         :raises GenerationError: If the child Reference is a private variable.
         :raises GenerationError: If the child Reference is a shared variable.
         '''
-        from psyclone.psyir.backend.fortran import FortranWriter
-        writer = FortranWriter()
         # Binary Operation check
         if node.operator is not \
            BinaryOperation.ADD and \
@@ -944,48 +936,57 @@ class OMPTaskDirective(OMPRegionDirective):
 
         # Have Reference +/- Literal, analyse
         # and create clause appropriately
-        index_name = "" 
+        index_private = False
+        ref = None
         if type(node.children[0]) is Reference:
-            index_name = node.children[0].symbol.name
+            index_symbol = node.children[0].symbol
+            index_private = (node.children[0] in parallel_private)
+            ref = node.children[0]
         if type(node.children[1]) is Reference:
-            index_name = node.children[1].symbol.name
-        index_private = (index_name in 
-                         parallel_private)
+            index_symbol = node.children[1].symbol
+            index_private = (node.children[1] in parallel_private)
+            ref = node.children[1]
         if index_private:
-            if index_name in private_list:
+            if ref in private_list:
                 # FIXME I think this should be
                 # supportable, but need to think
                 if node.operator is \
                     BinaryOperation.ADD:
+                    #FIXME Turn this into a BinaryOperation group
                     index_name = index_name + ("+({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
                 else:
+                    #FIXME Turn this into a BinaryOperation group
                     index_name = index_name + ("-({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
                 index_strings.append(index_name)
-            elif index_name in firstprivate_list:
+            elif ref in firstprivate_list:
                 # name +/- stop-start
                 if node.operator is \
                     BinaryOperation.ADD:
+                    #FIXME Turn this into a BinaryOperation group
                     index_name = index_name + ("+({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
                 else:
+                    #FIXME Turn this into a BinaryOperation group
                     index_name = index_name + ("-({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
                 index_strings.append(index_name)
             else:
-                firstprivate_list.append(index_name)
+                firstprivate_list.append(ref)
                 # name +/- stop-start 
                 if node.operator is \
                     BinaryOperation.ADD:
+                    #FIXME Turn this into a BinaryOperation group
                     index_name = index_name + ("+({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
                 else:
+                    #FIXME Turn this into a BinaryOperation group
                     index_name = index_name + ("-({0} - {1})"
                            .format(writer(stop_val)
                                ,writer(start_val)))
@@ -1003,16 +1004,11 @@ class OMPTaskDirective(OMPRegionDirective):
         '''
         TODO
         '''
-        from psyclone.psyir.backend.fortran import FortranWriter
         private_list = []
         firstprivate_list = []
         shared_list = []
         in_list = []
         out_list = []
-
-        # Create a FortranWriter to convert nodes to strings
-        # TODO: Create issue - support non-Fortran backends
-        writer = FortranWriter()
 
         # TODO Generate extra clauses
         # Find the parent Loop node
@@ -1020,7 +1016,8 @@ class OMPTaskDirective(OMPRegionDirective):
 
         # Find the parent OMPParallelDirective
         parallel_directive = self.ancestor(OMPParallelDirective)
-        parallel_private = parallel_directive._get_private_list()
+        # Find the OMPParallelDirective's OMPPrivateClause's child References
+        parallel_private = parallel_directive._get_private_list().children
 
         node = self.children[0].children[0]
 
@@ -1035,7 +1032,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # FIXME Handle reduction variables
 
         # Loop variable is private
-        private_list.append(loop_var.name)
+        private_list.append(Reference(loop_var))
 
         # Any variables used in start_val, stop_val or step_val are firstprivate
         # Get the References used for initialisation
@@ -1050,32 +1047,29 @@ class OMPTaskDirective(OMPRegionDirective):
                                       "variable of the primary Loop in a "
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
-            name = writer(ref)
-            if name not in firstprivate_list:
-                firstprivate_list.append(name)
+            if ref not in firstprivate_list:
+                firstprivate_list.append(ref.copy())
 
         stop_val_refs = stop_val.walk(Reference)
-        for sig in stop_val_refs:
+        for ref in stop_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError("{0} not yet supported in the stop "
                                       "variable of the primary Loop in a "
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
-            name = writer(ref)
-            if name not in firstprivate_list:
-                firstprivate_list.append(name)
+            if ref not in firstprivate_list:
+                firstprivate_list.append(ref.copy())
 
         
         step_val_refs = step_val.walk(Reference)
-        for sig in step_val_refs:
+        for ref in step_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError("{0} not yet supported in the step "
                                       "variable of the primary Loop in a "
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
-            name = writer(ref)
-            if name not in firstprivate_list:
-                firstprivate_list.append(name)
+            if ref not in firstprivate_list:
+                firstprivate_list.append(ref.copy())
 
         # Look through the schedule and work out data sharing clauses.
         statements = schedule.walk((Assignment, IfBlock, Loop))
