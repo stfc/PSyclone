@@ -206,6 +206,12 @@ class StructureReference(Reference):
         ref.addchild(child_member)
         return ref
 
+    def __eq__(self, other):
+        eq = type(self) == type(other)
+        eq = eq and (self.symbol == other.symbol)
+        eq = eq and (self.member == other.member)
+        return eq
+
     def __str__(self):
         result = super(StructureReference, self).__str__()
         for entity in self._children:
