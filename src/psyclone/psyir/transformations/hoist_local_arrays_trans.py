@@ -37,8 +37,6 @@
 
 '''
 
-from fparser.two import Fortran2003
-
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -46,7 +44,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Assignment, Schedule, Container,
                                   ArrayReference, Range, FileContainer,
                                   CodeBlock, IfBlock, UnaryOperation)
-from psyclone.psyir.symbols import ArrayType, DataSymbol
+from psyclone.psyir.symbols import ArrayType, DataSymbol, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -118,9 +116,11 @@ class HoistLocalArraysTrans(Transformation):
             orig_shape = sym.datatype.shape[:]
             # Create a new shape for the symbol with DEFERRED extent.
             new_shape = len(sym.shape)*[ArrayType.Extent.DEFERRED]
-            # Modify the existing symbol so that any references to it
+            # Modify the *existing* symbol so that any references to it
             # remain valid.
             sym.datatype._shape = new_shape
+            # Ensure that the promoted symbol is private to the container.
+            sym.visibility = Symbol.Visibility.PRIVATE
             # TODO handle the case where there's a clash with an existing
             # symbol at module scope.
             container.symbol_table.add(sym)

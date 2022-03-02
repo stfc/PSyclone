@@ -58,8 +58,10 @@ def test_init():
 
 # apply
 
-def test_apply(fortran_writer, tmpdir):
-    '''Test the apply method moves an automatic array XXXXX
+def test_apply_1d_known(fortran_writer, tmpdir):
+    '''
+    Test the apply method correctly handles an automatic array of rank 1
+    with known extent.
 
     '''
     code = (
@@ -90,11 +92,102 @@ def test_apply(fortran_writer, tmpdir):
     assert len(sym.shape) == 1
     assert sym.shape[0] == ArrayType.Extent.DEFERRED
     code = fortran_writer(psyir).lower()
+    assert "real, allocatable, dimension(:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
             "      allocate(a(1 : 10))\n"
             "    end if\n"
             "    do i = 1, 10, 1\n" in code)
     assert Compile(tmpdir).string_compiles(code)
+
+
+def test_apply_multi_dim_imported_limits(fortran_writer):
+    '''
+    Test that the transformation correctly handles an array with rank > 1
+    and extents specified by imported variables.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "  use some_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  real :: a(jpi,jpj)\n"
+        "  a(:,:) = 1.0\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    code = fortran_writer(psyir).lower()
+    # We cannot test the compilation of the generated code because of
+    # the 'use some_mod'.
+    assert "real, allocatable, dimension(:,:), private :: a\n" in code
+    assert ("    if (.not.allocated(a)) then\n"
+            "      allocate(a(1 : jpi, 1 : jpj))\n"
+            "    end if\n"
+            "    a(:,:) = 1.0\n" in code)
+
+
+def test_apply_arg_limits(fortran_writer):
+    '''
+    Test that the transformation correctly handles an array with extents
+    specified via subroutine arguments.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test(nx,ny)\n"
+        "  integer, intent(in) :: nx, ny\n"
+        "  real :: a(nx,ny)\n"
+        "  a(:,:) = 1.0\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    code = fortran_writer(psyir).lower()
+    assert "real, allocatable, dimension(:,:), private :: a\n" in code
+    assert ("    if (.not.allocated(a)) then\n"
+            "      allocate(a(1 : nx, 1 : ny))\n"
+            "    end if\n" in code)
+
+
+def test_apply_multi_arrays(fortran_writer):
+    '''
+    Test that the transformation handles the case where we have multiple
+    automatic arrays.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "use some_mod, only: jpi, jpj\n"
+        "contains\n"
+        "subroutine test(nx,ny)\n"
+        "  integer, intent(in) :: nx, ny\n"
+        "  real :: a(nx,ny)\n"
+        "  integer :: mask(jpi,jpj)\n"
+        "  a(:,:) = 1.0\n"
+        "  mask(:,:) = 1\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    code = fortran_writer(psyir).lower()
+    assert "real, allocatable, dimension(:,:), private :: a" in code
+    assert "integer, allocatable, dimension(:,:), private :: mask" in code
+    assert (
+        "    if (.not.allocated(a)) then\n"
+        "      allocate(a(1 : nx, 1 : ny), mask(1 : jpi, 1 : jpj))\n"
+        "    end if\n"
+        "    a(:,:) = 1.0\n" in code)
 
 
 def test_apply_validate():
