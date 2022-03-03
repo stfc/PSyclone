@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -190,12 +190,17 @@ def test_next_available_name_1():
     assert name == "my_MOD_2"
     name = sym_table.next_available_name(root_name="my_mod_1")
     assert name == "my_mod_1_1"
-    # Check we return a new symbol by appending an integer index to
+    # Check we return a new name by appending an integer index to
     # the default name when the names clash.
     name = sym_table.next_available_name()
     assert name == "psyir_tmp_1"
     sym_table.add(DataSymbol(name, REAL_TYPE))
     assert sym_table.next_available_name() == "psyir_tmp_2"
+    # Check that clashes with symbols in a second symbol table are also
+    # avoided.
+    table2 = SymbolTable()
+    table2.add(DataSymbol("psyir_tmp_2", REAL_TYPE))
+    assert sym_table.next_available_name(other_table=table2) == "psyir_tmp_3"
 
 
 def test_next_available_name_2():

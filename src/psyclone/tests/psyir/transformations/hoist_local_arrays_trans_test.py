@@ -40,15 +40,14 @@ from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
-    Routine, IfBlock, Container, FileContainer
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, REAL_TYPE,
-                                    INTEGER_TYPE, BOOLEAN_TYPE)
+from psyclone.psyir.nodes import Routine, Container, FileContainer
+from psyclone.psyir.symbols import ArrayType
 from psyclone.psyir.transformations import (HoistLocalArraysTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
 
 # init
+
 
 def test_init():
     '''Test a hoist transformation can be successfully created.'''
@@ -264,4 +263,12 @@ def test_validate_ancestor_container():
     assert ("The supplied routine 'my_prog' should be within a Container but "
             "the enclosing container is a FileContainer (named 'my_file')."
             in str(info.value))
-    
+
+# str
+
+
+def test_str_method():
+    ''' Test for the __str__ method of HoistLocalArraysTrans. '''
+    hoist_trans = HoistLocalArraysTrans()
+    assert (str(hoist_trans) == "Hoist all local, automatic arrays to "
+            "container scope.")
