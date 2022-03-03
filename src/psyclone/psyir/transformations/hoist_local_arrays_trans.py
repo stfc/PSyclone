@@ -149,8 +149,8 @@ class HoistLocalArraysTrans(Transformation):
                 container.symbol_table.add(sym)
             # Create the array reference that will be the argument to the
             # new memory allocation statement.
-            dim_list = [Range.create(dim.lower, dim.upper) for dim
-                        in orig_shape]
+            dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
+                        for dim in orig_shape]
             arefs.append(ArrayReference.create(sym, dim_list))
 
         freader = FortranReader()
