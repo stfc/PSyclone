@@ -169,7 +169,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # The _sig_list are computed dynamically until the
         # _node_lowered flag is set to True, after that re-use the stored ones.
         self._sig_list = set()
-        self._variables_to_create = set()
         self._node_lowered = False
 
     def gen_code(self, parent):
@@ -231,26 +230,19 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
+        :raises GenerationError: if there are no variables to copy to \
+                                 the device.
         '''
-        if not (self._sig_list or self._variables_to_create):
+        if not self._sig_list:
             # There should be at least one variable to copyin.
             raise GenerationError(
-                "ACCEnterData directive did not find any data to copyin or "
-                "create. Perhaps there are no ACCParallel or ACCKernels "
-                "directives within the region?")
+                "ACCEnterData directive did not find any data to copyin. "
+                "Perhaps there are no ACCParallel or ACCKernels directives "
+                "within the region?")
 
         # Variables need lexicographic sorting since sets guarantee no ordering
         # and members of composite variables must appear later in deep copies.
-        result = "acc enter data"
-        if self._sig_list:
-            copy_in_str = f" copyin({','.join(sorted(self._sig_list))})"
-            result += copy_in_str
-
-        if self._variables_to_create:
-            create_str = f" create({','.join(sorted(self._variables_to_create))})"
-            result += create_str
-
-        return result
+        return f"acc enter data copyin({','.join(sorted(self._sig_list))})"
 
     def data_on_device(self, parent):
         '''
