@@ -745,14 +745,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = (
-        "Error, unexpected exception, please report to the authors:\n"
-        "Description ...\n"
-        "argument of type 'int' is not iterable\n"
-        "Type ...\n"
-        "%s\n"
-        "Stacktrace ...\n" % type(TypeError()))
-    assert expected_output in output
+    assert ("Error, unexpected exception, please report to the authors:"
+            in output)
+    assert "Traceback (most recent call last):" in output
+    assert "TypeError: argument of type 'int' is not iterable" in output
 
 
 @pytest.mark.parametrize("limit", ['all', 'output'])
