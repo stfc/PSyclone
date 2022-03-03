@@ -357,7 +357,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
             #    the kernels it contains and add it to our list if we don't
             #    already have it
             self._variables_to_copy = []
-            self._variables_to_create = set()
+
             for pdir in self._acc_dirs:
                 inputs, outputs = dep_tools.get_in_out_parameters(
                     pdir.children)
@@ -375,11 +375,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
                         if name in ["ji", "jj", "jk"]:
                             continue
                         # TODO examine type of sym?
-                        sym = self.scope.symbol_table.lookup(
-                            name, scope_limit=routine)
-                        if sym.is_local:
-                            self._variables_to_create.add(sym.name)
-                        elif name not in self._variables_to_copy:
+                        if name not in self._variables_to_copy:
                             self._variables_to_copy.append(name)
             self._node_lowered = True
 
