@@ -384,6 +384,8 @@ as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
 
+.. _dynamo0.3-mixed-precision:
+
 Mixed Precision
 ---------------
 
@@ -1788,13 +1790,16 @@ conventions, are:
    1) If the current entry is a scalar quantity then include the Fortran
       variable in the argument list. The intent is determined from the
       metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
-   2) If the current entry is a field then include the field array. The
-      field array name is currently specified as being
-      ``"field_"<argument_position>"_"<field_function_space>``. A field array
-      is a rank-1, ``real`` array of kind ``r_def`` with extent equal to the
-      number of unique degrees of freedom for the space that the field is on.
-      This value is passed in separately. Again, the intent is determined
-      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+   2) If the current entry is a field then include the field
+      array. The field array name is currently specified as being
+      ``"field_"<argument_position>"_"<field_function_space>``. A
+      field array is a rank-1, ``real`` array with extent equal to the
+      number of unique degrees of freedom for the space that the field
+      is on. Its precision (kind) depends on how it is defined in the
+      algorithm layer, see the :ref:`dynamo0.3-mixed-precision` section
+      for more details. This value is passed in separately. Again, the
+      intent is determined from the metadata (see
+      :ref:`dynamo0.3-api-meta-args`).
 
       1) If the field entry has a stencil access then add an ``integer`` (or
          if the stencil is of type ``CROSS2D``, an ``integer`` rank-1 array of
@@ -1824,14 +1829,17 @@ conventions, are:
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
    4) If the current entry is an operator then first include an
-      ``integer`` extent of kind ``i_def``. The name of this extent
-      is ``<operator_name>"_ncell_3d"``. Next include the operator.
-      This is a rank-3, ``real`` array of kind ``r_def``. The extents
-      of the first two dimensions are the local degrees of freedom for
-      the ``to`` and ``from`` function spaces, respectively, and that
-      of the third is ``<operator_name>"_ncell_3d"``. The name of
-      the operator is ``"op_"<argument_position>``. Again the intent
-      is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+      ``integer`` extent of kind ``i_def``. The name of this extent is
+      ``<operator_name>"_ncell_3d"``. Next include the operator.  This
+      is a rank-3, ``real`` array. Its precision (kind) depends on how
+      it is defined in the algorithm layer, see the
+      :ref:`dynamo0.3-mixed-precision` section for more details. The
+      extents of the first two dimensions are the local degrees of
+      freedom for the ``to`` and ``from`` function spaces,
+      respectively, and that of the third is
+      ``<operator_name>"_ncell_3d"``. The name of the operator is
+      ``"op_"<argument_position>``. Again the intent is determined
+      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
@@ -2092,12 +2100,14 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
 5) For each argument in the ``meta_args`` metadata array:
 
    1) If it is a LMA operator, include a ``real``, 3-dimensional
-      array of kind ``r_def``. The first two dimensions are the local
-      degrees of freedom for the ``to`` and ``from`` spaces,
-      respectively. The third dimension is ``ncell_3d``;
+      array. The first two dimensions are the local degrees of freedom
+      for the ``to`` and ``from`` spaces, respectively. The third
+      dimension is ``ncell_3d``. The precision of the array depends on
+      how it is defined in the algorithm layer, see the
+      :ref:`dynamo0.3-mixed-precision` section for more details;
 
    2) If it is a CMA operator, include a ``real``, 3-dimensional array
-      of kind ``r_def``. The first dimension is
+      of kind ``r_solver``. The first dimension is
       ``"bandwidth_"<operator_name>``, the second is
       ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
 
@@ -2181,8 +2191,10 @@ The full set of rules is then:
 3) For each argument in the ``meta_args`` metadata array:
 
    1) If it is a field, include the field array. This is a ``real``
-      array of kind ``r_def`` and is of rank 1.  The field array name
-      is currently specified as being
+      array of rank 1. Its precision (kind) depends on how it is
+      defined in the algorithm layer, see the
+      :ref:`dynamo0.3-mixed-precision`. The field array name is
+      currently specified as being
       ``"field_"<argument_position>"_"<field_function_space>``. The
       extent of the array is the number of unique degrees of freedom
       for the function space that the field is on.  This value is

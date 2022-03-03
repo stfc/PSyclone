@@ -66,6 +66,7 @@ from psyclone.psyir.nodes import colored, UnaryOperation, Reference
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import Compile
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -4340,4 +4341,13 @@ def test_mixed_precision_args(tmpdir):
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert expected in generated_code
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    if Compile.TEST_COMPILE:
+        if not LFRicBuild(tmpdir).code_compiles(psy):
+            pytest.xfail(
+                "Issue #1638. This example will not compile as there is no "
+                "support for r_solver operators in the infrastructure.")
+        else:
+            assert False, (
+                "Issue #1638. This example is not expected to compile as "
+                "there is no support for r_solver operators in the "
+                "infrastructure.")
