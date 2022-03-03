@@ -439,7 +439,7 @@ precision. If a kernel needs to support data that can be stored with
 different precisions then appropriate precision-specific subroutines
 should be written. These precision-specific subroutine should be
 called via a generic interface (which lets Fortran choose the
-appropriate subroutine based on the precision of its argument(s).
+appropriate subroutine based on the precision of its argument(s)).
 
 Below is a simple example of an algorithm code calling the same
 generic kernel twice with potentially different precision. The
@@ -454,13 +454,16 @@ configuration and 64-bits in another:
   program test
 
     use constants_mod, only : r_def, r_solver
-    use example_mod, only : example_type
+    use field_mod,     only : field_type, r_solver_field_type
+    use example_mod,   only : example_type
 
-    real(r_def)    :: x_r_def
-    real(r_solver) :: x_r_solver
+    type(field_type)          :: field_r_def
+    type(r_solver_field_type) :: field_r_solver
+    real(r_def)               :: x_r_def
+    real(r_solver)            :: x_r_solver
 
-    call invoke( example_type(x_r_def),    &
-                 example_type(x_r_solver))
+    call invoke( example_type(field_r_def, x_r_def),       &
+                 example_type(field_r_solver, x_r_solver))
 
   end program test
 
@@ -472,9 +475,10 @@ configuration and 64-bits in another:
     implicit none
 
     type, extends(kernel_type) :: example_type
-      type(arg_type), dimension(1) :: meta_args =     &
-            (/ arg_type(gh_scalar, gh_real, gh_read ) &
-             /)
+      type(arg_type), dimension(2) :: meta_args = (/       &
+           arg_type(gh_field,  gh_real, gh_readwrite, w3), &
+	   arg_type(gh_scalar, gh_real, gh_read )          &
+           /)
        integer :: operates_on = cell_column
      contains
        procedure, nopass :: code => example_code
@@ -490,12 +494,14 @@ configuration and 64-bits in another:
 
   contains
 
-    subroutine example_code_32(x)
+    subroutine example_code_32(..., field1, x, ...)
+      real*4, dimension(...), intent(inout) :: field1
       real*4, intent(in) :: x
       print *, "32-bit example called"
     end subroutine example_code_32
 
-    subroutine example_code_64(x)
+    subroutine example_code_64(..., field1, x, ...)
+      real*8, dimension(...), intent(inout) :: field1
       real*8, intent(in) :: x
       print *, "64-bit example called"
     end subroutine example_code_64
@@ -512,7 +518,7 @@ PSy-layer to ensure that the correct flavour of kernels are called.
 PSyclone must therefore determine this information from the algorithm
 layer. The rules for whether PSyclone requires information for
 particular LFRic datatypes and what it does with or without this
-information is given below:
+information are given below:
 
 Fields
 ++++++
@@ -524,9 +530,7 @@ will abort with a message that indicates the problem.
 Supported field types are `field_type` (which contains `real` data
 with precision `r_def`), `r_solver_field_type` (which contains `real`
 data with precision `r_solver`) and `integer_field_type` (which
-contains `integer` data with precision `i_def`). If an unsupported
-field type is found then PSyclone will abort with a message that
-indicates the problem.
+contains `integer` data with precision `i_def`).
 
 Field Vectors
 +++++++++++++
@@ -538,7 +542,8 @@ that the actual field being referenced is of type `field_type` or
 
 If PSyclone finds an argument that is declared as an
 `abstract_field_type` then it will not know the actual type of the
-argument and will raise an exception::
+argument. For instance, the following algorithm layer code will cause
+PSyclone to raise an exception::
 
     ! ...
     class (abstract_vector_type), intent(inout) :: x
@@ -551,12 +556,12 @@ argument and will raise an exception::
     end select
     ! ...
 
-The suggested solution to this is to add a pointer to the code that is
-of the required type. This pointer can then be associated with the
-argument and passed into the routine::
+The suggested solution to this is to add a pointer variable to the
+code that is of the required type. This pointer can then be associated
+with the argument and passed into the routine::
 
     ! ...
-    class (abstract_vector_type), intent(inout) :: x
+    class (abstract_vector_type), target, intent(inout) :: x
     type(field_vector_type), pointer :: x_ptr
     ! ...
     select type (x)
@@ -573,17 +578,17 @@ Scalars
 
 It is not mandatory for PSyclone to be able to determine the datatype
 of a scalar from the algorithm layer. This constraint was considered
-to be too restrictive as PSyclone currently only examines the current
-algorithm code when determining datatype. This means that if scalars
-are imported from other modules (as is often the case) then their
-datatype cannot be determined.
+to be too restrictive as PSyclone currently only examines the
+declarations in the same source file as the `invoke` when determining
+datatype. This means that if scalars are imported from other modules
+(as is often the case) then their datatype cannot be determined.
 
 If the precision information for a scalar is found by PSyclone then
 this is used. If the scalar declaration is found and it contains no
 precision information then PSyclone will abort with a message that
 indicates the problem (since this violates LFRic coding standards). If
-no precision information is found then default precision values are
-used as specified in the PSyclone config file (`r_def` for real,
+no declaration information is found then default precision values are
+used, as specified in the PSyclone config file (`r_def` for real,
 `i_def` for integer and `l_def` for logical).
 
 Supported precisions for scalars are `r_def` and `r_solver` for real
@@ -600,9 +605,7 @@ indicates the problem.
 
 Supported LMA Operator types are `operator_type` (which contains real
 data with precision `r_def`) and `r_solver_operator_type` (which
-contains real data with precision `r_solver`). If an unsupported LMA
-Operator type is found then PSyclone will abort with a message that
-indicates the problem.
+contains real data with precision `r_solver`).
 
 Columnwise Operators
 ++++++++++++++++++++

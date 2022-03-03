@@ -32,11 +32,9 @@
 ! Author: R. W. Ford STFC Daresbury Lab
 !
 ! Example where the field is dereferenced from an abstract_vector_type
-! and therefore has no type information. The LFRic rules state that an
-! abstract_vector_type can only be of type field_vector_type in LFRic
-! code and all fields within a field_vector_type are of type
-! field_type. This is checked at runtime by the algorithm code using a
-! select statement.
+! and therefore its precision can't be determined by looking at the
+! declaration. As a result PSyclone is currently not able to determine
+! the type and will raise an exception.
 
 module vector_type
 

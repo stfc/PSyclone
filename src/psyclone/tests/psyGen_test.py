@@ -1028,7 +1028,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
 
     # A reduction argument will always have a precision value so we
-    # need to monkeypatch the it.
+    # need to monkeypatch it.
     schedule = psy.invokes.invoke_list[0].schedule
     builtin = schedule.walk(BuiltIn)[0]
     arg = builtin.arguments.args[0]

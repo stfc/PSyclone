@@ -3139,8 +3139,7 @@ class DynProxies(DynCollection):
 
         # Add the Invoke subroutine declarations for the different
         # field-type proxies
-        for fld_type, fld_mod in field_datatype_map:
-            args = field_datatype_map[(fld_type, fld_mod)]
+        for (fld_type, fld_mod), args in field_datatype_map.items():
             arg_list = [arg.proxy_declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=arg_list))
@@ -3160,8 +3159,8 @@ class DynProxies(DynCollection):
                 # create new entry
                 operators_datatype_map[op_arg.proxy_data_type] = [op_arg]
         # Declare the operator proxies
-        for operator_datatype in operators_datatype_map:
-            operators_list = operators_datatype_map[operator_datatype]
+        for operator_datatype, operators_list in \
+                operators_datatype_map.items():
             operators_names = [arg.proxy_declaration_name for
                                arg in operators_list]
             parent.add(TypeDeclGen(parent, datatype=operator_datatype,
@@ -3500,12 +3499,14 @@ class LFRicScalarArgs(DynCollection):
         self._create_declarations(parent)
 
     def _create_declarations(self, parent):
-        '''
-        Add declarations for the scalar arguments.
+        '''Add declarations for the scalar arguments.
 
         :param parent: the f2pygen node in which to insert declarations \
                        (Invoke or Kernel).
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if neither self._invoke nor \
+            self._kernel are set.
 
         '''
         const = LFRicConstants()
@@ -3529,9 +3530,8 @@ class LFRicScalarArgs(DynCollection):
                         real_scalars_precision_map[
                             real_scalar.precision] = [real_scalar]
                 # Declare scalars
-                for real_scalar_kind in real_scalars_precision_map:
-                    real_scalars_list = real_scalars_precision_map[
-                        real_scalar_kind]
+                for real_scalar_kind, real_scalars_list in \
+                        real_scalars_precision_map.items():
                     real_scalar_type = real_scalars_list[0].intrinsic_type
                     real_scalar_names = [arg.declaration_name for arg
                                          in real_scalars_list]
@@ -3545,6 +3545,11 @@ class LFRicScalarArgs(DynCollection):
                             const_mod_list.append(real_scalar_kind)
                     elif self._kernel:
                         self._kernel.argument_kinds.add(real_scalar_kind)
+                    else:
+                        raise InternalError(
+                            "Expected the declaration of real scalar kernel "
+                            "arguments to be for either an invoke or a "
+                            "kernel stub, but it is neither.")
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3562,6 +3567,11 @@ class LFRicScalarArgs(DynCollection):
                         const_mod_list.append(dkind)
                 elif self._kernel:
                     self._kernel.argument_kinds.add(dkind)
+                else:
+                    raise InternalError(
+                        "Expected the declaration of integer scalar kernel "
+                        "arguments to be for either an invoke or a "
+                        "kernel stub, but it is neither.")
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3579,6 +3589,11 @@ class LFRicScalarArgs(DynCollection):
                         const_mod_list.append(dkind)
                 elif self._kernel:
                     self._kernel.argument_kinds.add(dkind)
+                else:
+                    raise InternalError(
+                        "Expected the declaration of logical scalar kernel "
+                        "arguments to be for either an invoke or a "
+                        "kernel stub, but it is neither.")
 
 
 class DynLMAOperators(DynCollection):
@@ -3640,12 +3655,11 @@ class DynLMAOperators(DynCollection):
                 # This datatype has not been seen before so create new entry
                 operators_datatype_map[op_arg.data_type] = [op_arg]
         # Declare the operators
-        for operator_datatype in operators_datatype_map:
-            operators_list = operators_datatype_map[operator_datatype]
+        for operator_datatype, operators_list in operators_datatype_map.items():
             operators_names = [arg.declaration_name for arg in operators_list]
-            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
-                                   entity_decls=operators_names,
-                                   intent="in"))
+            parent.add(TypeDeclGen(
+                parent, datatype=operator_datatype,
+                entity_decls=operators_names, intent="in"))
             op_mod = operators_list[0].module_name
             # Record that we will need to import this operator
             # datatype from the appropriate infrastructure module
@@ -7903,9 +7917,8 @@ class DynKern(CodedKern):
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param bool check: optional argument to do with checking \
-            consistency between kernel metadata and the algorithm \
-            layer. Defaults to True.
+        :param bool check: whether to check for consistency between the \
+            kernel metadata and the algorithm layer. Defaults to True.
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
@@ -9105,7 +9118,7 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
-    def _init_data_type_properties(self, arg_info, use_alg_info=True):
+    def _init_data_type_properties(self, arg_info, check=True):
         '''Set up kernel argument information from LFRicConstants: precision,
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
@@ -9113,7 +9126,7 @@ class DynKernelArgument(KernelArgument):
         :param arg_info: information on how this argument is specified \
             in the Algorithm layer.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param bool use_alg_info: whether to use the algorithm \
+        :param bool check: whether to use the algorithm \
             information. Optional argument that defaults to True.
 
         '''
@@ -9142,11 +9155,11 @@ class DynKernelArgument(KernelArgument):
 
         if self.is_scalar:
             self._init_scalar_properties(alg_datatype, alg_precision,
-                                         use_alg_info)
+                                         check)
         elif self.is_field:
-            self._init_field_properties(alg_datatype, use_alg_info)
+            self._init_field_properties(alg_datatype, check)
         elif self.is_operator:
-            self._init_operator_properties(alg_datatype, use_alg_info)
+            self._init_operator_properties(alg_datatype, check)
         else:
             raise InternalError(
                 f"Supported argument types are scalar, field and operator, "
@@ -9154,7 +9167,7 @@ class DynKernelArgument(KernelArgument):
                 f"'{self._call.name}' is none of these.")
 
     def _init_scalar_properties(
-            self, alg_datatype, alg_precision, use_alg_info=True):
+            self, alg_datatype, alg_precision, check=True):
         '''Set up the properties of this scalar using algorithm datatype
         information if it is available.
 
@@ -9166,7 +9179,7 @@ class DynKernelArgument(KernelArgument):
             specified in the algorithm layer or None if it is not \
             known.
         :type alg_precision: str or NoneType
-        :param bool use_alg_info: whether to use the algorithm \
+        :param bool check: whether to use the algorithm \
             information. Optional argument that defaults to True.
 
         :raises InternalError: if the intrinsic type of the scalar is \
@@ -9192,7 +9205,7 @@ class DynKernelArgument(KernelArgument):
 
         # Check the metadata and algorithm types are consistent if
         # the algorithm information is available and is not being ignored.
-        if use_alg_info and alg_datatype and \
+        if check and alg_datatype and \
            alg_datatype != self.intrinsic_type:
             raise GenerationError(
                 f"The kernel metadata for argument '{self.name}' in "
@@ -9204,7 +9217,7 @@ class DynKernelArgument(KernelArgument):
         # If the algorithm information is not being ignored and
         # the datatype is known in the algorithm layer and it is
         # not a literal then its precision should also be defined.
-        if use_alg_info and alg_datatype and not alg_precision and \
+        if check and alg_datatype and not alg_precision and \
            not self.is_literal:
             raise GenerationError(
                 f"LFRic coding standards require scalars to have "
@@ -9229,7 +9242,7 @@ class DynKernelArgument(KernelArgument):
             # then check that the expected precision and the
             # precision defined in the algorithn layer are
             # the same.
-            if use_alg_info and alg_precision and \
+            if check and alg_precision and \
                alg_precision != expected_precision:
                 raise GenerationError(
                     f"This scalar is a reduction which assumes precision "
@@ -9246,7 +9259,7 @@ class DynKernelArgument(KernelArgument):
         else:
             # This is a scalar that is not part of a reduction.
 
-            if use_alg_info and alg_precision:
+            if check and alg_precision:
                 # Use the algorithm precision if it is available
                 # and not being ignored.
                 self._precision = alg_precision
@@ -9257,7 +9270,7 @@ class DynKernelArgument(KernelArgument):
                 self._precision = const.SCALAR_PRECISION_MAP[
                     self.intrinsic_type]
 
-    def _init_field_properties(self, alg_datatype, use_alg_info=True):
+    def _init_field_properties(self, alg_datatype, check=True):
         '''Set up the properties of this field using algorithm datatype
         information if it is available.
 
@@ -9265,7 +9278,7 @@ class DynKernelArgument(KernelArgument):
             specified in the algorithm layer or None if it is not \
             known.
         :type alg_datatype: str or NoneType
-        :param bool use_alg_info: whether to use the algorithm \
+        :param bool check: whether to use the algorithm \
             information. Optional argument that defaults to True.
 
         :raises GenerationError: if the datatype for a gh_field \
@@ -9280,7 +9293,7 @@ class DynKernelArgument(KernelArgument):
         argtype = None
         # If the algorithm information is not being ignored then
         # it must be available.
-        if use_alg_info and not alg_datatype:
+        if check and not alg_datatype:
             raise GenerationError(
                 f"It was not possible to determine the field type from "
                 f"the algorithm layer for argument '{self.name}' in "
@@ -9290,7 +9303,7 @@ class DynKernelArgument(KernelArgument):
         # check the metadata and algorithm type are consistent and
         # that the metadata specifies a supported intrinsic type.
         if self.intrinsic_type == "real":
-            if not use_alg_info:
+            if not check:
                 # Use the default as we are ignoring any algorithm info
                 argtype = "field"
             elif alg_datatype == "field_type":
@@ -9305,7 +9318,7 @@ class DynKernelArgument(KernelArgument):
                     f"'{alg_datatype}' in the algorithm code.")
 
         elif self.intrinsic_type == "integer":
-            if use_alg_info and alg_datatype != "integer_field_type":
+            if check and alg_datatype != "integer_field_type":
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
                     f"'{self._call.name}' specifies that this is an "
@@ -9322,7 +9335,7 @@ class DynKernelArgument(KernelArgument):
         self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
         self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-    def _init_operator_properties(self, alg_datatype, use_alg_info=True):
+    def _init_operator_properties(self, alg_datatype, check=True):
         '''Set up the properties of this operator using algorithm datatype
         information if it is available.
 
@@ -9330,11 +9343,11 @@ class DynKernelArgument(KernelArgument):
             specified in the algorithm layer or None if it is not \
             known.
         :type alg_datatype: str or NoneType
-        :param bool use_alg_info: whether to use the algorithm \
+        :param bool check: whether to use the algorithm \
             information. Optional argument that defaults to True.
-
         :raises GenerationError: if the datatype for a gh_operator \
-            could not be found in the algorithm layer.
+            could not be found in the algorithm layer (and check is \
+            True).
         :raises GenerationError: if the datatype specified in the \
             algorithm layer is inconsistent with the kernel metadata.
         :raises InternalError: if this argument is not an operator.
@@ -9343,7 +9356,7 @@ class DynKernelArgument(KernelArgument):
         const = LFRicConstants()
         argtype = None
         if self.argument_type == "gh_operator":
-            if not use_alg_info:
+            if not check:
                 # Use the default as we are ignoring any algorithm info
                 argtype = "operator"
             elif not alg_datatype:
@@ -9365,7 +9378,7 @@ class DynKernelArgument(KernelArgument):
                     f"operator, however it is declared as a "
                     f"'{alg_datatype}' in the algorithm code.")
         elif self.argument_type == "gh_columnwise_operator":
-            if use_alg_info and alg_datatype and \
+            if check and alg_datatype and \
                alg_datatype != "columnwise_operator_type":
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "

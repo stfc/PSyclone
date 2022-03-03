@@ -4298,7 +4298,7 @@ def test_read_only_fields_hex(tmpdir):
     assert expected in generated_code
 
 
-def test_mixed_precision_args():
+def test_mixed_precision_args(tmpdir):
     '''Test that correct code is generated for the PSy-layer when there
     are scalars, fields and operators with different precision
     declared in the algorithm layer.'''
@@ -4339,3 +4339,5 @@ def test_mixed_precision_args():
         "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert expected in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
