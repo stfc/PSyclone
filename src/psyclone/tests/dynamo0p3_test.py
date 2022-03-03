@@ -1616,7 +1616,7 @@ def test_dynkernelargument_idtp_scalar():
 
     # Inconsistent datatype - no check - use default precision
     arg = Arg("variable", None, None, ("integer", "roo_def"))
-    scalar_argument._init_data_type_properties(arg, use_alg_info=False)
+    scalar_argument._init_data_type_properties(arg, check=False)
     assert scalar_argument._precision == "r_def"
     assert scalar_argument._data_type is None
     assert scalar_argument._proxy_data_type is None
@@ -1680,10 +1680,10 @@ def test_dynkernelargument_idtp_reduction():
             "of type 'real' but in the algorithm layer it is defined as a "
             "'integer'." in str(info.value))
     # Only real datatypes supported. Need to modify the internal state
-    # and set use_alg_info to False to force this exception.
+    # and set check to False to force this exception.
     reduction._intrinsic_type = "integer"
     with pytest.raises(NotImplementedError) as info:
-        reduction._init_data_type_properties(arg, use_alg_info=False)
+        reduction._init_data_type_properties(arg, check=False)
     assert ("Reductions for datatypes other than real are not yet supported "
             "in PSyclone." in str(info.value))
 
@@ -1738,7 +1738,7 @@ def test_dynkernelargument_idtp_real_field():
 
     # Inconsistent datatype - no check - use metadata
     arg = Arg("variable", None, None, ("integer", "roo_def"))
-    field_argument._init_data_type_properties(arg, use_alg_info=False)
+    field_argument._init_data_type_properties(arg, check=False)
     assert field_argument._precision == "r_def"
     assert field_argument._data_type == "field_type"
     assert field_argument._proxy_data_type == "field_proxy_type"
@@ -1920,7 +1920,7 @@ def test_dynkernelargument_idtp_operator():
 
     # Inconsistent datatype - no check - use metadata
     arg = Arg("variable", None, None, ("integer", "roo_def"))
-    operator_argument._init_data_type_properties(arg, use_alg_info=False)
+    operator_argument._init_data_type_properties(arg, check=False)
     assert operator_argument._precision == "r_def"
     assert operator_argument._data_type == "operator_type"
     assert operator_argument._proxy_data_type == "operator_proxy_type"
