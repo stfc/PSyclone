@@ -47,7 +47,8 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
-                                  CodeBlock, BinaryOperation)
+                                  CodeBlock, BinaryOperation, Assignment,
+                                  Container)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -131,6 +132,33 @@ class AdjointVisitor(PSyIRVisitor):
         # this.
         node_copy = node.copy()
         node_copy.children = []
+
+        if isinstance(node, Routine):
+            # Zero local active variables.
+            self._logger.debug("Zero-ing any local active variables")
+            for active_variable in self._active_variables:
+                if active_variable.is_local:
+                    if not (active_variable.is_scalar or
+                            active_variable.is_array):
+                        # Issue #1627 structures are not allowed.
+                        raise NotImplementedError(
+                            f"Active local variables can only be scalars and "
+                            f"arrays, but found '{active_variable}'.")
+                    datatype = active_variable.datatype.intrinsic.name
+                    if datatype == "REAL":
+                        value = "0.0"
+                    elif datatype == "INTEGER":
+                        value = "0"
+                    else:
+                        raise NotImplementedError(
+                            f"Datatype '{datatype}' is not supported (for "
+                            f"active local variable "
+                            f"'{active_variable.name}'). Supported types are "
+                            f"'REAL' and 'INTEGER'.")
+                    node_copy.children.append(
+                        Assignment.create(
+                            Reference(active_variable),
+                            Literal(value, active_variable.datatype)))
 
         # Split active and passive nodes.
         self._logger.debug("Adding passive code into new schedule")

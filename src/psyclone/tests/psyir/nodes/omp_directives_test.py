@@ -49,9 +49,9 @@ from psyclone import psyGen
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
-    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,\
-    Reference, OMPNowaitClause, OMPGrainsizeClause, OMPNumTasksClause,\
-    OMPNogroupClause
+    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
+    Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -529,6 +529,42 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.begin_string() == "omp target"
     assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
+
+
+# Test OMPDeclareTargetDirective
+
+def test_omp_declare_target_directive_constructor_and_strings(monkeypatch):
+    ''' Test the OMPDeclareTargetDirective constructor and its output
+    strings.'''
+    target = OMPDeclareTargetDirective()
+    assert target.begin_string() == "omp declare target"
+    assert str(target) == "OMPDeclareTargetDirective[]"
+
+    monkeypatch.setattr(target, "validate_global_constraints", lambda: None)
+    temporary_module = ModuleGen("test")
+    target.gen_code(temporary_module)
+    assert "!$omp declare target\n" in str(temporary_module.root)
+
+
+def test_omp_declare_target_directive_validate_global_constraints():
+    ''' Test the OMPDeclareTargetDirective is only valid as the first child
+    of a Routine'''
+    target = OMPDeclareTargetDirective()
+
+    # If the directive is detached it passes the validation
+    target.validate_global_constraints()
+
+    # If it is the child 0 of a Routine it passes the tests
+    subroutine = Routine("test")
+    subroutine.addchild(target)
+    target.validate_global_constraints()
+
+    subroutine.children.insert(0, target.copy())
+    with pytest.raises(GenerationError) as err:
+        target.validate_global_constraints()
+    assert ("A OMPDeclareTargetDirective must be the first child (index 0) of "
+            "a Routine but found one as child 1 of a Routine."
+            in str(err.value))
 
 
 # Test OMPLoopDirective

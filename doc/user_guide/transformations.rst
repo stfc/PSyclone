@@ -289,31 +289,36 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.OMPDeclareTargetTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members: apply, omp_schedule, omp_worksharing
     :noindex:
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTaskloopTrans
-    :members: apply, omp_grainsize, omp_num_tasks
+.. autoclass:: psyclone.transformations.OMPMasterTrans
+    :inherited-members:
+    :exclude-members: name
     :noindex:
 
-####
-
-.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
-    :members: apply
-    :noindex:
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP master regions.  Attempting to
+          create a master region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
-    :members: apply
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -353,20 +358,21 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPMasterTrans
-    :inherited-members:
-    :exclude-members: name
+.. autoclass:: psyclone.transformations.OMPTargetTrans
+    :members: apply
     :noindex:
 
-.. note:: PSyclone does not support (distributed-memory) halo swaps or
-          global sums within OpenMP master regions.  Attempting to
-          create a master region for a set of nodes that includes
-          halo swaps or global sums will produce an error. In such
-          cases it may be possible to re-order the nodes in the
-          Schedule such that the halo swaps or global sums are
-          performed outside the single region. The
-          :ref:`MoveTrans <sec_move_trans>` transformation may be used
-          for this.
+####
+
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+    :members: apply
+    :noindex:
 
 ####
 
@@ -755,6 +761,7 @@ transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
 * an **OpenMP Target** directive
+* an **OpenMP Declare Target** directive
 * an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
