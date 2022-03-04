@@ -1865,11 +1865,12 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     if expected_type is not CodeBlock:
         assert assign.rhs._operator == expected_op, \
             "Fails when parsing '" + code + "'"
-        # **** UnaryOp should be [None]?
-        # **** BinaryOp should be [None, None]?
-        # *** NaryOp should be [None, ...]???
-        # TODO TEST: same length as args list
-        # TODO TEST: each entry is None
+        if isinstance(assign.rhs, UnaryOperation):
+            assert assign.rhs._named_args is None
+        else:
+            assert len(assign.rhs.children) == len(assign.rhs._named_args)
+            for named_arg in assign.rhs._named_args:
+                assert named_arg is None
 
 
 @pytest.mark.parametrize(
@@ -1894,10 +1895,9 @@ def test_handling_intrinsics_named_args(code, expected_type, expected_op, expect
     assert isinstance(assign, Assignment)
     assert isinstance(assign.rhs, expected_type), \
         "Fails when parsing '" + code + "'"
-    if expected_type is not CodeBlock:
-        assert assign.rhs._operator == expected_op, \
-            "Fails when parsing '" + code + "'"
-        assert assign.rhs._named_args == expected_names
+    assert assign.rhs._operator == expected_op, \
+        "Fails when parsing '" + code + "'"
+    assert assign.rhs._named_args == expected_names
 
 
 @pytest.mark.usefixtures("f2008_parser")

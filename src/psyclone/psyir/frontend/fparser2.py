@@ -3371,16 +3371,15 @@ class Fparser2Reader(object):
         # Capture the names of any named args
         named_args = []
         new_arg_nodes = []
-        found_named_arg = False
         for arg_node in arg_nodes:
             if isinstance(arg_node, Fortran2003.Actual_Arg_Spec):
                 named_args.append(arg_node.children[0].string)
                 new_arg_nodes.append(arg_node.children[1])
-                found_named_arg = True
             else:
                 named_args.append(None)
                 new_arg_nodes.append(arg_node)
-        binary_op = BinaryOperation(operator, parent=parent, named_args=named_args)
+        binary_op = BinaryOperation(operator, parent=parent)
+        binary_op._named_args = named_args
 
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
@@ -3428,7 +3427,20 @@ class Fparser2Reader(object):
 
         # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
         # to process the `items` of that...
-        self.process_nodes(parent=nary_op, nodes=list(node.items[1].items))
+
+        # Capture the names of any named args
+        named_args = []
+        new_arg_nodes = []
+        for arg_node in node.items[1].items:
+            if isinstance(arg_node, Fortran2003.Actual_Arg_Spec):
+                named_args.append(arg_node.children[0].string)
+                new_arg_nodes.append(arg_node.children[1])
+            else:
+                named_args.append(None)
+                new_arg_nodes.append(arg_node)
+        nary_op._named_args = named_args
+
+        self.process_nodes(parent=nary_op, nodes=new_arg_nodes)
         return nary_op
 
     def _intrinsic_handler(self, node, parent):

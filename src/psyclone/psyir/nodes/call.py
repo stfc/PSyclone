@@ -75,27 +75,29 @@ class Call(Statement, DataNode):
         self._named_args = None
 
     @classmethod
-    def create(cls, routine, arguments, named_args=None):
+    def create(cls, routine, arguments):
         '''Create an instance of class cls given valid instances of a routine
-        symbol, and a list of child nodes for its arguments.
+        symbol, and a list of child nodes (or name and node tuple) for
+        its arguments.
 
         :param routine: the routine that class cls calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-        :param arguments: the arguments to this routine. These are \
-            added as child nodes.
-        :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
-        :param named_args: an optional list capturing any named arguments.
-        :type named_args: NoneType, or list of (str or NoneType)
+        :param arguments: the arguments to this routine, and/or \
+            2-tuples containing an argument name and the \
+            argument. Arguments are added as child nodes.
+        :type arguments: list of \
+            :py:class:`psyclone.psyir.nodes.DataNode` or \
+            (str, :py:class:`psyclone.psyir.nodes.DataNode`)
+
+        :returns: an instance of cls.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
         :raises GenerationError: if the routine argument is not a \
             RoutineSymbol.
         :raises GenerationError: if the arguments argument is not a \
             list.
-
-        TODO ******
-
-        :returns: an instance of cls.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
+        :raises GenerationError: if the contents of the arguments \
+            argument are not the expected type.
 
         '''
         if not isinstance(routine, RoutineSymbol):
@@ -106,40 +108,28 @@ class Call(Statement, DataNode):
             raise GenerationError(
                 f"Call create arguments argument should be a list but found "
                 f"'{type(arguments).__name__}'.")
-        if named_args:
-            if not isinstance(named_arguments, list):
-                raise GenerationError(
-                    f"Call create named_arguments argument should be a list "
-                    f"but found '{type(named_arguments).__name__}'.")
-            # The length of named arguments should be the same as the
-            # number of actual arguments.
-            if not len(named_arguments) == len(arguments):
-                raise GenerationError(
-                    f"Call create named_arguments argument should be a list "
-                    f"with the same length as  the arguments argument but "
-                    f"found '{len(named_arguments)}' and '{len(arguments)}'.")
-            # Named arguments should either be None or str.
-            for named_argument in named_arguments:
-                if not named_argument is None or isinstance(named_argument, str):
+        args = []
+        names = []
+        for arg in arguments:
+            name = None
+            if isinstance(arg, tuple):
+                if not len(arg) == 2:
                     raise GenerationError(
-                        f"Call create named_argument should be a list "
-                        f"containing NoneType or str but found "
-                        f"'{type(named_argument).__name__}'.")
-            # If there are named arguments then these names should all
-            # be at the end of the list.
-            found_str = False
-            for named_argument in named_arguments:
-                if isinstance(named_argument, str):
-                    found_str = True
-                if found_str and not isinstance(named_argument, str):
+                        f"If a child of the children argument in create "
+                        f"method of Call class is a tuple, it's "
+                        f"length should be 2, but found {len(arg)}.")
+                if not isinstance(arg[0], str):
                     raise GenerationError(
-                        f"Call create named_arguments should be a list with "
-                        f"all names at the end of the list, but found a "
-                        f"Nonetype after a str in '{named_arguments}'.")
+                        f"If a child of the children argument in create "
+                        f"method of Call class is a tuple, its first "
+                        f"argument should be a str, but found {type(arg[0])}.")
+                name, arg = arg
+            names.append(name)
+            args.append(arg)
 
         call = cls(routine)
-        call.children = arguments
-        call._named_args = named_args
+        call.children = args
+        call._named_args = names
         return call
 
     @staticmethod

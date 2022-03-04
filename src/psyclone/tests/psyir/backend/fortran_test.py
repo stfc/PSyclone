@@ -1358,10 +1358,10 @@ def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_binaryoperator_sum(fortran_writer, tmpdir, fortran_reader):
-    '''Check the FortranWriter class binary_operation method with the sum
-    operator correctly prints out the Fortran representation of an
-    intrinsic.
+def test_fw_binaryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+    '''Check the FortranWriter class binary_operation method operator
+    correctly prints out the Fortran representation of an intrinsic
+    with a named argument. The sum intrinsic is used here.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1379,8 +1379,24 @@ def test_fw_binaryoperator_sum(fortran_writer, tmpdir, fortran_reader):
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = SUM(array, dim = 1)" in result
+    assert "a = SUM(array, dim=1)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_binaryoperator_namedarg2(fortran_writer):
+    '''Check the FortranWriter class binary_operation method operator
+    correctly outputs the Fortran representation of an intrinsic with
+    its first argument being a named argument. There are currently no
+    intrinsics where the first argument is a named argumement so we
+    create one and rely on there being no testing of argument types in
+    the PSyIR.
+
+    '''
+    intrinsic = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, ("test1", Literal("1.0", REAL_TYPE)),
+        ("test2", Literal("2.0", REAL_TYPE)))
+    result = fortran_writer(intrinsic)
+    assert result == "SUM(test1=1.0, test2=2.0)"
 
 
 def test_fw_binaryoperator_matmul(fortran_writer, tmpdir, fortran_reader):
@@ -1542,6 +1558,31 @@ def test_fw_naryoperator(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
     assert "a = MAX(1.0, 1.0, 2.0)" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_naryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+    '''Check the FortranWriter class nary_operation method operator
+    correctly prints out the Fortran representation of an intrinsic
+    with a named argument. The sum intrinsic is used here.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(array, n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: array(n)\n"
+        "  integer :: a\n"
+        "    a = sum(array,dim=1,mask=.false.)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+
+    # Generate Fortran from the PSyIR schedule
+    result = fortran_writer(schedule)
+    assert "a = SUM(array, dim=1, mask=.false.)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1864,6 +1905,20 @@ def test_fw_unaryoperator2(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(schedule)
     assert "a = SIN(1.0)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_unaryoperator_namedarg(fortran_writer):
+    '''Check the FortranWriter class unary_operation method operator
+    correctly outputs the Fortran representation of an intrinsic with
+    a named argument. There are currently no intrinsics with a single
+    named argument so we create one and rely on there being no
+    testing of argument types in the PSyIR.
+
+    '''
+    intrinsic = UnaryOperation.create(
+        UnaryOperation.Operator.SUM, ("value", Literal("1.0", REAL_TYPE)))
+    result = fortran_writer(intrinsic)
+    assert result == "SUM(value=1.0)"
 
 
 def test_fw_unaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -2201,6 +2256,21 @@ def test_fw_call_node(fortran_writer):
     result = fortran_writer(schedule)
     expected = "  call my_sub(a * b, MAX(a, b))\n"
     assert expected in result
+
+
+def test_fw_call_node_namedargs(fortran_writer):
+    '''Test the PSyIR call node is translated to the required Fortran code
+    when there are named arguments.
+
+    '''
+    routine_symbol = RoutineSymbol("mysub")
+    call = Call.create(
+        routine_symbol,
+        [Literal("1.0", REAL_TYPE),
+         ("arg2", Literal("2.0", REAL_TYPE)),
+         ("arg3", Literal("3.0", REAL_TYPE))])
+    result = fortran_writer(call)
+    assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
 
 
 def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):

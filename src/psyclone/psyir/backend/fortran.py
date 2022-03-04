@@ -1088,6 +1088,11 @@ class FortranWriter(LanguageWriter):
         '''
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
+        if node._named_args:
+            if node._named_args[0]:
+                lhs = f"{node._named_args[0]}={lhs}"
+            if node._named_args[1]:
+                rhs = f"{node._named_args[1]}={rhs}"
         try:
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
@@ -1132,8 +1137,11 @@ class FortranWriter(LanguageWriter):
 
         '''
         arg_list = []
-        for child in node.children:
-            arg_list.append(self._visit(child))
+        for idx, child in enumerate(node.children):
+            if node._named_args and node._named_args[idx]:
+                arg_list.append(f"{node._named_args[idx]}={self._visit(child)}")
+            else:
+                arg_list.append(self._visit(child))
         try:
             fort_oper = self.get_operator(node.operator)
             return f"{fort_oper}(" + ", ".join(arg_list) + ")"
@@ -1327,7 +1335,11 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                return f"{fort_oper}({content})"
+                if node._named_args and node._named_args[0]:
+                    result = f"{fort_oper}({node._named_args[0]}={content})"
+                else:
+                    result = f"{fort_oper}({content})"
+                return result
             # It's not an intrinsic function so we need to consider the
             # parent node. If that is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
@@ -1496,15 +1508,13 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-
         result_list = []
         for idx, child in enumerate(node.children):
-            if node.named_args:
-                arg_name = node.named_args[idx]
-                if arg_name:
-                    result_list.append(f"{arg_name}={self._visit(child)}")
-                else:
-                    result_list.append(self._visit(child))
+            if node._named_args and node._named_args[idx]:
+                result_list.append(
+                    f"{node._named_args[idx]}={self._visit(child)}")
+            else:
+                result_list.append(self._visit(child))
         args = ", ".join(result_list)
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"

@@ -71,7 +71,7 @@ class Operation(DataNode):
     _text_name = "Operation"
     _colour = "blue"
 
-    def __init__(self, operator, parent=None, named_args=None):
+    def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
@@ -80,7 +80,7 @@ class Operation(DataNode):
                 f"{type(self).__name__}.Operator but found "
                 f"{type(operator).__name__}.")
         self._operator = operator
-        self._named_args = named_args
+        self._named_args = None
 
     @property
     def operator(self):
@@ -118,9 +118,12 @@ class Operation(DataNode):
         return self.operator not in self._non_elemental_ops
 
     def __str__(self):
-        result = self.node_str(False) + "\n"
-        for entity in self._children:
-            result += str(entity) + "\n"
+        result = f"{self.node_str(False)}\n"
+        for idx, entity in enumerate(self._children):
+            if self._named_args and self._named_args[idx]:
+                result += f"{self._named_args[idx]}={str(entity)}\n"
+            else:
+                result += f"{str(entity)}\n"
 
         # Delete last line break
         if result[-1] == "\n":
@@ -171,8 +174,10 @@ class UnaryOperation(Operation):
 
         :param oper: the specified operator.
         :type oper: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
-        :param child: the PSyIR node that oper operates on.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :param child: the PSyIR node that oper operates on, or a tuple \
+            containing the name of the argument and the PSyIR node.
+        :type child: :py:class:`psyclone.psyir.nodes.Node` or \
+            (str, :py:class:`psyclone.psyir.nodes.Node`)
 
         :returns: a UnaryOperation instance.
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
@@ -188,6 +193,21 @@ class UnaryOperation(Operation):
                 f"'{type(oper).__name__}'.")
 
         unary_op = UnaryOperation(oper)
+        name = None
+        if isinstance(child, tuple):
+            if not len(child) == 2:
+                raise GenerationError(
+                    f"If the {name} argument in create method of "
+                    f"UnaryOperation class is a tuple, it's length "
+                    f"should be 2, but it is {len(arg)}.")
+            if not isinstance(child[0], str):
+                raise GenerationError(
+                    f"If the {name} argument in create method of "
+                    f"UnaryOperation class is a tuple, its first "
+                    f"argument should be a str, but found {type(arg[0])}.")
+            name, child = child
+
+        unary_op._named_args = [name]
         unary_op.children = [child]
         return unary_op
 
@@ -309,17 +329,21 @@ class BinaryOperation(Operation):
     @staticmethod
     def create(oper, lhs, rhs):
         '''Create a BinaryOperator instance given an operator and lhs and rhs
-        child instances.
+        child instances with optional names.
 
-        :param operator: the operator used in the operation.
-        :type operator: \
+        :param oper: the operator used in the operation.
+        :type oper: \
             :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
         :param lhs: the PSyIR node containing the left hand side of \
-            the assignment.
-        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
+            the assignment, or a tuple containing the name of the \
+            argument and the PSyIR node.
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node` or \
+            (str, :py:class:`psyclone.psyir.nodes.Node`)
         :param rhs: the PSyIR node containing the right hand side of \
-            the assignment.
-        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
+            the assignment, or a tuple containing the name of the \
+            argument and the PSyIR node.
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node` or \
+            (str, :py:class:`psyclone.psyir.nodes.Node`)
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
@@ -333,17 +357,36 @@ class BinaryOperation(Operation):
                 f"oper argument in create method of BinaryOperation class "
                 f"should be a PSyIR BinaryOperation Operator but found "
                 f"'{type(oper).__name__}'.")
+        for name, arg in [("lhs", lhs), ("rhs", rhs)]:
+            if isinstance(arg, tuple):
+                if not len(arg) == 2:
+                    raise GenerationError(
+                        f"If the {name} argument in create method of "
+                        f"BinaryOperation class is a tuple, it's length "
+                        f"should be 2, but it is {len(arg)}.")
+                if not isinstance(arg[0], str):
+                    raise GenerationError(
+                        f"If the {name} argument in create method of "
+                        f"BinaryOperation class is a tuple, its first "
+                        f"argument should be a str, but found {type(arg[0])}.")
 
+        lhs_name = None
+        if isinstance(lhs, tuple):
+            lhs_name, lhs = lhs
+        rhs_name = None
+        if isinstance(rhs, tuple):
+            rhs_name, rhs = rhs
         binary_op = BinaryOperation(oper)
+        binary_op._named_args = [lhs_name, rhs_name]
         binary_op.children = [lhs, rhs]
         return binary_op
 
 
 class NaryOperation(Operation):
-    '''
-    Node representing a n-ary operation expression. The n operands are the
-    stored as the 0 - n-1th children of this node and the type of the operator
-    is held in an attribute.
+    '''Node representing a n-ary operation expression. The n operands are
+    the stored as the 0 - n-1th children of this node and the type of
+    the operator is held in an attribute.
+
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode]+"
@@ -372,13 +415,15 @@ class NaryOperation(Operation):
     @staticmethod
     def create(oper, children):
         '''Create an NaryOperator instance given an operator and a list of
-        Node instances.
+        Node (or name and Node tuple) instances.
 
         :param operator: the operator used in the operation.
         :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
-        :param children: a list of PSyIR nodes that the operator \
-            operates on.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param children: a list containing PSyIR nodes and/or 2-tuples \
+            which contain an argument name and a PSyIR node, that the \
+            operator operates on.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node` \
+            or (str, :py:class:`psyclone.psyir.nodes.DataNode`)
 
         :returns: an NaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
@@ -396,9 +441,29 @@ class NaryOperation(Operation):
             raise GenerationError(
                 f"children argument in create method of NaryOperation class "
                 f"should be a list but found '{type(children).__name__}'.")
+        names = []
+        args = []
+        for arg in children:
+            name = None
+            if isinstance(arg, tuple):
+                if not len(arg) == 2:
+                    raise GenerationError(
+                        f"If a child of the children argument in create "
+                        f"method of BinaryOperation class is a tuple, it's "
+                        f"length should be 2, but found {len(arg)}.")
+                if not isinstance(arg[0], str):
+                    raise GenerationError(
+                        f"If a child of the children argument in create "
+                        f"method of BinaryOperation class is a tuple, "
+                        f"its first argument should be a str, but found "
+                        f"{type(arg[0])}.")
+                name, arg = arg
+            names.append(name)
+            args.append(arg)
 
         nary_op = NaryOperation(oper)
-        nary_op.children = children
+        nary_op._named_args = names
+        nary_op.children = args
         return nary_op
 
 
