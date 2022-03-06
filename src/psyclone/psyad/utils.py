@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,24 @@ def node_is_active(node, active_variables):
     return False
 
 
+def node_is_active_names(node, active_variable_names):
+    ''' Determines whether this node contains variables that are active.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variable_names: a list of active variable names.
+    :type active_variable_names: list of str
+
+    :returns: True if active and False otherwise.
+    :rtype: bool
+
+    '''
+    for reference in node.walk(Reference):
+        if reference.symbol.name.lower() in active_variable_names:
+            return True
+    return False
+
+
 def node_is_passive(node, active_variables):
     '''Determines whether this node contains only variables that are
     passive.
@@ -75,6 +93,22 @@ def node_is_passive(node, active_variables):
 
     '''
     return not node_is_active(node, active_variables)
+
+
+def node_is_passive_names(node, active_variable_names):
+    '''Determines whether this node contains only variables that are
+    passive.
+
+    :param node: the PSyIR node that is being evaluated.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variable_names: a list of active variable names
+    :type active_variable_names: list of str
+
+    :returns: True if passive and False otherwise.
+    :rtype: bool
+
+    '''
+    return not node_is_active_names(node, active_variable_names)
 
 
 def negate_expr(orig_expr):

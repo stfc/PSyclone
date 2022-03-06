@@ -38,12 +38,13 @@ any required tranformations to the tangent linear PSyIR before it is
 translated to adjoint PSyIR.
 
 '''
+from psyclone.psyad.utils import node_is_active_names, node_is_passive_names
 from psyclone.psyir.nodes import BinaryOperation, Assignment
 from psyclone.psyir.transformations import DotProduct2CodeTrans, \
     Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
 
 
-def preprocess_trans(kernel_psyir):
+def preprocess_trans(kernel_psyir, active_variable_names):
     '''PSyclone kernel transformation script which replaces dotproduct and
     matmul intrinsics with equivalent code and returns the modified
     psyir. This is called internally by the PSyAD script before
@@ -52,6 +53,7 @@ def preprocess_trans(kernel_psyir):
     :param kernel_psyir: PSyIR representation of the tangent linear \
         kernel code.
     :type kernel_psyir: :py:class:`psyclone.psyir.nodes.Node`
+    :param list of str active_variable_names: list of active variable names.
 
     '''
     dot_product_trans = DotProduct2CodeTrans()
@@ -60,6 +62,9 @@ def preprocess_trans(kernel_psyir):
 
     # Replace array-ranges with explicit loops
     for assignment in kernel_psyir.walk(Assignment):
+        if node_is_passive_names(assignment, active_variable_names):
+            # No need to modify passive assignments
+            continue
         # Repeatedly apply the transformation until there are no more
         # array ranges in this assignment.
         while True:
@@ -75,3 +80,80 @@ def preprocess_trans(kernel_psyir):
         elif oper.operator == BinaryOperation.Operator.MATMUL:
             # Apply MATMUL transformation
             matmul_trans.apply(oper)
+
+    # Deal with any associativity issues here as AssignmentTrans
+    # is not able to.
+    for assignment in kernel_psyir.walk(Assignment):
+        associativity(assignment, active_variable_names)
+
+
+def associativity(assignment, active_variable_names):
+    ''' xxx '''
+    # Repeatedly look for the patterns x * (a +- b) or (a +- b) */ x
+    # on the rhs of this assignment where x is an inactive
+    # expression and a and b are active expressions, replacing
+    # these patterns with x*a +- x*b and a*/x +- b*/x respectively.
+    if node_is_active_names(assignment.rhs, active_variable_names):
+        # The rhs of the assignment is active
+        found = True
+        while found:
+            # Repeat until the patterns are no longer found
+            found = False
+            # Check all multiplies on the rhs
+            for oper in assignment.rhs.walk(BinaryOperation):
+                if oper.operator == BinaryOperation.Operator.MUL and \
+                   node_is_passive_names(
+                       oper.children[0], active_variable_names) and \
+                   isinstance(oper.children[1], BinaryOperation) and \
+                   oper.children[1].operator in [
+                       BinaryOperation.Operator.ADD,
+                       BinaryOperation.Operator.SUB] and \
+                   node_is_active_names(
+                       oper.children[1].children[0],
+                       active_variable_names) and \
+                   node_is_active_names(
+                       oper.children[1].children[1],
+                       active_variable_names):
+                    # Matched one of the patterns we are looking for x * (a +- b)
+                    found = True
+                    inactive = oper.children[0]
+                    active0 = oper.children[1].children[0]
+                    active1 = oper.children[1].children[1]
+                    binary_op = oper.children[1]
+                    # Restructure to x*a +- x*b
+                    mult0 = BinaryOperation.create(
+                        oper.operator, inactive.detach(), active0.detach())
+                    mult1 = BinaryOperation.create(
+                        oper.operator, inactive.copy(), active1.detach())
+                    binary_op.children.extend([mult0, mult1])
+                    oper.replace_with(binary_op.detach())
+
+                elif oper.operator in [
+                        BinaryOperation.Operator.MUL,
+                        BinaryOperation.Operator.DIV] and \
+                     node_is_passive_names(
+                         oper.children[1], active_variable_names) and \
+                     isinstance(oper.children[0], BinaryOperation) and \
+                     oper.children[0].operator in [
+                         BinaryOperation.Operator.ADD,
+                         BinaryOperation.Operator.SUB] and \
+                     node_is_active_names(
+                         oper.children[0].children[0],
+                         active_variable_names) and \
+                     node_is_active_names(
+                         oper.children[0].children[1],
+                         active_variable_names):
+                    # Matched one of the patterns we are looking
+                    # for: (a +- b) */ x
+                    found = True
+                    inactive = oper.children[1]
+                    active0 = oper.children[0].children[0]
+                    active1 = oper.children[0].children[1]
+                    binary_op = oper.children[0]
+                    # Restructure to a */ x +- b */ x
+                    op0 = BinaryOperation.create(
+                        oper.operator, active0.detach(), inactive.detach())
+                    op1 = BinaryOperation.create(
+                        oper.operator, active1.detach(), inactive.copy())
+                    binary_op.children.extend([op0, op1])
+                    oper.replace_with(binary_op.detach())
