@@ -40,6 +40,7 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
+from psyclone.domain.common.kernel import KernelMetadataSymbol
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import DataTypeSymbol
@@ -47,72 +48,15 @@ from psyclone.psyir.transformations import TransformationError
 # from psyclone.domain.common.transformations import KernMetadataTrans
 
 
-class KernelMetadataArg():
-    ''' xxx '''
-    def __init__(self, meta_arg):
-        # Check name == "go_arg" print(repr(meta_args))
-        arg_list = meta_arg.children[1]
-        self._access = arg_list.children[0].string
-        self._description = arg_list.children[1].string
-        if len(arg_list.children) == 2:
-            # Grid properties have 2 arguments
-            return
-        if isinstance(arg_list.children[2], Fortran2003.Name):
-            self._form = arg_list.children[2].string
-            self._stencil = None
-        else: # Stencil
-            self._form = arg_list.children[2].children[0].string
-            self._stencil = []
-            for stencil_dim in arg_list.children[2].children[1].children:
-                self._stencil.append(stencil_dim.children[0])
-
-    def __repr__(self):
-        return(f"({self._access}, {self._description}, {self._errr}, {self._stencil})")
-
-
-class KernelMetadataSymbol(DataTypeSymbol):
-    ''' xxx '''
-
-    def _setup(self):
-        ''' xxx '''
-        unknown_fortran_type = self.datatype
-        # The type is stored as a string so parse it with fparser2
-        reader = FortranStringReader(unknown_fortran_type.declaration)
-        spec_part = Fortran2003.Derived_Type_Def(reader)
-        component_part = spec_part.children[1]
-
-        meta_args_def = component_part.children[0]
-        self._meta_args = []
-        for meta_arg in walk(meta_args_def, Fortran2003.Ac_Value_List)[0].children:
-            self._meta_args.append(KernelMetadataArg(meta_arg))
-            
-        iterates_over_def = component_part.children[1]
-        self._iterates_over = walk(
-            iterates_over_def,
-            Fortran2003.Component_Initialization)[0].children[1].string
-
-        index_offset_def = component_part.children[2]
-        self._index_offset = walk(
-            index_offset_def,
-            Fortran2003.Component_Initialization)[0].children[1].string
-
-        type_bound_procedure = spec_part.children[2]
-        self._routine_name = walk(
-            type_bound_procedure,
-            Fortran2003.Specific_Binding)[0].children[4].string
-
-
 class KernTrans(Transformation):
     '''Transform a generic PSyIR representation of a kernel-layer routine
     to a PSyclone version with specialised domain-specific nodes and
-    symbols.
-
-    # TODO issue #xxx Currently limited to the specialisation of kernel metadata.
+    symbols. This is currently limited to the specialisation of kernel
+    metadata.
 
     '''
     def __init__(self):
         self._metadata_name = None
-        # self._metadata_trans = KernMetadataTrans()
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
