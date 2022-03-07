@@ -155,13 +155,14 @@ class Reference(DataNode):
         '''
         if (self.parent and isinstance(self.parent, Operation) and
                 self.parent.operator in [BinaryOperation.Operator.LBOUND,
-                                         BinaryOperation.Operator.UBOUND] and
-                self.parent.children.index(self) == 0):
-            # This reference is the first argument to a lbound or
-            # ubound intrinsic. These intrinsics do not access the
-            # array elements, they determine the array
-            # bounds. Therefore there is no data dependence.
-            return
+                                         BinaryOperation.Operator.UBOUND]):
+            # We can't check .index(self) as that checks == not is
+            if self.parent.children[0] is self:
+                # This reference is the first argument to a lbound or
+                # ubound intrinsic. These intrinsics do not access the
+                # array elements, they determine the array
+                # bounds. Therefore there is no data dependence.
+                return 
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:
