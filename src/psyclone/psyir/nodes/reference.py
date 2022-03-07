@@ -72,9 +72,9 @@ class Reference(DataNode):
         equivalent without being the same object, so ensure to use `is`
         when appropriate instead of `==`
         '''
-        eq = (type(self) == type(other))
-        eq = eq and (self.symbol == other.symbol)
-        return eq
+        is_eq = (type(self) is type(other))
+        is_eq = is_eq and (self.symbol == other.symbol)
+        return is_eq
 
     @property
     def is_array(self):
@@ -159,11 +159,11 @@ class Reference(DataNode):
                 self.parent.operator in [BinaryOperation.Operator.LBOUND,
                                          BinaryOperation.Operator.UBOUND]
                 and self.parent.children[0] is self):
-                # This reference is the first argument to a lbound or
-                # ubound intrinsic. These intrinsics do not access the
-                # array elements, they determine the array
-                # bounds. Therefore there is no data dependence.
-                return 
+            # This reference is the first argument to a lbound or
+            # ubound intrinsic. These intrinsics do not access the
+            # array elements, they determine the array
+            # bounds. Therefore there is no data dependence.
+            return
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:

@@ -215,15 +215,16 @@ class StructureReference(Reference):
         equivalent without being the same object, so ensure to use `is`
         when appropriate instead of `==`
         '''
-        eq = type(self) == type(other)
-        eq = eq and (self.symbol == other.symbol)
+        is_eq = type(self) is type(other)
+        is_eq = is_eq and (self.symbol == other.symbol)
         try:
             # If the member is not yet defined, we revert to the
-            # default a is b behaviour
-            eq = eq and (self.member == other.member)
-        except:
+            # default a is b behaviour. To ensure we catch any failures
+            # we except any Exception
+            is_eq = is_eq and (self.member == other.member)
+        except Exception: # pylint: disable=broad-except
             return self is other
-        return eq
+        return is_eq
 
     def __str__(self):
         result = super(StructureReference, self).__str__()
