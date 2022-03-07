@@ -76,7 +76,9 @@ class ArrayMixin(object):
 
     def __eq__(self, other):
         '''
-        Defaults to the base == implementation of is
+        Defaults to the base == implementation of is.
+        This means all ArrayMixins will not be `==` unless they are
+        the same object.
         '''
         return self is other
 

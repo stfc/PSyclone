@@ -68,7 +68,9 @@ class Reference(DataNode):
         '''
         Checks equivalence of two References. References are considered
         equivalent if they are the same type of Reference and their symbol
-        is the same
+        is the same. Note that this behaviour means two References can be
+        equivalent without being the same object, so ensure to use `is`
+        when appropriate instead of `==`
         '''
         eq = (type(self) == type(other))
         eq = eq and (self.symbol == other.symbol)

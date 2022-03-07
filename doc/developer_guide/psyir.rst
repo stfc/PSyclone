@@ -549,6 +549,12 @@ a reference to a ``Symbol`` which will be stored in a symbol table.
 See the full ``Reference`` API in the
 :ref_guide:`Reference reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Reference`.
 
+``Reference`` nodes (and some of the sub-classes of ``Reference``) implement
+the ``__eq__`` function explicitly, as two ``Reference`` nodes that access the
+same symbol are considered to be equivalent. When using ``Reference`` nodes,
+it is important to correctly specify ``==`` vs ``is`` to ensure the behaviour
+is as expected.
+
 ArrayReference Node
 -------------------
 
