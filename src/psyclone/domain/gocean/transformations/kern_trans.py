@@ -40,7 +40,7 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
-from psyclone.domain.common.kernel import KernelMetadataSymbol
+from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import DataTypeSymbol

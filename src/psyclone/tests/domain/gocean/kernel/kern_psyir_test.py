@@ -39,8 +39,8 @@ translation of PSyIR to PSyclone Kernel PSyIR and PSyclone
 Kernel PSyIR to processed PSyIR.
 
 '''
-from psyclone.domain.common.transformations import KernTrans
-from psyclone.domain.common.kernel import KernelMetadataSymbol
+from psyclone.domain.gocean.transformations import KernTrans
+from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 
 # TODO STENCIL, GRIDVALUE
 METADATA_GOCEAN = (
