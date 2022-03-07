@@ -121,7 +121,8 @@ def associativity(assignment, active_variable_names):
                    node_is_active_names(
                        oper.children[1].children[1],
                        active_variable_names):
-                    # Matched one of the patterns we are looking for x * (a +- b)
+                    # Matched one of the patterns we are looking for
+                    # x * (a +- b)
                     found = True
                     inactive = oper.children[0]
                     active0 = oper.children[1].children[0]
@@ -138,18 +139,18 @@ def associativity(assignment, active_variable_names):
                 elif oper.operator in [
                         BinaryOperation.Operator.MUL,
                         BinaryOperation.Operator.DIV] and \
-                     node_is_passive_names(
-                         oper.children[1], active_variable_names) and \
-                     isinstance(oper.children[0], BinaryOperation) and \
-                     oper.children[0].operator in [
-                         BinaryOperation.Operator.ADD,
-                         BinaryOperation.Operator.SUB] and \
-                     node_is_active_names(
-                         oper.children[0].children[0],
-                         active_variable_names) and \
-                     node_is_active_names(
-                         oper.children[0].children[1],
-                         active_variable_names):
+                        node_is_passive_names(
+                            oper.children[1], active_variable_names) and \
+                        isinstance(oper.children[0], BinaryOperation) and \
+                        oper.children[0].operator in [
+                            BinaryOperation.Operator.ADD,
+                            BinaryOperation.Operator.SUB] and \
+                        node_is_active_names(
+                            oper.children[0].children[0],
+                            active_variable_names) and \
+                        node_is_active_names(
+                            oper.children[0].children[1],
+                            active_variable_names):
                     # Matched one of the patterns we are looking
                     # for: (a +- b) */ x
                     found = True

@@ -259,21 +259,21 @@ def test_associativity3(fortran_reader, fortran_writer):
 
     '''
     code = (
-        f"program test\n"
-        f"  integer :: a, b, c, d, e, f, g\n"
-        f"  a = b * (c + f * (d + g)) / e\n"
-        f"end program test\n")
+        "program test\n"
+        "  integer :: a, b, c, d, e, f, g\n"
+        "  a = b * (c + f * (d + g)) / e\n"
+        "end program test\n")
     expected = (
-        f"program test\n"
-        f"  integer :: a\n"
-        f"  integer :: b\n"
-        f"  integer :: c\n"
-        f"  integer :: d\n"
-        f"  integer :: e\n"
-        f"  integer :: f\n"
-        f"  integer :: g\n\n"
-        f"  a = b * c / e + (b * (f * d) / e + b * (f * g) / e)\n\n"
-        f"end program test\n")
+        "program test\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer :: c\n"
+        "  integer :: d\n"
+        "  integer :: e\n"
+        "  integer :: f\n"
+        "  integer :: g\n\n"
+        "  a = b * c / e + (b * (f * d) / e + b * (f * g) / e)\n\n"
+        "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     associativity(psyir.children[0][0], ["d", "c", "g"])
     result = fortran_writer(psyir)
