@@ -224,7 +224,6 @@ class AdjointVisitor(PSyIRVisitor):
             raise VisitorError(
                 "An assignment node should not be visited before a schedule, "
                 "as the latter sets up the active variables.")
-
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
         # Temporary parent schedule required by the transformation.

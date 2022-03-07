@@ -53,7 +53,8 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     :param kernel_psyir: PSyIR representation of the tangent linear \
         kernel code.
     :type kernel_psyir: :py:class:`psyclone.psyir.nodes.Node`
-    :param list of str active_variable_names: list of active variable names.
+    :param active_variable_names: list of active variable names.
+    :type active_variable_names: list of str
 
     '''
     dot_product_trans = DotProduct2CodeTrans()
@@ -88,11 +89,17 @@ def preprocess_trans(kernel_psyir, active_variable_names):
 
 
 def associativity(assignment, active_variable_names):
-    ''' xxx '''
-    # Repeatedly look for the patterns x * (a +- b) or (a +- b) */ x
-    # on the rhs of this assignment where x is an inactive
-    # expression and a and b are active expressions, replacing
-    # these patterns with x*a +- x*b and a*/x +- b*/x respectively.
+    '''Repeatedly look for the patterns x * (a +- b) or (a +- b) */ x on
+    the rhs of this assignment where x is an inactive expression and a
+    and b are active expressions, replacing these patterns with x*a +-
+    x*b and a*/x +- b*/x respectively.
+
+    :param assignment: the Assignment Node that we are looking at.
+    :type assignment: :py:class:`psyclone.psyir.nodes.Assignment`
+    :param active_variable_names: list of active variable names.
+    :type active_variable_names: list of str
+
+    '''
     if node_is_active_names(assignment.rhs, active_variable_names):
         # The rhs of the assignment is active
         found = True

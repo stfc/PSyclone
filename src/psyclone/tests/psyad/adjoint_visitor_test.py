@@ -470,35 +470,6 @@ def test_assignment_node(fortran_reader, fortran_writer):
     assert fortran_writer(adj_assignment_psyir_nodes[2]) == "a = 0.0\n"
 
 
-def test_assignment_node_associative(fortran_reader, fortran_writer):
-    '''Test that the assignment node restructures the rhs of an assignment
-    where an inactive expression multiplies or divides multiple active
-    terms and then translates this modified PSyIR to its adjoint
-    form.
-
-    '''
-    # Write tests to re-use code
-    # TODO x * (a +- b), (a +- b) */ x, x * (a +- y * (b +- c)) */ z
-    tl_psyir = fortran_reader.psyir_from_source(
-        "program test\n"
-        "  real :: lhs, x, a, b\n"
-        "  lhs = x * (a + b)\n"
-        "end program test\n")
-    assignment = tl_psyir.walk(Assignment)[0]
-    assert isinstance(assignment, Assignment)
-    adj_visitor = AdjointVisitor(["a", "b", "lhs"])
-    # set up self._active_variables
-    _ = adj_visitor._visit(tl_psyir)
-    adj_assignment_psyir_nodes = adj_visitor.assignment_node(assignment)
-    assert isinstance(adj_assignment_psyir_nodes, list)
-    assert len(adj_assignment_psyir_nodes) == 3
-    for node in adj_assignment_psyir_nodes:
-        assert isinstance(node, Assignment)
-    assert fortran_writer(adj_assignment_psyir_nodes[0]) == "a = a + x * lhs\n"
-    assert fortran_writer(adj_assignment_psyir_nodes[1]) == "b = b + x * lhs\n"
-    assert fortran_writer(adj_assignment_psyir_nodes[2]) == "lhs = 0.0\n"
-
-
 # AdjointVisitor.loop_node()
 
 def test_loop_node_active_error(fortran_reader):
