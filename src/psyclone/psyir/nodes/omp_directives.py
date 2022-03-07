@@ -55,6 +55,7 @@ from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
 from psyclone.psyir.nodes.schedule import Schedule
@@ -118,6 +119,56 @@ class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
     Base class for all OpenMP-related standalone directives
 
     '''
+
+
+class OMPDeclareTargetDirective(OMPStandaloneDirective):
+    '''
+    Class representing an OpenMP Declare Target directive in the PSyIR.
+
+    '''
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Declare Target Directive and any
+        associated code.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "declare", "target"))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp routine". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # pylint: disable=no-self-use
+        return "omp declare target"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this directive is not the first statement \
+            in a routine.
+
+        '''
+        if self.parent and (not isinstance(self.parent, Routine) or
+                            self.parent.children[0] is not self):
+            raise GenerationError(
+                f"A OMPDeclareTargetDirective must be the first child (index "
+                f"0) of a Routine but found one as child {self.position} of a "
+                f"{type(self.parent).__name__}.")
+
+        super().validate_global_constraints()
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
@@ -1172,4 +1223,4 @@ __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
-           "OMPLoopDirective"]
+           "OMPLoopDirective", "OMPDeclareTargetDirective"]
