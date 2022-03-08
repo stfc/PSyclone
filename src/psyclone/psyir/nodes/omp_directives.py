@@ -847,23 +847,27 @@ class OMPTaskDirective(OMPRegionDirective):
             # symbol in the structure to perform the structure reference
             # This code may generate the full reference (e.g a%b) instead of
             # just a so this needs to be checked.
-            is_private = (ref in parallel_private)
+
+            # Create a Reference to the entire structure to use inside any
+            # clauses.
+            base_ref = Reference(ref.symbol)
+            is_private = (base_ref in parallel_private)
             # If the reference is private in the parent parallel,
             # then it is added to the firstprivate clause for this
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list).
             if is_private:
-                if ref not in private_list and ref not in \
+                if base_ref not in private_list and base_ref not in \
                         firstprivate_list:
-                    firstprivate_list.append(ref.copy())
+                    firstprivate_list.append(base_ref)
             else:
                 # Otherwise it was a shared variable. Its not an
                 # array so we just add the name to the in_list
                 # if not already there. If its already in out_list
                 # we still add it as this is the same as an inout
                 # dependency
-                if ref not in in_list:
-                    in_list.append(ref.copy())
+                if base_ref not in in_list:
+                    in_list.append(base_ref)
         elif isinstance(ref, Reference):
             # Read access variable.
             # Check if this is private in the parent parallel 
@@ -884,7 +888,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 # we still add it as this is the same as an inout
                 # dependency
                 if ref not in in_list:
-                    in_list.append(ref)
+                    in_list.append(ref.copy())
 
     @staticmethod
     def handle_binary_op(node, index_strings, firstprivate_list,
@@ -960,8 +964,20 @@ class OMPTaskDirective(OMPRegionDirective):
             index_symbol = node.children[1].symbol
             index_private = (node.children[1] in parallel_private)
             ref = node.children[1]
+
+        # We have some array access which is of the format:
+        # array( Reference +/- Literal).
+        # We want to add a Range object, with start as 
+        # Reference and end as (Reference +/- (stop-start))
         if index_private:
             if ref in private_list:
+                # Create the start
+                start_ref = ref.copy()
+                stop_ref = ref.copy()
+                stop_min_start = BinaryOperation(BinaryOperation.SUB,
+                                                 stop_val, start_val)
+                stop_binop = BinaryOperation(node.operator, stop_ref,
+                                             stop_min_start)
                 # FIXME I think this should be
                 # supportable, but need to think
                 if node.operator is \
