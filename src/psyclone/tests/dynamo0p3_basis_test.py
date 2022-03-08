@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
@@ -196,7 +196,13 @@ def test_single_kern_eval(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # First, check the declarations
+    # Check module declarations
+    expected_module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert expected_module_declns in gen_code
+
+    # Check subroutine declarations
     expected_decl = (
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
         "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
@@ -374,6 +380,11 @@ def test_two_qr_same_shape(tmpdir):
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    expected_module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert expected_module_declns in gen_code
 
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -671,6 +682,11 @@ def test_qr_plus_eval(tmpdir):
     gen_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    expected_module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert expected_module_declns in gen_code
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
@@ -1655,7 +1671,7 @@ def test_diff_basis():
         "map_w2htrace, diff_basis_w2htrace_qr_xyoz, ndf_w2vtrace, "
         "diff_basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
