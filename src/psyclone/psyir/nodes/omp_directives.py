@@ -768,14 +768,26 @@ class OMPTaskDirective(OMPRegionDirective):
             index_list = []
             # Check if this reference is private in the parent parallel
             # region
-            is_private = (ref in parallel_private)
+            is_private = False
+            for priv_ref in parallel_private:
+                # Array References are only equivalent iff a is b so
+                # we need to check the symbol manually
+                if isinstance(priv_ref, (ArrayReference,
+                                         ArrayOfStructuresReference)):
+                    is_private = is_private or priv_ref.symbol == ref.symbol
             # If the reference is private in the parent parallel
             # then it is added to the firstprivate clause for this
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list).
             if is_private:
-                if ref not in private_list and ref not in \
-                        firstprivate_list:
+                # Have to manually check if its in private list or 
+                # first private list already
+                found = False
+                for test_refs in zip(private_list, firstprivate_list):
+                    if isinstance(test_refs, (ArrayReference,
+                                              ArrayOfStructuresReference)):
+                        found = found or test_ref.symbol == ref.symbol
+                if not found:
                     firstprivate_list.append(ref.copy())  #FIXME This should probably be a new Reference to the array symbol.
             else:
                 # The reference is shared. Since it is an array,
@@ -792,6 +804,8 @@ class OMPTaskDirective(OMPRegionDirective):
                 for index in ref.indices:
                     if type(index) is Reference:
                         # Check this is a firstprivate var
+                        # TODO: #1636 References should have an equality
+                        # check implemented, this needs changing if not.
                         index_private = (index in 
                                          parallel_private)
                         if index_private:
