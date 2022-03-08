@@ -94,17 +94,9 @@ class StructureMember(Member):
         '''
         is_eq = type(self) is type(other)
         is_eq = is_eq and self.name == other.name
-        # If self.member exists, we check if other.member exists and
-        # is equal.
-        # If self.member doesn't exist and other.member exists, we
-        # know these are not equal
-        if is_eq and self.member is not None:
-            if other.member is not None:
-                is_eq = is_eq and self.member == other.member
-            else:
-                is_eq = False
-        elif is_eq and other.member is not None:
-            is_eq = False
+        # We know .member must exist for both self and other if
+        # is_eq is still true, so check for equivalence
+        is_eq = is_eq and self.member == other.member
         return is_eq
 
     @staticmethod
