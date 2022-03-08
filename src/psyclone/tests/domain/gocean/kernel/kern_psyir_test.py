@@ -39,14 +39,16 @@ translation of PSyIR to PSyclone Kernel PSyIR and PSyclone
 Kernel PSyIR to processed PSyIR.
 
 '''
+import pytest
+
+from psyclone.parse.utils import ParseError
 from psyclone.domain.gocean.transformations import KernTrans
 from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 
-# TODO STENCIL, GRIDVALUE
-METADATA_GOCEAN = (
+METADATA = (
     "program dummy\n"
     "  type, extends(kernel_type) :: compute_cu\n"
-    "     type(go_arg), dimension(2) :: meta_args =                 &\n"
+    "     type(go_arg), dimension(3) :: meta_args =                 &\n"
     "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
     "             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)), &\n"
     "             go_arg(GO_READ,  GO_GRID_AREA_T)                  &\n"
@@ -61,10 +63,10 @@ METADATA_GOCEAN = (
 
 def test_kernelmetadatasymbol_create(fortran_reader):
     '''Test we can create a KernelMetadataSymbol and capture the expected
-    values. We use the gocean1.0 API.
+    values.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(METADATA_GOCEAN)
+    kernel_psyir = fortran_reader.psyir_from_source(METADATA)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
     kern_trans.apply(kernel_psyir)
@@ -89,3 +91,45 @@ def test_kernelmetadatasymbol_create(fortran_reader):
     assert isinstance(symbol.args[2], KernelMetadataSymbol.GridArg)
     assert symbol.args[2].access == "GO_READ"
     assert symbol.args[2].name == "GO_GRID_AREA_T"
+
+
+@pytest.mark.parametrize("content,error", [
+    ("integer :: index_offset = go_offset_se", "index_offset"),
+    ("integer :: iterates_over = go_inner_pts", "iterates_over"),
+    ("type(go_arg), dimension(1) :: meta_args = "
+     "(/ go_arg(GO_READ, GO_CU, GO_POINTWISE)/)\n", "meta_args")])
+def test_kernelmetadatasymbol_multi(fortran_reader, content, error):
+    '''Test the expected exception is raised in KernelMetadataSymbol if
+    entries are declared more than once.
+
+    '''
+    my_metadata = METADATA.replace(
+        f"  contains\n",
+        f"    {content}\n"
+        f"  contains\n")
+    kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    with pytest.raises(ParseError) as info:
+        kern_trans.apply(kernel_psyir)
+    assert (f"'{error}' should only be defined once in the metadata, but "
+            f"found TYPE(go_arg), DIMENSION(3)" in str(info.value))
+
+
+def test_kernelmetadatasymbol_invalid(fortran_reader):
+    '''Test the expected exception is raised in KernelMetadataSymbol if an
+    expected entry is found. We replace ITERATES_OVER with xxx in this
+    test.
+
+    '''
+    my_metadata = METADATA.replace("ITERATES_OVER", "xxx")
+    kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    with pytest.raises(ParseError) as info:
+        kern_trans.apply(kernel_psyir)
+    assert ("Expecting metadata entries to be one of 'meta_args', "
+            "'iterates_over', or 'index_offset', but found 'xxx' in "
+            "TYPE(go_arg), DIMENSION(3)" in str(info.value))
+
+# Wildcard replace?

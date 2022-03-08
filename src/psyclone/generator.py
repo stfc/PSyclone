@@ -59,7 +59,8 @@ from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall, \
     KernelFunctor
-from psyclone.domain.common.transformations import AlgTrans, KernTrans
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.gocean.transformations import KernTrans
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse

@@ -209,7 +209,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             elif name == "iterates_over":
                 if found_iterates_over:
                     raise ParseError(
-                        f"'iterates_over' or should only be defined once in "
+                        f"'iterates_over' should only be defined once in "
                         f"the metadata, but found {str(component_part)}.")
                 found_iterates_over = True
                 iterates_over_def = component_part.children[1]
@@ -239,8 +239,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
             else:
                 raise ParseError(
                     f"Expecting metadata entries to be one of 'meta_args', "
-                    f"'iterates_over', or 'index_offset', but found {name} "
-                    "in {str(component_part)}.")
+                    f"'iterates_over', or 'index_offset', but found '{name}' "
+                    f"in {str(component_part)}.")
 
         if not found_meta_args:
             raise ParseError(
@@ -249,7 +249,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         if not found_iterates_over:
             raise ParseError(
                 f"Expecting 'iterates_over' to be an entry in the metadata "
-                "but it was not found in {str(component_part)}.")
+                f"but it was not found in {str(component_part)}.")
         if not found_index_offset:
             raise ParseError(
                 f"Expecting 'index_offset' to be an entry in the metadata but "
