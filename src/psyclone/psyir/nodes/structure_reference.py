@@ -209,8 +209,7 @@ class StructureReference(Reference):
     def __eq__(self, other):
         '''
         Two StructureReferences are equal if they have the same type,
-        symbol and member. If the member is not yet defined, then this
-        reverts to the default check of `self is other`.
+        symbol and their member's are equal.
         Note that this behaviour means two StructureReferences can be
         equivalent without being the same object, so ensure to use `is`
         when appropriate instead of `==`
