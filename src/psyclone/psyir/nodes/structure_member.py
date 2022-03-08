@@ -86,6 +86,27 @@ class StructureMember(Member):
             result += "\n" + str(self._children[0])
         return result
 
+    def __eq__(self, other):
+        '''
+        StructureMembers are assumed to be equivalent if they have the same
+        component name associated with them, and are the same type, and their
+        members are also ==
+        '''
+        is_eq = type(self) is type(other)
+        is_eq = is_eq and self.name == other.name
+        # If self.member exists, we check if other.member exists and
+        # is equal.
+        # If self.member doesn't exist and other.member exists, we
+        # know these are not equal
+        if is_eq and self.member is not None:
+            if other.member is not None:
+                is_eq = is_eq and self.member == other.member
+            else:
+                is_eq = False
+        elif is_eq and other.member is not None:
+            is_eq = False
+        return is_eq
+
     @staticmethod
     def _validate_child(position, child):
         '''

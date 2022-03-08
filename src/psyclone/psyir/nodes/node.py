@@ -905,7 +905,7 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found.
 
         '''
-        if self.root == self:
+        if self.root is self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
@@ -939,7 +939,7 @@ class Node(object):
                 "instead of {1}.".format(position, self.START_POSITION))
         for child in children:
             position += 1
-            if child == self:
+            if child is self:
                 return True, position
             if child.children:
                 found, position = self._find_position(child.children, position)

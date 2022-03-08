@@ -83,6 +83,15 @@ class Member(Node):
         # Store the name of the component that this member represents
         self._component_name = member_name
 
+    def __eq__(self, other):
+        '''
+        Members are assumed to be equivalent if they have the same
+        component name associated with them, and are the same type.
+        '''
+        is_eq = type(self) is type(other)
+        is_eq = is_eq and self.name == other.name
+        return is_eq
+
     @property
     def name(self):
         '''

@@ -217,16 +217,7 @@ class StructureReference(Reference):
         '''
         is_eq = type(self) is type(other)
         is_eq = is_eq and (self.symbol == other.symbol)
-        try:
-            # If the member is not yet defined, we revert to the
-            # default a is b behaviour. To ensure we catch any failures
-            # we except any Exception
-
-            # Members are not equivalent unless they are is, so we check
-            # that the member's names are the same
-            is_eq = is_eq and (self.member.name == other.member.name)
-        except Exception: # pylint: disable=broad-except
-            return self is other
+        is_eq = is_eq and (self.member == other.member)
         return is_eq
 
     def __str__(self):

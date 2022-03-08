@@ -167,14 +167,29 @@ def test_struc_ref_equality():
     assert sref1 != sref3
     assert sref1 != region_type
 
-    # Create two structure reference without members yet set.
-    # This behaviour occurs elsewhere in the test suite.
-    # In this case the equality should fall back to
-    # a is b
-    sref4 = nodes.StructureReference(ssym)
-    sref5 = nodes.StructureReference(ssym)
+    # Create a simple nested structure system, i.e. a%b%c and a%b%d
+    # and check the equality rules for them as well.
+    simple_type = symbols.StructureType.create([
+        ("c", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("d", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    nested_type = symbols.StructureType.create([
+        ("z", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("b", simple_type, symbols.Symbol.Visibility.PUBLIC),
+        ("y", simple_type, symbols.Symbol.Visibility.PUBLIC)])
+
+    nested_type_symbol = symbols.DataTypeSymbol("nested_type", nested_type)
+    nest_t = symbols.DataSymbol("test", nested_type_symbol)
+
+    sref1 = nodes.StructureReference.create(nest_t, ["b", "c"])
+    sref2 = nodes.StructureReference.create(nest_t, ["b", "c"])
+    sref3 = nodes.StructureReference.create(nest_t, ["b", "d"])
+    sref4 = nodes.StructureReference.create(nest_t, ["z"])
+    sref5 = nodes.StructureReference.create(nest_t, ["y", "c"])
+
+    assert sref1 == sref2
+    assert sref1 != sref3
     assert sref1 != sref4
-    assert sref4 != sref5
+    assert sref1 != sref5
 
 
 def test_struc_ref_validate_child():
