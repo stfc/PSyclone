@@ -61,6 +61,28 @@ def test_reference_bad_init():
             "found 'str'." in str(excinfo.value))
 
 
+def test_reference_equality():
+    '''
+    Check that the __eq__ method of the Reference class behaves as expected,
+    i.e. == is true iff:
+    1. Both are the same type (Reference)
+    2. They Reference the same symbol
+    '''
+    kschedule = KernelSchedule("kname")
+    symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol2 = DataSymbol("rname2", INTEGER_SINGLE_TYPE)
+    kschedule.symbol_table.add(symbol1)
+    kschedule.symbol_table.add(symbol2)
+
+    ref1 = Reference(symbol1)
+    ref2 = Reference(symbol1)
+    ref3 = Reference(symbol2)
+
+    assert ref1 != kschedule
+    assert ref2 == ref1
+    assert ref1 != ref3
+
+
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     kschedule = KernelSchedule("kname")

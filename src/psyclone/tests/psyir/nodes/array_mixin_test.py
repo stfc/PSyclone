@@ -43,6 +43,17 @@ from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
     INTEGER_TYPE
 
 
+def test_equality():
+    ''' Check that two ArrayMixin objects are only equal iff they are the
+    same object (i.e. a is b)
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
+    array = ArrayReference.create(symbol, [Range(), Range(), Range()])
+    array2 = ArrayReference.create(symbol, [Range(), Range(), Range()])
+
+    assert array != array2
+
+
 def test_get_outer_range_index():
     '''Check that the get_outer_range_index method returns the outermost index
     of the children list that is a range. Use ArrayReference and
