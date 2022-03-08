@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2022, Science and Technology Facilities Council.
+! Copyright (c) 2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,26 +29,47 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: I. Kavcic, Met Office
-! Modified: R. W. Ford, STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 
-program single_invoke
+module testkern_ref_elem_mp_mod
 
-  ! Description: single kernel with integer fields and requiring both XYoZ and
-  ! face quadrature specified in a single invoke call
-  use constants_mod,              only: i_def
-  use integer_field_mod,          only: integer_field_type
-  use quadrature_xyoz_mod,        only: quadrature_xyoz_type
-  use quadrature_face_mod,        only: quadrature_face_type
-  use testkern_2qr_int_field_mod, only: testkern_2qr_int_field_type
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
 
   implicit none
 
-  type(integer_field_type)   :: f1, f2(3), f3
-  type(quadrature_xyoz_type) :: qr_xyoz
-  type(quadrature_face_type) :: qr_face
-  integer(i_def)             :: istp
+  type, extends(kernel_type) :: testkern_ref_elem_mp_type
+     type(arg_type), dimension(1) :: meta_args =        &
+          (/ arg_type(gh_field,  gh_real, gh_inc,  w1)  &
+             /)
+     type(reference_element_data_type), dimension(2) ::                &
+          meta_reference_element =                                     &
+          (/ reference_element_data_type(normals_to_horizontal_faces), &
+             reference_element_data_type(normals_to_vertical_faces) /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => testkern_ref_elem_mp_code
+  end type testkern_ref_elem_mp_type
 
-  call invoke( testkern_2qr_int_field_type(f1, f2, f3, istp, qr_xyoz, qr_face) )
+contains
 
-end program single_invoke
+  subroutine testkern_ref_elem_mp_code(nlayers, fld1, ndf_w1, undf_w1, map_w1, &
+               nfaces_re_h, nfaces_re_v, horiz_face_normals, vert_face_normals)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    real(kind=r_solver), intent(inout), dimension(undf_w1) :: fld1
+    integer(kind=i_def), intent(in) :: nfaces_re_h
+    integer(kind=i_def), intent(in) :: nfaces_re_v
+    real(kind=r_def), intent(in), dimension(3,nfaces_re_h) :: horiz_face_normals
+    real(kind=r_def), intent(in), dimension(3,nfaces_re_v) :: vert_face_normals
+
+  end subroutine testkern_ref_elem_mp_code
+
+end module testkern_ref_elem_mp_mod

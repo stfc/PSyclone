@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 program single_invoke
 
@@ -41,7 +42,7 @@ program single_invoke
 
   implicit none
 
-  type(field_type) :: f1, f2
+  type(integer_field_type) :: f1, f2
 
   call invoke( int_inc_X_plus_Y(f1, f2) )
 
