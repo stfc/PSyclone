@@ -504,7 +504,7 @@ class CWriter(LanguageWriter):
         :param node: a Container PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-        :returns: the C code as a string.
+        :returns: the C code.
         :rtype: str
 
         '''

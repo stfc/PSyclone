@@ -318,8 +318,13 @@ def test_is_not_array_range():
 
 
 def test_assignment_gen_code():
-    '''Test that the create method in the Assignment class correctly
-    creates an Assignment instance.
+    '''Test that the gen_code method in the Assignment class produces the
+    expected Fortran code.
+
+    TODO #1648: This is just needed for coverage of the gen_code, that in turn
+    is needed because another test (profiling_node tests) uses it. But gen_code
+    is deprecated and this test should be removed when the gen_code is not used
+    in any other test.
 
     '''
     lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))

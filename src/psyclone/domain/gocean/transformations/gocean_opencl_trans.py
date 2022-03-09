@@ -476,8 +476,11 @@ class GOOpenCLTrans(Transformation):
 
             # Check that the global_size is multiple of the local_size
             if api_config.debug_mode:
+                fortran_reader = FortranReader()
+                global_size_expr = fortran_reader.psyir_from_expression(
+                        num_x, node.symbol_table)
                 self._add_divisibility_check(node, outerloop.position,
-                                             check_status, num_x,
+                                             check_status, global_size_expr,
                                              local_size_value)
 
             # Retrieve kernel symbol
@@ -634,7 +637,7 @@ class GOOpenCLTrans(Transformation):
                 added_comment = True
 
     @staticmethod
-    def _add_divisibility_check(node, position, check_status, global_size,
+    def _add_divisibility_check(node, position, check_status, global_size_expr,
                                 local_size):
         ''' Insert into node a check that the global_size is exactly
         divisible by the local size.
@@ -644,7 +647,8 @@ class GOOpenCLTrans(Transformation):
         :param int position: location where to insert the divisibilitay check.
         :param check_status: PSyIR symbol of the check routine.
         :type check_status: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-        :param str global_size: string representing the global_size symbol.
+        :param global_size_expr: PSyIR representing the global_size.
+        :type global_size_expr: :py:class:`psyclone.psyir.nodes.DataNode`
         :param int local_size: size of the OpenCL local work_group.
 
         '''
@@ -652,7 +656,7 @@ class GOOpenCLTrans(Transformation):
                     BinaryOperation.Operator.NE,
                     BinaryOperation.create(
                         BinaryOperation.Operator.REM,
-                        Literal(str(global_size), INTEGER_TYPE),
+                        global_size_expr,
                         Literal(str(local_size), INTEGER_TYPE)
                         ),
                     Literal("0", INTEGER_TYPE))
@@ -773,10 +777,9 @@ class GOOpenCLTrans(Transformation):
             self._kernels_file.addchild(kernel_copy)
 
     def _output_opencl_kernels_file(self):
-        ''' Write the OpenCL kernels file to a file using the OpenCL backend.
+        ''' Write the OpenCL kernels to a file using the OpenCL backend.
 
         '''
-
         # TODO 1013: The code below duplicates some logic of the CodedKern
         # rename_and_write method. Ideally this should be moved out of
         # the AST and transformations and put into some kind of IOManager.

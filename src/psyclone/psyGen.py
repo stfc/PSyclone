@@ -45,7 +45,6 @@ from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import abc
 import six
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -1773,14 +1772,6 @@ class CodedKern(Kern):
             new_kern_code = fortran_writer(self.get_kernel_schedule().root)
             fll = FortLineLength()
             new_kern_code = fll.process(new_kern_code)
-        else:
-            # This is an old style transformation which modifes the
-            # fp2 parse tree directly. Therefore use the fp2
-            # representation to generate the Fortran for this
-            # transformed kernel, ensuring that the line length is
-            # limited.
-            fll = FortLineLength()
-            new_kern_code = fll.process(str(self.ast))
 
         if not fdesc:
             # If we've not got a file descriptor at this point then that's
