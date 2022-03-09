@@ -2,6 +2,7 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2022, Science and Technology Facilities Council.
+#
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -265,38 +266,8 @@ def test_multi_deref_derived_type_args():
     gen = str(alg)
     assert (
         "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
-        "obj_a % obj_b, obj_b % obj_a)"
+        "obj_a % obj_b % iflag, obj_b % obj_a % iflag)"
         in gen)
-
-
-def test_op_and_scalar_and_qr_derived_type_args():
-    ''' Test the case where the operator, scalar and qr arguments to a
-    kernel are all supplied by de-referencing derived types. '''
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
-                     "10.6.1_operator_no_field_scalar_deref.f90"),
-        api="dynamo0.3")
-    gen = str(alg)
-
-    assert (
-        "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox % my_mapping, box % b(1), qr % init_quadrature_symmetrical"
-        "(3_i_def, qrl_gauss))" in gen)
-
-
-def test_vector_field_arg_deref():
-    ''' Test that we generate a correct invoke call when a kernel
-    argument representing a field vector is obtained by de-referencing a
-    derived type '''
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
-                     "8.1_vector_field_deref.f90"),
-        api="dynamo0.3")
-    gen = str(alg)
-
-    assert "CALL invoke_0_testkern_coord_w0_type(f1, box % chi, f2)" in gen
 
 
 def test_single_stencil():

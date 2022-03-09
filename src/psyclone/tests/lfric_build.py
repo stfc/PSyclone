@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,6 +97,7 @@ class LFRicBuild(Compile):
                               "count_mod",
                               "field_mod",
                               "integer_field_mod",
+                              "r_solver_field_mod",
                               "quadrature_rule_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",
