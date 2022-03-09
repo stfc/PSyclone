@@ -82,6 +82,13 @@ def test_reference_equality():
     assert ref2 == ref1
     assert ref1 != ref3
 
+    # Create another kernel schedule with the same symbol
+    kschedule2 = KernelSchedule("kname2")
+    symbol3 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    kschedule2.symbol_table.add(symbol3)
+    ref4 = Reference(symbol3)
+    assert ref1 != ref4
+
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''

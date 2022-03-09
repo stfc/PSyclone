@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the abstract ArrayMixin. '''
@@ -79,6 +80,16 @@ class ArrayMixin(object):
         Defaults to the base == implementation of is.
         This means all ArrayMixins will not be `==` unless they are
         the same object.
+
+        TODO #1649: This is a temporary implementation to avoid code
+        using __eq__ methods implemented by other classes inherited
+        alongside ArrayMixin. This should be removed when all children
+        can be checked for equivalence
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
         '''
         return self is other
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the StructureMember PSyIR node. '''
@@ -94,11 +95,11 @@ def test_sm_node_equality():
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
                                                parent=assignment)
     grid_ref2 = nodes.StructureReference.create(grid_var, ['area', 'nx'],
-                                               parent=assignment2)
+                                                parent=assignment2)
     grid_ref3 = nodes.StructureReference.create(grid_var, ['area', 'ny'],
-                                               parent=assignment3)
+                                                parent=assignment3)
     grid_ref4 = nodes.StructureReference.create(grid_var, ['aria', 'nx'],
-                                               parent=assignment4)
+                                                parent=assignment4)
 
     assert grid_ref == grid_ref2
     assert grid_ref != grid_ref3

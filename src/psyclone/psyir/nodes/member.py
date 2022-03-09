@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Member node.'''
@@ -87,6 +88,11 @@ class Member(Node):
         '''
         Members are assumed to be equivalent if they have the same
         component name associated with them, and are the same type.
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
         '''
         is_eq = type(self) is type(other)
         is_eq = is_eq and self.name == other.name

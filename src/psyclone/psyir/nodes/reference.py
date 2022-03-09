@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
@@ -68,9 +69,12 @@ class Reference(DataNode):
         '''
         Checks equivalence of two References. References are considered
         equivalent if they are the same type of Reference and their symbol
-        is the same. Note that this behaviour means two References can be
-        equivalent without being the same object, so ensure to use `is`
-        when appropriate instead of `==`
+        is the same.
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
         '''
         is_eq = (type(self) is type(other))
         is_eq = is_eq and (self.symbol == other.symbol)

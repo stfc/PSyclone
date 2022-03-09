@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by: S. Siso, STFC Daresbury Laboratory
 #              A. R. Porter, STFC Daresbury Laboratory
+#              A. B. G. Chalk, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''

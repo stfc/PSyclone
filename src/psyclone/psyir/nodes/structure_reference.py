@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureReference node. '''
@@ -210,9 +211,11 @@ class StructureReference(Reference):
         '''
         Two StructureReferences are equal if they have the same type,
         symbol and their member's are equal.
-        Note that this behaviour means two StructureReferences can be
-        equivalent without being the same object, so ensure to use `is`
-        when appropriate instead of `==`
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
         '''
         is_eq = type(self) is type(other)
         is_eq = is_eq and (self.symbol == other.symbol)

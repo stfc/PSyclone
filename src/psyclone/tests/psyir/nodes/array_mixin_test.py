@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
@@ -46,6 +47,8 @@ from psyclone.psyir.symbols import DataSymbol, DeferredType, ArrayType, \
 def test_equality():
     ''' Check that two ArrayMixin objects are only equal iff they are the
     same object (i.e. a is b)
+    TODO #1649 This test will need updating once the ArrayMixing equality
+    check has been implemented
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
     array = ArrayReference.create(symbol, [Range(), Range(), Range()])

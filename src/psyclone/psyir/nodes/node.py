@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -965,14 +966,14 @@ class Node(object):
         return node
 
     def sameRoot(self, node_2):
-        if self.root == node_2.root:
+        if self.root is node_2.root:
             return True
         return False
 
     def sameParent(self, node_2):
         if self.parent is None or node_2.parent is None:
             return False
-        if self.parent == node_2.parent:
+        if self.parent is node_2.parent:
             return True
         return False
 

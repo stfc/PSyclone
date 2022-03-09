@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureMember node.'''
@@ -90,7 +91,12 @@ class StructureMember(Member):
         '''
         StructureMembers are assumed to be equivalent if they have the same
         component name associated with them, and are the same type, and their
-        members are also ==
+        members are also ==.
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
         '''
         is_eq = type(self) is type(other)
         is_eq = is_eq and self.name == other.name
