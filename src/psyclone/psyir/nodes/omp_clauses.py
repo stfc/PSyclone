@@ -118,6 +118,48 @@ class OMPNogroupClause(Clause):
     _text_name = "NogroupClause"
     _clause_string = "nogroup"
 
+
+class OMPSharedClause(Clause):
+    '''
+    OpenMP shared clause. This is used to declare variables as shared in an
+    OpenMP region
+    '''
+    _children_valid_format = "[Reference]*"
+    _text_name = "SharedClause"
+
+    @property
+    def _clause_string(self):
+        if len(self.children) > 0:
+            return "shared"
+        return ""
+
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Any number of Reference nodes are allowed.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, Reference)
+
+    def __eq__(self, other):
+        if not isinstance(other, OMPSharedClause):
+            return False
+        if len(self._children) != len(other._children):
+            return False
+        for i in range(len(self._children)):
+            if self._children[i] != other._children[i]:
+                return False
+        return True
+
 class OMPPrivateClause(Clause):
     '''
     OpenMP private clause. This is used to declare variables as private
@@ -150,6 +192,47 @@ class OMPPrivateClause(Clause):
 
     def __eq__(self, other):
         if not isinstance(other, OMPPrivateClause):
+            return False
+        if len(self._children) != len(other._children):
+            return False
+        for i in range(len(self._children)):
+            if self._children[i] != other._children[i]:
+                return False
+        return True
+
+
+class OMPFirstprivateClause(Clause):
+    '''
+    OpenMP firstprivate clause. This is used to declare variables as
+    firstprivate to an OpenMP region.
+    '''
+    _children_valid_format = "[Reference]*"
+    _text_name = "FirstprivateClause"
+
+    @property
+    def _clause_string(self):
+        if len(self.children) > 0:
+            return "firstprivate"
+        return ""
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Any number of Reference nodes are allowed.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, Reference)
+
+    def __eq__(self, other):
+        if not isinstance(other, OMPFirstprivateClause):
             return False
         if len(self._children) != len(other._children):
             return False
@@ -239,15 +322,48 @@ class OMPDependClause(OperandClause):
         self._operand = depend_type
         super(OMPDependClause, self).__init__()
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         One child allowed, of type Literal.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, Reference)
+
     @property
     def operand(self):
-        if self._operand == DependClauseTypes.IN:
+        if self._operand == OMPDependClause.DependClauseTypes.IN:
             return "in"
-        if self._operand == DependClauseTypes.OUT:
+        if self._operand == OMPDependClause.DependClauseTypes.OUT:
             return "out"
-        if self._operand == DependClauseTypes.INOUT:
+        if self._operand == OMPDependClause.DependClauseTypes.INOUT:
             return "inout"
 
+    def __eq__(self, other):
+        '''Two OMPDependClause are equal if:
+        1. Same type (OMPDependClause).
+        2. Same Operand
+        3. Same number of children.
+        4. Their children are equal.
+        '''
+        if not isinstance(other, OMPDependClause):
+            return False
+        if self.operand != other.operand:
+            return False
+        if len(self.children) != len(other.children):
+            return False
+        for index in range(len(self.children)):
+            if self.children[index] != other.children[index]:
+                return False
+        return True
 
 class OMPReductionClause(OperandClause):
     '''

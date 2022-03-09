@@ -72,15 +72,15 @@ class Range(Node):
       >>> # Return the lower bound of the first dimension of array 'a'
       >>> lbound = BinaryOperation.create(
               BinaryOperation.Operator.LBOUND,
-              Reference(symbol), one)
+              Reference(symbol), one.copy())
       >>> # Return the upper bound of the first dimension of array 'a'
       >>> ubound = BinaryOperation.create(
               BinaryOperation.Operator.UBOUND,
-              Reference(symbol), one)
+              Reference(symbol), one.copy())
       >>> # Step defaults to 1 so no need to include it when creating range
       >>> my_range = Range.create(lbound, ubound)
       >>> # Create an access to all elements in the 1st dimension of array 'a'
-      >>> array_access = Array.create(symbol, [my_range])
+      >>> array_access = ArrayReference.create(symbol, [my_range])
 
     In Fortran the above access ``array_access`` can be represented by
     ``a(:)``. The Fortran front-ends and back-ends are aware of array
