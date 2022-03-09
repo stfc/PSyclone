@@ -105,7 +105,8 @@ class HoistLocalArraysTrans(Transformation):
     def apply(self, node, options=None):
         '''Applies the transformation to the supplied Routine node,
         moving any local arrays up to Container scope and adding
-        a suitable allocation when they are first accessed.
+        a suitable allocation when they are first accessed. If there
+        are no local arrays then this method does nothing.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -119,14 +120,17 @@ class HoistLocalArraysTrans(Transformation):
 
         # Identify all arrays that are local to the target routine and
         # do not explicitly use dynamic memory allocation.
-        automatic_arrays = []
-        for sym in node.symbol_table.local_datasymbols:
-            if sym.is_array and all(isinstance(dim, ArrayType.ArrayBounds)
-                                    for dim in sym.shape):
-                automatic_arrays.append(sym)
+        automatic_arrays = self._get_local_arrays(node)
+
+        if not automatic_arrays:
+            # No automatic arrays found so nothing to do.
+            return
 
         # arefs will hold the list of array references to be allocated.
         arefs = []
+        # Get the reversed tags map so that we can lookup the tag (if any)
+        # associated with the symbol being hoisted.
+        tags_dict = node.symbol_table.reverse_tags_dict
 
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
@@ -139,14 +143,16 @@ class HoistLocalArraysTrans(Transformation):
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
             # We must allow for the situation where there's a clash with a
-            # symbol already present at container scope.
+            # symbol name already present at container scope. (The validate()
+            # method will already have checked for tag clashes.)
             try:
-                container.symbol_table.add(sym)
+                container.symbol_table.add(sym, tag=tags_dict.get(sym))
             except KeyError:
                 new_name = container.symbol_table.next_available_name(
                     sym.name, other_table=node.symbol_table)
                 node.symbol_table.rename_symbol(sym, new_name)
-                container.symbol_table.add(sym)
+                container.symbol_table.add(sym, tag=tags_dict.get(sym))
+
             # Create the array reference that will be the argument to the
             # new memory allocation statement.
             dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
@@ -170,10 +176,33 @@ class HoistLocalArraysTrans(Transformation):
 
         # Finally, remove the hoisted symbols from the routine scope.
         for sym in automatic_arrays:
-            # Currently the SymbolTable.remove() method does not support
-            # DataSymbols.
+            # TODO #898:Currently the SymbolTable.remove() method does not
+            # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
+
+    @staticmethod
+    def _get_local_arrays(node):
+        '''
+        Identify all arrays that are local to the target routine, do not
+        represent its return value and do not explicitly use dynamic memory
+        allocation.
+
+        :param node: target PSyIR node.
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
+
+        :returns: symbols representing routine-local arrays.
+        :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+        '''
+        local_arrays = []
+        for sym in node.symbol_table.local_datasymbols:
+            if sym is node.return_symbol or not sym.is_array:
+                continue
+            if all(isinstance(dim, ArrayType.ArrayBounds)
+                   for dim in sym.shape):
+                local_arrays.append(sym)
+        return local_arrays
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist-
@@ -188,8 +217,12 @@ class HoistLocalArraysTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Routine.
         :raises TransformationError: if the Routine is not within a Container \
                                      (that is not a FileContainer).
-
+        :raises TransformationError: if any symbols corresponding to local \
+                                     arrays have a tag that already exists in \
+                                     the table of the parent Container.
         '''
+        super().validate(node, options=options)
+
         # The node should be a Routine.
         if not isinstance(node, Routine):
             raise TransformationError(
@@ -208,6 +241,20 @@ class HoistLocalArraysTrans(Transformation):
                 f"The supplied routine '{node.name}' should be within a "
                 f"Container but the enclosing container is a "
                 f"FileContainer (named '{container.name}').")
+
+        # Check for clashing tags in the container scope.
+        auto_arrays = self._get_local_arrays(node)
+        tags_dict = node.symbol_table.reverse_tags_dict
+        cont_tags_dict = container.symbol_table.tags_dict
+        for sym in auto_arrays:
+            tag = tags_dict.get(sym)
+            if tag in cont_tags_dict:
+                raise TransformationError(
+                    f"The supplied routine '{node.name}' contains a local "
+                    f"array '{sym.name}' with tag '{tag}' but this tag is "
+                    f"also present in the symbol table of the parent "
+                    f"Container (associated with variable "
+                    f"'{cont_tags_dict[tag].name}').")
 
     def __str__(self):
         return "Hoist all local, automatic arrays to container scope."

@@ -39,9 +39,8 @@
 from __future__ import absolute_import, print_function
 import pytest
 
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Container, FileContainer
-from psyclone.psyir.symbols import ArrayType
+from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations import (HoistLocalArraysTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -57,7 +56,7 @@ def test_init():
 
 # apply
 
-def test_apply_1d_known(fortran_writer, tmpdir):
+def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
     '''
     Test the apply method correctly handles an automatic array of rank 1
     with known extent.
@@ -74,8 +73,7 @@ def test_apply_1d_known(fortran_writer, tmpdir):
         "  end do\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     orig_sym = routine.symbol_table.lookup("a")
     hoist_trans = HoistLocalArraysTrans()
@@ -99,7 +97,7 @@ def test_apply_1d_known(fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(code)
 
 
-def test_apply_multi_dim_imported_limits(fortran_writer):
+def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
     '''
     Test that the transformation correctly handles an array with rank > 1
     and extents specified by imported variables.
@@ -114,8 +112,7 @@ def test_apply_multi_dim_imported_limits(fortran_writer):
         "  a(:,:) = 1.0\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
@@ -129,10 +126,11 @@ def test_apply_multi_dim_imported_limits(fortran_writer):
             "    a(:,:) = 1.0\n" in code)
 
 
-def test_apply_arg_limits(fortran_writer):
+def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
     '''
     Test that the transformation correctly handles an array with extents
-    specified via subroutine arguments.
+    specified via subroutine arguments. Also checks when the lower bound
+    is not unity.
 
     '''
     code = (
@@ -140,23 +138,23 @@ def test_apply_arg_limits(fortran_writer):
         "contains\n"
         "subroutine test(nx,ny)\n"
         "  integer, intent(in) :: nx, ny\n"
-        "  real :: a(nx,ny)\n"
+        "  real :: a(2:nx,3:ny)\n"
         "  a(:,:) = 1.0\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(1 : nx, 1 : ny))\n"
+            "      allocate(a(2 : nx, 3 : ny))\n"
             "    end if\n" in code)
+    assert Compile(tmpdir).string_compiles(code)
 
 
-def test_apply_multi_arrays(fortran_writer):
+def test_apply_multi_arrays(fortran_reader, fortran_writer):
     '''
     Test that the transformation handles the case where we have multiple
     automatic arrays.
@@ -174,8 +172,7 @@ def test_apply_multi_arrays(fortran_writer):
         "  mask(:,:) = 1\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
@@ -189,7 +186,7 @@ def test_apply_multi_arrays(fortran_writer):
         "    a(:,:) = 1.0\n" in code)
 
 
-def test_apply_name_clash(fortran_writer, tmpdir):
+def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the transformation handles the case where the name of the
     symbol to be promoted already exists in the container symbol table and the
@@ -207,8 +204,7 @@ def test_apply_name_clash(fortran_writer, tmpdir):
         "  a(:,:) = a_1\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
@@ -229,6 +225,109 @@ def test_apply_validate():
         hoist_trans.apply(None)
     assert ("The target of the HoistLocalArraysTrans transformation should be "
             "a Routine but found 'NoneType'." in str(info.value))
+
+
+def test_apply_no_arrays(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that applying the transformation to a routine that does not
+    contain any local arrays does nothing. '''
+    code = (
+        "module my_mod\n"
+        "real :: a(10,10)\n"
+        "contains\n"
+        "subroutine test(nx,ny,b)\n"
+        "  integer, intent(in) :: nx, ny\n"
+        "  real, dimension(nx,ny), intent(in) :: b\n"
+        "  a(:,:) = b(:,:)\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    output = fortran_writer(psyir).lower()
+    assert ("    real, dimension(nx,ny), intent(in) :: b\n\n"
+            "    a(:,:) = b(:,:)\n\n"
+            "  end subroutine test\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_tagged_symbol(fortran_reader):
+    ''' Check that any tag associated with the Symbol representing a local
+    array is preserved during its promotion. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    orig_sym = routine.symbol_table.lookup("a")
+    # Add a tag for this symbol.
+    routine.symbol_table._tags["important_tag"] = orig_sym
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    cont = psyir.children[0]
+    assert isinstance(cont, Container)
+    sym = cont.symbol_table.lookup_with_tag("important_tag")
+    assert sym is orig_sym
+
+
+def test_apply_array_valued_function(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that the transformation does not attempt to hoist an array
+    if it is the return value of a routine. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "function test() result(a)\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end function test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    real, dimension(10) :: a\n\n"
+            "    do i = 1, 10, 1\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+# _get_local_arrays
+
+def test_get_local_arrays(fortran_reader):
+    ''' Check that the _get_local_arrays() helper method works correctly for
+    a routine containing arrays that are passed by argument, imported from a
+    container or used as a return value. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "function test(c) result(a)\n"
+        "  use some_mod, only: b\n"
+        "  real, dimension(10,10), intent(in) :: c\n"
+        "  real, dimension(10) :: wrk\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = b(i) + c(i,5)\n"
+        "  end do\n"
+        "end function test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    symbols = hoist_trans._get_local_arrays(routine)
+    assert len(symbols) == 1
+    assert symbols[0] is routine.symbol_table.lookup("wrk")
 
 
 # validate
@@ -263,6 +362,39 @@ def test_validate_ancestor_container():
     assert ("The supplied routine 'my_prog' should be within a Container but "
             "the enclosing container is a FileContainer (named 'my_file')."
             in str(info.value))
+
+
+def test_validate_tagged_symbol_clash(fortran_reader):
+    ''' Check that we get the expected error message if the tag associated
+    with the Symbol representing a local array clashes with a tag already
+    present in the outer scope. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    cont = psyir.children[0]
+    routine = psyir.walk(Routine)[0]
+    orig_sym = routine.symbol_table.lookup("a")
+    # Add a Symbol to the outer table with a clashing tag.
+    cont.symbol_table.add(Symbol("b"), tag="important_tag")
+    orig_sym = routine.symbol_table.lookup("a")
+    # Add a tag for this symbol.
+    routine.symbol_table._tags["important_tag"] = orig_sym
+    hoist_trans = HoistLocalArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate(routine)
+    assert ("The supplied routine 'test' contains a local array 'a' with tag "
+            "'important_tag' but this tag is also present in the symbol table "
+            "of the parent Container (associated with variable 'b')" in
+            str(err.value))
 
 # str
 

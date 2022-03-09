@@ -932,6 +932,17 @@ class SymbolTable():
         return self._tags
 
     @property
+    def reverse_tags_dict(self):
+        '''
+        :returns: ordered dictionary of tags indexed by symbol.
+        :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`] = str
+        '''
+        tags_dict_reversed = OrderedDict()
+        for tag, sym in self._tags.items():
+            tags_dict_reversed[sym] = tag
+        return tags_dict_reversed
+
+    @property
     def symbols(self):
         '''
         :returns: list of symbols.
