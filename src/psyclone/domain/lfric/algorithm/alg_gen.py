@@ -38,10 +38,6 @@
 
 '''
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
 from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
@@ -49,8 +45,8 @@ from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Routine, CodeBlock, Assignment, Reference,
-                                  Literal)
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
     ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType)
@@ -59,8 +55,10 @@ from psyclone.psyir.symbols import (
 # The order of the finite-element scheme that will be used by any generated
 # algorithm layer.
 ELEMENT_ORDER = "1"
-# The number of data values held at each dof location.
-NDATA_SIZE = "20"
+# The number of data values held at each dof location. Currently PSyclone
+# only supports a value of 1. Extending to multi-data fields is the
+# subject of #868.
+NDATA_SIZE = "1"
 
 
 def _create_alg_driver(name, nlayers):
@@ -84,11 +82,7 @@ def _create_alg_driver(name, nlayers):
         raise TypeError(f"Supplied number of vertical levels must be an int "
                         f"but got '{type(nlayers).__name__}'")
 
-    prog = Routine(name, is_program=True)
-    table = prog.symbol_table
-
-    # For simplicity we use a template algorithm layer taken from
-    # examples/lfric/eg17.
+    # For simplicity we use a template algorithm layer.
     alg_code = f'''\
 PROGRAM {name}
   USE some_mod
@@ -103,15 +97,14 @@ PROGRAM {name}
   WRITE(*, *) "Mesh has", mesh % get_nlayers(), "layers."
 END PROGRAM {name}
 '''
-    # Create a CodeBlock containing all the initialisation
-    # that we can't represent in PSyIR (e.g. pointer assignments).
-    reader = FortranStringReader(alg_code)
-    parser = ParserFactory().create(std="f2008")
-    ast = parser(reader)
-    exe_parts = Fortran2003.walk(ast, Fortran2003.Execution_Part)
-    init_block = CodeBlock(exe_parts[0].children,
-                           CodeBlock.Structure.STATEMENT)
-    prog.addchild(init_block)
+    # Create the PSyIR of this code.
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(alg_code)
+    prog = psyir.walk(Routine)[0].detach()
+    table = prog.symbol_table
+    # Remove the fake container symbol (needed to prevent FortranReader from
+    # complaining about undefined symbols).
+    table.remove(table.lookup("some_mod"))
 
     # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
@@ -213,6 +206,8 @@ def _create_function_spaces(prog, fspaces):
     '''
     table = prog.symbol_table
 
+    reader = FortranReader()
+
     # The order of the finite-element scheme.
     order = table.new_symbol("element_order", tag="element_order",
                              symbol_type=DataSymbol,
@@ -250,17 +245,13 @@ def _create_function_spaces(prog, fspaces):
             datatype=UnknownFortranType(
                 f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr"))
-        ptree = Fortran2003.Structure_Constructor(
-            FortranStringReader(
-                f"function_space_type(mesh, {order.name}, {space}, ndata_sz)"))
-        prog.addchild(
-            Assignment.create(Reference(vsym),
-                              CodeBlock([ptree],
-                                        CodeBlock.Structure.EXPRESSION)))
-
-        ptree = Fortran2003.Pointer_Assignment_Stmt(
-            FortranStringReader(f"{vsym_ptr.name} => {vsym.name}\n"))
-        prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+        cblock = reader.psyir_from_expression(
+            f"function_space_type(mesh, {order.name}, {space}, ndata_sz)",
+            table)
+        prog.addchild(Assignment.create(Reference(vsym), cblock))
+        # TODO - psyir_from_statement() is being implemented in #1637.
+        prog.addchild(reader.psyir_from_statement(
+            f"{vsym_ptr.name} => {vsym.name}\n", table))
 
 
 def initialise_field(prog, sym, space):
@@ -278,22 +269,24 @@ def initialise_field(prog, sym, space):
     :raises InternalError: if the supplied symbol is of the wrong type.
 
     '''
+    reader = FortranReader()
+
     if isinstance(sym.datatype, DataTypeSymbol):
         # Single field argument.
-        ptree = Fortran2003.Call_Stmt(
-            f"CALL {sym.name} % initialise(vector_space = "
-            f"vector_space_{space}_ptr, name = '{sym.name}')")
-        prog.addchild(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+        prog.addchild(
+            reader.psyir_from_statement(
+                f"CALL {sym.name} % initialise(vector_space = "
+                f"vector_space_{space}_ptr, name = '{sym.name}')", prog.table))
 
     elif isinstance(sym.datatype, ArrayType):
         # Field vector argument.
         for dim in range(int(sym.datatype.shape[0].lower.value),
                          int(sym.datatype.shape[0].upper.value)+1):
-            ptree = Fortran2003.Call_Stmt(
-                f"CALL {sym.name}({dim}) % initialise(vector_space = "
-                f"vector_space_{space}_ptr, name = '{sym.name}')")
-            prog.addchild(CodeBlock([ptree],
-                                    CodeBlock.Structure.STATEMENT))
+            prog.addchild(
+                reader.psyir_from_statement(
+                    f"CALL {sym.name}({dim}) % initialise(vector_space = "
+                    f"vector_space_{space}_ptr, name = '{sym.name}')",
+                    prog.table))
     else:
         raise InternalError(
             f"Expected a field symbol to either be of ArrayType or have "
@@ -315,6 +308,7 @@ def initialise_quadrature(prog, qr_sym, shape):
     :raises NotImplementedError: if the quadrature shape is anything other \
                                  than gh_quadrature_xyoz.
     '''
+    reader = FortranReader()
     table = prog.symbol_table
     try:
         qr_rule_sym = table.lookup("quadrature_rule")
@@ -331,12 +325,9 @@ def initialise_quadrature(prog, qr_sym, shape):
 
     if shape == "gh_quadrature_xyoz":
         order = table.lookup_with_tag("element_order")
-        reader = FortranStringReader(
-            f"quadrature_xyoz_type({order.name}+3, {qr_rule_sym.name})")
-        ptree = Fortran2003.Structure_Constructor(reader)
-        prog.addchild(Assignment.create(
-            Reference(qr_sym),
-            CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)))
+        psyir = reader.psyir_from_expression(
+            f"quadrature_xyoz_type({order.name}+3, {qr_rule_sym.name})", table)
+        prog.addchild(Assignment.create(Reference(qr_sym), psyir))
 
     else:
         raise NotImplementedError(f"Initialisation for quadrature of type "
@@ -404,8 +395,10 @@ def generate(kernel_path):
     prog = _create_alg_driver("lfric_alg", 20)
     table = prog.symbol_table
 
-    # Parse the kernel metadata (this still uses fparser1 as that's what
-    # the meta-data handling is currently based upon).
+    # Parse the kernel metadata. Currently this uses fparser1 as that's what
+    # the existing meta-data handling is based upon. Ultimately, this will
+    # be replaced by the new, fparser2-based functionality being implemented
+    # in #1631.
     parse_tree = get_kernel_parse_tree(kernel_path)
 
     # Get the name of the module that contains the kernel and create a
@@ -441,15 +434,27 @@ def generate(kernel_path):
     # with the routine we are constructing.
     kern_args = construct_kernel_args(prog, kern)
 
-    # Initialise argument values to unity.
+    # Initialise argument values to unity. Since we are using this somewhat
+    # arbitrary value, we use an *integer* literal for this, irrespective of
+    # the actual type of the scalar argument. The compiler/run-time will take
+    # care of appropriate type casting.
     for sym in kern_args.scalars:
         prog.addchild(Assignment.create(Reference(sym),
                                         Literal("1", INTEGER_TYPE)))
 
-    # We use the setval_c builtin to initialise all fields to unity. We can't
-    # put this symbol in the symbol table because it doesn't exist anywhere.
+    # We use the setval_c builtin to initialise all fields to unity.
+    # Currently we have to create a symbol for this builtin in order to
+    # create the appropriate functor. Although we put this symbol in the
+    # table, the backend will currently fail because it is undefined.
+    # TODO #1645 will address this.
     setval_c = DataTypeSymbol("setval_c", DeferredType())
+    table.add(setval_c)
 
+    # As with the scalar initialisation, we don't worry about precision
+    # here since we are just setting the field values to unity. If the
+    # field itself is of a precision other than rdef (or is perhaps
+    # integer rather than real) we rely on type casting by the
+    # compiler/run-time.
     rdef = table.lookup("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     kernel_list = []

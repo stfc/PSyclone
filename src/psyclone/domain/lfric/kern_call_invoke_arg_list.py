@@ -96,7 +96,7 @@ class KernCallInvokeArgList(ArgOrdering):
         return self._qr_objects
 
     def generate(self, var_accesses=None):
-        ''' Just ensures that our internal lists of arguments of various
+        ''' Ensures that our internal lists of arguments of various
         types are reset (as calling generate() populates them) before calling
         this method in the parent class.
 
@@ -302,18 +302,11 @@ class KernCallInvokeArgList(ArgOrdering):
         for shape, rule in self._kern.qr_rules.items():
             mod_name = lfric_const.QUADRATURE_TYPE_MAP[shape]["module"]
             type_name = lfric_const.QUADRATURE_TYPE_MAP[shape]["type"]
-            try:
-                quad_container = self._symtab.lookup(mod_name)
-            except KeyError:
-                quad_container = self._symtab.new_symbol(
-                    mod_name, symbol_type=ContainerSymbol)
-            try:
-                quad_type = self._symtab.lookup(type_name)
-            except KeyError:
-                quad_type = self._symtab.new_symbol(
-                    type_name, symbol_type=DataTypeSymbol,
-                    datatype=DeferredType(),
-                    interface=ImportInterface(quad_container))
+            quad_container = self._symtab.find_or_create(
+                mod_name, symbol_type=ContainerSymbol)
+            quad_type = self._symtab.find_or_create(
+                type_name, symbol_type=DataTypeSymbol, datatype=DeferredType(),
+                interface=ImportInterface(quad_container))
             sym = self._symtab.new_symbol(rule.psy_name,
                                           symbol_type=DataSymbol,
                                           datatype=quad_type)

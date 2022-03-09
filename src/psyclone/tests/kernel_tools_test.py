@@ -40,7 +40,8 @@ from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone import alg_gen, gen_kernel_stub, kernel_tools
+from psyclone import gen_kernel_stub, kernel_tools
+from psyclone.domain.lfric import algorithm
 from psyclone.version import __VERSION__
 
 
@@ -114,22 +115,6 @@ def test_run_missing_file(capsys):
             "not found" in str(result))
 
 
-def test_unexpected_exception(monkeypatch, capsys):
-    ''' Check that an unexpected Exception is caught correctly. '''
-
-    def broken_gen(kernel_filename, api):
-        ''' Broken generate() function that just raises a general
-        Exception. '''
-        raise Exception("This is just a test")
-
-    monkeypatch.setattr(alg_gen, "generate", broken_gen)
-    with pytest.raises(SystemExit):
-        kernel_tools.run(["-gen", "alg", str("/does_not_exist")])
-    _, err = capsys.readouterr()
-    assert "unexpected exception:" in err
-    assert "This is just a test" in err
-
-
 def test_run_alg_gen(capsys):
     ''' Check that the kernel_tools run method attempts to generate an
     algorithm layer if requested. '''
@@ -171,14 +156,14 @@ def test_run_line_length(monkeypatch, capsys, limit, mode):
     ''' Check that line-length limiting is applied to generated algorithm
     and kernel-stub code when requested. '''
 
-    def long_gen(kernel_filename, api):
+    def long_gen(kernel_filename, api=None):
         ''' generate() function that returns a string longer than
         132 chars. '''
         # pylint: disable=unused-argument
         return f"long_str = '{140*' '}'"
 
     # Monkeypatch both the algorithm and stub 'generate' functions.
-    monkeypatch.setattr(alg_gen, "generate", long_gen)
+    monkeypatch.setattr(algorithm.alg_gen, "generate", long_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", long_gen)
     args = ["-gen", mode, str("/does_not_exist")]
     if limit:
@@ -197,13 +182,13 @@ def test_file_output(monkeypatch, mode, tmpdir):
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
 
-    def fake_gen(kernel_filename, api):
+    def fake_gen(kernel_filename, api=None):
         ''' generate() function that simply returns a string. '''
         # pylint: disable=unused-argument
         return "the_answer = 42"
 
     # Monkeypatch both the algorithm and stub 'generate' functions.
-    monkeypatch.setattr(alg_gen, "generate", fake_gen)
+    monkeypatch.setattr(algorithm.alg_gen, "generate", fake_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
     tmpdir.chdir()
     kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
