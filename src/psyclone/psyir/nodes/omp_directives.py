@@ -1204,8 +1204,6 @@ class OMPTaskDirective(OMPRegionDirective):
         out_list = []
 
         # TODO Generate extra clauses
-        # Find the parent Loop node
-        parent_loop = self.ancestor(Loop)
 
         # Find the parent OMPParallelDirective
         parallel_directive = self.ancestor(OMPParallelDirective)
@@ -1220,6 +1218,15 @@ class OMPTaskDirective(OMPRegionDirective):
         stop_val = node.stop_expr
         step_val = node.step_expr
         schedule = node.children[3]
+
+        # Pull out loop variables used if we have a parent Loop, and by all
+        # Loops that are children of this node.
+        parent_loop_var = None
+        if isinstance(self.parent.parent, Loop):
+            parent_loop_var = self.parent.parent.variable
+        child_loop_vars = []
+        for child_loop in self.walk(Loop):
+            child_loop_vars.append(child_loop.variable)
 
         # FIXME Disallow transformation if init/stop/step include array references
         # FIXME Handle reduction variables
@@ -1288,21 +1295,35 @@ class OMPTaskDirective(OMPRegionDirective):
                             is_private = is_private or priv_ref.symbol ==\
                                                     ref.symbol 
                     #FIXME THIS DOESN'T WORK AT ALL FOR SURE
-                    if is_private:
-                        #FIXME Think about what happens if this is declared private
-                        assert False
+                    #FIXME Think about what happens if this is declared private
+                    # Ararys currently can't be declared private I think?
                     index_list = []
-                    loop_reference = False
                     # Do something with indices
-                    for index in lhs.indices:
+                    for dim, index in enumerate(lhs.indices):
                         if isinstance(index, Literal):
                             # Literals are just value
                             index_list.append(index.copy())
                         elif isinstance(index, Reference):
-                            # Refrences also just treated as values
-                            index_list.append(index.copy())
-                            if index.symbol == loop_var:
-                                loop_reference = True
+                            # If its a Reference to our parent Loop or a child
+                            # Loop we do something special
+                            index_private = index in parallel_private
+                            if index_private:
+                                if (index not in private_list and
+                                    index not in firstprivate_list):
+                                    firstprivate_list.append(index.copy())
+                                if index.symbol in child_loop_vars:
+                                    # Return a :
+                                    one = Literal(str(dim+1), INTEGER_TYPE)
+                                    lbound = BinaryOperation.create(
+                                            BinaryOperation.Operator.LBOUND,
+                                            lhs.copy(), one.copy())
+                                    ubound = BinaryOperation.create(
+                                            BinaryOperation.Operator.UBOUND,
+                                            lhs.copy(), one.copy())
+                                    full_range = Range.create(lbound, ubound)
+                                    index_list.append(full_range)
+                                else:
+                                    index_list.append(index.copy())
                         elif isinstance(index, BinaryOperation):
                             self.handle_binary_op(index,
                                     index_list, firstprivate_list,
@@ -1331,7 +1352,6 @@ class OMPTaskDirective(OMPRegionDirective):
                                     if index != dclause.indices[arrayindex]:
                                         equal = False
                             else:
-                                print(clause.symbol, dclause.symbol)
                                 equal = False
                         else:
                             equal = False
