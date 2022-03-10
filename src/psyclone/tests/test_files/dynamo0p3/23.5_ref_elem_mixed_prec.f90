@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,40 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author R. W. Ford, STFC Daresbury Lab
 
-program multikernel_invokes_7
+! Description: Declare field data as r_solver to check that r_def is
+! declared for the reference element arrays in the psy-layer.
 
-  ! Multiple kernel calls within an invoke where the fields updated by
-  ! the two kernels are on different spaces
+program ref_element_mixed_precision
 
-  use constants_mod,       only: r_def, i_def
-  use field_mod,           only: field_type
-  use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use ru_kernel_mod,       only: ru_kernel_type
-  use testkern_mod,        only: testkern_type
+  use field_mod,             only: r_solver_field_type
+  use testkern_ref_elem_mp_mod, only: testkern_ref_elem_mp_type
 
   implicit none
 
-  type(field_type)           :: a, b, c, d, e(3), f, g, h
-  real(r_def)                :: ascalar, rdt
-  integer(i_def)             :: istp
-  type(quadrature_xyoz_type) :: qr
+  type(r_solver_field_type) :: f1
 
-  call invoke(                                            &
-               ! h is written, rest are read-only
-               testkern_type(rdt, h, f, c, d),            &
-               ! b is written, rest are read-only
-               testkern_type(rdt, b, f, c, d),            &
-               ! b is gh_inc, rest are read-only
-               ru_kernel_type(b, a, istp, rdt, c, e, qr), &
-               ! g is gh_inc, rest are read-only
-               ru_kernel_type(g, a, istp, rdt, c, e, qr), &
-               ! f is written, rest are read-only
-               testkern_type(ascalar, f, b, c, d) )
+  call invoke( testkern_ref_elem_mp_type(f1) )
 
-  ! => b and h must be intent(inout)
-  ! => g and f must be intent(inout)
-  ! => a, c, d and e are intent(in)
-end program multikernel_invokes_7
+end program ref_element_mixed_precision
