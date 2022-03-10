@@ -88,7 +88,6 @@ class Loop(Statement):
                  annotations=None):
         super(Loop, self).__init__(self, parent=parent,
                                    annotations=annotations)
-
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
         if annotations:

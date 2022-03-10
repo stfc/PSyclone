@@ -7557,7 +7557,11 @@ class DynLoop(Loop):
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
-        posn = loops.index(self)
+        posn = None
+        for index, loop in enumerate(loops):
+            if loop is self:
+                posn = index
+                break
         lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
         return Reference(lbound)
 
@@ -7602,7 +7606,11 @@ class DynLoop(Loop):
         # This isn't a 'colour' loop so we have already set-up a
         # variable that holds the upper bound.
         loops = inv_sched.loops()
-        posn = loops.index(self)
+        posn = None
+        for index, loop in enumerate(loops):
+            if loop is self:
+                posn = index
+                break
         ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
         return Reference(ubound)
 
