@@ -47,10 +47,10 @@ from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
-    BinaryOperation, ArrayReference
+    BinaryOperation, ArrayReference, Call
 
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -1027,22 +1027,31 @@ def test_detach():
     ''' Check that the detach method removes a node from its parent node. '''
 
     # Create a PSyIR tree
-    parent = Schedule()
-    node1 = Statement()
-    parent.addchild(node1)
-    node2 = Statement()
-    parent.addchild(node2)
+    routine = RoutineSymbol("test", NoType())
+    e_sym = DataSymbol("e", REAL_TYPE)
+    f_sym = DataSymbol("f", REAL_TYPE)
+    e_ref = Reference(e_sym)
+    lit = Literal("1", REAL_TYPE)
+    e_ref2 = Reference(e_sym)
+    f_ref = Reference(f_sym)
+    node1 = Call(routine)
+    node1.addchild(e_ref)
+    node1.addchild(lit)
+    node1.addchild(e_ref2)
+    node1.addchild(f_ref)
 
-    # Execute the detach method on node 1, it should return itself
-    assert node1.detach() is node1
+    # Execute the detach method on e_ref2, it should return itself
+    assert e_ref2.detach() is e_ref2
 
     # Check that the resulting nodes and connections are correct
-    assert node1.parent is None
-    assert len(parent.children) == 1
-    assert parent.children[0] is node2
+    assert e_ref2.parent is None
+    assert len(node1.children) == 3
+    assert node1.children[0] is e_ref
+    assert node1.children[1] is lit
+    assert node1.children[2] is f_ref
 
     # Executing it again still succeeds
-    assert node1.detach() is node1
+    assert e_ref2.detach() is e_ref2
 
 
 def test_parent_references_coherency():

@@ -1281,7 +1281,8 @@ class Node(object):
 
         '''
         if self.parent:
-            self.parent.children.remove(self)
+            index = self.position
+            self.parent.children.pop(index)
         return self
 
     def _refine_copy(self, other):
