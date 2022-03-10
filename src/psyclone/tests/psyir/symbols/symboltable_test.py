@@ -1420,8 +1420,8 @@ def test_get_tags():
 
 
 def test_symbols_tags_dict():
-    '''Check that the symbols_dict and tags_dict properties work as
-    expected.
+    '''Check that the symbols_dict, tags_dict and reverse_tags_dict properties
+    work as expected.
 
     '''
     schedule_symbol_table = SymbolTable()
@@ -1433,6 +1433,8 @@ def test_symbols_tags_dict():
     schedule_symbol_table.add(symbol1, tag=symbol1_tag)
     assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
     assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
+    rdict = schedule_symbol_table.get_reverse_tags_dict()
+    assert rdict[symbol1] == symbol1_tag
 
 
 def test_new_symbol():

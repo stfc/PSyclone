@@ -130,7 +130,7 @@ class HoistLocalArraysTrans(Transformation):
         arefs = []
         # Get the reversed tags map so that we can lookup the tag (if any)
         # associated with the symbol being hoisted.
-        tags_dict = node.symbol_table.reverse_tags_dict
+        tags_dict = node.symbol_table.get_reverse_tags_dict()
 
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
@@ -244,7 +244,7 @@ class HoistLocalArraysTrans(Transformation):
 
         # Check for clashing tags in the container scope.
         auto_arrays = self._get_local_arrays(node)
-        tags_dict = node.symbol_table.reverse_tags_dict
+        tags_dict = node.symbol_table.get_reverse_tags_dict()
         cont_tags_dict = container.symbol_table.tags_dict
         for sym in auto_arrays:
             tag = tags_dict.get(sym)
