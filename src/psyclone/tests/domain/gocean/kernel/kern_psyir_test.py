@@ -47,6 +47,7 @@ from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 
 METADATA = (
     "program dummy\n"
+    "  use random ! avoid any missing declaration errors\n"
     "  type, extends(kernel_type) :: compute_cu\n"
     "     type(go_arg), dimension(3) :: meta_args =                 &\n"
     "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
@@ -118,8 +119,7 @@ def test_kernelmetadatasymbol_multi(fortran_reader, content, error):
 
 def test_kernelmetadatasymbol_invalid(fortran_reader):
     '''Test the expected exception is raised in KernelMetadataSymbol if an
-    expected entry is found. We replace ITERATES_OVER with xxx in this
-    test.
+    unexpected entry is found. Here we replace ITERATES_OVER with xxx.
 
     '''
     my_metadata = METADATA.replace("ITERATES_OVER", "xxx")
@@ -132,4 +132,81 @@ def test_kernelmetadatasymbol_invalid(fortran_reader):
             "'iterates_over', or 'index_offset', but found 'xxx' in "
             "TYPE(go_arg), DIMENSION(3)" in str(info.value))
 
-# Wildcard replace?
+
+@pytest.mark.parametrize("content,error", [
+    ("integer :: ITERATES_OVER = GO_ALL_PTS\n", "iterates_over"),
+    ("integer :: index_offset = GO_OFFSET_SW\n", "index_offset"),
+     ("     type(go_arg), dimension(3) :: meta_args =                 &\n"
+      "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
+      "             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)), &\n"
+      "             go_arg(GO_READ,  GO_GRID_AREA_T)                  &\n"
+      "           /)\n", "meta_args")])
+def test_kernelmetadatasymbol_missing(fortran_reader, content, error):
+    '''Test the expected exception is raised in KernelMetadataSymbol if
+    entries are missing.
+
+    '''
+    my_metadata = METADATA.replace(
+        f"{content}", "")
+    kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    with pytest.raises(ParseError) as info:
+        kern_trans.apply(kernel_psyir)
+    assert (f"Expecting '{error}' to be an entry in the metadata but it was "
+            f"not found in " in str(info.value))
+
+
+def test_kernelmetadatasymbol_contains(fortran_reader):
+    '''Test the expected exception is raised in KernelMetadataSymbol if
+    both the code and contains are missing.
+
+    '''
+    my_metadata = METADATA.replace(
+        "    procedure, nopass :: code => compute_cu_code\n", "")
+    my_metadata = my_metadata.replace("  contains\n", "")
+    kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    with pytest.raises(ParseError) as info:
+        kern_trans.apply(kernel_psyir)
+    assert ("The metadata does not have a contains keyword (which is "
+            "required to add the code metadata." in str(info.value))
+
+
+@pytest.mark.parametrize("content,error", [
+    ("", 0),
+    ("    procedure, nopass :: code => compute_cu_code\n"
+     "procedure, nopass :: code => compute_cu_code\n", 2)])
+def test_kernelmetadatasymbol_entries_code(fortran_reader, content, error):
+    '''Test the expected exception is raised in KernelMetadataSymbol if
+    there more or less than one entry after the 'contains' keyword.
+
+    '''
+    my_metadata = METADATA.replace(
+        "    procedure, nopass :: code => compute_cu_code\n", content)
+    kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    with pytest.raises(ParseError) as info:
+        kern_trans.apply(kernel_psyir)
+    assert (f"Expecting a single entry after the 'contains' keyword but "
+            f"found {error}." in str(info.value))
+
+
+def test_gridarg_args(fortran_reader):
+    '''Test the expected exception is raised if a grid argument does not
+    have 2 entries.'''
+    pass # Not sure how to test this seeing as we choose a field arg if the number of args is not 3
+
+
+def test_set_iterates_over(fortran_reader):
+    ''' xxx '''
+    kernel_psyir = fortran_reader.psyir_from_source(METADATA)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    assert isinstance(symbol, KernelMetadataSymbol)
+    assert symbol.iterates_over == "GO_ALL_PTS"
+    symbol.iterates_over = "GO_INTERNAL_PTS"

@@ -59,7 +59,7 @@ class GOceanConstants(object):
 
         # Valid intrinsic types of kernel argument data, used in psyGen.
         # Not actually used in GOcean
-        GOceanConstants.VALID_INTRINSIC_TYPES = []
+        GOceanConstants.VALID_INTRINSIC_TYPES = ["go_read", "go_write", "go_readwrite"]
 
         # psyGen argument types
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
