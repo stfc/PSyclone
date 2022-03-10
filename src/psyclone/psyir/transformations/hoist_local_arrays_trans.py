@@ -42,7 +42,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
-                                  FileContainer, IfBlock, UnaryOperation)
+                                  FileContainer, IfBlock, UnaryOperation,
+                                  CodeBlock)
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -106,7 +107,8 @@ class HoistLocalArraysTrans(Transformation):
         '''Applies the transformation to the supplied Routine node,
         moving any local arrays up to Container scope and adding
         a suitable allocation when they are first accessed. If there
-        are no local arrays then this method does nothing.
+        are no local arrays or the supplied Routine is a program then
+        this method does nothing.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -115,6 +117,10 @@ class HoistLocalArraysTrans(Transformation):
 
         '''
         self.validate(node, options)
+
+        if node.is_program:
+            # Cannot hoist arrays out of a program so do nothing.
+            return
 
         container = node.ancestor(Container)
 
@@ -130,7 +136,7 @@ class HoistLocalArraysTrans(Transformation):
         arefs = []
         # Get the reversed tags map so that we can lookup the tag (if any)
         # associated with the symbol being hoisted.
-        tags_dict = node.symbol_table.reverse_tags_dict
+        tags_dict = node.symbol_table.get_reverse_tags_dict()
 
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
@@ -216,10 +222,13 @@ class HoistLocalArraysTrans(Transformation):
 
         :raises TransformationError: if the supplied node is not a Routine.
         :raises TransformationError: if the Routine is not within a Container \
-                                     (that is not a FileContainer).
+            (that is not a FileContainer).
         :raises TransformationError: if any symbols corresponding to local \
-                                     arrays have a tag that already exists in \
-                                     the table of the parent Container.
+            arrays have a tag that already exists in the table of the parent \
+            Container.
+        :raises TransformationError: if any symbols corresponding to local \
+            arrays appear within any CodeBlocks inside the Routine.
+
         '''
         super().validate(node, options=options)
 
@@ -228,6 +237,11 @@ class HoistLocalArraysTrans(Transformation):
             raise TransformationError(
                 f"The target of the HoistLocalArraysTrans transformation "
                 f"should be a Routine but found '{type(node).__name__}'.")
+
+        if node.is_program:
+            # We silently ignore routines that are programs - this
+            # transformation will do nothing.
+            return
 
         # The Routine must be within a Container (otherwise we have nowhere
         # to hoist any array declarations to).
@@ -244,7 +258,7 @@ class HoistLocalArraysTrans(Transformation):
 
         # Check for clashing tags in the container scope.
         auto_arrays = self._get_local_arrays(node)
-        tags_dict = node.symbol_table.reverse_tags_dict
+        tags_dict = node.symbol_table.get_reverse_tags_dict()
         cont_tags_dict = container.symbol_table.tags_dict
         for sym in auto_arrays:
             tag = tags_dict.get(sym)
@@ -255,6 +269,19 @@ class HoistLocalArraysTrans(Transformation):
                     f"also present in the symbol table of the parent "
                     f"Container (associated with variable "
                     f"'{cont_tags_dict[tag].name}').")
+
+        # Check that none of the arrays to be hoisted are accessed with a
+        # CodeBlock (as they may get renamed as part of the transformation).
+        array_names = set(sym.name for sym in auto_arrays)
+        cblocks = node.walk(CodeBlock)
+        for cblock in cblocks:
+            cblock_names = set(cblock.get_symbol_names())
+            if cblock_names.intersection(array_names):
+                cblock_txt = ''.join(str(fpn) for fpn in cblock.get_ast_nodes)
+                raise TransformationError(
+                    f"The supplied routine '{node.name}' contains a local "
+                    f"array '{sym.name}' which is accessed within a CodeBlock "
+                    f"('{cblock_txt}'). Cannot hoist such an array.")
 
     def __str__(self):
         return "Hoist all local, automatic arrays to container scope."
