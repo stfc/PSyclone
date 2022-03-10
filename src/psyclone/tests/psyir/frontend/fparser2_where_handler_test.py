@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -200,8 +200,8 @@ def test_where_array_notation_rank():
     with pytest.raises(InternalError) as err:
         processor._array_notation_rank(my_array)
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but 'my_array' has "
-            "none." in str(err.value))
+            "children representing array-index expressions but array "
+            "'my_array' has none." in str(err.value))
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
@@ -338,6 +338,7 @@ def test_basic_where():
     assert len(loops) == 3
     for loop in loops:
         assert "was_where" in loop.annotations
+        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].children[0], Literal)
     assert isinstance(loops[0].children[1], BinaryOperation)
@@ -368,6 +369,7 @@ def test_where_array_subsections():
     assert len(loops) == 2
     for loop in loops:
         assert "was_where" in loop.annotations
+        assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     ifblock = loops[1].loop_body[0]
     assert isinstance(ifblock, IfBlock)
@@ -432,6 +434,7 @@ def test_elsewhere():
     assert fake_parent.walk(CodeBlock) == []
     # Check that we have a triply-nested loop
     loop = fake_parent.children[0]
+    assert isinstance(loop.ast, Fortran2003.Where_Construct)
     assert isinstance(loop, Loop)
     assert isinstance(loop.loop_body[0], Loop)
     assert isinstance(loop.loop_body[0].loop_body[0], Loop)
@@ -439,6 +442,7 @@ def test_elsewhere():
     ifblock = loop.loop_body[0].loop_body[0].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
+    assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert ("ArrayReference[name:'ptsu']\n"
@@ -551,6 +555,10 @@ def test_where_ordering(parser):
     "code, size_arg",
     [("where (my_type%var(:) > epsi20)\n"
       "my_type%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%var(:) > epsi20)\n"
+      "my_type(jl)%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%block(jl)%var(:) > epsi20)\n"
+      "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
       "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var")])
 def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):

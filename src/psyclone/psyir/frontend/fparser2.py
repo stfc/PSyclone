@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,15 +44,15 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, BlockBase, StmtBase
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
     Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
@@ -274,7 +274,7 @@ def _check_args(array, dim):
             "most the number of dimensions of the array ({0}) but found "
             "{1}.".format(len(array.children), dim))
 
-    # The first child of the array (index 0) relates to the first
+    # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
     if not isinstance(array.indices[dim-1], Range):
         raise TypeError(
@@ -294,10 +294,6 @@ def _is_bound_full_extent(array, dim, operator):
     This utility function checks that shorthand lower or upper
     bound Fortran code is captured as longhand lbound and/or
     ubound functions as expected in the PSyIR.
-
-    The supplied "array" argument is assumed to be a node that is a
-    subclass of ArrayMixin and the content of the specified dimension
-    "dim" is assumed to be a Range node.
 
     This routine is only in fparser2.py until #717 is complete as it
     is used to check that array syntax in a where statement is for the
@@ -331,7 +327,7 @@ def _is_bound_full_extent(array, dim, operator):
             "'operator' argument  expected to be LBOUND or UBOUND but "
             "found '{0}'.".format(type(operator).__name__))
 
-    # The first child of the array (index 0) relates to the first
+    # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
     bound = array.indices[dim-1].children[index]
 
@@ -341,7 +337,6 @@ def _is_bound_full_extent(array, dim, operator):
     reference = bound.children[0]
     literal = bound.children[1]
 
-    # pylint: disable=too-many-boolean-expressions
     if bound.operator != operator:
         return False
 
@@ -350,10 +345,7 @@ def _is_bound_full_extent(array, dim, operator):
             literal.value != str(dim)):
         return False
 
-    if isinstance(reference, Reference) and array._matching_access(reference):
-        return True
-
-    return False
+    return isinstance(reference, Reference) and array.is_same_array(reference)
 
 
 def _is_array_range_literal(array, dim, index, value):
@@ -874,6 +866,7 @@ class Fparser2Reader(object):
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
+        ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
         ('int', BinaryOperation.Operator.INT),
         ('real', BinaryOperation.Operator.REAL),
         ('sign', BinaryOperation.Operator.SIGN),
@@ -2760,7 +2753,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=bop, nodes=[node])
 
     @staticmethod
-    def _array_notation_rank(node, lang_writer=None):
+    def _array_notation_rank(node):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
         of the array that uses array notation. e.g. for a reference
@@ -2770,8 +2763,6 @@ class Fparser2Reader(object):
         :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
             :py:class:`psyclone.psyir.nodes.ArrayMember` or \
             :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param lang_writer: visitor to use when generating verbose error \
-            messages. Defaults to None in which case a FortranWriter is used.
 
         :returns: rank of the sub-section of the array.
         :rtype: int
@@ -2795,25 +2786,24 @@ class Fparser2Reader(object):
                     if array:
                         # Cannot have two or more part references that contain
                         # ranges - this is not valid Fortran.
-                        if not lang_writer:
-                            # pylint: disable=import-outside-toplevel
-                            from psyclone.psyir.backend.fortran import \
-                                FortranWriter
-                            lang_writer = FortranWriter()
+                        # pylint: disable=import-outside-toplevel
+                        from psyclone.psyir.backend.fortran import (
+                            FortranWriter)
+                        lang_writer = FortranWriter()
                         raise InternalError(
-                            "Found a structure reference containing two or "
-                            "more part references that have ranges: '{0}'. "
-                            "This is not valid within a WHERE in Fortran.".
-                            format(lang_writer(node)))
+                            f"Found a structure reference containing two or "
+                            f"more part references that have ranges: "
+                            f"'{lang_writer(node)}'. This is not valid within "
+                            f"a WHERE in Fortran.")
                     array = part_ref
             if not array:
                 raise InternalError(
-                    "No array access found in node '{0}'".format(node.name))
+                    f"No array access found in node '{node.name}'")
         else:
             # This will result in a CodeBlock.
             raise NotImplementedError(
-                "Expected either an ArrayReference, ArrayMember or a "
-                "StructureReference but got '{0}'".format(type(node).__name__))
+                f"Expected either an ArrayReference, ArrayMember or a "
+                f"StructureReference but got '{type(node).__name__}'")
 
         # Only array refs using basic colon syntax are currently
         # supported e.g. (a(:,:)).  Each colon is represented in the
@@ -2840,6 +2830,9 @@ class Fparser2Reader(object):
         Utility function that modifies each ArrayReference object in the
         supplied PSyIR fragment so that they are indexed using the supplied
         loop variables rather than having colon array notation.
+
+        # TODO #1576 this functionality is very similar to that needed in
+        # the NemoArrayRange2Loop transformation and should be rationalised.
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
@@ -3012,6 +3005,8 @@ class Fparser2Reader(object):
 
             loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
+            # Point to the original WHERE statement in the parse tree.
+            loop.ast = node
             # Add loop lower bound
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound - we use the SIZE operator to query the
@@ -3059,6 +3054,7 @@ class Fparser2Reader(object):
         # Now we have the loop nest, add an IF block to the innermost
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
+        ifblock.ast = node  # Point back to the original WHERE construct
         new_parent.addchild(ifblock)
 
         # We construct the conditional expression from the original
@@ -3109,12 +3105,18 @@ class Fparser2Reader(object):
                                              annotations=annotations)
                         elsebody.addchild(newifblock)
 
+                        # Keep pointer to fpaser2 AST
+                        elsebody.ast = node.content[start_idx]
+                        newifblock.ast = node.content[start_idx]
+
                         # Create condition as first child
                         self.process_nodes(parent=newifblock,
                                            nodes=[clause.items[0]])
 
                         # Create if-body as second child
                         ifbody = Schedule(parent=newifblock)
+                        ifbody.ast = node.content[start_idx + 1]
+                        ifbody.ast_end = node.content[end_idx - 1]
                         newifblock.addchild(ifbody)
                         self.process_nodes(
                             parent=ifbody,
@@ -3129,6 +3131,8 @@ class Fparser2Reader(object):
                                     node.content))
                         elsebody = Schedule(parent=current_parent)
                         current_parent.addchild(elsebody)
+                        elsebody.ast = node.content[start_idx]
+                        elsebody.ast_end = node.content[end_idx]
                         self.process_nodes(
                             parent=elsebody,
                             nodes=node.content[start_idx + 1:end_idx])

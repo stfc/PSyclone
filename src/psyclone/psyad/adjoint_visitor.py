@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,8 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
-                                  CodeBlock, BinaryOperation)
+                                  CodeBlock, BinaryOperation, Assignment,
+                                  Container)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -131,6 +132,33 @@ class AdjointVisitor(PSyIRVisitor):
         # this.
         node_copy = node.copy()
         node_copy.children = []
+
+        if isinstance(node, Routine):
+            # Zero local active variables.
+            self._logger.debug("Zero-ing any local active variables")
+            for active_variable in self._active_variables:
+                if active_variable.is_local:
+                    if not (active_variable.is_scalar or
+                            active_variable.is_array):
+                        # Issue #1627 structures are not allowed.
+                        raise NotImplementedError(
+                            f"Active local variables can only be scalars and "
+                            f"arrays, but found '{active_variable}'.")
+                    datatype = active_variable.datatype.intrinsic.name
+                    if datatype == "REAL":
+                        value = "0.0"
+                    elif datatype == "INTEGER":
+                        value = "0"
+                    else:
+                        raise NotImplementedError(
+                            f"Datatype '{datatype}' is not supported (for "
+                            f"active local variable "
+                            f"'{active_variable.name}'). Supported types are "
+                            f"'REAL' and 'INTEGER'.")
+                    node_copy.children.append(
+                        Assignment.create(
+                            Reference(active_variable),
+                            Literal(value, active_variable.datatype)))
 
         # Split active and passive nodes.
         self._logger.debug("Adding passive code into new schedule")
@@ -255,15 +283,25 @@ class AdjointVisitor(PSyIRVisitor):
                 "A loop node should not be visited before a schedule, "
                 "as the latter sets up the active variables.")
 
-        # Check that variables in loop bounds and the iterator are passive.
+        # Check that variables in loop bounds and the iterator are
+        # passive, unless they are part of the 1st argument to an
+        # LBOUND or UBOUND function, as this is used to determine
+        # the size of the array, not modify its content.
         for expr, description in [(node.start_expr, "lower bound"),
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
-            if node_is_active(expr, self._active_variables):
-                raise VisitorError(
-                    "The {0} of a loop should not contain active "
-                    "variables, but found '{1}'".format(
-                        description, self._writer(expr)))
+            for ref in expr.walk(Reference):
+                if ref.symbol in self._active_variables:
+                    # Ignore LBOUND and UBOUND
+                    if not (isinstance(ref.parent, BinaryOperation) and
+                            ref.position == 0 and
+                            ref.parent.operator in [
+                                BinaryOperation.Operator.LBOUND,
+                                BinaryOperation.Operator.UBOUND]):
+                        raise VisitorError(
+                            f"The {description} of a loop should not contain "
+                            f"active variables, but found '{ref.name}' in "
+                            f"'{self._writer(expr)}'.")
 
         if node_is_active(Reference(node.variable), self._active_variables):
             raise VisitorError(

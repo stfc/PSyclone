@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -98,6 +98,48 @@ def test_transform_apply_mixed_implicit_do(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_apply_with_structures(fortran_reader, fortran_writer):
+    '''Check that the PSyIR is transformed as expected when the
+    expressions contain a mix of arrays and structures in the same
+    reference.
+
+    '''
+    trans = NemoOuterArrayRange2LoopTrans()
+
+    # The outer dimension is already set
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: constant = 3
+        integer :: jk
+        base%field(constant)%array(:,:,jk) = 1
+    end subroutine test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert "base%field(constant)%array(:,jj,jk) = 1" in result
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert "base%field(constant)%array(ji,jj,jk) = 1" in result
+
+    # The inner dimension is already set
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: jf = 3, jpi = 3, jpim1 = 1
+        ptab(jf)%pt2d(jpi,:,:) = ptab(jf)%pt2d(jpim1,:,:)
+    end subroutine test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert "ptab(jf)%pt2d(jpi,:,jk) = ptab(jf)%pt2d(jpim1,:,jk)" in result
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert "ptab(jf)%pt2d(jpi,jj,jk) = ptab(jf)%pt2d(jpim1,jj,jk)" in result
+
+
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
     trans = NemoOuterArrayRange2LoopTrans()
@@ -168,9 +210,9 @@ END subroutine data_ref
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The supplied assignment node should have either an"
-           " ArrayReference or an ArrayOfStructuresReference node on its lhs "
-           "but found 'CodeBlock'." in str(info.value))
+           "transformation. The LHS of the supplied assignment node should be "
+           "a Reference that contains an array access somewhere in the "
+           "expression, but found 'CodeBlock[1 nodes]'." in str(info.value))
 
 
 # lhs array reference has a range
@@ -188,7 +230,7 @@ def test_validate_range():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
-    assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The LHS of the supplied assignment node should "
-           "be an ArrayReference/ArrayOfStructuresReference node containing "
-           "at least one Range node but there are none." in str(info.value))
+    assert("Error in NemoOuterArrayRange2LoopTrans transformation. "
+           "The LHS of the supplied assignment node should be an expression "
+           "with an array that has a Range node, but found 'ArrayReference"
+           in str(info.value))

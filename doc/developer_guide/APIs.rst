@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -50,8 +50,8 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following APIs; dynamo versions 0.1 and 0.3
-.. and gocean versions 0.1 and 1.0.
+.. currently supports the following APIs: nemo, lfric (dynamo0.3)
+.. and gocean.
 .. 
 .. config.py
 .. ---------
@@ -406,11 +406,11 @@ Loop iterators
 
 In the current implementation of the Dynamo0.3 API it is possible to
 iterate (loop) either over cells or dofs. At the moment all coded
-kernels are written to iterate over cells and all built-in kernels are
+kernels are written to iterate over cells and all Built-in kernels are
 written to iterate over dofs, but that does not have to be the case.
 
 The loop iteration information is specified in the kernel metadata. In
-the case of built-ins there is kernel metadata but it is part of
+the case of Built-ins there is kernel metadata but it is part of
 PSyclone and is specified in
 ``src/psyclone/parse/lfric_builtins_mod.f90``.
 
@@ -1041,9 +1041,20 @@ layer routine. A lot of this work is currently performed in the
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
 
-To date, the following LFRic BuiltIns have had
-``lower_to_language_level()`` methods implemented: ``LFRicXPlusYKern``,
-``LFRicIncXPlusYKern``, and ``LFRicAPlusXKern``.
+To date, all the LFRic BuiltIns have had ``lower_to_language_level()``
+methods implemented except for the following:
+
+* ``LFRicXInnerproductYKern``,
+* ``LFRicXInnerproductXKern``,
+* ``LFRicSumXKern``,
+* ``LFRicIntXKern``,
+* ``LFRicRealXKern``.
+
+The sum and inner product BuiltIns require extending PSyIR to handle
+reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
+``real`` to ``int`` and vice-versa require the target precisions be
+available as symbols, which is being implemented as a part of the mixed
+precision support.
 
 GOcean1.0
 =========

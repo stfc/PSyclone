@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,8 @@ transformations and base classes.
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.hoist_local_arrays_trans import (
+    HoistLocalArraysTrans)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
@@ -65,10 +67,14 @@ from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
     import FoldConditionalReturnExpressionsTrans
+from psyclone.psyir.transformations.loop_tiling_2d_trans \
+    import LoopTiling2DTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
+    DotProduct2CodeTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -92,4 +98,5 @@ __all__ = ['ChunkLoopTrans',
            'ArrayRange2LoopTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistTrans',
-           'OMPTaskwaitTrans']
+           'OMPTaskwaitTrans',
+           'LoopTiling2DTrans']

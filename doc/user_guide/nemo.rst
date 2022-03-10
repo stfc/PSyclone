@@ -206,14 +206,11 @@ we list the current, known limitations/issues:
 
  1. Scalar variables inside loops are not made private when
     parallelising using OpenMP;
- 2. All recognised loops (levels, latitude etc.) are assumed to be
-    parallelisable. This will not always be the case (e.g. tridiagonal
-    solve has a loop-carried dependence in the vertical);
- 3. Labelled do-loops are not handled (i.e. they will be put inside a
+ 2. Labelled do-loops are not handled (i.e. they will be put inside a
     'CodeBlock' in the PSyIR);
- 4. Loops are currently only permitted to contain one kernel.  This
+ 3. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
- 5. The psyir.nodes.Node base class now has an _ast property to hold a
+ 4. The psyir.nodes.Node base class now has an _ast property to hold a
     pointer into the associated fparser2 AST. However, the psyGen.Kern
     class already has an _fp2_ast property that points to the whole
     fparser2 AST of the kernel code. This will be rationalised in

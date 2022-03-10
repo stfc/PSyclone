@@ -423,7 +423,8 @@ class SymbolTable():
                 root_name = tag
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
-    def next_available_name(self, root_name=None, shadowing=False):
+    def next_available_name(self, root_name=None, shadowing=False,
+                            other_table=None):
         '''Return a name that is not in the symbol table and therefore can
         be used to declare a new symbol.
         If the `root_name` argument is not supplied or if it is
@@ -432,6 +433,8 @@ class SymbolTable():
         integer is appended to avoid clashes.
         If the shadowing argument is True (is False by default), the names
         in parent symbol tables will not be considered.
+        If `other_table` is supplied, the new name is constructed so as not
+        to clash with any entries in that table.
 
         :param str root_name: optional name to use when creating a new \
             symbol name. This will be appended with an integer if the name \
@@ -439,19 +442,25 @@ class SymbolTable():
         :param bool shadowing: optional logical flag indicating whether the \
             name can be overlapping with a symbol in any of the ancestors \
             symbol tables. Defaults to False.
+        :param other_table: an optional, second symbol table to take into \
+            account when constructing a new name.
+        :type other_table: :py:class`psyclone.psyir.symbols.SymbolTable`
 
         :returns: the new unique symbol name.
         :rtype: str
 
-        :raises TypeError: if the root_name argument is not a string \
-            or None.
-        :raises TypeError: if the shadowing argument is not a bool.
+        :raises TypeError: if any of the arguments are of the wrong type.
 
         '''
         if not isinstance(shadowing, bool):
             raise TypeError(
-                "Argument shadowing should be of type bool"
-                " but found '{0}'.".format(type(shadowing).__name__))
+                f"Argument 'shadowing' should be of type bool"
+                f" but found '{type(shadowing).__name__}'.")
+
+        if other_table and not isinstance(other_table, SymbolTable):
+            raise TypeError(
+                f"If supplied, argument 'other_table' should be of type "
+                f"SymbolTable but found '{type(other_table).__name__}'.")
 
         if shadowing:
             symbols = self._symbols
@@ -460,6 +469,15 @@ class SymbolTable():
             # that can't be used includes all the symbols from all the ancestor
             # symbol tables.
             symbols = self.get_symbols()
+
+        # Construct the set of existing names.
+        existing_names = set(symbols.keys())
+
+        if other_table:
+            # If a second symbol table has been supplied, include its entries
+            # in the list of names to exclude.
+            other_names = set(other_table.symbols_dict.keys())
+            existing_names = existing_names.union(other_names)
 
         if root_name is not None:
             if not isinstance(root_name, str):
@@ -470,7 +488,7 @@ class SymbolTable():
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
         idx = 1
-        while self._normalize(candidate_name) in symbols:
+        while self._normalize(candidate_name) in existing_names:
             candidate_name = "{0}_{1}".format(root_name, idx)
             idx += 1
         return candidate_name
@@ -912,6 +930,17 @@ class SymbolTable():
 
         '''
         return self._tags
+
+    @property
+    def reverse_tags_dict(self):
+        '''
+        :returns: ordered dictionary of tags indexed by symbol.
+        :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`] = str
+        '''
+        tags_dict_reversed = OrderedDict()
+        for tag, sym in self._tags.items():
+            tags_dict_reversed[sym] = tag
+        return tags_dict_reversed
 
     @property
     def symbols(self):

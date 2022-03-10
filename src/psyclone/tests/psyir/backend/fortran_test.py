@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference, Schedule, Routine, Return, FileContainer, \
-    Assignment, IfBlock
+    Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
+    OMPParallelDirective, Loop, OMPNumTasksClause
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -551,15 +552,8 @@ def test_fw_gen_use(fortran_writer):
 
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, my_sub\n"
-                      "use my_module\n")
-
-    symbol2 = DataSymbol("dummy2", DeferredType(),
-                         interface=ImportInterface(container_symbol))
-    symbol_table.add(symbol2)
-    result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == ("use my_module, only : dummy1, dummy2, my_sub\n"
-                      "use my_module\n")
+    assert "use my_module, only : dummy1, my_sub" not in result
+    assert "use my_module\n" in result
 
     # container2 has no symbols associated with it and has not been marked
     # as having a wildcard import. It should therefore result in a USE
@@ -575,6 +569,9 @@ def test_fw_gen_use(fortran_writer):
     result = fortran_writer.gen_use(container2, symbol_table)
     assert result == "use my_mod2\n"
     # Wrong type for first argument
+    symbol2 = DataSymbol("dummy2", DeferredType(),
+                         interface=ImportInterface(container_symbol))
+    symbol_table.add(symbol2)
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_use(symbol2, symbol_table)
     assert ("expects a ContainerSymbol as its first argument but got "
@@ -1230,27 +1227,27 @@ def test_fw_routine_nameclash(fortran_writer):
     ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
-            "  integer :: var1_1_1\n"
+            "  integer :: var1_2\n"
             "  integer :: var1_1\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
             "  else\n"
-            "    var1_1_1 = 2\n"
+            "    var1_2 = 2\n"
             "  end if" in result)
     # Add a symbol to the routine scope that will clash with the first name
     # generated with reference to the else scope.
-    routine.symbol_table.add(DataSymbol("var1_1_1", INTEGER_TYPE))
+    routine.symbol_table.add(DataSymbol("var1_2", INTEGER_TYPE))
     result = fortran_writer(routine)
-    assert ("  integer :: var1_1_1\n"
+    assert ("  integer :: var1_2\n"
             "  integer :: var1\n"
-            "  integer :: var1_1_2\n"
+            "  integer :: var1_3\n"
             "  integer :: var1_1\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
             "  else\n"
-            "    var1_1_2 = 2\n"
+            "    var1_3 = 2\n"
             "  end if" in result)
 
 
@@ -2279,3 +2276,44 @@ def test_fw_comments(fortran_writer):
         "  end subroutine my_routine  ! My routine inline comment\n\n"
         "end module my_container  ! My container inline comment\n")
     assert expected == fortran_writer(container)
+
+
+def test_fw_directive_with_clause(fortran_reader, fortran_writer):
+    '''Test that a PSyIR directive with clauses is translated to
+    the required Fortran code.
+
+    '''
+    # Generate PSyIR from Fortran code.
+    code = (
+        "program test\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i\n"
+        "  real :: a(n)\n"
+        "  do i=1,n\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test")
+    container = fortran_reader.psyir_from_source(code)
+    schedule = container.children[0]
+    loops = schedule.walk(Loop)
+    loop = loops[0].detach()
+    directive = OMPTaskloopDirective(children=[loop], num_tasks=32,
+                                     nogroup=True)
+    master = OMPMasterDirective(children=[directive])
+    parallel = OMPParallelDirective(children=[master])
+    schedule.addchild(parallel, 0)
+    assert '''!$omp parallel default(shared), private(i)
+  !$omp master
+  !$omp taskloop num_tasks(32) nogroup
+  do i = 1, n, 1
+    a(i) = 0.0
+  enddo
+  !$omp end taskloop
+  !$omp end master
+  !$omp end parallel''' in fortran_writer(container)
+
+
+def test_fw_clause(fortran_writer):
+    '''Test that a PSyIR clause is translated to the correct Fortran code.'''
+    clause = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    assert "num_tasks(32)" in fortran_writer(clause)

@@ -44,7 +44,7 @@ import re
 import pytest
 
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
@@ -236,6 +236,43 @@ def test_loop_swap_validate_nodes_in_loop(fortran_reader):
         swap.apply(schedule[1])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a LoopSwapTrans "
             "transformation" in str(err.value))
+
+
+def test_loop_swap_validate_dependent_loop(fortran_reader):
+    '''
+    Tests that loops containing dependencies between the inner or the outer
+    loop variables and boundary expressions are not validated for swapping.
+    '''
+    swap_trans = LoopSwapTrans()
+    psyir = fortran_reader.psyir_from_source('''
+        program test_prog
+            integer :: i, j
+            real, dimension(10) :: a
+            do j = 1, 10
+                do i = 1, j
+                    a = a + 1
+                enddo
+            enddo
+            do j = 3 + 2 * i, 10
+                do i = 1, 10
+                    a = a + 1
+                enddo
+            enddo
+         end program test_prog''')
+
+    loops = psyir.walk(Loop, stop_type=Loop)
+
+    with pytest.raises(TransformationError) as err:
+        swap_trans.apply(loops[0])
+    assert ("Error in LoopSwap transformation: The outer loop iteration "
+            "variable 'j' is part of the inner loop boundary expressions, "
+            "so their order can not be swapped." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        swap_trans.apply(loops[1])
+    assert ("Error in LoopSwap transformation: The inner loop iteration "
+            "variable 'i' is part of the outer loop boundary expressions, "
+            "so their order can not be swapped." in str(err.value))
 
 
 def test_loop_swap_schedule_is_kept():

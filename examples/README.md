@@ -1,6 +1,7 @@
 # PSyclone Examples
 
 **Author:** J. Henrichs, Bureau of Meteorology
+**Modifications:** A. R. Porter, STFC Daresbury Laboratory
 
 # Introduction
 
@@ -24,9 +25,9 @@ This directory contains examples on how to use PSyIR to create
 Fortran and C code as output.
 
 ## [stub_generation](./stub_generation)
-This directory shows the usage of the stub-generation utility
-included in PSyclone, which helps generating a Kernel's argument
-list and its datatypes from the Kernel metadata.
+This directory shows the usage of the stub-generation functionality
+of the psyclone-kern utility. This helps with generating a Kernel's
+argument list and associated datatypes from the Kernel metadata.
 
 ## transformations
 This directory shows how to use the inline transformation.

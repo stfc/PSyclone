@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,17 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Schedule
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
-from psyclone.configuration import Config
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Schedule, ArrayReference, Reference, Literal
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.transformations import (Dynamo0p3ColourTrans,
+                                      DynamoOMPParallelLoopTrans,
+                                      Dynamo0p3RedundantComputationTrans)
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -158,6 +161,31 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
     assert my_loop._lower_bound_fortran() == "mesh%get_last_" + output + "+1"
 
 
+def test_mesh_name():
+    ''' Tests for the _mesh_name property of DynLoop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
+    assert loops[0]._mesh_name == "mesh"
+
+
+def test_mesh_name_intergrid():
+    ''' Tests for the _mesh_name property of DynLoop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
+    assert loops[0]._mesh_name == "mesh_field1"
+
+
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used'''
@@ -206,6 +234,174 @@ def test_upper_bound_inner(monkeypatch):
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
     ubound = my_loop._upper_bound_fortran()
     assert ubound == "mesh%get_last_inner_cell(1)"
+
+
+def test_upper_bound_ncolour(dist_mem):
+    ''' Check that we get the correct Fortran for the upper bound of a
+    coloured loop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    loops = sched.walk(DynLoop)
+    if dist_mem:
+        assert loops[1]._upper_bound_name == "colour_halo"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours(colour, 1)")
+        # Apply redundant computation to increase the depth of the access
+        # to the halo.
+        rtrans = Dynamo0p3RedundantComputationTrans()
+        rtrans.apply(loops[1])
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours(colour, max_halo_depth_mesh)")
+    else:
+        assert loops[1]._upper_bound_name == "ncolour"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours(colour)")
+
+
+def test_upper_bound_ncolour_intergrid(dist_mem):
+    ''' Check that we get the correct Fortran for a coloured loop's upper bound
+    if it contains an inter-grid kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    loops = sched.walk(DynLoop)
+    if dist_mem:
+        assert loops[1]._upper_bound_name == "colour_halo"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours_field1(colour, 1)")
+        # We can't apply redundant computation to increase the depth of the
+        # access to the halo as it is not supported for inter-grid kernels.
+        # Therefore we manually unset the upper bound halo depth to indicate
+        # that we access the full depth.
+        loops[1]._upper_bound_halo_depth = None
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours_field1(colour, "
+                "max_halo_depth_mesh_field1)")
+    else:
+        assert loops[1]._upper_bound_name == "ncolour"
+        assert (loops[1]._upper_bound_fortran() ==
+                "last_cell_all_colours_field1(colour)")
+
+
+def test_loop_start_expr(dist_mem):
+    ''' Test that the start_expr property returns the expected reference
+    to a symbol. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    lbound = loops[0].start_expr
+    assert isinstance(lbound, Reference)
+    assert lbound.symbol.name == "loop0_start"
+
+
+def test_loop_stop_expr(dist_mem):
+    ''' Test the stop_expr property of a loop with and without colouring. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[0].stop_expr
+    assert isinstance(ubound, Reference)
+    assert ubound.symbol.name == "loop0_stop"
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[1].stop_expr
+    assert isinstance(ubound, ArrayReference)
+    assert ubound.symbol.name == "last_cell_all_colours"
+    assert ubound.indices[0].name == "colour"
+    if dist_mem:
+        assert isinstance(ubound.indices[1], Literal)
+        assert ubound.indices[1].value == "1"
+        # Alter the loop so that it goes to the full halo depth
+        loops[1]._upper_bound_halo_depth = None
+        ubound = loops[1].stop_expr
+        assert isinstance(ubound.indices[1], Reference)
+        assert ubound.indices[1].symbol.name == "max_halo_depth_mesh"
+
+
+def test_loop_stop_expr_intergrid(dist_mem):
+    ''' Test the stop_expr property for a loop containing an
+    inter-grid kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # pylint: disable=pointless-statement
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[0].stop_expr
+    assert isinstance(ubound, Reference)
+    assert ubound.symbol.name == "loop0_stop"
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    psy.gen
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    ubound = loops[1].stop_expr
+    assert isinstance(ubound, ArrayReference)
+    assert ubound.symbol.name == "last_cell_all_colours_field1"
+    assert ubound.indices[0].name == "colour"
+    if dist_mem:
+        assert isinstance(ubound.indices[1], Literal)
+        assert ubound.indices[1].value == "1"
+        # Alter the loop so that it goes to the full halo depth
+        loops[1]._upper_bound_halo_depth = None
+        ubound = loops[1].stop_expr
+        assert isinstance(ubound.indices[1], Reference)
+        assert ubound.indices[1].symbol.name == "max_halo_depth_mesh_field1"
+
+
+def test_lfricloop_gen_code_err():
+    ''' Test that the gen_code method raises the expected exception if the loop
+    type is 'colours' and is within an OpenMP parallel region. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(DynLoop)
+    # Apply a colouring transformation to the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loops[0])
+    loops = sched.walk(DynLoop)
+    # Parallelise the inner loop (over cells of a given colour)
+    trans = DynamoOMPParallelLoopTrans()
+    trans.apply(loops[1])
+    # Alter the loop type manually
+    loops[1]._loop_type = "colours"
+    with pytest.raises(GenerationError) as err:
+        loops[1].gen_code(None)
+    assert ("Cannot have a loop over colours within an OpenMP parallel region"
+            in str(err.value))
 
 
 def test_dynloop_load_unexpected_func_space():
@@ -291,16 +487,19 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
+    assert "loop0_start = 1\n" in generated_code
     if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     else:
+        assert "loop0_stop = m2_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -320,15 +519,19 @@ def test_itn_space_fld_and_op_writers(tmpdir):
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         if dist_mem:
+            assert ("loop0_stop = mesh%get_last_halo_cell(1)\n" in
+                    generated_code)
             output = (
                 "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+                "      DO cell=loop0_start,loop0_stop\n")
             assert output in generated_code
         else:
+            assert ("loop0_stop = op1_proxy%fs_from%get_ncell()\n" in
+                    generated_code)
             output = (
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
+                "      DO cell=loop0_start,loop0_stop")
             assert output in generated_code
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -350,16 +553,20 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    assert "loop0_start = 1\n" in generated_code
+
     if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)" in generated_code
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     else:
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
 
 
@@ -378,19 +585,23 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    assert "loop0_start = 1\n" in generated_code
+
     if dist_mem:
+        assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
             "      !\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     else:
         # Loop upper bound should use f2 as that field is *definitely*
         # on a continuous space (as opposed to the one on any_space
         # that might be).
+        assert "loop0_stop = f2_proxy%vspace%get_ncell()" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
+            "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
 
 

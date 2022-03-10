@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,9 @@ from fparser.two.Fortran2003 import Specification_Part, \
     Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    ArrayReference, Container, Literal, Range, KernelSchedule, Directive, \
-    StructureReference, ArrayOfStructuresReference
+    ArrayReference, Container, Literal, Range, KernelSchedule, \
+    RegionDirective, StandaloneDirective, StructureReference, \
+    ArrayOfStructuresReference
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
@@ -401,8 +402,8 @@ def test_array_notation_rank():
     with pytest.raises(InternalError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but 'a' has none"
-            in str(excinfo.value))
+            "children representing array-index expressions but array 'a' has "
+            "none" in str(excinfo.value))
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension
@@ -2931,10 +2932,15 @@ def test_nodes_to_code_block_2(f2008_parser):
 def test_nodes_to_code_block_3():
     '''Check that a codeblock that has a directive as a parent causes the
     expected exception.
-
+    All directives are now StandaloneDirective or RegionDirective children.
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = Fparser2Reader.nodes_to_code_block(Directive(), "hello")
+        _ = Fparser2Reader.nodes_to_code_block(StandaloneDirective(), "hello")
+    assert ("A CodeBlock with a Directive as parent is not yet supported."
+            in str(excinfo.value))
+
+    with pytest.raises(InternalError) as excinfo:
+        _ = Fparser2Reader.nodes_to_code_block(RegionDirective(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
 

@@ -64,6 +64,98 @@
 	22) PR #1485 for #1429. Create correct variable intents for
 	generated adjoint kernel code.
 
+	23) PR #1228 towards #753. The GOcean API now uses PSyIR for the Algorithm
+	layer.
+
+	24) PR #1526 for #1430. Fixes and improves support for array
+	ranges in psyad.
+
+	25) PR #1500 for #1487. Improvements to NEMO arrayrange2loop
+	transformation.
+
+	26) PR #1541 for #1513. Adds a 2D loop-tiling transformation.
+
+	27) PR #1533 for #1523. Adds SymPy symbols for Fortran names
+	in the tools.symbolic_maths module.
+
+	28) PR #1579 for #1550. Removes duplicated use statements produced
+	by the Fortran backend.
+
+	29) PR #1518 for #1506. Bugfix for WHEREs involving derived types.
+
+	30) PR #1578 for #1517. Uses dependency analysis to check for
+	loop-carried dependencies when attempting to parallelise a loop.
+	Also improves validation checks at code-generation time to ensure
+	that any OMP Loop directive is within a Target or Parallel region.
+
+	31) PR #1598 towards #282. Removes reference to the Dynamo 0.1 API
+	in the documentation.
+
+	32) PR #1462 for #451. Make LFRic loop bounds constant within the
+	PSy-layer with any function calls or structure accesses looking up
+	bounds information being computed separately beforehand. This can
+	help compilers correctly compile the code, particularly when there
+	are directives and may also help compilers produce more efficient
+	code.
+
+	33) PR #1592 for #1585. Add a PSyIR clause node and start implementing
+	clauses for the OpenMP directives.
+
+	34) PR #1599 for #282. Removes Dynamo 0.1 API code and tests (removes
+	the API completely).
+
+	35) PR #1556 for #1490. Adds a dotproduct2code transformation and
+	extends PSyAD to make use of it.
+
+	36) PR #1597 towards #753. Fixes naming bugs in GOcean Algorithm
+	PSyIR.
+
+	37) PR #1565 for #1505. Fix bug with UnknownFortranTypes inside other
+	fparser frontend declarations.
+
+	38) PR #1603 for #1566. Fparser reader parses derived types with
+	contains statements as UnknownFortranType.
+
+	39) PR #1602 towards #753. A new PSyclone script entry point (the
+	trans_alg function) can be used to transform the Alg-layer (currently
+	just for the gocean API).
+
+	40) PR #1601 for #1600. Removes the GOcean 0.1 API.
+
+	41) PR #1410 for #1398. Add Sphinx docs link checking in the CI.
+
+	42) PR #1586 for #1559. Adds support for SoA and AoSoA in the
+	Range2Loop transformation.
+
+	43) PR #1574 towards #1555. Replaces gen_kernel_stub script with
+	psyclone-kern. This more generic script can be extended to other
+	kernel modification options in the future (in particular
+	generating an algorithm layer from a kernel).
+
+	44) PR #1607 for #1559. Transform MATRIX_MULTIPLY to equivalent
+	code before creating adjoint.
+
+	45) PR #1527 towards #1525. Adds lower_to_language_level methods
+	to all LFRic builtins with the exception of those involving
+	reductions or type casting.
+
+	50) PR #1616 for #1615. Fixes list of files to profile in NEMO
+	kernels script plus some other typos.
+
+	51) PR #1621 for #1581. Extends PSyAD to make use of the
+	ArrayRange2Loop transformation to remove any array ranges before
+	constructing the adjoint.
+
+	52) PR #1622 towards #1618. Fixes code generation for PSyIR of
+	Algorithm Layer by removing `invoke` symbol during lowering.
+
+	53) PR #1609 for #1584, #1041 and #490. Adds transformation to
+	add OpenMP target directive to routines and updates existing
+	one for OpenACC to use PSyIR instead of parse tree.
+
+	54) PR #1625 for #1606. Fixes bug in PSyAD by ensuring that all
+	local, active variables are initialised to zero.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
