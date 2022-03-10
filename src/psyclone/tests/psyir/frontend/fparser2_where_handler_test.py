@@ -588,3 +588,23 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     array_members = loops[0].walk(ArrayMember)
     for member in array_members:
         assert member.indices[0].symbol.name == "widx1"
+
+
+def test_nested_where(fortran_reader):
+    ''' Test that we handle nested WHERE statements. '''
+    code = ("module my_mod\n"
+            "  use some_mod\n"
+            "contains\n"
+            "subroutine my_sub()\n"
+            "  WHERE ( z_lenp4(:,:) <= 0.0_wp )\n"
+            "    p_dal%D12(:,:,1) = 0.0_wp\n"
+            "    z_lenp2(:,:) = SQRT( p_dal%D11(:,:,1) * p_dal%D22(:,:,1) )\n"
+            "    WHERE ( z_lenp2(:,:) == 0.0_wp )\n"
+            "      p_dal%D11(:,:,1) = p_ens%D11_min(:,:)\n"
+            "      p_dal%D22(:,:,1) = p_ens%D22_min(:,:)\n"
+            "      z_lenp2(:,:) = z_lenp2_min(:,:)\n"
+            "    END WHERE\n"
+            "  END WHERE\n"
+            "end subroutine my_sub\n"
+            "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
