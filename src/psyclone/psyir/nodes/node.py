@@ -891,7 +891,9 @@ class Node(object):
         '''
         if self.parent is None:
             return self.START_POSITION
-        return self.parent.children.index(self)
+        for index, child in enumerate(self.parent.children):
+            if child is self:
+                return index
 
     @property
     def abs_position(self):
