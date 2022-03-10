@@ -56,12 +56,31 @@ def test_init():
 
 # apply
 
-def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
-    '''
-    Test the apply method correctly handles an automatic array of rank 1
-    with known extent.
 
-    '''
+def test_apply_program(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that the apply() method does nothing if the supplied routine
+    is a program. '''
+    code = (
+        "program test\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("  real, dimension(10) :: a\n\n"
+            "  do i = 1, 10, 1\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
+    ''' Test the apply method correctly handles an automatic array of rank 1
+    with known extent. '''
     code = (
         "module my_mod\n"
         "contains\n"
@@ -98,11 +117,8 @@ def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
 
 
 def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
-    '''
-    Test that the transformation correctly handles an array with rank > 1
-    and extents specified by imported variables.
-
-    '''
+    ''' Test that the transformation correctly handles an array with rank > 1
+    and extents specified by imported variables. '''
     code = (
         "module my_mod\n"
         "  use some_mod\n"
@@ -127,12 +143,9 @@ def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
 
 
 def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
-    '''
-    Test that the transformation correctly handles an array with extents
+    ''' Test that the transformation correctly handles an array with extents
     specified via subroutine arguments. Also checks when the lower bound
-    is not unity.
-
-    '''
+    is not unity. '''
     code = (
         "module my_mod\n"
         "contains\n"
@@ -155,11 +168,8 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
 
 
 def test_apply_multi_arrays(fortran_reader, fortran_writer):
-    '''
-    Test that the transformation handles the case where we have multiple
-    automatic arrays.
-
-    '''
+    ''' Test that the transformation handles the case where we have multiple
+    automatic arrays. '''
     code = (
         "module my_mod\n"
         "use some_mod, only: jpi, jpj\n"
@@ -187,12 +197,9 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
 
 
 def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
-    '''
-    Check that the transformation handles the case where the name of the
+    ''' Check that the transformation handles the case where the name of the
     symbol to be promoted already exists in the container symbol table and the
-    first choice of new name clashes with a symbol in the subroutine.
-
-    '''
+    first choice of new name clashes with a symbol in the subroutine. '''
     code = (
         "module my_mod\n"
         "  real, allocatable, dimension(:,:), private :: a\n"
@@ -333,10 +340,8 @@ def test_get_local_arrays(fortran_reader):
 # validate
 
 def test_validate_node():
-    '''Test the expected exception is raised if an invalid node is
-    supplied to the transformation.
-
-    '''
+    ''' Test the expected exception is raised if an invalid node is
+    supplied to the transformation. '''
     hoist_trans = HoistLocalArraysTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(None)
@@ -344,11 +349,17 @@ def test_validate_node():
             "a Routine but found 'NoneType'." in str(info.value))
 
 
-def test_validate_ancestor_container():
-    '''Test the expected exception is raised if the supplied assignment is
-    not within a container.
+def test_validate_program():
+    ''' Test that the validate method accepts a Routine that is a Program
+    (since there's nothing to do). '''
+    routine = Routine("my_prog", is_program=True)
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.validate(routine)
 
-    '''
+
+def test_validate_ancestor_container():
+    ''' Test the expected exception is raised if the supplied assignment is
+    not within a container. '''
     hoist_trans = HoistLocalArraysTrans()
     routine = Routine("my_prog")
     with pytest.raises(TransformationError) as info:
