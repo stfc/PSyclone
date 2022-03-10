@@ -1176,3 +1176,20 @@ def test_following_preceding():
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(routine=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
+
+
+def test_node_same_root():
+    '''Test the sameRoot function of the Node class'''
+    parent = Schedule()
+    zero = Statement()
+    one = Statement()
+    parent.addchild(zero)
+    parent.addchild(one)
+
+    assert zero.sameRoot(one)
+
+    parent2 = Schedule()
+    two = Statement()
+    parent2.addchild(two)
+
+    assert zero.sameRoot(two) is False
