@@ -396,6 +396,33 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             "of the parent Container (associated with variable 'b')" in
             str(err.value))
 
+
+def test_validate_symbol_codeblock(fortran_reader):
+    ''' Check that the validate() method raises the expected error if one or
+    more of the local arrays to be hoisted is accessed within a CodeBlock
+    (since it may get renamed as part of the hoisting process). '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "  write(*,*) a(10)\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate(routine)
+    assert ("The supplied routine 'test' contains a local array 'a' which is "
+            "accessed within a CodeBlock ('WRITE(*, *) a(10)')" in
+            str(err.value))
+
+
 # str
 
 
