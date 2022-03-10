@@ -376,14 +376,24 @@ class Node(object):
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
 
-    def __hash__(self):
+    def __eq__(self, other):
         '''
-        Custom hash implementation to control the change to the __eq__
-        definition for subclasses.
-        This needs to be intangible, so the only guarantee for a hash
-        being equal if two nodes are == is to return the class.
+        Checks whether two nodes are equal. The basic implementation of this
+        checks whether the nodes are the same type, and whether all children 
+        of the nodes are equal, and if so then 
+        they are considered equal.
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
         '''
-        return hash(type(self))
+        is_eq = type(self) is type(other)
+        is_eq = is_eq and (len(self.children) == len(other.children))
+        for index in range(len(self.children)):
+            is_eq = is_eq and self.children[index] == other.children[index]
+
+        return is_eq
 
     @staticmethod
     def _validate_child(position, child):
@@ -1103,7 +1113,14 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        position = all_nodes.index(self)
+        # Use of index is risky
+        # position = all_nodes.index(self)
+        position = None
+        for index, node in enumerate(all_nodes):
+            if node is self:
+                position = index
+                break
+
         return all_nodes[position+1:]
 
     def preceding(self, reverse=False, routine=True):

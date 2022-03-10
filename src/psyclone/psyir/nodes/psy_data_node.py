@@ -458,7 +458,11 @@ class PSyDataNode(Statement):
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
-            idx = psy_data_nodes.index(self)
+            idx = None # Can't just use .index on the list.
+            for index, node in enumerate(psy_data_nodes):
+                if node is self:
+                    idx = index
+                    break
             region_name += ":r{0}".format(idx)
 
         if not options:
