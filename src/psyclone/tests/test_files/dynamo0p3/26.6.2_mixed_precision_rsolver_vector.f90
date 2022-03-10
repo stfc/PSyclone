@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,30 +29,38 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example where the field is dereferenced from an r_solver_vector_type
+! and therefore has no type information. The LFRic rules state that an
+! r_solver_vector_type can only contain fields of type
+! r_solver_field_type in LFRic code. This is checked at runtime by the
+! algorithm code using a select statement.
 
-program operator_example
+module vector_type
 
-  use constants_mod,                 only : i_def, r_def
-  use fs_continuity_mod,             only : W3
-  use function_space_collection_mod, only : function_space_collection
-  use field_mod,                     only : field_type
-  use operator_mod,                  only : operator_type
-  use quadrature_xyoz_mod,           only : quadrature_xyoz_type
-  use testkern_operator_read_mod,    only : testkern_operator_read_type
+  use constants_mod,    only : r_def
+  use vector_mod,       only : abstract_vector_type
+  use field_vector_mod, only : field_vector_type
+  use field_mod,        only : field_type
+  use testkern_mod,     only : testkern_type
 
-  type(field_type)                    :: coord(3)
-  type(operator_type)                 :: mm_w3
-  type(quadrature_xyoz_type), pointer :: qr => null
-  integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
-  integer(i_def)                      :: a
+contains
 
-  a = 1_i_def
-  mm_w3 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W3), &
-                        function_space_collection%get_fs(mesh_id,element_order,W3))
+  type :: some_type
+     type(r_solver_field_vector_type) :: vec_type(10)
+   contains
+     procedure, public :: my_sub
+  end type some_type
 
-  call invoke(testkern_operator_read_type(mm_w3, coord, a, qr))
+  contains
 
-end program operator_example
+  subroutine my_sub(self, x, m1, m2)
+    class(some_type), intent(inout) :: self
+    type(r_solver_field_vector_type), intent(inout) :: x
+    type(field_type), intent(inout) :: m1, m2
+    real(r_def) :: a
+    call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
+  end subroutine my_sub
+
+end module vector_type

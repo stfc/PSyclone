@@ -31,54 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''This module contains LFRic Algorithm-layer-specific PSyIR classes.
+'''This module tests the contents of the lfric_constants.py file.'''
 
-'''
-from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
-                                              KernelFunctor)
+from psyclone.domain.lfric import LFRicConstants
 
 
-class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
-    '''An invoke call from the LFRic Algorithm layer.'''
+def test_quadrature_type_map():
+    '''Check that QUADRATURE_TYPE_MAP contains the expected structure.'''
 
-    _children_valid_format = "[LFRicKernelFunctor|LFRicBuiltinFunctor]*"
-    _text_name = "LFRicAlgorithmInvokeCall"
+    quadrature_types = ["gh_quadrature_xyoz", "gh_quadrature_face",
+                        "gh_quadrature_edge"]
+    quadrature_properties = ["module", "type", "proxy_type", "intrinsic",
+                             "kind"]
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return isinstance(child, (LFRicKernelFunctor, LFRicBuiltinFunctor))
-
-    @staticmethod
-    def _def_container_root_name(node):
-        '''
-        :returns: the root name to use for the container.
-        :rtype: str
-        '''
-        return f"{node.name}_psy"
-
-
-class LFRicBuiltinFunctor(KernelFunctor):
-    '''Object containing an LFRic builtin call, a description of its
-    required interface and the arguments to be passed to it.
-
-    '''
-    _text_name = "LFRicBuiltinFunctor"
-
-
-class LFRicKernelFunctor(KernelFunctor):
-    '''Object containing an LFRic kernel call, a description of its
-    required interface and the arguments to be passed to it.
-
-    '''
-    _text_name = "LFRicKernelFunctor"
+    assert len(LFRicConstants.QUADRATURE_TYPE_MAP) == len(quadrature_types)
+    for quadrature_type in quadrature_types:
+        assert quadrature_type in LFRicConstants.QUADRATURE_TYPE_MAP
+        info = LFRicConstants.QUADRATURE_TYPE_MAP[quadrature_type]
+        assert len(info) == len(quadrature_properties)
+        for item in info:
+            assert item in quadrature_properties

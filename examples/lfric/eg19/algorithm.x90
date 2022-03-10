@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,40 +31,25 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author: R. W. Ford, STFC Daresbury Laboratory
 
-program multikernel_invokes_7
+! Example of calling the same kernel with data that might be of
+! different precisions. Scalars, fields and operators are provided as
+! an illustration.
 
-  ! Multiple kernel calls within an invoke where the fields updated by
-  ! the two kernels are on different spaces
+program mixed_precision
 
-  use constants_mod,       only: r_def, i_def
-  use field_mod,           only: field_type
-  use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use ru_kernel_mod,       only: ru_kernel_type
-  use testkern_mod,        only: testkern_type
+  use constants_mod, only : r_def, r_solver
+  use mixed_kernel_mod, only : mixed_kernel_type
 
-  implicit none
+  real(r_def)                  :: scalar_r_def
+  real(r_solver)               :: scalar_r_solver
+  type(field_type)             :: field_r_def
+  type(r_solver_field_type)    :: field_r_solver
+  type(operator_type)          :: operator_r_def
+  type(r_solver_operator_type) :: operator_r_solver
 
-  type(field_type)           :: a, b, c, d, e(3), f, g, h
-  real(r_def)                :: ascalar, rdt
-  integer(i_def)             :: istp
-  type(quadrature_xyoz_type) :: qr
+  call invoke(mixed_kernel_type(scalar_r_def, field_r_def, operator_r_def),          &
+              mixed_kernel_type(scalar_r_solver, field_r_solver, operator_r_solver))
 
-  call invoke(                                            &
-               ! h is written, rest are read-only
-               testkern_type(rdt, h, f, c, d),            &
-               ! b is written, rest are read-only
-               testkern_type(rdt, b, f, c, d),            &
-               ! b is gh_inc, rest are read-only
-               ru_kernel_type(b, a, istp, rdt, c, e, qr), &
-               ! g is gh_inc, rest are read-only
-               ru_kernel_type(g, a, istp, rdt, c, e, qr), &
-               ! f is written, rest are read-only
-               testkern_type(ascalar, f, b, c, d) )
-
-  ! => b and h must be intent(inout)
-  ! => g and f must be intent(inout)
-  ! => a, c, d and e are intent(in)
-end program multikernel_invokes_7
+end program mixed_precision

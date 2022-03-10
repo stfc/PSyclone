@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module provides a class with all LFRic related constants.
@@ -227,14 +228,14 @@ class LFRicConstants(object):
         # discontinuous). The number of 'ANY_SPACE' spaces is set in the
         # PSyclone configuration file.
         LFRicConstants.VALID_ANY_SPACE_NAMES = [
-            "any_space_{0}".format(x+1) for x in
+            f"any_space_{x+1}" for x in
             range(api_config.num_any_space)]
 
         # Valid any_discontinuous_space metadata (general FS known to be
         # discontinuous). The number of 'ANY_DISCONTINUOU_SPACE' spaces is
         # set in the PSyclone configuration file.
         LFRicConstants.VALID_ANY_DISCONTINUOUS_SPACE_NAMES = [
-            "any_discontinuous_space_{0}".format(x+1) for x in
+            f"any_discontinuous_space_{x+1}" for x in
             range(api_config.num_any_discontinuous_space)]
 
         # Valid discontinuous FS names (for optimisation purposes)
@@ -313,13 +314,20 @@ class LFRicConstants(object):
                          "proxy_type": "operator_proxy_type",
                          "intrinsic": "real",
                          "kind": "r_def"},
-            # 'real'-valued columnwise operator with data of kind 'r_def'
+            # 'real'-valued operator with data of kind 'r_solver'
+            "r_solver_operator": {
+                "module": "operator_mod",
+                "type": "r_solver_operator_type",
+                "proxy_type": "r_solver_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_solver"},
+            # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
-                "kind": "r_def"}}
+                "kind": "r_solver"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
@@ -335,13 +343,19 @@ class LFRicConstants(object):
         LFRicConstants.QUADRATURE_TYPE_MAP = {
             "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
                                    "type": "quadrature_xyoz_type",
-                                   "proxy_type": "quadrature_xyoz_proxy_type"},
+                                   "proxy_type": "quadrature_xyoz_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"},
             "gh_quadrature_face": {"module": "quadrature_face_mod",
                                    "type": "quadrature_face_type",
-                                   "proxy_type": "quadrature_face_proxy_type"},
+                                   "proxy_type": "quadrature_face_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"},
             "gh_quadrature_edge": {"module": "quadrature_edge_mod",
                                    "type": "quadrature_edge_type",
-                                   "proxy_type": "quadrature_edge_proxy_type"}}
+                                   "proxy_type": "quadrature_edge_proxy_type",
+                                   "intrinsic": "real",
+                                   "kind": "r_def"}}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type associated with mesh.
