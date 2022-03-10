@@ -1113,8 +1113,6 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        # Use of index is risky
-        # position = all_nodes.index(self)
         position = None
         for index, node in enumerate(all_nodes):
             if node is self:
@@ -1154,7 +1152,11 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        position = all_nodes.index(self)
+        position = None
+        for index, node in enumerate(all_nodes):
+            if node is self:
+                position = index
+                break
         nodes = all_nodes[:position]
         if reverse:
             nodes.reverse()
