@@ -52,6 +52,20 @@ from psyclone.tests.utilities import check_links
 from psyclone.psyir.nodes.node import colored
 
 
+# Test Operation class. These are mostly covered by the subclass tests.
+def test_operation_named_arg_str():
+    '''Check the output of str from the Operation class when there is a
+    mixture of positional and named arguments. We use a
+    BinaryOperation example to exercise this method.
+
+    '''
+    lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.SUM
+    binaryoperation = BinaryOperation.create(oper, lhs, ("named_arg", rhs))
+    assert "named_arg=Reference[name:'tmp2']" in str(binaryoperation)
+
+
 # Test BinaryOperation class
 def test_binaryoperation_initialization():
     ''' Check the initialization method of the BinaryOperation class works
@@ -115,6 +129,26 @@ def test_binaryoperation_create():
     assert result == "tmp1 + tmp2"
 
 
+def test_binaryoperation_named_create():
+    '''Test that the create method in the BinaryOperation class correctly
+    creates a BinaryOperation instance when one or more of the
+    arguments is a named argument.
+
+    '''
+    lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.SUM
+    binaryoperation = BinaryOperation.create(oper, lhs, ("dim", rhs))
+    check_links(binaryoperation, [lhs, rhs])
+    result = FortranWriter().binaryoperation_node(binaryoperation)
+    assert result == "SUM(tmp1, dim=tmp2)"
+    binaryoperation = BinaryOperation.create(
+        oper, ("dummy", lhs.detach()), ("dim", rhs.detach()))
+    check_links(binaryoperation, [lhs, rhs])
+    result = FortranWriter().binaryoperation_node(binaryoperation)
+    assert result == "SUM(dummy=tmp1, dim=tmp2)"
+
+
 def test_binaryoperation_create_invalid():
     '''Test that the create method in a BinaryOperation class raises the
     expected exception if the provided input is invalid.
@@ -142,6 +176,22 @@ def test_binaryoperation_create_invalid():
         _ = BinaryOperation.create(add, ref1, "invalid")
     assert ("Item 'str' can't be child 1 of 'BinaryOperation'. The valid "
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
+
+    # rhs is an invalid tuple (too many elements)
+    oper = BinaryOperation.Operator.SUM
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create(oper, ref1, (1, 2, 3))
+    assert ("If the rhs argument in create method of BinaryOperation class "
+            "is a tuple, it's length should be 2, but it is 3."
+            in str(excinfo.value))
+
+    # rhs is an invalid tuple (1st element not str)
+    oper = BinaryOperation.Operator.SUM
+    with pytest.raises(GenerationError) as excinfo:
+        _ = BinaryOperation.create(oper, ref1, (1, 2))
+    assert ("If the rhs argument in create method of BinaryOperation class "
+            "is a tuple, its first argument should be a str, but found "
+            "int." in str(excinfo.value))
 
 
 def test_binaryoperation_children_validation():
@@ -250,9 +300,56 @@ def test_unaryoperation_create():
     assert result == "SIN(tmp)"
 
 
-def test_unaryoperation_create_invalid():
+def test_unaryoperation_named_create():
+    '''Test that the create method in the UnaryOperation class correctly
+    creates a UnaryOperation instance when there is a named argument.
+
+    '''
+    child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    oper = UnaryOperation.Operator.SIN
+    unaryoperation = UnaryOperation.create(oper, ("name", child))
+    assert unaryoperation._named_args == ["name"]
+    check_links(unaryoperation, [child])
+    result = FortranWriter().unaryoperation_node(unaryoperation)
+    assert result == "SIN(name=tmp)"
+
+
+def test_unaryoperation_create_invalid1():
     '''Test that the create method in a UnaryOperation class raises the
-    expected exception if the provided input is invalid.
+    expected exception if the provided argument is a tuple that does
+    not have 2 elements.
+
+    '''
+    # oper not a UnaryOperator.Operator.
+    oper = UnaryOperation.Operator.SIN
+    with pytest.raises(GenerationError) as excinfo:
+        _ = UnaryOperation.create(
+            oper, (1, 2, 3))
+    assert ("If the argument in the create method of UnaryOperation class is "
+            "a tuple, it's length should be 2, but it is 3."
+            in str(excinfo.value))
+
+
+def test_unaryoperation_create_invalid2():
+    '''Test that the create method in a UnaryOperation class raises the
+    expected exception if the provided argument is a tuple and the
+    first element of the tuple is not a string.
+
+    '''
+    # oper not a UnaryOperator.Operator.
+    oper = UnaryOperation.Operator.SIN
+    with pytest.raises(GenerationError) as excinfo:
+        _ = UnaryOperation.create(
+            oper, (1, 2))
+    assert ("If the argument in the create method of UnaryOperation class "
+            "is a tuple, its first argument should be a str, but found int."
+            in str(excinfo.value))
+
+
+def test_unaryoperation_create_invalid3():
+    '''Test that the create method in a UnaryOperation class raises the
+    expected exception if the provided argument is a tuple with the
+    wrong number of arguments.
 
     '''
     # oper not a UnaryOperator.Operator.
@@ -351,6 +448,23 @@ def test_naryoperation_create():
     assert result == "MAX(tmp1, tmp2, tmp3)"
 
 
+def test_naryoperation_named_create():
+    '''Test that the create method in the NaryOperation class correctly
+    creates a NaryOperation instance when one of the arguments is a
+    named argument.
+
+    '''
+    children = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
+    oper = NaryOperation.Operator.MAX
+    naryoperation = NaryOperation.create(
+        oper, [children[0], children[1], ("name", children[2])])
+    check_links(naryoperation, children)
+    result = FortranWriter().naryoperation_node(naryoperation)
+    assert result == "MAX(tmp1, tmp2, name=tmp3)"
+
+
 def test_naryoperation_create_invalid():
     '''Test that the create method in an NaryOperation class raises the
     expected exception if the provided input is invalid.
@@ -363,11 +477,30 @@ def test_naryoperation_create_invalid():
             "be a PSyIR NaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
+    oper = NaryOperation.Operator.SUM
+
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(NaryOperation.Operator.SUM, "invalid")
+        _ = NaryOperation.create(oper, "invalid")
     assert ("children argument in create method of NaryOperation class should "
             "be a list but found 'str'." in str(excinfo.value))
+
+    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+
+    # rhs is an invalid tuple (too many elements)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create(oper, [ref1, ref2, (1, 2, 3)])
+    assert ("If a child of the children argument in create method of "
+            "NaryOperation class is a tuple, it's length should be 2, "
+            "but found 3." in str(excinfo.value))
+
+    # rhs is an invalid tuple (1st element not str)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = NaryOperation.create(oper, [ref1, ref2, (1, 2)])
+    assert ("If a child of the children argument in create method of "
+            "NaryOperation class is a tuple, its first argument should "
+            "be a str, but found int." in str(excinfo.value))
 
 
 def test_naryoperation_children_validation():

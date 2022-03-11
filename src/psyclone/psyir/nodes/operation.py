@@ -197,14 +197,15 @@ class UnaryOperation(Operation):
         if isinstance(child, tuple):
             if not len(child) == 2:
                 raise GenerationError(
-                    f"If the {name} argument in create method of "
+                    f"If the argument in the create method of "
                     f"UnaryOperation class is a tuple, it's length "
-                    f"should be 2, but it is {len(arg)}.")
+                    f"should be 2, but it is {len(child)}.")
             if not isinstance(child[0], str):
                 raise GenerationError(
-                    f"If the {name} argument in create method of "
+                    f"If the argument in the create method of "
                     f"UnaryOperation class is a tuple, its first "
-                    f"argument should be a str, but found {type(arg[0])}.")
+                    f"argument should be a str, but found "
+                    f"{type(child[0]).__name__}.")
             name, child = child
 
         unary_op._named_args = [name]
@@ -368,7 +369,8 @@ class BinaryOperation(Operation):
                     raise GenerationError(
                         f"If the {name} argument in create method of "
                         f"BinaryOperation class is a tuple, its first "
-                        f"argument should be a str, but found {type(arg[0])}.")
+                        f"argument should be a str, but found "
+                        f"{type(arg[0]).__name__}.")
 
         lhs_name = None
         if isinstance(lhs, tuple):
@@ -449,14 +451,14 @@ class NaryOperation(Operation):
                 if not len(arg) == 2:
                     raise GenerationError(
                         f"If a child of the children argument in create "
-                        f"method of BinaryOperation class is a tuple, it's "
+                        f"method of NaryOperation class is a tuple, it's "
                         f"length should be 2, but found {len(arg)}.")
                 if not isinstance(arg[0], str):
                     raise GenerationError(
                         f"If a child of the children argument in create "
-                        f"method of BinaryOperation class is a tuple, "
+                        f"method of NaryOperation class is a tuple, "
                         f"its first argument should be a str, but found "
-                        f"{type(arg[0])}.")
+                        f"{type(arg[0]).__name__}.")
                 name, arg = arg
             names.append(name)
             args.append(arg)

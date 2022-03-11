@@ -122,7 +122,8 @@ class Call(Statement, DataNode):
                     raise GenerationError(
                         f"If a child of the children argument in create "
                         f"method of Call class is a tuple, its first "
-                        f"argument should be a str, but found {type(arg[0])}.")
+                        f"argument should be a str, but found "
+                        f"{type(arg[0]).__name__}.")
                 name, arg = arg
             names.append(name)
             args.append(arg)
@@ -156,8 +157,9 @@ class Call(Statement, DataNode):
     @property
     def named_args(self):
         '''
-        :returns: the *****
-        :rtype: py:class:`*****`
+        :returns: a list containing the names of named arguments. If the \
+            entry is None then the argument is a positional argument.
+        :rtype: list of str
         '''
         return self._named_args
 

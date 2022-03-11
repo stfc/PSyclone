@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,16 +83,20 @@ def test_call_init_error():
 
 @pytest.mark.parametrize("cls", [Call, SpecialCall])
 def test_call_create(cls):
-    '''Test that the create method creates a valid call with arguments'''
+    '''Test that the create method creates a valid call with arguments,
+    some of which are named. Also checks the routine and named_args
+    properties.
 
+    '''
     routine = RoutineSymbol("ellie", INTEGER_TYPE)
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                  ArrayReference(DataSymbol("arg2", array_type))]
-    call = cls.create(routine, arguments)
+    call = cls.create(routine, [arguments[0], ("name", arguments[1])])
     # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
     assert call.routine is routine
+    assert call.named_args == [None, "name"]
     for idx, child, in enumerate(call.children):
         assert child is arguments[idx]
         assert child.parent is call
@@ -109,7 +113,7 @@ def test_call_create_error1():
             "found 'NoneType'." in str(info.value))
 
 
-def test_call_error2():
+def test_call_create_error2():
     '''Test that the appropriate exception is raised if the arguments
     argument to the create method is not a list'''
     routine = RoutineSymbol("isaac", NoType())
@@ -119,7 +123,31 @@ def test_call_error2():
             "'NoneType'." in str(info.value))
 
 
-def test_call_error3():
+def test_call_create_error3():
+    '''Test that the appropriate exception is raised if an entry in the
+    arguments argument to the create method is is a tuple that does
+    not have two elements.'''
+    routine = RoutineSymbol("isaac", NoType())
+    with pytest.raises(GenerationError) as info:
+        _ = Call.create(routine, [(1, 2, 3)])
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, it's length should be 2, but found 3."
+            in str(info.value))
+
+
+def test_call_create_error4():
+    '''Test that the appropriate exception is raised if an entry in the
+    arguments argument to the create method is is a tuple with two
+    elements and the first element is not a string.'''
+    routine = RoutineSymbol("isaac", NoType())
+    with pytest.raises(GenerationError) as info:
+        _ = Call.create(routine, [(1, 2)])
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, its first argument should be a str, but "
+            "found int." in str(info.value))
+
+
+def test_call_create_error5():
     '''Test that the appropriate exception is raised if one or more of the
     arguments argument list entries to the create method is not a
     DataNode.
@@ -128,7 +156,8 @@ def test_call_error3():
     routine = RoutineSymbol("roo", INTEGER_TYPE)
     with pytest.raises(GenerationError) as info:
         _ = Call.create(
-            routine, [Reference(DataSymbol("arg1", INTEGER_TYPE)), None])
+            routine, [Reference(DataSymbol(
+                "arg1", INTEGER_TYPE)), ("name", None)])
     assert ("Item 'NoneType' can't be child 1 of 'Call'. The valid format "
             "is: '[DataNode]*'." in str(info.value))
 
