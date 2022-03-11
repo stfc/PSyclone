@@ -31,13 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
 '''This module contains LFRic Algorithm-layer-specific PSyIR classes.
 
 '''
 from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
                                               KernelFunctor)
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
@@ -82,3 +83,49 @@ class LFRicKernelFunctor(KernelFunctor):
 
     '''
     _text_name = "LFRicKernelFunctor"
+
+
+# Generate classes representing LFRic BuiltIn Functors.
+
+#: Dictionary of BuiltIn Functors, indexed by lower-case name.
+BUILTIN_FUNCTOR_MAP = {}
+
+for name in BUILTIN_MAP_CAPITALISED:
+    code = (
+        f"class LFRic_{name}_Functor(LFRicBuiltinFunctor):\n"
+        f"\n"
+        f"    @classmethod\n"
+        f"    def create(cls, table, arguments):\n"
+        f"        from psyclone.psyir.symbols import DataTypeSymbol, "
+        f"StructureType, Symbol\n"
+        # We can't use find_or_create() here as that raises an Exception if
+        # the symbol that is found is not of the correct type.
+        f"        try:\n"
+        f"            sym = table.lookup('{name}')\n"
+        f"            if type(sym) is Symbol:\n"
+        f"                sym.specialise(DataTypeSymbol)\n"
+        f"                sym.datatype = StructureType()\n"
+        f"        except KeyError:\n"
+        f"            sym = table.new_symbol('{name}',\n"
+        f"                                   symbol_type=DataTypeSymbol,\n"
+        f"                                   datatype=StructureType())\n"
+        f"\n"
+        f"        return super().create(sym, arguments)\n"
+        f"\n"
+        f"    def lower_to_language_level(self):\n"
+        f"        ''' Remove the symbol representing this BuiltIn as it only\n"
+        f"        exists in the DSL. '''\n"
+        f"        table = self.scope.symbol_table\n"
+        f"        try:\n"
+        f"            sym = table.lookup('{name}')\n"
+        f"            table.remove(sym)\n"
+        f"        except KeyError:\n"
+        f"            pass\n"
+        f"\n"
+        f"BUILTIN_FUNCTOR_MAP['{name.lower()}'] = LFRic_{name}_Functor\n")
+    exec(code)
+
+
+# For AutoAPI documentation generation.
+__all__ = ['LFRicAlgorithmInvokeCall', 'LFRicBuiltinFunctor',
+           'LFRicKernelFunctor', 'BUILTIN_FUNCTOR_MAP']

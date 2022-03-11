@@ -43,9 +43,8 @@ from fparser.two.Fortran2003 import Actual_Arg_Spec
 from psyclone.psyir.nodes import ArrayReference
 
 from psyclone.domain.common.transformations import InvokeCallTrans
-from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
-    LFRicKernelFunctor, LFRicAlgorithmInvokeCall
-from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+from psyclone.domain.lfric.algorithm import (
+    LFRicKernelFunctor, LFRicAlgorithmInvokeCall, BUILTIN_FUNCTOR_MAP)
 
 
 class LFRicInvokeCallTrans(InvokeCallTrans):
@@ -72,18 +71,16 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
         calls = []
         for call_arg in call.children:
 
-            arg_info = []
             if isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
-                name = call_arg.name
-                if name in builtins:
-                    node_type = LFRicBuiltinFunctor
-                    type_symbol = call.scope.symbol_table.lookup(name)
+                if call_arg.name in BUILTIN_FUNCTOR_MAP:
+                    calls.append(BUILTIN_FUNCTOR_MAP[call_arg.name].create(
+                        call.scope.symbol_table, args))
                 else:
-                    node_type = LFRicKernelFunctor
-                    type_symbol = call_arg.symbol
-                arg_info.append((node_type, type_symbol, args))
+                    self._specialise_symbol(call_arg.symbol)
+                    calls.append(LFRicKernelFunctor.create(call_arg.symbol,
+                                                           args))
             else:
                 for fp2_node in call_arg._fp2_nodes:
                     if isinstance(fp2_node, Actual_Arg_Spec):
@@ -91,19 +88,17 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                         call_name = fp2_node.children[1].string
                     else:
                         # This child is a kernel or builtin
-                        name = fp2_node.children[0].string
-                        if name in builtins:
-                            node_type = LFRicBuiltinFunctor
-                        else:
-                            node_type = LFRicKernelFunctor
-                        type_symbol = InvokeCallTrans._get_symbol(
-                            call, fp2_node)
                         args = InvokeCallTrans._parse_args(call_arg, fp2_node)
-                        arg_info.append((node_type, type_symbol, args))
-
-            for (node_type, type_symbol, args) in arg_info:
-                self._specialise_symbol(type_symbol)
-                calls.append(node_type.create(type_symbol, args))
+                        name = fp2_node.children[0].string
+                        if name in BUILTIN_FUNCTOR_MAP:
+                            calls.append(BUILTIN_FUNCTOR_MAP[name].create(
+                                call.scope.symbol_table, args))
+                        else:
+                            type_symbol = InvokeCallTrans._get_symbol(
+                                call, fp2_node)
+                            self._specialise_symbol(type_symbol)
+                            calls.append(LFRicKernelFunctor.create(type_symbol,
+                                                                   args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)
