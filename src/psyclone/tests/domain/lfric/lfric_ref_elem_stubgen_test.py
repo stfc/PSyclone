@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing pytest tests for the reference-element stub generation
@@ -105,7 +106,7 @@ def test_refelem_stub_gen():
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3, "
         "nfaces_re_h, nfaces_re_v, normals_to_horiz_faces, "
         "normals_to_vert_faces)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"

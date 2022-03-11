@@ -283,6 +283,8 @@ def test_apply_tagged_symbol(fortran_reader):
     assert isinstance(cont, Container)
     sym = cont.symbol_table.lookup_with_tag("important_tag")
     assert sym is orig_sym
+    # Check that the tag has also been removed from the routine symbol table.
+    assert "important_tag" not in routine.symbol_table.tags_dict
 
 
 def test_apply_array_valued_function(fortran_reader, fortran_writer, tmpdir):
@@ -322,6 +324,7 @@ def test_get_local_arrays(fortran_reader):
         "  use some_mod, only: b\n"
         "  real, dimension(10,10), intent(in) :: c\n"
         "  real, dimension(10) :: wrk\n"
+        "  real, dimension(:), allocatable :: wrk2\n"
         "  integer :: i\n"
         "  real :: a(10)\n"
         "  do i=1,10\n"
@@ -335,6 +338,32 @@ def test_get_local_arrays(fortran_reader):
     symbols = hoist_trans._get_local_arrays(routine)
     assert len(symbols) == 1
     assert symbols[0] is routine.symbol_table.lookup("wrk")
+
+
+def test_get_local_arrays_codeblock(fortran_reader):
+    ''' Check that the _get_local_arrays() method excludes any of the
+    local arrays if they are accessed within a CodeBlock (since they
+    may get renamed as part of the hoisting process). We check for the
+    situation where we have more than one CodeBlock and the same symbol
+    is referenced in both. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer :: i\n"
+        "  real :: a(10), b(10)\n"
+        "  a(:) = 1.0\n"
+        "  write(*,*) a(10)\n"
+        "  b(:) = 1.0\n"
+        "  write(*,*) b(1),a(1)\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    assert hoist_trans._get_local_arrays(routine) == []
+    # TODO #11. Once logging is implemented check that the exclusion of 'a'
+    # and 'b' has been logged.
 
 
 # validate
@@ -405,32 +434,6 @@ def test_validate_tagged_symbol_clash(fortran_reader):
     assert ("The supplied routine 'test' contains a local array 'a' with tag "
             "'important_tag' but this tag is also present in the symbol table "
             "of the parent Container (associated with variable 'b')" in
-            str(err.value))
-
-
-def test_validate_symbol_codeblock(fortran_reader):
-    ''' Check that the validate() method raises the expected error if one or
-    more of the local arrays to be hoisted is accessed within a CodeBlock
-    (since it may get renamed as part of the hoisting process). '''
-    code = (
-        "module my_mod\n"
-        "contains\n"
-        "subroutine test\n"
-        "  integer :: i\n"
-        "  real :: a(10)\n"
-        "  do i=1,10\n"
-        "    a(i) = 1.0\n"
-        "  end do\n"
-        "  write(*,*) a(10)\n"
-        "end subroutine test\n"
-        "end module my_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    hoist_trans = HoistLocalArraysTrans()
-    with pytest.raises(TransformationError) as err:
-        hoist_trans.validate(routine)
-    assert ("The supplied routine 'test' contains a local array 'a' which is "
-            "accessed within a CodeBlock ('WRITE(*, *) a(10)')" in
             str(err.value))
 
 

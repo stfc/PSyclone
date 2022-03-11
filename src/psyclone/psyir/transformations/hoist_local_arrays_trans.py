@@ -124,8 +124,9 @@ class HoistLocalArraysTrans(Transformation):
 
         container = node.ancestor(Container)
 
-        # Identify all arrays that are local to the target routine and
-        # do not explicitly use dynamic memory allocation.
+        # Identify all arrays that are local to the target routine,
+        # do not explicitly use dynamic memory allocation and are not
+        # accessed within a CodeBlock.
         automatic_arrays = self._get_local_arrays(node)
 
         if not automatic_arrays:
@@ -180,19 +181,24 @@ class HoistLocalArraysTrans(Transformation):
         # routine.
         node.children.insert(0, IfBlock.create(if_expr, body))
 
-        # Finally, remove the hoisted symbols from the routine scope.
+        # Finally, remove the hoisted symbols (and any associated tags)
+        # from the routine scope.
         for sym in automatic_arrays:
             # TODO #898:Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
+            tag = tags_dict.get(sym)
+            if tag:
+                del node.symbol_table._tags[tag]
 
     @staticmethod
     def _get_local_arrays(node):
         '''
         Identify all arrays that are local to the target routine, do not
         represent its return value and do not explicitly use dynamic memory
-        allocation.
+        allocation. Also excludes any such arrays that are accessed within
+        CodeBlocks.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -201,14 +207,30 @@ class HoistLocalArraysTrans(Transformation):
         :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
-        local_arrays = []
+        local_arrays = {}
         for sym in node.symbol_table.local_datasymbols:
             if sym is node.return_symbol or not sym.is_array:
                 continue
+            # Check whether all of the bounds of the array are defined - an
+            # allocatable array will have array dimensions of
+            # ArrayType.Extent.DEFERRED
             if all(isinstance(dim, ArrayType.ArrayBounds)
                    for dim in sym.shape):
-                local_arrays.append(sym)
-        return local_arrays
+                local_arrays[sym.name] = sym
+
+        # Exclude any arrays that are accessed within a CodeBlock (as they
+        # may get renamed as part of the transformation).
+        cblocks = node.walk(CodeBlock)
+        for cblock in cblocks:
+            cblock_names = set(cblock.get_symbol_names())
+            array_names = set(local_arrays.keys())
+            names_in_cblock = cblock_names.intersection(array_names)
+            # TODO #11 - log the fact that we can't hoist the arrays
+            # listed in 'names_in_cblock'.
+            for name in names_in_cblock:
+                del local_arrays[name]
+
+        return list(local_arrays.values())
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist-
@@ -226,8 +248,6 @@ class HoistLocalArraysTrans(Transformation):
         :raises TransformationError: if any symbols corresponding to local \
             arrays have a tag that already exists in the table of the parent \
             Container.
-        :raises TransformationError: if any symbols corresponding to local \
-            arrays appear within any CodeBlocks inside the Routine.
 
         '''
         super().validate(node, options=options)
@@ -269,19 +289,6 @@ class HoistLocalArraysTrans(Transformation):
                     f"also present in the symbol table of the parent "
                     f"Container (associated with variable "
                     f"'{cont_tags_dict[tag].name}').")
-
-        # Check that none of the arrays to be hoisted are accessed with a
-        # CodeBlock (as they may get renamed as part of the transformation).
-        array_names = set(sym.name for sym in auto_arrays)
-        cblocks = node.walk(CodeBlock)
-        for cblock in cblocks:
-            cblock_names = set(cblock.get_symbol_names())
-            if cblock_names.intersection(array_names):
-                cblock_txt = ''.join(str(fpn) for fpn in cblock.get_ast_nodes)
-                raise TransformationError(
-                    f"The supplied routine '{node.name}' contains a local "
-                    f"array '{sym.name}' which is accessed within a CodeBlock "
-                    f"('{cblock_txt}'). Cannot hoist such an array.")
 
     def __str__(self):
         return "Hoist all local, automatic arrays to container scope."
