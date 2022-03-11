@@ -46,10 +46,11 @@ import pytest
 
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, \
-    LFRicBuiltinFunctor
+    LFRicBuiltinFunctor, BUILTIN_FUNCTOR_MAP
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, REAL_TYPE
 
@@ -212,3 +213,22 @@ def test_lfrickernelfunctor():
     lbc = LFRicKernelFunctor(routine)
     assert isinstance(lbc, LFRicKernelFunctor)
     assert lbc._text_name == "LFRicKernelFunctor"
+
+
+@pytest.mark.parametrize("name", list(BUILTIN_MAP.keys()))
+def test_lfric_auto_gen_builtin_functor(name):
+    ''' Test that the auto-generated BuiltIn functor classes can be created
+    and lowered and that an appropriate symbol is added to/removed from the
+    supplied table. '''
+    sched = Routine("my_prog", is_program=True)
+    table = sched.symbol_table
+    lbc = BUILTIN_FUNCTOR_MAP[name]
+    funky = lbc.create(table, [])
+    assert isinstance(funky, LFRicBuiltinFunctor)
+    sym = table.lookup(name)
+    assert isinstance(sym, DataTypeSymbol)
+    routine = RoutineSymbol("hello")
+    call = LFRicAlgorithmInvokeCall.create(routine, [funky], 0)
+    sched.addchild(call)
+    funky.lower_to_language_level()
+    assert name not in table._symbols

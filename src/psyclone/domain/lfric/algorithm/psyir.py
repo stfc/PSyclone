@@ -118,7 +118,9 @@ for name in BUILTIN_MAP_CAPITALISED:
         f"        table = self.scope.symbol_table\n"
         f"        try:\n"
         f"            sym = table.lookup('{name}')\n"
-        f"            table.remove(sym)\n"
+        f"            table = sym.find_symbol_table(self)\n"
+        # TODO #898 SymbolTable.remove() does not yet support DataTypeSymbols.
+        f"            del table._symbols['{name.lower()}']\n"
         f"        except KeyError:\n"
         f"            pass\n"
         f"\n"
