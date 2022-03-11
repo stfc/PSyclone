@@ -937,10 +937,13 @@ class SymbolTable():
         :py:method:`tags_dict`.
 
         :returns: ordered dictionary of tags indexed by symbol.
-        :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`] = str
+        :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`, str]
 
         '''
         tags_dict_reversed = OrderedDict()
+        # TODO #1654. This assumes that there is only ever one tag associated
+        # with a particular Symbol. At present this is guaranteed by the
+        # SymbolTable interface but this restriction may be lifted in future.
         for tag, sym in self._tags.items():
             tags_dict_reversed[sym] = tag
         return tags_dict_reversed
