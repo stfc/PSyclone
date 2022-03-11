@@ -187,7 +187,8 @@ class AlgorithmInvokeCall(Call):
                     f"(optional) name of an invoke must be a string "
                     f"containing a valid name (with any spaces replaced by "
                     f"underscores) but found '{routine_root_name}'.")
-            routine_root_name = f"invoke_{routine_root_name}"
+            if not routine_root_name.startswith("invoke"):
+                routine_root_name = f"invoke_{routine_root_name}"
         else:
             routine_root_name = f"invoke_{self._index}"
             if len(self.children) == 1:
@@ -222,9 +223,18 @@ class AlgorithmInvokeCall(Call):
             # the closest ancestor routine instead.
             for node in self.root.walk((Routine, Container)):
                 if not isinstance(node, FileContainer):
-                    self._psylayer_container_root_name = f"psy_{node.name}"
+                    self._psylayer_container_root_name = \
+                        self._def_container_root_name(node)
                     return
             raise InternalError("No Routine or Container node found.")
+
+    @staticmethod
+    def _def_container_root_name(node):
+        '''
+        :returns: the root name to use for the container.
+        :rtype: str
+        '''
+        return f"psy_{node.name}"
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
