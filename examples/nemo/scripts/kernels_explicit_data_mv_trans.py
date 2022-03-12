@@ -115,18 +115,18 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
-                      "cp_air",
-                      "eos_pt_from_ct",
-                      "gamma_moist",
-                      "ice_var_sshdyn", "l_vap",
-                      "sbc_dcy", "solfrac", "One_on_L",
-                      "psi_h", "psi_m", "psi_m_coare",
-                      "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
-                      "q_sat", "rho_air",
-                      "visc_air", "sbc_dcy", "glob_sum",
-                      "glob_sum_full", "ptr_sj", "ptr_sjk",
-                      "interp1", "interp2", "interp3", "integ_spline"])
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq",
+                  "cp_air",
+                  "eos_pt_from_ct",
+                  "gamma_moist",
+                  "ice_var_sshdyn", "l_vap",
+                  "sbc_dcy", "solfrac", "One_on_L",
+                  "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
+                  "q_sat", "rho_air",
+                  "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk",
+                  "interp1", "interp2", "interp3", "integ_spline"]
 
 
 class ExcludeSettings(object):
@@ -388,7 +388,7 @@ def valid_acc_kernel(node):
 def contains_unsupported_sum(intrinsics):
     '''
     Examines the supplied list of intrinsic nodes in the fparser2 parse tree
-    and returns True if it contains a use of the SUM intrinisc with a 'dim'
+    and returns True if it contains a use of the SUM intrinsic with a 'dim'
     argument. (If such a construct is included in a KERNELS region then the
     code produced by v. 18.10 of the PGI compiler seg. faults.)
 
@@ -648,7 +648,7 @@ def try_kernels_trans(nodes):
 def trans(psy):
     '''A PSyclone-script compliant transformation function. Applies
     OpenACC 'kernels' directives to NEMO code. (Data movement is
-    assumed to be handled through PGI's managed-memory functionality.)
+    handled manually, not through CUDA's managed-memory functionality.)
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
