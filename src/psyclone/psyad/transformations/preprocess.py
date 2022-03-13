@@ -39,7 +39,7 @@ translated to adjoint PSyIR.
 
 '''
 from psyclone.psyad.utils import node_is_active_names, node_is_passive_names
-from psyclone.psyir.nodes import BinaryOperation, Assignment
+from psyclone.psyir.nodes import BinaryOperation, Assignment, Range
 from psyclone.psyir.transformations import DotProduct2CodeTrans, \
     Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
 
@@ -82,10 +82,17 @@ def preprocess_trans(kernel_psyir, active_variable_names):
             # Apply MATMUL transformation
             matmul_trans.apply(oper)
 
+    from psyclone.core import SymbolicMaths
     # Deal with any associativity issues here as AssignmentTrans
     # is not able to.
     for assignment in kernel_psyir.walk(Assignment):
-        associativity(assignment, active_variable_names)
+        if assignment.walk(Range):
+            # SymbolicMaths currently does not work if the expression
+            # contains Range nodes, see issue #1655.
+            associativity(assignment, active_variable_names)
+        else:
+            sm = SymbolicMaths.get()
+            sm.expand(assignment.rhs)
 
 
 def associativity(assignment, active_variable_names):
@@ -93,6 +100,9 @@ def associativity(assignment, active_variable_names):
     the rhs of this assignment where x is an inactive expression and a
     and b are active expressions, replacing these patterns with x*a +-
     x*b and a*/x +- b*/x respectively.
+
+    This function can be removed when support for Range nodes is added
+    to thee SymbolicMaths expand function, see issue #1655.
 
     :param assignment: the Assignment Node that we are looking at.
     :type assignment: :py:class:`psyclone.psyir.nodes.Assignment`
