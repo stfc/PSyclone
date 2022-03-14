@@ -91,7 +91,7 @@ class Operation(DataNode):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Operator, self).__eq__(other)
+        is_eq = super(Operation, self).__eq__(other)
         is_eq = is_eq and self.operator == other.operator
         is_eq = is_eq and len(self.children) == len(other.children)
         for i in range(len(self.children)):
