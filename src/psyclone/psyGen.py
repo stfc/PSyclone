@@ -1147,8 +1147,7 @@ class HaloExchange(Statement):
 
 
 class Kern(Statement):
-    '''
-    Base class representing a call to a sub-program unit from within the
+    '''Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
     PSy layer.
 
@@ -1162,18 +1161,21 @@ class Kern(Statement):
         information on the kernel arguments, as extracted from kernel \
         meta-data (and accessible here via call.ktype).
     :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
+
     '''
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, ArgumentsClass):
+    def __init__(self, parent, call, name, ArgumentsClass, check=True):
         super(Kern, self).__init__(self, parent=parent)
-        self._arguments = ArgumentsClass(call, self)
         self._name = name
         self._iterates_over = call.ktype.iterates_over
+        self._arguments = ArgumentsClass(call, self, check=check)
 
         # check algorithm arguments are unique for a kernel or
         # built-in call
@@ -1458,12 +1460,8 @@ class CodedKern(Kern):
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`.
     :param parent: the parent of this Node (kernel call) in the Schedule.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`.
-    :param bool check: Whether or not to check that the number of arguments \
-                       specified in the kernel meta-data matches the number \
-                       provided by the call in the Algorithm layer.
-
-    :raises GenerationError: if(check) and the number of arguments in the \
-                             call does not match that in the meta-data.
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     '''
     # Textual description of the node.
@@ -1471,10 +1469,13 @@ class CodedKern(Kern):
     _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
+        # Set module_name first in case there is an error when
+        # processing arguments, as we can then return the module_name
+        # from where it happened.
+        self._module_name = call.module_name
         super(CodedKern, self).__init__(parent, call,
                                         call.ktype.procedure.name,
-                                        KernelArguments)
-        self._module_name = call.module_name
+                                        KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
@@ -1485,14 +1486,6 @@ class CodedKern(Kern):
         # the PSy layer
         self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
-        if check and len(call.ktype.arg_descriptors) != len(call.args):
-            raise GenerationError(
-                "error: In kernel '{0}' the number of arguments specified "
-                "in the kernel metadata '{1}', must equal the number of "
-                "arguments in the algorithm layer. However, I found '{2}'".
-                format(call.ktype.procedure.name,
-                       len(call.ktype.arg_descriptors),
-                       len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
 
     def get_kernel_schedule(self):
@@ -2395,7 +2388,24 @@ class Argument(object):
         self._precision = None
         self._data_type = None
         self._module_name = None
+        # Default the name to the original name for debugging
+        # purposes. This may be updated when _complete_init() is
+        # called.
+        self._name = self._orig_name
 
+    def _complete_init(self, arg_info):
+        '''Provides the initialisation of name, text and the declaration of
+        symbols in the symbol table if required. This initialisation
+        is not performed in the constructor as subclasses may need to
+        perform additional initialisation before infer_datatype is
+        called (in order to determine the values of precision,
+        data_type and module_name).
+
+        :param arg_info: Information about this argument collected by \
+            the parser.
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+
+        '''
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
             # we do not want an argument (_text=None) but we do want to
@@ -2406,7 +2416,6 @@ class Argument(object):
             # There are unit-tests where we create Arguments without an
             # associated call or InvokeSchedule.
             if self._call and self._call.ancestor(InvokeSchedule):
-
                 symtab = self._call.ancestor(InvokeSchedule).symbol_table
 
                 # Keep original list of arguments
