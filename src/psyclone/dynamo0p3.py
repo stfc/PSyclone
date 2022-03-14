@@ -3944,7 +3944,7 @@ class DynMeshes(object):
 
             # Create an object to capture info. on this inter-grid kernel
             # and store in our dictionary
-            self._ig_kernels[call] = DynInterGrid(fine_arg, coarse_arg)
+            self._ig_kernels[id(call)] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
             _name_set.add("mesh_{0}".format(fine_arg.name))
@@ -4049,7 +4049,7 @@ class DynMeshes(object):
             # This is an inter-grid kernel so look-up the names of
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
-            carg_name = self._ig_kernels[call].coarse.name
+            carg_name = self._ig_kernels[id(call)].coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
             colour_map = self._schedule.symbol_table.find_or_create_tag(
@@ -4074,9 +4074,9 @@ class DynMeshes(object):
                     datatype=array_type_1d).name
             # Add these names into the dictionary entry for this
             # inter-grid kernel
-            self._ig_kernels[call].colourmap = colour_map
-            self._ig_kernels[call].ncolours_var = ncolours
-            self._ig_kernels[call].last_cell_var = last_cell
+            self._ig_kernels[id(call)].colourmap = colour_map
+            self._ig_kernels[id(call)].ncolours_var = ncolours
+            self._ig_kernels[id(call)].last_cell_var = last_cell
 
         if have_non_intergrid and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
@@ -8073,11 +8073,11 @@ class DynKern(CodedKern):
                                 f"coloured loop.")
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            cmap = invoke.meshes.intergrid_kernels[self].colourmap
+            cmap = invoke.meshes.intergrid_kernels[id(self)].colourmap
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
         return cmap
@@ -8100,11 +8100,11 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            return invoke.meshes.intergrid_kernels[self].last_cell_var
+            return invoke.meshes.intergrid_kernels[id(self)].last_cell_var
 
         return self.scope.symbol_table.lookup_with_tag(
             "last_cell_all_colours").name
@@ -8125,11 +8125,11 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes.intergrid_kernels[self].ncolours_var
+            ncols = invoke.meshes.intergrid_kernels[id(self)].ncolours_var
         else:
             ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols

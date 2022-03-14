@@ -395,12 +395,6 @@ class Node(object):
 
         return is_eq
 
-    def __hash__(self):
-        ''' Returns the hash of this object. This is made from the hash of the
-        tuple of its children list and its type.
-        '''
-        return hash(type(self))
-
     @staticmethod
     def _validate_child(position, child):
         '''
