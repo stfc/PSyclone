@@ -376,6 +376,15 @@ class Node(object):
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
 
+    def __hash__(self):
+        '''
+        Custom hash implementation to control the change to the __eq__
+        definition for subclasses.
+        This needs to be intangible, so the only guarantee for a hash
+        being equal if two nodes are == is to return the class.
+        '''
+        return hash(type(self))
+
     @staticmethod
     def _validate_child(position, child):
         '''
