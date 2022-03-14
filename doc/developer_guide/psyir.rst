@@ -754,11 +754,17 @@ The Algorithm-layer subclasses will be used to:
 Algorithm-layer Classes
 -----------------------
 
-The LFRic PSyIR for the Algorithm layer is captured in
-``domain/lfric/algorithm/psyir.py``. Three classes are currently
-provided, one to capture an invoke call, ``LFRicAlgorithmInvokeCall``
+The LFRic PSyIR for the Algorithm layer is captured in the
+``domain/lfric/algorithm/psyir.py`` module. Three classes are currently
+provided statically, one to capture an invoke call, ``LFRicAlgorithmInvokeCall``
 and two to capture Builtin and (coded) Kernel calls within an invoke
 call, ``LFRicBuiltinFunctor`` and ``LFRicKernelFunctor`` respectively.
+
+At the end of the module, code generation is performed to create a
+subclass of ``LFRicBuiltInFunctor`` for every LFRic
+:ref:`Builtin <user_guide:lfric-built-ins>`. These are named following the
+scheme ``LFRic_<BUILTIN_NAME>_Functor`` so that, for example, the ``Setval_X``
+builtin is represented by the ``LFRic_Setval_X_Functor`` class.
 
 Kernel-layer Classes
 --------------------
