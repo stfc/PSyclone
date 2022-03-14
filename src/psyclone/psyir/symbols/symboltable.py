@@ -933,8 +933,8 @@ class SymbolTable():
 
     def get_reverse_tags_dict(self):
         '''
-        Constructs and returns a reverse of the map returned by
-        :py:method:`tags_dict`.
+        Constructs and returns a reverse of the map returned by tags_dict
+        method.
 
         :returns: ordered dictionary of tags indexed by symbol.
         :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`, str]
