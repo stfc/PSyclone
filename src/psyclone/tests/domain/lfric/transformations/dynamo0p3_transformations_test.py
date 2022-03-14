@@ -3813,13 +3813,13 @@ def test_move_back():
     target_index = 0
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_back_after():
@@ -3833,14 +3833,14 @@ def test_move_back_after():
     target_index = 0
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
                      {"position": "after"})
 
     new_arg = schedule.children[target_index+1]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_forward():

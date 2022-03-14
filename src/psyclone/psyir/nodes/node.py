@@ -399,8 +399,7 @@ class Node(object):
         ''' Returns the hash of this object. This is made from the hash of the
         tuple of its children list and its type.
         '''
-        temp_list = (type(self), *self.children)
-        return hash(temp_list)
+        return hash(type(self))
 
     @staticmethod
     def _validate_child(position, child):
