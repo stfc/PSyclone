@@ -39,6 +39,7 @@
 from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
                                               KernelFunctor)
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
+from psyclone.psyir.symbols import DataTypeSymbol, StructureType, Symbol
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
@@ -70,11 +71,61 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
 
 
 class LFRicBuiltinFunctor(KernelFunctor):
-    '''Object containing an LFRic builtin call, a description of its
-    required interface and the arguments to be passed to it.
+    ''' Base class which all LFRic builtins subclass. Contains a builtin call,
+    a description of its required interface and the arguments to be passed
+    to it.
 
     '''
     _text_name = "LFRicBuiltinFunctor"
+    _builtin_name = ""
+
+    @classmethod
+    def create(cls, table, arguments):
+        '''
+        An appropriate DataTypeSymbol is created and added to the supplied
+        symbol table (if it does not already contain one). This is then
+        passed to the create() method in the base class to create an instance
+        of an LFRic builtin call with the supplied list of arguments.
+
+        :param table: the symbol table to which to add the symbol for this \
+                      functor.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param arguments: the arguments to this routine. These are \
+                          added as child nodes.
+        :type arguments: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+
+        :returns: a functor object describing an LFRic builtin.
+        :rtype: :py:class:`psyclone.domain.lfric.algorithm.LFRicBuiltinFunctor`
+
+        '''
+        # We can't use find_or_create() here as that raises an Exception if
+        # the symbol that is found is not of the correct type.
+        try:
+            sym = table.lookup(cls._builtin_name)
+            # pylint: disable=unidiomatic-typecheck
+            if type(sym) is Symbol:
+                sym.specialise(DataTypeSymbol)
+                sym.datatype = StructureType()
+        except KeyError:
+            sym = table.new_symbol(cls._builtin_name,
+                                   symbol_type=DataTypeSymbol,
+                                   datatype=StructureType())
+
+        return super().create(sym, arguments)
+
+    def lower_to_language_level(self):
+        ''' Removes the symbol representing this BuiltIn as it only
+        exists in the DSL. '''
+        table = self.scope.symbol_table
+        try:
+            sym = table.lookup(self._builtin_name)
+            table = sym.find_symbol_table(self)
+            # TODO #898 SymbolTable.remove() does not yet support
+            # DataTypeSymbols.
+            # pylint: disable=protected-access
+            del table._symbols[self._builtin_name]
+        except KeyError:
+            pass
 
 
 class LFRicKernelFunctor(KernelFunctor):
@@ -93,36 +144,7 @@ BUILTIN_FUNCTOR_MAP = {}
 for name in BUILTIN_MAP_CAPITALISED:
     code = (
         f"class LFRic_{name}_Functor(LFRicBuiltinFunctor):\n"
-        f"\n"
-        f"    @classmethod\n"
-        f"    def create(cls, table, arguments):\n"
-        f"        from psyclone.psyir.symbols import DataTypeSymbol, "
-        f"StructureType, Symbol\n"
-        # We can't use find_or_create() here as that raises an Exception if
-        # the symbol that is found is not of the correct type.
-        f"        try:\n"
-        f"            sym = table.lookup('{name}')\n"
-        f"            if type(sym) is Symbol:\n"
-        f"                sym.specialise(DataTypeSymbol)\n"
-        f"                sym.datatype = StructureType()\n"
-        f"        except KeyError:\n"
-        f"            sym = table.new_symbol('{name}',\n"
-        f"                                   symbol_type=DataTypeSymbol,\n"
-        f"                                   datatype=StructureType())\n"
-        f"\n"
-        f"        return super().create(sym, arguments)\n"
-        f"\n"
-        f"    def lower_to_language_level(self):\n"
-        f"        ''' Remove the symbol representing this BuiltIn as it only\n"
-        f"        exists in the DSL. '''\n"
-        f"        table = self.scope.symbol_table\n"
-        f"        try:\n"
-        f"            sym = table.lookup('{name}')\n"
-        f"            table = sym.find_symbol_table(self)\n"
-        # TODO #898 SymbolTable.remove() does not yet support DataTypeSymbols.
-        f"            del table._symbols['{name.lower()}']\n"
-        f"        except KeyError:\n"
-        f"            pass\n"
+        f"    _builtin_name = '{name.lower()}'\n"
         f"\n"
         f"BUILTIN_FUNCTOR_MAP['{name.lower()}'] = LFRic_{name}_Functor\n")
     exec(code)
@@ -130,4 +152,5 @@ for name in BUILTIN_MAP_CAPITALISED:
 
 # For AutoAPI documentation generation.
 __all__ = ['LFRicAlgorithmInvokeCall', 'LFRicBuiltinFunctor',
-           'LFRicKernelFunctor', 'BUILTIN_FUNCTOR_MAP']
+           'LFRicKernelFunctor', 'BUILTIN_FUNCTOR_MAP'] + \
+           list(BUILTIN_FUNCTOR_MAP.keys())
