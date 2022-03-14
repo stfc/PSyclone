@@ -580,12 +580,15 @@ def test_multi_prefix_profile(monkeypatch):
     _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
                            "dynamo0.3", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
+    assert (schedule[0].parent is schedule)
+    assert (schedule[3].parent is schedule)
     prt = ProfileTrans()
     config = Config.get()
     # Monkeypatch the list of recognised PSyData prefixes
     monkeypatch.setattr(config, "_valid_psy_data_prefixes",
                         ["profile", "tool1"])
     # Use the 'tool1' prefix for the region around the halo exchanges.
+    assert (schedule[0].parent == schedule[3].parent)
     prt.apply(schedule[0:4], options={"prefix": "tool1"})
     # Use the default prefix for the two loops.
     prt.apply(schedule[1:3])

@@ -1409,7 +1409,7 @@ class ColourTrans(LoopTrans):
             node.loop_body.pop_all_children())
 
         # remove original loop
-        node_parent.children.remove(node)
+        node.detach()
 
 
 class KernelModuleInlineTrans(KernelTrans):
@@ -2376,7 +2376,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
             index=node.position)
 
         # remove the existing synchronous halo exchange
-        node.parent.children.remove(node)
+        node.detach()
 
     def validate(self, node, options):
         '''Internal method to check whether the node is valid for this

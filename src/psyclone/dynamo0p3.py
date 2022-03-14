@@ -7422,7 +7422,7 @@ class DynLoop(Loop):
         # optional argument.
         required, _ = exchange.required(ignore_hex_dep=True)
         if not required:
-            exchange.parent.children.remove(exchange)
+            exchange.detach()
         else:
             # The halo exchange we have added may be replacing an
             # existing one. If so, the one being replaced will be the
@@ -7444,7 +7444,7 @@ class DynLoop(Loop):
                             "for field {0}, a subsequent dependent halo "
                             "exchange was found. This should never happen."
                             "".format(exchange.field.name))
-                    first_dep_call.parent.children.remove(first_dep_call)
+                    first_dep_call.detach()
 
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add (a) halo exchange call(s) immediately
@@ -7489,8 +7489,7 @@ class DynLoop(Loop):
                             halo_exchange = dep_arg.call
                             required, _ = halo_exchange.required()
                             if not required:
-                                halo_exchange.parent.children.remove(
-                                    halo_exchange)
+                                halo_exchange.detach()
 
     def create_halo_exchanges(self):
         '''Add halo exchanges before this loop as required by fields within

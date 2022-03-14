@@ -3855,14 +3855,14 @@ def test_move_forward():
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
     schedule.view()
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index-1]
     schedule.view()
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_forward_after():
@@ -3877,7 +3877,7 @@ def test_move_forward_after():
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
     schedule.view()
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
@@ -3885,7 +3885,7 @@ def test_move_forward_after():
 
     new_arg = schedule.children[target_index]
     schedule.view()
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 # test that move with dependencies fails
