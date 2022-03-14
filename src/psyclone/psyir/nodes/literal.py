@@ -127,7 +127,7 @@ class Literal(DataNode):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = type(self) is type(other)
+        is_eq = super(Literal, self).__eq__(other)
         is_eq = is_eq and self.datatype == other.datatype
         is_eq = is_eq and self.value == other.value
         return is_eq

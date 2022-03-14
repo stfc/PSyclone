@@ -76,7 +76,7 @@ class Reference(DataNode):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = (type(self) is type(other))
+        is_eq = super(Reference, self).__eq__(other)
         is_eq = is_eq and (self.symbol == other.symbol)
         return is_eq
 

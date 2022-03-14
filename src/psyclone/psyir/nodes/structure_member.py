@@ -98,7 +98,7 @@ class StructureMember(Member):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = type(self) is type(other)
+        is_eq = super(StructureMember, self).__eq__(other)
         is_eq = is_eq and self.name == other.name
         # We know .member must exist for both self and other if
         # is_eq is still true, so check for equivalence

@@ -217,7 +217,7 @@ class StructureReference(Reference):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = type(self) is type(other)
+        is_eq = super(StructureReference, self).__eq__(other)
         is_eq = is_eq and (self.symbol == other.symbol)
         is_eq = is_eq and (self.member == other.member)
         return is_eq

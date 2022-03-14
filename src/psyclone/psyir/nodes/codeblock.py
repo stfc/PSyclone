@@ -113,7 +113,7 @@ class CodeBlock(Statement, DataNode):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = type(self) is type(other)
+        is_eq = super(CodeBlock, self).__eq__(other)
         is_eq = is_eq and self.get_ast_nodes == other.get_ast_nodes
         is_eq = is_eq and self.structure == other.structure
 
