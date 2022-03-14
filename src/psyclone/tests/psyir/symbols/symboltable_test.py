@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -190,12 +190,17 @@ def test_next_available_name_1():
     assert name == "my_MOD_2"
     name = sym_table.next_available_name(root_name="my_mod_1")
     assert name == "my_mod_1_1"
-    # Check we return a new symbol by appending an integer index to
+    # Check we return a new name by appending an integer index to
     # the default name when the names clash.
     name = sym_table.next_available_name()
     assert name == "psyir_tmp_1"
     sym_table.add(DataSymbol(name, REAL_TYPE))
     assert sym_table.next_available_name() == "psyir_tmp_2"
+    # Check that clashes with symbols in a second symbol table are also
+    # avoided.
+    table2 = SymbolTable()
+    table2.add(DataSymbol("psyir_tmp_2", REAL_TYPE))
+    assert sym_table.next_available_name(other_table=table2) == "psyir_tmp_3"
 
 
 def test_next_available_name_2():
@@ -230,8 +235,12 @@ def test_next_available_name_4():
             "'int'." in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = sym_table.next_available_name(shadowing=7)
-    assert ("Argument shadowing should be of type bool but found "
+    assert ("Argument 'shadowing' should be of type bool but found "
             "'int'." in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = sym_table.next_available_name(root_name="groot", other_table="am")
+    assert ("argument 'other_table' should be of type SymbolTable but found "
+            "'str'." in str(excinfo.value))
 
 
 def test_new_symbol_5():
@@ -1411,8 +1420,8 @@ def test_get_tags():
 
 
 def test_symbols_tags_dict():
-    '''Check that the symbols_dict and tags_dict properties work as
-    expected.
+    '''Check that the symbols_dict, tags_dict and reverse_tags_dict properties
+    work as expected.
 
     '''
     schedule_symbol_table = SymbolTable()
@@ -1424,6 +1433,8 @@ def test_symbols_tags_dict():
     schedule_symbol_table.add(symbol1, tag=symbol1_tag)
     assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
     assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
+    rdict = schedule_symbol_table.get_reverse_tags_dict()
+    assert rdict[symbol1] == symbol1_tag
 
 
 def test_new_symbol():
