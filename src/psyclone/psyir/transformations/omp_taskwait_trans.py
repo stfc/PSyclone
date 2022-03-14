@@ -470,7 +470,11 @@ class OMPTaskwaitTrans(Transformation):
                     fdep_parent = forward_dep.parent
                     # Find the position of the forward_dep in its parent's
                     # children list
-                    loc = fdep_parent.children.index(forward_dep)
+                    loc = None
+                    for index, child in enumerate(fdep_parent.children):
+                        if child is forward_dep:
+                            loc = index
+                            break
                     # We've found the position, so we now insert an
                     # OMPTaskwaitDirective in that location instead
                     fdep_parent.addchild(OMPTaskwaitDirective(), loc)
