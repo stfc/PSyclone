@@ -1749,22 +1749,17 @@ class CodedKern(Kern):
             os.close(fdesc)
             return
 
-        if self._kern_schedule:
-            # A PSyIR kernel schedule has been created. This means
-            # that the PSyIR has been modified. Therefore use the
-            # chosen PSyIR back-end to write out the modified kernel
-            # code. At the moment there is no way to choose which
-            # back-end to use, so simply use the Fortran one (and
-            # limit the line length). This test is only required
-            # whilst old style (direct fp2) transformations still
-            # exist.
-            fortran_writer = FortranWriter()
-            # Start from the root of the schedule as we want to output
-            # any module information surrounding the kernel subroutine
-            # as well as the subroutine itself.
-            new_kern_code = fortran_writer(self.get_kernel_schedule().root)
-            fll = FortLineLength()
-            new_kern_code = fll.process(new_kern_code)
+        # If we reach this point the kernel needs to be written out into a
+        # file using a PSyIR back-end. At the moment there is no way to choose
+        # which back-end to use, so simply use the Fortran one (and limit the
+        # line length).
+        fortran_writer = FortranWriter()
+        # Start from the root of the schedule as we want to output
+        # any module information surrounding the kernel subroutine
+        # as well as the subroutine itself.
+        new_kern_code = fortran_writer(self.get_kernel_schedule().root)
+        fll = FortLineLength()
+        new_kern_code = fll.process(new_kern_code)
 
         if not fdesc:
             # If we've not got a file descriptor at this point then that's

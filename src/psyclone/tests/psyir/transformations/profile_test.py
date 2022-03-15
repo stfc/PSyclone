@@ -238,7 +238,7 @@ def test_profile_kernels_gocean1p0():
     '''
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
-                           idx=0)
+                           idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
