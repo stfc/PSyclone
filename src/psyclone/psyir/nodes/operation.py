@@ -83,8 +83,8 @@ class Operation(DataNode):
 
     def __eq__(self, other):
         '''Checks whether two Operations are equal. Operations are equal
-        if they are the same type, have the same operator and if all of
-        their children are equal.
+        if they are the same type, have the same operator and if the inherited
+        equality is True.
 
         :param object other: The object to check equality to
 
@@ -93,9 +93,6 @@ class Operation(DataNode):
         '''
         is_eq = super(Operation, self).__eq__(other)
         is_eq = is_eq and self.operator == other.operator
-        is_eq = is_eq and len(self.children) == len(other.children)
-        for i in range(len(self.children)):
-            is_eq = is_eq and self.children[i] == other.children[i]
 
         return is_eq
 

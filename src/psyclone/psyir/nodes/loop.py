@@ -122,6 +122,29 @@ class Loop(Statement):
         self._variable = variable
         self._id = ""
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two Loop nodes are equal
+        if they have equal loop_type, field, field_name, field_space
+        iteraction_space, kernel and variable.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super(Loop, self).__eq__(other)
+        is_eq = is_eq and self.loop_type == other.loop_type
+        is_eq = is_eq and self.field == other.field
+        is_eq = is_eq and self.field_name == other.field_name
+        is_eq = is_eq and self.field_space == other.field_space
+        is_eq = is_eq and other.iteration_space == other.iteration_space
+        is_eq = is_eq and self.kernel == other.kernel
+
+        is_eq = is_eq and self.variable == other.variable
+
+        return is_eq
+
     @staticmethod
     def _check_variable(variable):
         '''The loop variable should be a scalar integer. Check that this is

@@ -73,6 +73,21 @@ class Call(Statement, DataNode):
 
         self._routine = routine
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two Call nodes are equal
+        if their routine members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super(Call, self).__eq__(other)
+        is_eq = is_eq and self.routine == other.routine
+
+        return is_eq
+
     @classmethod
     def create(cls, routine, arguments):
         '''Create an instance of class cls given valid instances of a routine
