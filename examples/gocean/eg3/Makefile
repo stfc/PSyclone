@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,20 +79,16 @@ psy_gen_dm.f90 alg_gen_dm.f90: alg.f90
 compile-ocl: fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
 	${F90} ${LDFLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} ${FORTCL_LIB} \
 		-lOpenCL -o alg_opencl.exe
-	@echo "//OpenCL Kernels file" > allkernels.cl
-	cat compute_*_0.cl >> allkernels.cl
 	@echo "OpenCL compilation complete!"
-	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl ./alg_opencl.exe' to run."
+	@echo "Use 'FORTCL_KERNELS_FILE=opencl_kernels_0.cl ./alg_opencl.exe' to run."
 
 compile-mpi-ocl: dm_fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen_dm.o alg_gen_dm.f90
 	# TODO dl_esm_inf/#54: The generated binary will not execute properly until
 	# this issue is fixed.
 	${F90} ${LDFLAGS} -I${INF_INC} alg_gen_dm.f90 psy_gen_dm.o ${INF_LIB} \
 		${FORTCL_LIB} -lOpenCL -o alg_dm_opencl.exe
-	@echo "//OpenCL Kernels file" > allkernels.cl
-	cat compute_*_0.cl >> allkernels.cl
 	@echo "OpenCL compilation complete!"
-	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl mpirun -n <NUM_RANKS>" \
+	@echo "Use 'FORTCL_KERNELS_FILE=opencl_kernels_0.cl mpirun -n <NUM_RANKS>" \
 	 "./alg_dm_opencl.exe' to run."
 
 %.o: %.f90
