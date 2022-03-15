@@ -245,7 +245,7 @@ class SymbolTable():
 
         '''
         # pylint: disable=protected-access
-        new_st = SymbolTable()
+        new_st = type(self)()
         new_st._symbols = copy.copy(self._symbols)
         new_st._argument_list = copy.copy(self._argument_list)
         new_st._tags = copy.copy(self._tags)
@@ -265,7 +265,7 @@ class SymbolTable():
 
         '''
         # pylint: disable=protected-access
-        new_st = SymbolTable(self.node)
+        new_st = type(self)(self.node)
 
         # Make a copy of each symbol in the symbol table
         for symbol in self.symbols:
