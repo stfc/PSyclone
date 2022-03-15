@@ -401,6 +401,8 @@ class ACCLoopDirective(ACCRegionDirective):
                          iteration space or None.
     :param bool independent: Whether or not to add the `independent` clause \
                              to the loop directive.
+    :param bool sequential: whether or not to add the `seq` clause to the \
+                            loop directive.
     '''
     def __init__(self, children=None, parent=None, collapse=None,
                  independent=True, sequential=False):
@@ -452,8 +454,10 @@ class ACCLoopDirective(ACCRegionDirective):
     @property
     def sequential(self):
         '''
+        Returns whether or not to add the `seq` clause to the loop directive.
 
-        :returns: ??? No documentation so I don't know.
+        :returns: whether or not the `seq` clause is added to this loop \
+                  directive.
         :rtype: bool
         '''
         return self._sequential
