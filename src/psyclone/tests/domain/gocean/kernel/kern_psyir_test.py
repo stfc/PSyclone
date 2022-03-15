@@ -41,13 +41,15 @@ Kernel PSyIR to processed PSyIR.
 '''
 import pytest
 
-from psyclone.parse.utils import ParseError
-from psyclone.domain.gocean.transformations import KernTrans
+from fparser.two import Fortran2003
+
 from psyclone.domain.gocean.kernel import KernelMetadataSymbol
+from psyclone.domain.gocean.transformations import KernTrans
+from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
+from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 METADATA = (
-    "program dummy\n"
-    "  use random ! avoid any missing declaration errors\n"
     "  type, extends(kernel_type) :: compute_cu\n"
     "     type(go_arg), dimension(3) :: meta_args =                 &\n"
     "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
@@ -58,8 +60,13 @@ METADATA = (
     "     integer :: index_offset = GO_OFFSET_SW\n"
     "  contains\n"
     "    procedure, nopass :: code => compute_cu_code\n"
-    "  end type compute_cu\n"
-    "end program dummy\n")
+    "  end type compute_cu\n")
+
+PROGRAM = (
+    f"program dummy\n"
+    f"  use random ! avoid any missing declaration errors\n"
+    f"{METADATA}"
+    f"end program dummy\n")
 
 
 def test_kernelmetadatasymbol_create(fortran_reader):
@@ -67,7 +74,7 @@ def test_kernelmetadatasymbol_create(fortran_reader):
     values.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(METADATA)
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
     kern_trans.apply(kernel_psyir)
@@ -93,6 +100,118 @@ def test_kernelmetadatasymbol_create(fortran_reader):
     assert symbol.args[2].access == "GO_READ"
     assert symbol.args[2].name == "GO_GRID_AREA_T"
 
+# internal GridArg class
+# internal FieldArg class
+
+# _set_property: tested by other tests
+
+# _get_property
+# 1 code, 2 property, 3 error
+def test_getproperty(fortran_reader):
+    '''Test utilitity function that takes metadata in an fparser2 tree and
+    returns the value associated with the supplied property name.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    spec_part = symbol._string_to_fparser(symbol.datatype)
+    assert symbol._get_property(spec_part, "code").string == "compute_cu_code"
+    assert symbol._get_property(spec_part, "iterates_over").string == \
+        "GO_ALL_PTS"
+    with pytest.raises(InternalError) as info:
+        symbol._get_property(spec_part, "not_found")
+    assert ("The property name should always be found in the metadata but "
+            "'not_found' was not found in TYPE, EXTENDS(kernel_type) :: "
+            "compute_cu" in str(info.value))
+
+
+# iterates_over get and set
+# index_offset get and set
+# code get and set
+def test_getsetproperties(fortran_reader):
+    '''Test that the get and set functions for the "iterates_over",
+    "index_offset" and "code" properties work correctly.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    # get values
+    assert symbol.iterates_over == "GO_ALL_PTS"
+    assert symbol.index_offset == "GO_OFFSET_SW"
+    assert symbol.code == "compute_cu_code"
+    # set values
+    symbol.iterates_over = "GO_INTERNAL_PTS"
+    assert symbol.iterates_over == "GO_INTERNAL_PTS"
+    symbol.index_offset = "GO_OFFSET_NE"
+    assert symbol.index_offset == "GO_OFFSET_NE"
+    symbol.code = "fred"
+    assert symbol.code == "fred"
+    # set values errors
+    with pytest.raises(ValueError) as info:
+        symbol.iterates_over = "error"
+    assert ("Expected one of ['go_all_pts', 'go_internal_pts', "
+            "'go_external_pts'], but found 'error'." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        symbol.index_offset = "error"
+    assert ("Expected one of ['go_offset_se', 'go_offset_sw', "
+            "'go_offset_ne', 'go_offset_nw', 'go_offset_any'], but found "
+            "'error'." in str(info.value))
+
+
+# args
+def test_args(fortran_reader):
+    '''Test that the args function works correctly.'''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    assert len(symbol.args) == 3
+    assert isinstance(symbol.args[0], KernelMetadataSymbol.FieldArg)
+    assert isinstance(symbol.args[1], KernelMetadataSymbol.FieldArg)
+    assert isinstance(symbol.args[2], KernelMetadataSymbol.GridArg)
+
+
+# ??? validate
+
+# gridarg
+#   access get/set
+#   name get/set
+def test_gridarg(fortran_reader):
+    '''Test the internal GridArg class.'''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    grid_arg = symbol.args[2]
+    assert isinstance(grid_arg, KernelMetadataSymbol.GridArg)
+    # get
+    assert grid_arg.access == "GO_READ"
+    assert grid_arg.name == "GO_GRID_AREA_T"
+    # set
+    # args error
+
+
+# gridarg error (number of args)
+
+# fieldarg
+#   access get/set
+#   stagger get/set
+#   form get/set
+#   stencil get/set
+
+
+
+
+
+
 
 @pytest.mark.parametrize("content,error", [
     ("integer :: index_offset = go_offset_se", "index_offset"),
@@ -104,7 +223,7 @@ def test_kernelmetadatasymbol_multi(fortran_reader, content, error):
     entries are declared more than once.
 
     '''
-    my_metadata = METADATA.replace(
+    my_metadata = PROGRAM.replace(
         f"  contains\n",
         f"    {content}\n"
         f"  contains\n")
@@ -122,7 +241,7 @@ def test_kernelmetadatasymbol_invalid(fortran_reader):
     unexpected entry is found. Here we replace ITERATES_OVER with xxx.
 
     '''
-    my_metadata = METADATA.replace("ITERATES_OVER", "xxx")
+    my_metadata = PROGRAM.replace("ITERATES_OVER", "xxx")
     kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
@@ -146,7 +265,7 @@ def test_kernelmetadatasymbol_missing(fortran_reader, content, error):
     entries are missing.
 
     '''
-    my_metadata = METADATA.replace(
+    my_metadata = PROGRAM.replace(
         f"{content}", "")
     kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
     kern_trans = KernTrans()
@@ -162,7 +281,7 @@ def test_kernelmetadatasymbol_contains(fortran_reader):
     both the code and contains are missing.
 
     '''
-    my_metadata = METADATA.replace(
+    my_metadata = PROGRAM.replace(
         "    procedure, nopass :: code => compute_cu_code\n", "")
     my_metadata = my_metadata.replace("  contains\n", "")
     kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
@@ -183,7 +302,7 @@ def test_kernelmetadatasymbol_entries_code(fortran_reader, content, error):
     there more or less than one entry after the 'contains' keyword.
 
     '''
-    my_metadata = METADATA.replace(
+    my_metadata = PROGRAM.replace(
         "    procedure, nopass :: code => compute_cu_code\n", content)
     kernel_psyir = fortran_reader.psyir_from_source(my_metadata)
     kern_trans = KernTrans()
@@ -202,7 +321,7 @@ def test_gridarg_args(fortran_reader):
 
 def test_set_iterates_over(fortran_reader):
     ''' xxx '''
-    kernel_psyir = fortran_reader.psyir_from_source(METADATA)
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
     kern_trans.apply(kernel_psyir)

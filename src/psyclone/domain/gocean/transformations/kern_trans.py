@@ -129,13 +129,13 @@ class KernTrans(Transformation):
         # TODO: Use a separate metadata transformation to do this?
         # Transform the kernel metadata
         metadata_symbol.specialise(KernelMetadataSymbol)
-        metadata_symbol._setup()
+        metadata_symbol.setup()
         # psyir._metadata = metadata_symbol
 
         # Find the kernel code
-        routine_name = metadata_symbol._routine_name
+        routine_name = metadata_symbol.code
         for routine_node in psyir.walk(Routine):
-            if routine_node.name == metadata_symbol._routine_name:
+            if routine_node.name == routine_name:
                 break
         # psyir._code = routine_node
         # TODO raise generic PSyIR to GOcean-specific kernel PSyIR

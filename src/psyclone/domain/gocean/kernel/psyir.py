@@ -17,7 +17,7 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-#metadata_symbol._setup()
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -36,8 +36,9 @@
 '''This module contains PSyclone Kernel-layer-specific PSyIR classes.
 
 '''
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.symbols import DataTypeSymbol
+from psyclone.psyir.symbols import DataTypeSymbol, Symbol
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -50,6 +51,162 @@ class KernelMetadataSymbol(DataTypeSymbol):
     information to PSyclone in an easier to access form.
 
     '''
+    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
+                 interface=None):
+        super().__init__(name, datatype, visibility, interface)
+        self.setup()
+
+    def setup(self):
+        ''' xxx '''
+        reader = FortranStringReader(self.datatype.declaration)
+        spec_part = Fortran2003.Derived_Type_Def(reader)
+        self._iterates_over = \
+            self._get_property(spec_part, "iterates_over").string
+        self._index_offset = \
+            self._get_property(spec_part, "index_offset").string
+        self._code = self._get_property(spec_part, "code").string
+        meta_args = self._get_property(spec_part, "meta_args")
+        self._meta_args = []
+        for meta_arg in walk(
+                    meta_args, Fortran2003.Ac_Value_List)[0].children:
+            if len(meta_arg.children[1].children) == 2:
+                self._meta_args.append(self.GridArg(meta_arg, self))
+            elif len(meta_arg.children[1].children) == 3:
+                self._meta_args.append(self.FieldArg(meta_arg))
+            else:
+                raise ParseError(
+                    f"'meta_args' should have either 2 or 3 arguments, but "
+                    f"found {len(meta_arg.children[1].children)} in "
+                    f"{str(meta_arg)}.")
+
+    def _write_fortran_string(self):
+        '''
+        :returns: the metadata represented by this instance as a Fortran \
+            string.
+        :rtype: str
+
+        '''
+        go_args = []
+        for go_arg in self.args:
+            go_args.append(go_arg._write_fortran_string())
+        go_args_str = ", ".join(go_args)
+        result = (
+            f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
+            f"TYPE(go_arg), DIMENSION({len(self.args)}) :: "
+            f"meta_args = (/{go_args_str}/)\n"
+            f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
+            f"  INTEGER :: index_offset = {self.index_offset}\n"
+            f"  CONTAINS\n"
+            f"  PROCEDURE, NOPASS :: code => {self.code}\n"
+            f"END TYPE {self.name}\n")
+        return result
+
+    @staticmethod
+    def _get_property(spec_part, property_name):
+        '''Internal utility that gets the property 'property_name' from the an
+        fparser2 tree capturing gocean metadata. It is
+        assumed that the "code property is part of a type bound
+        procedure and that the other properties are part of the data
+        declarations.
+
+        :param spec_part: the fparser2 parse tree containing the metadata.
+        :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
+        :param str property_name: the name of the property whose value \
+            is being extracted from the metadata.
+
+        :raises ParseError: if the property name is not found in the \
+            metadata.
+
+        '''
+        if property_name == "code":
+            # This should be found in a type bound procedure after the
+            # contains keyword
+            type_bound_procedure = spec_part.children[2]
+            return walk(
+                type_bound_procedure,
+                Fortran2003.Specific_Binding)[0].children[4]
+        # The should be a variable declaration within the derived type.
+        component_part = spec_part.children[1]
+        for entry in component_part.children:
+            name = entry.children[2].children[0].children[0].string.lower()
+            if name.lower() == property_name:
+                return walk(
+                    entry,
+                    Fortran2003.Component_Initialization)[0].children[1]
+        raise InternalError(
+            f"The property name should always be found in the metadata but "
+            f"'{property_name}' was not found in {str(spec_part)}.")
+
+    @property
+    def iterates_over(self):
+        '''
+        :returns: the value of iterates_over.
+        :rtype: str
+        '''
+        return self._iterates_over
+
+    @iterates_over.setter
+    def iterates_over(self, value):
+        '''
+        :param str value: the new value for iterates_over.
+
+        :raises ValueError: if an invalid value is supplied.
+
+        '''
+        const = GOceanConstants()
+        if value.lower() not in const.VALID_ITERATES_OVER:
+            raise ValueError(
+                f"Expected one of {str(const.VALID_ITERATES_OVER)}, but "
+                f"found '{value}'.")
+        self._iterates_over = value
+        self.datatype.declaration = self._write_fortran_string()
+
+    @property
+    def index_offset(self):
+        '''
+        :returns: the value of index_offset.
+        :rtype: str
+        '''
+        return self._index_offset
+
+    @index_offset.setter
+    def index_offset(self, value):
+        '''
+        :param str value: the new value for index_offset.
+        '''
+        const = GOceanConstants()
+        if value.lower() not in const.VALID_OFFSET_NAMES:
+            raise ValueError(
+                f"Expected one of {str(const.VALID_OFFSET_NAMES)}, but "
+                f"found '{value}'.")
+        self._index_offset = value
+        self.datatype.declaration = self._write_fortran_string()
+
+    @property
+    def args(self):
+        '''
+        :returns: a list of arg objects capturing their metadata values.
+        :rtype: list of :py:class:`psyclone.psyir.common.kernel. \
+            KernelMetadataSymbol.KernelMetadataArg`
+        '''
+        return self._meta_args
+
+    @property
+    def code(self):
+        '''
+        :returns: the kernel code routine name.
+        :rtype: str
+        '''
+        return self._code
+
+    @code.setter
+    def code(self, value):
+        '''
+        :param str value: the new value for code.
+        '''
+        self._code = value
+        self.datatype.declaration = self._write_fortran_string()
+
     class GridArg():
         '''Internal class to capture Kernel metadata argument information for
         a field argument.
@@ -60,8 +217,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
         :type meta_arg: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
         '''
-        def __init__(self, meta_arg):
-            const = GOceanConstants()
+        def __init__(self, meta_arg, parent):
+            self.parent = parent
             arg_list = meta_arg.children[1]
             if len(arg_list.children) != 2:
                 raise ParseError(
@@ -69,21 +226,26 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"property but found {len(arg_list.children)} in "
                     f"{str(meta_arg)}")
             self._access = arg_list.children[0].string
+            self._validate_access()
+            self._name = arg_list.children[1].string
+            self._validate_name()
+
+        def _write_fortran_string(self):
+            '''
+            :returns: the metadata represented by this class as a \
+                Fortran string.
+            :rtype: str
+            '''
+            return f"go_arg({self.access}, {self.name})"
+
+        def _validate_access(self):
+            ''' xxx '''
+            const = GOceanConstants()
             if not self._access.lower() in const.VALID_INTRINSIC_TYPES:
-                raise ParseError(
+                raise ValueError(
                     f"The first metadata entry for a grid property argument "
                     f"should be one of {const.VALID_INTRINSIC_TYPES}, but "
                     f"found '{self._access}'.")
-            self._grid_property = arg_list.children[1].string
-            from psyclone.configuration import Config
-            config = Config.get()
-            api_config = config.api_conf("gocean1.0")
-            grid_property_names = list(api_config.grid_properties.keys())
-            if not self._grid_property.lower() in grid_property_names:
-                raise ParseError(
-                    f"The second meadata entry for a grid property argument "
-                    f"should be one of {grid_property_names}, but found "
-                    f"'{self._grid_property}.")
 
         @property
         def access(self):
@@ -93,14 +255,45 @@ class KernelMetadataSymbol(DataTypeSymbol):
             '''
             return self._access
 
+        @access.setter
+        def access(self, value):
+            '''
+            :param str value: the new value for access.
+            '''
+            self._validate_access()
+            self._access = value
+            self.parent.datatype.declaration = \
+                self.parent._write_fortran_string()
+
+        def _validate_name(self):
+            ''' xxx '''
+            from psyclone.configuration import Config
+            config = Config.get()
+            api_config = config.api_conf("gocean1.0")
+            grid_property_names = list(api_config.grid_properties.keys())
+            if not self._name.lower() in grid_property_names:
+                raise ParseError(
+                    f"The second meadata entry for a grid property argument "
+                    f"should be one of {grid_property_names}, but found "
+                    f"'{self._name}.")
+
         @property
         def name(self):
             '''
             :returns: the grid property name.
             :rtype: str
             '''
-            return self._grid_property
+            return self._name
 
+        @name.setter
+        def name(self, value):
+            '''
+            :param str value: the new value for name.
+            '''
+            self._validate_name()
+            self._name = value
+            self.parent.datatype.declaration = \
+                self.parent._write_fortran_string()
 
     class FieldArg():
         '''Internal class to capture Kernel metadata argument information for
@@ -117,7 +310,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             arg_list = meta_arg.children[1]
             if not len(arg_list.children) == 3:
                 raise ParseError(
-                    f"There should be 3 kernel metadata entries for a field "
+                    f"There sould be 3 kernel metadata entries for a field "
                     f"argument, but found {len(arg_list)} in {str(meta_arg)}.")
             self._access = arg_list.children[0].string
             if not self._access.lower() in const.VALID_INTRINSIC_TYPES:
@@ -161,6 +354,18 @@ class KernelMetadataSymbol(DataTypeSymbol):
                         f"contain 3 arguments, but found "
                         f"{len(self._stencil)}.")
 
+        def _write_fortran_string(self):
+            '''
+            :returns: the metadata represented by this class as a \
+                Fortran string.
+            :rtype: str
+            '''
+            if self.stencil:
+                return (f"go_arg({self.access}, {self.stagger}, "
+                        f"{self.form}({', '.join(self.stencil)}))")
+            else:
+                return f"go_arg({self.access}, {self.stagger}, {self.form})"
+
         @property
         def access(self):
             '''
@@ -192,120 +397,6 @@ class KernelMetadataSymbol(DataTypeSymbol):
             :rtype: str[3] or NoneType
             '''
             return self._stencil
-
-    def _string_to_fparser(self, string):
-        '''Internal utility that takes a string containing kernel metadata
-        and converts it to an fparser2 tree.
-        
-        :param str string: a string containing kernel metadata
-        :returns: an fparser2 tree containing the input kernel metadata.
-        :rtype: :py:class@`???`
-
-        '''
-        unknown_fortran_type = string
-        reader = FortranStringReader(unknown_fortran_type.declaration)
-        return Fortran2003.Derived_Type_Def(reader)
-
-    def _set_property(self, property_name, value):
-        ''' Internal utility that sets the property 'property_name' to the value 'value'. 
-
-        :param str property_name: xxx
-        :param str value: xxx '''
-        spec_part = self._string_to_fparser(self.datatype)
-        name_object = self._get_property(spec_part, property_name)
-        name_object.string = value
-        self.datatype.declaration = str(spec_part)
-
-    @staticmethod
-    def _get_property(spec_part, property_name):
-        ''' xxx '''
-        if property_name == "code":
-            type_bound_procedure = spec_part.children[2]
-            return walk(
-                type_bound_procedure,
-                Fortran2003.Specific_Binding)[0].children[4]
-            
-        component_part = spec_part.children[1]
-        for entry in component_part.children:
-            name = entry.children[2].children[0].children[0].string.lower()
-            if name.lower() == property_name:
-                return walk(
-                    entry,
-                    Fortran2003.Component_Initialization)[0].children[1]
-        raise InternalError("The property name should always be found in the metadata.")
-
-    @property
-    def iterates_over(self):
-        '''
-        :returns: the value of iterates_over.
-        :rtype: str
-        '''
-        spec_part = self._string_to_fparser(self.datatype)
-        name_object = self._get_property(spec_part, "iterates_over")
-        return name_object.string
-
-    @iterates_over.setter
-    def iterates_over(self, value):
-        '''
-        :param str value: the new value for iterates_over.
-        '''
-        const = GOceanConstants()
-        if value.lower() not in const.VALID_ITERATES_OVER:
-            raise ValueError(
-                f"Expected one of {str(const.VALID_ITERATES_OVER)}, but "
-                f"found '{value}'.")
-        self._set_property("iterates_over", value)
-
-    @property
-    def index_offset(self):
-        '''
-        :returns: the value of index_offset.
-        :rtype: str
-        '''
-        spec_part = self._string_to_fparser(self.datatype)
-        name_object = self._get_property(spec_part, "index_offset")
-        return name_object.string
-
-    @index_offset.setter
-    def index_offset(self, value):
-        '''
-        :param str value: the new value for index_offset.
-        '''
-        const = GOceanConstants()
-        if value.lower() not in const.VALID_OFFSET_NAMES:
-            raise ParseError(
-                f"Expected one of {str(const.VALID_OFFSET_NAMES)}, but "
-                f"found '{value}'.")
-        self._set_property("index_offset", value)
-
-    @property
-    def args(self):
-        '''
-        :returns: a list of arg objects capturing their metadata values.
-        :rtype: list of :py:class:`psyclone.psyir.common.kernel. \
-            KernelMetadataSymbol.KernelMetadataArg`
-        '''
-        spec_part = self._string_to_fparser(self.datatype)
-        name_object = self._get_property(spec_part, "meta_args")
-        return list(name_object.children[1].children)
-
-    @property
-    def code(self):
-        '''
-        :returns: the kernel code routine name.
-        :rtype: str
-        '''
-        spec_part = self._string_to_fparser(self.datatype)
-        name_object = self._get_property(spec_part, "code")
-        return name_object.string
-
-    @code.setter
-    def code(self, value):
-        '''
-        :param str value: the new value for code.
-        '''
-        const = GOceanConstants()
-        self._set_property("code", value)
 
     def validate(self):
         '''Validates the metadata.'''
