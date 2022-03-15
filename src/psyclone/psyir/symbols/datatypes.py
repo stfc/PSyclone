@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -361,8 +361,8 @@ class ArrayType(DataType):
 
         :rtype: a list of ArrayType.Extent.ATTRIBUTE, \
             ArrayType.Extent.DEFERRED, or \
-            :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is \
-            ArrayType.Extent.ATTRIBUTE the extent of that dimension \
+            :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`. If an \
+            entry is ArrayType.Extent.ATTRIBUTE the extent of that dimension \
             is unknown but can be obtained by querying the run-time \
             system (e.g. using the SIZE intrinsic in Fortran). If it \
             is ArrayType.Extent.DEFERRED then the extent is also \

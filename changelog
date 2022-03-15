@@ -163,6 +163,8 @@
 	56) PR #1624 towards #1618. Bug fix for LFRic algorithm PSyIR module
 	and subroutine names.
 
+	57) PR #1637 for #1634. Add HoistLocalArraysTrans transformation.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed

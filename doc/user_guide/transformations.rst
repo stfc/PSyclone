@@ -214,6 +214,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.HoistLocalArraysTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
       :noindex:
