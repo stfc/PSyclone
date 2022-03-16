@@ -1,85 +1,66 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2022, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
+
 ''' Module containing pytest unit tests for the AlgorithmInvoke2PSyCallTrans
 transformation.
 
 '''
-from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, Symbol, REAL_TYPE, DataSymbol, INTEGER_TYPE
-from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-    KernelFunctor
+import pytest
+
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.common.transformations import AlgorithmInvoke2PSyCallTrans
+from psyclone.psyir.nodes import Call
+from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
+    StructureType, Symbol, REAL_TYPE, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations import TransformationError
 
 
-def test_aic_defroutinerootname():
-    '''Check that the _def_routine_root_name() internal method behaves as
-    expected.
-
-    '''
+def test_ai2psycall_validate():
+    ''' Test the validate() method of the AlgorithmInvoke2PSyCallTrans
+    class. '''
     trans = AlgorithmInvoke2PSyCallTrans()
-    symbol_name = "dummy"
-    kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
-    routine = RoutineSymbol("hello")
-    index = 3
-    call = AlgorithmInvokeCall(routine, index)
-    call.children = [kernel_functor]
-    assert (trans._def_routine_root_name(call) ==
-            f"invoke_{index}_{symbol_name}")
-
-    call.children.append(kernel_functor.copy())
-    assert trans._def_routine_root_name(call) == f"invoke_{index}"
-
-    for name in [" a  description ", "' a__description '",
-                 "\" a  description \""]:
-        call._name = name
-        assert call._def_routine_root_name() == "invoke_a__description"
-
-    # lowering should not prepend "invoke" if the invoke call has a
-    # name starting with "invoke"
-    symbol_name = "dummy"
-    kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
-    routine = RoutineSymbol("hello")
-    index = 3
-    call = AlgorithmInvokeCall(routine, index, name="invoke_1")
-    call.children = [kernel_functor]
-    assert trans._def_routine_root_name(call) == "invoke_1"
+    with pytest.raises(TransformationError) as err:
+        trans.validate(None)
+    assert ("The supplied call argument should be an `AlgorithmInvokeCall` "
+            "node but found 'NoneType'" in str(err.value))
 
 
-def test_aic_defroutineroot_name_error():
-    '''Check that the _def_routine_root_name() internal method raises the
-    expected exception if the supplied name is invalid.
-
-    '''
-    symbol_name = "dummy"
-    kernel_functor = KernelFunctor(DataTypeSymbol(symbol_name, REAL_TYPE))
-    routine = RoutineSymbol("hello")
-    index = 3
-    call = AlgorithmInvokeCall(routine, index)
-    call.children = [kernel_functor]
-    assert call._def_routine_root_name() == f"invoke_{index}_{symbol_name}"
-
-    call.children.append(kernel_functor.copy())
-    assert call._def_routine_root_name() == f"invoke_{index}"
-
-    for name in ["1name", "name!", "nameʑ", "ʒʓʔʕʗʘʙʚʛʜʝʞ"]:
-        call._name = name
-        with pytest.raises(TypeError) as info:
-            _ = call._def_routine_root_name()
-        print(name)
-        assert (f"AlgorithmInvokeCall:_def_routine_root_name() the (optional) "
-                f"name of an invoke must be a string containing a valid name "
-                f"(with any spaces replaced by underscores) but found "
-                f"'{name}'." in str(info.value))
-
-
-def test_aic_createpsylayersymbolrootnames(fortran_reader):
-    '''Check that the create_psylayer_symbol_root_names method behaves in
-    the expected way when the name comes from a subroutine, a module
-    and when it has a filecontainer, i.e. it creates and stores a root
-    name for a routine symbol and a container symbol. Also check that
-    it raises the expected exception if no FileContainer or Routine
-    nodes are found in the tree.
-
-    '''
+def test_ai2psycall_apply(fortran_reader):
+    ''' Test the apply() method of the AlgorithmInvoke2PSyCallTrans
+    class. '''
     code = (
         "subroutine alg1()\n"
         "  use kern_mod, only : kern\n"
@@ -87,46 +68,14 @@ def test_aic_createpsylayersymbolrootnames(fortran_reader):
         "  type(field_type) :: field1\n"
         "  call invoke(kern(field1))\n"
         "end subroutine alg1\n")
-
-    # FileContainer and Routine (subroutine)
-    psyir = fortran_reader(code)
-    AlgTrans().apply(psyir)
-    invoke = psyir.children[0][0]
-    _check_alg_names(invoke, "psy_alg1")
-
-    # Routine, no FileContainer
-    psyir = create_alg_psyir(code)
-    psyir = psyir.children[0]
-    psyir.detach()
-    invoke = psyir[0]
-    _check_alg_names(invoke, "psy_alg1")
-
-    code = (
-        "module my_mod\n"
-        "contains\n"
-        "subroutine alg1()\n"
-        "  use kern_mod, only : kern\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field1\n"
-        "  call invoke(kern(field1))\n"
-        "end subroutine alg1\n"
-        "end module my_mod\n")
-
-    # File container and module
-    psyir = create_alg_psyir(code)
-    invoke = psyir.children[0].children[0][0]
-    _check_alg_names(invoke, "psy_my_mod")
-
-    # Module, no FileContainer
-    psyir = create_alg_psyir(code)
-    psyir = psyir.children[0]
-    psyir.detach()
-    invoke = psyir.children[0][0]
-    _check_alg_names(invoke, "psy_my_mod")
-
-    # No modules or FileContainers (should not happen)
-    invoke._psylayer_container_root_name = None
-    invoke.detach()
-    with pytest.raises(InternalError) as error:
-        invoke.create_psylayer_symbol_root_names()
-    assert "No Routine or Container node found." in str(error.value)
+    psyir = fortran_reader.psyir_from_source(code)
+    alg_trans = AlgTrans()
+    alg_trans.apply(psyir)
+    aic = psyir.walk(AlgorithmInvokeCall)[0]
+    trans = AlgorithmInvoke2PSyCallTrans()
+    trans.apply(aic)
+    assert psyir.walk(AlgorithmInvokeCall) == []
+    calls = psyir.walk(Call)
+    assert len(calls) == 1
+    assert isinstance(calls[0].routine, RoutineSymbol)
+    assert calls[0].routine.name == "invoke_0_kern"
