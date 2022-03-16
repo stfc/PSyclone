@@ -694,6 +694,4 @@ def trans(psy):
 
         sched.view()
 
-        invoke.schedule = sched
-
     return psy
