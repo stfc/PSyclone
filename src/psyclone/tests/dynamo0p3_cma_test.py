@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
@@ -409,7 +409,7 @@ def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     assert cma_op_arg.data_type == "columnwise_operator_type"
     assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
     assert cma_op_arg.intrinsic_type == "real"
-    assert cma_op_arg.precision == "r_def"
+    assert cma_op_arg.precision == "r_solver"
 
     # Monkeypatch to check with an invalid argument type of an
     # operator argument. The LFRicConstants class needs to be
@@ -418,8 +418,9 @@ def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
                         ["calico"])
     monkeypatch.setattr(cma_op_arg, "_argument_type", "calico")
+
     with pytest.raises(InternalError) as err:
-        cma_op_arg._init_data_type_properties()
+        cma_op_arg._init_data_type_properties(None, check=False)
     assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
             "argument type but found 'calico'." in str(err.value))
 
@@ -1378,7 +1379,7 @@ def test_cma_asm_stub_gen():
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
         "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_adspc1_op_1, "
         "cbanded_map_adspc1_op_1, ndf_adspc2_op_1, cbanded_map_adspc2_op_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_op_1\n"
@@ -1391,8 +1392,8 @@ def test_cma_asm_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, "
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
         "cma_op_2_gamma_m, cma_op_2_gamma_p\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_2_bandwidth,"
-        "cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
+        "      REAL(KIND=r_solver), intent(inout), dimension("
+        "cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_1,"
         "ndf_adspc2_op_1,op_1_ncell_3d) :: op_1\n"
@@ -1420,7 +1421,7 @@ def test_cma_asm_with_field_stub_gen():
         "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
         "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
         "cbanded_map_aspc1_field_1, ndf_aspc2_op_2, cbanded_map_aspc2_op_2)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
@@ -1436,8 +1437,8 @@ def test_cma_asm_with_field_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
         "cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_3_bandwidth,"
-        "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
+        "      REAL(KIND=r_solver), intent(inout), dimension("
+        "cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_field_1) :: "
         "field_1_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
@@ -1466,7 +1467,7 @@ def test_cma_asm_same_fs_stub_gen():
         "cma_op_3_nrow, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_aspc1_op_1, undf_aspc1_op_1, "
         "map_aspc1_op_1, ndf_aspc2_op_1, cbanded_map_aspc2_op_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1\n"
@@ -1480,8 +1481,8 @@ def test_cma_asm_same_fs_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
         "cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_3_bandwidth,"
-        "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
+        "      REAL(KIND=r_solver), intent(inout), dimension("
+        "cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_op_1) :: "
         "field_2_aspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
@@ -1511,7 +1512,7 @@ def test_cma_app_stub_gen():
         "cma_indirection_map_aspc1_field_1, ndf_aspc2_field_2, "
         "undf_aspc2_field_2, map_aspc2_field_2, "
         "cma_indirection_map_aspc2_field_2)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
@@ -1530,7 +1531,7 @@ def test_cma_app_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_bandwidth, "
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
+        "      REAL(KIND=r_solver), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1\n"
@@ -1561,7 +1562,7 @@ def test_cma_app_same_space_stub_gen():
         "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_aspc2_field_1, "
         "undf_aspc2_field_1, map_aspc2_field_1, "
         "cma_indirection_map_aspc2_field_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc2_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
@@ -1573,7 +1574,7 @@ def test_cma_app_same_space_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_bandwidth, "
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
+        "      REAL(KIND=r_solver), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_aspc2_field_1) :: field_1_aspc2_field_1\n"
@@ -1601,24 +1602,24 @@ def test_cma_mul_stub_gen():
         "cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p, "
         "cma_op_3, cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, "
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_1_nrow, "
         "cma_op_1_ncol, cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, "
         "cma_op_1_gamma_m, cma_op_1_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_1_bandwidth,"
+        "      REAL(KIND=r_solver), intent(in), dimension(cma_op_1_bandwidth,"
         "cma_op_1_nrow,ncell_2d) :: cma_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, "
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
         "cma_op_2_gamma_m, cma_op_2_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_2_bandwidth,"
+        "      REAL(KIND=r_solver), intent(in), dimension(cma_op_2_bandwidth,"
         "cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
         "cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_3_bandwidth,"
-        "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
+        "      REAL(KIND=r_solver), intent(inout), dimension("
+        "cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "    END SUBROUTINE columnwise_op_mul_kernel_code\n"
         "  END MODULE columnwise_op_mul_kernel_mod")
     assert expected in str(result)
@@ -1644,24 +1645,24 @@ def test_cma_mul_with_scalars_stub_gen():
         "rscalar_4, "
         "cma_op_5, cma_op_5_nrow, cma_op_5_ncol, cma_op_5_bandwidth, "
         "cma_op_5_alpha, cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_1_nrow, "
         "cma_op_1_ncol, cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, "
         "cma_op_1_gamma_m, cma_op_1_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_1_bandwidth,"
+        "      REAL(KIND=r_solver), intent(in), dimension(cma_op_1_bandwidth,"
         "cma_op_1_nrow,ncell_2d) :: cma_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
         "cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
+        "      REAL(KIND=r_solver), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "      INTEGER(KIND=i_def), intent(in) :: cma_op_5_nrow, "
         "cma_op_5_ncol, cma_op_5_bandwidth, cma_op_5_alpha, cma_op_5_beta, "
         "cma_op_5_gamma_m, cma_op_5_gamma_p\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_5_bandwidth,"
-        "cma_op_5_nrow,ncell_2d) :: cma_op_5\n"
+        "      REAL(KIND=r_solver), intent(inout), "
+        "dimension(cma_op_5_bandwidth,cma_op_5_nrow,ncell_2d) :: cma_op_5\n"
         "      REAL(KIND=r_def), intent(in) :: rscalar_2, rscalar_4\n"
         "    END SUBROUTINE columnwise_op_mul_2scalars_kernel_code\n"
         "  END MODULE columnwise_op_mul_2scalars_kernel_mod")

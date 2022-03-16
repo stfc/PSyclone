@@ -1020,20 +1020,7 @@ class FortranWriter(LanguageWriter):
                     whole_routine_scope.add(symbol)
                 except KeyError:
                     new_name = whole_routine_scope.next_available_name(
-                        symbol.name)
-                    while True:
-                        # Ensure that the new name isn't already in the current
-                        # symbol table.
-                        local_name = schedule.symbol_table.next_available_name(
-                            new_name)
-                        if local_name == new_name:
-                            # new_name is availble in the current symbol table
-                            # so we're done.
-                            break
-                        # new_name clashed with an entry in the current symbol
-                        # table so try again.
-                        new_name = whole_routine_scope.next_available_name(
-                            local_name)
+                        symbol.name, other_table=schedule.symbol_table)
                     schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
 

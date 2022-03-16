@@ -156,6 +156,20 @@
 	54) PR #1625 for #1606. Fixes bug in PSyAD by ensuring that all
 	local, active variables are initialised to zero.
 
+	55) PR #1349 for #1277. Extend the LFRic API to use algorithm
+	precision/types when generating the PSy layer. Required for
+	mixed-precision support.
+
+	56) PR #1624 towards #1618. Bug fix for LFRic algorithm PSyIR module
+	and subroutine names.
+
+	57) PR #1637 for #1634. Add HoistLocalArraysTrans transformation.
+
+	58) PR #1553 for #1134. Completes the movement of OpenCL-generation
+	into its own transformation.
+
+	59) PR #1657 for #1640. Changes ready for new 2.2 release.
+
 release 2.1.0 3rd November 2021
 
 	1) PR #1183 for #1075. Improves (tightens) the checking performed
