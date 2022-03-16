@@ -166,7 +166,9 @@
 	57) PR #1637 for #1634. Add HoistLocalArraysTrans transformation.
 
 	58) PR #1553 for #1134. Completes the movement of OpenCL-generation
-        into its own transformation.
+	into its own transformation.
+
+	59) PR #1657 for #1640. Changes ready for new 2.2 release.
 
 release 2.1.0 3rd November 2021
 
