@@ -2,7 +2,7 @@
 
 In this part of the [first tutorial](../README.md), we will use the
 [stub-generation](
-https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) functionality
+https://psyclone.readthedocs.io/en/latest/psyclone_kern.html) functionality
 of the PSyclone kernel tool to create the argument list and declarations
 for two kernels, one that assigns a value to a field on a continuous
 `W0` function space and another on a discontinuous `W3` function space.
