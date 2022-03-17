@@ -49,6 +49,7 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 jobs:
   markdown-link-check:
     # Check all markdown files for dead links. See the 'mlc_config.json'
