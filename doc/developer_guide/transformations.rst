@@ -101,7 +101,35 @@ Raising Transformations for the LFRic API
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
 
-.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicRaiseCall2InvokeTrans
+
+Algorithm Transformations
+=========================
+
+There are two code-generation options for Algorithm PSyIR:
+
+ 1. generate the transformed version of the algorithm with normal subroutine
+    calls to PSy-layer routines;
+ 2. generate an algorithm layer complete with 'invoke' calls;
+
+In normal PSyclone operation it is the first option that is required. However,
+if PSyclone is being used to generate an Algorithm layer (e.g. when
+constructing a kernel test harness) then the second option is required. In
+order to support both use cases, PSyclone provides a transformation that
+converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to the
+corresponding PSy-layer routine:
+
+.. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
+
+Algorithm Transformations for the LFRic API
+-------------------------------------------
+
+Since the LFRic API has the concept of Builtin kernels, there is more work
+to do when transforming an invoke into a call to a PSy layer routine and
+therefore there is a specialised class for this:
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
+
 
 OpenACC
 =======
