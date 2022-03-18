@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
 
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelFunctor
-from psyclone.domain.common.transformations import InvokeCallTrans
+from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 
 
 def check_reference(klr, name, arg_name):
@@ -94,14 +94,14 @@ def check_literal(klr, name, arg_value):
 
 
 def test_init():
-    '''Check that an InvokeCallTrans instance can be created correctly,
+    '''Check that an RaiseCall2InvokeTrans instance can be created correctly,
     has the expected defaults, deals with any __init__ arguments and
     its name method returns the expected value.
 
     '''
-    invoke_trans = InvokeCallTrans()
-    assert invoke_trans.name == "InvokeCallTrans"
-    assert isinstance(invoke_trans, InvokeCallTrans)
+    invoke_trans = RaiseCall2InvokeTrans()
+    assert invoke_trans.name == "RaiseCall2InvokeTrans"
+    assert isinstance(invoke_trans, RaiseCall2InvokeTrans)
     assert invoke_trans._call_name is None
 
 
@@ -122,7 +122,7 @@ def test_parse_args_get_symbol(fortran_reader):
     assert isinstance(code_block, CodeBlock)
 
     # Check expected output from parse_args
-    nodes = InvokeCallTrans._parse_args(code_block, code_block._fp2_nodes[0])
+    nodes = RaiseCall2InvokeTrans._parse_args(code_block, code_block._fp2_nodes[0])
     assert isinstance(nodes, list)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
@@ -131,14 +131,14 @@ def test_parse_args_get_symbol(fortran_reader):
     # Check expected output from get_symbol when no symbol exists
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
-    symbol = InvokeCallTrans._get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol = RaiseCall2InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
 
     # Check expected output from get_symbol when symbol already exists
-    symbol3 = InvokeCallTrans._get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol3 = RaiseCall2InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
 
@@ -149,14 +149,14 @@ def test_specialise_symbol():
     symbol = Symbol("hello")
 
     # Check that a Symbol is specialised
-    InvokeCallTrans._specialise_symbol(symbol)
+    RaiseCall2InvokeTrans._specialise_symbol(symbol)
     assert isinstance(symbol, DataTypeSymbol)
     # pylint: disable=no-member
     assert isinstance(symbol.datatype, StructureType)
 
     # Check that something that is not a symbol is ignored
     test = "hello"
-    InvokeCallTrans._specialise_symbol(test)
+    RaiseCall2InvokeTrans._specialise_symbol(test)
     assert isinstance(test, str)
     assert test == "hello"
 
@@ -174,7 +174,7 @@ def test_structure_constructor():
 
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
 
     invoke = psyir.children[0][0]
     invoke_trans.validate(invoke)
@@ -195,19 +195,19 @@ def test_named_arg_error(string):
 
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
 
     invoke = psyir.children[0][0]
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert (f"Error in InvokeCallTrans transformation. If there is a "
+    assert (f"Error in RaiseCall2InvokeTrans transformation. If there is a "
             f"named argument, it must take the form name='str', but found "
             f"'{string}'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         invoke_trans._validate_fp2_node(
             invoke.children[0]._fp2_nodes[0])
-    assert (f"Error in InvokeCallTrans transformation. If there is a "
+    assert (f"Error in RaiseCall2InvokeTrans transformation. If there is a "
             f"named argument, it must take the form name='str', but found "
             f"'{string}'." in str(info.value))
 
@@ -226,19 +226,19 @@ def test_multi_named_arg_error():
 
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke = psyir.children[0][0]
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert ("Error in InvokeCallTrans transformation. There should be at "
+    assert ("Error in RaiseCall2InvokeTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
     invoke_trans._call_name = None
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply(invoke, 0)
-    assert ("Error in InvokeCallTrans transformation. There should be at "
+    assert ("Error in RaiseCall2InvokeTrans transformation. There should be at "
             "most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
@@ -262,7 +262,7 @@ def test_codeblock_invalid(monkeypatch):
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
@@ -277,17 +277,17 @@ def test_call_error():
     validate method from within the apply method.
 
     '''
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate("hello")
-    assert ("Error in InvokeCallTrans transformation. The supplied call "
+    assert ("Error in RaiseCall2InvokeTrans transformation. The supplied call "
             "argument should be a `Call` node but found 'str'."
             in str(info.value))
 
     # Check that validate is called via the apply method
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply("hello", 0)
-    assert ("Error in InvokeCallTrans transformation. The supplied call "
+    assert ("Error in RaiseCall2InvokeTrans transformation. The supplied call "
             "argument should be a `Call` node but found 'str'."
             in str(info.value))
 
@@ -298,10 +298,10 @@ def test_invoke_error():
     'invoke' name.
 
     '''
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(Call(RoutineSymbol("hello")))
-    assert ("Error in InvokeCallTrans transformation. The supplied call "
+    assert ("Error in RaiseCall2InvokeTrans transformation. The supplied call "
             "argument should be a `Call` node with name 'invoke' but "
             "found 'hello'." in str(info.value))
 
@@ -322,7 +322,7 @@ def test_array_reference(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
     assert isinstance(subroutine[0].children[0], ArrayReference)
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke_trans.validate(subroutine[0])
 
 
@@ -340,7 +340,7 @@ def test_arg_error(fortran_reader):
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
     assert ("The arguments to this invoke call are expected to be a "
@@ -367,7 +367,7 @@ def test_apply_arrayref(fortran_reader):
     assert len(subroutine[0].children) == 1
     assert isinstance(subroutine[0].children[0], ArrayReference)
 
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke_trans.apply(subroutine[0], 1)
 
     invoke = subroutine[0]
@@ -394,7 +394,7 @@ def test_apply_codeblock(fortran_reader):
     assert len(subroutine[0].children) == 1
     assert isinstance(subroutine[0].children[0], CodeBlock)
 
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke_trans.apply(subroutine[0], 2)
 
     invoke = subroutine.children[0]
@@ -423,7 +423,7 @@ def test_apply_codeblocks(fortran_reader):
     for child in subroutine[0].children:
         assert isinstance(child, CodeBlock)
 
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke_trans.apply(subroutine[0], 3)
 
     invoke = subroutine.children[0]
@@ -457,7 +457,7 @@ def test_apply_mixed(fortran_reader):
     assert isinstance(subroutine[0].children[2], ArrayReference)
     assert isinstance(subroutine[0].children[3], CodeBlock)
 
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke_trans.apply(subroutine[0], 4)
 
     invoke = psyir.children[0][0]
@@ -490,7 +490,7 @@ def test_apply_expr(fortran_reader):
     assert isinstance(subroutine[0].children[0], ArrayReference)
     assert isinstance(subroutine[0].children[1], CodeBlock)
 
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
     invoke_trans.apply(subroutine[0], 5)
 
     invoke = subroutine[0]
@@ -526,7 +526,7 @@ def test_multi_name():
 
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
+    invoke_trans = RaiseCall2InvokeTrans()
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])

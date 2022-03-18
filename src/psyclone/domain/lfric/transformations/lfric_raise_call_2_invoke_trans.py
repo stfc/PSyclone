@@ -42,13 +42,13 @@ from fparser.two.Fortran2003 import Actual_Arg_Spec
 
 from psyclone.psyir.nodes import ArrayReference
 
-from psyclone.domain.common.transformations import InvokeCallTrans
+from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
     LFRicKernelFunctor, LFRicAlgorithmInvokeCall
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
-class LFRicRaiseCall2InvokeTrans(InvokeCallTrans):
+class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
@@ -96,9 +96,9 @@ class LFRicRaiseCall2InvokeTrans(InvokeCallTrans):
                             node_type = LFRicBuiltinFunctor
                         else:
                             node_type = LFRicKernelFunctor
-                        type_symbol = InvokeCallTrans._get_symbol(
+                        type_symbol = self._get_symbol(
                             call, fp2_node)
-                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                        args = self._parse_args(call_arg, fp2_node)
                         arg_info.append((node_type, type_symbol, args))
 
             for (node_type, type_symbol, args) in arg_info:
@@ -119,4 +119,4 @@ class LFRicRaiseCall2InvokeTrans(InvokeCallTrans):
 #        return "LFRicInvokeCallTrans"
 
 
-__all__ = ['LFRicRaiseCall2Invoke']
+__all__ = ['LFRicRaiseCall2InvokeTrans']

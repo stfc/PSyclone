@@ -69,8 +69,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         if not isinstance(node, LFRicAlgorithmInvokeCall):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied call "
-                f"argument should be an `AlgorithmInvokeCall` node but found "
-                f"'{type(node).__name__}'.")
+                f"argument should be an `LFRicAlgorithmInvokeCall` node but "
+                f"found '{type(node).__name__}'.")
 
     def apply(self, node, options=None):
         ''' Apply the transformation to the supplied node.

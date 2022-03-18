@@ -40,7 +40,7 @@ transformation.
 import pytest
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
-from psyclone.domain.lfric.transformations import AlgTrans
+from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.domain.lfric.transformations import LFRicAlgInvoke2PSyCallTrans
 from psyclone.psyir.nodes import Call
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
@@ -54,8 +54,9 @@ def test_lfai2psycall_validate():
     trans = LFRicAlgInvoke2PSyCallTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(None)
-    assert ("The supplied call argument should be an `LFRicAlgInvokeCall` "
-            "node but found 'NoneType'" in str(err.value))
+    assert ("The supplied call argument should be an "
+            "`LFRicAlgorithmInvokeCall` node but found 'NoneType'"
+            in str(err.value))
 
 
 def test_lfai2psycall_apply(fortran_reader):
@@ -69,7 +70,7 @@ def test_lfai2psycall_apply(fortran_reader):
         "  call invoke(kern(field1))\n"
         "end subroutine alg1\n")
     psyir = fortran_reader.psyir_from_source(code)
-    alg_trans = AlgTrans()
+    alg_trans = LFRicAlgTrans()
     alg_trans.apply(psyir)
     aic = psyir.walk(AlgorithmInvokeCall)[0]
     trans = LFRicAlgInvoke2PSyCallTrans()
