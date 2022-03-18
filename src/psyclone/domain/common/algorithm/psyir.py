@@ -161,12 +161,12 @@ class AlgorithmInvokeCall(Call):
 
     def _def_routine_root_name(self):
         '''Internal method that returns the proposed language-level routine
-        name given the index of this invoke.
+        name.
 
         :returns: the proposed processed routine name for this invoke.
         :rtype: str
 
-        :raises TypeError: if the name is not valid.
+        :raises TypeError: if the name provided in the invoke call is invalid.
 
         '''
         if self._name:
