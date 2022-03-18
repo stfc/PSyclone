@@ -91,8 +91,10 @@ class AlgorithmInvokeCall(Call):
         # Keep the root names as these will also be needed by the
         # PSy-layer to use as tags to pull out the actual names from
         # the algorithm symbol table, once issue #753 is complete.
-        self._psylayer_routine_root_name = None
-        self._psylayer_container_root_name = None
+        # They are public properties because they are needed in
+        # AlgInvoke2PSyCallTrans.
+        self.psylayer_routine_root_name = None
+        self.psylayer_container_root_name = None
         self._name = name
 
     @classmethod
@@ -210,10 +212,10 @@ class AlgorithmInvokeCall(Call):
             the PSyIR tree containing this node.
 
         '''
-        if not self._psylayer_routine_root_name:
-            self._psylayer_routine_root_name = self._def_routine_root_name()
+        if not self.psylayer_routine_root_name:
+            self.psylayer_routine_root_name = self._def_routine_root_name()
 
-        if not self._psylayer_container_root_name:
+        if not self.psylayer_container_root_name:
             # The PSy-layer module naming logic (in algorithm.py) finds
             # the first program, module, subroutine or function in the
             # parse tree and uses that name for the container name. Here
@@ -222,7 +224,7 @@ class AlgorithmInvokeCall(Call):
             # the closest ancestor routine instead.
             for node in self.root.walk((Routine, Container)):
                 if not isinstance(node, FileContainer):
-                    self._psylayer_container_root_name = \
+                    self.psylayer_container_root_name = \
                         self._def_container_root_name(node)
                     return
             raise InternalError("No Routine or Container node found.")

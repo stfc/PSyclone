@@ -65,6 +65,7 @@ class AlgInvoke2PSyCallTrans(Transformation):
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
+        :raises InternalError: if no corresponding 'invoke' symbol is present.
 
         '''
         if not isinstance(node, AlgorithmInvokeCall):
@@ -73,23 +74,34 @@ class AlgInvoke2PSyCallTrans(Transformation):
                 f"argument should be an `AlgorithmInvokeCall` node but found "
                 f"'{type(node).__name__}'.")
 
-    def apply(self, call, options=None):
-        ''' Apply the transformation to the supplied node.
+        try:
+            _ = node.scope.symbol_table.lookup("invoke")
+        except KeyError:
+            # pylint: disable=raise-missing-from
+            raise InternalError(
+                "No 'invoke' symbol found despite there still being at least "
+                "one AlgorithmInvokeCall node present.")
 
-        :param call: a PSyIR algorithm invoke call node.
-        :type call: \
+    def apply(self, node, options=None):
+        ''' Apply the transformation to the supplied AlgorithmInvokeCall.
+        The supplied node will be replaced with a Call node with appropriate
+        arguments. If there are no more invoke calls in the scope of the symbol
+        table containing the 'invoke' symbol then that symbol is removed.
+
+        :param node: a PSyIR algorithm invoke call node.
+        :type node: \
             :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:values or None
 
         '''
-        self.validate(call, options=options)
+        self.validate(node, options=options)
 
-        call.create_psylayer_symbol_root_names()
+        node.create_psylayer_symbol_root_names()
 
         arguments = []
         sym_maths = SymbolicMaths.get()
-        for kern in call.children:
+        for kern in node.children:
             for arg in kern.children:
                 if isinstance(arg, Literal):
                     # Literals are not passed by argument.
@@ -106,12 +118,12 @@ class AlgInvoke2PSyCallTrans(Transformation):
                         f"a literal, reference or array reference, but "
                         f"found '{type(arg).__name__}'.")
 
-        symbol_table = call.scope.symbol_table
+        symbol_table = node.scope.symbol_table
 
         # TODO #753. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if
         # there is a name clash in the algorithm layer.
-        container_tag = call._psylayer_container_root_name
+        container_tag = node.psylayer_container_root_name
         try:
             container_symbol = symbol_table.lookup_with_tag(container_tag)
         except KeyError:
@@ -119,32 +131,23 @@ class AlgInvoke2PSyCallTrans(Transformation):
                 root_name=container_tag, tag=container_tag,
                 symbol_type=ContainerSymbol)
 
-        routine_tag = call._psylayer_routine_root_name
+        routine_tag = node.psylayer_routine_root_name
         interface = ImportInterface(container_symbol)
         routine_symbol = symbol_table.new_symbol(
             root_name=routine_tag, tag=routine_tag, symbol_type=RoutineSymbol,
             interface=interface)
 
         psy_call = Call.create(routine_symbol, arguments)
-        call.replace_with(psy_call)
+        node.replace_with(psy_call)
 
         # Remove original 'invoke' symbol if there are no other
         # references to it. This keeps the symbol table up-to-date and
         # also avoids an exception being raised in the Fortran Writer
         # as the invoke symbol has an UnresolvedInterface.
-        symbol_table = psy_call.scope.symbol_table
-        while symbol_table:
-            try:
-                invoke_symbol = symbol_table.lookup(
-                    "invoke", scope_limit=symbol_table.node)
-            except KeyError:
-                symbol_table = symbol_table.parent_symbol_table()
-                continue
-            if not symbol_table.node.walk(AlgorithmInvokeCall):
-                symbol_table.remove(invoke_symbol)
-            break
-        else:
-            raise InternalError("No 'invoke' symbol found.")
+        invoke_symbol = psy_call.scope.symbol_table.lookup("invoke")
+        symbol_table = invoke_symbol.find_symbol_table(psy_call)
+        if not symbol_table.node.walk(AlgorithmInvokeCall):
+            symbol_table.remove(invoke_symbol)
 
 
 __all__ = ['AlgInvoke2PSyCallTrans']

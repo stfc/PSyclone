@@ -38,12 +38,9 @@ to the corresponding PSy-layer routine.
 
 '''
 
-from psyclone.psyir.symbols import (RoutineSymbol, ContainerSymbol,
-                                    ImportInterface)
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.lfric.algorithm import (LFRicAlgorithmInvokeCall,
                                              LFRicBuiltinFunctor)
-from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -58,7 +55,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         :param node: a PSyIR node capturing an LFRicinvoke call.
         :type node: \
-            :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
+        :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:values or None
 
@@ -73,18 +70,23 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 f"found '{type(node).__name__}'.")
 
     def apply(self, node, options=None):
-        ''' Apply the transformation to the supplied node.
+        ''' Apply the transformation to the supplied LFRicAlgorithmInvokeCall
+        node. That node is replaced by a Call to the corresponding PSy-layer
+        routine with appropriate arguments. The symbols representing any
+        LFRic Builtins that are now no longer referred to are removed.
 
         :param node: a PSyIR algorithm invoke call node.
         :type node: \
-            :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
+        :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:values or None
 
         '''
         self.validate(node, options=options)
 
-        # The generic class does not handle Builtins so we do that here.
+        # The generic class does not handle Builtins so we do that here. We
+        # have to record which Builtins are involved before the call is
+        # transformed.
         builtin_symbols = set()
         for kern in node.children:
             if isinstance(kern, LFRicBuiltinFunctor):

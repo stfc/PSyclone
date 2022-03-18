@@ -96,6 +96,33 @@ def test_ai2psycall_validate():
             "node but found 'NoneType'" in str(err.value))
 
 
+def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
+    '''Check that the validate() method raises the expected
+    exception when no invoke symbol is found in the PSyIR.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(kern(field))\n"
+        "end subroutine alg1\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    AlgTrans().apply(psyir)
+    invoke = psyir.children[0].children[0]
+    symbol_table = invoke.scope.symbol_table
+    invoke_symbol = symbol_table.lookup("invoke")
+    symbol_table.remove(invoke_symbol)
+    trans = AlgInvoke2PSyCallTrans()
+
+    with pytest.raises(InternalError) as info:
+        trans.validate(invoke)
+    assert ("No 'invoke' symbol found despite there still being at least one "
+            "AlgorithmInvokeCall node present." in str(info.value))
+
+
 def test_ai2psycall_apply(fortran_reader):
     ''' Test the apply() method of the AlgorithmInvoke2PSyCallTrans
     class. '''
@@ -140,32 +167,6 @@ def test_ai2psycall_apply_error(fortran_reader):
     assert ("Expected Algorithm-layer kernel arguments to be a literal, "
             "reference or array reference, but found 'BinaryOperation'."
             in str(info.value))
-
-
-def test_ai2psycall_apply_error2(fortran_reader):
-    '''Check that the apply() method raises the expected
-    exception when no invoke symbol is found in the PSyIR.
-
-    '''
-    code = (
-        "subroutine alg1()\n"
-        "  use kern_mod\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field\n"
-        "  call invoke(kern(field))\n"
-        "end subroutine alg1\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    AlgTrans().apply(psyir)
-    invoke = psyir.children[0].children[0]
-    symbol_table = invoke.scope.symbol_table
-    invoke_symbol = symbol_table.lookup("invoke")
-    symbol_table.remove(invoke_symbol)
-    trans = AlgInvoke2PSyCallTrans()
-
-    with pytest.raises(InternalError) as info:
-        trans.apply(invoke)
-    assert "No 'invoke' symbol found." in str(info.value)
 
 
 def test_ai2psycall_apply_expr(fortran_reader):
