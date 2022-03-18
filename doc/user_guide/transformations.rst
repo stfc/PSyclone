@@ -858,10 +858,9 @@ OpenCL functionality. It also relies upon the device acceleration support
 provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
-.. note:: The generated OpenCL files follow the `--kernel-renaming` argument
-    conventions, but in addition to the `<modulename>` they also include the
-    `<kernelname>` as part of the filename in the format:
-    `<modulename>_<kernelname>_index.cl`
+.. note:: The generated OpenCL kernels are written in a file called
+    opencl_kernels_<index>.cl where the index keeps increasing if the
+    file name already exist.
 
 
 The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
