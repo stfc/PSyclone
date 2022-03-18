@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an algorithm layer to a
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
@@ -93,15 +93,6 @@ class AlgTrans(Transformation):
             if call.routine.name.lower() == "invoke":
                 self._invoke_trans.apply(call, idx, options=options)
                 idx += 1
-
-#    @property
-#    def name(self):
-#        '''
-#        :returns: a name identifying this transformation.
-#        :rtype: str
-#
-#        '''
-#        return "AlgTrans"
 
 
 __all__ = ['AlgTrans']

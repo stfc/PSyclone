@@ -122,7 +122,8 @@ def test_parse_args_get_symbol(fortran_reader):
     assert isinstance(code_block, CodeBlock)
 
     # Check expected output from parse_args
-    nodes = RaiseCall2InvokeTrans._parse_args(code_block, code_block._fp2_nodes[0])
+    nodes = RaiseCall2InvokeTrans._parse_args(code_block,
+                                              code_block._fp2_nodes[0])
     assert isinstance(nodes, list)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
@@ -131,14 +132,16 @@ def test_parse_args_get_symbol(fortran_reader):
     # Check expected output from get_symbol when no symbol exists
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
-    symbol = RaiseCall2InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol = RaiseCall2InvokeTrans._get_symbol(code_block,
+                                               code_block._fp2_nodes[0])
     assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
 
     # Check expected output from get_symbol when symbol already exists
-    symbol3 = RaiseCall2InvokeTrans._get_symbol(code_block, code_block._fp2_nodes[0])
+    symbol3 = RaiseCall2InvokeTrans._get_symbol(code_block,
+                                                code_block._fp2_nodes[0])
     assert symbol3 is symbol
 
 
@@ -231,15 +234,15 @@ def test_multi_named_arg_error():
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert ("Error in RaiseCall2InvokeTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are at least "
+    assert ("Error in RaiseCall2InvokeTrans transformation. There should be "
+            "at most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
     invoke_trans._call_name = None
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply(invoke, 0)
-    assert ("Error in RaiseCall2InvokeTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are at least "
+    assert ("Error in RaiseCall2InvokeTrans transformation. There should be "
+            "at most one named argument in an invoke, but there are at least "
             "two: 'first' and 'second'." in str(info.value))
 
 

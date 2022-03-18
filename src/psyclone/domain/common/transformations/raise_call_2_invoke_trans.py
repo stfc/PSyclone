@@ -31,15 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an invoke call within the
 algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-
-# pylint: disable=protected-access
 
 from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
     Name, Char_Literal_Constant
@@ -201,6 +199,7 @@ class RaiseCall2InvokeTrans(Transformation):
             if isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
+                # pylint: disable=protected-access
                 for fp2_node in arg._fp2_nodes:
                     self._validate_fp2_node(fp2_node)
             else:
@@ -227,6 +226,7 @@ class RaiseCall2InvokeTrans(Transformation):
         calls = []
         for call_arg in call.children:
 
+            # pylint: disable=protected-access
             arg_info = []
             if isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
@@ -252,15 +252,6 @@ class RaiseCall2InvokeTrans(Transformation):
         invoke_call = AlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
-
-#    @property
-#    def name(self):
-#        '''
-#        :returns: a name identifying this transformation.
-#        :rtype: str
-#
-#        '''
-#        return "InvokeCallTrans"
 
 
 __all__ = ['RaiseCall2InvokeTrans']
