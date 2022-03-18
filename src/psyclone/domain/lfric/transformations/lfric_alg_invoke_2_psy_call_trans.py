@@ -90,7 +90,28 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             if isinstance(kern, LFRicBuiltinFunctor):
                 builtin_symbols.add(kern.symbol)
 
+        # 'node' will get replaced with a new Call node so keep a record
+        # of where we are in the tree.
+        parent = node.parent
+
         super().apply(node, options=options)
+
+        # Now that the transformation is done, check whether we can remove
+        # any of the symbols for the Builtins.
+        for sym in builtin_symbols:
+            table = sym.find_symbol_table(parent)
+            node = table.node
+            functors = node.walk(LFRicBuiltinFunctor)
+            for func in functors:
+                if sym is func.symbol:
+                    break
+            else:
+                # We didn't find a Functor referring to this symbol so
+                # we can remove it.
+                # TODO #898 SymbolTable.remove() does not support
+                # DataTypeSymbol so remove it manually.
+                # pylint: disable=protected-access
+                del table._symbols[sym.name]
 
 
 __all__ = ['LFRicAlgInvoke2PSyCallTrans']
