@@ -48,7 +48,7 @@ from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
-class LFRicInvokeCallTrans(InvokeCallTrans):
+class LFRicRaiseCall2InvokeTrans(InvokeCallTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
@@ -109,14 +109,14 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
+#    @property
+#    def name(self):
+#        '''
+#        :returns: a name identifying this transformation.
+#        :rtype: str
+#
+#        '''
+#        return "LFRicInvokeCallTrans"
 
-        '''
-        return "LFRicInvokeCallTrans"
 
-
-__all__ = ['LFRicInvokeCallTrans']
+__all__ = ['LFRicRaiseCall2Invoke']

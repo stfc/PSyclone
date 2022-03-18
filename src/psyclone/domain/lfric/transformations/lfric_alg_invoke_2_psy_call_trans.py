@@ -38,18 +38,16 @@ to the corresponding PSy-layer routine.
 
 '''
 
-from psyclone.core import SymbolicMaths
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, ArrayReference, Reference, Literal
 from psyclone.psyir.symbols import (RoutineSymbol, ContainerSymbol,
                                     ImportInterface)
+from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.lfric.algorithm import (LFRicAlgorithmInvokeCall,
                                              LFRicBuiltinFunctor)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 
 
-class LFRicAlgorithmInvoke2PSyCallTrans(Transformation):
+class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     '''
     Transforms an LFRicAlgorithmInvokeCall into a standard Call to a generated
     PSy-layer routine.
@@ -95,4 +93,4 @@ class LFRicAlgorithmInvoke2PSyCallTrans(Transformation):
         super().apply(node, options=options)
 
 
-__all__ = ['LFRicAlgorithmInvoke2PSyCallTrans']
+__all__ = ['LFRicAlgInvoke2PSyCallTrans']

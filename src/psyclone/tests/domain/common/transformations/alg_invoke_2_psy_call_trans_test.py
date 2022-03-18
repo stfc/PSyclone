@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-''' Module containing pytest unit tests for the AlgorithmInvoke2PSyCallTrans
+''' Module containing pytest unit tests for the AlgInvoke2PSyCallTrans
 transformation.
 
 '''
@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.common.transformations import AlgTrans
-from psyclone.domain.common.transformations import AlgorithmInvoke2PSyCallTrans
+from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.psyir.nodes import Call
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, Symbol, REAL_TYPE, DataSymbol, INTEGER_TYPE
@@ -51,7 +51,7 @@ from psyclone.psyir.transformations import TransformationError
 def test_ai2psycall_validate():
     ''' Test the validate() method of the AlgorithmInvoke2PSyCallTrans
     class. '''
-    trans = AlgorithmInvoke2PSyCallTrans()
+    trans = AlgInvoke2PSyCallTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(None)
     assert ("The supplied call argument should be an `AlgorithmInvokeCall` "
@@ -72,7 +72,7 @@ def test_ai2psycall_apply(fortran_reader):
     alg_trans = AlgTrans()
     alg_trans.apply(psyir)
     aic = psyir.walk(AlgorithmInvokeCall)[0]
-    trans = AlgorithmInvoke2PSyCallTrans()
+    trans = AlgInvoke2PSyCallTrans()
     trans.apply(aic)
     assert psyir.walk(AlgorithmInvokeCall) == []
     calls = psyir.walk(Call)

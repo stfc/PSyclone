@@ -48,7 +48,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 
 
-class AlgorithmInvoke2PSyCallTrans(Transformation):
+class AlgInvoke2PSyCallTrans(Transformation):
     '''
     Transforms an AlgorithmInvokeCall into a standard Call to a generated
     PSy-layer routine.
@@ -147,4 +147,4 @@ class AlgorithmInvoke2PSyCallTrans(Transformation):
             raise InternalError("No 'invoke' symbol found.")
 
 
-__all__ = ['AlgorithmInvoke2PSyCallTrans']
+__all__ = ['AlgInvoke2PSyCallTrans']

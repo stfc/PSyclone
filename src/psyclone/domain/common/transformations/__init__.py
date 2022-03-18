@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 from psyclone.domain.common.transformations.invokecall_trans import \
     InvokeCallTrans
-from psyclone.domain.common.transformations.algorithm_invoke_2_psy_call_trans \
-    import AlgorithmInvoke2PSyCallTrans
+from psyclone.domain.common.transformations.alg_invoke_2_psy_call_trans \
+    import AlgInvoke2PSyCallTrans
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
 
 __all__ = ["InvokeCallTrans", "AlgTrans"]
