@@ -86,68 +86,13 @@ class LFRicAlgorithmInvoke2PSyCallTrans(Transformation):
         '''
         self.validate(node, options=options)
 
-        node.create_psylayer_symbol_root_names()
-
-        arguments = []
-        sym_maths = SymbolicMaths.get()
+        # The generic class does not handle Builtins so we do that here.
+        builtin_symbols = set()
         for kern in node.children:
             if isinstance(kern, LFRicBuiltinFunctor):
-                pass
-            for arg in kern.children:
-                if isinstance(arg, Literal):
-                    # Literals are not passed by argument.
-                    pass
-                elif isinstance(arg, (Reference, ArrayReference)):
-                    for existing_arg in arguments:
-                        if sym_maths.equal(arg, existing_arg):
-                            break
-                    else:
-                        arguments.append(arg.copy())
-                else:
-                    raise InternalError(
-                        f"Expected Algorithm-layer kernel arguments to be "
-                        f"a literal, reference or array reference, but "
-                        f"found '{type(arg).__name__}'.")
+                builtin_symbols.add(kern.symbol)
 
-        symbol_table = node.scope.symbol_table
-
-        # TODO #753. At the moment the container and routine names
-        # produced here will differ from the PSy-layer routine name if
-        # there is a name clash in the algorithm layer.
-        container_tag = node._psylayer_container_root_name
-        try:
-            container_symbol = symbol_table.lookup_with_tag(container_tag)
-        except KeyError:
-            container_symbol = symbol_table.new_symbol(
-                root_name=container_tag, tag=container_tag,
-                symbol_type=ContainerSymbol)
-
-        routine_tag = node._psylayer_routine_root_name
-        interface = ImportInterface(container_symbol)
-        routine_symbol = symbol_table.new_symbol(
-            root_name=routine_tag, tag=routine_tag, symbol_type=RoutineSymbol,
-            interface=interface)
-
-        psy_call = Call.create(routine_symbol, arguments)
-        node.replace_with(psy_call)
-
-        # Remove original 'invoke' symbol if there are no other
-        # references to it. This keeps the symbol table up-to-date and
-        # also avoids an exception being raised in the Fortran Writer
-        # as the invoke symbol has an UnresolvedInterface.
-        symbol_table = psy_call.scope.symbol_table
-        while symbol_table:
-            try:
-                invoke_symbol = symbol_table.lookup(
-                    "invoke", scope_limit=symbol_table.node)
-            except KeyError:
-                symbol_table = symbol_table.parent_symbol_table()
-                continue
-            if not symbol_table.node.walk(LFRicAlgorithmInvokeCall):
-                symbol_table.remove(invoke_symbol)
-            break
-        else:
-            raise InternalError("No 'invoke' symbol found.")
+        super().apply(node, options=options)
 
 
 __all__ = ['LFRicAlgorithmInvoke2PSyCallTrans']
