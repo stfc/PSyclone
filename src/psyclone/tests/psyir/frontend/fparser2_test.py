@@ -39,6 +39,7 @@
 
 from __future__ import absolute_import
 import pytest
+
 import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
@@ -46,23 +47,26 @@ from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
     Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
-from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
-    UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    ArrayReference, Container, Literal, Range, KernelSchedule, \
-    RegionDirective, StandaloneDirective, StructureReference, \
-    ArrayOfStructuresReference
-from psyclone.psyGen import PSyFactory
+from fparser.two.utils import walk
+
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.frontend.fparser2 import (
+    Fparser2Reader, _is_array_range_literal, _is_bound_full_extent,
+    _is_range_full_extent, _check_args, default_precision,
+    default_integer_type, default_real_type, _first_type_match,
+    _get_arg_names)
+from psyclone.psyir.nodes import (
+    Schedule, CodeBlock, Assignment, Return,
+    UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
+    ArrayReference, Container, Literal, Range, KernelSchedule,
+    RegionDirective, StandaloneDirective, StructureReference,
+    ArrayOfStructuresReference)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    _is_array_range_literal, _is_bound_full_extent, \
-    _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type, _first_type_match
-
 
 # Tests
 
@@ -348,8 +352,6 @@ def test_default_real_type():
 def test_get_arg_names(parser):
     '''Test the _get_arg_names utility function returns the expected
     results'''
-    from fparser.two.utils import walk
-    from psyclone.psyir.frontend.fparser2 import _get_arg_names
     code = ("program test\n"
             "call sub(a, arg2=b, arg3=c)\n"
             "end program test\n")
@@ -1893,20 +1895,20 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
 
 @pytest.mark.parametrize(
     "code, expected_type, expected_op, expected_names",
-     [('x = sum(a)', UnaryOperation,
-       UnaryOperation.Operator.SUM, [None]),
-      ('x = sum(array=a)', UnaryOperation,
-       UnaryOperation.Operator.SUM, ["array"]),
-      ('x = sum(a, dim=1)', BinaryOperation,
-       BinaryOperation.Operator.SUM, [None, "dim"]),
-      ('x = sum(array=a, mask=.true.)', BinaryOperation,
-       BinaryOperation.Operator.SUM, ["array", "mask"]),
-      ('x = sum(a, dim=1, mask=.true.)', NaryOperation,
-       NaryOperation.Operator.SUM, [None, "dim", "mask"]),
-      ('x = sum(array=a, mask=.true., dim=1)', NaryOperation,
-       NaryOperation.Operator.SUM, ["array", "mask", "dim"]),
-      ('x = sum(a, 1, mask=.true.)', NaryOperation,
-       NaryOperation.Operator.SUM, [None, None, "mask"])])
+    [('x = sum(a)', UnaryOperation,
+      UnaryOperation.Operator.SUM, [None]),
+     ('x = sum(array=a)', UnaryOperation,
+      UnaryOperation.Operator.SUM, ["array"]),
+     ('x = sum(a, dim=1)', BinaryOperation,
+      BinaryOperation.Operator.SUM, [None, "dim"]),
+     ('x = sum(array=a, mask=.true.)', BinaryOperation,
+      BinaryOperation.Operator.SUM, ["array", "mask"]),
+     ('x = sum(a, dim=1, mask=.true.)', NaryOperation,
+      NaryOperation.Operator.SUM, [None, "dim", "mask"]),
+     ('x = sum(array=a, mask=.true., dim=1)', NaryOperation,
+      NaryOperation.Operator.SUM, ["array", "mask", "dim"]),
+     ('x = sum(a, 1, mask=.true.)', NaryOperation,
+      NaryOperation.Operator.SUM, [None, None, "mask"])])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_intrinsics_named_args(
         code, expected_type, expected_op, expected_names, symbol_table):

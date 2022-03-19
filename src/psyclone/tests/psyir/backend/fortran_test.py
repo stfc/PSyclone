@@ -1386,10 +1386,7 @@ def test_fw_binaryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
 def test_fw_binaryoperator_namedarg2(fortran_writer):
     '''Check the FortranWriter class binary_operation method operator
     correctly outputs the Fortran representation of an intrinsic with
-    its first argument being a named argument. There are currently no
-    intrinsics where the first argument is a named argumement so we
-    create one and rely on there being no testing of argument types in
-    the PSyIR.
+    its first argument being a named argument.
 
     '''
     intrinsic = BinaryOperation.create(
@@ -1910,9 +1907,7 @@ def test_fw_unaryoperator2(fortran_reader, fortran_writer, tmpdir):
 def test_fw_unaryoperator_namedarg(fortran_writer):
     '''Check the FortranWriter class unary_operation method operator
     correctly outputs the Fortran representation of an intrinsic with
-    a named argument. There are currently no intrinsics with a single
-    named argument so we create one and rely on there being no
-    testing of argument types in the PSyIR.
+    a named argument.
 
     '''
     intrinsic = UnaryOperation.create(

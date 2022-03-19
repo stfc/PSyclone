@@ -113,7 +113,7 @@ class Operation(DataNode):
         '''
         :returns: a list containing the names of named arguments. If the \
             entry is None then the argument is a positional argument.
-        :rtype: list of str
+        :rtype: List[Union[str, NoneType]]
         '''
         return self._named_args
 
@@ -348,13 +348,13 @@ class BinaryOperation(Operation):
         :param lhs: the PSyIR node containing the left hand side of \
             the assignment, or a tuple containing the name of the \
             argument and the PSyIR node.
-        :type lhs: :py:class:`psyclone.psyir.nodes.Node` or \
-            (str, :py:class:`psyclone.psyir.nodes.Node`)
+        :type lhs: Union[:py:class:`psyclone.psyir.nodes.Node`, \
+            Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
         :param rhs: the PSyIR node containing the right hand side of \
             the assignment, or a tuple containing the name of the \
             argument and the PSyIR node.
-        :type rhs: :py:class:`psyclone.psyir.nodes.Node` or \
-            (str, :py:class:`psyclone.psyir.nodes.Node`)
+        :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`, \
+            Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
@@ -434,8 +434,8 @@ class NaryOperation(Operation):
         :param operands: a list containing PSyIR nodes and/or 2-tuples \
             which contain an argument name and a PSyIR node, that the \
             operator operates on.
-        :type operands: list of :py:class:`psyclone.psyir.nodes.Node` \
-            or (str, :py:class:`psyclone.psyir.nodes.DataNode`)
+        :type operands: List[Union[:py:class:`psyclone.psyir.nodes.Node`, \
+            Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
         :returns: an NaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
