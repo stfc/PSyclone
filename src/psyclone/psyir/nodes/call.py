@@ -130,7 +130,7 @@ class Call(Statement, DataNode):
 
         call = cls(routine)
         call.children = args
-        call.named_args = names
+        call._named_args = names
         return call
 
     @staticmethod
