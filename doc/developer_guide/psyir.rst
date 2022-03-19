@@ -355,12 +355,10 @@ the moment the PSyIR Fortran front end does not make use of this
 support, so the only way to make use of named arguments would be to
 create them directly in the PSyIR (using the `create()` method).
 
-.. note:: A `Call` is a `Statement` in the PSyIR and does not return
-          any data. Function calls (which would be `DataNode`s) are
-          not yet supported. The Fortran back-end support is also
-          limited to calls whose names (captured in a RoutineSymbol)
-          must have a global interface, i.e. in Fortran a `call x()`
-          must have an associated `use my_mod, only, x`.
+.. note:: A Call node (like the CodeBlock) inherits from both
+          Statement and DataNode because it can be found in Schedules
+          or inside Expressions, however this has some shortcomings,
+          see issue #1437.
 
 Control-Flow Node annotation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

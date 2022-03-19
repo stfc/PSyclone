@@ -108,6 +108,15 @@ class Operation(DataNode):
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
 
+    @property
+    def named_args(self):
+        '''
+        :returns: a list containing the names of named arguments. If the \
+            entry is None then the argument is a positional argument.
+        :rtype: list of str
+        '''
+        return self._named_args
+
     def is_elemental(self):
         '''
         :returns: whether this operation is elemental (provided with an input \
@@ -169,15 +178,16 @@ class UnaryOperation(Operation):
         return position == 0 and isinstance(child, DataNode)
 
     @staticmethod
-    def create(oper, child):
-        '''Create a UnaryOperation instance given oper and child instances.
+    def create(operator, operand):
+        '''Create a UnaryOperation instance given an operator and operand.
 
-        :param oper: the specified operator.
-        :type oper: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
-        :param child: the PSyIR node that oper operates on, or a tuple \
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
+        :param operand: the PSyIR node that oper operates on, or a tuple \
             containing the name of the argument and the PSyIR node.
-        :type child: :py:class:`psyclone.psyir.nodes.Node` or \
-            (str, :py:class:`psyclone.psyir.nodes.Node`)
+        :type operand: Union[:py:class:`psyclone.psyir.nodes.Node` or \
+            Tuple[str, :py:class:``psyclone.psyir.nodes.Node``]]
 
         :returns: a UnaryOperation instance.
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
@@ -186,30 +196,30 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(oper, UnaryOperation.Operator):
+        if not isinstance(operator, UnaryOperation.Operator):
             raise GenerationError(
                 f"oper argument in create method of UnaryOperation class "
                 f"should be a PSyIR UnaryOperation Operator but found "
-                f"'{type(oper).__name__}'.")
+                f"'{type(operator).__name__}'.")
 
-        unary_op = UnaryOperation(oper)
+        unary_op = UnaryOperation(operator)
         name = None
-        if isinstance(child, tuple):
-            if not len(child) == 2:
+        if isinstance(operand, tuple):
+            if not len(operand) == 2:
                 raise GenerationError(
                     f"If the argument in the create method of "
                     f"UnaryOperation class is a tuple, it's length "
-                    f"should be 2, but it is {len(child)}.")
-            if not isinstance(child[0], str):
+                    f"should be 2, but it is {len(operand)}.")
+            if not isinstance(operand[0], str):
                 raise GenerationError(
                     f"If the argument in the create method of "
                     f"UnaryOperation class is a tuple, its first "
                     f"argument should be a str, but found "
-                    f"{type(child[0]).__name__}.")
-            name, child = child
+                    f"{type(operand[0]).__name__}.")
+            name, operand = operand
 
         unary_op._named_args = [name]
-        unary_op.children = [child]
+        unary_op.children = [operand]
         return unary_op
 
 
@@ -415,16 +425,16 @@ class NaryOperation(Operation):
         return isinstance(child, DataNode)
 
     @staticmethod
-    def create(oper, children):
+    def create(operator, operands):
         '''Create an NaryOperator instance given an operator and a list of
         Node (or name and Node tuple) instances.
 
         :param operator: the operator used in the operation.
         :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
-        :param children: a list containing PSyIR nodes and/or 2-tuples \
+        :param operands: a list containing PSyIR nodes and/or 2-tuples \
             which contain an argument name and a PSyIR node, that the \
             operator operates on.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node` \
+        :type operands: list of :py:class:`psyclone.psyir.nodes.Node` \
             or (str, :py:class:`psyclone.psyir.nodes.DataNode`)
 
         :returns: an NaryOperator instance.
@@ -434,36 +444,36 @@ class NaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(oper, NaryOperation.Operator):
+        if not isinstance(operator, NaryOperation.Operator):
             raise GenerationError(
-                f"oper argument in create method of NaryOperation class "
+                f"operator argument in create method of NaryOperation class "
                 f"should be a PSyIR NaryOperation Operator but found "
-                f"'{type(oper).__name__}'.")
-        if not isinstance(children, list):
+                f"'{type(operator).__name__}'.")
+        if not isinstance(operands, list):
             raise GenerationError(
-                f"children argument in create method of NaryOperation class "
-                f"should be a list but found '{type(children).__name__}'.")
+                f"operands argument in create method of NaryOperation class "
+                f"should be a list but found '{type(operands).__name__}'.")
         names = []
         args = []
-        for arg in children:
+        for operand in operands:
             name = None
-            if isinstance(arg, tuple):
-                if not len(arg) == 2:
+            if isinstance(operand, tuple):
+                if not len(operand) == 2:
                     raise GenerationError(
-                        f"If a child of the children argument in create "
+                        f"If an element of the operands argument in create "
                         f"method of NaryOperation class is a tuple, it's "
-                        f"length should be 2, but found {len(arg)}.")
-                if not isinstance(arg[0], str):
+                        f"length should be 2, but found {len(operand)}.")
+                if not isinstance(operand[0], str):
                     raise GenerationError(
-                        f"If a child of the children argument in create "
+                        f"If an element of the operands argument in create "
                         f"method of NaryOperation class is a tuple, "
                         f"its first argument should be a str, but found "
-                        f"{type(arg[0]).__name__}.")
-                name, arg = arg
+                        f"{type(operand[0]).__name__}.")
+                name, operand = operand
             names.append(name)
-            args.append(arg)
+            args.append(operand)
 
-        nary_op = NaryOperation(oper)
+        nary_op = NaryOperation(operator)
         nary_op._named_args = names
         nary_op.children = args
         return nary_op

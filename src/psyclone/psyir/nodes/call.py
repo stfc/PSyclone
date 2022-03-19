@@ -85,9 +85,9 @@ class Call(Statement, DataNode):
         :param arguments: the arguments to this routine, and/or \
             2-tuples containing an argument name and the \
             argument. Arguments are added as child nodes.
-        :type arguments: list of \
-            :py:class:`psyclone.psyir.nodes.DataNode` or \
-            (str, :py:class:`psyclone.psyir.nodes.DataNode`)
+        :type arguments: List[ \
+            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
+                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
 
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
@@ -130,7 +130,7 @@ class Call(Statement, DataNode):
 
         call = cls(routine)
         call.children = args
-        call._named_args = names
+        call.named_args = names
         return call
 
     @staticmethod
@@ -159,7 +159,7 @@ class Call(Statement, DataNode):
         '''
         :returns: a list containing the names of named arguments. If the \
             entry is None then the argument is a positional argument.
-        :rtype: list of str
+        :rtype: List[str]
         '''
         return self._named_args
 

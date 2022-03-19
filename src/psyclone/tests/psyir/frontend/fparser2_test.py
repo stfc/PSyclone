@@ -345,6 +345,27 @@ def test_default_real_type():
     assert result.precision == default_precision(ScalarType.Intrinsic.REAL)
 
 
+def test_get_arg_names(parser):
+    '''Test the _get_arg_names utility function returns the expected
+    results'''
+    from fparser.two.utils import walk
+    from psyclone.psyir.frontend.fparser2 import _get_arg_names
+    code = ("program test\n"
+            "call sub(a, arg2=b, arg3=c)\n"
+            "end program test\n")
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    arg_list = walk(ast, Fortran2003.Actual_Arg_Spec_List)[0].children
+    args, names = _get_arg_names(arg_list)
+    assert len(args) == 3
+    for arg in args:
+        assert isinstance(arg, Name)
+    assert args[0].string == "a"
+    assert args[1].string == "b"
+    assert args[2].string == "c"
+    assert names == [None, "arg2", "arg3"]
+
+
 # Class Fparser2Reader
 
 
@@ -1865,23 +1886,30 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     if expected_type is not CodeBlock:
         assert assign.rhs._operator == expected_op, \
             "Fails when parsing '" + code + "'"
-        if isinstance(assign.rhs, UnaryOperation):
-            assert assign.rhs._named_args is None
-        else:
-            assert len(assign.rhs.children) == len(assign.rhs._named_args)
-            for named_arg in assign.rhs._named_args:
-                assert named_arg is None
+        assert len(assign.rhs.children) == len(assign.rhs.named_args)
+        for named_arg in assign.rhs.named_args:
+            assert named_arg is None
 
 
 @pytest.mark.parametrize(
     "code, expected_type, expected_op, expected_names",
-     [('x = sum(a, dim=1)', BinaryOperation, BinaryOperation.Operator.SUM, [None, "dim"]),
-      ('x = sum(a, mask=.true.)', BinaryOperation, BinaryOperation.Operator.SUM, [None, "mask"]),
-      ('x = sum(a, dim=1, mask=.true.)', NaryOperation, NaryOperation.Operator.SUM, [None, "dim", "mask"]),
-      ('x = sum(a, mask=.true., dim=1)', NaryOperation, NaryOperation.Operator.SUM, [None, "mask", "dim"]),
-      ('x = sum(a, 1, mask=.true.)', NaryOperation, NaryOperation.Operator.SUM, [None, None, "mask"])])
+     [('x = sum(a)', UnaryOperation,
+       UnaryOperation.Operator.SUM, [None]),
+      ('x = sum(array=a)', UnaryOperation,
+       UnaryOperation.Operator.SUM, ["array"]),
+      ('x = sum(a, dim=1)', BinaryOperation,
+       BinaryOperation.Operator.SUM, [None, "dim"]),
+      ('x = sum(array=a, mask=.true.)', BinaryOperation,
+       BinaryOperation.Operator.SUM, ["array", "mask"]),
+      ('x = sum(a, dim=1, mask=.true.)', NaryOperation,
+       NaryOperation.Operator.SUM, [None, "dim", "mask"]),
+      ('x = sum(array=a, mask=.true., dim=1)', NaryOperation,
+       NaryOperation.Operator.SUM, ["array", "mask", "dim"]),
+      ('x = sum(a, 1, mask=.true.)', NaryOperation,
+       NaryOperation.Operator.SUM, [None, None, "mask"])])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_intrinsics_named_args(code, expected_type, expected_op, expected_names, symbol_table):
+def test_handling_intrinsics_named_args(
+        code, expected_type, expected_op, expected_names, symbol_table):
     '''Test that fparser2 Intrinsic_Function_Reference nodes with named
     args are handled appropriately.
 

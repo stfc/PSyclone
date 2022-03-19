@@ -819,6 +819,33 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
         "StructureReference or ArrayOfStructuresReference.".format(base_ref))
 
 
+def _get_arg_names(node_list):
+    '''Utility function that deals with arguments and named arguments to
+    calls and operations. Arguments are returned in a list and the
+    names of named arguments are returned in a separate list.
+
+    :param node_list: a list of fparser2 argument nodes which could \
+        be positional or named.
+    :type node_list: List[:py:class:`fparser.two.utils.Base`]
+
+    :returns: a list of fparser2 arguments with any name \
+        information and a separate list of named argument names.
+    :rtype: Tuple[List[:py:class:`fparser.two.utils.Base`], \
+         Union[List[str], None]]
+
+    '''
+    arg_names = []
+    arg_nodes = []
+    for node in node_list:
+        if isinstance(node, Fortran2003.Actual_Arg_Spec):
+            arg_names.append(node.children[0].string)
+            arg_nodes.append(node.children[1])
+        else:
+            arg_names.append(None)
+            arg_nodes.append(node)
+    return arg_nodes, arg_names
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -3320,7 +3347,12 @@ class Fparser2Reader(object):
         else:
             node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-        self.process_nodes(parent=unary_op, nodes=node_list)
+
+        # Store the names of any named args
+        arg_nodes, arg_names = _get_arg_names(node_list)
+        unary_op._named_args = arg_names
+
+        self.process_nodes(parent=unary_op, nodes=arg_nodes)
 
         return unary_op
 
@@ -3368,18 +3400,11 @@ class Fparser2Reader(object):
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
-        # Capture the names of any named args
-        named_args = []
-        new_arg_nodes = []
-        for arg_node in arg_nodes:
-            if isinstance(arg_node, Fortran2003.Actual_Arg_Spec):
-                named_args.append(arg_node.children[0].string)
-                new_arg_nodes.append(arg_node.children[1])
-            else:
-                named_args.append(None)
-                new_arg_nodes.append(arg_node)
         binary_op = BinaryOperation(operator, parent=parent)
-        binary_op._named_args = named_args
+
+        # Store the names of any named args
+        new_arg_nodes, arg_names = _get_arg_names(arg_nodes)
+        binary_op._named_args = arg_names
 
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
@@ -3428,19 +3453,11 @@ class Fparser2Reader(object):
         # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
         # to process the `items` of that...
 
-        # Capture the names of any named args
-        named_args = []
-        new_arg_nodes = []
-        for arg_node in node.items[1].items:
-            if isinstance(arg_node, Fortran2003.Actual_Arg_Spec):
-                named_args.append(arg_node.children[0].string)
-                new_arg_nodes.append(arg_node.children[1])
-            else:
-                named_args.append(None)
-                new_arg_nodes.append(arg_node)
-        nary_op._named_args = named_args
+        # Store the names of any named args
+        arg_nodes, arg_names = _get_arg_names(node.items[1].items)
+        nary_op._named_args = arg_names
 
-        self.process_nodes(parent=nary_op, nodes=new_arg_nodes)
+        self.process_nodes(parent=nary_op, nodes=arg_nodes)
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -3761,10 +3778,13 @@ class Fparser2Reader(object):
 
         call = Call(routine_symbol, parent=parent)
 
-        args = []
+        arg_nodes = []
         if node.items[1]:
-            args = list(node.items[1].items)
-        self.process_nodes(parent=call, nodes=args)
+            # Store the names of any named args
+            arg_nodes, arg_names = _get_arg_names(node.items[1].items)
+            call._named_args = arg_names
+
+        self.process_nodes(parent=call, nodes=arg_nodes)
 
         # Point to the original CALL statement in the parse tree.
         call.ast = node
