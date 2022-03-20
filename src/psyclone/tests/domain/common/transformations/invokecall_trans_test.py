@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -181,7 +181,7 @@ def test_structure_constructor():
     invoke_trans._validate_fp2_node(invoke.children[0]._fp2_nodes[0])
 
 
-@pytest.mark.parametrize("string", ["error = 'hello'", "name = 0"])
+@pytest.mark.parametrize("string", ["error='hello'", "name=0"])
 def test_named_arg_error(string):
     '''Test that the validation method raises an exception if a named
     argument has an unsupported format.
@@ -202,14 +202,7 @@ def test_named_arg_error(string):
         invoke_trans.validate(invoke)
     assert (f"Error in InvokeCallTrans transformation. If there is a "
             f"named argument, it must take the form name='str', but found "
-            f"'{string}'." in str(info.value))
-
-    with pytest.raises(TransformationError) as info:
-        invoke_trans._validate_fp2_node(
-            invoke.children[0]._fp2_nodes[0])
-    assert (f"Error in InvokeCallTrans transformation. If there is a "
-            f"named argument, it must take the form name='str', but found "
-            f"'{string}'." in str(info.value))
+            f"'call invoke({string})\n'." in str(info.value))
 
 
 def test_multi_named_arg_error():
@@ -232,15 +225,15 @@ def test_multi_named_arg_error():
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
     assert ("Error in InvokeCallTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are at least "
-            "two: 'first' and 'second'." in str(info.value))
+            "most one named argument in an invoke, but there are 2 in "
+            "'call invoke(name='first', name='second')\n'." in str(info.value))
 
     invoke_trans._call_name = None
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply(invoke, 0)
     assert ("Error in InvokeCallTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are at least "
-            "two: 'first' and 'second'." in str(info.value))
+            "most one named argument in an invoke, but there are 2 in "
+            "'call invoke(name='first', name='second')\n'." in str(info.value))
 
 
 def test_codeblock_invalid(monkeypatch):
@@ -252,7 +245,7 @@ def test_codeblock_invalid(monkeypatch):
     code = (
         "subroutine alg()\n"
         "  use kern_mod\n"
-        "  call invoke(name='tallulah')\n"
+        "  call invoke('xx'//'xx')\n"
         "end subroutine alg\n")
 
     reader = FortranReader()
@@ -266,9 +259,8 @@ def test_codeblock_invalid(monkeypatch):
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert ("Expecting an algorithm invoke codeblock to contain either "
-            "Structure-Constructor or actual-arg-spec, but found "
-            "'NoneType'." in str(info.value))
+    assert ("Expecting an algorithm invoke codeblock to contain a "
+            "Structure-Constructor, but found 'NoneType'." in str(info.value))
 
 
 def test_call_error():
@@ -407,8 +399,7 @@ def test_apply_codeblock(fortran_reader):
 def test_apply_codeblocks(fortran_reader):
     '''Test that an invoke with a code block argument containing multiple
     structure constructors is transformed into PSyclone-specific
-    AlgorithmInvokeCall and KernelFunctor classes. Also check that an
-    invoke name is also dealt with as expected.
+    AlgorithmInvokeCall and KernelFunctor classes.
 
     '''
     code = (
@@ -420,8 +411,8 @@ def test_apply_codeblocks(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
     assert len(subroutine[0].children) == 3
-    for child in subroutine[0].children:
-        assert isinstance(child, CodeBlock)
+    assert isinstance(subroutine[0].children[0], CodeBlock)
+    assert isinstance(subroutine[0].children[1], CodeBlock)
 
     invoke_trans = InvokeCallTrans()
     invoke_trans.apply(subroutine[0], 3)
@@ -531,5 +522,5 @@ def test_multi_name():
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
     assert ("There should be at most one named argument in an invoke, but "
-            "there are at least two: \'Shaw\' and \'Fernandez\'."
+            "there are 2 in 'call invoke(name='Shaw', name='Fernandez')\n'."
             in str(info.value))

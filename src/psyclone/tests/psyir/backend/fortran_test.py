@@ -2279,13 +2279,13 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
         "subroutine test()\n"
         "  use my_mod, only : kernel\n"
         "  real :: a, b\n"
-        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "  call kernel(a, 'not'//'nice', name='roo', b)\n"
         "end subroutine")
     call_node = psyir.walk(Call)[0]
     cblocks = psyir.walk(CodeBlock)
-    assert len(cblocks) == 2
+    assert len(cblocks) == 1
     gen = fortran_writer(call_node)
-    assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+    assert gen == '''call kernel(a, 'not' // 'nice', name='roo', b)\n'''
 
 
 def test_fw_comments(fortran_writer):

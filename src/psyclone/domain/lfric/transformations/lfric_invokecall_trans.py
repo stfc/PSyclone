@@ -70,10 +70,12 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
 
         call_name = None
         calls = []
-        for call_arg in call.children:
+        for idx, call_arg in enumerate(call.children):
 
             arg_info = []
-            if isinstance(call_arg, ArrayReference):
+            if call.named_args[idx]:
+                call_name = f"'{call_arg.value}'"
+            elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
                 name = call_arg.name
@@ -86,20 +88,16 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                 arg_info.append((node_type, type_symbol, args))
             else:
                 for fp2_node in call_arg._fp2_nodes:
-                    if isinstance(fp2_node, Actual_Arg_Spec):
-                        # This child is a named argument
-                        call_name = fp2_node.children[1].string
+                    # This child is a kernel or builtin
+                    name = fp2_node.children[0].string
+                    if name in builtins:
+                        node_type = LFRicBuiltinFunctor
                     else:
-                        # This child is a kernel or builtin
-                        name = fp2_node.children[0].string
-                        if name in builtins:
-                            node_type = LFRicBuiltinFunctor
-                        else:
-                            node_type = LFRicKernelFunctor
-                        type_symbol = InvokeCallTrans._get_symbol(
-                            call, fp2_node)
-                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
-                        arg_info.append((node_type, type_symbol, args))
+                        node_type = LFRicKernelFunctor
+                    type_symbol = InvokeCallTrans._get_symbol(
+                        call, fp2_node)
+                    args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                    arg_info.append((node_type, type_symbol, args))
 
             for (node_type, type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)

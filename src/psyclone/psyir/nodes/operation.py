@@ -198,7 +198,7 @@ class UnaryOperation(Operation):
         '''
         if not isinstance(operator, UnaryOperation.Operator):
             raise GenerationError(
-                f"oper argument in create method of UnaryOperation class "
+                f"operator argument in create method of UnaryOperation class "
                 f"should be a PSyIR UnaryOperation Operator but found "
                 f"'{type(operator).__name__}'.")
 
@@ -338,12 +338,12 @@ class BinaryOperation(Operation):
         return position in (0, 1) and isinstance(child, DataNode)
 
     @staticmethod
-    def create(oper, lhs, rhs):
+    def create(operator, lhs, rhs):
         '''Create a BinaryOperator instance given an operator and lhs and rhs
         child instances with optional names.
 
-        :param oper: the operator used in the operation.
-        :type oper: \
+        :param operator: the operator used in the operation.
+        :type operator: \
             :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
         :param lhs: the PSyIR node containing the left hand side of \
             the assignment, or a tuple containing the name of the \
@@ -363,11 +363,11 @@ class BinaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(oper, BinaryOperation.Operator):
+        if not isinstance(operator, BinaryOperation.Operator):
             raise GenerationError(
-                f"oper argument in create method of BinaryOperation class "
+                f"operator argument in create method of BinaryOperation class "
                 f"should be a PSyIR BinaryOperation Operator but found "
-                f"'{type(oper).__name__}'.")
+                f"'{type(operator).__name__}'.")
         for name, arg in [("lhs", lhs), ("rhs", rhs)]:
             if isinstance(arg, tuple):
                 if not len(arg) == 2:
@@ -388,7 +388,7 @@ class BinaryOperation(Operation):
         rhs_name = None
         if isinstance(rhs, tuple):
             rhs_name, rhs = rhs
-        binary_op = BinaryOperation(oper)
+        binary_op = BinaryOperation(operator)
         binary_op._named_args = [lhs_name, rhs_name]
         binary_op.children = [lhs, rhs]
         return binary_op

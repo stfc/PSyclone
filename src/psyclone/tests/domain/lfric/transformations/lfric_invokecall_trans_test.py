@@ -129,7 +129,7 @@ def test_structure_contructor(fortran_reader):
         subroutine[0].children[0]._fp2_nodes[0])
 
 
-@pytest.mark.parametrize("string", ["error = 'hello'", "name = 0"])
+@pytest.mark.parametrize("string", ["error='hello'", "name=0"])
 def test_named_arg_error(string, fortran_reader):
     '''Test that the validation method raises an exception if a named
     argument has an unsupported format.
@@ -149,14 +149,7 @@ def test_named_arg_error(string, fortran_reader):
         lfric_invoke_trans.validate(subroutine[0])
     assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
             f"named argument, it must take the form name='str', but found "
-            f"'{string}'." in str(info.value))
-
-    with pytest.raises(TransformationError) as info:
-        lfric_invoke_trans._validate_fp2_node(
-            subroutine[0].children[0]._fp2_nodes[0])
-    assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
-            f"named argument, it must take the form name='str', but found "
-            f"'{string}'." in str(info.value))
+            f"'call invoke({string})\n'." in str(info.value))
 
 
 def test_multi_named_arg_error(fortran_reader):
@@ -177,15 +170,16 @@ def test_multi_named_arg_error(fortran_reader):
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
+    print (str(info.value))
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are at least "
-            "two: 'first' and 'second'." in str(info.value))
+            "most one named argument in an invoke, but there are 2 in "
+            "'call invoke(name='first', name='second')\n'." in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.apply(subroutine[0], 0)
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are at least "
-            "two: 'first' and 'second'." in str(info.value))
+            "most one named argument in an invoke, but there are 2 in "
+            "'call invoke(name='first', name='second')\n'." in str(info.value))
 
 
 def test_codeblock_invalid(monkeypatch, fortran_reader):
@@ -197,7 +191,7 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     code = (
         "subroutine alg()\n"
         "  use kern_mod\n"
-        "  call invoke(name='tallulah')\n"
+        "  call invoke('xx'//'xx')\n"
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -210,9 +204,8 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Expecting an algorithm invoke codeblock to contain either "
-            "Structure-Constructor or actual-arg-spec, but found "
-            "'NoneType'." in str(info.value))
+    assert ("Expecting an algorithm invoke codeblock to contain a "
+            "Structure-Constructor, but found 'NoneType'." in str(info.value))
 
 
 def test_apply_codedkern_arrayref(fortran_reader):

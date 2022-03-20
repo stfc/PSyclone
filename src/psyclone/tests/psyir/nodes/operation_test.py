@@ -161,7 +161,7 @@ def test_binaryoperation_create_invalid():
     # oper not a BinaryOperation.Operator.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create("invalid", ref1, ref2)
-    assert ("oper argument in create method of BinaryOperation class should "
+    assert ("operator argument in create method of BinaryOperation class should "
             "be a PSyIR BinaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
@@ -357,7 +357,7 @@ def test_unaryoperation_create_invalid3():
         _ = UnaryOperation.create(
             "invalid",
             Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)))
-    assert ("oper argument in create method of UnaryOperation class should "
+    assert ("operator argument in create method of UnaryOperation class should "
             "be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
@@ -473,7 +473,7 @@ def test_naryoperation_create_invalid():
     # oper not an NaryOperation.Operator
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create("invalid", [])
-    assert ("oper argument in create method of NaryOperation class should "
+    assert ("operator argument in create method of NaryOperation class should "
             "be a PSyIR NaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
@@ -482,7 +482,7 @@ def test_naryoperation_create_invalid():
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(oper, "invalid")
-    assert ("children argument in create method of NaryOperation class should "
+    assert ("operands argument in create method of NaryOperation class should "
             "be a list but found 'str'." in str(excinfo.value))
 
     ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
@@ -491,14 +491,14 @@ def test_naryoperation_create_invalid():
     # rhs is an invalid tuple (too many elements)
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(oper, [ref1, ref2, (1, 2, 3)])
-    assert ("If a child of the children argument in create method of "
+    assert ("If an element of the operands argument in create method of "
             "NaryOperation class is a tuple, it's length should be 2, "
             "but found 3." in str(excinfo.value))
 
     # rhs is an invalid tuple (1st element not str)
     with pytest.raises(GenerationError) as excinfo:
         _ = NaryOperation.create(oper, [ref1, ref2, (1, 2)])
-    assert ("If a child of the children argument in create method of "
+    assert ("If an element of the operands argument in create method of "
             "NaryOperation class is a tuple, its first argument should "
             "be a str, but found int." in str(excinfo.value))
 

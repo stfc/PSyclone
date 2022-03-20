@@ -44,9 +44,9 @@ which uses specialised classes.
 from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
     Name, Char_Literal_Constant
 
-from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
+from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
-    RoutineSymbol
+    RoutineSymbol, ScalarType
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.psyGen import Transformation
@@ -130,42 +130,21 @@ class InvokeCallTrans(Transformation):
     def _validate_fp2_node(self, fp2_node):
         '''Validation routine for an fparser2 node within a code block.
 
-        :param fp2_node: an fparser2 Structure Constructor or Actual \
-            Arg Spec node.
+        :param fp2_node: an fparser2 Structure Constructor.
         :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor` or \
-            :py:class:`fparser.two.Fortran2003.Actual_Arg_Spec
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :raises TransformationError: if the named argument is not in \
-            the expected form.
-        :raises TransformationError: if more than one named argument \
-            is found.
         :raises TransformationError: if the fparser2 node is not the \
             expected type.
 
         '''
         if isinstance(fp2_node, Structure_Constructor):
             pass
-        elif isinstance(fp2_node, Actual_Arg_Spec):
-            if not (isinstance(fp2_node.children[0], Name) and
-                    fp2_node.children[0].string.lower() == "name" and
-                    isinstance(fp2_node.children[1], Char_Literal_Constant)):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. If there is a "
-                    f"named argument, it must take the form name='str', but "
-                    f"found '{str(fp2_node)}'.")
-            if self._call_name:
-                raise TransformationError(
-                    f"Error in {self.name} transformation. There should be at "
-                    f"most one named argument in an invoke, but there are at "
-                    f"least two: {self._call_name} and "
-                    f"{fp2_node.children[1].string}.")
-            self._call_name = fp2_node.children[1].string
         else:
             raise TransformationError(
                 f"Error in {self.name} transformation. Expecting an algorithm "
-                f"invoke codeblock to contain either Structure-Constructor or "
-                f"actual-arg-spec, but found '{type(fp2_node).__name__}'.")
+                f"invoke codeblock to contain a Structure-Constructor, but "
+                f"found '{type(fp2_node).__name__}'.")
 
     def validate(self, node, options=None):
         '''Validate the node argument.
@@ -197,8 +176,26 @@ class InvokeCallTrans(Transformation):
                 f"Error in {self.name} transformation. The supplied call "
                 f"argument should be a `Call` node with name 'invoke' but "
                 f"found '{node.routine.name}'.")
-        for arg in node.children:
-            if isinstance(arg, ArrayReference):
+        names = [name for name in node.named_args if name]
+        if len(names) > 1:
+            raise TransformationError(
+                f"Error in {self.name} transformation. There should be at "
+                f"most one named argument in an invoke, but there are "
+                f"{len(names)} in '{self._writer(node)}'.")
+        for idx, arg in enumerate(node.children):
+            if ((node.named_args[idx]) and
+                    (not (node.named_args[idx].lower() == "name")
+                     or not (isinstance(arg, Literal) and
+                             isinstance(arg.datatype, ScalarType) and
+                             arg.datatype.intrinsic ==
+                             ScalarType.Intrinsic.CHARACTER))):
+                raise TransformationError(
+                    f"Error in {self.name} transformation. If there is a "
+                    f"named argument, it must take the form name='str', "
+                    f"but found '{self._writer(node)}'.")
+            elif node.named_args[idx]:
+                pass
+            elif isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
                 for fp2_node in arg._fp2_nodes:
@@ -225,10 +222,12 @@ class InvokeCallTrans(Transformation):
 
         call_name = None
         calls = []
-        for call_arg in call.children:
+        for idx, call_arg in enumerate(call.children):
 
             arg_info = []
-            if isinstance(call_arg, ArrayReference):
+            if call.named_args[idx]:
+                call_name = f"'{call_arg.value}'"
+            elif isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
                 type_symbol = call_arg.symbol
