@@ -115,8 +115,8 @@ def test_array_create_invalid1():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
-    assert ("expecting the symbol to be an array, not a scalar."
-            in str(excinfo.value))
+    assert ("expecting the symbol 'temp' to be an array, but found "
+            "'Scalar<REAL, SINGLE>'." in str(excinfo.value))
 
 
 def test_array_create_invalid2():
@@ -133,9 +133,9 @@ def test_array_create_invalid2():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
-    assert ("the symbol should have the same number of dimensions as indices "
-            "(provided in the 'indices' argument). Expecting '3' but found "
-            "'1'." in str(excinfo.value))
+    assert ("the symbol 'temp' should have the same number of dimensions as "
+            "indices (provided in the 'indices' argument). Expecting '3' but "
+            "found '1'." in str(excinfo.value))
 
 
 def test_array_create_invalid3():
