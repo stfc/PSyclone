@@ -2975,7 +2975,8 @@ class ACCKernelsTrans(RegionTrans):
     >>> ktrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
+                           psyGen.HaloExchange)
 
     @property
     def name(self):

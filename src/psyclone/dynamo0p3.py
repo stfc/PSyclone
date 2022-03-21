@@ -75,7 +75,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  OMPParallelDoDirective)
+                                  ACCKernelsDirective, OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -7659,6 +7659,9 @@ class DynLoop(Loop):
                 # I am within an OpenMP Do directive so protect
                 # set_dirty() and set_clean() with OpenMP Master
                 parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
+
+        if self.ancestor(ACCKernelsDirective):
+            parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
 

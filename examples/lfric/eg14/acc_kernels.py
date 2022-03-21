@@ -40,6 +40,7 @@ applied via the -s option in the psyclone script.
 
 '''
 from __future__ import print_function
+from psyclone.psyGen import HaloExchange
 from psyclone.transformations import ACCKernelsTrans
 
 
@@ -53,7 +54,20 @@ def trans(psy):
 
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
-        kernels_trans.apply(schedule)
+        schedule.view()
+
+        node_list = []
+        for node in schedule.children:
+            if not isinstance(node, HaloExchange):
+                node_list.append(node)
+            else:
+                if node_list:
+                    kernels_trans.apply(node_list)
+                node_list = []
+                continue
+        if node_list:
+            kernels_trans.apply(node_list)
+
         schedule.view()
 
     return psy
