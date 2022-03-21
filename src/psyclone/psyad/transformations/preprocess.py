@@ -38,6 +38,7 @@ any required tranformations to the tangent linear PSyIR before it is
 translated to adjoint PSyIR.
 
 '''
+from psyclone.core import SymbolicMaths
 from psyclone.psyad.utils import node_is_active_names, node_is_passive_names
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Range
 from psyclone.psyir.transformations import DotProduct2CodeTrans, \
@@ -82,7 +83,6 @@ def preprocess_trans(kernel_psyir, active_variable_names):
             # Apply MATMUL transformation
             matmul_trans.apply(oper)
 
-    from psyclone.core import SymbolicMaths
     # Deal with any associativity issues here as AssignmentTrans
     # is not able to.
     for assignment in kernel_psyir.walk(Assignment):
@@ -91,8 +91,8 @@ def preprocess_trans(kernel_psyir, active_variable_names):
             # contains Range nodes, see issue #1655.
             associativity(assignment, active_variable_names)
         else:
-            sm = SymbolicMaths.get()
-            sm.expand(assignment.rhs)
+            sym_maths = SymbolicMaths.get()
+            sym_maths.expand(assignment.rhs)
 
 
 def associativity(assignment, active_variable_names):
@@ -110,6 +110,7 @@ def associativity(assignment, active_variable_names):
     :type active_variable_names: list of str
 
     '''
+    # pylint: disable=too-many-boolean-expressions
     if node_is_active_names(assignment.rhs, active_variable_names):
         # The rhs of the assignment is active
         found = True

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 
 ''' Module containing py.test tests for the symbolic maths class.'''
@@ -268,3 +269,40 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
+
+
+@pytest.mark.parametrize("expr,expected", [
+    ("1.0", "1.0"),
+    ("a", "a"),
+    ("a*b+c", "a * b + c"),
+    ("c+a*b", "c + a * b"),
+    ("(a*b)+c", "a * b + c"),
+    ("a*(b+c)", "a * b + a * c"),
+    ("a*((b+c)/d)", "a * b / d + a * c / d")])
+def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
+    '''Test the expand method works as expected.'''
+    # A dummy program to easily create the PSyIR for the
+    # expression we need. We just take the RHS of the assignment
+    source = (
+        f"program test_prog\n"
+        f"  use some_mod\n"
+        f"  x = {expr}\n"
+        f"end program test_prog\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    sym_maths.expand(psyir.children[0][0].rhs)
+    result = fortran_writer(psyir.children[0][0].rhs)
+    assert result == expected
+
+
+@pytest.mark.xfail(reason="issue 1655, array notation is not yet supported")
+def test_symbolic_maths_expand_error(fortran_reader):
+    '''Test the expand method with array notation.'''
+    source = (
+        "program test_prog\n"
+        "  use some_mod\n"
+        "  x = a(:)*b(:)\n"
+        "end program test_prog\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    sym_maths.expand(psyir.children[0][0].rhs)

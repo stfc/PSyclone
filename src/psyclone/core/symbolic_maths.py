@@ -130,16 +130,16 @@ class SymbolicMaths:
         :param expr: the expression to be expanded.
         :type expr: py:class:`psyclone.psyir.nodes.Node`
 
-        '''        
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Reference, Literal, Routine
-        # variables and literals do not require expansion
-        if isinstance(expr, (Reference, Literal)):
-            return
+        '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
+        from psyclone.psyir.frontend.fortran import FortranReader
+        from psyclone.psyir.nodes import Reference, Literal, Routine
+
+        # variables and literals do not require expansion
+        if isinstance(expr, (Reference, Literal)):
+            return
         # Convert the PSyIR expression to a sympy expression
         sympy_expression = SymPyWriter.convert_to_sympy_expressions([expr])
         # Expand the expression
@@ -151,9 +151,6 @@ class SymbolicMaths:
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.ancestor(Routine).symbol_table
         # Convert the new sympy expression to PSyIR
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.frontend.fortran import FortranReader
         reader = FortranReader()
         new_expr = reader.psyir_from_expression(str(result), symbol_table)
         # Replace the old PSyIR expression with the new expanded PSyIR
