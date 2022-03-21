@@ -410,18 +410,6 @@ def test_invokeschedule_node_str():
     assert colored("InvokeSchedule", InvokeSchedule._colour) in output
 
 
-def test_sched_ocl_setter():
-    ''' Check that the opencl setter raises the expected error if not passed
-    a bool. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    with pytest.raises(ValueError) as err:
-        psy.invokes.invoke_list[0].schedule.opencl = "a string"
-    assert "Schedule.opencl must be a bool but got " in str(err.value)
-
-
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
     _, invoke_info = parse(os.path.join(BASE_PATH,

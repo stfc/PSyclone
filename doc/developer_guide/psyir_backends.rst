@@ -257,11 +257,6 @@ is commented out::
     # print(print_hierarchy(psyir_tree))
     psyir_tree.walk(APIHaloExchange)
 
-.. warning::
-    The OpenCL backend does not use a `__call__` method with lowering. This
-    is because OpenCL currently uses a GOcean specific property, this should
-    be fixed in #1134 and OpenCL should use the generic `__call__`
-
 .. note::
     The property of not having side effects is implemented by making a copy
     of the whole tree provided as an argument to the visitor functor. An

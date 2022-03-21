@@ -43,7 +43,7 @@ INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference
 INF_INC = ${INF_DIR}/src
 INF_LIB = ${INF_DIR}/src/lib_fd.a
 
-GENERATED_FILES += kern_use_var_*.cl kern_use_var_*_mod.f90 psy_gen.f90 \
+GENERATED_FILES += *.cl kern_use_var_*_mod.f90 psy_gen.f90 \
 	alg_gen.f90 *.o *.mod *.exe
 KERNELS=data_mod.o kern_use_var_mod.o
 
