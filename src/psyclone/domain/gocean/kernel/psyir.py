@@ -51,7 +51,7 @@ from psyclone.psyir.symbols import DataTypeSymbol, Symbol
 
 class KernelMetadataSymbol(DataTypeSymbol):
     '''Specialise DataTypeSymbol to capture Kernel Metadata information,
-    verify that it conforms to the expected syntax and to provide the
+    verify that it conforms to the expected syntax and provide the
     information to PSyclone in an easier to access form.
 
     :param str name: the name of this symbol.
@@ -101,7 +101,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             if len(meta_arg.children[1].children) == 2:
                 self._meta_args.append(self.GridArg(meta_arg, self))
             elif len(meta_arg.children[1].children) == 3:
-                self._meta_args.append(self.FieldArg(meta_arg))
+                self._meta_args.append(self.FieldArg(meta_arg, self))
             else:
                 raise ParseError(
                     f"'meta_args' should have either 2 or 3 arguments, but "
@@ -285,12 +285,12 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"There should be 2 kernel metadata arguments for a grid "
                     f"property but found {len(arg_list.children)} in "
                     f"{str(meta_arg)}")
-            value = arg_list.children[0].string
-            self._validate_access(value)
-            self._access = value
-            value = arg_list.children[1].string
-            self._validate_name(value)
-            self._name = value
+            access = arg_list.children[0].string
+            self._validate_access(access)
+            self._access = access
+            name = arg_list.children[1].string
+            self._validate_name(name)
+            self._name = name
 
         def _write_fortran_string(self):
             '''
@@ -310,11 +310,11 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if not self._access.lower() in const.VALID_INTRINSIC_TYPES:
+            if value.lower() not in const.VALID_INTRINSIC_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a grid property argument "
                     f"should be one of {const.VALID_INTRINSIC_TYPES}, but "
-                    f"found '{self._access}'.")
+                    f"found '{value}'.")
 
         @property
         def access(self):
@@ -347,11 +347,11 @@ class KernelMetadataSymbol(DataTypeSymbol):
             config = Config.get()
             api_config = config.api_conf("gocean1.0")
             grid_property_names = list(api_config.grid_properties.keys())
-            if not value.lower() in grid_property_names:
+            if value.lower() not in grid_property_names:
                 raise ValueError(
                     f"The second meadata entry for a grid property argument "
                     f"should be one of {grid_property_names}, but found "
-                    f"'{value}.")
+                    f"'{value}'.")
 
         @property
         def name(self):
@@ -366,7 +366,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             '''
             :param str value: the new value for name.
             '''
-            self._validate_name()
+            self._validate_name(value)
             self._name = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
@@ -393,37 +393,33 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             const = GOceanConstants()
             arg_list = meta_arg.children[1]
-            if not len(arg_list.children) == 3:
+            if len(arg_list.children) != 3:
                 raise ParseError(
                     f"There sould be 3 kernel metadata entries for a field "
-                    f"argument, but found {len(arg_list)} in {str(meta_arg)}.")
+                    f"argument, but found {len(arg_list.children)} in "
+                    f"{str(meta_arg)}.")
 
-            value = arg_list.children[0].string
-            self._validate_access(value)
-            self._access = value
+            access = arg_list.children[0].string
+            self._validate_access(access)
+            self._access = access
 
-            value = arg_list.children[1].string
-            self._validate_stagger(value)
-            self._stagger = value
+            stagger = arg_list.children[1].string
+            self._validate_stagger(stagger)
+            self._stagger = stagger
 
             if isinstance(arg_list.children[2], Fortran2003.Name):
-                value = arg_list.children[2].string
-                self._validate_form(value)
-                self._form = value
+                form = arg_list.children[2].string
+                self._validate_form(form)
+                self._form = form
                 self._stencil = None
             else: # Stencil
-                value = arg_list.children[2].children[0].string
-                # TODO VALIDATE???
-                self._form = value
+                name = arg_list.children[2].children[0].string
+                self._validate_stencil_name(name)
+                self._form = name
                 self._stencil = []
                 for stencil_dim in arg_list.children[2].children[1].children:
                     self._stencil.append(stencil_dim.children[0])
-                    self._validate_stencil_entry(stencil_dim)
-                if not len(self._stencil) == 3:
-                    raise ParseError(
-                        f"If the third metadata entry is a stencil, it should "
-                        f"contain 3 arguments, but found "
-                        f"{len(self._stencil)}.")
+                self._validate_stencil(self._stencil)
 
         def _write_fortran_string(self):
             '''
@@ -447,8 +443,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if not self._access.lower() in const.VALID_INTRINSIC_TYPES:
-                raise ParseError(
+            if value.lower() not in const.VALID_INTRINSIC_TYPES:
+                raise ValueError(
                     f"The first metadata entry for a field argument should "
                     f"be one of {const.VALID_INTRINSIC_TYPES}, but found "
                     f"'{value}'.")
@@ -482,10 +478,10 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if not value.lower() in const.VALID_FIELD_GRID_TYPES:
+            if value.lower() not in const.VALID_FIELD_GRID_TYPES:
                 raise ValueError(
                     f"The second metadata entry for a field argument should "
-                    f"be one of {const.VALID_OFFSET_NAMES}, but found "
+                    f"be one of {const.VALID_FIELD_GRID_TYPES}, but found "
                     f"'{value}'.")
 
         @property
@@ -508,7 +504,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 self._parent._write_fortran_string()
 
         @staticmethod
-        def validate_form(value):
+        def _validate_form(value):
             '''Check that 'value' is a valid 'form' value.
 
             :param str value: the value to check.
@@ -517,11 +513,11 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if not value.lower() in const.VALID_STENCIL_NAMES:
+            if value.lower() not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"The third metadata entry for a field should "
                     f"be one of {const.VALID_STENCIL_NAMES} or "
-                    f"'stencil(...)', but found '{value}'.")
+                    f"'go_stencil(...)', but found '{value}'.")
 
         @property
         def form(self):
@@ -542,61 +538,69 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._parent.datatype.declaration = \
                 self._parent._write_fortran_string()
 
-        def validate_stencil(value_list):
-            '''Check that 'value_list' is a valid list of values to define a
-            'stencil'.
+        @staticmethod
+        def _validate_stencil_name(value):
+            '''Check that value is the expected stencil name.'''
+            const = GOceanConstants()
+            if value.lower() != const.VALID_STENCIL_NAME:
+                raise ValueError(
+                    f"The third metadata entry for a field should "
+                    f"be {const.VALID_STENCIL_NAME}(...) if it contains "
+                    f"arguments, but found '{value}'.")
+
+        @staticmethod
+        def _validate_stencil(value_list):
+            '''Check that 'value_list' is a valid list of 'stencil' elements.
 
             :param value_list: the values to check.
-            :type value_list: list of str
+            :type value_list: List[str]
 
-            raises ValueError: if the supplied value is invalid.
+            raises TypeError: if the supplied argument is not a list.
+            raises ValueError: if the supplied list is not of size 3.
+            raises TypeError: if any of the list entries are not \
+                strings.
+            raises ValueError: if any of the list entries do not \
+                conform to the expected format.
 
             '''
-            p = re.compile("[01]{3,3}")
             if not isinstance(value_list, list):
                 raise TypeError(
-                    f"Stencil values should be provided as a list but found "
-                    f"{type(value_list).__name__}.")
-            if not len(value_list) == 3:
+                    f"Stencil entries should be provided as a list, but found "
+                    f"'{type(value_list).__name__}'.")
+            if len(value_list) != 3:
                 raise ValueError(
-                    "Stencil values should be a list with 3 entries, but "
-                    f"found {len(value_list)}.")
+                    f"If the third metadata entry is a stencil, it should "
+                    f"contain 3 arguments, but found "
+                    f"{len(value_list)}.")
+            pattern = re.compile("[01]{3,3}")
             for value in value_list:
                 if not isinstance(value, str):
                     raise TypeError(
-                        f"Stencil entries should be strings but found "
-                        f"{type(value).__name__}.")
-
-                if not p.match(value.children[0]):
+                        f"Stencil entries should be strings, but found "
+                        f"'{type(value).__name__}'.")
+                if not pattern.match(value):
                     raise ValueError(
                         f"Stencil entries should follow the pattern "
-                        f"[01]{3:3} but found {value.children[0]}.")
-
-        def _validate_stencil_entry(value):
-            '''Check that 'value' is a valid 'stencil' element
-
-            :param str value: the value to check.
-
-            raises ValueError: if the supplied value is invalid.
-
-            '''
+                        f"[01]{{3:3}}, but found '{value}'.")
 
         @property
         def stencil(self):
             '''
             :returns: the stencil value, or None if there is no stencil.
-            :rtype: str[3] or NoneType
+            :rtype: List[str] or NoneType
             '''
             return self._stencil
 
         @stencil.setter
         def stencil(self, value_list):
             '''
-            :param value_list: the new value for form.
-            :type value_list: list of str
+            :param value_list: the new value for stencil.
+            :type value_list: list[str]
             '''
             self._validate_stencil(value_list)
             self._stencil = value_list
+            if self._form.upper() != "GO_STENCIL":
+                self._form = "GO_STENCIL"
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
                 self._parent._write_fortran_string()

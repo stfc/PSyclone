@@ -93,6 +93,11 @@ class GOceanConstants(object):
         # GOcean API altogether.
         GOceanConstants.VALID_STENCIL_NAMES = ["go_pointwise"]
 
+        # The name used to indicate there is a stencil. This will
+        # contain 3 arguments specified the type of stencil being
+        # used.
+        GOceanConstants.VALID_STENCIL_NAME = "go_stencil"
+
         # The valid types of loop. In this API we expect only doubly-nested
         # loops.
         GOceanConstants.VALID_LOOP_TYPES = ["inner", "outer"]
