@@ -45,7 +45,7 @@ module dg_matrix_vector_kernel_mod
                                 GH_FIELD, GH_OPERATOR,      &
                                 GH_REAL, GH_READ, GH_WRITE, &
                                 ANY_DISCONTINUOUS_SPACE_1,  &
-                                ANY_SPACE_1,                &
+                                ANY_SPACE_1, GH_READWRITE,  &
                                 CELL_COLUMN
 
   use constants_mod,     only : r_def, i_def
