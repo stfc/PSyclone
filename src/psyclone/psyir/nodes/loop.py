@@ -547,7 +547,7 @@ class Loop(Statement):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
+        from psyclone.psyGen import zero_reduction_variables
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
@@ -586,6 +586,17 @@ class Loop(Statement):
         my_decl = DeclGen(parent, datatype="integer",
                           entity_decls=[self.variable.name])
         parent.add(my_decl)
+
+    def gen_mark_halos_clean_dirty(self, parent):
+        '''
+        Generates the necessary code to mark halo regions as clean or dirty
+        following execution of this loop. This default implementation does
+        nothing.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
 
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument has (or might have) its

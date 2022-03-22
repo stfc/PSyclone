@@ -75,7 +75,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCKernelsDirective, OMPParallelDoDirective)
+                                  ACCRegionDirective, OMPParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -7639,12 +7639,13 @@ class DynLoop(Loop):
             return
 
         # Set halo clean/dirty for all fields that are modified
-        fields = self.unique_modified_args("gh_field")
-
-        if not fields:
+        if not self.unique_modified_args("gh_field"):
             return
 
-        if self.ancestor(ACCKernelsDirective):
+        if self.ancestor(ACCRegionDirective):
+            # We cannot include calls to set halos dirty/clean within OpenACC
+            # regions. This is handled by the appropriate Directive class
+            # instead.
             return
 
         parent.add(CommentGen(parent, ""))
@@ -7655,6 +7656,7 @@ class DynLoop(Loop):
         parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
                               f"modified in the above {prev_node_name}"))
         parent.add(CommentGen(parent, ""))
+
         use_omp_master = False
         if self.is_openmp_parallel():
             if not self.ancestor(OMPParallelDoDirective):
@@ -7663,9 +7665,35 @@ class DynLoop(Loop):
                 # set_dirty() and set_clean() with OpenMP Master
                 parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
 
+        self.gen_mark_halos_clean_dirty(parent)
+
+        if use_omp_master:
+            # I am within an OpenMP Do directive so protect
+            # set_dirty() and set_clean() with OpenMP Master
+            parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
+        parent.add(CommentGen(parent, ""))
+
+    def gen_mark_halos_clean_dirty(self, parent):
+        '''
+        Generates the necessary code to mark halo regions as clean or dirty
+        following execution of this loop.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        if not Config.get().distributed_memory:
+            return
+
+        # Set halo clean/dirty for all fields that are modified
+        fields = self.unique_modified_args("gh_field")
+
+        if not fields:
+            return
+
         sym_table = self.ancestor(InvokeSchedule).symbol_table
 
-        # first set all of the halo dirty unless we are
+        # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
             # The HaloWriteAccess class provides information about how the
@@ -7682,9 +7710,8 @@ class DynLoop(Loop):
                 else:
                     parent.add(CallGen(parent, name=field.proxy_name +
                                        "%set_dirty()"))
-        # now set appropriate parts of the halo clean where
-        # redundant computation has been performed
-        for field in fields:
+            # now set appropriate parts of the halo clean where
+            # redundant computation has been performed
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
             hwa = HaloWriteAccess(field, sym_table)
@@ -7727,12 +7754,6 @@ class DynLoop(Loop):
                     call = CallGen(parent, name=f"{field.proxy_name}%"
                                    f"set_clean({halo_depth})")
                     parent.add(call)
-
-        if use_omp_master:
-            # I am within an OpenMP Do directive so protect
-            # set_dirty() and set_clean() with OpenMP Master
-            parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
-        parent.add(CommentGen(parent, ""))
 
 
 class DynKern(CodedKern):

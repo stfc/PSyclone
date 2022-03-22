@@ -822,9 +822,9 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "      CALL f2_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_clean(1)\n"
         "      CALL f8_proxy%set_dirty()\n"
         "      CALL m7_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_clean(1)\n"
         "      CALL m7_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
@@ -1070,9 +1070,9 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         halo1_flags = (
             "      CALL i2_proxy%set_dirty()\n"
             "      CALL i3_proxy%set_dirty()\n"
+            "      CALL i3_proxy%set_clean(1)\n"
             "      CALL i8_proxy%set_dirty()\n"
             "      CALL n7_proxy%set_dirty()\n"
-            "      CALL i3_proxy%set_clean(1)\n"
             "      CALL n7_proxy%set_clean(1)\n")
         halo2_flags = (
             "      CALL f1_proxy%set_dirty()\n"
