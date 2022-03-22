@@ -523,7 +523,7 @@ def test_driver_creation_import_modules(fortran_reader):
     assert len(all_symbols) == 2
     assert str(all_symbols["my_module"]) == "my_module: <not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == "mod_func: RoutineSymbol <DeferredType>"
+    assert str(mod_func) == "mod_func: RoutineSymbol<DeferredType>"
 
 
 # -----------------------------------------------------------------------------

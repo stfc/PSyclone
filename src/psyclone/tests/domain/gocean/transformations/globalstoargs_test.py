@@ -378,6 +378,6 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert ("Couldn't copy 'rdt: <Scalar<REAL, UNDEFINED>, "
+    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, UNDEFINED>, "
             "Import(container='model_mod')>' into the SymbolTable. The name "
             "'rdt' is already used by another symbol." in str(err.value))

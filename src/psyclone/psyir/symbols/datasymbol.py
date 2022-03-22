@@ -201,7 +201,7 @@ class DataSymbol(TypedSymbol):
             self._constant_value = None
 
     def __str__(self):
-        ret = self.name + ": <" + str(self.datatype)
+        ret = self.name + ": DataSymbol<" + str(self.datatype)
         ret += ", " + str(self._interface)
         if self.is_constant:
             ret += ", constant_value={0}".format(self.constant_value)

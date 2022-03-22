@@ -76,7 +76,7 @@ class DataTypeSymbol(Symbol):
                           interface=self.interface)
 
     def __str__(self):
-        return "{0} : {1}".format(self.name, type(self).__name__)
+        return "{0}: {1}".format(self.name, type(self).__name__)
 
     @property
     def datatype(self):

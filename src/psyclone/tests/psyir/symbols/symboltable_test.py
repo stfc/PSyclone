@@ -368,16 +368,16 @@ def test_add_with_tags_hierachical():
         assert (
             "This symbol table, or an outer scope ancestor symbol table, "
             "already contains the tag 'symbol1_tag' for the symbol 'symbol1: "
-            "<Scalar<INTEGER, UNDEFINED>, Local>', so it can not be associated"
-            "with symbol 'symbol3'." in str(info.value))
+            "DataSymbol<Scalar<INTEGER, UNDEFINED>, Local>', so it can not be "
+            "associated with symbol 'symbol3'." in str(info.value))
     # A clash of tags in an ancestor symbol table should raise an exception.
     with pytest.raises(KeyError) as info:
         schedule_symbol_table.add(symbol3, tag="symbol2_tag")
         assert (
             "This symbol table, or an outer scope ancestor symbol table, "
             "already contains the tag 'symbol2_tag' for the symbol 'symbol2: "
-            "<Scalar<INTEGER, UNDEFINED>, Local>', so it can not be associated"
-            " to symbol 'symbol3'." in str(info.value))
+            "DataSymbol<Scalar<INTEGER, UNDEFINED>, Local>', so it can not be "
+            "associated to symbol 'symbol3'." in str(info.value))
     # A clash of tags with a child symbol table is not checked for now.
     container_symbol_table.add(symbol1, tag="symbol1_tag")
 
@@ -1212,7 +1212,7 @@ def test_copy_external_import():
                       interface=ImportInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_import(var4)
-    assert "Couldn't copy 'b: <DeferredType, Import(container=" \
+    assert "Couldn't copy 'b: DataSymbol<DeferredType, Import(container=" \
            "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
            " used by another symbol." in str(error.value)
 
