@@ -1334,6 +1334,12 @@ class SymbolTable():
         print(str(self))
 
     def __str__(self):
-        return ("Symbol Table:\n" +
-                "\n".join(map(str, self._symbols.values())) +
-                "\n")
+        header = "Symbol Table"
+        if self.node:
+            header += f" of {self.node.coloured_name(False)}"
+            if hasattr(self.node, 'name'):
+                header += f" '{self.node.name}'"
+        header += ":"
+        header += "\n" + "-" * len(header) + "\n"
+
+        return header + "\n".join(map(str, self._symbols.values())) + "\n"
