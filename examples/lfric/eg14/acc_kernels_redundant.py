@@ -66,7 +66,7 @@ def trans(psy):
         rc_trans.apply(loops[2], {"depth": 2})
 
         node_list = []
-        for node in schedule.children:
+        for node in schedule.children[:]:
             # We can't include halo exchange calls within a KERNELS region.
             if not isinstance(node, HaloExchange):
                 node_list.append(node)

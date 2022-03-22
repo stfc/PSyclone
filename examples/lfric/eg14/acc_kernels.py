@@ -57,7 +57,7 @@ def trans(psy):
         schedule.view()
 
         node_list = []
-        for node in schedule.children:
+        for node in schedule.children[:]:
             if not isinstance(node, HaloExchange):
                 node_list.append(node)
             else:
