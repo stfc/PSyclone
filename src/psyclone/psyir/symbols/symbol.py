@@ -161,7 +161,6 @@ class ArgumentInterface(SymbolInterface):
 
     def __init__(self, access=None):
         super(ArgumentInterface, self).__init__()
-        self._pass_by_value = False
         self._access = None
         # Use the setter as that has error checking
         if not access:
@@ -193,7 +192,7 @@ class ArgumentInterface(SymbolInterface):
         self._access = value
 
     def __str__(self):
-        return "Argument(pass-by-value={0})".format(self._pass_by_value)
+        return f"Argument({self.access})"
 
     def copy(self):
         '''
