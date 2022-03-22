@@ -7644,6 +7644,9 @@ class DynLoop(Loop):
         if not fields:
             return
 
+        if self.ancestor(ACCKernelsDirective):
+            return
+
         parent.add(CommentGen(parent, ""))
         if self._loop_type != "null":
             prev_node_name = "loop"
@@ -7659,9 +7662,6 @@ class DynLoop(Loop):
                 # I am within an OpenMP Do directive so protect
                 # set_dirty() and set_clean() with OpenMP Master
                 parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
-
-        if self.ancestor(ACCKernelsDirective):
-            parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
 

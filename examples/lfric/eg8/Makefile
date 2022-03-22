@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,10 @@ include ../../common.mk
 transform: vanilla redundant
 
 vanilla:
-	${PSYCLONE} helmholtz_solver_alg_mod.x90
+	${PSYCLONE} ../code/helmholtz_solver_alg_mod.x90
 
 redundant:
-	${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
+	${PSYCLONE} -s ./redundant_script.py ../code/helmholtz_solver_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg8"

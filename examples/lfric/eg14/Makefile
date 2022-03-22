@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,11 @@ transform: kernels parallel_no_dm parallel_dm
 kernels:
 	${PSYCLONE} -s ./acc_kernels.py -nodm \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+  -oalg /dev/null
+
+kernels_redundant:
+	${PSYCLONE} -s ./acc_kernels_redundant.py \
+  ../code/helmholtz_solver_alg_mod.x90 \
   -oalg /dev/null
 
 parallel_no_dm:
