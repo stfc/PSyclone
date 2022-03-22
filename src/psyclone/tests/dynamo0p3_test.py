@@ -2342,9 +2342,12 @@ def test_halo_dirty_2(tmpdir):
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(1)\n"
         "      CALL f3_proxy%set_dirty()\n"
         "      CALL f5_proxy%set_dirty()\n"
+        "      CALL f5_proxy%set_clean(1)\n"
         "      CALL f6_proxy%set_dirty()\n"
+        "      CALL f6_proxy%set_clean(1)\n"
         "      CALL f7_proxy%set_dirty()\n"
         "      CALL f8_proxy%set_dirty()\n")
 

@@ -96,6 +96,19 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
                     [type(node).__name__ for node in data_nodes],
                     type(self).__name__))
 
+    def gen_post_region_code(self, parent):
+        '''
+        Generates any code that must be executed immediately after the end of
+        the region defined by this directive.
+
+        :param parent:
+        :type parent:
+
+        '''
+        loops = self.walk(Loop)
+        for loop in loops:
+            loop.gen_mark_halos_clean_dirty(parent)
+
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective):
@@ -325,6 +338,8 @@ class ACCParallelDirective(ACCRegionDirective):
 
         parent.add(DirectiveGen(parent, *self.end_string().split()))
 
+        self.gen_post_region_code(parent)
+
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
@@ -550,71 +565,7 @@ class ACCKernelsDirective(ACCRegionDirective):
 
         parent.add(DirectiveGen(parent, *self.end_string().split()))
 
-        from psyclone.dynamo0p3 import HaloWriteAccess
-        sym_table = self.ancestor(Routine).symbol_table
-        loops = self.walk(Loop)
-        for loop in loops:
-            fields = loop.unique_modified_args("gh_field")
-            # first set all of the halo dirty unless we are
-            # subsequently going to set all of the halo clean
-            for field in fields:
-                # The HaloWriteAccess class provides information about how the
-                # supplied field is accessed within its parent loop
-                hwa = HaloWriteAccess(field, sym_table)
-                if not hwa.max_depth or hwa.dirty_outer:
-                    # output set dirty as some of the halo will not be set to clean
-                    if field.vector_size > 1:
-                        # the range function below returns values from 1 to the
-                        # vector size which is what we require in our Fortran code
-                        for index in range(1, field.vector_size+1):
-                            parent.add(CallGen(parent, name=field.proxy_name +
-                                               f"({index})%set_dirty()"))
-                    else:
-                        parent.add(CallGen(parent, name=field.proxy_name +
-                                           "%set_dirty()"))
-                # now set appropriate parts of the halo clean where
-                # redundant computation has been performed
-                # The HaloWriteAccess class provides information about how the
-                # supplied field is accessed within its parent loop
-                if hwa.literal_depth:
-                    # halo access(es) is/are to a fixed depth
-                    halo_depth = hwa.literal_depth
-                    if hwa.dirty_outer:
-                        halo_depth -= 1
-                    if halo_depth > 0:
-                        if field.vector_size > 1:
-                            # The range function below returns values from 1 to the
-                            # vector size, as required in our Fortran code.
-                            for index in range(1, field.vector_size+1):
-                                parent.add(CallGen(
-                                    parent, name=f"{field.proxy_name}({index})%"
-                                    f"set_clean({halo_depth})"))
-                        else:
-                            parent.add(CallGen(
-                                parent, name=f"{field.proxy_name}%set_clean("
-                                f"{halo_depth})"))
-                elif hwa.max_depth:
-                    # halo accesses(s) is/are to the full halo
-                    # depth (-1 if continuous)
-                    halo_depth = sym_table.lookup_with_tag(
-                        "max_halo_depth_mesh").name
-
-                    if hwa.dirty_outer:
-                        # a continuous field iterating over cells leaves the
-                        # outermost halo dirty
-                        halo_depth += "-1"
-                    if field.vector_size > 1:
-                        # the range function below returns values from 1 to the
-                        # vector size which is what we require in our Fortran code
-                        for index in range(1, field.vector_size+1):
-                            call = CallGen(parent,
-                                           name=f"{field.proxy_name}({index})%"
-                                           f"set_clean({halo_depth})")
-                            parent.add(call)
-                    else:
-                        call = CallGen(parent, name=f"{field.proxy_name}%"
-                                       f"set_clean({halo_depth})")
-                        parent.add(call)
+        self.gen_post_region_code(parent)
 
     @property
     def ref_list(self):
