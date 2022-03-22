@@ -6451,6 +6451,34 @@ def test_acckernelstrans():
         "      END DO\n"
         "      !$acc end kernels\n" in code)
 
+
+def test_acckernelstrans_dm():
+    '''
+    Test that an ACCKernelsTrans transformation can add an OpenACC
+    Kernels directive to the PSy layer in the LFRic (dynamo0.3) API when
+    distributed memory is enabled.
+
+    '''
+    from psyclone.transformations import ACCKernelsTrans
+    kernels_trans = ACCKernelsTrans()
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type", dist_mem=True)
+    sched = invoke.schedule
+    with pytest.raises(TransformationError) as err:
+        kernels_trans.apply(sched.children)
+    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+            "ACCKernelsTrans transformation" in str(err.value))
+    kernels_trans.apply(sched.walk(Loop))
+    code = str(psy.gen)
+    assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=loop0_start,loop0_stop\n" in code)
+    assert (
+        "      END DO\n"
+        "      !$acc end kernels\n"
+        "      set_dirty\n" in code)
+
 # Class ACCKernelsTrans end
 
 
