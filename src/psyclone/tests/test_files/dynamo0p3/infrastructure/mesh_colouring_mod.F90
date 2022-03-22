@@ -1,12 +1,8 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
-
 !> @brief Computes mesh colouring for vector spaces.
 !>
 !> @details Contains algorithms for colouring of meshes according to different
@@ -16,12 +12,12 @@
 !>
 module mesh_colouring_mod
 
-  use reference_element_mod,   only : W, S, E, N, reference_element_type
+  use constants_mod,           only : i_def, i_native, l_def
+  use local_mesh_mod,          only : local_mesh_type
   use log_mod,                 only : log_event, LOG_LEVEL_ERROR,   &
-                                                 LOG_LEVEL_INFO,    &
                                                  LOG_LEVEL_DEBUG,   &
                                                  log_scratch_space
-  use constants_mod,           only : i_def, i_native, l_def
+  use reference_element_mod,   only : W, S, E, N
 
   implicit none
 
@@ -47,50 +43,40 @@ contains
   !>  @param[out] cells_in_colour   List of cell indices in each colour
   !>  @param[in]  number_horizontal_faces Number of faces on the reference
   !>                      element intersected by a horizontal plane.
-  !>  @param[in]  npanels_global_mesh  Number of panels in the global mesh
-  !>  @param[in]  ncells_global_mesh  Number of cells in the global 2D mesh
-  !>  @param[in]  gid_from_lid  Provides the global ID of a cell based on its
-  !>                            local ID.
-  !>
-  !> @todo Really this procedure should take a mesh_type object rather than a
-  !>       collection of values from it. However that is not currently
-  !>       possible as mesh is marooned in GungHo rather than its rightful
-  !>       place in infrastructure.
-  !>
+  !>  @param[in]  local_mesh A pointer to the local mesh object that
+  !>                      the mesh is built on
+
   subroutine set_colours(num_cells,               &
                          cell_next,               &
                          num_colours,             &
                          num_cell_per_colour,     &
                          cells_in_colour,         &
                          number_horizontal_faces, &
-                         npanels_global_mesh,     &
-                         ncells_global_mesh,      &
-                         gid_from_lid)
+                         local_mesh)
 
     implicit none
 
-    integer(i_def),              intent(in)       :: num_cells
-    integer(i_def),              intent(in)       :: cell_next(:,:)
-    integer(i_def),              intent(out)      :: num_colours
-    integer(i_def), allocatable, intent(out)      :: num_cell_per_colour(:)
-    integer(i_def), allocatable, intent(out)      :: cells_in_colour(:,:)
-    integer(i_def),              intent(in)       :: number_horizontal_faces
-    integer(i_def),              intent(in)       :: npanels_global_mesh
-    integer(i_def),              intent(in)       :: ncells_global_mesh
-    integer(i_def),              intent(in)       :: gid_from_lid(num_cells)
+    integer(i_def),                 intent(in)    :: num_cells
+    integer(i_def),                 intent(in)    :: cell_next(:,:)
+    integer(i_def),                 intent(out)   :: num_colours
+    integer(i_def), allocatable,    intent(out)   :: num_cell_per_colour(:)
+    integer(i_def), allocatable,    intent(out)   :: cells_in_colour(:,:)
+    integer(i_def),                 intent(in)    :: number_horizontal_faces
+    type(local_mesh_type), pointer, intent(in)    :: local_mesh
 
-    integer(i_def)                           ::i
+    integer(i_def) :: i
+    integer(i_def) :: npanels_global_mesh
 
     ! Colour routines return true or false depending on whether they worked
-    logical(l_def)                           :: colour_ok
+    logical(l_def) :: colour_ok
 
     colour_ok = .false.
+    npanels_global_mesh = local_mesh%get_num_panels_global_mesh()
     if (npanels_global_mesh == 6) then
       ! 6 panel global mesh so assume a standard cubed sphere
       call set_colours_cubed_sphere(num_cells,    &
                         cell_next,               &
-                        ncells_global_mesh,      &
-                        gid_from_lid,            &
+                        local_mesh,              &
                         num_colours,             &
                         num_cell_per_colour,     &
                         cells_in_colour,         &
@@ -152,9 +138,8 @@ contains
   !>
   !>  @param[in]  num_cells   Number of cells on the locally partitioned mesh.
   !>  @param[in]  cell_next   Adjacency array for the mesh.
-  !>  @param[in]  ncells_global_mesh Number of cells on the global mesh
-  !>  @param[in]  gid_from_lid Cell global ID based on local ID. Zero if cell
-  !>                      is not in this partition.
+  !>  @param[in]  local_mesh A pointer to the local mesh object that
+  !>                      the mesh is built on
   !>  @param[out] num_colours   Number of colours used to colour this mesh
   !>  @param[out] num_cell_per_colour   Count of cells in each colour
   !>  @param[out] cells_in_colour   List of cell indices in each colour
@@ -165,8 +150,7 @@ contains
   !>
   subroutine set_colours_cubed_sphere( num_cells,               &
                                        cell_next,               &
-                                       ncells_global_mesh,      &
-                                       gid_from_lid,            &
+                                       local_mesh,              &
                                        num_colours,             &
                                        num_cell_per_colour,     &
                                        cells_in_colour,         &
@@ -177,8 +161,7 @@ contains
 
     integer(i_def),              intent(in)    :: num_cells
     integer(i_def),              intent(in)    :: cell_next(:,:)
-    integer(i_def),              intent(in)    :: ncells_global_mesh
-    integer(i_def),              intent(in)    :: gid_from_lid(ncells_global_mesh)
+    type(local_mesh_type), pointer, intent(in) :: local_mesh
     integer(i_def),              intent(out)   :: num_colours
     integer(i_def), allocatable, intent(out)   :: num_cell_per_colour(:)
     integer(i_def), allocatable, intent(out)   :: cells_in_colour(:,:)
@@ -214,12 +197,14 @@ contains
 
     ! Get dimensions of cubed sphere from the total cell number and check it
     ! makes sense
-    ncells_per_panel = ncells_global_mesh/6
+    ncells_per_panel = local_mesh%get_ncells_global_mesh()/6
     ncells_per_dimension = nint( sqrt (real(ncells_per_panel)))
 
-    if (ncells_global_mesh /= (ncells_per_dimension**2) * 6) then
+    if (local_mesh%get_ncells_global_mesh() /= &
+          (ncells_per_dimension**2) * 6) then
       write(log_scratch_space,'(a,i0,a)')                 &
-        'set_colours_cubed_sphere: cells in global map ', ncells_global_mesh, &
+        'set_colours_cubed_sphere: cells in global map ', &
+        local_mesh%get_ncells_global_mesh(),              &
         ' should be a square multiplied by 6'
       call log_event(log_scratch_space,LOG_LEVEL_ERROR)
       stop
@@ -306,7 +291,7 @@ contains
     ! Loop over local cells
     do cell = 1, num_cells
       ! The global cell ID identifies where on the mesh it is
-      gid = gid_from_lid(cell)
+      gid = local_mesh%get_gid_from_lid(cell)
       panel_number = (gid - 1) / ncells_per_panel + 1
 
       ! Get the panel number and work out whether it is an even/odd row and

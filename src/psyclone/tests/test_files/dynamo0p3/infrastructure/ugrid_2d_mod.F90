@@ -1,44 +1,8 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
-
-! BSD 3-Clause License
-!
-! Copyright (c) 2020, Science and Technology Facilities Council
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
-
 !> @brief   Store 2-dimensional ugrid mesh data.
 !> @details Holds all information necessary to define ugrid vn0.9 compliant
 !>          storage of 2-dimensional meshes. Pulling data out is currently
@@ -47,8 +11,9 @@
 
 module ugrid_2d_mod
 
-use constants_mod,  only : i_def, r_def, str_def, str_long, l_def
+use constants_mod,  only : i_def, r_def, str_def, str_longlong, l_def
 use ugrid_file_mod, only : ugrid_file_type
+use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
 implicit none
 
@@ -66,12 +31,18 @@ integer(i_def), parameter :: TOPOLOGY_DIMENSION  = 2
 type, public :: ugrid_2d_type
   private
 
-  character(str_def)  :: mesh_name
-  character(str_def)  :: mesh_class           !< Primitive class of mesh,
-                                              !< i.e. sphere, plane
-  logical(l_def)      :: periodic_x = .false. !< Periodic in E-W direction.
-  logical(l_def)      :: periodic_y = .false. !< Periodic in N-S direction.
-  character(str_long) :: constructor_inputs   !< Inputs used to generate mesh
+  character(str_def) :: mesh_name
+
+  character(str_def) :: geometry
+  character(str_def) :: topology
+  character(str_def) :: coord_sys
+
+  logical(l_def) :: periodic_x = .false.   !< Periodic in E-W direction.
+  logical(l_def) :: periodic_y = .false.   !< Periodic in N-S direction.
+
+  integer(i_def) :: max_stencil_depth = 0
+
+  character(str_longlong) :: constructor_inputs !< Inputs used to generate mesh
 
   character(str_def)  :: coord_units_x
   character(str_def)  :: coord_units_y
@@ -108,6 +79,15 @@ type, public :: ugrid_2d_type
   integer(i_def),     allocatable :: target_edge_cells_x(:) !< Target meshes panel edge cells in x-axis
   integer(i_def),     allocatable :: target_edge_cells_y(:) !< Target meshes panel edge cells in y-axis
 
+  ! Global mesh maps
+  type(global_mesh_map_collection_type) :: target_mesh_maps
+
+  ! Information about the domain orientation
+  real(r_def)    :: north_pole(2)   !< [Longitude, Latitude] of northt pole used
+                                    !< for the domain orientation (degrees)
+  real(r_def)    :: null_island(2)  !< [Longitude, Latitude] of null island
+                                    !< used for the domain orientation (degrees)
+
   ! File handler
   class(ugrid_file_type), allocatable :: file_handler
 
@@ -118,6 +98,8 @@ contains
   procedure :: set_by_generator
   procedure :: set_file_handler
   procedure :: set_from_file_read
+  procedure :: write_to_file
+  procedure :: append_to_file
   procedure :: get_metadata
   procedure :: get_coord_units
   procedure :: get_node_coords
@@ -248,13 +230,14 @@ subroutine allocate_arrays(self, generator_strategy)
   type(ugrid_2d_type),         intent(inout) :: self
   class(ugrid_generator_type), intent(in)    :: generator_strategy
 
-  call generator_strategy%get_dimensions(                &
-         num_nodes          = self%num_nodes,            &
-         num_edges          = self%num_edges,            &
-         num_faces          = self%num_faces,            &
-         num_nodes_per_face = self%num_nodes_per_face,   &
-         num_edges_per_face = self%num_edges_per_face,   &
-         num_nodes_per_edge = self%num_nodes_per_edge)
+  call generator_strategy%get_dimensions(                      &
+         num_nodes              = self%num_nodes,              &
+         num_edges              = self%num_edges,              &
+         num_faces              = self%num_faces,              &
+         num_nodes_per_face     = self%num_nodes_per_face,     &
+         num_edges_per_face     = self%num_edges_per_face,     &
+         num_nodes_per_edge     = self%num_nodes_per_edge,     &
+         max_num_faces_per_node = self%max_num_faces_per_node )
 
 
 
@@ -349,7 +332,6 @@ end subroutine allocate_arrays_for_file
 !>  @param[in,out] self               Calling ugrid object.
 !>  @param[in,out] generator_strategy The generator with which to generate the mesh.
 !---------------------------------------------------------------------------------
-
 subroutine set_by_generator(self, generator_strategy)
   use ugrid_generator_mod, only: ugrid_generator_type
   implicit none
@@ -359,12 +341,16 @@ subroutine set_by_generator(self, generator_strategy)
 
   call generator_strategy%get_metadata                &
       ( mesh_name          = self%mesh_name,          &
-        mesh_class         = self%mesh_class,         &
+        geometry           = self%geometry,           &
+        topology           = self%topology,           &
+        coord_sys          = self%coord_sys,          &
         periodic_x         = self%periodic_x,         &
         periodic_y         = self%periodic_y,         &
         edge_cells_x       = self%edge_cells_x,       &
         edge_cells_y       = self%edge_cells_y,       &
         constructor_inputs = self%constructor_inputs, &
+        north_pole         = self%north_pole,         &
+        null_island        = self%null_island,        &
         nmaps              = self%nmaps )
 
   call generator_strategy%generate()
@@ -389,6 +375,10 @@ subroutine set_by_generator(self, generator_strategy)
         edge_node_connectivity = self%edge_node_connectivity, &
         face_edge_connectivity = self%face_edge_connectivity, &
         face_face_connectivity = self%face_face_connectivity )
+
+  if (self%nmaps > 0) then
+    self%target_mesh_maps = generator_strategy%get_global_mesh_maps()
+  end if
 
   return
 end subroutine set_by_generator
@@ -427,6 +417,7 @@ end subroutine set_file_handler
 !-------------------------------------------------------------------------------
 
 subroutine set_from_file_read(self, mesh_name, filename)
+
   implicit none
 
   ! Arguments
@@ -452,9 +443,12 @@ subroutine set_from_file_read(self, mesh_name, filename)
 
   call self%file_handler%read_mesh(                         &
       mesh_name              = self%mesh_name,              &
-      mesh_class             = self%mesh_class,             &
+      geometry               = self%geometry,               &
+      topology               = self%topology,               &
+      coord_sys              = self%coord_sys,              &
       periodic_x             = self%periodic_x,             &
       periodic_y             = self%periodic_y,             &
+      max_stencil_depth      = self%max_stencil_depth,      &
       constructor_inputs     = self%constructor_inputs,     &
       node_coordinates       = self%node_coordinates,       &
       face_coordinates       = self%face_coordinates,       &
@@ -465,53 +459,181 @@ subroutine set_from_file_read(self, mesh_name, filename)
       face_edge_connectivity = self%face_edge_connectivity, &
       face_face_connectivity = self%face_face_connectivity, &
       num_targets            = self%nmaps,                  &
-      target_mesh_names      = self%target_mesh_names )
+      target_mesh_names      = self%target_mesh_names,      &
+      north_pole             = self%north_pole,             &
+      null_island            = self%null_island   )
 
   call self%file_handler%file_close()
 
   return
 end subroutine set_from_file_read
 
+!-------------------------------------------------------------------------------
+!> @brief   Writes stored ugrid information to data file.
+!> @details Calls back to the file handler strategy (component) in order to
+!>          read the ugrid mesh data and populate internal arrays with data
+!>          from a file.
+!>
+!> @param[in,out] self  The calling ugrid object.
+!-------------------------------------------------------------------------------
+
+subroutine write_to_file(self, filename)
+
+  use ugrid_generator_mod, only: ugrid_generator_type
+
+  implicit none
+
+  ! Arguments
+  class(ugrid_2d_type), intent(inout) :: self
+  character(len=*),     intent(in)    :: filename
+
+  call self%file_handler%file_new(trim(filename))
+
+  call self%file_handler%write_mesh(                         &
+       mesh_name              = self%mesh_name,              &
+       geometry               = self%geometry,               &
+       topology               = self%topology,               &
+       coord_sys              = self%coord_sys,              &
+       periodic_x             = self%periodic_x,             &
+       periodic_y             = self%periodic_y,             &
+       max_stencil_depth      = self%max_stencil_depth,      &
+       constructor_inputs     = self%constructor_inputs,     &
+       num_nodes              = self%num_nodes,              &
+       num_edges              = self%num_edges,              &
+       num_faces              = self%num_faces,              &
+       node_coordinates       = self%node_coordinates,       &
+       face_coordinates       = self%face_coordinates,       &
+       coord_units_x          = self%coord_units_x,          &
+       coord_units_y          = self%coord_units_y,          &
+       face_node_connectivity = self%face_node_connectivity, &
+       edge_node_connectivity = self%edge_node_connectivity, &
+       face_edge_connectivity = self%face_edge_connectivity, &
+       face_face_connectivity = self%face_face_connectivity, &
+       num_targets            = self%nmaps,                  &
+       target_mesh_names      = self%target_mesh_names,      &
+       target_mesh_maps       = self%target_mesh_maps,       &
+       north_pole             = self%north_pole,             &
+       null_island            = self%null_island      )
+
+  call self%file_handler%file_close()
+
+
+  return
+end subroutine write_to_file
+
+!-------------------------------------------------------------------------------
+!> @brief   Appends stored ugrid information to existing ugrid data file.
+!> @details Calls back to the file handler strategy (component) in order to
+!>          read the ugrid_2d_type mesh data and populate the file_handlers
+!>          internal arrays which the file handler will append to the ugrid file.
+!>
+!> @param[in] filename  Output file to open to add data.
+!-------------------------------------------------------------------------------
+
+subroutine append_to_file(self, filename)
+
+  use ugrid_generator_mod, only: ugrid_generator_type
+
+  implicit none
+
+  ! Arguments
+  class(ugrid_2d_type), intent(inout) :: self
+  character(len=*),     intent(in) :: filename
+
+  call self%file_handler%file_open(trim(filename))
+
+  call self%file_handler%append_mesh(                        &
+       mesh_name              = self%mesh_name,              &
+       geometry               = self%geometry,               &
+       topology               = self%topology,               &
+       coord_sys              = self%coord_sys,              &
+       periodic_x             = self%periodic_x,             &
+       periodic_y             = self%periodic_y,             &
+       max_stencil_depth      = self%max_stencil_depth,      &
+       constructor_inputs     = self%constructor_inputs,     &
+       num_nodes              = self%num_nodes,              &
+       num_edges              = self%num_edges,              &
+       num_faces              = self%num_faces,              &
+       node_coordinates       = self%node_coordinates,       &
+       face_coordinates       = self%face_coordinates,       &
+       coord_units_x          = self%coord_units_x,          &
+       coord_units_y          = self%coord_units_y,          &
+       face_node_connectivity = self%face_node_connectivity, &
+       edge_node_connectivity = self%edge_node_connectivity, &
+       face_edge_connectivity = self%face_edge_connectivity, &
+       face_face_connectivity = self%face_face_connectivity, &
+       num_targets            = self%nmaps,                  &
+       target_mesh_names      = self%target_mesh_names,      &
+       target_mesh_maps       = self%target_mesh_maps,       &
+       north_pole             = self%north_pole,             &
+       null_island            = self%null_island  )
+
+  call self%file_handler%file_close()
+
+  return
+end subroutine append_to_file
 
 !-------------------------------------------------------------------------------
 !> @brief   Gets metadata of the current mesh in this object which was
 !>          set by the ugrid_generator_type or read in from NetCDF (UGRID) file.
 !>
-!> @param[in]            self               The calling ugrid object.
-!> @param[out, optional] mesh_name          Name of the current mesh topology.
-!> @param[out, optional] mesh_class         Primitive class of the mesh topology.
-!> @param[out, optional] periodic_x         Periodic in E-W direction.
-!> @param[out, optioanl] periodic_y         Periodic in N-S direction.
-!> @param[out, optional] edge_cells_x       Number of panel edge cells (x-axis).
-!> @param[out, optional] edge_cells_y       Number of panel edge cells (y-axis).
-!> @param[out, optional] constructor_inputs Input arguments use to create this mesh.
-!> @param[out, optional] target_mesh_names  Names of target mesh topologies in this file
-!>                                          which this mesh possesses cell-cell maps for.
+!> @param[out] mesh_name          Name of the current mesh topology.
+!> @param[out] geometry           Domain geometry enumeration key
+!> @param[out] topology           Domain topology enumeration key
+!> @param[out] coord_sys          Co-ordinate sys enumeration key
+!> @param[out] periodic_x         Periodic in E-W direction.
+!> @param[out] periodic_y         Periodic in N-S direction.
+!> @param[out] max_stencil_depth
+!> @param[out] edge_cells_x       Number of panel edge cells (x-axis).
+!> @param[out] edge_cells_y       Number of panel edge cells (y-axis).
+!> @param[out] constructor_inputs Input arguments use to create this mesh.
+!> @param[out] nmaps              The number of intergrid maps from this mesh.
+!> @param[out] target_mesh_names  Names of target mesh topologies in this file
+!>                                which this mesh possesses cell-cell maps for.
+!> @param[out] north_pole         Optional, [Longitude, Latitude] of north pole
+!>                                used for domain orientation (degrees)
+!> @param[out] null_island        Optional, [Longitude, Latitude] of null
+!>                                island used for domain orientation (degrees)
 !-------------------------------------------------------------------------------
-subroutine get_metadata( self, mesh_name, mesh_class,         &
-                         periodic_x, periodic_y,              &
-                         edge_cells_x, edge_cells_y,          &
-                         constructor_inputs, nmaps,           &
-                         target_mesh_names )
+subroutine get_metadata( self, mesh_name,               &
+                         geometry, topology, coord_sys, &
+                         periodic_x, periodic_y,        &
+                         max_stencil_depth,             &
+                         edge_cells_x, edge_cells_y,    &
+                         constructor_inputs, nmaps,     &
+                         target_mesh_names,             &
+                         north_pole, null_island     )
 
   implicit none
 
   class(ugrid_2d_type), intent(in) :: self
   character(str_def),   optional, intent(out) :: mesh_name
-  character(str_def),   optional, intent(out) :: mesh_class
+  character(str_def),   optional, intent(out) :: geometry
+  character(str_def),   optional, intent(out) :: topology
+  character(str_def),   optional, intent(out) :: coord_sys
   logical(l_def),       optional, intent(out) :: periodic_x
   logical(l_def),       optional, intent(out) :: periodic_y
+
+  integer(i_def),       optional, intent(out) :: max_stencil_depth
   integer(i_def),       optional, intent(out) :: edge_cells_x
   integer(i_def),       optional, intent(out) :: edge_cells_y
-  character(str_long),  optional, intent(out) :: constructor_inputs
+
+  character(str_longlong),  optional, intent(out) :: constructor_inputs
+
   integer(i_def),       optional, intent(out) :: nmaps
   character(str_def),   optional, intent(out), &
                                   allocatable :: target_mesh_names(:)
 
+  real(r_def),          optional, intent(out) :: north_pole(2)
+  real(r_def),          optional, intent(out) :: null_island(2)
+
   if (present(mesh_name))          mesh_name          = self%mesh_name
-  if (present(mesh_class))         mesh_class         = self%mesh_class
+  if (present(geometry))           geometry           = self%geometry
+  if (present(topology))           topology           = self%topology
+  if (present(coord_sys))          coord_sys          = self%coord_sys
   if (present(periodic_x))         periodic_x         = self%periodic_x
   if (present(periodic_y))         periodic_y         = self%periodic_y
+  if (present(max_stencil_depth))  max_stencil_depth  = self%max_stencil_depth
   if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
   if (present(edge_cells_x))       edge_cells_x       = self%edge_cells_x
   if (present(edge_cells_y))       edge_cells_y       = self%edge_cells_y
@@ -519,6 +641,8 @@ subroutine get_metadata( self, mesh_name, mesh_class,         &
   if (self%nmaps > 0 .and. present(target_mesh_names)) then
     target_mesh_names = self%target_mesh_names
   end if
+  if (present(north_pole))         north_pole(:)      = self%north_pole(:)
+  if (present(null_island))        null_island(:)     = self%null_island(:)
 
 end subroutine get_metadata
 

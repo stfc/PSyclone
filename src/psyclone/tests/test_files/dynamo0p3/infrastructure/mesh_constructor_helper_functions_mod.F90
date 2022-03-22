@@ -1,12 +1,8 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
-
 !> @brief Holds helper functions for constructing a mesh object
 !>
 module mesh_constructor_helper_functions_mod
@@ -56,8 +52,8 @@ contains
   !>                                 cell.
   !> @param[in]  vert_on_cell_2d     List of vertices on each 2D cell.
   !> @param[in]  vertex_coords_2d    Local 2d cell connectivity.
-  !> @param[in]  is_spherical     True: vertex_coords_2d is in lat,lon coords
-  !>                                 False: vertex_coords_2d is in x,y coords
+  !> @param[in]  ll_coords           True:  vertex_coords_2d in lon,lat coords
+  !>                                 False: vertex_coords_2d in x,y coords
   !> @param[in]  nverts_per_2d_cell  Number of vertices per cell of the 2D
   !>                                 layer.
   !> @param[in]  nedges_per_2d_cell  Number of edges per cell of the 2D layer.
@@ -77,7 +73,7 @@ contains
                             cell_next_2d,       &
                             vert_on_cell_2d,    &
                             vertex_coords_2d,   &
-                            is_spherical,       &
+                            ll_coords,          &
                             nverts_per_2d_cell, &
                             nedges_per_2d_cell, &
                             nverts_2d,          &
@@ -108,7 +104,7 @@ contains
     integer(i_def), intent(in)  :: vert_on_cell_2d(nverts_per_2d_cell, &
                                                    ncells_2d)
     real(r_def),    intent(in)  :: vertex_coords_2d( 3, nverts_2d )
-    logical(l_def), intent(in)  :: is_spherical
+    logical(l_def), intent(in)  :: ll_coords
     real(r_def),    intent(in)  :: dz( nlayers )
     integer(i_def), intent(out) :: cell_next( nfaces, ncells_3d )
     integer(i_def), intent(out) :: vert_on_cell( nverts, ncells_3d )
@@ -193,7 +189,7 @@ contains
       end do
     end do
 
-    if ( is_spherical ) then
+    if ( ll_coords ) then
 
       ! Convert (long,lat,r) -> (x,y,z)
       ! long,lat in radians
@@ -272,7 +268,6 @@ contains
   !> @param[out] face_on_cell    All face ids on any cell
   !> @param[out] edge_on_cell    All edge ids on any cell
   !> @param[in]  ncells_2d       Number of cells in 2D mesh.
-  !> @param[in]  ncells_3d       Number of cells in 3D mesh.
   !> @param[in]  nfaces_per_cell Number of faces on 3d-cell
   !> @param[in]  nedges_per_cell Number of edges on 3d-cell
   !> @param[in]  cell_next       Cell ids of all cells adjacent to any cell
@@ -282,7 +277,6 @@ contains
   subroutine mesh_connectivity( face_on_cell,    &
                                 edge_on_cell,    &
                                 ncells_2d,       &
-                                ncells_3d,       &
                                 nfaces_per_cell, &
                                 nedges_per_cell, &
                                 cell_next,       &
@@ -298,7 +292,6 @@ contains
     implicit none
 
     integer(i_def), intent(in)  :: ncells_2d
-    integer(i_def), intent(in)  :: ncells_3d
     integer(i_def), intent(in)  :: nfaces_per_cell
     integer(i_def), intent(in)  :: nedges_per_cell
     integer(i_def), intent(in)  :: cell_next(:, :)
@@ -490,7 +483,7 @@ contains
   !>
   subroutine set_domain_size( domain_size, domain_top, &
                               vertex_coords, nverts, &
-                              is_spherical, scaled_radius )
+                              ll_coords, scaled_radius )
 
     implicit none
 
@@ -498,10 +491,10 @@ contains
     real(r_def),            intent(in)  :: domain_top
     integer(i_def),         intent(in)  :: nverts
     real(r_def),            intent(in)  :: vertex_coords(3,nverts)
-    logical(l_def),         intent(in)  :: is_spherical
+    logical(l_def),         intent(in)  :: ll_coords
     real(r_def),            intent(in)  :: scaled_radius
 
-    if ( is_spherical ) then
+    if ( ll_coords ) then
       domain_size%minimum%x   =  0.0_r_def
       domain_size%maximum%x   =  2.0_r_def*PI
       domain_size%minimum%y   = -0.5_r_def*PI

@@ -1,43 +1,8 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2017-2020 Met Office. All rights reserved.
+! (C) Crown copyright 2017 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-! LICENCE is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
-!-------------------------------------------------------------------------------
-
-! BSD 3-Clause License
-!
-! Copyright (c) 2020, Science and Technology Facilities Council
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
 
 !> @brief Provides extrusion methods for converting a 2D mesh to a unitless
 !>        3D mesh.
@@ -53,8 +18,7 @@
 module extrusion_mod
 
   use constants_mod,         only : i_def, r_def
-  use global_mesh_base_mod,  only : global_mesh_type => global_mesh_base_type
-
+  use global_mesh_mod,       only : global_mesh_type
   use log_mod,               only : log_scratch_space, log_event, &
                                     log_level_error
   use reference_element_mod, only : reference_element_type
@@ -62,6 +26,12 @@ module extrusion_mod
   implicit none
 
   private
+
+  ! Enumerators for different extrusion types
+  integer(i_def), parameter, public :: PRIME_EXTRUSION = 8881
+  integer(i_def), parameter, public :: TWOD = 6424
+  integer(i_def), parameter, public :: SHIFTED = 1298
+  integer(i_def), parameter, public :: DOUBLE_LEVEL = 734
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief All extrusion implementations inherit from this class.
@@ -73,6 +43,7 @@ module extrusion_mod
     real(r_def)    :: atmosphere_bottom
     real(r_def)    :: atmosphere_top
     integer(i_def) :: number_of_layers
+    integer(i_def) :: extrusion_id
 
   contains
 
@@ -81,7 +52,7 @@ module extrusion_mod
     procedure, public :: get_atmosphere_bottom
     procedure, public :: get_atmosphere_top
     procedure, public :: get_number_of_layers
-    procedure, public :: get_reference_element
+    procedure, public :: get_id
     procedure(extrude_method), public, deferred :: extrude
 
     procedure, public :: extrusion_constructor
@@ -185,23 +156,26 @@ contains
   !> @param[in] atmosphere_bottom Bottom of the atmosphere in meters.
   !> @param[in] atmosphere_top Top of the atmosphere in meters.
   !> @param[in] number_of_layers Number of layers in the atmosphere.
+  !> @param[in] extrusion_id Identifier of extrusion type.
   !>
   !> @return New uniform_extrusion_type object.
   !>
   function uniform_extrusion_constructor( atmosphere_bottom, &
                                           atmosphere_top,    &
-                                          number_of_layers ) result(new)
+                                          number_of_layers,  &
+                                          extrusion_id ) result(new)
 
     implicit none
 
     real(r_def),    intent(in) :: atmosphere_bottom
     real(r_def),    intent(in) :: atmosphere_top
     integer(i_def), intent(in) :: number_of_layers
+    integer(i_def), intent(in) :: extrusion_id
 
     type(uniform_extrusion_type) :: new
 
     call new%extrusion_constructor( atmosphere_bottom, atmosphere_top, &
-                                    number_of_layers )
+                                    number_of_layers, extrusion_id )
 
   end function uniform_extrusion_constructor
 
@@ -230,23 +204,26 @@ contains
   !> @param[in] atmosphere_bottom Bottom of the atmosphere in meters.
   !> @param[in] atmosphere_top Top of the atmosphere in meters.
   !> @param[in] number_of_layers Number of layers in the atmosphere.
+  !> @param[in] extrusion_id Identifier of extrusion type.
   !>
   !> @return New quadratic_extrusion_type object.
   !>
   function quadratic_extrusion_constructor( atmosphere_bottom, &
                                             atmosphere_top,    &
-                                            number_of_layers ) result(new)
+                                            number_of_layers,  &
+                                            extrusion_id ) result(new)
 
     implicit none
 
     real(r_def),    intent(in) :: atmosphere_bottom
     real(r_def),    intent(in) :: atmosphere_top
     integer(i_def), intent(in) :: number_of_layers
+    integer(i_def), intent(in) :: extrusion_id
 
     type(quadratic_extrusion_type) :: new
 
     call new%extrusion_constructor( atmosphere_bottom, atmosphere_top, &
-                                    number_of_layers )
+                                    number_of_layers, extrusion_id )
 
   end function quadratic_extrusion_constructor
 
@@ -277,23 +254,26 @@ contains
   !> @param[in] atmosphere_bottom Bottom of the atmosphere in meters.
   !> @param[in] atmosphere_top Top of the atmosphere in meters.
   !> @param[in] number_of_layers Number of layers in the atmosphere.
+  !> @param[in] extrusion_id Identifier of extrusion type.
   !>
   !> @return New geometric_extrusion_type object.
   !>
   function geometric_extrusion_constructor( atmosphere_bottom, &
                                             atmosphere_top,    &
-                                            number_of_layers ) result(new)
+                                            number_of_layers,  &
+                                            extrusion_id ) result(new)
 
     implicit none
 
     real(r_def),    intent(in) :: atmosphere_bottom
     real(r_def),    intent(in) :: atmosphere_top
     integer(i_def), intent(in) :: number_of_layers
+    integer(i_def), intent(in) :: extrusion_id
 
     type(geometric_extrusion_type) :: new
 
     call new%extrusion_constructor( atmosphere_bottom, atmosphere_top, &
-                                    number_of_layers )
+                                    number_of_layers, extrusion_id )
 
   end function geometric_extrusion_constructor
 
@@ -334,9 +314,10 @@ contains
     class(extrusion_type), target, intent(in) :: extrusion
     type(shifted_extrusion_type)              :: new
 
-    call new%extrusion_constructor( extrusion%atmosphere_bottom, &
-                                    extrusion%atmosphere_top,    &
-                                    extrusion%number_of_layers + 1 )
+    call new%extrusion_constructor( extrusion%atmosphere_bottom,    &
+                                    extrusion%atmosphere_top,       &
+                                    extrusion%number_of_layers + 1, &
+                                    SHIFTED )
 
     new%base_extrusion => extrusion
 
@@ -386,7 +367,7 @@ contains
 
     call new%extrusion_constructor( extrusion%atmosphere_bottom, &
                                     extrusion%atmosphere_top,    &
-                                    nlayers_dl )
+                                    nlayers_dl, DOUBLE_LEVEL )
 
     new%base_extrusion => extrusion
 
@@ -434,11 +415,13 @@ contains
   !>                               in meters.
   !> @param [in] atmosphere_top Top of the atmosphere in meters.
   !> @param [in] number_of_layers Number of layers to split atmosphere into.
+  !> @param [in] extrusion_id  Enumeration for the type of extrusion.
   !>
   subroutine extrusion_constructor( this,              &
                                     atmosphere_bottom, &
                                     atmosphere_top,    &
-                                    number_of_layers )
+                                    number_of_layers,  &
+                                    extrusion_id )
 
     implicit none
 
@@ -446,44 +429,14 @@ contains
     real(r_def),           intent(in) :: atmosphere_bottom
     real(r_def),           intent(in) :: atmosphere_top
     integer(i_def),        intent(in) :: number_of_layers
+    integer(i_def),        intent(in) :: extrusion_id
 
     this%atmosphere_bottom = atmosphere_bottom
     this%atmosphere_top    = atmosphere_top
     this%number_of_layers  = number_of_layers
+    this%extrusion_id      = extrusion_id
 
   end subroutine extrusion_constructor
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief Gets the reference element for this extrusion given a particular
-  !>        base mesh.
-  !>
-  !> @param[in] mesh Base mesh object.
-  !> @param[out] reference_element Shape of a 3D element given the extrusion.
-  !>
-  subroutine get_reference_element( this, mesh, reference_element )
-
-    use reference_element_mod, only : reference_prism_type, &
-                                      reference_cube_type
-    implicit none
-
-    class(extrusion_type),   intent(in) :: this
-    class(global_mesh_type), intent(in) :: mesh
-    class(reference_element_type), &
-                             intent(out), allocatable :: reference_element
-
-    select case (mesh%get_nverts_per_cell())
-      case (3)
-        allocate( reference_element, source=reference_prism_type() )
-      case (4)
-        allocate( reference_element, source=reference_cube_type() )
-      case default
-        write( log_scratch_space, &
-              '("Base mesh with ", I0, " vertices per cell not supported.")' &
-             ) mesh%get_nverts_per_cell()
-        call log_event( log_scratch_space, log_level_error )
-    end select
-
-  end subroutine get_reference_element
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Gets the bottom of the atmosphere or the surface of the planet.
@@ -532,6 +485,22 @@ contains
     layers = this%number_of_layers
 
   end function get_number_of_layers
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Gets the identifier of the type of extrusion.
+  !>
+  !> @return The extrusion ID.
+  !>
+  function get_id( this ) result(extrusion_id)
+
+    implicit none
+
+    class(extrusion_type), intent(in) :: this
+    integer(i_def) :: extrusion_id
+
+    extrusion_id = this%extrusion_id
+
+  end function get_id
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Helper function for generating geometric extrusion

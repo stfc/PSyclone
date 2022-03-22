@@ -1,44 +1,8 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
-
-! BSD 3-Clause License
-!
-! Copyright (c) 2020, Science and Technology Facilities Council
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
-
 !> @brief   Abstract mesh generator type.
 !> @details Provides an abstract mesh generator type, together with abstract
 !>          procedure interfaces.  Used to implement the OO strategy pattern.
@@ -46,7 +10,9 @@
 
 module ugrid_generator_mod
 
-use constants_mod, only : r_def, i_def, str_def, str_long, l_def
+use constants_mod,                  only: r_def, i_def, str_def, l_def, &
+                                          str_longlong, i_native
+use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
 implicit none
 
@@ -64,6 +30,7 @@ contains
   procedure ( get_dimensions_interface   ),     deferred :: get_dimensions
   procedure ( get_coordinates_interface  ),     deferred :: get_coordinates
   procedure ( get_connectivity_interface ),     deferred :: get_connectivity
+  procedure ( get_global_mesh_maps_interface ), deferred :: get_global_mesh_maps
 end type ugrid_generator_type
 
 !-------------------------------------------------------------------------------
@@ -71,6 +38,24 @@ end type ugrid_generator_type
 !-------------------------------------------------------------------------------
 
 abstract interface
+
+  !-----------------------------------------------------------------------------
+  !> @brief Function interface for requesting global_mesh_maps collection
+  !>        connected with the ugrid_generator
+  !>
+  !> @return global_mesh_maps  Pointer global_mesh_maps collection.
+  !-----------------------------------------------------------------------------
+  function get_global_mesh_maps_interface (self) result (global_mesh_maps)
+
+    import :: ugrid_generator_type, global_mesh_map_collection_type
+
+    implicit none
+
+    class(ugrid_generator_type), target, intent(in) :: self
+    type(global_mesh_map_collection_type), pointer :: global_mesh_maps
+
+  end function get_global_mesh_maps_interface
+
 
   !-----------------------------------------------------------------------------
   !> @brief Interface: runs the mesh generator strategy.
@@ -93,10 +78,13 @@ abstract interface
   !>
   !> @param[in]             self               The generator strategy object.
   !> @param[out, optional]  mesh_name          Name of mesh instance to generate
-  !> @param[out, optional]  mesh_class         Primitive shape, i.e. sphere, plane
+  !> @param[out, optional]  geometry           Domain geometry enumeration key
+  !> @param[out, optional]  topology           Domain topology enumeration key
+  !> @param[out, optional]  coord_sys          Co-ordinate sys enumeration key
   !> @param[out, optional]  periodic_x         Periodic in E-W direction.
   !> @param[out, optional]  periodic_y         Periodic in N-S direction.
   !> @param[out, optional]  npanels            Number of panels use to describe mesh
+  !> @param[out, optional]  coord_sys          Coordinate system use to locate nodes.
   !> @param[out, optional]  edge_cells_x       Number of panel edge cells (x-axis).
   !> @param[out, optional]  edge_cells_y       Number of panel edge cells (y-axis).
   !> @param[out, optional]  constructor_inputs Inputs used to create this mesh from
@@ -109,35 +97,49 @@ abstract interface
   !>                                           target mesh(es) to create map(s) for.
   !> @param[out, optional]  maps_edge_cells_y  Number of panel edge cells (y-axis) of
   !>                                           target mesh(es) to create map(s) for.
+  !> @param[out, optional] north_pole          [Longitude, Latitude] of north pole
+  !>                                           used in for domain orientation (degrees)
+  !> @param[out, optional] null_island         [Longitude, Latitude] of null
+  !>                                           island used for domain orientation (degrees)
   !-----------------------------------------------------------------------------
-  subroutine get_metadata_interface ( self, mesh_name, mesh_class,          &
-                                      periodic_x, periodic_y, npanels,      &
-                                      edge_cells_x, edge_cells_y,           &
-                                      constructor_inputs, nmaps,            &
-                                      target_mesh_names,                      &
-                                      maps_edge_cells_x, maps_edge_cells_y )
+  subroutine get_metadata_interface ( self, mesh_name,                       &
+                                      geometry, topology, coord_sys,         &
+                                      periodic_x, periodic_y, npanels,       &
+                                      edge_cells_x, edge_cells_y,            &
+                                      constructor_inputs, nmaps,             &
+                                      target_mesh_names,                     &
+                                      maps_edge_cells_x, maps_edge_cells_y,  &
+                                      north_pole, null_island  )
 
-    import :: ugrid_generator_type, i_def, str_def, str_long, l_def
+    import :: ugrid_generator_type, i_def, str_def, str_longlong, l_def, r_def
 
     implicit none
 
     class(ugrid_generator_type),  intent(in)  :: self
+
     character(str_def), optional, intent(out) :: mesh_name
-    character(str_def), optional, intent(out) :: mesh_class
+    character(str_def), optional, intent(out) :: geometry
+    character(str_def), optional, intent(out) :: topology
+    character(str_def), optional, intent(out) :: coord_sys
     logical(l_def),     optional, intent(out) :: periodic_x
     logical(l_def),     optional, intent(out) :: periodic_y
-    character(str_long),optional, intent(out) :: constructor_inputs
-    character(str_def), allocatable, &
-                        optional, intent(out) :: target_mesh_names(:)
 
+    character(str_longlong), optional, intent(out) :: constructor_inputs
+
+    character(str_def), allocatable, &
+                    optional, intent(out) :: target_mesh_names(:)
     integer(i_def), allocatable, &
                     optional, intent(out) :: maps_edge_cells_x(:)
     integer(i_def), allocatable, &
                     optional, intent(out) :: maps_edge_cells_y(:)
+
     integer(i_def), optional, intent(out) :: npanels
     integer(i_def), optional, intent(out) :: nmaps
     integer(i_def), optional, intent(out) :: edge_cells_x
     integer(i_def), optional, intent(out) :: edge_cells_y
+
+    real(r_def),    optional, intent(out) :: north_pole(2)
+    real(r_def),    optional, intent(out) :: null_island(2)
 
   end subroutine get_metadata_interface
 
@@ -152,9 +154,12 @@ abstract interface
   !> @param[out]    num_nodes_per_face     Number of nodes per face
   !> @param[out]    num_edges_per_face     Number of edges per face
   !> @param[out]    num_nodes_per_edge     Number of nodes per edge
+  !> @param[out]    max_num_faces_per_node Maximum number of faces surrounding
+  !>                                       each node
   !-----------------------------------------------------------------------------
-  subroutine get_dimensions_interface (self, num_nodes, num_edges, num_faces,  &
-                 num_nodes_per_face, num_edges_per_face, num_nodes_per_edge)
+  subroutine get_dimensions_interface (self, num_nodes, num_edges, num_faces, &
+                 num_nodes_per_face, num_edges_per_face, num_nodes_per_edge,  &
+                 max_num_faces_per_node )
 
     import :: ugrid_generator_type, i_def
 
@@ -168,6 +173,7 @@ abstract interface
     integer(i_def), intent(out) :: num_nodes_per_face
     integer(i_def), intent(out) :: num_edges_per_face
     integer(i_def), intent(out) :: num_nodes_per_edge
+    integer(i_def), intent(out) :: max_num_faces_per_node
 
   end subroutine get_dimensions_interface
 
@@ -229,4 +235,3 @@ abstract interface
 end interface
 
 end module ugrid_generator_mod
-

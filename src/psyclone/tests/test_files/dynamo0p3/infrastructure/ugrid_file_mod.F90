@@ -1,44 +1,8 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-------------------------------------------------------------------------------
-
-! BSD 3-Clause License
-!
-! Copyright (c) 2020, Science and Technology Facilities Council
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
-
 !>  @brief Abstract ugrid file type.
 !>
 !>  @details Provides an abstract ugrid file type, together with abstract
@@ -46,8 +10,9 @@
 !-------------------------------------------------------------------------------
 module ugrid_file_mod
 
-  use constants_mod, only: i_def, r_def, str_def, str_long, l_def
+  use constants_mod, only: i_def, r_def, str_def, str_longlong, l_def
   use file_mod,      only: file_type
+  use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
   implicit none
 
@@ -65,6 +30,8 @@ type, abstract, extends(file_type), public :: ugrid_file_type
 contains
   procedure (read_mesh_interface ),      deferred :: read_mesh
   procedure (read_map_interface ),       deferred :: read_map
+  procedure (write_mesh_interface),      deferred :: write_mesh
+  procedure (write_mesh_interface),      deferred :: append_mesh
   procedure (get_dimensions_interface),  deferred :: get_dimensions
   procedure (get_mesh_names_interface),  deferred :: get_mesh_names
   procedure (get_n_meshes_interface),    deferred :: get_n_meshes
@@ -104,7 +71,7 @@ abstract interface
     character(str_def),     intent(in)  :: source_mesh_name
     character(str_def),     intent(in)  :: target_mesh_name
 
-    integer(i_def),         intent(out), allocatable :: mesh_map(:,:)
+    integer(i_def),         intent(out), allocatable :: mesh_map(:,:,:)
 
   end subroutine read_map_interface
 
@@ -192,7 +159,9 @@ abstract interface
   !>
   !> @param[in,out] self                   The ugrid file strategy object.
   !> @param[in]     mesh_name              Name of mesh to read
-  !> @param[out]    mesh_class             Primitive class of mesh.
+  !> @param[out]    geometry               Domain geometry enumeration key
+  !> @param[out]    topology               Domain topology enumeration key
+  !> @param[out]    coord_sys              Co-ordinate sys enumeration key
   !> @param[out]    periodic_x             Periodic in E-W direction.
   !> @param[out]    periodic_y             Periodic in N-S direction.
   !> @param[out]    constructor_inputs     Inputs to the ugrid_generator used to
@@ -207,10 +176,16 @@ abstract interface
   !> @param[out]    face_face_connectivity Faces adjacent to each face.
   !> @param[out]    num_targets            Number of mesh maps from mesh
   !> @param[out]    target_mesh_names      Mesh(es) that this mesh has maps for
+  !> @param[out]    north_pole             [Longitude, Latitude] of north pole
+  !>                                       used for domain orientation (degrees)
+  !> @param[out]    null_island            [Longitude, Latitude] of null
+  !>                                       island used for domain orientation (degrees)
   !-----------------------------------------------------------------------------
 
-  subroutine read_mesh_interface( self, mesh_name, mesh_class,    &
+  subroutine read_mesh_interface( self, mesh_name,                &
+                                  geometry, topology, coord_sys,  &
                                   periodic_x, periodic_y,         &
+                                  max_stencil_depth,              &
                                   constructor_inputs,             &
                                   node_coordinates,               &
                                   face_coordinates,               &
@@ -219,20 +194,27 @@ abstract interface
                                   edge_node_connectivity,         &
                                   face_edge_connectivity,         &
                                   face_face_connectivity,         &
-                                  num_targets, target_mesh_names )
+                                  num_targets, target_mesh_names, &
+                                  north_pole, null_island  )
 
-    import :: ugrid_file_type, i_def, r_def, str_def, str_long, l_def
+    import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, &
+              l_def
 
     implicit none
 
     ! Arguments
     class(ugrid_file_type), intent(inout) :: self
 
-    character(str_def),  intent(in)  :: mesh_name
-    character(str_def),  intent(out) :: mesh_class
-    logical(l_def),      intent(out) :: periodic_x
-    logical(l_def),      intent(out) :: periodic_y
-    character(str_long), intent(out) :: constructor_inputs
+    character(str_def), intent(in)  :: mesh_name
+
+    character(str_def), intent(out) :: geometry
+    character(str_def), intent(out) :: topology
+    character(str_def), intent(out) :: coord_sys
+    logical(l_def),     intent(out) :: periodic_x
+    logical(l_def),     intent(out) :: periodic_y
+    integer(i_def),     intent(out) :: max_stencil_depth
+
+    character(str_longlong), intent(out) :: constructor_inputs
 
     real(r_def),        intent(out) :: node_coordinates(:,:)
     real(r_def),        intent(out) :: face_coordinates(:,:)
@@ -244,6 +226,8 @@ abstract interface
     integer(i_def),     intent(out) :: face_face_connectivity(:,:)
     integer(i_def),     intent(out) :: num_targets
     character(str_def), intent(out), allocatable :: target_mesh_names(:)
+    real(r_def),        intent(out) :: north_pole(2)
+    real(r_def),        intent(out) :: null_island(2)
 
   end subroutine read_mesh_interface
 
@@ -252,7 +236,9 @@ abstract interface
   !>
   !> @param[inout]   self                    The ugrid file strategy object.
   !> @param[in]      mesh_name               Name of this mesh instance
-  !> @param[in]      mesh_class              Primitive class of mesh
+  !> @param[in]      geometry                Domain geometry enumeration key
+  !> @param[in]      topology                Domain topology enumeration key
+  !> @param[in]      coord_sys               Co-ordinate sys enumeration key
   !> @param[in]      periodic_x              Periodic in E-W direction.
   !> @param[in]      periodic_y              Periodic in N-S direction.
   !> @param[in]      constructor_inputs      Inputs used to generate mesh
@@ -270,48 +256,66 @@ abstract interface
   !> @param[in]      num_targets             Number of mesh maps from mesh
   !> @param[in]      target_mesh_names       Mesh(es) that this mesh has maps for
   !> @param[in]      target_mesh_maps        Mesh maps from this mesh to target mesh(es)
+  !> @param[in]      north_pole              [Longitude, Latitude] of north pole
+  !>                                         used for domain orientation (degrees)
+  !> @param[in]      null_island             [Longitude, Latitude] of null
+  !>                                         island used for domain orientation (degrees)
   !-----------------------------------------------------------------------------
 
-  subroutine write_mesh_interface( self, mesh_name, mesh_class,     &
-                                   periodic_x, periodic_y,          &
-                                   constructor_inputs,              &
-                                   num_nodes, num_edges, num_faces, &
-                                   node_coordinates,                &
-                                   face_coordinates,                &
-                                   coord_units_x,                   &
-                                   coord_units_y,                   &
-                                   face_node_connectivity,          &
-                                   edge_node_connectivity,          &
-                                   face_edge_connectivity,          &
-                                   face_face_connectivity,          &
-                                   num_targets,                     &
-                                   target_mesh_names)
+  subroutine write_mesh_interface( self, mesh_name, geometry, topology, coord_sys, &
+                                   periodic_x, periodic_y, max_stencil_depth,      &
+                                   constructor_inputs,                             &
+                                   num_nodes, num_edges, num_faces,                &
+                                   node_coordinates, face_coordinates,             &
+                                   coord_units_x, coord_units_y,                   &
+                                   face_node_connectivity,                         &
+                                   edge_node_connectivity,                         &
+                                   face_edge_connectivity,                         &
+                                   face_face_connectivity,                         &
+                                   num_targets,                                    &
+                                   target_mesh_names,                              &
+                                   target_mesh_maps,                               &
+                                   north_pole,                                     &
+                                   null_island )
 
-    import :: ugrid_file_type, i_def, r_def, str_def, str_long, l_def
+    import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, l_def, &
+              global_mesh_map_collection_type
 
     implicit none
 
     ! Arguments
     class(ugrid_file_type), intent(inout) :: self
 
-    character(str_def),  intent(in) :: mesh_name
-    character(str_def),  intent(in) :: mesh_class
-    logical(l_def),      intent(in) :: periodic_x
-    logical(l_def),      intent(in) :: periodic_y
-    character(str_long), intent(in) :: constructor_inputs
-    integer(i_def),      intent(in) :: num_nodes
-    integer(i_def),      intent(in) :: num_edges
-    integer(i_def),      intent(in) :: num_faces
-    real(r_def),         intent(in) :: node_coordinates(:,:)
-    real(r_def),         intent(in) :: face_coordinates(:,:)
-    character(str_def),  intent(in) :: coord_units_x
-    character(str_def),  intent(in) :: coord_units_y
-    integer(i_def),      intent(in) :: face_node_connectivity(:,:)
-    integer(i_def),      intent(in) :: edge_node_connectivity(:,:)
-    integer(i_def),      intent(in) :: face_edge_connectivity(:,:)
-    integer(i_def),      intent(in) :: face_face_connectivity(:,:)
-    integer(i_def),      intent(in) :: num_targets
-    character(str_def),  intent(in), allocatable :: target_mesh_names(:)
+    character(str_def), intent(in) :: mesh_name
+
+    character(str_def), intent(in) :: geometry
+    character(str_def), intent(in) :: topology
+    character(str_def), intent(in) :: coord_sys
+    logical(l_def),     intent(in) :: periodic_x
+    logical(l_def),     intent(in) :: periodic_y
+
+    integer(i_def),     intent(in) :: max_stencil_depth
+
+    character(str_longlong), intent(in) :: constructor_inputs
+
+    integer(i_def),     intent(in) :: num_nodes
+    integer(i_def),     intent(in) :: num_edges
+    integer(i_def),     intent(in) :: num_faces
+    real(r_def),        intent(in) :: node_coordinates(:,:)
+    real(r_def),        intent(in) :: face_coordinates(:,:)
+    character(str_def), intent(in) :: coord_units_x
+    character(str_def), intent(in) :: coord_units_y
+    integer(i_def),     intent(in) :: face_node_connectivity(:,:)
+    integer(i_def),     intent(in) :: edge_node_connectivity(:,:)
+    integer(i_def),     intent(in) :: face_edge_connectivity(:,:)
+    integer(i_def),     intent(in) :: face_face_connectivity(:,:)
+    integer(i_def),     intent(in) :: num_targets
+    character(str_def), intent(in), allocatable :: target_mesh_names(:)
+    type(global_mesh_map_collection_type), &
+                        intent(in) :: target_mesh_maps
+
+    real(r_def),        intent(in) :: north_pole(2)
+    real(r_def),        intent(in) :: null_island(2)
 
   end subroutine write_mesh_interface
 
@@ -338,4 +342,3 @@ abstract interface
 end interface
 
 end module ugrid_file_mod
-
