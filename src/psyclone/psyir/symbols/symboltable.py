@@ -521,10 +521,10 @@ class SymbolTable():
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
-                    "This symbol table, or an outer scope ancestor symbol "
-                    "table, already contains the tag '{0}' for the symbol"
-                    " '{1}', so it can not be associated with symbol '{2}'.".
-                    format(tag, self.lookup_with_tag(tag), new_symbol.name))
+                    f"This symbol table, or an outer scope ancestor symbol "
+                    f"table, already contains the tag '{tag}' for the symbol"
+                    f" '{self.lookup_with_tag(tag).name}', so it can not be "
+                    f"associated with symbol '{new_symbol.name}'.")
             self._tags[tag] = new_symbol
 
         self._symbols[key] = new_symbol

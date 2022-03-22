@@ -529,7 +529,7 @@ class Symbol(object):
             return None
 
     def __str__(self):
-        return self.name
+        return f"{self.name}: Symbol<{self.interface}>"
 
     @property
     def is_array(self):

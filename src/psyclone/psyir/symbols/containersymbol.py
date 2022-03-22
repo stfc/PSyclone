@@ -132,7 +132,7 @@ class ContainerSymbol(Symbol):
         return self._reference
 
     def __str__(self):
-        string = self._name + ": <"
+        string = self._name + ": ContainerSymbol<"
         if self._reference:
             string += "linked>"
         else:
