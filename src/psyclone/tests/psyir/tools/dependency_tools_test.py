@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,7 @@ def test_messages():
     '''Tests the messaging system of the dependency tools.'''
 
     dep_tools = DependencyTools()
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
     dep_tools._add_info("info-test")
     assert dep_tools.get_all_messages()[0] == "Info: info-test"
@@ -70,6 +71,7 @@ def test_messages():
     assert dep_tools.get_all_messages()[2] == "Error: error-test"
 
     dep_tools._clear_messages()
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
 
@@ -138,6 +140,7 @@ def test_nested_loop_detection(parser):
     parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol, False)
     assert parallel is True
     # Make sure can_loop_be_parallelised clears old messages automatically
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
 
@@ -209,6 +212,7 @@ def test_arrays_parallelise(parser):
     # Write to array that does not depend on parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
     assert parallel is True
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
     # Use parallel loop variable in more than one dimension
@@ -284,6 +288,7 @@ def test_array_access_consistent(parser):
                                                       a_access_2nd_loop],
                                                      all_ind)
     assert consistent is True
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
     assert len(all_ind) == 3
     assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
@@ -315,6 +320,49 @@ def test_array_access_consistent(parser):
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.parametrize("expression, correct",
+                         [("a1(i+i+j)", [set(("i", "j"))]),
+                          ("a1(1)", [set()]),
+                          ("a2(i+j,2*j+k+1)", [set(("i", "j")),
+                                               set(("j", "k"))]),
+                          ("a3(i,j,i)", [set("i"), set("j"), set("i")]),
+                          ("dv(i)%a(j)%b(k)", [set("i"), set("j"),
+                                               set("k")])])
+def test_get_indices(expression, correct, parser):
+    '''Tests that getting the indices of an array expressions
+    works as expected.
+    '''
+    reader = FortranStringReader(f'''program test
+                                 use my_mod, only: my_type
+                                 type(my_type) :: dv(10)
+                                 integer i, j, k
+                                 integer, parameter :: n=10
+                                 real, dimension(n) :: a1
+                                 real, dimension(n,n) :: a2
+                                 real, dimension(n,n,n) :: a3
+                                 {expression} = 1
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    assign = psy.invokes.get("test").schedule
+
+    # Get all access info for the expression
+    access_info = VariablesAccessInfo(assign)
+
+    # Find the access that is not to i,j, or k --> this must be
+    # the 'main' array variable we need to check for:
+    sig = None
+    for sig in access_info:
+        if str(sig) not in ["i", "j", "k"]:
+            break
+    # Get all accesses to the array variable. It has only one
+    # access
+    access = access_info[sig][0]
+    result = DependencyTools.get_flat_indices(access.component_indices)
+    assert result == correct
+
+
+# -----------------------------------------------------------------------------
 @pytest.mark.parametrize("declaration, variable",
                          [("integer :: a", "a"),
                           ("type(my_type) :: a", "a%scalar"),
@@ -329,7 +377,7 @@ def test_scalar_parallelise(declaration, variable, parser):
     :param str variable: the variable (e.g. 'b', or 'b%b')
 
     '''
-    reader = FortranStringReader('''program test
+    reader = FortranStringReader(f'''program test
                                  implicit none
                                  type :: my_sub_type
                                     integer :: scalar
@@ -339,33 +387,32 @@ def test_scalar_parallelise(declaration, variable, parser):
                                     type(my_sub_type) :: sub
                                  end type my_type
 
-                                 {0}  ! Declaration of variable here
+                                 {declaration}  ! Declaration of variable here
                                  integer :: ji, jj
                                  integer, parameter :: jpi=7, jpj=9
                                  integer, dimension(jpi,jpj) :: b, c
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
-                                       b(ji, jj) = {1}
+                                       b(ji, jj) = {variable}
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 1
                                     do ji = 1, jpi
-                                       {1} = b(ji, jj)
+                                       {variable} = b(ji, jj)
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 2
                                     do ji = 1, jpi
-                                       {1} = b(ji, jj)
-                                       c(ji, jj) = {1}*{1}
+                                       {variable} = b(ji, jj)
+                                       c(ji, jj) = {variable}*{variable}
                                      end do
                                  end do
                                  do jj = 1, jpj   ! loop 3
                                     do ji = 1, jpi
-                                       {1} = {1} + b(ji, jj)
+                                       {variable} = {variable} + b(ji, jj)
                                      end do
                                  end do
-                                 end program test'''.format(declaration,
-                                                            variable))
+                                 end program test''')
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test").schedule
@@ -381,7 +428,7 @@ def test_scalar_parallelise(declaration, variable, parser):
     # Write only scalar variable: a(ji, jj) = b
     parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
     assert parallel is False
-    assert ("Scalar variable '{0}' is only written once".format(variable)
+    assert (f"Scalar variable '{variable}' is only written once"
             in dep_tools.get_all_messages()[0])
 
     # Write to scalar variable happens first
@@ -391,8 +438,8 @@ def test_scalar_parallelise(declaration, variable, parser):
     # Reduction operation on scalar variable
     parallel = dep_tools.can_loop_be_parallelised(loops[3], jj_symbol)
     assert parallel is False
-    assert ("Variable '{0}' is read first, which indicates a reduction."
-            .format(variable) in dep_tools.get_all_messages()[0])
+    assert (f"Variable '{variable}' is read first, which indicates a "
+            f"reduction." in dep_tools.get_all_messages()[0])
 
 
 # -----------------------------------------------------------------------------
@@ -460,6 +507,7 @@ def test_derived_type(parser):
         can_loop_be_parallelised(loops[1],
                                  signatures_to_ignore=[Signature(("a", "b")),
                                                        Signature(("b", "b"))])
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
     assert parallel is True
 
