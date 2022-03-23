@@ -1388,7 +1388,7 @@ def test_get_symbols():
     # get_symbols() works when the symbol table has ancestor symbol
     # tables.
     all_symbols = schedule_symbol_table.get_symbols()
-    assert len(all_symbols) == 2
+    assert len(all_symbols) == 3
     assert all_symbols[symbol1.name] is symbol1
     assert all_symbols[symbol2.name] is symbol2
 
@@ -1425,7 +1425,7 @@ def test_get_tags():
     # get_tags() works when the symbol table has ancestor symbol
     # tables.
     all_tags = schedule_symbol_table.get_tags()
-    assert len(all_tags) == 2
+    assert len(all_tags) == 3
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
 

@@ -888,7 +888,7 @@ class GOLoop(Loop):
                     "whole", self._loop_type)].fortran)
         bound_str = self.get_custom_bound_string("stop")
         return FortranReader().psyir_from_expression(
-                    bound_str, self.scope.symbol_table)
+                    bound_str, self.ancestor(GOInvokeSchedule).symbol_table)
 
     def lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
@@ -917,7 +917,7 @@ class GOLoop(Loop):
                     "whole", self._loop_type)].fortran)
         bound_str = self.get_custom_bound_string("start")
         return FortranReader().psyir_from_expression(
-                    bound_str, self.scope.symbol_table)
+                    bound_str, self.ancestor(GOInvokeSchedule).symbol_table)
 
     def _validate_loop(self):
         ''' Validate that the GOLoop has all necessary boundaries information

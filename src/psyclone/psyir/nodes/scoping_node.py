@@ -65,6 +65,7 @@ class ScopingNode(Node):
             self._symbol_table = symbol_table
         else:
             self._symbol_table = self._symbol_table_class(self)
+        self._symbol_table._node = self
 
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most

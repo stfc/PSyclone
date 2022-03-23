@@ -163,12 +163,14 @@ class NemoInvokeSchedule(InvokeSchedule):
     :param str name: the name of this NemoInvokeSchedule (Routine).
     :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     _text_name = "NemoInvokeSchedule"
 
-    def __init__(self, name, invoke=None):
-        super(NemoInvokeSchedule, self).__init__(name, None, None)
+    def __init__(self, name, invoke=None, **kwargs):
+        super(NemoInvokeSchedule, self).__init__(name, None, None, **kwargs)
 
         self._invoke = invoke
 

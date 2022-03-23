@@ -40,7 +40,7 @@
 import six
 
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, DeferredType
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.symboltable import SymbolTable
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
@@ -54,8 +54,8 @@ class Routine(Schedule, CommentableMixin):
     :param str name: the name of this routine.
     :param bool is_program: whether this Routine represents the entry point \
                             into a program (e.g. Fortran Program or C main()).
-    :param parent: the parent node of this Routine node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     :raises TypeError: if any of the supplied arguments are of the wrong type.
 
@@ -64,13 +64,13 @@ class Routine(Schedule, CommentableMixin):
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
 
-    def __init__(self, name, is_program=False, parent=None):
-        super(Routine, self).__init__(parent=parent)
+    def __init__(self, name, is_program=False, **kwargs):
+        super(Routine, self).__init__(**kwargs)
 
-        # Name is set-up by the name setter property
-        self._name = None
-        self.name = name
         self._return_symbol = None
+        self._name = None
+        # Name is set-up by the name setter property
+        self.name = name
 
         if not isinstance(is_program, bool):
             raise TypeError("Routine argument 'is_program' must be a bool but "
@@ -126,15 +126,11 @@ class Routine(Schedule, CommentableMixin):
                     "Routine class should be a PSyIR Node but "
                     "found '{0}'.".format(type(child).__name__))
 
-        kern = cls(name)
-        # pylint: disable=protected-access
-        kern._is_program = is_program
-        kern._symbol_table = symbol_table
-        symbol_table._node = kern
-        kern.children = children
+        routine = cls(name, is_program=is_program, symbol_table=symbol_table)
+        routine.children = children
         if return_symbol:
-            kern.return_symbol = return_symbol
-        return kern
+            routine.return_symbol = return_symbol
+        return routine
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -174,27 +170,40 @@ class Routine(Schedule, CommentableMixin):
         :param str new_name: new name for the Routine.
 
         :raises TypeError: if new_name is not a string.
+        :raises KeyError: if there already is a different named symbol with
+            the 'own_routine_tag' in the symbol_table.
 
         '''
         if not isinstance(new_name, six.string_types):
             raise TypeError("Routine name must be a str but got "
                             "'{0}'".format(type(new_name).__name__))
+        # TODO #1200 The name is duplicated in the _name attribute and the
+        # symbol.name that there is in the local symbol table. This setter
+        # updates both but note that a better solution is needed because
+        # renaming the symbol_table symbol alone would make it inconsistent.
         if not self._name:
+            if 'own_routine_symbol' in self.symbol_table.tags_dict:
+                existing_symbol = self.symbol_table.lookup_with_tag(
+                        'own_routine_symbol', scope_limit=self)
+                if existing_symbol.name == new_name:
+                    self._name = new_name
+                    return  # The preexisting symbol already matches
+                # Otherwise raise an exception
+                raise KeyError(
+                    f"Can't assign {new_name} as the routine name because "
+                    f"its symbol table contains a symbol ({existing_symbol}) "
+                    f"already tagged as 'own_routine_symbol'.")
+
             self._name = new_name
-            # TODO #1200 naming the routine should not create a symbol and
-            # assign it a type!
-            self.symbol_table.add(
-                RoutineSymbol(new_name, DeferredType()),
-                tag='own_routine_symbol')
+            # Since the constructor can not mark methods as functions directly
+            # the symbol will always start being NoType and must be updated
+            # if a return_value type is provided.
+            self.symbol_table.add(RoutineSymbol(new_name, NoType()),
+                                  tag='own_routine_symbol')
         elif self._name != new_name:
-            old_symbol = self.symbol_table.lookup(self._name)
-            self.symbol_table.remove(old_symbol)
+            symbol = self.symbol_table.lookup(self._name)
             self._name = new_name
-            # TODO #1200 naming the routine should not create a symbol and
-            # assign it a type!
-            self.symbol_table.add(
-                RoutineSymbol(new_name, old_symbol.datatype),
-                tag='own_routine_symbol')
+            self.symbol_table.rename_symbol(symbol, new_name)
 
     def __str__(self):
         result = self.node_str(False) + ":\n"
@@ -243,6 +252,8 @@ class Routine(Schedule, CommentableMixin):
                 "the symbol table of the Routine but '{0}' is not.".format(
                     value.name))
         self._return_symbol = value
+        # The routine symbol must be updated accordingly
+        self.symbol_table.lookup(self._name).datatype = value.datatype
 
 
 # For automatic documentation generation

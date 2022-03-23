@@ -1773,6 +1773,7 @@ class Fparser2Reader(object):
                 datatype = base_type
 
             # Make sure the declared symbol exists in the SymbolTable
+            tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=parent)
                 if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
@@ -1781,7 +1782,8 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol in order to free the exact name
                     # for the DataSymbol.
                     symbol_table.remove(sym)
-                    # And trigger the exception path
+                    # And trigger the exception path but keeping the same tag
+                    tag = "own_routine_symbol"
                     raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
@@ -1798,9 +1800,14 @@ class Fparser2Reader(object):
                     # NotImplementedError in order to create an UnknownType
                     # Therefore, the Error doesn't need raise_from or message
                     # pylint: disable=raise-missing-from
+                    if tag:
+                        raise InternalError(
+                            f"The fparser2 frontend does not support "
+                            f"declarations where the routine name is of "
+                            f"UnknownType, but found this case in {sym_name}.")
                     raise NotImplementedError()
 
-                symbol_table.add(sym)
+                symbol_table.add(sym, tag=tag)
 
             # The Symbol must have the interface given by the declaration. We
             # take a copy to ensure that it can be modified without side

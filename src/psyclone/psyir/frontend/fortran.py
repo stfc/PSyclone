@@ -106,7 +106,8 @@ class FortranReader(object):
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
         # references.
-        fake_parent = Schedule(symbol_table=symbol_table)
+        fake_parent = Schedule()
+        fake_parent._symbol_table = symbol_table
         fake_parent.addchild(Assignment())
 
         try:
