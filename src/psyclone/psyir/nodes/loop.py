@@ -138,7 +138,7 @@ class Loop(Statement):
         is_eq = is_eq and self.field == other.field
         is_eq = is_eq and self.field_name == other.field_name
         is_eq = is_eq and self.field_space == other.field_space
-        is_eq = is_eq and other.iteration_space == other.iteration_space
+        is_eq = is_eq and self.iteration_space == other.iteration_space
         is_eq = is_eq and self.kernel == other.kernel
 
         is_eq = is_eq and self.variable == other.variable

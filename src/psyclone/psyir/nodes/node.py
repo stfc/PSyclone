@@ -379,8 +379,8 @@ class Node(object):
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. The basic implementation of this
-        checks whether the nodes are the same type, and whether all children 
-        of the nodes are equal, and if so then 
+        checks whether the nodes are the same type, and whether all children
+        of the nodes are equal, and if so then
         they are considered equal.
 
         :param object other: The object to check equality to
@@ -391,7 +391,7 @@ class Node(object):
         super(Node, self).__eq__(other)
         is_eq = type(self) is type(other)
         is_eq = is_eq and (len(self.children) == len(other.children))
-        for index in range(len(self.children)):
+        for index, _ in enumerate(self.children):
             is_eq = is_eq and self.children[index] == other.children[index]
 
         return is_eq

@@ -88,3 +88,13 @@ def test_member_get_signature():
     signature, indices = mem.get_signature_and_indices()
     assert str(signature) == "fred"
     assert indices == [[]]
+
+
+def test_member_equality():
+    ''' Test member equality. '''
+    mem = nodes.Member("m1")
+    mem2 = nodes.Member("m1")
+    mem3 = nodes.Member("notm1")
+
+    assert mem == mem2
+    assert mem != mem3

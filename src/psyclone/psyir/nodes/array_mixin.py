@@ -75,24 +75,6 @@ class ArrayMixin(object):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
-    def __eq__(self, other):
-        '''
-        Defaults to the base == implementation of is.
-        This means all ArrayMixins will not be `==` unless they are
-        the same object.
-
-        TODO #1649: This is a temporary implementation to avoid code
-        using __eq__ methods implemented by other classes inherited
-        alongside ArrayMixin. This should be removed when all children
-        can be checked for equivalence
-
-        :param object other: The object to check equality to
-
-        :returns: Whether other is equal to self.
-        :rtype: bool
-        '''
-        return self is other
-
     @property
     def is_array(self):
         ''':returns: if this instance indicates an array access.

@@ -51,8 +51,9 @@ def test_equality():
     check has been implemented
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
+    symbol2 = DataSymbol("my_symbol2", ArrayType(INTEGER_TYPE, [10, 10, 10]))
     array = ArrayReference.create(symbol, [Range(), Range(), Range()])
-    array2 = ArrayReference.create(symbol, [Range(), Range(), Range()])
+    array2 = ArrayReference.create(symbol2, [Range(), Range(), Range()])
 
     assert array != array2
 

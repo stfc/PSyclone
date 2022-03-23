@@ -85,7 +85,7 @@ def test_sm_constructor():
 
 
 def test_sm_node_equality():
-    ''' Check that two sm nodes are equal appropriately '''
+    ''' Check that two StructureMember nodes are equal appropriately. '''
     kschedule = nodes.KernelSchedule("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
     assignment = nodes.Assignment(parent=kschedule)

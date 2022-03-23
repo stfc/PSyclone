@@ -425,7 +425,7 @@ class ACCLoopDirective(ACCRegionDirective):
         is_eq = super(ACCLoopDirective, self).__eq__(other)
         is_eq = is_eq and self.collapse == other.collapse
         is_eq = is_eq and self.independent == other.independent
-        if_eq = is_eq and self.sequential == other.sequential
+        is_eq = is_eq and self.sequential == other.sequential
 
         return is_eq
 

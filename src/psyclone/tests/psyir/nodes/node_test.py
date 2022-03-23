@@ -1202,3 +1202,37 @@ def test_node_same_root():
     parent2.addchild(two)
 
     assert zero.sameRoot(two) is False
+
+
+def test_equality():
+    '''Test the equality function of the Node class'''
+    # Use same symbol table to avoid pollution from the ScopingNode
+    # equality check.
+    symboltable = SymbolTable()
+    parent1 = Schedule(symbol_table=symboltable)
+    parent2 = Schedule(symbol_table=symboltable)
+    zero = Statement()
+    one = Statement()
+
+    assert parent1 != zero
+    assert parent1 == parent2
+    assert zero == one
+
+    # zero and one are equal for now, so parents are equal if they
+    # contain exactly one of either
+    parent1.addchild(zero)
+    parent2.addchild(one)
+    assert parent1 == parent2
+
+    # Add a second child to parent1
+    two = Statement()
+    parent1.addchild(two)
+    assert parent1 != parent2
+
+    # Same number of children, but children not equal
+    two.detach()
+    one.detach()
+    three = Assignment.create(Reference(DataSymbol("a", INTEGER_TYPE)),
+                              Literal("2", INTEGER_TYPE))
+    parent1.addchild(three)
+    assert parent1 != parent2

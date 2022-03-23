@@ -66,6 +66,20 @@ class ScopingNode(Node):
         else:
             self._symbol_table = self._symbol_table_class(self)
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Scoping nodes are equal if their
+        symbol tables are equal.
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super(ScopingNode, self).__eq__(other)
+        is_eq = is_eq and self.symbol_table == other.symbol_table
+        return is_eq
+
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
         appropriate operation during a call to the copy() method.

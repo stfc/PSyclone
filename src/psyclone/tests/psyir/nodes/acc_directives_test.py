@@ -49,7 +49,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ACCRoutineDirective, \
     ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
     ACCKernelsTrans
 
@@ -198,6 +198,31 @@ def test_accloopdirective_node_str(monkeypatch):
     assert directive.node_str() == expected
     assert str(directive) == expected
 
+
+def test_accloopdirective_equality():
+    ''' Test the __eq__ member of ACCLoopDirective node. '''
+    # Set up a symbol table to use for everything in here
+    symboltable = SymbolTable()
+    directive1 = ACCLoopDirective()
+    directive2 = ACCLoopDirective()
+    directive1.children[0]._symbol_table = symboltable
+    directive2.children[0]._symbol_table = symboltable
+    assert directive1 == directive2
+
+    # Check equality fails when collapse is different
+    directive2._collapse = 2
+    assert directive1 != directive2
+
+    # Check equality fails when independent is different
+    directive2._collapse = directive1.collapse
+    directive2._independent = False
+    assert directive1 != directive2
+
+    # Check equality fails when sequential is different
+    directive2._independent = directive1.independent
+    directive2._sequential = not directive1._sequential
+    assert directive1 != directive2
+
 # Class ACCLoopDirective end
 
 
@@ -244,7 +269,22 @@ def test_acckernelsdirective_gencode(default_present):
         "      !$acc end kernels\n" in code)
 
 
+def test_acckerneldirective_equality():
+    ''' Test the __eq__ member of ACCKernelsDirective node. '''
+    # Set up a symbol table to use for everything in here
+    symboltable = SymbolTable()
+    directive1 = ACCKernelsDirective()
+    directive2 = ACCKernelsDirective()
+    directive1.children[0]._symbol_table = symboltable
+    directive2.children[0]._symbol_table = symboltable
+    assert directive1 == directive2
+
+    # Check equality fails when default_present is different
+    directive2._default_present = not directive1._default_present
+    assert directive1 != directive2
+
 # Class ACCRoutineDirective
+
 
 def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
@@ -291,3 +331,20 @@ def test_accupdatedirective_begin_string():
 
     assert directive1.begin_string() == "acc update host(x)"
     assert directive2.begin_string() == "acc update device(x)"
+
+
+def test_accupdatedirective_equality():
+    ''' Test the __eq__ member of ACCUpdateDirective node. '''
+    # Set up a symbol table to use for everything in here
+    symbol = DataSymbol("x", REAL_TYPE)
+    directive1 = ACCUpdateDirective(symbol, "device")
+    directive2 = ACCUpdateDirective(symbol, "device")
+    assert directive1 == directive2
+
+    # Check equality fails when different symbols
+    directive3 = ACCUpdateDirective(DataSymbol("t", REAL_TYPE), "device")
+    assert directive1 != directive3
+
+    # Check equality fails when different directions
+    directive4 = ACCUpdateDirective(symbol, "host")
+    assert directive1 != directive4
