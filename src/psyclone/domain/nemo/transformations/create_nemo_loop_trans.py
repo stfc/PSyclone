@@ -63,7 +63,7 @@ class CreateNemoLoopTrans(Transformation):
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])
     >>> psyir.view()
-    FileContainer[None]
+    FileContainer[]
         Routine[name:'sub']
             0: Loop[type='lon', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

@@ -67,7 +67,7 @@ class CreateNemoKernelTrans(Transformation):
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
     >>> psyir.view()
-    FileContainer[None]
+    FileContainer[]
         Routine[name:'sub']
             0: Loop[type='None', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

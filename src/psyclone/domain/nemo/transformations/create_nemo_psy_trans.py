@@ -65,7 +65,7 @@ class CreateNemoPSyTrans(Transformation):
     >>> trans = CreateNemoPSyTrans()
     >>> trans.apply(psyir)
     >>> psyir.view()
-    FileContainer[None]
+    FileContainer[]
         NemoInvokeSchedule[invoke='sub']
             0: Loop[type='lon', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
