@@ -46,12 +46,14 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop
+from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+    DynHaloExchangeEnd, DynHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective
+    OMPDoDirective, ACCEnterDataDirective
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -66,7 +68,8 @@ from psyclone.transformations import OMPParallelTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans, \
     Dynamo0p3AsyncHaloExchangeTrans, \
-    Dynamo0p3KernelConstTrans
+    Dynamo0p3KernelConstTrans, \
+    ACCLoopTrans, ACCParallelTrans, ACCKernelsTrans, ACCEnterDataTrans
 
 
 # The version of the API that the tests in this file
@@ -254,11 +257,11 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         lookup = "last_cell_all_colours(colour)"
 
     assert (
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,{0}\n"
-        "          !\n"
-        "          CALL columnwise_op_asm_field_kernel_code("
-        "cmap(colour, ".format(lookup)) in gen
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        DO cell=loop1_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL columnwise_op_asm_field_kernel_code("
+        f"cmap(colour, ") in gen
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
@@ -456,10 +459,10 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     else:
         lookup = "last_cell_all_colours(colour)"
     output = (
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        !$omp parallel do default(shared), private(cell), "
-        "schedule(static)\n"
-        "        DO cell=loop1_start,{0}\n".format(lookup))
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        !$omp parallel do default(shared), private(cell), "
+        f"schedule(static)\n"
+        f"        DO cell=loop1_start,{lookup}\n")
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1230,35 +1233,35 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         lookup = "last_cell_all_colours(colour)"
 
     output = (
-        "      !\n"
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        !$omp parallel default(shared), private(cell)\n"
-        "        !$omp do schedule(static)\n"
-        "        DO cell=loop1_start,{0}\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
-        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO\n"
-        "        !$omp end do\n"
-        "        !$omp do schedule(static)\n"
-        "        DO cell=loop2_start,{0}\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
-        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO\n"
-        "        !$omp end do\n"
-        "        !$omp end parallel\n"
-        "      END DO\n".format(lookup))
+        f"      !\n"
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        !$omp parallel default(shared), private(cell)\n"
+        f"        !$omp do schedule(static)\n"
+        f"        DO cell=loop1_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+        f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        f"        END DO\n"
+        f"        !$omp end do\n"
+        f"        !$omp do schedule(static)\n"
+        f"        DO cell=loop2_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+        f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        f"        END DO\n"
+        f"        !$omp end do\n"
+        f"        !$omp end parallel\n"
+        f"      END DO\n")
 
     assert output in code
 
@@ -1469,8 +1472,8 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
                 name = "annexed"
             else:
                 name = "owned"
-            assert ("loop{0}_stop = f{1}_proxy%vspace%get_last_dof_{2}()".
-                    format(idx-1, idx, name) in result)
+            assert (f"loop{idx-1}_stop = f{idx}_proxy%vspace%"
+                    f"get_last_dof_{name}()" in result)
 
         code = (
             "      !$omp parallel do default(shared), private(df), "
@@ -1511,8 +1514,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         assert code in result
     else:  # not distmem. annexed can be True or False
         for idx in range(1, 4):
-            assert ("loop{0}_stop = undf_aspc1_f{1}".format(idx-1, idx)
-                    in result)
+            assert f"loop{idx-1}_stop = undf_aspc1_f{idx}" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -3740,8 +3742,6 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert not schedule.reductions(reprod=not reprod)
             assert len(schedule.reductions()) == 1
-            from psyclone.domain.lfric.lfric_builtins import \
-                LFRicXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
                                LFRicXInnerproductYKern))
 
@@ -4010,10 +4010,8 @@ def test_rc_continuous_depth():
     result = str(psy.gen)
 
     for field_name in ["f2", "m1", "m2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
-                format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=3)".
-                format(field_name)) in result
+        assert f"IF ({field_name}_proxy%is_dirty(depth=3)) THEN" in result
+        assert f"CALL {field_name}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
@@ -4076,9 +4074,9 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     result = str(psy.gen)
     print(result)
     for field_name in ["f1", "f2", "m1"]:
-        assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL {0}_proxy%halo_exchange(depth=3)".
-                format(field_name)) in result
+        assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
+                f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
+                in result)
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL m2_proxy%set_dirty()\n"
@@ -4185,15 +4183,13 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     result = str(psy.gen)
     print(result)
     for idx in range(1, 4):
-        assert ("IF (f2_proxy({0})%is_dirty(depth=3)) THEN".
-                format(idx)) in result
-        assert ("CALL f2_proxy({0})%halo_exchange(depth=3)".
-                format(idx)) in result
+        assert f"IF (f2_proxy({idx})%is_dirty(depth=3)) THEN" in result
+        assert f"CALL f2_proxy({idx})%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
-        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
+        assert f"CALL f1_proxy({idx})%set_dirty()" in result
+        assert f"CALL f1_proxy({idx})%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4290,16 +4286,14 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for idx in range(1, 4):
-        assert ("IF (f1_proxy({0})%is_dirty(depth="
-                "3)) THEN".format(idx)) not in result
-        assert ("CALL f1_proxy({0})%halo_exchange("
-                "depth=3)".format(idx)) in result
+        assert f"IF (f1_proxy({idx})%is_dirty(depth=3)) THEN" not in result
+        assert f"CALL f1_proxy({idx})%halo_exchange(depth=3)" in result
         assert "loop1_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop1_start,loop1_stop" in result
     for idx in range(1, 4):
-        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
+        assert f"CALL f1_proxy({idx})%set_dirty()" in result
+        assert f"CALL f3_proxy({idx})%set_dirty()" in result
+        assert f"CALL f3_proxy({idx})%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4380,8 +4374,8 @@ def test_rc_dofs_depth():
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for field in ["f1", "f2"]:
-        assert "IF ({0}_proxy%is_dirty(depth=3)) THEN".format(field) in result
-        assert "CALL {0}_proxy%halo_exchange(depth=3)".format(field) in result
+        assert f"IF ({field}_proxy%is_dirty(depth=3)) THEN" in result
+        assert f"CALL {field}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "DO df=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
@@ -4452,10 +4446,8 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     if annexed:
         fld_hex_names.remove("f1")
     for field_name in fld_hex_names:
-        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=1"
-                ")".format(field_name)) in result
+        assert f"IF ({field_name}_proxy%is_dirty(depth=1)) THEN" in result
+        assert f"CALL {field_name}_proxy%halo_exchange(depth=1)" in result
     assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "DO df=loop1_start,loop1_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
@@ -4559,9 +4551,9 @@ def test_rc_vector_depth(tmpdir):
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     for index in range(1, 4):
-        assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
+        assert f"CALL chi_proxy({index})%set_dirty()" in result
     for index in range(1, 4):
-        assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
+        assert f"CALL chi_proxy({index})%set_clean(2)" in result
 
 
 def test_rc_vector_no_depth(tmpdir):
@@ -4652,7 +4644,6 @@ def test_rc_updated_dependence_analysis():
     rc_trans.apply(loop, {"depth": 2})
     previous_field = f2_field.backward_dependence()
     previous_node = previous_field.call
-    from psyclone.dynamo0p3 import DynHaloExchange
     # check f2_field has a backward dependence with the new halo
     # exchange field
     assert isinstance(previous_node, DynHaloExchange)
@@ -5030,7 +5021,7 @@ def test_rc_invalid_depth_type():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
     assert ("the supplied depth should be an integer but found "
-            "type '%s'" % (type("2")) in str(excinfo.value))
+            "type 'str'" in str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
@@ -6073,7 +6064,6 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     True as it affects how many halo exchanges are generated.
 
     '''
-
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
@@ -6085,7 +6075,6 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     result = str(psy.gen)
     schedule = invoke.schedule
 
-    from psyclone.dynamo0p3 import DynHaloExchange
     if annexed:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
         assert isinstance(schedule.children[2], DynHaloExchange)
@@ -6307,20 +6296,20 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
                 "cell_all_colours()\n" in gen)
         upper_bound = "last_cell_all_colours_fld_c(colour)"
     assert "loop0_stop = ncolour_fld_c\n" in gen
-    assert ("      DO colour=loop0_start,loop0_stop\n"
-            "        !$omp parallel default(shared), private(cell)\n"
-            "        !$omp do schedule(static)\n"
-            "        DO cell=loop1_start,{0}\n"
-            "          !\n"
-            "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
-            "ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            "undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
-            "        END DO\n"
-            "        !$omp end do\n"
-            "        !$omp end parallel\n"
-            "      END DO\n".format(upper_bound) in gen)
+    assert (f"      DO colour=loop0_start,loop0_stop\n"
+            f"        !$omp parallel default(shared), private(cell)\n"
+            f"        !$omp do schedule(static)\n"
+            f"        DO cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
+            f"(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
+            f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
+            f"fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
+            f"undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
+            f"        END DO\n"
+            f"        !$omp end do\n"
+            f"        !$omp end parallel\n"
+            f"      END DO\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6380,8 +6369,6 @@ def test_accenterdatatrans():
     Enter Data directive to the PSy-layer in the dynamo0.3 API.
 
     '''
-    from psyclone.transformations import ACCEnterDataTrans
-    from psyclone.psyir.nodes import ACCEnterDataDirective
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=False)
@@ -6398,8 +6385,6 @@ def test_accenterdata_builtin(tmpdir):
     containing a call to a BuiltIn kernel.
 
     '''
-    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-        ACCParallelTrans
     acc_enter_trans = ACCEnterDataTrans()
     parallel_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
@@ -6436,7 +6421,6 @@ def test_acckernelstrans():
     Kernels directive to the PSy layer in the dynamo0.3 API.
 
     '''
-    from psyclone.transformations import ACCKernelsTrans
     kernels_trans = ACCKernelsTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
@@ -6459,7 +6443,6 @@ def test_acckernelstrans_dm():
     distributed memory is enabled.
 
     '''
-    from psyclone.transformations import ACCKernelsTrans
     kernels_trans = ACCKernelsTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=True)
@@ -6470,14 +6453,14 @@ def test_acckernelstrans_dm():
             "ACCKernelsTrans transformation" in str(err.value))
     kernels_trans.apply(sched.walk(Loop))
     code = str(psy.gen)
-    assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in code
     assert (
         "      !$acc kernels\n"
         "      DO cell=loop0_start,loop0_stop\n" in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n"
-        "      set_dirty\n" in code)
+        "      CALL f1_proxy%set_dirty()\n" in code)
 
 # Class ACCKernelsTrans end
 
@@ -6491,7 +6474,6 @@ def test_accparalleltrans():
     raises an exception at code-generation time.
 
     '''
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
@@ -6522,8 +6504,6 @@ def test_acclooptrans():
     directive to the PSy layer in the dynamo0.3 API.
 
     '''
-    from psyclone.transformations import ACCLoopTrans, ACCParallelTrans, \
-        ACCEnterDataTrans
     acc_par_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
     acc_enter_trans = ACCEnterDataTrans()
@@ -6971,7 +6951,6 @@ def test_vector_halo_exchange_remove():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
-    from psyclone.dynamo0p3 import DynHaloExchange
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], DynHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
@@ -7000,13 +6979,13 @@ def test_vector_async_halo_exchange(tmpdir):
     result = str(psy.gen)
     for index in [1, 2, 3]:
         assert (
-            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy({0})%halo_exchange_start(depth=1)\n"
-            "      END IF\n"
-            "      !\n"
-            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy({0})%halo_exchange_finish(depth=1)\n"
-            "      END IF\n".format(index)) in result
+            f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
+            f"        CALL f1_proxy({index})%halo_exchange_start(depth=1)\n"
+            f"      END IF\n"
+            f"      !\n"
+            f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
+            f"        CALL f1_proxy({index})%halo_exchange_finish(depth=1)\n"
+            f"      END IF\n") in result
     assert (
         "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
         "      !\n"
@@ -7028,9 +7007,7 @@ def test_vector_async_halo_exchange(tmpdir):
     # start and end calls.
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[6], {"depth": 2})
-    schedule.view()
-    from psyclone.dynamo0p3 import DynHaloExchangeStart, \
-        DynHaloExchangeEnd
+
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
         assert isinstance(schedule.children[index], DynHaloExchangeStart)
@@ -7481,5 +7458,4 @@ def test_all_loop_trans_base_validate(monkeypatch):
                 else:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
-                "{0}.validate() does not call LoopTrans.validate()".format(
-                    name)
+                f"{name}.validate() does not call LoopTrans.validate()"
