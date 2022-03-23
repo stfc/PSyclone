@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -123,6 +123,16 @@ def test_goloop_create(monkeypatch):
     assert goloop.children[0].value == '10'
     assert goloop.children[1].value == '20'
     assert goloop.children[2].value == '1'
+
+    # Try with an invalid loop type
+    with pytest.raises(GenerationError) as err:
+        goloop = GOLoop.create(parent=gosched,
+                               loop_type="invalid",
+                               field_name="cv_fld",
+                               iteration_space="go_internal_pts",
+                               field_space="go_cv")
+    assert ("Error, loop_type value (invalid) is invalid. Must be one of "
+            "['inner', 'outer']." in str(err.value))
 
 
 def test_goloop_properties_getters_and_setters():

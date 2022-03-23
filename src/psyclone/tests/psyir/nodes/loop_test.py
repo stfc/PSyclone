@@ -41,16 +41,15 @@
 from __future__ import absolute_import
 import os
 import pytest
+from psyclone.errors import InternalError, GenerationError
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
     SymbolTable
-from psyclone.psyGen import PSyFactory
-from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, check_links
-from psyclone.parse.algorithm import parse
 
 
 def test_loop_init():
@@ -99,7 +98,6 @@ def test_loop_init():
 
 
 def test_loop_navigation_properties():
-    # pylint: disable=too-many-statements
     ''' Tests the start_expr, stop_expr, step_expr and loop_body
     setter and getter properties.
 
@@ -211,7 +209,7 @@ def test_invalid_loop_annotations():
     assert test_loop.annotations == ['was_single_stmt', 'was_where']
 
 
-def test_loop_create():
+def test_loop_create(fortran_writer):
     '''Test that the create method in the Loop class correctly
     creates a Loop instance.
 
@@ -228,7 +226,7 @@ def test_loop_create():
     assert isinstance(schedule, Schedule)
     check_links(loop, [start, stop, step, schedule])
     check_links(schedule, [child_node])
-    result = FortranWriter().loop_node(loop)
+    result = fortran_writer.loop_node(loop)
     assert result == "do i = 0, 1, 1\n  tmp = i\nenddo\n"
 
 

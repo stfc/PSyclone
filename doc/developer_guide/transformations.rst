@@ -153,16 +153,6 @@ PSy-layer code for the GOcean 1.0 API and its associated kernels.
 Such code may then be executed on devices such as GPUs and FPGAs
 (Field-Programmable Gate Arrays).
 
-Since OpenCL code is very different to that which PSyclone
-normally generates, its creation is handled by ``gen_ocl`` methods
-instead of the normal ``gen_code``. There is work in progress to
-deprecate both of these generation methods and let the
-``psyclone.domain.gocean.transformations.GOOpenCLTrans``
-transformation handle the code modification entirely in PSyIR.
-However, for the time being the transformation only modifies part of
-the schedule and sets the  ``InvokeSchedule.opencl`` flag, which
-in turn triggers the ``gen_ocl`` path at generation time.
-
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an
 ``NDRangeKernel``. However, the kernels themselves must be created or
