@@ -7675,8 +7675,8 @@ class DynLoop(Loop):
 
     def gen_mark_halos_clean_dirty(self, parent):
         '''
-        Generates the necessary code to mark halo regions as clean or dirty
-        following execution of this loop.
+        Generates the necessary code to mark halo regions for all modified
+        fields as clean or dirty following execution of this loop.
 
         :param parent: the node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -7687,9 +7687,6 @@ class DynLoop(Loop):
 
         # Set halo clean/dirty for all fields that are modified
         fields = self.unique_modified_args("gh_field")
-
-        if not fields:
-            return
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
 
@@ -7710,11 +7707,8 @@ class DynLoop(Loop):
                 else:
                     parent.add(CallGen(parent, name=field.proxy_name +
                                        "%set_dirty()"))
-            # now set appropriate parts of the halo clean where
-            # redundant computation has been performed
-            # The HaloWriteAccess class provides information about how the
-            # supplied field is accessed within its parent loop
-            hwa = HaloWriteAccess(field, sym_table)
+            # Now set appropriate parts of the halo clean where
+            # redundant computation has been performed.
             if hwa.literal_depth:
                 # halo access(es) is/are to a fixed depth
                 halo_depth = hwa.literal_depth

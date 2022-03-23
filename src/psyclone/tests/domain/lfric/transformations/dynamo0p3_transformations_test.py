@@ -5020,8 +5020,8 @@ def test_rc_invalid_depth_type():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
-    assert ("the supplied depth should be an integer but found "
-            "type 'str'" in str(excinfo.value))
+    assert (f"the supplied depth should be an integer but found "
+            f"type '{type('txt')}'" in str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
