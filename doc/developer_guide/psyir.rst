@@ -138,6 +138,14 @@ to perform the following steps:
    shallow-copied when creating a duplicate of this PSyIR branch, specialise
    the ``_refine_copy`` method to perform the appropriate copy actions.
 
+5. If any of the attributes in this node should be used to compute the equality
+   of two nodes, specialise the ``__eq__`` member to perform the appropriate
+   checks. The default ``__eq__`` behaviour is implemented in Node, but many
+   PSyIR nodes have their own implementations, the only restriction on this
+   implementation is that it must call the ``super(MyNode).__eq__(other)``
+   as part of its implementation, to ensure any inherited equality checks
+   are correctly checked.
+
 For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a
 child, we would write something like:
