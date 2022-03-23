@@ -6466,7 +6466,7 @@ def test_acckernelstrans_dm():
 
 
 # Class ACCParallelTrans start
-def test_accparalleltrans():
+def test_accparalleltrans(tmpdir):
     '''
     Test that an ACCParallelTrans transformation can add an OpenACC
     Parallel directive to the PSy layer in the dynamo0.3 API. An
@@ -6494,6 +6494,45 @@ def test_accparalleltrans():
     assert (
         "      END DO\n"
         "      !$acc end parallel\n") in code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_accparalleltrans_dm(tmpdir):
+    '''
+    Test that the ACCParallelTrans transformation works correctly when
+    distributed memory is enabled. In particular any type-bound procedure
+    calls related to halo exchanges must not be within the parallel region.
+
+    '''
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type", dist_mem=True)
+    sched = invoke.schedule
+    sched.view()
+    # Cannot include halo-exchange nodes within an ACC parallel region.
+    with pytest.raises(TransformationError) as err:
+        acc_par_trans.apply(sched)
+    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
+    acc_par_trans.apply(sched.walk(Loop)[0])
+    acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+
+    assert ("      !$acc parallel default(present)\n"
+            "      DO cell=loop0_start,loop0_stop\n"
+            "        !\n"
+            "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+            "undf_w3, map_w3(:,cell))\n"
+            "      END DO\n"
+            "      !$acc end parallel\n"
+            "      CALL f1_proxy%set_dirty()\n" in code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 
 # Class ACCParallelTrans end
 # Class ACCLoopTrans start

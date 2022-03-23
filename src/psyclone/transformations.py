@@ -1966,7 +1966,8 @@ class ACCParallelTrans(ParallelRegionTrans):
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
-                           nodes.ACCDataDirective, nodes.ACCEnterDataDirective)
+                           nodes.ACCDataDirective, nodes.ACCEnterDataDirective,
+                           psyGen.HaloExchange)
 
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
