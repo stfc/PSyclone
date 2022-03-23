@@ -1804,7 +1804,8 @@ class Fparser2Reader(object):
                         raise InternalError(
                             f"The fparser2 frontend does not support "
                             f"declarations where the routine name is of "
-                            f"UnknownType, but found this case in {sym_name}.")
+                            f"UnknownType, but found this case in "
+                            f"'{sym_name}'.")
                     raise NotImplementedError()
 
                 symbol_table.add(sym, tag=tag)
@@ -2015,12 +2016,15 @@ class Fparser2Reader(object):
                         # Check whether the symbol we're about to add
                         # corresponds to the routine we're currently inside. If
                         # it does then we remove the RoutineSymbol in order to
-                        # free the exact name for the DataSymbol.
+                        # free the exact name for the DataSymbol, but we keep
+                        # the tag to reintroduce it to the new symbol.
+                        tag = None
                         try:
                             routine_sym = parent.symbol_table.lookup_with_tag(
                                 "own_routine_symbol")
                             if routine_sym.name.lower() == symbol_name:
                                 parent.symbol_table.remove(routine_sym)
+                                tag = "own_routine_symbol"  # Keep the tag
                         except KeyError:
                             pass
 
@@ -2031,7 +2035,8 @@ class Fparser2Reader(object):
                             parent.symbol_table.add(
                                 DataSymbol(symbol_name,
                                            UnknownFortranType(str(node)),
-                                           visibility=vis))
+                                           visibility=vis),
+                                tag=tag)
                         except KeyError as err:
                             if len(orig_children) == 1:
                                 six.raise_from(SymbolError(
