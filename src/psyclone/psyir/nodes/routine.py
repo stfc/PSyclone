@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
@@ -182,6 +183,9 @@ class Routine(Schedule, CommentableMixin):
         # updates both but note that a better solution is needed because
         # renaming the symbol_table symbol alone would make it inconsistent.
         if not self._name:
+            # If the 'own_routine_symbol' tag already exist (if a specific
+            # symbol table has been provided in the creator) check that is
+            # consistent with the given routine name.
             if 'own_routine_symbol' in self.symbol_table.tags_dict:
                 existing_symbol = self.symbol_table.lookup_with_tag(
                         'own_routine_symbol', scope_limit=self)
