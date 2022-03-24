@@ -40,7 +40,7 @@ the 'invoke_propagate_perturbation' invoke.
 
 from __future__ import print_function
 
-from psyclone.psyir.transformations import ExtractTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
 def trans(psy):
@@ -54,7 +54,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    extract = ExtractTrans()
+    extract = LFRicExtractTrans()
 
     invoke = psy.invokes.get("invoke_propagate_perturbation")
     schedule = invoke.schedule
