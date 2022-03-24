@@ -693,7 +693,7 @@ class InvokeSchedule(Routine):
 
     def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None, **kwargs):
-        super(InvokeSchedule, self).__init__(name, **kwargs)
+        super().__init__(name, **kwargs)
 
         self._invoke = None
 

@@ -38,8 +38,6 @@
 
 ''' This module contains the Routine node implementation.'''
 
-import six
-
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
 from psyclone.psyir.nodes.node import Node
@@ -66,7 +64,7 @@ class Routine(Schedule, CommentableMixin):
     _text_name = "Routine"
 
     def __init__(self, name, is_program=False, **kwargs):
-        super(Routine, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self._return_symbol = None
         self._name = None
@@ -74,8 +72,8 @@ class Routine(Schedule, CommentableMixin):
         self.name = name
 
         if not isinstance(is_program, bool):
-            raise TypeError("Routine argument 'is_program' must be a bool but "
-                            "got '{0}'".format(type(is_program).__name__))
+            raise TypeError(f"Routine argument 'is_program' must be a bool "
+                            f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
 
     @classmethod
@@ -105,27 +103,25 @@ class Routine(Schedule, CommentableMixin):
             are not of the expected type.
 
         '''
-        if not isinstance(name, six.string_types):
+        if not isinstance(name, str):
             raise TypeError(
-                "name argument in create method of Routine class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
+                f"name argument in create method of Routine class "
+                f"should be a string but found '{type(name).__name__}'.")
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError(
-                "symbol_table argument in create method of Routine "
-                "class should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
+                f"symbol_table argument in create method of Routine class "
+                f"should be a SymbolTable but found "
+                f"'{type(symbol_table).__name__}'.")
         if not isinstance(children, list):
             raise TypeError(
-                "children argument in create method of Routine class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of Routine class "
+                f"should be a list but found '{type(children).__name__}'.")
         for child in children:
             if not isinstance(child, Node):
                 raise TypeError(
-                    "child of children argument in create method of "
-                    "Routine class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
+                    f"child of children argument in create method of "
+                    f"Routine class should be a PSyIR Node but "
+                    f"found '{type(child).__name__}'.")
 
         routine = cls(name, is_program=is_program, symbol_table=symbol_table)
         routine.children = children
@@ -171,20 +167,19 @@ class Routine(Schedule, CommentableMixin):
         :param str new_name: new name for the Routine.
 
         :raises TypeError: if new_name is not a string.
-        :raises KeyError: if there already is a different named symbol with
+        :raises KeyError: if there already is a different named symbol with \
             the 'own_routine_tag' in the symbol_table.
 
         '''
-        if not isinstance(new_name, six.string_types):
-            raise TypeError("Routine name must be a str but got "
-                            "'{0}'".format(type(new_name).__name__))
+        if not isinstance(new_name, str):
+            raise TypeError(f"Routine name must be a str but got "
+                            f"'{type(new_name).__name__}'")
         # TODO #1200 The name is duplicated in the _name attribute and the
         # symbol.name that there is in the local symbol table. This setter
         # updates both but note that a better solution is needed because
         # renaming the symbol_table symbol alone would make it inconsistent.
         if not self._name:
-            # If the 'own_routine_symbol' tag already exist (if a specific
-            # symbol table has been provided in the creator) check that is
+            # If the 'own_routine_symbol' tag already exist check that is
             # consistent with the given routine name.
             if 'own_routine_symbol' in self.symbol_table.tags_dict:
                 existing_symbol = self.symbol_table.lookup_with_tag(
@@ -247,14 +242,12 @@ class Routine(Schedule, CommentableMixin):
                           symbol table of this Routine.
         '''
         if not isinstance(value, DataSymbol):
-            raise TypeError("Routine return-symbol should be a DataSymbol "
-                            "but found '{0}'".format(
-                                type(value).__name__))
+            raise TypeError(f"Routine return-symbol should be a DataSymbol "
+                            f"but found '{type(value).__name__}'.")
         if value not in self.symbol_table.local_datasymbols:
             raise KeyError(
-                "For a symbol to be a return-symbol, it must be present in "
-                "the symbol table of the Routine but '{0}' is not.".format(
-                    value.name))
+                f"For a symbol to be a return-symbol, it must be present in "
+                f"the symbol table of the Routine but '{value.name}' is not.")
         self._return_symbol = value
         # The routine symbol must be updated accordingly
         self.symbol_table.lookup(self._name).datatype = value.datatype

@@ -880,12 +880,10 @@ class GOLoop(Loop):
         props = Config.get().api_conf("gocean1.0").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
             return self._grid_property_psyir_expression(
-                props["go_grid_{0}_{1}_stop".format(
-                    "internal", self._loop_type)].fortran)
+                props[f"go_grid_internal_{self._loop_type}_stop"].fortran)
         if self.iteration_space.lower() == "go_all_pts":
             return self._grid_property_psyir_expression(
-                props["go_grid_{0}_{1}_stop".format(
-                    "whole", self._loop_type)].fortran)
+                props[f"go_grid_whole_{self._loop_type}_stop"].fortran)
         bound_str = self.get_custom_bound_string("stop")
         return FortranReader().psyir_from_expression(
                     bound_str, self.ancestor(GOInvokeSchedule).symbol_table)

@@ -105,7 +105,10 @@ class FortranReader(object):
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
-        # references.
+        # references. We provide the SymbolTable directly to the private
+        # attribute to avoid the symbol table's node link to connect to the
+        # new Schedule and therfore stealing it from its original scope.
+        # pylint: disable=protected-access
         fake_parent = Schedule()
         fake_parent._symbol_table = symbol_table
         fake_parent.addchild(Assignment())

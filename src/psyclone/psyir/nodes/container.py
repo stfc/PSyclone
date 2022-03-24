@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,9 +66,8 @@ class Container(ScopingNode, CommentableMixin):
     _text_name = "Container"
     _colour = "green"
 
-    def __init__(self, name, parent=None, symbol_table=None):
-        super(Container, self).__init__(parent=parent,
-                                        symbol_table=symbol_table)
+    def __init__(self, name, **kwargs):
+        super().__init__(**kwargs)
         self._name = name
 
     @staticmethod
@@ -123,10 +122,7 @@ class Container(ScopingNode, CommentableMixin):
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
 
-        container = cls(name)
-        # pylint: disable=protected-access
-        container._symbol_table = symbol_table
-        symbol_table._node = container
+        container = cls(name, symbol_table=symbol_table)
         container.children = children
         return container
 

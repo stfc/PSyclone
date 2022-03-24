@@ -170,7 +170,7 @@ class NemoInvokeSchedule(InvokeSchedule):
     _text_name = "NemoInvokeSchedule"
 
     def __init__(self, name, invoke=None, **kwargs):
-        super(NemoInvokeSchedule, self).__init__(name, None, None, **kwargs)
+        super().__init__(name, None, None, **kwargs)
 
         self._invoke = invoke
 

@@ -1787,9 +1787,8 @@ class Fparser2Reader(object):
                     raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
-                        "Symbol '{0}' already present in SymbolTable with "
-                        "a defined interface ({1}).".format(
-                            sym_name, str(sym.interface)))
+                        f"Symbol '{sym_name}' already present in SymbolTable "
+                        f"with a defined interface ({sym.interface}).")
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,
@@ -2039,11 +2038,11 @@ class Fparser2Reader(object):
                                 tag=tag)
                         except KeyError as err:
                             if len(orig_children) == 1:
-                                six.raise_from(SymbolError(
-                                    "Error while processing unsupported "
-                                    "declaration ('{0}'). An entry for symbol "
-                                    "'{1}' is already in the symbol table.".
-                                    format(str(node), symbol_name)), err)
+                                raise SymbolError(
+                                    f"Error while processing unsupported "
+                                    f"declaration ('{node}'). An entry for "
+                                    f"symbol '{symbol_name}' is already in "
+                                    f"the symbol table.") from err
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
 
