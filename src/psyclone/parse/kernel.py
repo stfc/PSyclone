@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -244,15 +244,9 @@ class KernelTypeFactory(object):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.1":
-            from psyclone.dynamo0p1 import DynKernelType
-            return DynKernelType(parse_tree, name=name)
         if self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)
-        if self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOKernelType
-            return GOKernelType(parse_tree, name=name)
         if self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(parse_tree, name=name)
@@ -313,10 +307,9 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             fparser.logging.disable(fparser.logging.CRITICAL)
             parse_tree = fpapi.parse(fname)
         except Exception as err:
-            six.raise_from(ParseError(
-                "BuiltInKernelTypeFactory:create: Failed to parse the meta-"
-                "data for PSyclone built-ins in file '{0}'.".format(fname)),
-                err)
+            raise ParseError(
+                f"BuiltInKernelTypeFactory:create: Failed to parse the meta-"
+                f"data for PSyclone built-ins in file '{fname}'.") from err
 
         # Now we have the parse tree, call our parent class to create \
         # the object
@@ -557,7 +550,7 @@ class KernelProcedure(object):
         # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
             if isinstance(statement, fparser1.statements.SpecificBinding):
-                # We support either:
+                # We support:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
                 if statement.bname:

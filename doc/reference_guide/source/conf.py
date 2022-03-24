@@ -21,14 +21,14 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2021, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
+copyright = ('2019-2022, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
              ' S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '2.1.0'
+release = '2.2.0'
 
 
 # -- General configuration ---------------------------------------------------

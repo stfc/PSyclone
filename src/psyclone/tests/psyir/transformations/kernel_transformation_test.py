@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab,
-#              I. Kavcic, Met Office.
+# Modified by: R. W. Ford, STFC Daresbury Lab
+#              I. Kavcic, Met Office
+#              S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for kernel transformations. '''
 
@@ -42,15 +43,17 @@ import os
 import re
 import pytest
 
-from fparser.two.utils import walk
+from psyclone.configuration import Config
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.generator import GenerationError
+from psyclone.psyGen import Kern
+from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.symbols import SymbolError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, \
-    Dynamo0p3KernelConstTrans
-from psyclone.psyGen import Kern
-from psyclone.generator import GenerationError
-from psyclone.configuration import Config
-from psyclone.psyir.nodes import Container, Routine, FileContainer
+    Dynamo0p3KernelConstTrans, KernelModuleInlineTrans
 
+from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -69,94 +72,6 @@ def teardown_function():
     ''' This function is called automatically after every test in this
     file. It ensures that any existing configuration object is deleted. '''
     Config._instance = None
-
-
-def test_accroutine_err(monkeypatch):
-    ''' Check that we raise the expected error if we can't find the
-    source of the kernel subroutine. '''
-    import fparser
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    kern = kernels[0]
-    assert isinstance(kern, Kern)
-    # Edit the fparser1 AST of the kernel so that it does not have a
-    # subroutine of the correct name
-    ast = kern._module_code
-    mod = ast.content[0]
-    # Find the subroutine statement
-    for child in mod.content:
-        if isinstance(child, fparser.one.block_statements.Subroutine):
-            sub = child
-    # Find the end subroutine statement
-    for child in sub.content:
-        if isinstance(child, fparser.one.block_statements.EndSubroutine):
-            end = child
-    monkeypatch.setattr(sub, "name", "some_other_name")
-    monkeypatch.setattr(end, "name", "some_other_name")
-    rtrans = ACCRoutineTrans()
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kern)
-    assert(
-        "Failed to create PSyIR version of kernel code for kernel "
-        "'testkern_code'. Error reported is Generation Error: Unexpected "
-        "kernel AST. Could not find subroutine: testkern_code."
-        in str(err.value))
-
-
-def test_accroutine_module_use():
-    ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
-    use statement. '''
-    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
-                           idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    rtrans = ACCRoutineTrans()
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kernels[0])
-    assert ("imported interface: ['rdt']. If these symbols represent data then"
-            " they must first" in str(err.value))
-
-
-def test_accroutine():
-    ''' Test that we can transform a kernel by adding a "!$acc routine"
-    directive to it. '''
-    from psyclone.gocean1p0 import GOKern
-    from fparser.two import Fortran2003
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    assert isinstance(kern, GOKern)
-    rtrans = ACCRoutineTrans()
-    assert rtrans.name == "ACCRoutineTrans"
-    rtrans.apply(kern)
-    # The transformation should have populated the fparser2 AST of
-    # the kernel...
-    assert kern._fp2_ast
-    assert isinstance(kern._fp2_ast, Fortran2003.Program)
-    # Check AST contains directive
-    comments = walk(kern._fp2_ast.content, Fortran2003.Comment)
-    assert len(comments) == 1
-    assert str(comments[0]) == "!$acc routine"
-    # Check that directive is in correct place (end of declarations)
-    gen = str(kern._fp2_ast)
-    assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
-            "sshn_v, hu, hv, un, vn\n"
-            "    !$acc routine\n"
-            "    ssha(ji, jj) = 0.0_go_wp\n" in gen)
-
-
-def test_accroutine_empty_kernel():
-    ''' Check that the directive goes at the end of the declarations,
-    even when the rest of the kernel is empty. '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kernels[0])
-    # Check that directive is in correct place (end of declarations)
-    gen = str(kernels[0]._fp2_ast).lower()
-    assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
 def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
@@ -195,7 +110,6 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
             break
     assert found
 
-    from psyclone.tests.gocean1p0_build import GOcean1p0Build
     # If compilation fails this will raise an exception
     GOcean1p0Build(kernel_outputdir).compile_file(filename)
 
@@ -408,7 +322,6 @@ def test_2kern_trans(kernel_outputdir):
 
 def test_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
                            api="dynamo0.3", idx=0)
     sched = invoke.schedule
@@ -423,7 +336,6 @@ def test_builtin_no_trans():
 def test_no_inline_global_var():
     ''' Check that we refuse to in-line a kernel that accesses a global
     variable. '''
-    from psyclone.transformations import KernelModuleInlineTrans
     inline_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
@@ -432,7 +344,7 @@ def test_no_inline_global_var():
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to data (variable "
-            "'alpha') that are not captured in the PSyIR Symbol Table(s) "
+            "'alpha') that are not present in the Symbol Table(s) "
             "within KernelSchedule scope." in str(err.value))
 
 
@@ -447,7 +359,6 @@ def test_kernel_trans_validate(monkeypatch):
     a the subclass.
 
     '''
-    from psyclone.transformations import KernelModuleInlineTrans
     kernel_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
                            api="gocean1.0", idx=0)
@@ -455,13 +366,21 @@ def test_kernel_trans_validate(monkeypatch):
     kernels = sched.walk(Kern)
     kernel = kernels[0]
 
-    def dummy_func():
-        '''Simple Dummy function that raises SymbolError.'''
-        from psyclone.psyir.symbols import SymbolError
+    def raise_symbol_error():
+        '''Simple function that raises SymbolError.'''
         raise SymbolError("error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", dummy_func)
+    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
     assert ("'kernel_with_global_code' contains accesses to data that are "
-            "not captured in the PSyIR Symbol Table(s) (error)."
-            "" in str(err.value))
+            "not present in the Symbol Table(s). Cannot transform such a "
+            "kernel." in str(err.value))
+
+    def raise_gen_error():
+        '''Simple function that raises GenerationError.'''
+        raise GenerationError("error")
+    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_gen_error)
+    with pytest.raises(TransformationError) as err:
+        kernel_trans.apply(kernel)
+    assert ("Failed to create PSyIR for kernel 'kernel_with_global_code'. "
+            "Cannot transform such a kernel." in str(err.value))

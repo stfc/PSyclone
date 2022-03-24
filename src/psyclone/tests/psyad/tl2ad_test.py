@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -92,6 +92,37 @@ def test_generate_adjoint_str(caplog):
     assert expected in caplog.text
     assert expected in result
     assert test_harness is None
+
+
+def test_generate_adjoint_str_trans():
+    '''Test that the generate_adjoint_str() function successfully calls
+    the kern_trans() function.
+
+    '''
+    tl_code = (
+        "program test\n"
+        "real :: a, b(10), c(10)\n"
+        "a = dot_product(b(:), c(:))\n"
+        "end program test\n")
+    expected = (
+        "program test_adj\n"
+        "  real :: a\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n"
+        "  integer :: i\n"
+        "  real :: res_dot_product\n\n"
+        "  a = 0.0\n  b = 0.0\n  res_dot_product = 0.0\n"
+        "  res_dot_product = res_dot_product + a\n"
+        "  a = 0.0\n"
+        "  do i = 10, 1, -1\n"
+        "    b(i) = b(i) + res_dot_product * c(i)\n"
+        "  enddo\n"
+        "  res_dot_product = 0.0\n\n"
+        "end program test_adj\n")
+    result, test_harness = generate_adjoint_str(
+        tl_code, ["a", "b", "res_dot_product"])
+    assert expected in result
+    assert not test_harness
 
 
 def test_generate_adjoint_str_generate_harness():
@@ -252,6 +283,7 @@ def test_generate_adjoint(fortran_reader):
     expected_ad_fortran_str = (
         "program test_adj\n"
         "  real :: a\n  real :: b\n  real :: c\n\n"
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
@@ -280,6 +312,7 @@ def test_generate_adjoint_kind(fortran_reader):
         "  use kinds_mod, only : r_def\n"
         "  real(kind=r_def) :: a\n  real(kind=r_def) :: b\n  "
         "real(kind=r_def) :: c\n\n"
+        "  a = 0.0_r_def\n  b = 0.0_r_def\n  c = 0.0_r_def\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -36,10 +36,14 @@
 program long_lines
 
   use constants_mod, only : r_def, i_def
+  use field_mod, only : field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
   use testkern_qr,   only : testkern_qr_type
 
   real(r_def)    :: rdt
   integer(i_def) :: iflag
+  type(field_type) :: f1, f2, f3, f4
+  type(quadrature_xyoz_type) :: qr
 
   call invoke(testkern_qr_type(f1, f2, f3, rdt, f4, iflag, qr))
 

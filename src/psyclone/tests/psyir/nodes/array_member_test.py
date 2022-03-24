@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -264,6 +264,7 @@ def test_am_same_array():
                                                   ("xobs", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
     assert ref1.member.is_same_array(ref2) is True
+    assert ref2.member.is_same_array(ref1) is False
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("yobs", [one.copy()])])
     amem = ref2.member.member  # "yobs"

@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,15 +44,15 @@ from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, BlockBase, StmtBase
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
     Call, Routine, Member, FileContainer, Directive, ArrayMember
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
@@ -345,8 +345,7 @@ def _is_bound_full_extent(array, dim, operator):
             literal.value != str(dim)):
         return False
 
-    return (isinstance(reference, Reference) and
-            array.is_same_array(reference))
+    return isinstance(reference, Reference) and array.is_same_array(reference)
 
 
 def _is_array_range_literal(array, dim, index, value):
@@ -509,15 +508,18 @@ def _kind_find_or_create(name, symbol_table):
     parameter. If the supplied Symbol Table (or one of its ancestors)
     does not contain an appropriate entry then one is created. If it does
     contain a matching entry then it must be either a Symbol or a
-    DataSymbol. If it is a DataSymbol then it must have a datatype of
-    'integer' or 'deferred'. If it is deferred then the fact that we now
-    know that this Symbol represents a KIND
-    parameter means that we can change the datatype to be 'integer'.
+    DataSymbol.
+
+    If it is a DataSymbol then it must have a datatype of
+    'integer', 'deferred' or 'unknown'. If it is deferred then the fact
+    that we now know that this Symbol represents a KIND parameter means we
+    can change the datatype to be 'integer'.
+
     If the existing symbol is a generic Symbol then it is replaced with
     a new DataSymbol of type 'integer'.
 
     :param str name: the name of the variable holding the KIND value.
-    :param symbol_table: the Symbol Table associated with the code being\
+    :param symbol_table: the Symbol Table associated with the code being \
                          processed.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -531,6 +533,7 @@ def _kind_find_or_create(name, symbol_table):
 
     '''
     lower_name = name.lower()
+
     try:
         kind_symbol = symbol_table.lookup(lower_name)
         # pylint: disable=unidiomatic-typecheck
@@ -559,10 +562,11 @@ def _kind_find_or_create(name, symbol_table):
                     "variable '{0}' used as a kind parameter but it is not"
                     "a 'deferred', 'unknown' or 'scalar integer' type.".
                     format(lower_name))
-            # A KIND parameter must be of type integer so set it here
-            # (in case it was previously 'deferred'). We don't know
-            # what precision this is so set it to the default.
-            kind_symbol.datatype = default_integer_type()
+            # A KIND parameter must be of type integer so set it here if it
+            # was previously 'deferred'. We don't know what precision this is
+            # so set it to the default.
+            if isinstance(kind_symbol.datatype, DeferredType):
+                kind_symbol.datatype = default_integer_type()
         else:
             raise TypeError(
                 "A symbol representing a kind parameter must be an "
@@ -862,6 +866,7 @@ class Fparser2Reader(object):
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
+        ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
         ('int', BinaryOperation.Operator.INT),
         ('real', BinaryOperation.Operator.REAL),
         ('sign', BinaryOperation.Operator.SIGN),
@@ -1797,8 +1802,12 @@ class Fparser2Reader(object):
 
                 symbol_table.add(sym)
 
-            # The Symbol must have the interface given by the declaration
-            sym.interface = interface
+            # The Symbol must have the interface given by the declaration. We
+            # take a copy to ensure that it can be modified without side
+            # effects.
+            # TODO #1444 Can we ensure that an interface is only referenced
+            # by a single symbol?
+            sym.interface = interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
@@ -1873,6 +1882,13 @@ class Fparser2Reader(object):
         # Populate this StructureType by processing the components of
         # the derived type
         try:
+            # We don't yet support derived-type definitions with a CONTAINS
+            # section.
+            contains = walk(decl, Fortran2003.Contains_Stmt)
+            if contains:
+                raise NotImplementedError(
+                    "Derived-type definition has a CONTAINS statement.")
+
             # Re-use the existing code for processing symbols
             local_table = SymbolTable(
                 default_visibility=default_compt_visibility)
@@ -2735,11 +2751,87 @@ class Fparser2Reader(object):
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
 
+    @staticmethod
+    def _array_notation_rank(node):
+        '''Check that the supplied candidate array reference uses supported
+        array notation syntax and return the rank of the sub-section
+        of the array that uses array notation. e.g. for a reference
+        "a(:, 2, :)" the rank of the sub-section is 2.
+
+        :param node: the reference to check.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
+            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: rank of the sub-section of the array.
+        :rtype: int
+
+        :raises InternalError: if no ArrayMixin node with at least one \
+                               Range in its indices is found.
+        :raises InternalError: if two or more part references in a \
+                               structure reference contain ranges.
+        :raises NotImplementedError: if the supplied node is not of a \
+                                     supported type.
+        :raises NotImplementedError: if any ranges are encountered that are \
+                                     not for the full extent of the dimension.
+        '''
+        if isinstance(node, (ArrayReference, ArrayMember)):
+            array = node
+        elif isinstance(node, StructureReference):
+            array = None
+            arrays = node.walk((ArrayMember, ArrayOfStructuresMixin))
+            for part_ref in arrays:
+                if any(isinstance(idx, Range) for idx in part_ref.indices):
+                    if array:
+                        # Cannot have two or more part references that contain
+                        # ranges - this is not valid Fortran.
+                        # pylint: disable=import-outside-toplevel
+                        from psyclone.psyir.backend.fortran import (
+                            FortranWriter)
+                        lang_writer = FortranWriter()
+                        raise InternalError(
+                            f"Found a structure reference containing two or "
+                            f"more part references that have ranges: "
+                            f"'{lang_writer(node)}'. This is not valid within "
+                            f"a WHERE in Fortran.")
+                    array = part_ref
+            if not array:
+                raise InternalError(
+                    f"No array access found in node '{node.name}'")
+        else:
+            # This will result in a CodeBlock.
+            raise NotImplementedError(
+                f"Expected either an ArrayReference, ArrayMember or a "
+                f"StructureReference but got '{type(node).__name__}'")
+
+        # Only array refs using basic colon syntax are currently
+        # supported e.g. (a(:,:)).  Each colon is represented in the
+        # PSyIR as a Range node with first argument being an lbound
+        # binary operator, the second argument being a ubound operator
+        # and the third argument being an integer Literal node with
+        # value 1 i.e. a(:,:) is represented as
+        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
+        # the PSyIR.
+        num_colons = 0
+        for idx_node in array.indices:
+            if isinstance(idx_node, Range):
+                # Found array syntax notation. Check that it is the
+                # simple ":" format.
+                if not _is_range_full_extent(idx_node):
+                    raise NotImplementedError(
+                        "Only array notation of the form my_array(:, :, ...) "
+                        "is supported.")
+                num_colons += 1
+        return num_colons
+
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
         Utility function that modifies each ArrayReference object in the
         supplied PSyIR fragment so that they are indexed using the supplied
         loop variables rather than having colon array notation.
+
+        # TODO #1576 this functionality is very similar to that needed in
+        # the NemoArrayRange2Loop transformation and should be rationalised.
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
@@ -2917,6 +3009,8 @@ class Fparser2Reader(object):
 
             loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
+            # Point to the original WHERE statement in the parse tree.
+            loop.ast = node
             # Add loop lower bound
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound - we use the SIZE operator to query the
@@ -2964,6 +3058,7 @@ class Fparser2Reader(object):
         # Now we have the loop nest, add an IF block to the innermost
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
+        ifblock.ast = node  # Point back to the original WHERE construct
         new_parent.addchild(ifblock)
 
         # We construct the conditional expression from the original
@@ -3014,12 +3109,18 @@ class Fparser2Reader(object):
                                              annotations=annotations)
                         elsebody.addchild(newifblock)
 
+                        # Keep pointer to fpaser2 AST
+                        elsebody.ast = node.content[start_idx]
+                        newifblock.ast = node.content[start_idx]
+
                         # Create condition as first child
                         self.process_nodes(parent=newifblock,
                                            nodes=[clause.items[0]])
 
                         # Create if-body as second child
                         ifbody = Schedule(parent=newifblock)
+                        ifbody.ast = node.content[start_idx + 1]
+                        ifbody.ast_end = node.content[end_idx - 1]
                         newifblock.addchild(ifbody)
                         self.process_nodes(
                             parent=ifbody,
@@ -3034,6 +3135,8 @@ class Fparser2Reader(object):
                                     node.content))
                         elsebody = Schedule(parent=current_parent)
                         current_parent.addchild(elsebody)
+                        elsebody.ast = node.content[start_idx]
+                        elsebody.ast_end = node.content[end_idx]
                         self.process_nodes(
                             parent=elsebody,
                             nodes=node.content[start_idx + 1:end_idx])

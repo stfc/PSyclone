@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -159,7 +159,8 @@ def test_profile_invokes_gocean1p0():
     assert code == code_again
 
     # Test that two kernels in one invoke get instrumented correctly.
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0)
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0,
+                           dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -194,7 +195,7 @@ def test_unique_region_names():
 
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
-                           "gocean1.0", 0)
+                           "gocean1.0", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -238,7 +239,7 @@ def test_profile_kernels_gocean1p0():
     '''
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
-                           idx=0)
+                           idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -603,14 +604,16 @@ def test_multi_prefix_profile(monkeypatch):
             "      CALL tool1_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r0\", 0, 0)\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
+    assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
+    assert "loop2_stop = mesh%get_last_halo_cell(1)\n" in result
     assert ("      CALL tool1_psy_data%PostEnd\n"
             "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)" in result)
+            "      DO cell=loop0_start,loop0_stop\n" in result)
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      CALL profile_psy_data%PostEnd\n"
-            "      DO cell=1,mesh%get_last_halo_cell(1)" in result)
+            "      DO cell=loop2_start,loop2_stop\n" in result)
 
 
 # -----------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,27 +82,6 @@ class OpenCLWriter(CWriter):
                 "{0}.".format(kernels_local_size))
 
         self._kernels_local_size = kernels_local_size
-
-    def __call__(self, node):
-        '''This method is called when an instance of the class is called
-        directly (like a function). This implementation is known as
-        a functor. It makes sense for this class as there is only one
-        main method - the `visit` method.
-
-        # TODO #1134: This method should be removed and instead use the generic
-        # implementation, however currently OpenCL uses a DSL-level concept
-        # in a visitor (the SymbolTable.data_arguments) and this needs to
-        # be removed and PSyIR converted to language-level before calling
-        # the backend.
-
-        :param node: A PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: text representation of the PSyIR tree.
-        :rtype: str
-
-        '''
-        return self._visit(node)
 
     def gen_id_variable(self, symbol, dimension_index):
         '''

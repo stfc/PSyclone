@@ -1,7 +1,9 @@
 # Introduction #
 
-Welcome to PSyclone. PSyclone is a code generation system that generates
-appropriate code for the PSyKAl code structure developed in the GungHo project.
+Welcome to PSyclone. PSyclone is a code generation and transformation
+system that generates appropriate code for the PSyKAl code structure
+developed in the GungHo project. It is also capable of working with
+existing Fortran code.
 
 Please see [psyclone.pdf](psyclone.pdf) in this directory (or on
 [ReadTheDocs](http://psyclone.readthedocs.io)) for
@@ -58,15 +60,15 @@ add the latter location to your PATH.
 
 Path                | Description
 ------------------- | -----------
-bin/                | top-level driver scripts for PSyclone and the Kernel stub generator
+bin/                | Top-level driver scripts for PSyclone and the PSyclone kernel tool
 changelog      	    | Information on changes between releases
-doc/           	    | Documentation source using sphinx
+doc/           	    | Documentation source using Sphinx
 examples/      	    | Simple examples
 psyclone.pdf   	    | Generated documentation
 README.md      	    | This file
 README.gource  	    | Information on how to generate a gource video from the repository
 README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
-src/psyclone   	    | The python source code
+src/psyclone   	    | The Python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
 tutorial/notebooks  | Tutorial using Jupyter notebooks
 tutorial/practicals | Hands-on exercises using a local installation of PSyclone

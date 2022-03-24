@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2021, Science and Technology Facilities Council.
+   Copyright (c) 2017-2022, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -257,11 +257,6 @@ is commented out::
     # print(print_hierarchy(psyir_tree))
     psyir_tree.walk(APIHaloExchange)
 
-.. warning::
-    The OpenCL backend does not use a `__call__` method with lowering. This
-    is because OpenCL currently uses a GOcean specific property, this should
-    be fixed in #1134 and OpenCL should use the generic `__call__`
-
 .. note::
     The property of not having side effects is implemented by making a copy
     of the whole tree provided as an argument to the visitor functor. An
@@ -402,6 +397,7 @@ of Nodes that have a direct translation into target language concepts.
 
 .. image:: 2level_psyir.png
 
-.. note::
- Using the language backends to generate the PSy-layer code is supported by
- the Nemo and GOcean APIs. LFric support is still under development. See #1010.
+.. note:: Using the language backends to generate the PSy-layer code
+ is supported by the Nemo and GOcean APIs. For the GOcean API the
+ algorithm-layer is also generated using the language
+ backends. LFRic support is still under development, see #1010.

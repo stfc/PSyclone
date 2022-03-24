@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,10 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.errors import GenerationError
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCEnterDataDirective, \
+from psyclone.psyir.nodes import ACCRoutineDirective, \
     ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
@@ -236,13 +237,25 @@ def test_acckernelsdirective_gencode(default_present):
     if default_present:
         string = " default(present)"
     assert (
-        "      !$acc kernels{0}\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n".format(string) in code)
+        f"      !$acc kernels{string}\n"
+        f"      DO cell=loop0_start,loop0_stop\n" in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)
 
-# Class ACCKernelsDirective end
+
+# Class ACCRoutineDirective
+
+def test_acc_routine_directive_constructor_and_strings():
+    ''' Test the ACCRoutineDirective constructor and its output
+    strings.'''
+    target = ACCRoutineDirective()
+    assert target.begin_string() == "acc routine"
+    assert str(target) == "ACCRoutineDirective[]"
+
+    temporary_module = ModuleGen("test")
+    target.gen_code(temporary_module)
+    assert "!$acc routine\n" in str(temporary_module.root)
 
 
 # Class ACCUpdateDirective

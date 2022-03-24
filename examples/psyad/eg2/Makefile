@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
 include ../../common.mk
 
@@ -40,14 +40,20 @@ GENERATED_FILES +=
 
 # The first command will write the adjoint kernel to stdout. The
 # second, if supported, would write both it and the corresponding test
-# harness to separate files.
+# harness to separate files. Note, one of the variables provided in
+# the psyad command line below (res_dot_product) did not exist in the
+# original code and is a by-product of psyad replacing a dot_product
+# intrinsic with equivalent code. This and all other local variables
+# will not need to be specified on the command line once issue #1556
+# has been addressed.
 transform:
-	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad exner_e exner_at_quad
+	$(PSYAD) tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 	@echo "Harness generation not yet supported"
 
 # It is not yet possible to compile the adjoint code into an object
-# file as the intents are incorrect (see issue #1429) and the metadata
-# code pointer is invalid (see issue #1453).
+# file and run it, as the metadata is incorrect (see issue #1453) and
+# the harness generation does not understand all of the argument
+# datatypes and how to initialise them (see issue #1555).
 compile: transform
 	@echo "Harness compilation not yet supported"
 

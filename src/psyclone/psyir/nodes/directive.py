@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,16 +41,13 @@
 ''' This module contains the Directive, RegionDirective, StandaloneDirective
     node implementation.'''
 
-from __future__ import absolute_import
 import abc
-import six
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.errors import InternalError
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Directive(Statement):
+class Directive(Statement, metaclass=abc.ABCMeta):
     '''
     Abstract base class for all Directive statements.
 
@@ -59,6 +56,14 @@ class Directive(Statement):
     # (e.g. "OMP") must be set by a mixin or sub-class.
     _PREFIX = ""
     _colour = "green"
+
+    @property
+    @abc.abstractmethod
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
 
 
 class RegionDirective(Directive):
@@ -107,16 +112,26 @@ class RegionDirective(Directive):
         :returns: the Schedule associated with this directive.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :raises InternalError: if this node does not have a single Schedule as\
-                               its child.
+        :raises InternalError: if this node does not have a Schedule as \
+                               its first child.
         '''
-        if len(self.children) != 1 or not \
-           isinstance(self.children[0], Schedule):
+        if len(self.children) < 1 or not isinstance(self.children[0],
+                                                    Schedule):
             raise InternalError(
-                "Directive malformed or incomplete. It should have a single "
-                "Schedule as a child but found: {0}".format(
-                    [type(child).__name__ for child in self.children]))
+                "Directive malformed or incomplete. It should have a "
+                "Schedule as child 0 but found: "
+                f"{[type(child).__name__ for child in self.children]}")
         return self.children[0]
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        if len(self.children) > 1:
+            return self.children[1:]
+        return []
 
 
 class StandaloneDirective(Directive):
@@ -145,6 +160,18 @@ class StandaloneDirective(Directive):
         '''
         # Children are not allowed for StandaloneDirective
         return False
+
+    @property
+    def clauses(self):
+        '''
+        :returns: the Clauses associated with this directive.
+        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        '''
+        # This should be uncommented once a standalone directive with
+        # clauses exists
+        # if len(self.children) > 0:
+        #    return self.children
+        return []
 
 
 # For automatic API documentation generation
