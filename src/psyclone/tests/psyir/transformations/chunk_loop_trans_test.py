@@ -313,8 +313,8 @@ def test_chunkloop_trans_validation_options(fortran_reader):
     with pytest.raises(TransformationError) as err:
         ChunkLoopTrans().validate(outer_loop, {'unsupported': None})
     assert ("The ChunkLoopTrans does not support the transformation option"
-            " 'unsupported', the supported options are: ['chunksize']."
-            in str(err.value))
+            " 'unsupported', the supported options are: ['chunksize', "
+            "'strategy']." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         ChunkLoopTrans().validate(outer_loop, {'chunksize': '32'})
@@ -341,9 +341,9 @@ def test_chunkloop_trans_apply_pos():
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
-        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
-        DO j = j_out_var, j_el_inner, 1
+        '''DO j_chunk_start = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+        DO j = j_chunk_start, MIN(j_chunk_start + (32 - 1), \
+cu_fld%internal%ystop), 1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -367,9 +367,10 @@ def test_chunkloop_trans_apply_neg():
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
-        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-        j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
-        DO j = j_out_var, j_el_inner, -1
+        '''DO j_chunk_start = cu_fld%internal%ystart, cu_fld%internal%ystop, \
+-32
+        DO j = j_chunk_start, MAX(j_chunk_start - (32 + 1), \
+cu_fld%internal%ystop), -1
           DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -379,7 +380,7 @@ def test_chunkloop_trans_apply_neg():
     assert correct in code
 
 
-def test_chunkloop_trans_apply_with_options():
+def test_chunkloop_trans_apply_with_different_chunksize():
     ''' Check that a non-default chunksize option is used correctly. '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -390,10 +391,42 @@ def test_chunkloop_trans_apply_with_options():
     chunktrans.apply(schedule.children[0], {'chunksize': 4})
     code = str(psy.gen)
     correct = \
-        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
-        j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
-        DO j = j_out_var, j_el_inner, 1
+        '''DO j_chunk_start = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
+        DO j = j_chunk_start, MIN(j_chunk_start + (4 - 1), \
+cu_fld%internal%ystop), 1
     '''
+    assert correct in code
+
+
+def test_chunkloop_trans_apply_with_strategy_exaclty_divisible():
+    ''' Check that a non-default strategy option is used correctly. '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0], {'strategy': 'exactly_divisible'})
+    code = str(psy.gen)
+    correct = \
+        '''DO j_chunk_start = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+        DO j = j_chunk_start, j_chunk_start + 31, 1'''
+    assert correct in code
+
+
+def test_chunkloop_trans_apply_with_strategy_peeling():
+    ''' Check that a non-default strategy option is used correctly. '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0], {'strategy': 'peeling'})
+    code = str(psy.gen)
+    correct = \
+        '''DO j_chunk_start = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+        DO j = j_chunk_start, j_chunk_start + 31, 1'''
     assert correct in code
 
 
@@ -426,30 +459,26 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     writer = FortranWriter()
     result = writer(psyir)
     correct_vars = \
-        '''integer :: i_el_inner
-  integer :: i_out_var
-  integer :: j_el_inner
-  integer :: j_out_var'''
+        '''
+  integer :: i_chunk_start
+  integer :: j_chunk_start'''
     assert correct_vars in result
 
     correct = \
-        '''do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + (32 - 1), end)
-    do i = i_out_var, i_el_inner, 1
-      do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), end)
-        do j = j_out_var, j_el_inner, 1
+        '''
+  do i_chunk_start = 1, end, 32
+    do i = i_chunk_start, MIN(i_chunk_start + (32 - 1), end), 1
+      do j_chunk_start = 1, end, 32
+        do j = j_chunk_start, MIN(j_chunk_start + (32 - 1), end), 1
           ai(i,j) = 1
         enddo
       enddo
     enddo
   enddo
-  do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + (32 - 1), end)
-    do i = i_out_var, i_el_inner, 2
-      do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), end)
-        do j = j_out_var, j_el_inner, 2
+  do i_chunk_start = 1, end, 32
+    do i = i_chunk_start, MIN(i_chunk_start + (32 - 1), end), 2
+      do j_chunk_start = 1, end, 32
+        do j = j_chunk_start, MIN(j_chunk_start + (32 - 1), end), 2
           aj(i,j) = 1
         enddo
       enddo

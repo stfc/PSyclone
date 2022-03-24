@@ -183,12 +183,10 @@ def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
     outer_loop = psyir.walk(Loop)[0]
     result = fortran_writer(outer_loop)
     expected = '''\
-do i_out_var = 1, 100, 32
-  i_el_inner = MIN(i_out_var + (32 - 1), 100)
-  do j_out_var = 1, 100, 32
-    do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + (32 - 1), 100)
-      do j = j_out_var, j_el_inner, 1
+do i_chunk_start = 1, 100, 32
+  do j_chunk_start = 1, 100, 32
+    do i = i_chunk_start, MIN(i_chunk_start + (32 - 1), 100), 1
+      do j = j_chunk_start, MIN(j_chunk_start + (32 - 1), 100), 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo
     enddo
@@ -217,12 +215,10 @@ def test_loop_tiling_2d_trans_apply_options(fortran_reader, fortran_writer):
     outer_loop = psyir.walk(Loop)[0]
     result = fortran_writer(outer_loop)
     expected = '''\
-do i_out_var = 1, 100, 64
-  i_el_inner = MIN(i_out_var + (64 - 1), 100)
-  do j_out_var = 1, 100, 64
-    do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + (64 - 1), 100)
-      do j = j_out_var, j_el_inner, 1
+do i_chunk_start = 1, 100, 64
+  do j_chunk_start = 1, 100, 64
+    do i = i_chunk_start, MIN(i_chunk_start + (64 - 1), 100), 1
+      do j = j_chunk_start, MIN(j_chunk_start + (64 - 1), 100), 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo
     enddo

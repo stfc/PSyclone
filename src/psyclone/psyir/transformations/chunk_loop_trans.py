@@ -124,7 +124,7 @@ class ChunkLoopTrans(LoopTrans):
         # TODO #613: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
-        valid_options = ['chunksize']
+        valid_options = ['chunksize', 'strategy']
         for key, value in options.items():
             if key in valid_options:
                 if key == "chunksize" and not isinstance(value, int):
@@ -227,14 +227,12 @@ class ChunkLoopTrans(LoopTrans):
         if options is None:
             options = {}
         chunk_size = options.get("chunksize", 32)
+        strategy = options.get("strategy", "default")
+
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
-        end_inner_loop = routine.symbol_table.find_or_create_tag(
-                f"{node.variable.name}_el_inner",
-                symbol_type=DataSymbol,
-                datatype=node.variable.datatype)
         outer_loop_variable = routine.symbol_table.find_or_create_tag(
-                f"{node.variable.name}_out_var",
+                f"{node.variable.name}_chunk_start",
                 symbol_type=DataSymbol,
                 datatype=node.variable.datatype)
         # We currently don't allow ChunkLoops to be ancestors of ChunkLoop
@@ -245,9 +243,10 @@ class ChunkLoopTrans(LoopTrans):
         start = node.start_expr
         stop = node.stop_expr
 
-        # For positive steps we do:
-        #     el_inner = min(out_var+chunk_size-1, el_outer)
-        if int(node.step_expr.value) > 0:
+        # The chunk upper bound depends on the strategy and step sign
+        chunk_bound = None
+        if strategy == "default" and int(node.step_expr.value) > 0:
+            # min(out_var+chunk_size-1, el_outer)
             add = BinaryOperation.create(
                     BinaryOperation.Operator.ADD,
                     Reference(outer_loop_variable),
@@ -255,13 +254,10 @@ class ChunkLoopTrans(LoopTrans):
                         BinaryOperation.Operator.SUB,
                         Literal(f"{chunk_size}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
-            minop = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
-                                           stop.copy())
-            inner_loop_end = Assignment.create(Reference(end_inner_loop),
-                                               minop)
-        # For negative steps we do:
-        #     el_inner = max(out_var-chunk_size+1, el_outer)
-        elif int(node.step_expr.value) < 0:
+            chunk_bound = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                                 add, stop.copy())
+        elif strategy == "default" and int(node.step_expr.value) < 0:
+            # max(out_var-chunk_size+1, el_outer)
             sub = BinaryOperation.create(
                     BinaryOperation.Operator.SUB,
                     Reference(outer_loop_variable),
@@ -269,17 +265,26 @@ class ChunkLoopTrans(LoopTrans):
                         BinaryOperation.Operator.ADD,
                         Literal(f"{chunk_size}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
-            maxop = BinaryOperation.create(BinaryOperation.Operator.MAX, sub,
-                                           stop.copy())
-            inner_loop_end = Assignment.create(Reference(end_inner_loop),
-                                               maxop)
+            chunk_bound = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                                 sub, stop.copy())
             # chunk_size needs to be negative if we're reducing
             chunk_size = -chunk_size
-        # step size of 0 is caught by the validate call
+        elif int(node.step_expr.value) > 0:
+            chunk_bound = BinaryOperation.create(
+                            BinaryOperation.Operator.ADD,
+                            Reference(outer_loop_variable),
+                            Literal(f"{chunk_size-1}", node.variable.datatype))
+        elif int(node.step_expr.value) < 0:
+            chunk_bound = BinaryOperation.create(
+                            BinaryOperation.Operator.SUB,
+                            Reference(outer_loop_variable),
+                            Literal(f"{chunk_size+1}", node.variable.datatype))
+            # chunk_size needs to be negative if we're reducing
+            chunk_size = -chunk_size
 
         # Replace the inner loop start and end with the chunking ones
         start.replace_with(Reference(outer_loop_variable))
-        stop.replace_with(Reference(end_inner_loop))
+        stop.replace_with(chunk_bound)
 
         # Create the outerloop of the same type and loop_type
         outerloop = Loop(variable=outer_loop_variable,
@@ -287,8 +292,7 @@ class ChunkLoopTrans(LoopTrans):
         outerloop.children = [start, stop,
                               Literal(f"{chunk_size}",
                                       outer_loop_variable.datatype),
-                              Schedule(parent=outerloop,
-                                       children=[inner_loop_end])]
+                              Schedule(parent=outerloop)]
         if node.loop_type is not None:
             outerloop.loop_type = node.loop_type
         # Add the chunked annotation
