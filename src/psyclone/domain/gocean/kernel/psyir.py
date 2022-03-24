@@ -46,7 +46,7 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.symbols import DataTypeSymbol, Symbol
+from psyclone.psyir.symbols import DataTypeSymbol, Symbol, UnknownFortranType
 
 
 class KernelMetadataSymbol(DataTypeSymbol):
@@ -73,10 +73,22 @@ class KernelMetadataSymbol(DataTypeSymbol):
         contains valid metadata.
 
         '''
-        # The metadata is stored as a string, so create an fparser2
-        # parse tree.
+        if not isinstance(self.datatype, UnknownFortranType):
+            raise InternalError(
+                f"Expected kernel metadata to be stored in the PSyIR as "
+                f"an UnknownFortranType, but found "
+                f"{type(self.datatype).__name__}.")
+
+        # In an UnknownFortranType, the declaration is stored as a
+        # string, so create an fparser2 parse tree.
         reader = FortranStringReader(self.datatype.declaration)
-        spec_part = Fortran2003.Derived_Type_Def(reader)
+        try:
+            spec_part = Fortran2003.Derived_Type_Def(reader)
+        except Fortran2003.NoMatchError:
+            # pylint: disable=raise-missing-from
+            raise InternalError(
+                f"Expected kernel metadata to be a derived type, but found "
+                f"'{self.datatype.declaration}'.")
 
         # Extract and store the required 'iterates_over',
         # 'index_offset' and 'code' properties from the parse tree for
@@ -95,20 +107,32 @@ class KernelMetadataSymbol(DataTypeSymbol):
         # properties. Therefore create appropriate (GridArg or
         # FieldArg) instances to capture this information.
         meta_args = self._get_property(spec_part, "meta_args")
+        args = walk(meta_args, Fortran2003.Ac_Value_List)
+        if not args:
+            raise ParseError(
+                f"meta_args should be a list, but found '{str(meta_args)}' "
+                f"in '{spec_part}'.")
+
         self._meta_args = []
-        for meta_arg in walk(
-                    meta_args, Fortran2003.Ac_Value_List)[0].children:
+        for meta_arg in args[0].children:
             if len(meta_arg.children[1].children) == 2:
                 self._meta_args.append(self.GridArg(meta_arg, self))
             elif len(meta_arg.children[1].children) == 3:
-                self._meta_args.append(self.FieldArg(meta_arg, self))
+                arg2 = meta_arg.children[1].children[1].string
+                if arg2 in const.VALID_FIELD_GRID_TYPES:
+                    self._meta_args.append(self.FieldArg(meta_arg, self))
+                elif arg2 in const.VALID_SCALAR_TYPES:
+                    self._meta_args.append(self.ScalarArg(meta_arg, self))
+                else:
+                    raise ParseError(f"Expected 'meta_arg' entries with 3 arguments to either be a field or a scalar, but found '{arg2}' instead of '{const.VALID_FIELD_GRID_TYPES}' (fields) or '{const.VALID_SCALAR_TYPES}' (scalars).")
+
             else:
                 raise ParseError(
                     f"'meta_args' should have either 2 or 3 arguments, but "
                     f"found {len(meta_arg.children[1].children)} in "
                     f"{str(meta_arg)}.")
 
-    def _write_fortran_string(self):
+    def write_fortran_string(self):
         '''
         :returns: the metadata represented by this instance as a Fortran \
             string.
@@ -117,7 +141,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         '''
         go_args = []
         for go_arg in self.args:
-            go_args.append(go_arg._write_fortran_string())
+            go_args.append(go_arg.write_fortran_string())
         go_args_str = ", ".join(go_args)
         result = (
             f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
@@ -151,9 +175,35 @@ class KernelMetadataSymbol(DataTypeSymbol):
             # This should be found in a type bound procedure after the
             # contains keyword
             type_bound_procedure = spec_part.children[2]
-            return walk(
-                type_bound_procedure,
-                Fortran2003.Specific_Binding)[0].children[4]
+            if not isinstance(
+                    type_bound_procedure,
+                    Fortran2003.Type_Bound_Procedure_Part):
+                raise ParseError(
+                    f"No type-bound procedure 'contains' section was found in "
+                    f"'{spec_part}'.")
+            if len(type_bound_procedure.children) != 2:
+                raise ParseError(
+                    f"Expecting a single type-bound procedure, but found "
+                    f"'{spec_part}'.")
+            specific_binding = type_bound_procedure.children[1]
+            if not isinstance(specific_binding, Fortran2003.Specific_Binding):
+                raise ParseError(
+                    f"Expecting a specific binding for the type-bound "
+                    f"procedure, but found '{specific_binding}' in "
+                    f"'{spec_part}'.")
+            binding_name = specific_binding.children[3].string
+            if not binding_name.lower() == "code":
+                raise ParseError(
+                    f"Expecting the type-bound procedure binding-name to be "
+                    f"'code' but found '{str(binding_name)}' in "
+                    f"'{spec_part}'.")
+            procedure_name = specific_binding.children[4]
+            if not procedure_name:
+                raise ParseError(
+                    f"Expecting the type-bound procedure binding to have a "
+                    f"procedure name but found '{spec_part}'.")
+            return procedure_name
+
         # The should be a variable declaration within the derived type.
         component_part = spec_part.children[1]
         for entry in component_part.children:
@@ -162,8 +212,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 return walk(
                     entry,
                     Fortran2003.Component_Initialization)[0].children[1]
-        raise InternalError(
-            f"The property name should always be found in the metadata but "
+        raise ParseError(
             f"'{property_name}' was not found in {str(spec_part)}.")
 
     @staticmethod
@@ -178,8 +227,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
         const = GOceanConstants()
         if value.lower() not in const.VALID_ITERATES_OVER:
             raise ValueError(
-                f"Expected one of {str(const.VALID_ITERATES_OVER)}, but "
-                f"found '{value}'.")
+                f"Expected one of {str(const.VALID_ITERATES_OVER)} for "
+                f"'iterates_over' metadata, but found '{value}'.")
 
     @property
     def iterates_over(self):
@@ -200,7 +249,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         self._validate_iterates_over(value)
         self._iterates_over = value
         # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self._write_fortran_string()
+        self.datatype.declaration = self.write_fortran_string()
 
     @staticmethod
     def _validate_index_offset(value):
@@ -214,8 +263,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
         const = GOceanConstants()
         if value.lower() not in const.VALID_OFFSET_NAMES:
             raise ValueError(
-                f"Expected one of {str(const.VALID_OFFSET_NAMES)}, but "
-                f"found '{value}'.")
+                f"Expected one of {str(const.VALID_OFFSET_NAMES)} for "
+                f"'index_offset' metadata, but found '{value}'.")
 
     @property
     def index_offset(self):
@@ -233,7 +282,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         self._validate_index_offset(value)
         self._index_offset = value
         # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self._write_fortran_string()
+        self.datatype.declaration = self.write_fortran_string()
 
     @property
     def args(self):
@@ -259,7 +308,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         '''
         self._code = value
         # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self._write_fortran_string()
+        self.datatype.declaration = self.write_fortran_string()
 
     class GridArg():
         '''Internal class to capture Kernel metadata argument information for
@@ -292,7 +341,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._validate_name(name)
             self._name = name
 
-        def _write_fortran_string(self):
+        def write_fortran_string(self):
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
@@ -333,7 +382,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._access = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent._write_fortran_string()
+                self._parent.write_fortran_string()
 
         @staticmethod
         def _validate_name(value):
@@ -370,7 +419,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._name = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent._write_fortran_string()
+                self._parent.write_fortran_string()
 
     class FieldArg():
         '''Internal class to capture Kernel metadata argument information for
@@ -391,11 +440,10 @@ class KernelMetadataSymbol(DataTypeSymbol):
         def __init__(self, meta_arg, parent):
             self._parent = parent
 
-            const = GOceanConstants()
             arg_list = meta_arg.children[1]
             if len(arg_list.children) != 3:
                 raise ParseError(
-                    f"There sould be 3 kernel metadata entries for a field "
+                    f"There should be 3 kernel metadata entries for a field "
                     f"argument, but found {len(arg_list.children)} in "
                     f"{str(meta_arg)}.")
 
@@ -412,7 +460,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 self._validate_form(form)
                 self._form = form
                 self._stencil = None
-            else: # Stencil
+            else:  # Stencil
                 name = arg_list.children[2].children[0].string
                 self._validate_stencil_name(name)
                 self._form = name
@@ -421,7 +469,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     self._stencil.append(stencil_dim.children[0])
                 self._validate_stencil(self._stencil)
 
-        def _write_fortran_string(self):
+        def write_fortran_string(self):
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
@@ -430,8 +478,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             if self.stencil:
                 return (f"go_arg({self.access}, {self.stagger}, "
                         f"{self.form}({', '.join(self.stencil)}))")
-            else:
-                return f"go_arg({self.access}, {self.stagger}, {self.form})"
+            return f"go_arg({self.access}, {self.stagger}, {self.form})"
 
         @staticmethod
         def _validate_access(value):
@@ -466,7 +513,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._access = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent._write_fortran_string()
+                self._parent.write_fortran_string()
 
         @staticmethod
         def _validate_stagger(value):
@@ -501,7 +548,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._stagger = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent._write_fortran_string()
+                self._parent.write_fortran_string()
 
         @staticmethod
         def _validate_form(value):
@@ -536,7 +583,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
             self._form = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent._write_fortran_string()
+                self._parent.write_fortran_string()
 
         @staticmethod
         def _validate_stencil_name(value):
@@ -603,104 +650,4 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 self._form = "GO_STENCIL"
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent._write_fortran_string()
-
-    def validate(self):
-        '''Validates the metadata.'''
-
-        const = GOceanConstants()
-        unknown_fortran_type = self.datatype
-        # The type is stored as a string so parse it with fparser2
-        reader = FortranStringReader(unknown_fortran_type.declaration)
-        spec_part = Fortran2003.Derived_Type_Def(reader)
-        component_part = spec_part.children[1]
-
-        found_meta_args = False
-        found_iterates_over = False
-        found_index_offset = False
-        for entry in component_part.children:
-            name = entry.children[2].children[0].children[0].string.lower()
-            if name == "meta_args":
-                if found_meta_args:
-                    raise ParseError(
-                        f"'meta_args' should only be defined once in the "
-                        f"metadata, but found {str(component_part)}.")
-                found_meta_args = True
-                self._meta_args = []
-                for meta_arg in walk(
-                        entry, Fortran2003.Ac_Value_List)[0].children:
-                    if len(meta_arg.children[1].children) == 2:
-                        self._meta_args.append(self.GridArg(meta_arg))
-                    elif len(meta_arg.children[1].children) == 3:
-                        self._meta_args.append(self.FieldArg(meta_arg))
-                    else:
-                        raise ParseError(
-                            f"'meta_args' should have either 2 or 3 "
-                            f"arguments, but found "
-                            f"{len(meta_arg.children[1].children)} in "
-                            f"{str(meta_arg)}.")
-            elif name == "iterates_over":
-                if found_iterates_over:
-                    raise ParseError(
-                        f"'iterates_over' should only be defined once in "
-                        f"the metadata, but found {str(component_part)}.")
-                found_iterates_over = True
-                iterates_over_def = component_part.children[1]
-                self._iterates_over = walk(
-                    entry,
-                    Fortran2003.Component_Initialization)[0].children[1].string
-                if self._iterates_over.lower() not in \
-                   const.VALID_ITERATES_OVER:
-                    raise ParseError(
-                        f"The value of 'iterates_over' should be one of "
-                        f"{str(const.VALID_ITERATES_OVER)}, but found "
-                        f"'{self._iterates_over}'.")
-            elif name == "index_offset":
-                if found_index_offset:
-                    raise ParseError(
-                        f"'index_offset' should only be defined once in the "
-                        f"metadata, but found {str(component_part)}.")
-                found_index_offset = True
-                self._index_offset = walk(
-                    entry,
-                    Fortran2003.Component_Initialization)[0].children[1].string
-                if self._index_offset.lower() not in const.VALID_OFFSET_NAMES:
-                    raise ParseError(
-                        f"The value of 'index_offset' should be one of "
-                        f"{str(const.VALID_OFFSET_NAMES)}, but found "
-                        f"'{self._index_offset}'.")
-            else:
-                raise ParseError(
-                    f"Expecting metadata entries to be one of 'meta_args', "
-                    f"'iterates_over', or 'index_offset', but found '{name}' "
-                    f"in {str(component_part)}.")
-
-        if not found_meta_args:
-            raise ParseError(
-                f"Expecting 'meta_args' to be an entry in the metadata but "
-                f"it was not found in {str(component_part)}.")
-        if not found_iterates_over:
-            raise ParseError(
-                f"Expecting 'iterates_over' to be an entry in the metadata "
-                f"but it was not found in {str(component_part)}.")
-        if not found_index_offset:
-            raise ParseError(
-                f"Expecting 'index_offset' to be an entry in the metadata but "
-                f"it was not found in {str(component_part)}.")
-
-        # TODO RAISE EXCEPTION IF INVALID OR DOES NOT EXIST
-        if not isinstance(spec_part.children[2], Fortran2003.Type_Bound_Procedure_Part):
-            raise ParseError(
-                "The metadata does not have a contains keyword (which is "
-                "required to add the code metadata.")
-        type_bound_procedure = spec_part.children[2]
-        content = type_bound_procedure.children[1:]
-        for line in content:
-            pass # print(line)
-        if len(content) != 1:
-            raise ParseError(
-                f"Expecting a single entry after the 'contains' keyword but "
-                f"found {len(content)}.")
-        self._routine_name = walk(
-            type_bound_procedure,
-            Fortran2003.Specific_Binding)[0].children[4].string
+                self._parent.write_fortran_string()
