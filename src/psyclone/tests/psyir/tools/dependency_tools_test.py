@@ -363,6 +363,79 @@ def test_get_indices(expression, correct, parser):
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.parametrize("lhs, rhs, partition",
+                         [("a1(i+i+j)", "a1(i)", [({"i", "j"}, {0})]),
+                          ("a1(i+j+n)", "a1(i)", [({"i", "j", "n"}, {0})]),
+                          ("a1(i+j+3)", "a1(i)", [({"i", "j"}, {0})]),
+                          ("a3(i,j,k)", "a3(i,j,k)", [({"i"}, {0}),
+                                                      ({"j"}, {1}),
+                                                      ({"k"}, {2})]),
+                          ("a3(i,j,k)", "a3(k,j,i)", [({"i", "k"}, {0, 2}),
+                                                      ({"j"}, {1})]),
+                          ("a3(i,j,k)", "a3(j,k,i)", [({"i", "j", "k"},
+                                                       {0, 1, 2})]),
+                          ("a4(i,j,k,l)", "a4(j,i,l,k)", [({"i", "j"},
+                                                           {0, 1}),
+                                                          ({"k", "l"},
+                                                           {2, 3})])
+                          ])
+def test_partition(lhs, rhs, partition, parser):
+    '''Tests that getting the indices of an array expressions
+    works as expected.
+    '''
+    reader = FortranStringReader(f'''program test
+                                 use my_mod, only: my_type
+                                 type(my_type) :: dv(10)
+                                 integer i, j, k, l
+                                 integer, parameter :: n=10
+                                 real, dimension(n) :: a1
+                                 real, dimension(n,n) :: a2
+                                 real, dimension(n,n,n) :: a3
+                                 real, dimension(n, n,n,n) :: a4
+                                 {lhs} = {rhs}
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    assign = psy.invokes.get("test").schedule[0]
+
+    # Get all access info for the expression
+    access_info_lhs = VariablesAccessInfo(assign.lhs)
+    access_info_rhs = VariablesAccessInfo(assign.rhs)
+
+    # Find the access that is not to i,j, or k --> this must be
+    # the 'main' array variable we need to check for:
+    sig = None
+    for sig in access_info_lhs:
+        if access_info_lhs[sig].is_array():
+            break
+
+    # Get all accesses to the array variable. It has only one
+    # access on each side (left/right)
+    access_lhs = access_info_lhs[sig][0]
+    access_rhs = access_info_rhs[sig][0]
+    partition_infos = \
+        DependencyTools.partition(access_lhs.component_indices,
+                                  access_rhs.component_indices,
+                                  ["i", "j", "k", "l"])
+    # The order of the results could be different if the code is changed,
+    # so keep this test as flexible as possible:
+    # First check that we have the same number of elements
+    assert len(partition_infos) == len(partition)
+    # Then check if each element returns is in the correct result.
+    for i, part_info in enumerate(partition_infos):
+        correct = partition[i]
+        # Check that the variables in each partition are identical.
+        # Note that the variables are stores as sets, so order does
+        # not matter:
+        assert correct[0] == part_info[0]
+
+        # Then check that the partition indices are the same as well.
+        # The partition function returns the indices as lists, so
+        # convert them to sets to get an order independent comparison:
+        assert correct[1] == set(part_info[1])
+
+
+# -----------------------------------------------------------------------------
 @pytest.mark.parametrize("declaration, variable",
                          [("integer :: a", "a"),
                           ("type(my_type) :: a", "a%scalar"),

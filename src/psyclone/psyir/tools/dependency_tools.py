@@ -369,7 +369,7 @@ class DependencyTools(object):
     @staticmethod
     def get_flat_indices(component_indices):
         '''This function takes an array reference, and returns a flat
-        list of variables used in each subscript. For example,
+        list of variable names used in each subscript. For example,
         `a(i1+i2)%b(j*j+j,k)%c(l,5)` would return `[(i1,i2),(j,k),(l),()]`.
         This result is used in partitioning subscripts in the dependency
         analysis.
@@ -382,6 +382,7 @@ class DependencyTools(object):
         :return: a list of sets with all variables used in the corresponding \
             array subscripts as strings.
         :rtype: list of sets of str
+
         '''
         indices = []
         for i in component_indices.iterate():
@@ -390,6 +391,72 @@ class DependencyTools(object):
             unique_vars = set(str(sig) for sig in index_vars.keys())
             indices.append(unique_vars)
         return indices
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def partition(comp_ind1, comp_ind2, loop_vars):
+        '''This function partitions the subscripts to the component indices
+        into disjunct sets. For example:
+        `a(i)` and `a(i+3)` results in one partition with the variable `i`,
+        `a(i)` and `a(j)` results in one partition with the variable `i`, `j`,
+        `a(i,j,k)` and `a(i,k,j)` results in two partitions,
+            one for subscript 0 (variable `i`),
+            one for subscripts 1 and 2n (variables `j` and `k`)
+
+        :param comp_ind1: component_indices of the first array access.
+        :type comp_ind1:  \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :param comp_ind2: component_indices of the first array access.
+        :type comp_ind2:  \
+            :py:class:`psyclone.core.component_indices.ComponentIndices`
+
+        :return: partition information.
+        :rtype: list of 2-tuple of set-of-str and list of integer
+
+        '''
+        # Get the (string) name of all variables used in each subscript
+        # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
+        indices_1 = DependencyTools.get_flat_indices(comp_ind1)
+        indices_2 = DependencyTools.get_flat_indices(comp_ind2)
+        # This list stores the partition information, which
+        # is a pair consisting of:
+        # - a set of all loop variables used in the subscript of
+        #   both accesses
+        # - list of all subscripts. Initially these lists contain
+        #   only one subscript, but they will be modified later
+        # Example: `a(i,j)` and `a(i,k)` -->
+        #          [ ({"i"}, [0]), ({"j","k"}, [1])]
+        partition_infos = []
+        for i, indices in enumerate(zip(indices_1, indices_2)):
+            partition_infos.append((indices[0].union(indices[1]), [i]))
+
+        # Check each loop variable to find subscripts in which they are used:
+        for loop_var in loop_vars:
+            first_use = None
+            # The partition_infos list will get modified inside the loop.
+            # So we use a while loop to accommodate this.
+            k = 0
+            while k < len(partition_infos):
+                part_info = partition_infos[k]
+                if loop_var not in part_info[0]:
+                    k += 1
+                    continue
+                # Current loop variable is used in subscript k.
+                # If this is the first usage of this loop variable,
+                # just remember this index and continue with next partition.
+                if first_use is None:
+                    first_use = k
+                    k += 1
+                    continue
+                # Partition `k` and `first_use` share a variable.
+                # Add partition info from `k` to `first_use`, and
+                # then discard partition `k`.
+                partition_infos[first_use] = \
+                    (partition_infos[first_use][0].union(part_info[0]),
+                     partition_infos[first_use][1] + part_info[1])
+                del partition_infos[k]
+
+        return partition_infos
 
     # -------------------------------------------------------------------------
     def is_scalar_parallelisable(self, var_info):
