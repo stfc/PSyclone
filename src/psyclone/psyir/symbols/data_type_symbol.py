@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the DataTypeSymbol. '''
@@ -76,7 +77,7 @@ class DataTypeSymbol(Symbol):
                           interface=self.interface)
 
     def __str__(self):
-        return "{0} : {1}".format(self.name, type(self).__name__)
+        return "{0}: {1}".format(self.name, type(self).__name__)
 
     @property
     def datatype(self):

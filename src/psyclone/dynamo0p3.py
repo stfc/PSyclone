@@ -3655,16 +3655,16 @@ class DynLMAOperators(DynCollection):
                 # This datatype has not been seen before so create new entry
                 operators_datatype_map[op_arg.data_type] = [op_arg]
         # Declare the operators
-        for operator_datatype, operators_list in operators_datatype_map.items():
-            operators_names = [arg.declaration_name for arg in operators_list]
+        for op_datatype, op_list in operators_datatype_map.items():
+            operators_names = [arg.declaration_name for arg in op_list]
             parent.add(TypeDeclGen(
-                parent, datatype=operator_datatype,
+                parent, datatype=op_datatype,
                 entity_decls=operators_names, intent="in"))
-            op_mod = operators_list[0].module_name
+            op_mod = op_list[0].module_name
             # Record that we will need to import this operator
             # datatype from the appropriate infrastructure module
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(operator_datatype))
+             add(op_datatype))
 
 
 class DynCMAOperators(DynCollection):
