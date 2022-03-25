@@ -249,7 +249,9 @@ class Routine(Schedule, CommentableMixin):
                 f"For a symbol to be a return-symbol, it must be present in "
                 f"the symbol table of the Routine but '{value.name}' is not.")
         self._return_symbol = value
-        # The routine symbol must be updated accordingly
+        # The routine symbol must be updated accordingly, this is because the
+        # function datatype is provided by the type of the return symbol which
+        # may be given after the Routine is created.
         self.symbol_table.lookup(self._name).datatype = value.datatype
 
 

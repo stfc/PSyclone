@@ -1021,7 +1021,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
     builtin = schedule.walk(BuiltIn)[0]
     arg = builtin.arguments.args[0]
     arg._precision = ""
-    
+
     generated_code = str(psy.gen)
 
     if dist_mem:

@@ -79,7 +79,8 @@ class CreateNemoPSyTrans(Transformation):
                                 ArrayReference[name:'tmp']
                                     Reference[name:'ji']
                                 BinaryOperation[operator:'MUL']
-                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                                    Literal[value:'2', Scalar<INTEGER, \
+UNDEFINED>]
                                     Reference[name:'ji']
 
     The result of this transformation is that the root `Routine` has

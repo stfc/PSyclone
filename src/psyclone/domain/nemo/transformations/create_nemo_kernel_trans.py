@@ -80,7 +80,8 @@ class CreateNemoKernelTrans(Transformation):
                                 ArrayReference[name:'tmp']
                                     Reference[name:'ji']
                                 BinaryOperation[operator:'MUL']
-                                    Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                                    Literal[value:'2.0', Scalar<REAL, \
+UNDEFINED>]
                                     Reference[name:'ji']
 
     The resulting Schedule contains a NemoKern (displayed as an

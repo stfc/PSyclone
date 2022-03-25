@@ -108,19 +108,17 @@ class Container(ScopingNode, CommentableMixin):
         '''
         if not isinstance(name, str):
             raise GenerationError(
-                "name argument in create method of Container class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
+                f"name argument in create method of Container class "
+                f"should be a string but found '{type(name).__name__}'.")
         if not isinstance(symbol_table, SymbolTable):
             raise GenerationError(
-                "symbol_table argument in create method of Container class "
-                "should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
+                f"symbol_table argument in create method of Container class "
+                f"should be a SymbolTable but found "
+                f"'{type(symbol_table).__name__}'.")
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of Container class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of Container class "
+                f"should be a list but found '{type(children).__name__}'.")
 
         container = cls(name, symbol_table=symbol_table)
         container.children = children
@@ -154,10 +152,10 @@ class Container(ScopingNode, CommentableMixin):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[{0}]".format(self.name)
+        return self.coloured_name(colour) + f"[{self.name}]"
 
     def __str__(self):
-        return "Container[{0}]\n".format(self.name)
+        return f"Container[{self.name}]\n"
 
 
 # For AutoAPI documentation generation
