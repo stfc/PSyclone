@@ -74,7 +74,7 @@ def create_matmul():
     my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
     matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                                 Reference(index)])
-    array_type = ArrayType(REAL_TYPE, [10, 20])
+    array_type = ArrayType(REAL_TYPE, [10, 20, 10])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
     lbound = BinaryOperation.create(
@@ -83,7 +83,7 @@ def create_matmul():
         BinaryOperation.Operator.UBOUND, Reference(vec_symbol), one.copy())
     my_vec_range = Range.create(lbound, ubound, one.copy())
     vector = ArrayReference.create(vec_symbol, [my_vec_range,
-                                                Reference(index)])
+                                                Reference(index), one.copy()])
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, matrix, vector)
     lhs_type = ArrayType(REAL_TYPE, [10])
@@ -260,9 +260,8 @@ def test_validate8():
 
 def test_validate9():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
-    its second (vector) argument is a reference to a vector with
-    greater than 1 dimension.
+    exception when the supplied node is a MATMUL binary operation but its
+    second argument is a reference to a matrix with more than 2 dimensions.
 
     '''
     trans = Matmul2CodeTrans()
@@ -276,15 +275,14 @@ def test_validate9():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected 2nd child of a MATMUL "
-            "BinaryOperation to have 1 dimension, but found '3'."
+            "BinaryOperation to have 1 or 2 dimensions, but found '3'."
             in str(excinfo.value))
 
 
 def test_validate10():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
-    the first two dimensions of its first (matrix) argument are not
-    full ranges.
+    the first two dimensions of its first argument are not full ranges.
 
     '''
     trans = Matmul2CodeTrans()
@@ -294,7 +292,7 @@ def test_validate10():
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, indices 0 and 1 of the "
-            "1st (matrix) argument 'x' must be full ranges."
+            "1st argument 'x' must be full ranges."
             in str(excinfo.value))
 
 
@@ -313,7 +311,7 @@ def test_validate11():
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two indices "
-            "of the 1st (matrix) argument are permitted to be Ranges but "
+            "of the 1st argument are permitted to be Ranges but "
             "found Range at index 2." in str(excinfo.value))
 
 
@@ -330,14 +328,14 @@ def test_validate12():
     vector.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, index 0 of the 2nd (vector) "
-            "argument 'x' must be a full range." in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, index 0 of the 2nd "
+            "argument 'y' must be a full range." in str(excinfo.value))
 
 
 def test_validate13():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
-    the second (or higher) dimension of the second (vector) argument is
+    the third (or higher) dimension of the second (vector) argument is
     indexed via a range.
 
     '''
@@ -345,11 +343,12 @@ def test_validate13():
     matmul = create_matmul()
     vector = matmul.children[1]
     my_range = vector.children[0].copy()
-    vector.children[1] = my_range
+    vector.children[2] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, only the first index of the "
-            "2nd (vector) argument is permitted to be a Range but found "
+    assert ("To use matmul2code_trans on matmul, only the first two "
+            "indices of the "
+            "2nd argument are permitted to be a Range but found "
             "Range at index 1." in str(excinfo.value))
 
 
@@ -381,7 +380,7 @@ def test_apply1(tmpdir):
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
         "  real, dimension(5,10,15) :: x\n"
-        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10,20,10) :: y\n"
         "  real, dimension(10) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
@@ -389,7 +388,7 @@ def test_apply1(tmpdir):
         "  do i = 1, 5, 1\n"
         "    result(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      result(i) = result(i) + x(i,j,idx) * y(j,idx)\n"
+        "      result(i) = result(i) + x(i,j,idx) * y(j,idx,1)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -397,7 +396,7 @@ def test_apply1(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply2(tmpdir):
+def test_apply2(tmpdir, fortran_writer):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes extra indices for the vector
@@ -410,13 +409,12 @@ def test_apply2(tmpdir):
     matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
     matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
     trans.apply(matmul)
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
         "  real, dimension(5,10,15) :: x\n"
-        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10,20,10) :: y\n"
         "  real, dimension(10) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
@@ -424,7 +422,7 @@ def test_apply2(tmpdir):
         "  do i = 1, 5, 1\n"
         "    result(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      result(i) = result(i) + x(i,j,1) * y(j,2)\n"
+        "      result(i) = result(i) + x(i,j,1) * y(j,2,1)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -432,7 +430,7 @@ def test_apply2(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply3(tmpdir):
+def test_apply3(tmpdir, fortran_writer):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes the array and vector being
@@ -461,8 +459,7 @@ def test_apply3(tmpdir):
     lhs_vector_symbol._shape = [ArrayType.ArrayBounds(one.copy(), ten.copy())]
     lhs_vector.replace_with(Reference(lhs_vector_symbol))
     trans.apply(matmul)
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -483,7 +480,7 @@ def test_apply3(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply4(tmpdir):
+def test_apply4(tmpdir, fortran_writer):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example make the lhs be the same array as the
@@ -499,23 +496,22 @@ def test_apply4(tmpdir):
     vector = assignment.scope.symbol_table.lookup("y")
     assignment.children[0] = ArrayReference.create(
             vector, [Range.create(one, five, one.copy()),
-                     one.copy()])
+                     one.copy(), one.copy()])
     trans.apply(matmul)
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
         "  real, dimension(5,10,15) :: x\n"
-        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10,20,10) :: y\n"
         "  real, dimension(10) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
         "  do i = 1, 5, 1\n"
-        "    y(i,1) = 0.0\n"
+        "    y(i,1,1) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      y(i,1) = y(i,1) + x(i,j,idx) * y(j,idx)\n"
+        "      y(i,1,1) = y(i,1,1) + x(i,j,idx) * y(j,idx,1)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -600,3 +596,42 @@ def test_get_array_bound():
     _check_ulbound(lower_bound, upper_bound, step, 2)
     (lower_bound, upper_bound, step) = _get_array_bound(reference, 3)
     _check_ulbound(lower_bound, upper_bound, step, 3)
+
+
+def test_apply_matrix_matrix(tmpdir, fortran_reader, fortran_writer):
+    '''
+    Check the apply method works when the second argument to matmul is a
+    matrix rather than a vector.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(3,6) :: jac\n"
+        "  real, dimension(5,3) :: jac_inv\n"
+        "  real, dimension(5,6) :: result\n"
+        "  result = matmul(jac, jac_inv)\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "subroutine my_sub()\n"
+        "  real, dimension(3,6) :: jac\n"
+        "  real, dimension(5,3) :: jac_inv\n"
+        "  real, dimension(5,6) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do i = 1, 5, 1\n"
+        "    do j = 1, 6, 1\n"
+        "      result(i,j) = 0.0\n"
+        "      do ii = 1, 3, 1\n"
+        "        result(i,j) = result(i,j) + jac(ii,i) * jac_inv(j,ii)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n"
+        "\n"
+        "end subroutine my_sub" in out)
+    assert Compile(tmpdir).string_compiles(out)

@@ -42,9 +42,8 @@ matrix vector multiply. At the moment this transformation is limited
 to matrix vector multiply.
 
 '''
-from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, DataNode
+    Loop, Literal, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
@@ -78,8 +77,9 @@ def _get_array_bound(array, index):
 
     my_dim = array.symbol.shape[index]
     if isinstance(my_dim, ArrayType.ArrayBounds):
-        lower_bound = my_dim.lower
-        upper_bound = my_dim.upper
+        # Use .copy() to ensure we return new nodes.
+        lower_bound = my_dim.lower.copy()
+        upper_bound = my_dim.upper.copy()
     elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),
@@ -98,11 +98,10 @@ def _get_array_bound(array, index):
 class Matmul2CodeTrans(Operator2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
-    performed. Currently only the matrix vector version of MATMUL is
-    supported.
+    performed.
 
-    If the dimensions of ``R``, ``A``, and ``B`` are ``R(N)``,
-    ``A(N,M)``, ``B(M)``, The transformation replaces:
+    For a matrix-vector multiplication, if the dimensions of ``R``, ``A``,
+    and ``B`` are ``R(N)``, ``A(N,M)``, ``B(M)``, the transformation replaces:
 
     .. code-block:: fortran
 
@@ -116,6 +115,18 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             R(i) = 0.0
                 do j=1,M
                     R(i) = R(i) + A(i,j) * B(j)
+
+    For a matrix-matrix multiplication, if the dimensions of ``R``, ``A``,
+    and ``B`` are ``R(P,M)``, ``A(N,M)``, ``B(P,N)``, the MATMUL is replaced
+    with the following code:
+
+    .. code-block:: fortran
+
+        do i=1,P
+            do j=1,M
+                R(i,j) = 0.0
+                do ii=1,N
+                    R(i,j) = R(i,j) + A(ii,i) * B(j,ii)
 
     '''
     def __init__(self):
@@ -139,6 +150,8 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             operation is not an assignment.
         :raises TransformationError: if the matmul arguments are not in \
             the required form.
+        :raises NotImplementedError: if sub-sections of an array are present \
+            in the arguments.
 
         '''
         # pylint: disable=too-many-branches
@@ -185,8 +198,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                 "".format(len(matrix.symbol.shape)))
         if len(matrix.symbol.shape) > 2 and not matrix.children:
             # If the matrix has no children then it is a reference. If
-            # it is a reference then the number of arguments must be
-            # 2.
+            # it is a reference then the number of arguments must be 2.
             raise TransformationError(
                 "Expected 1st child of a MATMUL BinaryOperation to have 2 "
                 "dimensions, but found '{0}'."
@@ -208,31 +220,30 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # dimension.
             if not (matrix.is_full_range(0) and matrix.is_full_range(1)):
                 raise NotImplementedError(
-                    "To use matmul2code_trans on matmul, indices 0 and 1 of "
-                    "the 1st (matrix) argument '{0}' must be full ranges."
-                    "".format(matrix.name))
+                    f"To use matmul2code_trans on matmul, indices 0 and 1 of "
+                    f"the 1st argument '{matrix.name}' must be full ranges.")
 
             if len(matrix.children) > 2:
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix.children[2:]):
                     if isinstance(index, Range):
                         raise NotImplementedError(
-                            "To use matmul2code_trans on matmul, only the "
-                            "first two indices of the 1st (matrix) argument "
-                            "are permitted to be Ranges but found {0} at "
-                            "index {1}.".format(type(index).__name__, count+2))
+                            f"To use matmul2code_trans on matmul, only the "
+                            f"first two indices of the 1st argument are "
+                            f"permitted to be Ranges but found "
+                            f"{type(index).__name__} at index {count+2}.")
 
-        if len(vector.symbol.shape) > 1 and not vector.children:
+        if len(vector.symbol.shape) > 2 and not vector.children:
             # If the vector has no children then it is a reference. If
-            # it is a reference then the number of arguments must be
-            # 1.
+            # it is a reference then the number of dimensions must be
+            # 1 or 2.
             raise TransformationError(
                 "Expected 2nd child of a MATMUL BinaryOperation to have 1 "
-                "dimension, but found '{0}'."
+                "or 2 dimensions, but found '{0}'."
                 "".format(len(vector.symbol.shape)))
-        if len(vector.symbol.shape) == 1 and not vector.children:
-            # If the vector only has 1 dimension and all of its data is
-            # used in the matrix vector multiply then the reference does
+        if len(vector.symbol.shape) in [1, 2] and not vector.children:
+            # If the 2nd argument only has 1 or 2 dimensions and all of its
+            # data is used in the matrix multiply then the reference does
             # not need to supply any dimension information.
             pass
         else:
@@ -244,43 +255,65 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # specify the full extent of the dimension.
             if not vector.is_full_range(0):
                 raise NotImplementedError(
-                    "To use matmul2code_trans on matmul, index 0 of the 2nd "
-                    "(vector) argument '{0}' must be a full range."
-                    "".format(matrix.name))
-            if len(vector.children) > 1:
-                # The 2nd index and onwards must not be ranges.
-                for (count, index) in enumerate(vector.children[1:]):
+                    f"To use matmul2code_trans on matmul, index 0 of the 2nd "
+                    f"argument '{vector.name}' must be a full range.")
+            # Check that the second dimension is a full range if it is
+            # a range.
+            if (len(vector.symbol.shape) > 1 and isinstance(vector.children[1],
+                                                            Range)
+                    and not vector.is_full_range(1)):
+                raise NotImplementedError(
+                    f"To use matmul2code_trans on matmul for a matrix-matrix "
+                    f"multiplication, index 1 of the 2nd "
+                    f"argument '{vector.name}' must be a full range.")
+            if len(vector.children) > 2:
+                # The 3rd index and onwards must not be ranges.
+                for (count, index) in enumerate(vector.children[2:]):
                     if isinstance(index, Range):
                         raise NotImplementedError(
-                            "To use matmul2code_trans on matmul, only the "
-                            "first index of the 2nd (vector) argument is "
-                            "permitted to be a Range but found {0} at index "
-                            "{1}.".format(type(index).__name__, count+1))
+                            f"To use matmul2code_trans on matmul, only the "
+                            f"first two indices of the 2nd argument are "
+                            f"permitted to be a Range but found "
+                            f"{type(index).__name__} at index {count+1}.")
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
         specified node. This node must be a MATMUL
-        BinaryOperation. Currently only the matrix vector version of
-        MATMUL is supported. The arguments are permitted to have
-        additional dimensions (i.e. more than 2 for the matrix and
-        more than 1 for the vector) but the matrix can only have two
-        indices which are ranges and these must be the first two
-        indices and the vector can only have one index that is a range
-        and this must be the first index. Further, the ranges must be
-        for the full index space for that dimension (i.e. array
+        BinaryOperation. Each argument is permitted to have
+        additional dimensions (i.e. more than 2) but in each case it is only
+        the first two which may be ranges. Further, the ranges must currently
+        be for the full index space for that dimension (i.e. array
         subsections are not supported). If the transformation is
         successful then an assignment which includes a MATMUL
         BinaryOperation node is converted to equivalent inline code.
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :param options: a dictionary with options for the transformation.
+        :type options: dict of str:values or None
+
+        '''
+        self.validate(node)
+
+        arg2 = node.children[1]
+        if (len(arg2.children) > 1 and isinstance(arg2.children[1], Range) or
+                not arg2.children and len(arg2.symbol.shape) == 2):
+            self._apply_matrix_matrix(node, options=options)
+        else:
+            self._apply_matrix_vector(node, options=options)
+
+    def _apply_matrix_vector(self, node, options=None):
+        '''
+        Apply the transformation for the case of a matrix-vector
+        multiplication.
+
+        :param node: a MATMUL Binary-Operation node.
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param options: a dictionary with options for the transformation.
+        :type options: dict of str:values or None
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node)
-
         assignment = node.parent
         matrix = node.children[0]
         vector = node.children[1]
@@ -338,6 +371,83 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
         iloop = Loop.create(i_loop_symbol, lower_bound, upper_bound, step,
                             [assign, jloop])
+        # Add the new code to the PSyIR
+        assignment.parent.children.insert(assignment.position, iloop)
+        # remove the original matmul
+        assignment.parent.children.remove(assignment)
+
+    def _apply_matrix_matrix(self, node, options=None):
+        '''
+        Apply the transformation for the case of a matrix-matrix
+        multiplication.
+
+        :param node: a MATMUL Binary-Operation node.
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param options: a dictionary with options for the transformation.
+        :type options: dict of str:values or None
+
+        '''
+        # pylint: disable=too-many-locals
+        assignment = node.parent
+        matrix1 = node.children[0]
+        matrix2 = node.children[1]
+        result = node.parent.lhs
+        result_symbol = result.symbol
+
+        # Create new i, j and ii loop iterators.
+        symbol_table = node.scope.symbol_table
+        i_loop_symbol = symbol_table.new_symbol("i", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
+        j_loop_symbol = symbol_table.new_symbol("j", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
+        ii_loop_symbol = symbol_table.new_symbol("ii", symbol_type=DataSymbol,
+                                                 datatype=INTEGER_TYPE)
+        # Create "result(i,j)"
+        result_dims = [Reference(i_loop_symbol), Reference(j_loop_symbol)]
+        if len(result.children) > 2:
+            # Add any additional dimensions (in case of an array slice)
+            for child in result.children[2:]:
+                result_dims.append(child.copy())
+        result_ref = ArrayReference.create(result_symbol, result_dims)
+        # Create "matrix2(j,ii)"
+        m2_dims = [Reference(j_loop_symbol), Reference(ii_loop_symbol)]
+        if len(matrix2.children) > 2:
+            # Add any additional dimensions (in case of an array slice)
+            for child in matrix2.children[2:]:
+                m2_dims.append(child.copy())
+        m2_array_reference = ArrayReference.create(matrix2.symbol, m2_dims)
+        # Create "matrix1(ii,i)"
+        m1_dims = [Reference(ii_loop_symbol), Reference(i_loop_symbol)]
+        if len(matrix1.children) > 2:
+            # Add any additional dimensions (in case of an array slice)
+            for child in matrix1.children[2:]:
+                m1_dims.append(child.copy())
+        m1_array_reference = ArrayReference.create(matrix1.symbol, m1_dims)
+        # Create "matrix1(ii,i) * matrix2(j,ii)"
+        multiply = BinaryOperation.create(
+            BinaryOperation.Operator.MUL, m1_array_reference,
+            m2_array_reference)
+        # Create "result(i,j) + matrix1(ii,i) * matrix2(j,ii)"
+        rhs = BinaryOperation.create(
+            BinaryOperation.Operator.ADD, result_ref, multiply)
+        # Create "result(i,j) = result(i,j) + matrix1(ii,i) * matrix2(j,ii)"
+        assign = Assignment.create(result_ref.copy(), rhs)
+        # Create ii loop and add the above code as a child
+        # Work out the bounds
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, 0)
+        iiloop = Loop.create(ii_loop_symbol, lower_bound, upper_bound, step,
+                             [assign])
+        # Create "result(i,j) = 0.0"
+        assign = Assignment.create(result_ref.copy(),
+                                   Literal("0.0", REAL_TYPE))
+        # Create j loop and add assignment and ii loop as children.
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, 1)
+        jloop = Loop.create(j_loop_symbol, lower_bound, upper_bound, step,
+                            [assign, iiloop])
+        # Create i loop and add  j loop as child.
+        lower_bound, upper_bound, step = _get_array_bound(matrix2, 0)
+        iloop = Loop.create(i_loop_symbol, lower_bound, upper_bound, step,
+                            [jloop])
         # Add the new code to the PSyIR
         assignment.parent.children.insert(assignment.position, iloop)
         # remove the original matmul
