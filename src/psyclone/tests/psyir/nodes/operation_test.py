@@ -243,7 +243,6 @@ def test_operation_replacearg():
     assert len(binary_operation._named_args) == 2
 
 
-# TODO re-order args
 def test_operation_reorderearg():
     '''Test the named_args property makes things consistent if child
     arguments are re-order. This is used transparently by the class to
@@ -270,8 +269,6 @@ def test_operation_reorderearg():
     assert binary_operation.named_args == ["name2", "name1"]
     assert len(binary_operation._named_args) == 2
 
-
-# Then call. Then documentation?
 
 # Test BinaryOperation class
 def test_binaryoperation_initialization():

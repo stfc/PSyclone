@@ -38,7 +38,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Call, Reference, ArrayReference, Schedule
+from psyclone.psyir.nodes import (
+    Call, Reference, ArrayReference, Schedule, Literal)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol, NoType
@@ -160,6 +161,185 @@ def test_call_create_error5():
                 "arg1", INTEGER_TYPE)), ("name", None)])
     assert ("Item 'NoneType' can't be child 1 of 'Call'. The valid format "
             "is: '[DataNode]*'." in str(info.value))
+
+
+def test_call_appendnamedarg():
+    '''Test the append_named_arg method in the Call class. Check
+    it raises the expected exceptions if arguments are invalid and
+    that it works as expected when the input is valid.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("hello"), [])
+    # name arg wrong type
+    with pytest.raises(TypeError) as info:
+        call.append_named_arg(1, op1)
+    assert ("The 'name' argument in 'append_named_arg' in the 'Call' "
+            "node should be a string or None, but found int."
+            in str(info.value))
+    call.append_named_arg("name1", op1)
+    # name arg already used
+    with pytest.raises(ValueError) as info:
+        call.append_named_arg("name1", op2)
+    assert ("The value of the name argument (name1) in 'append_named_arg' in "
+            "the 'Call' node is already used for a named argument."
+            in str(info.value))
+    # ok
+    call.append_named_arg("name2", op2)
+    assert call.children == [op1, op2]
+    assert call.named_args == ["name1", "name2"]
+
+
+def test_call_insertnamedarg():
+    '''Test the insert_named_arg method in the Call class. Check
+    it raises the expected exceptions if arguments are invalid and
+    that it works as expected when the input is valid.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("hello"), [])
+    # name arg wrong type
+    with pytest.raises(TypeError) as info:
+        call.insert_named_arg(1, op1, 0)
+    assert ("The 'name' argument in 'insert_named_arg' in the 'Call' "
+            "node should be a string or None, but found int."
+            in str(info.value))
+    call.insert_named_arg("name1", op1, 0)
+    # name arg already used
+    with pytest.raises(ValueError) as info:
+        call.insert_named_arg("name1", op2, 0)
+    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
+            "the 'Call' node is already used for a named argument."
+            in str(info.value))
+    # invalid index type
+    with pytest.raises(ValueError) as info:
+        call.insert_named_arg("name1", op2, "hello")
+    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
+            "the 'Call' node is already used for a named argument."
+            in str(info.value))
+    # ok
+    assert call.children == [op1]
+    assert call.named_args == ["name1"]
+    call.insert_named_arg("name2", op2, 0)
+    assert call.children == [op2, op1]
+    assert call.named_args == ["name2", "name1"]
+
+
+def test_operation_replacenamedarg():
+    '''Test the replace_named_arg method in the Call class. Check
+    it raises the expected exceptions if arguments are invalid and
+    that it works as expected when the input is valid.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    op3 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("hello"),
+                       [("name1", op1), ("name2", op2)])
+
+    # name arg wrong type
+    with pytest.raises(TypeError) as info:
+        call.replace_named_arg(1, op3)
+    assert ("The 'name' argument in 'replace_named_arg' in the 'Call' "
+            "node should be a string or None, but found int."
+            in str(info.value))
+    # name arg is not found
+    with pytest.raises(ValueError) as info:
+        call.replace_named_arg("new_name", op3)
+    assert ("The value of the existing_name argument (new_name) in "
+            "'insert_named_arg' in the 'Call' node is not found in the "
+            "existing arguments." in str(info.value))
+    # ok
+    assert call.children == [op1, op2]
+    assert call.named_args == ["name1", "name2"]
+    call.replace_named_arg("name1", op3)
+    assert call.children == [op3, op2]
+    assert call.named_args == ["name1", "name2"]
+
+
+def test_call_removearg():
+    '''Test the named_args property makes things consistent if a child
+    argument is removed. This is used transparently by the class to
+    keep things consistent.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    assert len(call.children) == 2
+    assert len(call._named_args) == 2
+    assert call.named_args == ["name1", "name2"]
+    call.children.pop(0)
+    assert len(call.children) == 1
+    assert len(call._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert call.named_args == ["name2"]
+    assert len(call._named_args) == 1
+
+
+def test_call_addarg():
+    '''Test the named_args property makes things consistent if a child
+    argument is added. This is used transparently by the class to
+    keep things consistent.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    op3 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    assert len(call.children) == 2
+    assert len(call._named_args) == 2
+    assert call.named_args == ["name1", "name2"]
+    call.children.append(op3)
+    assert len(call.children) == 3
+    assert len(call._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert call.named_args == ["name1", "name2", None]
+    assert len(call._named_args) == 3
+
+
+def test_call_replacearg():
+    '''Test the named_args property makes things consistent if a child
+    argument is replaced. This is used transparently by the class to
+    keep things consistent.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    op3 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    assert len(call.children) == 2
+    assert len(call._named_args) == 2
+    assert call.named_args == ["name1", "name2"]
+    call.children[0] = op3
+    assert len(call.children) == 2
+    assert len(call._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert call.named_args == [None, "name2"]
+    assert len(call._named_args) == 2
+
+
+def test_call_reorderarg():
+    '''Test the named_args property makes things consistent if a child
+    argument is replaced. This is used transparently by the class to
+    keep things consistent.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    op3 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    assert len(call.children) == 2
+    assert len(call._named_args) == 2
+    assert call.named_args == ["name1", "name2"]
+    call.children[0] = op3
+    assert len(call.children) == 2
+    assert len(call._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert call.named_args == [None, "name2"]
+    assert len(call._named_args) == 2
 
 
 def test_call_node_str():
