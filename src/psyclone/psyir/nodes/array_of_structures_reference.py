@@ -129,7 +129,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             ref.addchild(child)
         return ref
 
-    def _array_notation_rank(self):
+    def rank_of_subsection(self):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
         of the array that uses array notation. e.g. for a reference
@@ -152,7 +152,7 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         :raises NotImplementedError: if any ranges are encountered that are \
                                      not for the full extent of the dimension.
         '''
-        StructureReference._array_notation_rank(self)
+        return StructureReference.rank_of_subsection(self)
 
 
 # For AutoAPI documentation generation

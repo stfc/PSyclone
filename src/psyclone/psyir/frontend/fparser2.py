@@ -2751,79 +2751,6 @@ class Fparser2Reader(object):
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
 
-    @staticmethod
-    def _array_notation_rank(node):
-        '''Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section
-        of the array that uses array notation. e.g. for a reference
-        "a(:, 2, :)" the rank of the sub-section is 2.
-
-        :param node: the reference to check.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
-            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-
-        :returns: rank of the sub-section of the array.
-        :rtype: int
-
-        :raises InternalError: if no ArrayMixin node with at least one \
-                               Range in its indices is found.
-        :raises InternalError: if two or more part references in a \
-                               structure reference contain ranges.
-        :raises NotImplementedError: if the supplied node is not of a \
-                                     supported type.
-        :raises NotImplementedError: if any ranges are encountered that are \
-                                     not for the full extent of the dimension.
-        '''
-        if isinstance(node, (ArrayReference, ArrayMember)):
-            array = node
-        elif isinstance(node, StructureReference):
-            array = None
-            arrays = node.walk((ArrayMember, ArrayOfStructuresMixin))
-            for part_ref in arrays:
-                if any(isinstance(idx, Range) for idx in part_ref.indices):
-                    if array:
-                        # Cannot have two or more part references that contain
-                        # ranges - this is not valid Fortran.
-                        # pylint: disable=import-outside-toplevel
-                        from psyclone.psyir.backend.fortran import (
-                            FortranWriter)
-                        lang_writer = FortranWriter()
-                        raise InternalError(
-                            f"Found a structure reference containing two or "
-                            f"more part references that have ranges: "
-                            f"'{lang_writer(node)}'. This is not valid within "
-                            f"a WHERE in Fortran.")
-                    array = part_ref
-            if not array:
-                raise InternalError(
-                    f"No array access found in node '{node.name}'")
-        else:
-            # This will result in a CodeBlock.
-            raise NotImplementedError(
-                f"Expected either an ArrayReference, ArrayMember or a "
-                f"StructureReference but got '{type(node).__name__}'")
-
-        # Only array refs using basic colon syntax are currently
-        # supported e.g. (a(:,:)).  Each colon is represented in the
-        # PSyIR as a Range node with first argument being an lbound
-        # binary operator, the second argument being a ubound operator
-        # and the third argument being an integer Literal node with
-        # value 1 i.e. a(:,:) is represented as
-        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
-        # the PSyIR.
-        num_colons = 0
-        for idx_node in array.indices:
-            if isinstance(idx_node, Range):
-                # Found array syntax notation. Check that it is the
-                # simple ":" format.
-                if not _is_range_full_extent(idx_node):
-                    raise NotImplementedError(
-                        "Only array notation of the form my_array(:, :, ...) "
-                        "is supported.")
-                num_colons += 1
-        return num_colons
-
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
         Utility function that modifies each ArrayReference object in the
@@ -2853,7 +2780,7 @@ class Fparser2Reader(object):
                 raise NotImplementedError(
                     "Currently (#717) all assignments inside a WHERE must "
                     "use array notation on the LHS.")
-            _ = assign.lhs._array_notation_rank()
+            _ = assign.lhs.rank_of_subsection()
 
         # TODO #717 if the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
@@ -2990,7 +2917,7 @@ class Fparser2Reader(object):
 
         # All array sections in a Fortran WHERE must have the same rank so
         # just look at the first array.
-        rank = first_array._array_notation_rank()
+        rank = first_array.rank_of_subsection()
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]

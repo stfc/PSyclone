@@ -189,32 +189,6 @@ def test_missing_array_notation_in_assign():
 
 
 @pytest.mark.usefixtures("parser")
-def test_where_array_notation_rank():
-    ''' Test that the _array_notation_rank() utility raises the expected
-    errors when passed an unsupported Array object.
-
-    #TODO move this test into correct file.
-    '''
-    array_type = ArrayType(REAL_TYPE, [10])
-    symbol = DataSymbol("my_array", array_type)
-    my_array = ArrayReference(symbol)
-    with pytest.raises(InternalError) as err:
-        my_array._array_notation_rank()
-    assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but array "
-            "'my_array' has none." in str(err.value))
-    array_type = ArrayType(REAL_TYPE, [10])
-    my_array = ArrayReference.create(
-        DataSymbol("my_array", array_type),
-        [Range.create(Literal("1", INTEGER_TYPE),
-                      Literal("10", INTEGER_TYPE))])
-    with pytest.raises(NotImplementedError) as err:
-        my_array._array_notation_rank()
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
-
-
-@pytest.mark.usefixtures("parser")
 def test_different_ranks_error():
     ''' Check that a WHERE construct containing array references of different
     ranks results in the creation of a CodeBlock.
@@ -225,36 +199,6 @@ def test_different_ranks_error():
                                    "END WHERE\n", Fortran2003.Where_Construct,
                                    ["dry", "z1_st", "depth", "ptsu"])
     assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-@pytest.mark.usefixtures("parser")
-def test_array_notation_rank():
-    ''' Check that the _array_notation_rank() utility handles various examples
-    of array notation.
-
-    # TODO move this test.
-    '''
-    fake_parent = Schedule()
-    fake_parent.symbol_table.new_symbol("z1_st")
-    fake_parent.symbol_table.new_symbol("ptsu")
-    fake_parent.symbol_table.new_symbol("n")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("  z1_st(:, 2, :) = ptsu(:, :, 3)")
-    fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec])
-    assert fake_parent[0].lhs._array_notation_rank() == 2
-    reader = FortranStringReader("  z1_st(:, :, 2, :) = ptsu(:, :, :, 3)")
-    fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec])
-    assert fake_parent[1].lhs._array_notation_rank() == 3
-    # We don't support bounds on slices
-    reader = FortranStringReader("  z1_st(:, 1:n, 2, :) = ptsu(:, :, :, 3)")
-    fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec])
-    with pytest.raises(NotImplementedError) as err:
-        fake_parent[2].lhs._array_notation_rank()
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
 
 
 def test_where_symbol_clash(fortran_reader):

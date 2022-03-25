@@ -177,7 +177,7 @@ class StructureReference(Reference):
             subref = ArrayMember.create(members[-1][0], members[-1][1])
 
             if any(isinstance(idx_expr, Range) for idx_expr in members[-1][1]):
-                member_with_range = members[1][0]
+                member_with_range = members[-1][0]
 
         elif isinstance(members[-1], six.string_types):
             # A member access
@@ -246,7 +246,7 @@ class StructureReference(Reference):
                     type(self).__name__, self.children))
         return self.children[0]
 
-    def _array_notation_rank(self):
+    def rank_of_subsection(self):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
         of the array that uses array notation. e.g. for a reference
@@ -270,14 +270,14 @@ class StructureReference(Reference):
                                      not for the full extent of the dimension.
         '''
         from psyclone.errors import InternalError
-        ranks = []
+        ranks = 0
         if isinstance(self, ArrayMixin):
-            ranks.append(self.rank_of_subsection)
-        ranks.extend(self.member._array_notation_rank())
+            ranks += ArrayMixin.rank_of_subsection(self)
+        ranks += self.member.rank_of_subsection()
 
-        non_zero_ranks = [rank for rank in ranks if rank > 0]
+        #non_zero_ranks = [rank for rank in ranks if rank > 0]
 
-        if len(non_zero_ranks) > 1:
+        if False: #len(non_zero_ranks) > 1:
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.backend.fortran import FortranWriter
             lang_writer = FortranWriter()
@@ -286,10 +286,10 @@ class StructureReference(Reference):
                 f"references that have ranges: '{lang_writer(self)}'. "
                 f"This is not valid PSyIR.")
 
-        if not non_zero_ranks:
+        if False: #not non_zero_ranks:
             raise InternalError(
                 "No array access found in node '{0}'".format(self.name))
-        return ranks[0]
+        return ranks #[0]
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \

@@ -80,7 +80,6 @@ def test_ubound_lbound_arg(fortran_reader):
             "  type(my_type) :: var, vars(3)\n"
             "  var%region%subgrid(3)%data(:) = 1.0\n"
             "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
-            "  vars(1)%region%subgrid(:)%data(:) = 1.0\n"
             "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
             "end subroutine my_sub\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -97,20 +96,8 @@ def test_ubound_lbound_arg(fortran_reader):
     assert arg.member.member.member.name == "data"
     assert isinstance(arg.member.member.member, Member)
     assert not isinstance(arg.member.member.member, ArrayMember)
-    # vars(1)%region%subgrid(:)%data(:)
-    assign = assignments[2]
-    # For the first colon
-    arg = _copy_full_base_reference(assign.lhs.member.member)
-    assert arg.member.member.name == "subgrid"
-    assert isinstance(arg.member.member, Member)
-    assert not isinstance(arg.member.member, (ArrayMember, StructureMember))
-    # For the second colon
-    arg = _copy_full_base_reference(assign.lhs.member.member.member)
-    assert arg.member.member.member.name == "data"
-    assert isinstance(arg.member.member.member, Member)
-    assert not isinstance(arg.member.member.member, ArrayMember)
     # vars(:)%region%subgrid(3)%xstop
-    assign = assignments[3]
+    assign = assignments[2]
     arg = _copy_full_base_reference(assign.lhs)
     assert arg.symbol.name == "vars"
     assert isinstance(arg, Reference)

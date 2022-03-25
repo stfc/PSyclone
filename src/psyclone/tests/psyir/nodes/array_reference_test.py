@@ -482,3 +482,54 @@ def test_array_same_array():
     # A Reference to the array symbol should also match
     bare_array = Reference(test_sym)
     assert array.is_same_array(bare_array) is True
+
+
+@pytest.mark.usefixtures("parser")
+def test_subsection_rank_errors():
+    ''' Test that the rank_of_subsection() utility raises the expected
+    errors when passed an unsupported Array object.
+
+    '''
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("my_array", array_type)
+    my_array = ArrayReference(symbol)
+    with pytest.raises(InternalError) as err:
+        my_array.rank_of_subsection
+    assert ("ArrayReference malformed or incomplete: must have one or more "
+            "children representing array-index expressions but array "
+            "'my_array' has none." in str(err.value))
+    array_type = ArrayType(REAL_TYPE, [10])
+    my_array = ArrayReference.create(
+        DataSymbol("my_array", array_type),
+        [Range.create(Literal("1", INTEGER_TYPE),
+                      Literal("10", INTEGER_TYPE))])
+    with pytest.raises(NotImplementedError) as err:
+        my_array.rank_of_subsection
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))
+
+
+@pytest.mark.usefixtures("parser")
+def test_array_subsection_rank(fortran_reader):
+    ''' Check that the rank_of_subsection() utility handles various examples
+    of array notation.
+
+    '''
+    fake_parent = KernelSchedule()
+    table = fake_parent.symbol_table
+    table.new_symbol("z1_st")
+    table.new_symbol("ptsu")
+    table.new_symbol("n")
+    psyir = fortran_reader.psyir_from_statement(
+        "z1_st(:, 2, :) = ptsu(:, :, 3)", table)
+    assert psyir.lhs.rank_of_subsection == 2
+    psyir = fortran_reader.psyir_from_statement(
+        "z1_st(:, :, 2, :) = ptsu(:, :, :, 3)", table)
+    assert psyir.lhs._array_notation_rank() == 3
+    # We don't support bounds on slices
+    psyir = fortran_reader.psyir_from_statement(
+        "z1_st(:, 1:n, 2, :) = ptsu(:, :, :, 3)", table)
+    with pytest.raises(NotImplementedError) as err:
+        psyir.lhs.rank_of_subsection()
+    assert ("Only array notation of the form my_array(:, :, ...) is "
+            "supported." in str(err.value))

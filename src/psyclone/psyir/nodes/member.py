@@ -123,7 +123,7 @@ class Member(Node):
         '''
         return (Signature(self.name), [[]])
 
-    def _array_notation_rank(self):
+    def rank_of_subsection(self):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
         of the array that uses array notation. e.g. for a reference
@@ -147,11 +147,11 @@ class Member(Node):
                                      not for the full extent of the dimension.
         '''
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
-        ranks = []
+        ranks = 0
         if isinstance(self, ArrayMixin):
-            ranks.append(self.rank_of_subsection)
+            ranks += self.rank_of_subsection
         if hasattr(self, "member"):
-            ranks.extend(self.member._array_notation_rank())
+            ranks += self.member.rank_of_subsection()
         return ranks
 
 

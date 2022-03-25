@@ -293,7 +293,6 @@ class ArrayMixin(object):
                     return True
         return False
 
-    @property
     def rank_of_subsection(self, lang_writer=None):
         '''Check that the supplied candidate array reference uses supported
         array notation syntax and return the rank of the sub-section
