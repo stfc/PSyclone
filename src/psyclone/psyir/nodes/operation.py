@@ -80,7 +80,103 @@ class Operation(DataNode):
                 f"{type(self).__name__}.Operator but found "
                 f"{type(operator).__name__}.")
         self._operator = operator
-        self._named_args = None
+        self._named_args = []
+
+    def append_named_arg(self, name, arg):
+        '''Append a named argument to this operation.
+
+           :param name: the argument name.
+           :type name: str or NoneType
+           :param arg: the argument expression.
+           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+
+           :raises TypeError: if the name argument is the wrong type.
+           :raises ValueError: if the name argument is already used \
+               for an existing argument.
+
+        '''
+        if name is not None:
+            if not isinstance(name, str):
+                raise TypeError(
+                    f"The 'name' argument in 'append_named_arg' in the "
+                    f"'Operator' node should be a string or None, but found "
+                    f"{type(name).__name__}.")
+            for check_name in self.named_args:
+                if check_name and check_name.lower() == name.lower():
+                    raise ValueError(
+                        f"The value of the name argument ({name}) in "
+                        f"'append_named_arg' in the 'Operator' node is "
+                        f"already used for a named argument.")
+        self._named_args.append((id(arg), name))
+        self.children.append(arg)
+
+    def insert_named_arg(self, name, arg, index):
+        '''Insert a named argument to the operation.
+
+           :param name: the argument name.
+           :type name: str or NoneType
+           :param arg: the argument expression.
+           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+           :param int index: where in the argument list to insert the \
+               named argument.
+
+           :raises TypeError: if the name argument is the wrong type.
+           :raises ValueError: if the name argument is already used \
+               for an existing argument.
+           :raises TypeError: if the index argument is the wrong type.
+
+        '''
+        if name is not None:
+            if not isinstance(name, str):
+                raise TypeError(
+                    f"The 'name' argument in 'insert_named_arg' in the "
+                    f"'Operator' node should be a string or None, but found "
+                    f"{type(name).__name__}.")
+            for check_name in self.named_args:
+                if check_name and check_name.lower() == name.lower():
+                    raise ValueError(
+                        f"The value of the name argument ({name}) in "
+                        f"'insert_named_arg' in the 'Operator' node is "
+                        f"already used for a named argument.")
+        if not isinstance(index, int):
+            raise TypeError(
+                f"The 'index' argument in 'insert_named_arg' in the "
+                f"'Operator' node should be an int but found "
+                f"{type(index).__name__}.")
+        self._named_args.insert(index, (id(arg), name))
+        self.children.insert(index, arg)
+
+    def replace_named_arg(self, existing_name, arg):
+        '''Replace one named argument with another (for an Operation node).
+
+           :param str existing_name: the argument name.
+           :param arg: the argument expression.
+           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+
+           :raises TypeError: if the name argument is the wrong type.
+           :raises ValueError: if the name argument is already used \
+               for an existing argument.
+           :raises TypeError: if the index argument is the wrong type.
+
+        '''
+        if not isinstance(existing_name, str):
+            raise TypeError(
+                f"The 'name' argument in 'replace_named_arg' in the "
+                f"'Operator' node should be a string or None, but found "
+                f"{type(existing_name).__name__}.")
+        index = 0
+        # pylint: disable=undefined-loop-variable
+        for named_arg in self._named_args:
+            if named_arg[1].lower() == existing_name:
+                break
+            index += 1
+        else:
+            raise ValueError(
+                f"The value of the existing_name argument ({existing_name}) "
+                f"in 'insert_named_arg' in the 'Operator' node is not found "
+                f"in the existing arguments.")
+        self.children[index] = arg
+        self._named_args[index] = (id(arg), named_arg[1])
 
     @property
     def operator(self):
@@ -115,7 +211,19 @@ class Operation(DataNode):
             entry is None then the argument is a positional argument.
         :rtype: List[Union[str, NoneType]]
         '''
-        return self._named_args
+        # Update _named_args in case child arguments have been
+        # removed, added or modified.
+        new_named_args = []
+        for child in self.children:
+            for arg in self._named_args:
+                if id(child) == arg[0]:
+                    new_named_args.append(arg)
+                    break
+            else:
+                new_named_args.append((id(child), None))
+        self._named_args = new_named_args
+
+        return [entry[1] for entry in self._named_args]
 
     def is_elemental(self):
         '''
@@ -129,8 +237,8 @@ class Operation(DataNode):
     def __str__(self):
         result = f"{self.node_str(False)}\n"
         for idx, entity in enumerate(self._children):
-            if self._named_args and self._named_args[idx]:
-                result += f"{self._named_args[idx]}={str(entity)}\n"
+            if self.named_args[idx]:
+                result += f"{self.named_args[idx]}={str(entity)}\n"
             else:
                 result += f"{str(entity)}\n"
 
@@ -196,7 +304,8 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(operator, UnaryOperation.Operator):
+        if not isinstance(operator, Enum) or \
+           operator not in UnaryOperation.Operator:
             raise GenerationError(
                 f"operator argument in create method of UnaryOperation class "
                 f"should be a PSyIR UnaryOperation Operator but found "
@@ -218,8 +327,7 @@ class UnaryOperation(Operation):
                     f"{type(operand[0]).__name__}.")
             name, operand = operand
 
-        unary_op._named_args = [name]
-        unary_op.children = [operand]
+        unary_op.append_named_arg(name, operand)
         return unary_op
 
 
@@ -363,7 +471,8 @@ class BinaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(operator, BinaryOperation.Operator):
+        if not isinstance(operator, Enum) or \
+           operator not in BinaryOperation.Operator:
             raise GenerationError(
                 f"operator argument in create method of BinaryOperation class "
                 f"should be a PSyIR BinaryOperation Operator but found "
@@ -389,8 +498,8 @@ class BinaryOperation(Operation):
         if isinstance(rhs, tuple):
             rhs_name, rhs = rhs
         binary_op = BinaryOperation(operator)
-        binary_op._named_args = [lhs_name, rhs_name]
-        binary_op.children = [lhs, rhs]
+        binary_op.append_named_arg(lhs_name, lhs)
+        binary_op.append_named_arg(rhs_name, rhs)
         return binary_op
 
 
@@ -444,7 +553,8 @@ class NaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(operator, NaryOperation.Operator):
+        if not isinstance(operator, Enum) or \
+           operator not in NaryOperation.Operator:
             raise GenerationError(
                 f"operator argument in create method of NaryOperation class "
                 f"should be a PSyIR NaryOperation Operator but found "
@@ -453,8 +563,8 @@ class NaryOperation(Operation):
             raise GenerationError(
                 f"operands argument in create method of NaryOperation class "
                 f"should be a list but found '{type(operands).__name__}'.")
-        names = []
-        args = []
+
+        nary_op = NaryOperation(operator)
         for operand in operands:
             name = None
             if isinstance(operand, tuple):
@@ -470,12 +580,7 @@ class NaryOperation(Operation):
                         f"its first argument should be a str, but found "
                         f"{type(operand[0]).__name__}.")
                 name, operand = operand
-            names.append(name)
-            args.append(operand)
-
-        nary_op = NaryOperation(operator)
-        nary_op._named_args = names
-        nary_op.children = args
+            nary_op.append_named_arg(name, operand)
         return nary_op
 
 

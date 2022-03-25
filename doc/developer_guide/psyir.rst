@@ -347,13 +347,9 @@ implementation using `IfBlocks`.  Similarly, Fortran also has the
 with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
 new tree structure are annotated with information to enable the
 original language-specific syntax to be recreated if required (see
-below).  See the full IfBlock API in the :ref_guide:`IfBlock reference guide
-psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`.
-
-The PSyIR supports the concept of named arguments for `Call` nodes. At
-the moment the PSyIR Fortran front end does not make use of this
-support, so the only way to make use of named arguments would be to
-create them directly in the PSyIR (using the `create()` method).
+below).  See the full IfBlock API in the :ref_guide:`IfBlock reference
+guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
+PSyIR also supports the concept of named arguments for `Call` nodes.
 
 .. note:: A Call node (like the CodeBlock) inherits from both
           Statement and DataNode because it can be found in Schedules

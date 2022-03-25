@@ -138,9 +138,7 @@ class InvokeCallTrans(Transformation):
             expected type.
 
         '''
-        if isinstance(fp2_node, Structure_Constructor):
-            pass
-        else:
+        if not isinstance(fp2_node, Structure_Constructor):
             raise TransformationError(
                 f"Error in {self.name} transformation. Expecting an algorithm "
                 f"invoke codeblock to contain a Structure-Constructor, but "

@@ -72,7 +72,7 @@ class Call(Statement, DataNode):
                 "'{0}'.".format(type(routine).__name__))
 
         self._routine = routine
-        self._named_args = None
+        self._named_args = []
 
     @classmethod
     def create(cls, routine, arguments):

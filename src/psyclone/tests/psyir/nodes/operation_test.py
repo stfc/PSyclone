@@ -53,6 +53,7 @@ from psyclone.psyir.nodes.node import colored
 
 
 # Test Operation class. These are mostly covered by the subclass tests.
+
 def test_operation_named_arg_str():
     '''Check the output of str from the Operation class when there is a
     mixture of positional and named arguments. We use a
@@ -65,6 +66,212 @@ def test_operation_named_arg_str():
     binaryoperation = BinaryOperation.create(oper, lhs, ("named_arg", rhs))
     assert "named_arg=Reference[name:'tmp2']" in str(binaryoperation)
 
+
+def test_operation_appendnamedarg():
+    '''Test the append_named_arg method in the Operation class. Check
+    it raises the expected exceptions if arguments are invalid and
+    that it works as expected when the input is valid. We use the
+    BinaryOperation node to perform the tests.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    # name arg wrong type
+    with pytest.raises(TypeError) as info:
+        binary_operation.append_named_arg(1, op1)
+    assert ("The 'name' argument in 'append_named_arg' in the 'Operator' "
+            "node should be a string or None, but found int."
+            in str(info.value))
+    binary_operation.append_named_arg("name1", op1)
+    # name arg already used
+    with pytest.raises(ValueError) as info:
+        binary_operation.append_named_arg("name1", op2)
+    assert ("The value of the name argument (name1) in 'append_named_arg' in "
+            "the 'Operator' node is already used for a named argument."
+            in str(info.value))
+    # ok
+    binary_operation.append_named_arg("name2", op2)
+    assert binary_operation.children == [op1, op2]
+    assert binary_operation.named_args == ["name1", "name2"]
+
+
+def test_operation_insertnamedarg():
+    '''Test the insert_named_arg method in the Operation class. Check
+    it raises the expected exceptions if arguments are invalid and
+    that it works as expected when the input is valid. We use the
+    BinaryOperation node to perform the tests.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    # name arg wrong type
+    with pytest.raises(TypeError) as info:
+        binary_operation.insert_named_arg(1, op1, 0)
+    assert ("The 'name' argument in 'insert_named_arg' in the 'Operator' "
+            "node should be a string or None, but found int."
+            in str(info.value))
+    binary_operation.insert_named_arg("name1", op1, 0)
+    # name arg already used
+    with pytest.raises(ValueError) as info:
+        binary_operation.insert_named_arg("name1", op2, 0)
+    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
+            "the 'Operator' node is already used for a named argument."
+            in str(info.value))
+    # invalid index type
+    with pytest.raises(ValueError) as info:
+        binary_operation.insert_named_arg("name1", op2, "hello")
+    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
+            "the 'Operator' node is already used for a named argument."
+            in str(info.value))
+    # invalid index value
+    with pytest.raises(GenerationError) as info:
+        binary_operation.insert_named_arg("name2", op2, 3)
+    assert ("Item 'Literal' can't be child 3 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'." in str(info.value))
+    # ok
+    assert binary_operation.children == [op1]
+    assert binary_operation.named_args == ["name1"]
+    binary_operation.insert_named_arg("name2", op2, 0)
+    assert binary_operation.children == [op2, op1]
+    assert binary_operation.named_args == ["name2", "name1"]
+
+
+def test_operation_replacenamedarg():
+    '''Test the replace_named_arg method in the Operation class. Check
+    it raises the expected exceptions if arguments are invalid and
+    that it works as expected when the input is valid. We use the
+    BinaryOperation node to perform the tests.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op3 = Literal("1", INTEGER_SINGLE_TYPE)
+    binary_operation.append_named_arg("name1", op1)
+    binary_operation.append_named_arg("name2", op2)
+
+    # name arg wrong type
+    with pytest.raises(TypeError) as info:
+        binary_operation.replace_named_arg(1, op3)
+    assert ("The 'name' argument in 'replace_named_arg' in the 'Operator' "
+            "node should be a string or None, but found int."
+            in str(info.value))
+    # name arg is not found
+    with pytest.raises(ValueError) as info:
+        binary_operation.replace_named_arg("new_name", op3)
+    assert ("The value of the existing_name argument (new_name) in "
+            "'insert_named_arg' in the 'Operator' node is not found in the "
+            "existing arguments." in str(info.value))
+    # ok
+    assert binary_operation.children == [op1, op2]
+    assert binary_operation.named_args == ["name1", "name2"]
+    binary_operation.replace_named_arg("name1", op3)
+    assert binary_operation.children == [op3, op2]
+    assert binary_operation.named_args == ["name1", "name2"]
+
+
+def test_operation_removearg():
+    '''Test the named_args property makes things consistent if a child
+    argument is removed. This is used transparently by the class to
+    keep things consistent. We use the BinaryOperation node to perform
+    the tests.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    binary_operation.append_named_arg("name1", op1)
+    binary_operation.append_named_arg("name2", op2)
+    assert len(binary_operation.children) == 2
+    assert len(binary_operation._named_args) == 2
+    assert binary_operation.named_args == ["name1", "name2"]
+    binary_operation.children.pop(0)
+    assert len(binary_operation.children) == 1
+    assert len(binary_operation._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert binary_operation.named_args == ["name2"]
+    assert len(binary_operation._named_args) == 1
+
+
+def test_operation_addarg():
+    '''Test the named_args property makes things consistent if a child
+    argument is added. This is used transparently by the class to
+    keep things consistent. We use the NaryOperation node to perform
+    the tests (as it allows an arbitrary number of arguments.
+
+    '''
+    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op3 = Literal("1", INTEGER_SINGLE_TYPE)
+    nary_operation.append_named_arg("name1", op1)
+    nary_operation.append_named_arg("name2", op2)
+    assert len(nary_operation.children) == 2
+    assert len(nary_operation._named_args) == 2
+    assert nary_operation.named_args == ["name1", "name2"]
+    nary_operation.children.append(op3)
+    assert len(nary_operation.children) == 3
+    assert len(nary_operation._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert nary_operation.named_args == ["name1", "name2", None]
+    assert len(nary_operation._named_args) == 3
+
+
+def test_operation_replacearg():
+    '''Test the named_args property makes things consistent if a child
+    argument is replaced with another. This is used transparently by
+    the class to keep things consistent. We use the BinaryOperation
+    node to perform the tests.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op3 = Literal("1", INTEGER_SINGLE_TYPE)
+    binary_operation.append_named_arg("name1", op1)
+    binary_operation.append_named_arg("name2", op2)
+    assert len(binary_operation.children) == 2
+    assert len(binary_operation._named_args) == 2
+    assert binary_operation.named_args == ["name1", "name2"]
+    binary_operation.children[0] = op3
+    assert len(binary_operation.children) == 2
+    assert len(binary_operation._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert binary_operation.named_args == [None, "name2"]
+    assert len(binary_operation._named_args) == 2
+
+
+# TODO re-order args
+def test_operation_reorderearg():
+    '''Test the named_args property makes things consistent if child
+    arguments are re-order. This is used transparently by the class to
+    keep things consistent. We use the BinaryOperation node to perform
+    the tests.
+
+    '''
+    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    binary_operation.append_named_arg("name1", op1)
+    binary_operation.append_named_arg("name2", op2)
+    assert len(binary_operation.children) == 2
+    assert len(binary_operation._named_args) == 2
+    assert binary_operation.named_args == ["name1", "name2"]
+    tmp0 = binary_operation.children[0]
+    tmp1 = binary_operation.children[1]
+    tmp0.detach()
+    tmp1.detach()
+    binary_operation.children.extend([tmp1, tmp0])
+    assert len(binary_operation.children) == 2
+    assert len(binary_operation._named_args) == 2
+    # named_args property makes _named_args list consistent.
+    assert binary_operation.named_args == ["name2", "name1"]
+    assert len(binary_operation._named_args) == 2
+
+
+# Then call. Then documentation?
 
 # Test BinaryOperation class
 def test_binaryoperation_initialization():
@@ -161,8 +368,8 @@ def test_binaryoperation_create_invalid():
     # oper not a BinaryOperation.Operator.
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create("invalid", ref1, ref2)
-    assert ("operator argument in create method of BinaryOperation class should "
-            "be a PSyIR BinaryOperation Operator but found 'str'."
+    assert ("operator argument in create method of BinaryOperation class "
+            "should be a PSyIR BinaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
     # lhs not a Node.
@@ -308,7 +515,7 @@ def test_unaryoperation_named_create():
     child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
     oper = UnaryOperation.Operator.SIN
     unaryoperation = UnaryOperation.create(oper, ("name", child))
-    assert unaryoperation._named_args == ["name"]
+    assert unaryoperation.named_args == ["name"]
     check_links(unaryoperation, [child])
     result = FortranWriter().unaryoperation_node(unaryoperation)
     assert result == "SIN(name=tmp)"
@@ -357,8 +564,8 @@ def test_unaryoperation_create_invalid3():
         _ = UnaryOperation.create(
             "invalid",
             Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)))
-    assert ("operator argument in create method of UnaryOperation class should "
-            "be a PSyIR UnaryOperation Operator but found 'str'."
+    assert ("operator argument in create method of UnaryOperation class "
+            "should be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
 
@@ -497,7 +704,7 @@ def test_naryoperation_create_invalid():
 
     # rhs is an invalid tuple (1st element not str)
     with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(oper, [ref1, ref2, (1, 2)])
+        _ = NaryOperation.create(oper, [ref1.copy(), ref2.copy(), (1, 2)])
     assert ("If an element of the operands argument in create method of "
             "NaryOperation class is a tuple, its first argument should "
             "be a str, but found int." in str(excinfo.value))

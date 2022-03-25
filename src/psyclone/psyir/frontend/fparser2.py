@@ -820,9 +820,9 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
 
 
 def _get_arg_names(node_list):
-    '''Utility function that deals with arguments and named arguments to
-    calls and operations. Arguments are returned in a list and the
-    names of named arguments are returned in a separate list.
+    '''Utility function that given an fparser2 argument list returns two
+    separate lists, one with the arguments themselves and another with
+    the argument names.
 
     :param node_list: a list of fparser2 argument nodes which could \
         be positional or named.
