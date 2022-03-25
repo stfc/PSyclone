@@ -1773,6 +1773,7 @@ class Fparser2Reader(object):
                 datatype = base_type
 
             # Make sure the declared symbol exists in the SymbolTable
+            tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=parent)
                 if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
@@ -1781,13 +1782,13 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol in order to free the exact name
                     # for the DataSymbol.
                     symbol_table.remove(sym)
-                    # And trigger the exception path
+                    # And trigger the exception path but keeping the same tag
+                    tag = "own_routine_symbol"
                     raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
-                        "Symbol '{0}' already present in SymbolTable with "
-                        "a defined interface ({1}).".format(
-                            sym_name, str(sym.interface)))
+                        f"Symbol '{sym_name}' already present in SymbolTable "
+                        f"with a defined interface ({sym.interface}).")
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,
@@ -1798,9 +1799,15 @@ class Fparser2Reader(object):
                     # NotImplementedError in order to create an UnknownType
                     # Therefore, the Error doesn't need raise_from or message
                     # pylint: disable=raise-missing-from
+                    if tag:
+                        raise InternalError(
+                            f"The fparser2 frontend does not support "
+                            f"declarations where the routine name is of "
+                            f"UnknownType, but found this case in "
+                            f"'{sym_name}'.")
                     raise NotImplementedError()
 
-                symbol_table.add(sym)
+                symbol_table.add(sym, tag=tag)
 
             # The Symbol must have the interface given by the declaration. We
             # take a copy to ensure that it can be modified without side
@@ -2008,12 +2015,15 @@ class Fparser2Reader(object):
                         # Check whether the symbol we're about to add
                         # corresponds to the routine we're currently inside. If
                         # it does then we remove the RoutineSymbol in order to
-                        # free the exact name for the DataSymbol.
+                        # free the exact name for the DataSymbol, but we keep
+                        # the tag to reintroduce it to the new symbol.
+                        tag = None
                         try:
                             routine_sym = parent.symbol_table.lookup_with_tag(
                                 "own_routine_symbol")
                             if routine_sym.name.lower() == symbol_name:
                                 parent.symbol_table.remove(routine_sym)
+                                tag = "own_routine_symbol"  # Keep the tag
                         except KeyError:
                             pass
 
@@ -2024,14 +2034,15 @@ class Fparser2Reader(object):
                             parent.symbol_table.add(
                                 DataSymbol(symbol_name,
                                            UnknownFortranType(str(node)),
-                                           visibility=vis))
+                                           visibility=vis),
+                                tag=tag)
                         except KeyError as err:
                             if len(orig_children) == 1:
-                                six.raise_from(SymbolError(
-                                    "Error while processing unsupported "
-                                    "declaration ('{0}'). An entry for symbol "
-                                    "'{1}' is already in the symbol table.".
-                                    format(str(node), symbol_name)), err)
+                                raise SymbolError(
+                                    f"Error while processing unsupported "
+                                    f"declaration ('{node}'). An entry for "
+                                    f"symbol '{symbol_name}' is already in "
+                                    f"the symbol table.") from err
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
 
