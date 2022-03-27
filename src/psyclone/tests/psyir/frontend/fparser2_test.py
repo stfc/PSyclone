@@ -911,6 +911,15 @@ def test_unsupported_decln_initial_value(monkeypatch):
     assert (sadsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
             "sad = fbsp")
 
+    # Now do the same but the UnknownType constant_value is also the symbol
+    # tagged as 'own_routine_symbol'. This is not recoverable.
+    fake_parent = KernelSchedule("fbsp")
+    with pytest.raises(InternalError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("The fparser2 frontend does not support declarations where the "
+            "routine name is of UnknownType, but found this case in 'fbsp'."
+            in str(err.value))
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_unsupported_decln_duplicate_symbol():

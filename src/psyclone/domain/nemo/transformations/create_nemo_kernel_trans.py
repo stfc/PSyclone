@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@ class CreateNemoKernelTrans(Transformation):
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
     >>> psyir.view()
-    FileContainer[None]
+    FileContainer[]
         Routine[name:'sub']
             0: Loop[type='None', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -80,7 +80,8 @@ class CreateNemoKernelTrans(Transformation):
                                 ArrayReference[name:'tmp']
                                     Reference[name:'ji']
                                 BinaryOperation[operator:'MUL']
-                                    Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                                    Literal[value:'2.0', Scalar<REAL, \
+UNDEFINED>]
                                     Reference[name:'ji']
 
     The resulting Schedule contains a NemoKern (displayed as an
