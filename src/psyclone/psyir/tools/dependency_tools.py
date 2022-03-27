@@ -367,7 +367,7 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def get_flat_indices(component_indices):
+    def get_flat_indices(component_indices, set_of_loop_vars):
         '''This function takes an array reference, and returns a flat
         list of variable names used in each subscript. For example,
         `a(i1+i2)%b(j*j+j,k)%c(l,5)` would return `[(i1,i2),(j,k),(l),()]`.
@@ -378,6 +378,8 @@ class DependencyTools(object):
             access.
         :type component_indices:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :param set_of_loop_vars: set with name of all loop variables.
+        :type set_of_loop_vars: set of str
 
         :return: a list of sets with all variables used in the corresponding \
             array subscripts as strings.
@@ -389,6 +391,7 @@ class DependencyTools(object):
             indx = component_indices[i]
             index_vars = VariablesAccessInfo(indx)
             unique_vars = set(str(sig) for sig in index_vars.keys())
+            unique_vars = unique_vars.intersection(set_of_loop_vars)
             indices.append(unique_vars)
         return indices
 
@@ -416,8 +419,11 @@ class DependencyTools(object):
         '''
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
-        indices_1 = DependencyTools.get_flat_indices(comp_ind1)
-        indices_2 = DependencyTools.get_flat_indices(comp_ind2)
+        set_of_loop_vars = set(loop_vars)
+        indices_1 = DependencyTools.get_flat_indices(comp_ind1,
+                                                     set_of_loop_vars)
+        indices_2 = DependencyTools.get_flat_indices(comp_ind2,
+                                                     set_of_loop_vars)
         # This list stores the partition information, which
         # is a pair consisting of:
         # - a set of all loop variables used in the subscript of

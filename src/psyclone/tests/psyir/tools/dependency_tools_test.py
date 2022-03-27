@@ -352,20 +352,23 @@ def test_get_indices(expression, correct, parser):
     # Find the access that is not to i,j, or k --> this must be
     # the 'main' array variable we need to check for:
     sig = None
+    loop_vars = set(["i", "j", "k"])
     for sig in access_info:
-        if str(sig) not in ["i", "j", "k"]:
+        if str(sig) not in loop_vars:
             break
     # Get all accesses to the array variable. It has only one
     # access
     access = access_info[sig][0]
-    result = DependencyTools.get_flat_indices(access.component_indices)
+    result = DependencyTools.get_flat_indices(access.component_indices,
+                                              loop_vars)
     assert result == correct
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("lhs, rhs, partition",
                          [("a1(i+i+j)", "a1(i)", [({"i", "j"}, {0})]),
-                          ("a1(i+j+n)", "a1(i)", [({"i", "j", "n"}, {0})]),
+                          # n is not a loop variable, it must be ignored:
+                          ("a1(i+j+n)", "a1(i)", [({"i", "j"}, {0})]),
                           ("a1(i+j+3)", "a1(i)", [({"i", "j"}, {0})]),
                           ("a3(i,j,k)", "a3(i,j,k)", [({"i"}, {0}),
                                                       ({"j"}, {1}),
