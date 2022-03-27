@@ -376,25 +376,31 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
+Pre-processing
+++++++++++++++
+
+PSyAD implements an internal pre-processing phase where code
+containing unsupported code structures or constructs is transformed
+into code that can be processed. These structures/constructs are
+detailed below.
+
 Array Notation
 --------------
 
 Array notation in tangent-linear codes is translated into equivalent
-loops before the tangent-linear code is transformed into its
-adjoint. This is performed as the rules that are applied to transform
-a tangent-linear code into its adjoint are not always correct when
-array notation is used.
-
-.. note:: At the moment all array notation is translated into
-	  equivalent loops irrespective of whether the associated
-	  variables are active or not.
+loops in the pre-processing phase before the tangent-linear code is
+transformed into its adjoint. This is performed as the rules that are
+applied to transform a tangent-linear code into its adjoint are not
+always correct when array notation is used. Only array notation that
+contains active variables is translated into equivalent loops.
 
 Intrinsics
 ----------
 
 If an intrinsic function, such as ``matmul`` or ``transpose``, is
 found in a tangent-linear code and it contains active variables then
-it must be transformed to its associated adjoint form.
+it must be transformed to its associated adjoint form. This is
+performed in the pre-processing phase.
 
 If an unsupported intrinsic function is found then PSyAD will raise an
 exception.
@@ -421,6 +427,15 @@ information on these transformations.
           (yet) exist in the tangent linear code. Eventually such
           variables will be detected automatically by PSyAD, see issue
           #1595.
+
+Associativity
+-------------
+
+The transformation from tangent-linear code to adjoint code will fail
+if code, such as the following, is found `a(b+c)` where `b` and `c` are
+active variables. The solution to this problem is to expand
+expressions such as these in the pre-processing phase. In the example,
+the result becomes `a*b + a*c` which can be transformed.
 
 
 Test Harness

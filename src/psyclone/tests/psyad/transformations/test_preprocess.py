@@ -255,7 +255,7 @@ def test_associativity2(operation, fortran_reader, fortran_writer):
 
 def test_associativity3(fortran_reader, fortran_writer):
     '''Test that the associativity function works as expected when the
-    function needs to be applied multiple times in an assoignment.
+    function needs to be applied multiple times in an assignment.
 
     '''
     code = (
@@ -276,5 +276,29 @@ def test_associativity3(fortran_reader, fortran_writer):
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     associativity(psyir.children[0][0], ["d", "c", "g"])
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+def test_preprocess_associativity4(fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when we have
+    array ranges.
+
+    '''
+    code = (
+        "program test\n"
+        "  integer :: a, b, c(10), d(10)\n"
+        "  a = b*(sum(c(:)) + sum(d(:)))\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer, dimension(10) :: c\n"
+        "  integer, dimension(10) :: d\n\n"
+        "  a = b * SUM(c(:)) + b * SUM(d(:))\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "c", "d"])
     result = fortran_writer(psyir)
     assert result == expected

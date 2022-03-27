@@ -39,17 +39,19 @@ translated to adjoint PSyIR.
 
 '''
 from psyclone.core import SymbolicMaths
-from psyclone.psyad.utils import node_is_active_names, node_is_passive_names
+from psyclone.psyad.utils import node_is_active, node_is_passive
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Range
 from psyclone.psyir.transformations import DotProduct2CodeTrans, \
     Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
 
 
 def preprocess_trans(kernel_psyir, active_variable_names):
-    '''PSyclone kernel transformation script which replaces dotproduct and
-    matmul intrinsics with equivalent code and returns the modified
-    psyir. This is called internally by the PSyAD script before
-    transforming the code to its adjoint form.
+    '''PSyclone kernel transformation script which modifies the supplied
+    kernel psyir by replacing array-ranges with explicit loops,
+    dotproduct and matmul intrinsics with equivalent code and
+    performing symbol expansion (e.g. x(a+b) => x*a+x*b). This is
+    called internally by the PSyAD script before transforming the code
+    to its adjoint form.
 
     :param kernel_psyir: PSyIR representation of the tangent linear \
         kernel code.
@@ -64,7 +66,7 @@ def preprocess_trans(kernel_psyir, active_variable_names):
 
     # Replace array-ranges with explicit loops
     for assignment in kernel_psyir.walk(Assignment):
-        if node_is_passive_names(assignment, active_variable_names):
+        if node_is_passive(assignment, active_variable_names):
             # No need to modify passive assignments
             continue
         # Repeatedly apply the transformation until there are no more
@@ -102,7 +104,7 @@ def associativity(assignment, active_variable_names):
     x*b and a*/x +- b*/x respectively.
 
     This function can be removed when support for Range nodes is added
-    to thee SymbolicMaths expand function, see issue #1655.
+    to the SymbolicMaths expand function, see issue #1655.
 
     :param assignment: the Assignment Node that we are looking at.
     :type assignment: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -110,61 +112,56 @@ def associativity(assignment, active_variable_names):
     :type active_variable_names: list of str
 
     '''
-    # pylint: disable=too-many-boolean-expressions
-    if node_is_active_names(assignment.rhs, active_variable_names):
-        # The rhs of the assignment is active
-        found = True
-        while found:
-            # Repeat until the patterns are no longer found
-            found = False
-            # Check all multiplies on the rhs
+    if node_is_active(assignment.rhs, active_variable_names):
+        while True:
             for oper in assignment.rhs.walk(BinaryOperation):
                 if oper.operator == BinaryOperation.Operator.MUL and \
-                   node_is_passive_names(
-                       oper.children[0], active_variable_names) and \
-                   isinstance(oper.children[1], BinaryOperation) and \
-                   oper.children[1].operator in [
-                       BinaryOperation.Operator.ADD,
-                       BinaryOperation.Operator.SUB] and \
-                   node_is_active_names(
-                       oper.children[1].children[0],
-                       active_variable_names) and \
-                   node_is_active_names(
-                       oper.children[1].children[1],
-                       active_variable_names):
+                       node_is_passive(
+                           oper.children[0], active_variable_names) and \
+                       isinstance(oper.children[1], BinaryOperation) and \
+                       oper.children[1].operator in [
+                           BinaryOperation.Operator.ADD,
+                           BinaryOperation.Operator.SUB] and \
+                       node_is_active(
+                           oper.children[1].children[0],
+                           active_variable_names) and \
+                       node_is_active(
+                           oper.children[1].children[1],
+                           active_variable_names):
                     # Matched one of the patterns we are looking for
                     # x * (a +- b)
-                    found = True
                     inactive = oper.children[0]
                     active0 = oper.children[1].children[0]
                     active1 = oper.children[1].children[1]
                     binary_op = oper.children[1]
                     # Restructure to x*a +- x*b
                     mult0 = BinaryOperation.create(
-                        oper.operator, inactive.detach(), active0.detach())
+                        BinaryOperation.Operator.MUL, inactive.detach(),
+                        active0.detach())
                     mult1 = BinaryOperation.create(
-                        oper.operator, inactive.copy(), active1.detach())
+                        BinaryOperation.Operator.MUL, inactive.copy(),
+                        active1.detach())
                     binary_op.children.extend([mult0, mult1])
                     oper.replace_with(binary_op.detach())
+                    break
 
                 elif oper.operator in [
                         BinaryOperation.Operator.MUL,
                         BinaryOperation.Operator.DIV] and \
-                        node_is_passive_names(
+                        node_is_passive(
                             oper.children[1], active_variable_names) and \
                         isinstance(oper.children[0], BinaryOperation) and \
                         oper.children[0].operator in [
                             BinaryOperation.Operator.ADD,
                             BinaryOperation.Operator.SUB] and \
-                        node_is_active_names(
+                        node_is_active(
                             oper.children[0].children[0],
                             active_variable_names) and \
-                        node_is_active_names(
+                        node_is_active(
                             oper.children[0].children[1],
                             active_variable_names):
                     # Matched one of the patterns we are looking
                     # for: (a +- b) */ x
-                    found = True
                     inactive = oper.children[1]
                     active0 = oper.children[0].children[0]
                     active1 = oper.children[0].children[1]
@@ -176,3 +173,8 @@ def associativity(assignment, active_variable_names):
                         oper.operator, active1.detach(), inactive.copy())
                     binary_op.children.extend([op0, op1])
                     oper.replace_with(binary_op.detach())
+                    break
+
+            else:
+                # No matching pattern so break out of while loop
+                break

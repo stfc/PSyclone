@@ -37,20 +37,18 @@
 utils.py file within the psyad directory.
 
 '''
-from psyclone.psyad.utils import (
-    node_is_active, node_is_passive, negate_expr, node_is_active_names,
-    node_is_passive_names)
+from psyclone.psyad.utils import node_is_active, node_is_passive, negate_expr
 from psyclone.psyir.nodes import Literal, UnaryOperation, Reference
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
 
 
-# node_is_active, node_is_active_names, node_is_passive and
-# node_is_passive_names functions
+# node_is_active and node_is_passive functions
 def test_active_passive(fortran_reader):
     '''Test that the node_is_active function returns True if an active
     variable exists in the node or its descendants and False if
     not. Also test that the node_is_passive function returns the
-    opposite results.
+    opposite results. Test for active/passive variables provided as a
+    list of symbols or as a list of variables names.
 
     '''
     code = (
@@ -66,30 +64,30 @@ def test_active_passive(fortran_reader):
     assignment = tl_psyir.children[0][0]
 
     assert node_is_active(assignment, [symbol_a])
-    assert node_is_active_names(assignment, ["a"])
+    assert node_is_active(assignment, ["a"])
     assert not node_is_passive(assignment, [symbol_a])
-    assert not node_is_passive_names(assignment, ["a"])
+    assert not node_is_passive(assignment, ["a"])
     assert node_is_active(assignment, [symbol_b])
-    assert node_is_active_names(assignment, ["b"])
+    assert node_is_active(assignment, ["b"])
     assert not node_is_passive(assignment, [symbol_b])
-    assert not node_is_passive_names(assignment, ["b"])
+    assert not node_is_passive(assignment, ["b"])
     assert node_is_active(assignment, [symbol_a, symbol_b])
-    assert node_is_active_names(assignment, ["a", "b"])
+    assert node_is_active(assignment, ["a", "b"])
     assert not node_is_passive(assignment, [symbol_a, symbol_b])
-    assert not node_is_passive_names(assignment, ["a", "b"])
+    assert not node_is_passive(assignment, ["a", "b"])
     assert node_is_active(assignment, [symbol_a, symbol_b, symbol_c])
-    assert node_is_active_names(assignment, ["a", "b", "c"])
+    assert node_is_active(assignment, ["a", "b", "c"])
     assert not node_is_passive(assignment, [symbol_a, symbol_b, symbol_c])
-    assert not node_is_passive_names(assignment, ["a", "b", "c"])
+    assert not node_is_passive(assignment, ["a", "b", "c"])
 
     assert node_is_passive(assignment, [])
-    assert node_is_passive_names(assignment, [])
+    assert node_is_passive(assignment, [])
     assert not node_is_active(assignment, [])
-    assert not node_is_active_names(assignment, [])
+    assert not node_is_active(assignment, [])
     assert node_is_passive(assignment, [symbol_c])
-    assert node_is_passive_names(assignment, ["c"])
+    assert node_is_passive(assignment, ["c"])
     assert not node_is_active(assignment, [symbol_c])
-    assert not node_is_active_names(assignment, ["c"])
+    assert not node_is_active(assignment, ["c"])
 
 
 def test_negate_expr(fortran_writer):
