@@ -262,6 +262,7 @@ class Operation(DataNode):
         '''
         # ensure _named_args is consistent with actual arguments
         # before copying.
+        # pylint: disable=protected-access
         self.reconcile()
         # copy
         new_copy = super(Operation, self).copy()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -170,7 +170,6 @@ def test_multi_named_arg_error(fortran_reader):
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    print (str(info.value))
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are 2 in "
             "'call invoke(name='first', name='second')\n'." in str(info.value))

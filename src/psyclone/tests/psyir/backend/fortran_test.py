@@ -554,7 +554,7 @@ def test_validate_named_args():
     call = Call.create(RoutineSymbol("hello"), [
         Literal("1.0", REAL_TYPE), ("name", Literal("2.0", REAL_TYPE))])
     _validate_named_args(call)
-    
+
 
 def test_fw_gen_use(fortran_writer):
     '''Check the FortranWriter class gen_use method produces the expected

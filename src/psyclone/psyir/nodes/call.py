@@ -301,6 +301,7 @@ class Call(Statement, DataNode):
         # copy
         new_copy = super(Call, self).copy()
         # Fix invalid id's in _named_args after copying.
+        # pylint: disable=protected-access
         new_list = []
         for idx, child in enumerate(new_copy.children):
             my_tuple = (id(child), new_copy._named_args[idx][1])

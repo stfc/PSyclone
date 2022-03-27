@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,6 @@ algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from fparser.two.Fortran2003 import Actual_Arg_Spec
-
 from psyclone.psyir.nodes import ArrayReference
 
 from psyclone.domain.common.transformations import InvokeCallTrans
