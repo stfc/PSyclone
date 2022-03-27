@@ -254,9 +254,13 @@ def test_operation_replacenamedarg():
     # ok
     assert call.children == [op1, op2]
     assert call.named_args == ["name1", "name2"]
+    assert call._named_args[0][0] == id(op1)
+    assert call._named_args[1][0] == id(op2)
     call.replace_named_arg("name1", op3)
     assert call.children == [op3, op2]
     assert call.named_args == ["name1", "name2"]
+    assert call._named_args[0][0] == id(op3)
+    assert call._named_args[1][0] == id(op2)
 
 
 def test_call_removearg():
@@ -317,8 +321,10 @@ def test_call_replacearg():
     assert len(call.children) == 2
     assert len(call._named_args) == 2
     # named_args property makes _named_args list consistent.
+    assert call._named_args[0][0] != id(call.children[0])
     assert call.named_args == [None, "name2"]
     assert len(call._named_args) == 2
+    assert call._named_args[0][0] == id(call.children[0])
 
 
 def test_call_reorderarg():
@@ -342,6 +348,56 @@ def test_call_reorderarg():
     assert len(call._named_args) == 2
 
 
+def test_call_node_reconcile_add():
+    '''Test that the reconcile method behaves as expected. Use an example
+    where we add a new arg.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("1", INTEGER_TYPE)
+    op3 = Literal("1", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    # consistent
+    assert len(call._named_args) == 2
+    assert call._named_args[0] == (id(call.children[0]), "name1")
+    assert call._named_args[1] == (id(call.children[1]), "name2")
+    call.children.append(op3)
+    # inconsistent
+    assert len(call._named_args) == 2
+    assert call._named_args[0] == (id(call.children[0]), "name1")
+    assert call._named_args[1] == (id(call.children[1]), "name2")
+    call.reconcile()
+    # consistent
+    assert len(call._named_args) == 3
+    assert call._named_args[0] == (id(call.children[0]), "name1")
+    assert call._named_args[1] == (id(call.children[1]), "name2")
+    assert call._named_args[2] == (id(call.children[2]), None)
+
+
+def test_call_node_reconcile_reorder():
+    '''Test that the reconcile method behaves as expected. Use an example
+    where we reorder the arguments.
+
+    '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("2", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    # consistent
+    assert len(call._named_args) == 2
+    assert call._named_args[0] == (id(call.children[0]), "name1")
+    assert call._named_args[1] == (id(call.children[1]), "name2")
+    call.children = [op2.detach(), op1.detach()]
+    # inconsistent
+    assert len(call._named_args) == 2
+    assert call._named_args[0] != (id(call.children[0]), "name1")
+    assert call._named_args[1] != (id(call.children[1]), "name2")
+    call.reconcile()
+    # consistent
+    assert len(call._named_args) == 2
+    assert call._named_args[0] == (id(call.children[0]), "name2")
+    assert call._named_args[1] == (id(call.children[1]), "name1")
+
+
 def test_call_node_str():
     ''' Test that the node_str method behaves as expected '''
     routine = RoutineSymbol("isaac", NoType())
@@ -355,3 +411,28 @@ def test_call_str():
     routine = RoutineSymbol("roo", NoType())
     call = Call(routine)
     assert str(call) == "Call[name='roo']"
+
+
+def test_copy():
+    ''' Test that the copy() method behaves as expected. '''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("2", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
+    # consistent call
+    call_copy = call.copy()
+    assert call._named_args[0] == (id(call.children[0]), "name1")
+    assert call._named_args[1] == (id(call.children[1]), "name2")
+    assert call_copy._named_args[0] == (id(call_copy.children[0]), "name1")
+    assert call_copy._named_args[1] == (id(call_copy.children[1]), "name2")
+    assert call._named_args != call_copy._named_args
+
+    call.children = [op2.detach(), op1.detach()]
+    assert call._named_args[0] != (id(call.children[0]), "name2")
+    assert call._named_args[1] != (id(call.children[1]), "name1")
+    # inconsistent call
+    call_copy = call.copy()
+    assert call._named_args[0] == (id(call.children[0]), "name2")
+    assert call._named_args[1] == (id(call.children[1]), "name1")
+    assert call_copy._named_args[0] == (id(call_copy.children[0]), "name2")
+    assert call_copy._named_args[1] == (id(call_copy.children[1]), "name1")
+    assert call._named_args != call_copy._named_args

@@ -3350,10 +3350,10 @@ class Fparser2Reader(object):
 
         # Store the names of any named args
         arg_nodes, arg_names = _get_arg_names(node_list)
-        unary_op._named_args = arg_names
 
         self.process_nodes(parent=unary_op, nodes=arg_nodes)
 
+        unary_op._named_args = [(id(unary_op.children[0]), arg_names[0])]
         return unary_op
 
     def _binary_op_handler(self, node, parent):
@@ -3404,11 +3404,13 @@ class Fparser2Reader(object):
 
         # Store the names of any named args
         new_arg_nodes, arg_names = _get_arg_names(arg_nodes)
-        binary_op._named_args = arg_names
 
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
 
+        binary_op._named_args = [
+            (id(binary_op.children[0]), arg_names[0]),
+            (id(binary_op.children[1]), arg_names[1])]
         return binary_op
 
     def _nary_op_handler(self, node, parent):
@@ -3455,9 +3457,11 @@ class Fparser2Reader(object):
 
         # Store the names of any named args
         arg_nodes, arg_names = _get_arg_names(node.items[1].items)
-        nary_op._named_args = arg_names
 
         self.process_nodes(parent=nary_op, nodes=arg_nodes)
+
+        for idx, child in enumerate(nary_op.children):
+            nary_op._named_args.append((id(child), arg_names[idx]))
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -3779,12 +3783,15 @@ class Fparser2Reader(object):
         call = Call(routine_symbol, parent=parent)
 
         arg_nodes = []
+        arg_names = []
         if node.items[1]:
             # Store the names of any named args
             arg_nodes, arg_names = _get_arg_names(node.items[1].items)
-            call._named_args = arg_names
 
         self.process_nodes(parent=call, nodes=arg_nodes)
+
+        for idx, child in enumerate(call.children):
+            call._named_args.append((id(child), arg_names[idx]))
 
         # Point to the original CALL statement in the parse tree.
         call.ast = node

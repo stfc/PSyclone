@@ -151,6 +151,9 @@ def test_call_args(f2008_parser, args, arg_names):
 
     call_node = sched.children[0]
     assert isinstance(call_node, Call)
+    assert len(call_node._named_args) == len(call_node.children)
+    for idx, child in enumerate(call_node.children):
+        assert call_node._named_args[idx] == (id(child), arg_names[idx])
     assert call_node.named_args == arg_names
     assert len(call_node.children) == 3
     assert isinstance(call_node.children[0], Literal)

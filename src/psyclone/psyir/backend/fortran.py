@@ -47,7 +47,7 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
+from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
@@ -296,6 +296,36 @@ def add_accessibility_to_unknown_declaration(symbol):
                     f"that it is public: '{symbol.datatype.declaration}'")
             first_part = first_part.rstrip() + ", private "
     return "::".join([first_part]+parts[1:])
+
+
+def _validate_named_args(node):
+    '''Utility function that check that all named args occur after all
+    positional args. The check is applicable to Call and Operator
+    nodes. This is a Fortran restriction but not a PSyIR restriction.
+
+    :param node: the node to check.
+    :type node: :py:class:`psyclone.psyir.nodes.Call` or subclass of \
+    :py:class:`psyclone.psyir.nodes.Operation`
+
+    raises TypeError: if the node is not a Call or Operation.
+    raises VisitorError: if the all of the positional arguments are \
+        not before all of the named arguments.
+
+    '''
+    if not isinstance(node, (Call, Operation)):
+        raise TypeError(
+            f"The _validate_named_args utility function expects either a "
+            f"Call or Operation node, but found '{type(node).__name__}'.")
+
+    found_named_arg = False
+    for named_arg in node.named_args:
+        if found_named_arg and not named_arg:
+            raise VisitorError(
+                f"Fortran expects all named arguments to occur after all "
+                f"positional arguments but this is not the case for "
+                f"{str(node)}")
+        if named_arg:
+            found_named_arg = True
 
 
 class FortranWriter(LanguageWriter):
@@ -1073,6 +1103,8 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        _validate_named_args(node)
+
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         if node.named_args:
@@ -1123,6 +1155,8 @@ class FortranWriter(LanguageWriter):
         :raises VisitorError: if an unexpected N-ary operator is found.
 
         '''
+        _validate_named_args(node)
+
         arg_list = []
         for idx, child in enumerate(node.children):
             if node.named_args and node.named_args[idx]:
@@ -1495,9 +1529,11 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        _validate_named_args(node)
+
         result_list = []
         for idx, child in enumerate(node.children):
-            if node.named_args and node.named_args[idx]:
+            if node.named_args[idx]:
                 result_list.append(
                     f"{node.named_args[idx]}={self._visit(child)}")
             else:

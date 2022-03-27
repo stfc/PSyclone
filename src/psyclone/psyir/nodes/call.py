@@ -252,8 +252,14 @@ class Call(Statement, DataNode):
             entry is None then the argument is a positional argument.
         :rtype: List[Union[str, NoneType]]
         '''
-        # Update _named_args in case child arguments have been
-        # removed, added or modified.
+        self.reconcile()
+        return [entry[1] for entry in self._named_args]
+
+    def reconcile(self):
+        '''update the _named_args values in case child arguments have been
+        removed, added, re-ordered, or modified.
+
+        '''
         new_named_args = []
         for child in self.children:
             for arg in self._named_args:
@@ -263,8 +269,6 @@ class Call(Statement, DataNode):
             else:
                 new_named_args.append((id(child), None))
         self._named_args = new_named_args
-
-        return [entry[1] for entry in self._named_args]
 
     def node_str(self, colour=True):
         '''
@@ -281,3 +285,26 @@ class Call(Statement, DataNode):
 
     def __str__(self):
         return self.node_str(False)
+
+    def copy(self):
+        '''Return a copy of this node. This is a bespoke implementation for
+        a Call node that ensures that any internal id's are
+        consistent before and after copying.
+
+        :returns: a copy of this node and its children.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # ensure _named_args is consistent with actual arguments
+        # before copying.
+        self.reconcile()
+        # copy
+        new_copy = super(Call, self).copy()
+        # Fix invalid id's in _named_args after copying.
+        new_list = []
+        for idx, child in enumerate(new_copy.children):
+            my_tuple = (id(child), new_copy._named_args[idx][1])
+            new_list.append(my_tuple)
+        new_copy._named_args = new_list
+
+        return new_copy
