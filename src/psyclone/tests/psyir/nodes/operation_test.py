@@ -167,9 +167,13 @@ def test_operation_replacenamedarg():
     # ok
     assert binary_operation.children == [op1, op2]
     assert binary_operation.named_args == ["name1", "name2"]
+    assert binary_operation._named_args[0][0] == id(op1)
+    assert binary_operation._named_args[1][0] == id(op2)
     binary_operation.replace_named_arg("name1", op3)
     assert binary_operation.children == [op3, op2]
     assert binary_operation.named_args == ["name1", "name2"]
+    assert binary_operation._named_args[0][0] == id(op3)
+    assert binary_operation._named_args[1][0] == id(op2)
 
 
 def test_operation_removearg():
@@ -268,6 +272,58 @@ def test_operation_reorderearg():
     # named_args property makes _named_args list consistent.
     assert binary_operation.named_args == ["name2", "name1"]
     assert len(binary_operation._named_args) == 2
+
+
+def test_operation_reconcile_add():
+    '''Test that the reconcile method behaves as expected. Use an
+    NaryOperation example where we add a new arg.
+
+    '''
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op3 = Literal("1", INTEGER_SINGLE_TYPE)
+    oper = NaryOperation.create(
+        NaryOperation.Operator.SUM, [("name1", op1), ("name2", op2)])
+    # consistent
+    assert len(oper._named_args) == 2
+    assert oper._named_args[0] == (id(oper.children[0]), "name1")
+    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    oper.children.append(op3)
+    # inconsistent
+    assert len(oper._named_args) == 2
+    assert oper._named_args[0] == (id(oper.children[0]), "name1")
+    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    oper.reconcile()
+    # consistent
+    assert len(oper._named_args) == 3
+    assert oper._named_args[0] == (id(oper.children[0]), "name1")
+    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    assert oper._named_args[2] == (id(oper.children[2]), None)
+
+
+def test_operation_reconcile_reorder():
+    '''Test that the reconcile method behaves as expected. Use a
+    BinaryOperation example where we reorder the arguments.
+
+    '''
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
+    oper = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, ("name1", op1), ("name2", op2))
+    # consistent
+    assert len(oper._named_args) == 2
+    assert oper._named_args[0] == (id(oper.children[0]), "name1")
+    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    oper.children = [op2.detach(), op1.detach()]
+    # inconsistent
+    assert len(oper._named_args) == 2
+    assert oper._named_args[0] != (id(oper.children[0]), "name1")
+    assert oper._named_args[1] != (id(oper.children[1]), "name2")
+    oper.reconcile()
+    # consistent
+    assert len(oper._named_args) == 2
+    assert oper._named_args[0] == (id(oper.children[0]), "name2")
+    assert oper._named_args[1] == (id(oper.children[1]), "name1")
 
 
 # Test BinaryOperation class
@@ -779,3 +835,29 @@ def test_operations_can_be_copied():
     assert len(operation.children) == 3
     assert operation1.operator is NaryOperation.Operator.MIN
     assert operation.operator is NaryOperation.Operator.MAX
+
+
+def test_copy():
+    ''' Test that the copy() method behaves as expected. '''
+    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
+    oper = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, ("name1", op1), ("name2", op2))
+    # consistent operation
+    oper_copy = oper.copy()
+    assert oper._named_args[0] == (id(oper.children[0]), "name1")
+    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    assert oper_copy._named_args[0] == (id(oper_copy.children[0]), "name1")
+    assert oper_copy._named_args[1] == (id(oper_copy.children[1]), "name2")
+    assert oper._named_args != oper_copy._named_args
+
+    oper.children = [op2.detach(), op1.detach()]
+    assert oper._named_args[0] != (id(oper.children[0]), "name2")
+    assert oper._named_args[1] != (id(oper.children[1]), "name1")
+    # inconsistent operation
+    oper_copy = oper.copy()
+    assert oper._named_args[0] == (id(oper.children[0]), "name2")
+    assert oper._named_args[1] == (id(oper.children[1]), "name1")
+    assert oper_copy._named_args[0] == (id(oper_copy.children[0]), "name2")
+    assert oper_copy._named_args[1] == (id(oper_copy.children[1]), "name1")
+    assert oper._named_args != oper_copy._named_args
