@@ -135,7 +135,7 @@ def test_symbol_str():
     '''Test that a Symbol instance can be stringified'''
 
     sym = Symbol("my_symbol")
-    assert str(sym) == "my_symbol"
+    assert str(sym) == "my_symbol: Symbol<Local>"
 
 
 def test_symbolinterface():
@@ -205,7 +205,6 @@ def test_argumentinterface_init():
     argument_interface = ArgumentInterface()
     assert argument_interface._access == ArgumentInterface.Access.UNKNOWN
     assert argument_interface.access == argument_interface._access
-    assert argument_interface._pass_by_value is False
 
     argument_interface = ArgumentInterface(ArgumentInterface.Access.READ)
     assert argument_interface._access == ArgumentInterface.Access.READ
@@ -238,7 +237,10 @@ def test_argumentinterface_str():
     '''Test that an ArgumentInterface instance can be stringified'''
 
     argument_interface = ArgumentInterface()
-    assert str(argument_interface) == "Argument(pass-by-value=False)"
+    assert str(argument_interface) == "Argument(Access.UNKNOWN)"
+
+    argument_interface = ArgumentInterface(ArgumentInterface.Access.WRITE)
+    assert str(argument_interface) == "Argument(Access.WRITE)"
 
 
 def test_argumentinterface_copy():
@@ -320,10 +322,10 @@ def test_symbol_specialise():
     # pylint: disable = unidiomatic-typecheck
     asym = Symbol("a")
     assert type(asym) is Symbol
-    assert str(asym) == "a"
+    assert str(asym) == "a: Symbol<Local>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a : RoutineSymbol <NoType>"
+    assert str(asym) == "a: RoutineSymbol<NoType>"
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
