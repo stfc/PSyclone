@@ -214,11 +214,10 @@ def test_call_insertnamedarg():
             "the 'Call' node is already used for a named argument."
             in str(info.value))
     # invalid index type
-    with pytest.raises(ValueError) as info:
-        call.insert_named_arg("name1", op2, "hello")
-    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
-            "the 'Call' node is already used for a named argument."
-            in str(info.value))
+    with pytest.raises(TypeError) as info:
+        call.insert_named_arg("name2", op2, "hello")
+    assert ("The 'index' argument in 'insert_named_arg' in the 'Call' node "
+            "should be an int but found str." in str(info.value))
     # ok
     assert call.children == [op1]
     assert call.named_args == ["name1"]

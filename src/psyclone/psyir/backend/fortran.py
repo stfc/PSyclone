@@ -300,8 +300,8 @@ def add_accessibility_to_unknown_declaration(symbol):
 
 def _validate_named_args(node):
     '''Utility function that check that all named args occur after all
-    positional args. The check is applicable to Call and Operator
-    nodes. This is a Fortran restriction but not a PSyIR restriction.
+    positional args. The check is applicable to Call and Operation
+    nodes. This is a Fortran restriction, not a PSyIR restriction.
 
     :param node: the node to check.
     :type node: :py:class:`psyclone.psyir.nodes.Call` or subclass of \
@@ -1107,11 +1107,10 @@ class FortranWriter(LanguageWriter):
 
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
-        if node.named_args:
-            if node.named_args[0]:
-                lhs = f"{node.named_args[0]}={lhs}"
-            if node.named_args[1]:
-                rhs = f"{node.named_args[1]}={rhs}"
+        if node.named_args[0]:
+            lhs = f"{node.named_args[0]}={lhs}"
+        if node.named_args[1]:
+            rhs = f"{node.named_args[1]}={rhs}"
         try:
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
@@ -1159,7 +1158,7 @@ class FortranWriter(LanguageWriter):
 
         arg_list = []
         for idx, child in enumerate(node.children):
-            if node.named_args and node.named_args[idx]:
+            if node.named_args[idx]:
                 arg_list.append(f"{node.named_args[idx]}={self._visit(child)}")
             else:
                 arg_list.append(self._visit(child))
@@ -1356,7 +1355,7 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                if node.named_args and node.named_args[0]:
+                if node.named_args[0]:
                     result = f"{fort_oper}({node.named_args[0]}={content})"
                 else:
                     result = f"{fort_oper}({content})"
