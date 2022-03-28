@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -521,10 +521,10 @@ class SymbolTable():
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
-                    "This symbol table, or an outer scope ancestor symbol "
-                    "table, already contains the tag '{0}' for the symbol"
-                    " '{1}', so it can not be associated with symbol '{2}'.".
-                    format(tag, self.lookup_with_tag(tag), new_symbol.name))
+                    f"This symbol table, or an outer scope ancestor symbol "
+                    f"table, already contains the tag '{tag}' for the symbol"
+                    f" '{self.lookup_with_tag(tag).name}', so it can not be "
+                    f"associated with symbol '{new_symbol.name}'.")
             self._tags[tag] = new_symbol
 
         self._symbols[key] = new_symbol
@@ -1334,6 +1334,12 @@ class SymbolTable():
         print(str(self))
 
     def __str__(self):
-        return ("Symbol Table:\n" +
-                "\n".join(map(str, self._symbols.values())) +
-                "\n")
+        header = "Symbol Table"
+        if self.node:
+            header += f" of {self.node.coloured_name(False)}"
+            if hasattr(self.node, 'name'):
+                header += f" '{self.node.name}'"
+        header += ":"
+        header += "\n" + "-" * len(header) + "\n"
+
+        return header + "\n".join(map(str, self._symbols.values())) + "\n"

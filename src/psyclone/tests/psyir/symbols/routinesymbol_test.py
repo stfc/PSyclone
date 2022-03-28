@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -96,11 +96,11 @@ def test_routinesymbol_specialise_and_process_arguments():
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")
-    assert routine_symbol.__str__() == "roo : RoutineSymbol <NoType>"
+    assert routine_symbol.__str__() == "roo: RoutineSymbol<NoType>"
     routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
     assert (routine_symbol.__str__() ==
-            "roo : RoutineSymbol <Scalar<INTEGER, UNDEFINED>>")
+            "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>>")
     type_sym = DataTypeSymbol("some_type", DeferredType())
     routine_symbol = RoutineSymbol("roo", type_sym)
     assert (routine_symbol.__str__() ==
-            "roo : RoutineSymbol <some_type : DataTypeSymbol>")
+            "roo: RoutineSymbol<some_type: DataTypeSymbol>")

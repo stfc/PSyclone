@@ -572,7 +572,7 @@ def test_validate_with_array_with_hidden_accessor():
         trans.apply(assignment1.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
-            "<Array<Scalar<REAL" in str(info.value))
+            "DataSymbol<Array<Scalar<REAL" in str(info.value))
 
     # The second fails because it's an UnknownType and we don't know whether
     # it's an scalar or an array.
@@ -580,7 +580,7 @@ def test_validate_with_array_with_hidden_accessor():
         trans.apply(assignment2.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
-            "<UnknownFortranType" in str(info.value))
+            "DataSymbol<UnknownFortranType" in str(info.value))
 
 
 def test_apply_different_num_dims():

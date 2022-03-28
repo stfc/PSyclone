@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the FileContainer PSyIR node. '''
@@ -62,7 +63,7 @@ def test_file_container_node_str():
     '''
     file_container = FileContainer("test")
     coloredtext = colored("FileContainer", FileContainer._colour)
-    assert coloredtext+"[test]" in file_container.node_str()
+    assert coloredtext+"[]" in file_container.node_str()
 
 
 def test_file_container_str():
@@ -71,7 +72,7 @@ def test_file_container_str():
 
     '''
     file_container = FileContainer("test")
-    assert "FileContainer[test]\n" in str(file_container)
+    assert "FileContainer[]\n" in str(file_container)
 
 
 def test_file_container_create():
