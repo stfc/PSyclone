@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''A python script and python function to generate an empty kernel
-    subroutine with the required arguments and datatypes (which we
-    call a stub) when presented with Kernel Metadata.
-'''
+'''This module tests the contents of the lfric_constants.py file.'''
+
+from psyclone.domain.lfric import LFRicConstants
 
 
-if __name__ == "__main__":
+def test_quadrature_type_map():
+    '''Check that QUADRATURE_TYPE_MAP contains the expected structure.'''
 
-    from psyclone.gen_kernel_stub import run
-    run()
+    quadrature_types = ["gh_quadrature_xyoz", "gh_quadrature_face",
+                        "gh_quadrature_edge"]
+    quadrature_properties = ["module", "type", "proxy_type", "intrinsic",
+                             "kind"]
+
+    assert len(LFRicConstants.QUADRATURE_TYPE_MAP) == len(quadrature_types)
+    for quadrature_type in quadrature_types:
+        assert quadrature_type in LFRicConstants.QUADRATURE_TYPE_MAP
+        info = LFRicConstants.QUADRATURE_TYPE_MAP[quadrature_type]
+        assert len(info) == len(quadrature_properties)
+        for item in info:
+            assert item in quadrature_properties

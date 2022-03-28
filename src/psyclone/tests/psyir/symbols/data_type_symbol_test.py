@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the DataTypeSymbol class. '''
@@ -48,7 +49,7 @@ def test_create_datatypesymbol():
     sym = DataTypeSymbol("my_type", DeferredType())
     assert sym.name == "my_type"
     assert isinstance(sym.datatype, DeferredType)
-    assert str(sym) == "my_type : DataTypeSymbol"
+    assert str(sym) == "my_type: DataTypeSymbol"
 
 
 def test_create_datatypesymbol_wrong_datatype():
@@ -86,6 +87,7 @@ def test_data_type_symbol_copy_properties():
     assert new_sym.datatype == symbol.datatype
     assert isinstance(new_sym.datatype, ArrayType)
     assert new_sym.datatype.intrinsic.name == "REAL"
+    assert new_sym.datatype.shape[1] == symbol.datatype.shape[1]
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties(REAL_SINGLE_TYPE)

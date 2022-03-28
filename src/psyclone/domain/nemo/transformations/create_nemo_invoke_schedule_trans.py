@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR routine into a
@@ -65,8 +65,8 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoInvokeScheduleTrans()
     >>> trans.apply(psyir.children[0])
-    >>> print(psyir.view())
-    FileContainer[None]
+    >>> print(psyir.view(colour=False))
+    FileContainer[]
         NemoInvokeSchedule[invoke='sub']
             0: Loop[type='None', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

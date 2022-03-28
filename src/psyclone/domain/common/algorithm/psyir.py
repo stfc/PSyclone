@@ -187,7 +187,8 @@ class AlgorithmInvokeCall(Call):
                     f"(optional) name of an invoke must be a string "
                     f"containing a valid name (with any spaces replaced by "
                     f"underscores) but found '{routine_root_name}'.")
-            routine_root_name = f"invoke_{routine_root_name}"
+            if not routine_root_name.startswith("invoke"):
+                routine_root_name = f"invoke_{routine_root_name}"
         else:
             routine_root_name = f"invoke_{self._index}"
             if len(self.children) == 1:
@@ -206,6 +207,9 @@ class AlgorithmInvokeCall(Call):
         in the symbol table, and we don't want to add anything related
         to the lower level PSyIR to the symbol table before lowering.
 
+        :raises InternalError: if no Routine or Container is found in \
+            the PSyIR tree containing this node.
+
         '''
         if not self._psylayer_routine_root_name:
             self._psylayer_routine_root_name = self._def_routine_root_name()
@@ -219,13 +223,26 @@ class AlgorithmInvokeCall(Call):
             # the closest ancestor routine instead.
             for node in self.root.walk((Routine, Container)):
                 if not isinstance(node, FileContainer):
-                    self._psylayer_container_root_name = f"psy_{node.name}"
+                    self._psylayer_container_root_name = \
+                        self._def_container_root_name(node)
                     return
             raise InternalError("No Routine or Container node found.")
+
+    @staticmethod
+    def _def_container_root_name(node):
+        '''
+        :returns: the root name to use for the container.
+        :rtype: str
+        '''
+        return f"psy_{node.name}"
 
     def lower_to_language_level(self):
         '''Transform this node and its children into an appropriate Call
         node.
+
+        :raises InternalError: if an invoke symbol is not found in any \
+            symbol tables attached to nodes that are ancestors of this \
+            node.
 
         '''
         self.create_psylayer_symbol_root_names()
@@ -270,6 +287,25 @@ class AlgorithmInvokeCall(Call):
 
         call = Call.create(routine_symbol, arguments)
         self.replace_with(call)
+
+        # Remove original 'invoke' symbol if there are no other
+        # references to it. This keeps the symbol table up-to-date and
+        # also avoids an exception being raised in the Fortran Writer
+        # as the invoke symbol has an UnresolvedInterface.
+
+        symbol_table = call.scope.symbol_table
+        while symbol_table:
+            try:
+                invoke_symbol = symbol_table.lookup(
+                    "invoke", scope_limit=symbol_table.node)
+            except KeyError:
+                symbol_table = symbol_table.parent_symbol_table()
+                continue
+            if not symbol_table.node.walk(AlgorithmInvokeCall):
+                symbol_table.remove(invoke_symbol)
+            break
+        else:
+            raise InternalError("No 'invoke' symbol found.")
 
 
 class KernelFunctor(Reference):

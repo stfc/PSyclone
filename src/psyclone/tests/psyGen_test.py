@@ -63,7 +63,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
-    InvokeSchedule
+    InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
@@ -410,18 +410,6 @@ def test_invokeschedule_node_str():
     assert colored("InvokeSchedule", InvokeSchedule._colour) in output
 
 
-def test_sched_ocl_setter():
-    ''' Check that the opencl setter raises the expected error if not passed
-    a bool. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    with pytest.raises(ValueError) as err:
-        psy.invokes.invoke_list[0].schedule.opencl = "a string"
-    assert "Schedule.opencl must be a bool but got " in str(err.value)
-
-
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -551,9 +539,9 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
     assert ("Can not module-inline subroutine 'ru_code' because symbol"
-            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
-            "already exists and changing names of module-inlined subroutines "
-            "is not implemented yet.") in str(err.value)
+            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
+            "same name already exists and changing names of module-inlined "
+            "subroutines is not implemented yet.") in str(err.value)
 
     # TODO # 898. Manually force removal of previous symbol as
     # symbol_table.remove() for DataSymbols is not implemented yet.
@@ -721,7 +709,7 @@ def test_call_abstract_methods():
 
     class DummyArguments(Arguments):
         ''' temporary dummy class '''
-        def __init__(self, call, parent_call):
+        def __init__(self, call, parent_call, check):
             Arguments.__init__(self, parent_call)
 
     dummy_call = DummyClass(my_ktype)
@@ -1015,23 +1003,25 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
 
 
 def test_reduction_no_set_precision(monkeypatch, dist_mem):
-    ''' Test that the zero_reduction_variable() method generates correct
-    code when a reduction argument does not have a defined precision (only
-    a zero summation value is generated in this case).
+    '''Test that the zero_reduction_variable() method generates correct
+    code when a reduction argument does not have a defined
+    precision. Only a zero value (without precision i.e. 0.0 not
+    0.0_r_def) is generated in this case.
 
     '''
-    # Set precision of 'real' scalar arguments in LFRic to an empty string
-    const = LFRicConstants()
-    monkeypatch.setitem(
-        const.DATA_TYPE_MAP, name="reduction",
-        value={"module": "scalar_mod", "type": "scalar_type",
-               "proxy_type": None, "intrinsic": "real", "kind": ""})
-    # Generate code for sum_X built-in with no precision for zero reduction
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
+
+    # A reduction argument will always have a precision value so we
+    # need to monkeypatch it.
+    schedule = psy.invokes.invoke_list[0].schedule
+    builtin = schedule.walk(BuiltIn)[0]
+    arg = builtin.arguments.args[0]
+    arg._precision = ""
+
     generated_code = str(psy.gen)
 
     if dist_mem:

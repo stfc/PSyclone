@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -51,14 +51,8 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core (see :ref:`introduction`). The Met Office
-Collaboration Wiki (login required) provides more detailed information
-about the dynamical core's `formulation
-<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_formulation.pdf>`_
-and `data model
-<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
-
-The GungHo dynamical core with atmospheric physics parameterisation
+based GungHo dynamical core (see :ref:`introduction`).
+This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
 The LFRic repository and the associated wiki are hosted at the `Met Office
@@ -66,7 +60,9 @@ Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
 The code is BSD-licensed, however browsing the `LFRic wiki
 <https://code.metoffice.gov.uk/trac/lfric/wiki>`_ and
 `code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_
-requires login access to MOSRS.
+requires login access to MOSRS. For more technical details on the
+implementation of LFRic, please see the `LFRic documentation
+<https://code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf>`_.
 
 .. _dynamo0.3-api-algorithm:
 
@@ -387,6 +383,251 @@ aware of are that inter-grid kernels accept only field or field-vectors
 as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
+
+.. _dynamo0.3-mixed-precision:
+
+Mixed Precision
+---------------
+
+The LFRic API supports the ability to specify the precision required
+by the model via precision variables. To make use of this, the code
+developer must declare scalars, fields and operators in the algorithm
+layer with the required LFRic-supported precision. In the current
+implementation there are two supported precisions for `REAL` data and
+one each for `INTEGER` and `LOGICAL` data. The actual precision used in
+the code can be set in a configuration file. For example, INTEGER data
+could be set to be 32-bit precision. As REAL data has more than one
+supported precision, different parts of the code can be configured to
+have different precision.
+
+The table below gives the currently supported datatypes, their
+associated kernel metadata description and their precision:
+
+.. tabularcolumns:: |l|l|l|
+
++--------------------------+------------------------+----------+
+| Data Type                | Kernel Metadata        |Precision |
++==========================+========================+==========+
+| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF    |
++--------------------------+------------------------+----------+	    
+| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF    |
++--------------------------+------------------------+----------+	    
+| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF    |
++--------------------------+------------------------+----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF    |
++--------------------------+------------------------+----------+	    
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF    |
++--------------------------+------------------------+----------+	    
+| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF    |
++--------------------------+------------------------+----------+	    
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER |
++--------------------------+------------------------+----------+	    
+
+As can be seen from the above table, the kernel metadata does not
+capture all of the precision options. In particular, from the metadata
+it is not possible to determine whether a `REAL` scalar, `REAL` field
+or `REAL` operator has precision `R_DEF` or `R_SOLVER`.
+
+If a scalar, field, or operator is specified with a particular
+precision in the algorithm layer then any associated kernels that it
+is passed to must have been written so that they support this
+precision. If a kernel needs to support data that can be stored with
+different precisions then appropriate precision-specific subroutines
+should be written. These precision-specific subroutine should be
+called via a generic interface (which lets Fortran choose the
+appropriate subroutine based on the precision of its argument(s)).
+
+Below is a simple example of an algorithm code calling the same
+generic kernel twice with potentially different precision. The
+implementation of the generic kernel such that it supports both 32-
+and 64-bit precision is also shown. The use of LFRic names for
+precision in the algorithm code allows precision to be controlled in a
+simple way. For example r_solver could be set to be 32-bits in one
+configuration and 64-bits in another:
+
+.. code-block:: fortran
+
+  program test
+
+    use constants_mod, only : r_def, r_solver
+    use field_mod,     only : field_type, r_solver_field_type
+    use example_mod,   only : example_type
+
+    type(field_type)          :: field_r_def
+    type(r_solver_field_type) :: field_r_solver
+    real(r_def)               :: x_r_def
+    real(r_solver)            :: x_r_solver
+
+    call invoke( example_type(field_r_def, x_r_def),       &
+                 example_type(field_r_solver, x_r_solver))
+
+  end program test
+
+  module example_mod
+
+    use argument_mod
+    use kernel_mod
+
+    implicit none
+
+    type, extends(kernel_type) :: example_type
+      type(arg_type), dimension(2) :: meta_args = (/       &
+           arg_type(gh_field,  gh_real, gh_readwrite, w3), &
+	   arg_type(gh_scalar, gh_real, gh_read )          &
+           /)
+       integer :: operates_on = cell_column
+     contains
+       procedure, nopass :: code => example_code
+    end type example_type
+
+    private
+    public :: example_code
+
+    interface example_code
+      module procedure example_code_32
+      module procedure example_code_64
+    end interface example_code
+
+  contains
+
+    subroutine example_code_32(..., field1, x, ...)
+      real*4, dimension(...), intent(inout) :: field1
+      real*4, intent(in) :: x
+      print *, "32-bit example called"
+    end subroutine example_code_32
+
+    subroutine example_code_64(..., field1, x, ...)
+      real*8, dimension(...), intent(inout) :: field1
+      real*8, intent(in) :: x
+      print *, "64-bit example called"
+    end subroutine example_code_64
+
+  end module example_mod
+
+In order to support mixed precision, PSyclone needs to know the
+precision (as specified in the algorithm layer) of any kernel
+arguments that are of a type that supports different precisions (e.g
+GH_FIELD). The reason for this is that PSyclone needs to be able to
+declare data with the correct precision information within the
+PSy-layer to ensure that the correct flavour of kernels are called.
+
+PSyclone must therefore determine this information from the algorithm
+layer. The rules for whether PSyclone requires information for
+particular LFRic datatypes and what it does with or without this
+information are given below:
+
+Fields
+++++++
+
+PSyclone must be able to determine the datatype of a field from the
+algorithm layer declarations. If it is not able to do this, PSyclone
+will abort with a message that indicates the problem.
+
+Supported field types are `field_type` (which contains `real` data
+with precision `r_def`), `r_solver_field_type` (which contains `real`
+data with precision `r_solver`) and `integer_field_type` (which
+contains `integer` data with precision `i_def`).
+
+Field Vectors
++++++++++++++
+
+If PSyclone finds an argument that is declared as a
+`field_vector_type` or `r_solver_field_vector_type` it will assume
+that the actual field being referenced is of type `field_type` or
+`r_solver_field_type` respectively.
+
+If PSyclone finds an argument that is declared as an
+`abstract_field_type` then it will not know the actual type of the
+argument. For instance, the following algorithm layer code will cause
+PSyclone to raise an exception::
+
+    ! ...
+    class (abstract_vector_type), intent(inout) :: x
+    ! ...
+    select type (x)
+    type is (field_vector_type)
+      call invoke(testkern_type(x%vector(1)))
+    class default
+      print *,"Error"
+    end select
+    ! ...
+
+The suggested solution to this is to add a pointer variable to the
+code that is of the required type. This pointer can then be associated
+with the argument and passed into the routine::
+
+    ! ...
+    class (abstract_vector_type), target, intent(inout) :: x
+    type(field_vector_type), pointer :: x_ptr
+    ! ...
+    select type (x)
+    type is (field_vector_type)
+      x_ptr => x
+      call invoke(testkern_type(x_ptr%vector(1)))
+    class default
+      print *,"Error"
+    end select
+    ! ...
+
+Scalars
++++++++
+
+It is not mandatory for PSyclone to be able to determine the datatype
+of a scalar from the algorithm layer. This constraint was considered
+to be too restrictive as PSyclone currently only examines the
+declarations in the same source file as the `invoke` when determining
+datatype. This means that if scalars are imported from other modules
+(as is often the case) then their datatype cannot be determined.
+
+If the precision information for a scalar is found by PSyclone then
+this is used. If the scalar declaration is found and it contains no
+precision information then PSyclone will abort with a message that
+indicates the problem (since this violates LFRic coding standards). If
+no declaration information is found then default precision values are
+used, as specified in the PSyclone config file (`r_def` for real,
+`i_def` for integer and `l_def` for logical).
+
+Supported precisions for scalars are `r_def` and `r_solver` for real
+data, `i_def` for integer data and `l_def` for logical data. If an
+unsupported scalar precision is found then PSyclone will abort with a
+message that indicates the problem.
+
+LMA Operators
++++++++++++++
+
+PSyclone must be able to determine the datatype of an LMA operator.
+If it is not able to do this, PSyclone will abort with a message that
+indicates the problem.
+
+Supported LMA Operator types are `operator_type` (which contains real
+data with precision `r_def`) and `r_solver_operator_type` (which
+contains real data with precision `r_solver`).
+
+Columnwise Operators
+++++++++++++++++++++
+
+It is not mandatory for PSyclone to be able to determine the datatype
+of a Columnwise Operator. The reason for this is that only one
+datatype is supported, a `columnwise_operator_type` which contains
+real data with precision `r_solver`. PSyclone can therefore simply add
+this datatype in the PSy-layer. However, if the datatype information
+is found in the algorithm layer then and it is not of the expected
+type then PSyclone will abort with a message that indicates the
+problem.
+
+Consistency
++++++++++++
+
+If PSyclone is able to determine the datatype of an LFRic datatype
+then PSyclone also checks that this datatype is consistent with the
+associated kernel metadata. If it is not consistent then PSyclone will
+abort with a message that indicates the problem.
 
 .. _dynamo0.3-psy:
 
@@ -1549,13 +1790,16 @@ conventions, are:
    1) If the current entry is a scalar quantity then include the Fortran
       variable in the argument list. The intent is determined from the
       metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
-   2) If the current entry is a field then include the field array. The
-      field array name is currently specified as being
-      ``"field_"<argument_position>"_"<field_function_space>``. A field array
-      is a rank-1, ``real`` array of kind ``r_def`` with extent equal to the
-      number of unique degrees of freedom for the space that the field is on.
-      This value is passed in separately. Again, the intent is determined
-      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+   2) If the current entry is a field then include the field
+      array. The field array name is currently specified as being
+      ``"field_"<argument_position>"_"<field_function_space>``. A
+      field array is a rank-1, ``real`` array with extent equal to the
+      number of unique degrees of freedom for the space that the field
+      is on. Its precision (kind) depends on how it is defined in the
+      algorithm layer, see the :ref:`dynamo0.3-mixed-precision` section
+      for more details. This value is passed in separately. Again, the
+      intent is determined from the metadata (see
+      :ref:`dynamo0.3-api-meta-args`).
 
       1) If the field entry has a stencil access then add an ``integer`` (or
          if the stencil is of type ``CROSS2D``, an ``integer`` rank-1 array of
@@ -1585,14 +1829,17 @@ conventions, are:
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
    4) If the current entry is an operator then first include an
-      ``integer`` extent of kind ``i_def``. The name of this extent
-      is ``<operator_name>"_ncell_3d"``. Next include the operator.
-      This is a rank-3, ``real`` array of kind ``r_def``. The extents
-      of the first two dimensions are the local degrees of freedom for
-      the ``to`` and ``from`` function spaces, respectively, and that
-      of the third is ``<operator_name>"_ncell_3d"``. The name of
-      the operator is ``"op_"<argument_position>``. Again the intent
-      is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+      ``integer`` extent of kind ``i_def``. The name of this extent is
+      ``<operator_name>"_ncell_3d"``. Next include the operator.  This
+      is a rank-3, ``real`` array. Its precision (kind) depends on how
+      it is defined in the algorithm layer, see the
+      :ref:`dynamo0.3-mixed-precision` section for more details. The
+      extents of the first two dimensions are the local degrees of
+      freedom for the ``to`` and ``from`` function spaces,
+      respectively, and that of the third is
+      ``<operator_name>"_ncell_3d"``. The name of the operator is
+      ``"op_"<argument_position>``. Again the intent is determined
+      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
@@ -1853,12 +2100,14 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
 5) For each argument in the ``meta_args`` metadata array:
 
    1) If it is a LMA operator, include a ``real``, 3-dimensional
-      array of kind ``r_def``. The first two dimensions are the local
-      degrees of freedom for the ``to`` and ``from`` spaces,
-      respectively. The third dimension is ``ncell_3d``;
+      array. The first two dimensions are the local degrees of freedom
+      for the ``to`` and ``from`` spaces, respectively. The third
+      dimension is ``ncell_3d``. The precision of the array depends on
+      how it is defined in the algorithm layer, see the
+      :ref:`dynamo0.3-mixed-precision` section for more details;
 
    2) If it is a CMA operator, include a ``real``, 3-dimensional array
-      of kind ``r_def``. The first dimension is
+      of kind ``r_solver``. The first dimension is
       ``"bandwidth_"<operator_name>``, the second is
       ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
 
@@ -1942,8 +2191,10 @@ The full set of rules is then:
 3) For each argument in the ``meta_args`` metadata array:
 
    1) If it is a field, include the field array. This is a ``real``
-      array of kind ``r_def`` and is of rank 1.  The field array name
-      is currently specified as being
+      array of rank 1. Its precision (kind) depends on how it is
+      defined in the algorithm layer, see the
+      :ref:`dynamo0.3-mixed-precision`. The field array name is
+      currently specified as being
       ``"field_"<argument_position>"_"<field_function_space>``. The
       extent of the array is the number of unique degrees of freedom
       for the function space that the field is on.  This value is

@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+
 
 '''Module providing a transformation from a generic PSyIR representation of
    a PSy layer into a NEMO-specific one.
@@ -66,7 +67,7 @@ class CreateNemoPSyTrans(Transformation):
     >>> trans = CreateNemoPSyTrans()
     >>> trans.apply(psyir)
     >>> print(psyir.view(colour=False, indent="   "))
-    FileContainer[None]
+    FileContainer[]
        NemoInvokeSchedule[invoke='sub']
           0: Loop[type='lon', field_space='None', it_space='None']
              Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

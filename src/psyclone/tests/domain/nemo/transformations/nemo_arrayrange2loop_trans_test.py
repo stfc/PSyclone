@@ -47,12 +47,10 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, DeferredType, UnknownType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import get_outer_index
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.nemo import NemoKern, NemoLoop
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, Range, Literal
 from psyclone.errors import InternalError
 from psyclone.configuration import Config
 
@@ -302,51 +300,186 @@ def test_apply_non_existing_bound_names(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_structure_of_arrays():
+def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     '''Check that the apply method works when the assignment expression
     contains structures of arrays.
 
     '''
-    _, invoke_info = get_invoke("implicit_do_structures.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment1 = schedule[0]
-    assignment3 = schedule[2]
     trans = NemoArrayRange2LoopTrans()
 
     # Case 1: SoA in the RHS
-    array_ref = assignment1.lhs
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        umask(:,:,:) = mystruct%field(:,:,:) + mystruct%field2%field(:,:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
     trans.apply(array_ref.children[2])
     trans.apply(array_ref.children[1])
     trans.apply(array_ref.children[0])
-
-    writer = FortranWriter()
-    result = writer(schedule)
+    result = fortran_writer(psyir)
     assert (
-        "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
+        "  do jk = 1, UBOUND(umask, 3), 1\n"
+        "    do jj = 1, UBOUND(umask, 2), 1\n"
+        "      do ji = 1, UBOUND(umask, 1), 1\n"
         "        umask(ji,jj,jk) = mystruct%field(ji,jj,jk) "
         "+ mystruct%field2%field(ji,jj,jk)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
 
-    # Case 2: SoA in the LHS is not yet supported
-    assert "mystruct%field2%field(:,:,:) = 0.0d0" in result
+    # Case 2: SoA in the LHS
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field2%field(:,:,:) = 0.0d0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    trans.apply(array_ref.member.member.children[2])
+    trans.apply(array_ref.member.member.children[1])
+    trans.apply(array_ref.member.member.children[0])
+    result = fortran_writer(psyir)
+    assert (
+        "  do jk = 1, UBOUND(mystruct%field2%field, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field2%field, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field2%field, 1), 1\n"
+        "        mystruct%field2%field(ji,jj,jk) = 0.0d0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
 
-    # Case 3: Nested SoA currently causes an InternalError
-    array_ref = assignment3.lhs
-    with pytest.raises(InternalError) as info:
+    # Case 3: SoAoS in the LHS
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field3(:,:,:)%field4 = 0.0d0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    trans.apply(array_ref.member.children[3])
+    trans.apply(array_ref.member.children[2])
+    trans.apply(array_ref.member.children[1])
+    result = fortran_writer(psyir)
+    assert (
+        "  do jk = 1, UBOUND(mystruct%field3, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field3, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field3, 1), 1\n"
+        "        mystruct%field3(ji,jj,jk)%field4 = 0.0d0\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+    # Case 4: SoAoS in the LHS and SoA in the RHS
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    trans.apply(array_ref.member.children[3])
+    trans.apply(array_ref.member.children[2])
+    trans.apply(array_ref.member.children[1])
+    result = fortran_writer(psyir)
+    assert (
+        "  do jk = 1, UBOUND(mystruct%field3, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field3, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field3, 1), 1\n"
+        "        mystruct%field3(ji,jj,jk)%field4 = "
+        "mystruct%field2%field(ji,jj,jk)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+
+def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
+                                                   fortran_writer):
+    '''Check that the apply method works when the assignment expression
+    contains structures of arrays with multiple array accessors.
+
+    '''
+    trans = NemoArrayRange2LoopTrans()
+
+    # Case 1: 2 array accessors in LHS but only one has ranges
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field2(4, 3)%field(:,:,:) = mystruct%field2(5, 8)%field(:,:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    trans.apply(array_ref.member.member.children[2])
+    trans.apply(array_ref.member.member.children[1])
+    trans.apply(array_ref.member.member.children[0])
+    result = fortran_writer(psyir)
+    print(result)
+    assert (
+        "  do jk = 1, UBOUND(mystruct%field2(4,3)%field, 3), 1\n"
+        "    do jj = 1, UBOUND(mystruct%field2(4,3)%field, 2), 1\n"
+        "      do ji = 1, UBOUND(mystruct%field2(4,3)%field, 1), 1\n"
+        "        mystruct%field2(4,3)%field(ji,jj,jk) = "
+        "mystruct%field2(5,8)%field(ji,jj,jk)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in result)
+
+
+def test_validate_unsupported_structure_of_arrays(fortran_reader):
+    '''Check that nested structure_of_arrays are not supported. '''
+    trans = NemoArrayRange2LoopTrans()
+
+    # Case 1: 2 array accessors in LHS and both have ranges
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field2(4)%field(:,:,:) = 0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    array_ref.member.indices[0].replace_with(Range.create(
+        Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.member.member.children[2])
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
+
+    # Case 2: Nested array in another array
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        mystruct%field5(indices(:)) = 0.0d0
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.member.indices[0].indices[0])
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
+
+    # Case 3: Nested array in another array which also have Ranges
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        umask(:,mystruct%field2%field3(:),:) = &
+            mystruct%field(mystruct%field2%field3(:),:,:)
+    end subroutine test
+    ''')
+    array_ref = psyir.walk(Assignment)[0].lhs
+    with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    assert ("The number of ranges in the arrays within this assignment are "
-            "not equal. Any such case should have been dealt with by the "
-            "validation method or represents invalid PSyIR."
-            in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
 
 
-def test_apply_existing_names_as_ancestor_loop_variables():
-    '''Check that the transformation is not applied if the variable name
-    already exists as the variable name of an ancestor loop.
+def test_validate_existing_names_as_ancestor_loop_variables():
+    '''Check that the validation method of the transformation raises an
+    exception if the variable name already exists as the variable name of
+    an ancestor loop.
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
     trans = NemoArrayRange2LoopTrans()
@@ -369,9 +502,9 @@ def test_apply_existing_names_as_ancestor_loop_variables():
             "in:\ndo jk = 1, jpk, 1\n" in str(info.value))
 
 
-def test_apply_with_codeblock():
-    '''Check that the transformation is not applied if there is a Codeblock as
-    part of the assignment.
+def test_validate_with_codeblock():
+    '''Check that the validation method of the transformation raises an
+    exception if there is a Codeblock as part of the assignment.
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
     trans = NemoArrayRange2LoopTrans()
@@ -392,9 +525,9 @@ def test_apply_with_codeblock():
             "umask(:,:,:) = 0.0d0 + \n" in str(info.value))
 
 
-def test_apply_with_a_function_call():
-    '''Check that the transformation is not applied if there is a Call as
-    part of the assignment.
+def test_validate_with_a_function_call():
+    '''Check that the validation method of the transformation raises an
+    exception if there is a Call as part of the assignment.
     '''
     _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
     trans = NemoArrayRange2LoopTrans()
@@ -415,10 +548,10 @@ def test_apply_with_a_function_call():
             "umask(:,:,:) = 0.0d0 + func()\n" in str(info.value))
 
 
-def test_apply_with_array_with_hidden_accessor():
-    '''Check that the transformation is not applied if there is a RHS array
-    (or UnknownType) with the accessor expression missing.
-
+def test_validate_with_array_with_hidden_accessor():
+    '''Check that the validation method of the transformation raises an
+    exception if there is a RHS array (or UnknownType) with the accessor
+    expression missing.
     '''
     _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
                                 api=API, idx=0)
@@ -438,7 +571,7 @@ def test_apply_with_array_with_hidden_accessor():
         trans.apply(assignment1.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
-            "<Array<Scalar<REAL" in str(info.value))
+            "DataSymbol<Array<Scalar<REAL" in str(info.value))
 
     # The second fails because it's an UnknownType and we don't know whether
     # it's an scalar or an array.
@@ -446,11 +579,11 @@ def test_apply_with_array_with_hidden_accessor():
         trans.apply(assignment2.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
-            "<UnknownFortranType" in str(info.value))
+            "DataSymbol<UnknownFortranType" in str(info.value))
 
 
 def test_apply_different_num_dims():
-    '''Check that the apply method raises an exception when the number of
+    '''Check that the validate method raises an exception when the number of
     range dimensions differ in different arrays. This should never
     happen as it is invalid PSyIR.
 
@@ -468,10 +601,11 @@ def test_apply_different_num_dims():
             "invalid PSyIR." in str(info.value))
 
 
-def test_apply_imported_function():
-    ''' Check that the apply method refuses to transform the assignment when
-    range nodes are inside a function, as it does not know if the function is
-    declared as 'elemental' which changes the semantics of the array notation.
+def test_validate_imported_function():
+    '''Check that the validation method of the transformation raises an
+    exception when range nodes are inside a function, as it does not know if
+    the function is declared as 'elemental' which changes the semantics of the
+    array notation.
     '''
     _, invoke_info = get_invoke("array_valued_function.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -480,15 +614,13 @@ def test_apply_imported_function():
     trans = NemoArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    # TODO fparser/#201: currently fparsre parses imported symbols that can be
+    # TODO fparser/#201: currently fparser parses imported symbols that can be
     # functions or arrays always as arrays accessors, for this reason the error
     # message talks about arrays instead of functions. If this is resolved this
     # test would be equivalent to test_apply_with_a_function_call.
-    assert("Error in NemoArrayRange2LoopTrans transformation. This "
-           "transformation does not support assignments with rhs arrays that "
-           "don't have a range, but found 'ptr_sjk' in:\n"
-           "z3d(1,:,:) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
-           in str(info.value))
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "nested Range structures, but found:\n" in str(info.value))
 
 
 def test_apply_calls_validate():
@@ -531,7 +663,7 @@ def test_valid_node():
            in str(info.value))
 
 
-def test_within_array_reference():
+def test_validate_within_array_reference():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not within an array reference.
 
@@ -547,12 +679,12 @@ def test_within_array_reference():
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
         assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
-               f"supplied node argument should be within an "
-               f"ArrayReference node, but found '{result}'."
+               f"supplied node argument should be within an array "
+               f"access node, but found '{result}'."
                in str(info.value))
 
 
-def test_within_assignment():
+def test_validate_within_assignment():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not within an array reference that is within
     an assignment.
@@ -564,18 +696,17 @@ def test_within_assignment():
     array_ref = assignment.lhs
     trans = NemoArrayRange2LoopTrans()
     my_range = array_ref.children[2]
-    for parent, result in [(schedule, "NemoInvokeSchedule"),
-                           (None, "NoneType")]:
+    for parent in (schedule, None):
         array_ref._parent = parent
         with pytest.raises(TransformationError) as info:
             trans.validate(my_range)
-        assert(f"Error in NemoArrayRange2LoopTrans transformation. The "
-               f"supplied node argument should be within an ArrayReference "
-               f"node that is within an Assignment node, but found '{result}'."
+        assert("Error in NemoArrayRange2LoopTrans transformation. The "
+               "supplied node argument should be within an Assignment node, "
+               "but found a 'Range[]' that is not in an assignment."
                in str(info.value))
 
 
-def test_within_lhs_assignment():
+def test_validate_within_lhs_assignment():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not within an array reference that is within
     the lhs of an assignment (i.e. it is within the rhs).
@@ -586,17 +717,17 @@ def test_within_lhs_assignment():
     assignment = schedule[0]
     array_ref = assignment.rhs
     trans = NemoArrayRange2LoopTrans()
-    my_range = array_ref.children[0]
+    my_range = array_ref.children[-1]
     with pytest.raises(TransformationError) as info:
         trans.validate(my_range)
     assert("Error in NemoArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be within an ArrayReference "
+           "supplied node argument should be within an array access "
            "node that is within the left-hand-side of an Assignment "
            "node, but it is on the right-hand-side." in str(info.value))
 
 
-def test_array_non_elemental_operator():
-    '''Check that the vaidate() method raises the expected exception if a
+def test_validate_array_non_elemental_operator():
+    '''Check that the validate() method raises the expected exception if a
     a non-elemental operation is found on the rhs of the assignment node.
 
     '''
@@ -614,7 +745,7 @@ def test_array_non_elemental_operator():
         in str(info.value))
 
 
-def test_not_outermost_range():
+def test_validate_not_outermost_range():
     '''Check that the validate() method raises the expected exception if
     the supplied node is not the outermost Range within an array
     reference.
@@ -633,39 +764,10 @@ def test_not_outermost_range():
            "Range." in str(info.value))
 
 
-def test_outer_index_idx():
-    '''Check that when given an array reference the internal
-    get_outer_index() function returns the outermost index of the
-    array that is a range.
-
-    '''
-    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment = schedule[0]
-    array_ref = assignment.lhs
-    assert get_outer_index(array_ref) == 2
-
-
-def test_outer_index_error():
-    '''Check that when given an array reference the internal
-    get_outer_index() function returns an IndexError exception if
-    there are no ranges in the array indices.
-
-    '''
-    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignments = schedule.walk(Assignment)
-    assert len(assignments) == 1
-    assignment = assignments[0]
-    array_ref = assignment.lhs
-    with pytest.raises(IndexError):
-        _ = get_outer_index(array_ref)
-
-
 @pytest.mark.parametrize("datatype",
                          [REAL_TYPE, ArrayType(INTEGER_TYPE, [10]),
                           DeferredType()])
-def test_loop_variable_name_error(datatype):
+def test_validate_loop_variable_name_error(datatype):
     '''Check that the expected exception is raised when the config file
     specifies a loop iteration name but it is already declared in the
     code as something that is not a scalar.

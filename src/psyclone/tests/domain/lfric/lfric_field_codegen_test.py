@@ -44,11 +44,13 @@ LFRic field arguments.
 from __future__ import absolute_import, print_function
 import os
 import pytest
+
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynKernelArgument
+from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.errors import GenerationError
 
 
 # Constants
@@ -290,7 +292,7 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -544,26 +546,6 @@ def test_vector_field_2(tmpdir):
             generated_code)
 
 
-def test_vector_field_deref(tmpdir, dist_mem):
-    ''' Tests that a vector field is declared correctly in the PSy
-    layer when it is obtained by de-referencing a derived type in the
-    Algorithm layer.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "8.1_vector_field_deref.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    generated_code = str(psy.gen)
-    assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, box_chi, f2)" in
-            generated_code)
-    assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
-            generated_code)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
 def test_mkern_invoke_vec_fields():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with vector fields '''
@@ -597,7 +579,7 @@ def test_int_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_int_field_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"
         "    IMPLICIT NONE\n"
@@ -926,9 +908,29 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
 # integer-valued fields
 
 
-def test_int_real_field_invalid():
-    ''' Tests that the same field cannot have different data types
-    in different kernels within the same Invoke. '''
+def test_int_real_field_invalid(monkeypatch):
+    '''Tests that the same field cannot have different data types in
+    different kernels within the same Invoke. It is not possible to
+    get to this exception in PSyclone as we require all fields to have
+    a known datatype and we check for consistency with the metadata
+    and therefore raise an earlier exception. We therefore need to
+    monkeypatch.
+
+    '''
+    def dummy_func(self, _1, _2=True):
+        '''Dummy routine that replaces _init_data_type_properties when used
+        with monkeypatch and sets the minimum needed values to return
+        without error for the associated example.
+
+        '''
+        self._data_type = "dummy1"
+        self._precision = "dummy2"
+        self._proxy_data_type = "dummy3"
+        self._module_name = "dummy4"
+
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties", dummy_func)
+
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "4.15_multikernel_invokes_real_int_field_invalid.f90"),
@@ -938,10 +940,10 @@ def test_int_real_field_invalid():
     const = LFRicConstants()
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("Field argument(s) ['n1'] in Invoke "
-            "'invoke_integer_and_real_field' have different metadata for "
-            "data type ({0}) in different kernels. This is invalid.".
-            format(const.VALID_FIELD_DATA_TYPES) in str(err.value))
+    assert (f"Field argument(s) ['n1'] in Invoke "
+            f"'invoke_integer_and_real_field' have different metadata for "
+            f"data type ({const.VALID_FIELD_DATA_TYPES}) in different "
+            f"kernels. This is invalid." in str(err.value))
 
 
 def test_int_real_field_fs(dist_mem, tmpdir):
@@ -962,7 +964,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
     output = (
         "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"

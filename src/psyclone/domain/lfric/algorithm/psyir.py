@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,14 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
 
         '''
         return isinstance(child, (LFRicKernelFunctor, LFRicBuiltinFunctor))
+
+    @staticmethod
+    def _def_container_root_name(node):
+        '''
+        :returns: the root name to use for the container.
+        :rtype: str
+        '''
+        return f"{node.name}_psy"
 
 
 class LFRicBuiltinFunctor(KernelFunctor):

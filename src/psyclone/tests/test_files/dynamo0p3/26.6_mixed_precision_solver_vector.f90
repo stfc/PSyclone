@@ -1,7 +1,7 @@
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2022, Science and Technology Facilities Council.
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,46 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author S. Siso, STFC Daresbury Lab
+! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example where the original field is dereferenced from an
+! abstract_vector_type and therefore has no type information. However,
+! a pointer is used that points to the field within the appropriate
+! select clause and it is of type field_vector_type. As the pointer is
+! passed in to the invoke call, PSyclone knows the argument is a
+! field_vector_type which can only contain fields of type field_type.
 
-program implicit_do_structures
-  use my_mod, only: mystruct
-  implicit none
-  integer, parameter :: jpi=10, jpj=10, jpk=10
-  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
+module vector_type
 
-  ! Test code with implicit NEMO-style do loop with structures
-  umask(:,:,:) = mystruct%field(:,:,:) + mystruct%field2%field(:,:,:)
+  use constants_mod,    only : r_def
+  use vector_mod,       only : abstract_vector_type
+  use field_vector_mod, only : field_vector_type
+  use field_mod,        only : field_type
+  use testkern_mod,     only : testkern_type
 
-  ! Test code with implicit NEMO-style do loop with structures in the LHS
-  mystruct%field2%field(:,:,:) = 0.0d0
+contains
 
-  ! Test code with implicit NEMO-style do loop with nested structures
-  umask(:,:,:) = mystruct%field(mystruct%field2%field3(:),:,:)
+  type :: some_type
+     type(field_vector_type) :: vec_type(10)
+   contains
+     procedure, public :: my_sub
+  end type some_type
 
-end program implicit_do_structures
+  contains
+
+  subroutine my_sub(self, x, m1, m2)
+    class(some_type), intent(inout) :: self
+    class (abstract_vector_type), intent(inout) :: x
+    type(field_type), intent(inout) :: m1, m2
+    type(field_vector_type), pointer :: x_ptr
+    real(r_def) :: a
+    select type (x)
+    type is (field_vector_type)
+       x_ptr => x
+      call invoke(testkern_type(a, x_ptr%vector(1), self%vec_type(1)%vector(1), m1, m2))
+    class default
+      print *,"Error"
+    end select
+  end subroutine my_sub
+
+end module vector_type

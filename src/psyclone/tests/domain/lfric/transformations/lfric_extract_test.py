@@ -544,7 +544,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=loop1_start,loop1_stop
-        f1_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)
+        f1_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + f2_proxy%data(df)
       END DO
       !$omp end parallel do
       CALL extract_psy_data%PostStart

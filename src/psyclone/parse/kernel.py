@@ -550,7 +550,7 @@ class KernelProcedure(object):
         # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
             if isinstance(statement, fparser1.statements.SpecificBinding):
-                # We support either:
+                # We support:
                 # PROCEDURE, nopass :: code => <proc_name> or
                 # PROCEDURE, nopass :: <proc_name>
                 if statement.bname:

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -162,7 +162,7 @@ def test_lfricalgorithminvoke_call_root_name():
     call0 = psyir.children[0][0]
     assert call0.routine.name == "invoke_0_kern"
     assert call0.routine.is_import
-    assert call0.routine.interface.container_symbol.name == "psy_alg1"
+    assert call0.routine.interface.container_symbol.name == "alg1_psy"
     args = call0.children
     assert len(args) == 1
     assert isinstance(args[0], Reference)
@@ -170,11 +170,28 @@ def test_lfricalgorithminvoke_call_root_name():
     call1 = psyir.children[0][1]
     assert call1.routine.name == "invoke_test_1"
     assert call1.routine.is_import
-    assert call1.routine.interface.container_symbol.name == "psy_alg1"
+    assert call1.routine.interface.container_symbol.name == "alg1_psy"
     args = call1.children
     assert len(args) == 1
     assert isinstance(args[0], Reference)
     assert args[0].symbol.name == "field1"
+
+
+def test_aic_defcontainerrootname():
+    '''Check that _def_container_root_name returns the expected value'''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "end subroutine alg1\n")
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, LFRicAlgorithmInvokeCall)
+    routine_node = psyir.children[0]
+    name = invoke._def_container_root_name(routine_node)
+    assert name == "alg1_psy"
 
 
 def test_lfricbuiltinfunctor():

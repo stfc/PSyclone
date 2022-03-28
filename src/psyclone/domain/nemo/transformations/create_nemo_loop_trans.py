@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -63,8 +63,8 @@ class CreateNemoLoopTrans(Transformation):
     >>> loops = psyir.walk(Loop)
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])
-    >>> print(psyir.view())
-    FileContainer[None]
+    >>> print(psyir.view(colour=False))
+    FileContainer[]
         Routine[name:'sub']
             0: Loop[type='lon', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

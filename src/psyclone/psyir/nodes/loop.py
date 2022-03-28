@@ -563,37 +563,29 @@ class Loop(Statement):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        invoke = self.ancestor(InvokeSchedule)
-        if (invoke and invoke.opencl) or (
-                is_unit_literal(self.start_expr) and
-                is_unit_literal(self.stop_expr)):
-            # no need for a loop
-            for child in self.loop_body:
-                child.gen_code(parent)
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.fortran import FortranWriter
+        # start/stop/step_expr are generated with the FortranWriter
+        # backend, the rest of the loop with f2pygen.
+        fwriter = FortranWriter()
+        if is_unit_literal(self.step_expr):
+            step_str = None
         else:
-            # Avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            # start/stop/step_expr are generated with the FortranWriter
-            # backend, the rest of the loop with f2pygen.
-            fwriter = FortranWriter()
-            if is_unit_literal(self.step_expr):
-                step_str = None
-            else:
-                step_str = fwriter(self.step_expr)
+            step_str = fwriter(self.step_expr)
 
-            do_stmt = DoGen(parent, self.variable.name,
-                            fwriter(self.start_expr),
-                            fwriter(self.stop_expr),
-                            step_str)
-            # need to add do loop before children as children may want to add
-            # info outside of do loop
-            parent.add(do_stmt)
-            for child in self.loop_body:
-                child.gen_code(do_stmt)
-            my_decl = DeclGen(parent, datatype="integer",
-                              entity_decls=[self.variable.name])
-            parent.add(my_decl)
+        do_stmt = DoGen(parent, self.variable.name,
+                        fwriter(self.start_expr),
+                        fwriter(self.stop_expr),
+                        step_str)
+        # need to add do loop before children as children may want to add
+        # info outside of do loop
+        parent.add(do_stmt)
+        for child in self.loop_body:
+            child.gen_code(do_stmt)
+        my_decl = DeclGen(parent, datatype="integer",
+                          entity_decls=[self.variable.name])
+        parent.add(my_decl)
 
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument has (or might have) its
