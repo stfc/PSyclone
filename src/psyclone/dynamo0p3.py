@@ -75,7 +75,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPParallelDoDirective)
+                                  ACCRegionDirective, OMPRegionDirective) #ParallelDoDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -7642,7 +7642,7 @@ class DynLoop(Loop):
         if not self.unique_modified_args("gh_field"):
             return
 
-        if self.ancestor(ACCRegionDirective):
+        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
             # We cannot include calls to set halos dirty/clean within OpenACC
             # regions. This is handled by the appropriate Directive class
             # instead.
@@ -7657,20 +7657,8 @@ class DynLoop(Loop):
                               f"modified in the above {prev_node_name}"))
         parent.add(CommentGen(parent, ""))
 
-        use_omp_master = False
-        if self.is_openmp_parallel():
-            if not self.ancestor(OMPParallelDoDirective):
-                use_omp_master = True
-                # I am within an OpenMP Do directive so protect
-                # set_dirty() and set_clean() with OpenMP Master
-                parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
-
         self.gen_mark_halos_clean_dirty(parent)
 
-        if use_omp_master:
-            # I am within an OpenMP Do directive so protect
-            # set_dirty() and set_clean() with OpenMP Master
-            parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
         parent.add(CommentGen(parent, ""))
 
     def gen_mark_halos_clean_dirty(self, parent):

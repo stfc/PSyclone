@@ -44,7 +44,7 @@ nodes.'''
 from __future__ import absolute_import
 import abc
 import six
-from psyclone.f2pygen import DirectiveGen, CommentGen, CallGen
+from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \

@@ -133,6 +133,17 @@ class RegionDirective(Directive):
             return self.children[1:]
         return []
 
+    def gen_post_region_code(self, parent):
+        '''
+        Generates any code that must be executed immediately after the end of
+        the region defined by this directive. This default implementation
+        does nothing.
+
+        :param parent:
+        :type parent:
+
+        '''
+
 
 class StandaloneDirective(Directive):
     '''

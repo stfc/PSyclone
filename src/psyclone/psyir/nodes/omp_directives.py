@@ -112,6 +112,33 @@ class OMPRegionDirective(OMPDirective, RegionDirective):
                             result.append(arg.name)
         return result
 
+    def gen_post_region_code(self, parent):
+        '''
+        Generates any code that must be executed immediately after the end of
+        the region defined by this directive.
+
+        :param parent: where to add new f2pygen nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        if not Config.get().distributed_memory or self.ancestor(Loop):
+            return
+
+        commented = False
+        for loop in self.walk(Loop):
+            if not isinstance(loop.parent, Loop):
+                if not commented and loop.unique_modified_args("gh_field"):
+                    commented = True
+                    parent.add(CommentGen(parent, ""))
+                    parent.add(CommentGen(parent,
+                                          " Set halos dirty/clean for fields "
+                                          "modified in the above loop(s)"))
+                    parent.add(CommentGen(parent, ""))
+                loop.gen_mark_halos_clean_dirty(parent)
+
+        if commented:
+            parent.add(CommentGen(parent, ""))
+
 
 @six.add_metaclass(abc.ABCMeta)
 class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
@@ -509,6 +536,8 @@ class OMPParallelDirective(OMPRegionDirective):
             parent.add(CommentGen(parent, ""))
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
+
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -1005,9 +1034,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         zero_reduction_variables(calls, parent)
         private_str = ",".join(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "default(shared), private({0}), "
-                                "schedule({1})".
-                                format(private_str, self._omp_schedule) +
+                                f"default(shared), private({private_str}), "
+                                f"schedule({self._omp_schedule})" +
                                 self._reduction_string()))
         for child in self.children:
             child.gen_code(parent)
@@ -1016,6 +1044,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, *self.end_string().split()),
                    position=["after", position])
+
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
