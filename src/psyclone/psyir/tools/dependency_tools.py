@@ -431,10 +431,10 @@ class DependencyTools(object):
         # - list of all subscripts. Initially these lists contain
         #   only one subscript, but they will be modified later
         # Example: `a(i,j)` and `a(i,k)` -->
-        #          [ ({"i"}, [0]), ({"j","k"}, [1])]
+        #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
         partition_infos = []
-        for i, indices in enumerate(zip(indices_1, indices_2)):
-            partition_infos.append((indices[0].union(indices[1]), [i]))
+        for i, indx in enumerate(comp_ind1.iterate()):
+            partition_infos.append((indices_1[i].union(indices_2[i]),[indx]))
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_vars:
