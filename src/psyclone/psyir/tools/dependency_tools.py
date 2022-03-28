@@ -465,6 +465,39 @@ class DependencyTools(object):
         return partition_infos
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def independent_0_var(index, access1, access2):
+        '''Checks if the two accesses, that are not dependent on any
+        loop variable, are independent or not. E.g. `a(3)` and `a(5)`
+        are independent of each other, `a(n)` and `a(n)` are not.
+        Even `a(n)` and `a(3)` are considered dependend, since no
+        restriction on the variable `n` is made.
+
+        :param index: The subscription index to be checked.
+        :type param: 2-tuple of integer
+
+        :param access1: the first access.
+        :type access1:
+            :py:class:`psyclone.core.access_info.AccessInfo`
+        :param access2: the second access.
+        :type access2:
+            :py:class:`psyclone.core.access_info.AccessInfo`
+
+        '''
+        sym_maths = SymbolicMaths.get()
+
+        # If the indices can be shown to be never equal, the accesses
+        # to the given subscript are always independent.
+        if sym_maths.never_equal(access1.component_indices[index],
+                                 access2.component_indices[index]):
+            return True
+
+        # Otherwise we have to conservatively assume that the accesses
+        # are dependent on each other. Additional tests could be added,
+        # e.g. `a(n)` and `a(5)` ... if it should be known that n != 5.
+        return False
+
+    # -------------------------------------------------------------------------
     def is_scalar_parallelisable(self, var_info):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.

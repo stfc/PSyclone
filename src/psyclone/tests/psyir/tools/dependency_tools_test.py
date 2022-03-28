@@ -369,6 +369,7 @@ def test_get_indices(expression, correct, parser):
                          [("a1(i+i+j)", "a1(i)", [({"i", "j"}, {0})]),
                           # n is not a loop variable, it must be ignored:
                           ("a1(i+j+n)", "a1(i)", [({"i", "j"}, {0})]),
+                          ("a1(n)", "a1(n)", [(set(), {0})]),
                           ("a1(i+j+3)", "a1(i)", [({"i", "j"}, {0})]),
                           ("a3(i,j,k)", "a3(i,j,k)", [({"i"}, {0}),
                                                       ({"j"}, {1}),
@@ -383,8 +384,7 @@ def test_get_indices(expression, correct, parser):
                                                            {2, 3})])
                           ])
 def test_partition(lhs, rhs, partition, parser):
-    '''Tests that getting the indices of an array expressions
-    works as expected.
+    '''Tests that partitioning accesses to array variables works.
     '''
     reader = FortranStringReader(f'''program test
                                  use my_mod, only: my_type
@@ -436,6 +436,40 @@ def test_partition(lhs, rhs, partition, parser):
         # The partition function returns the indices as lists, so
         # convert them to sets to get an order independent comparison:
         assert correct[1] == set(part_info[1])
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("lhs, rhs, is_dependent",
+                         [("a1(n)", "a1(n)", False),
+                          ("a1(1)", "a1(3)", True),
+                          ("a1(n-1)", "a1(n-1)", False),
+                          ("a1(n-1)", "a1(n-2)", True),
+                          ("a1(n)", "a1(5)", False),
+                          ("a1(n)", "a1(m)", False),
+                          ])
+def test_array_access_pairs_0vars(lhs, rhs, is_dependent, parser):
+    '''Tests that array indices that use 0 loop variables are
+    detected as independent.
+    '''
+    reader = FortranStringReader(f'''program test
+                                 integer, parameter :: n=10, m=11
+                                 real, dimension(n) :: a1
+                                 {lhs} = {rhs}
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    assign = psy.invokes.get("test").schedule[0]
+    sig = Signature("a1")
+    # Get all access info for the expression to 'a1'
+    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
+    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+
+    dep_tools = DependencyTools(["unknown"])
+
+    index = (0, 0)
+    result = dep_tools.independent_0_var(index, access_info_rhs,
+                                         access_info_lhs)
+    assert result is is_dependent
 
 
 # -----------------------------------------------------------------------------
