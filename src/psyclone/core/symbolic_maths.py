@@ -38,7 +38,7 @@
 functions.'''
 
 
-from sympy import simplify, true
+from sympy import simplify, core
 
 
 class SymbolicMaths:
@@ -100,6 +100,57 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
+        return SymbolicMaths.subtract(exp1, exp2) == 0
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def never_equal(exp1, exp2):
+        '''Returns if the given SymPy expressions are always different,
+        without assuming any values for variables. E.g. `n-1` and `n` are
+        always different, but `5` and `n` are not always different.
+
+        :param exp1: the first expression to be compared.
+        :type exp1: py:class:`psyclone.psyir.nodes.Node`
+        :param exp2: the first expression to be compared.
+        :type exp2: py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether or not the expressions are never equal.
+        :rtype: bool
+
+        '''
+        result = SymbolicMaths.subtract(exp1, exp2)
+
+        # If the result is 0, they are always the same:
+        if isinstance(result, core.numbers.Zero):
+            return False
+
+        # If the result is an integer value, the result is independent
+        # of any variable, and never equal
+        if isinstance(result, core.numbers.Integer):
+            return result != 0
+
+        # Otherwise the result depends on one or more variables (e.g.
+        # n-5), so it might be zero.
+        return False
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def subtract(exp1, exp2):
+        '''Subtracts two PSyIR operations. This is done by converting the
+        operations to the equivalent Fortran representation, which can be fed
+        into sympy for evaluation.
+
+        :param exp1: the first expression to be compared.
+        :type exp1: py:class:`psyclone.psyir.nodes.Node` or None
+        :param exp2: the first expression to be compared.
+        :type exp2: py:class:`psyclone.psyir.nodes.Node` or None
+
+        :returns: the sympy expression resulting from subtracting exp2 \
+            from exp1.
+        :rtype: a SymPy object
+
+        '''
+
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -108,10 +159,6 @@ class SymbolicMaths:
         # SymPy expressions:
         sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
                                                                       exp2])
-
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
-        result = simplify(sympy_expressions[0] == sympy_expressions[1])
-
-        # Convert SymPy boolean to python boolean.
-        return result is true
+        return simplify(sympy_expressions[0] - sympy_expressions[1])

@@ -209,6 +209,38 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is False
 
 
+@pytest.mark.parametrize("exp1, exp2, result", [("i", "0", False),
+                                                ("i", "j", False),
+                                                ("2", "1+1-1", True),
+                                                ("2", "1+1", False),
+                                                ("i", "i+1", True),
+                                                ("i+j", "j+i+1", True),
+                                                ("i-j", "j-i", False),
+                                                ("max(1, 2)",
+                                                 "max(1, 2, 3)", True)
+                                                ])
+def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
+    '''Test that the sympy based comparison handles complex
+    expressions that are not equal.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use some_mod
+                integer :: i, j, k, x
+                type(my_mod_type) :: a, b
+                x = {exp1}
+                x = {exp2}
+                end program test_prog
+                '''
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
+
+    sym_maths = SymbolicMaths.get()
+    assert sym_maths.never_equal(schedule[0].rhs, schedule[1].rhs) is result
+
+
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),
                                          ("max(1, 3)", "3"),
                                          ("max(1, 3)", "max(1, 2, 3)"),
