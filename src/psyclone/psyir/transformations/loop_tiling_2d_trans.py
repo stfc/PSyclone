@@ -116,7 +116,7 @@ class LoopTiling2DTrans(LoopTrans):
         # TODO #613: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
-        valid_options = ['tilesize']
+        valid_options = ['tilesize', 'strategy']
         for key, value in options.items():
             if key in valid_options:
                 if key == "tilesize" and not isinstance(value, int):
@@ -167,13 +167,15 @@ class LoopTiling2DTrans(LoopTrans):
         if options is None:
             options = {}
         tilesize = options.get("tilesize", 32)
+        strategy = options.get("strategy", "default")
         parent = node.parent
         position = node.position
         outer_loop = node
         inner_loop = node.loop_body.children[0]
 
-        ChunkLoopTrans().apply(outer_loop, options={'chunksize': tilesize})
-        ChunkLoopTrans().apply(inner_loop, options={'chunksize': tilesize})
+        options = {'chunksize': tilesize, 'strategy': strategy}
+        ChunkLoopTrans().apply(outer_loop, options=options)
+        ChunkLoopTrans().apply(inner_loop, options=options)
 
         loops = parent[position].walk(Loop)[1]
         LoopSwapTrans().apply(loops)
