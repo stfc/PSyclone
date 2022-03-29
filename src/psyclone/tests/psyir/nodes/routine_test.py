@@ -222,10 +222,15 @@ def test_routine_equality():
 
     # Test non-equality if different names.
     assignment2.detach()
-    ksched3 = Routine.create("mod_name2", symbol_table, [assignment2],
+    ksched3 = Routine.create("mod_name", symbol_table, [assignment2],
                              is_program=True, return_symbol=symbol)
+    # Workaround for the routine name
+    ksched3.name = "mod_name2"
 
     assert ksched1 != ksched3
+
+    # Reset the name so we can create more routines
+    ksched3.name = "mod_name"
 
     # Test non-equality if different is_program status
     assignment2.detach()
