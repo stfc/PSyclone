@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,7 @@ class ScopingNode(Node):
             self._symbol_table = symbol_table
         else:
             self._symbol_table = self._symbol_table_class(self)
+        self._symbol_table._node = self
 
     def __eq__(self, other):
         '''

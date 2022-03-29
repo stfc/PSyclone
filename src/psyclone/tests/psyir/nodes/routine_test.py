@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
@@ -96,6 +97,29 @@ def test_routine_name_setter():
     # Check that the 'own_routine_symbol' tag has been updated
     assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
         "goodbye"
+
+
+def test_routine_name_setter_preexisting_tag():
+    ''' Check that if the routine is initialized with a SymbolTable that
+    already contains a 'own_routine_symbol' tag, the names must match.'''
+
+    node = Routine("hello")
+    symtab = node.symbol_table
+
+    # Creating a routine that will try to set the routine name to 'bye' while
+    # having a differently named 'own_routine_symbol' tag in the symbol table
+    with pytest.raises(KeyError) as err:
+        node2 = Routine("bye", symbol_table=symtab)
+    assert ("Can't assign bye as the routine name because its symbol table "
+            "contains a symbol (hello: RoutineSymbol<NoType>) already tagged "
+            "as 'own_routine_symbol'." in str(err.value))
+
+    # But it is fine if the name is the same
+    node2 = Routine("hello", symbol_table=symtab)
+    assert symtab.node is node2
+    # And successive name changes are also fine
+    node2.name = "bye"
+    assert symtab.lookup_with_tag("own_routine_symbol").name == "bye"
 
 
 def test_routine_return_symbol_setter():
@@ -175,6 +199,7 @@ def test_routine_create():
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
+    assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
 

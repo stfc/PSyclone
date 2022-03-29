@@ -725,23 +725,23 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with Return in the middle.
     kschedule = KernelSchedule.create(
-        "work2", symbol_table, [assign1.copy(), Return(), assign2.copy()])
+        "work1", symbol_table, [assign1.copy(), Return(), assign2.copy()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
     _, err = capsys.readouterr()
-    assert ("Not adding profiling to routine 'work2' because it contains one "
+    assert ("Not adding profiling to routine 'work1' because it contains one "
             "or more Return statements" in err)
 
     # Create Schedule with a Return at the end as well as in the middle.
     kschedule = KernelSchedule.create(
-        "work3", symbol_table, [assign1.copy(), Return(), assign2.copy(),
+        "work1", symbol_table, [assign1.copy(), Return(), assign2.copy(),
                                 Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
     _, err = capsys.readouterr()
-    assert ("Not adding profiling to routine 'work3' because it contains one "
+    assert ("Not adding profiling to routine 'work1' because it contains one "
             "or more Return statements" in err)
 
 
