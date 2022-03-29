@@ -44,6 +44,7 @@ import pytest
 from psyclone.domain.gocean.transformations import KernTrans
 from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import FileContainer, Node
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
@@ -54,7 +55,8 @@ METADATA = (
     "     type(go_arg), dimension(3) :: meta_args =                 &\n"
     "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
     "             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)), &\n"
-    "             go_arg(GO_READ,  GO_GRID_AREA_T)                  &\n"
+    "             go_arg(GO_READ,  GO_GRID_AREA_T),                 &\n"
+    "             go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE)       &\n"
     "           /)\n"
     "     integer :: ITERATES_OVER = GO_ALL_PTS\n"
     "     integer :: index_offset = GO_OFFSET_SW\n"
@@ -109,6 +111,27 @@ def test_validate_nosymbol():
             "supplied PSyIR." in str(info.value))
 
 
+def test_validate_keyerror(fortran_reader):
+    '''Test that the PSyIR tree walk to find the metadata symbol works if
+    multiple symbol tables need to be searched before finding the
+    correct one. A KeyError is raised if the symbol is not found in the
+    symbol table lookup method.
+
+    '''
+    my_program = (f"module dummy\n"
+                  f"contains\n"
+                  f"subroutine dummy1()\n"
+                  f"end subroutine\n"
+                  f"  subroutine dummy2()\n"
+                  f"{METADATA}"
+                  f"  end subroutine\n"
+                  f"end module\n")
+    kernel_psyir = fortran_reader.psyir_from_source(my_program)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.validate(kernel_psyir)
+
+
 def test_validate_metadata(fortran_reader):
     '''Test that the symbol setup method is called as this checks the
     metadata is valid. To trigger this we make the metadata invalid
@@ -121,10 +144,9 @@ def test_validate_metadata(fortran_reader):
     kernel_psyir = fortran_reader.psyir_from_source(modified_program)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(ParseError) as info:
         kern_trans.validate(kernel_psyir)
-    assert ("The property name should always be found in the metadata but "
-            "'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
+    assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
             "compute_cu" in str(info.value))
 
 
@@ -204,6 +226,27 @@ def test_apply_validate(fortran_reader, monkeypatch):
     with pytest.raises(RuntimeError) as info:
         kern_trans.apply(kernel_psyir)
     assert "dummy called" in str(info.value)
+
+
+def test_apply_keyerror(fortran_reader):
+    '''Test that the PSyIR tree walk to find the metadata symbol works if
+    multiple symbol tables need to be searched before finding the
+    correct one. A KeyError is raised if the symbol is not found in the
+    symbol table lookup method.
+
+    '''
+    my_program = (f"module dummy\n"
+                  f"contains\n"
+                  f"subroutine dummy1()\n"
+                  f"end subroutine\n"
+                  f"  subroutine dummy2()\n"
+                  f"{METADATA}"
+                  f"  end subroutine\n"
+                  f"end module\n")
+    kernel_psyir = fortran_reader.psyir_from_source(my_program)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
 
 
 def test_apply_ok(fortran_reader):

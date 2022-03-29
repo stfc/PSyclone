@@ -82,7 +82,7 @@ class KernTrans(Transformation):
                 break
             except KeyError:
                 pass
-        if not metadata_symbol:
+        else:
             raise TransformationError(
                 f"The metadata name ({self._metadata_name}) provided to the "
                 f"transformation does not correspond to a symbol in the "
@@ -135,7 +135,7 @@ class KernTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or NoneType
+        :type options: Dict[str:values] or NoneType
 
         '''
         self.validate(node, options=options)

@@ -90,6 +90,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 f"Expected kernel metadata to be a derived type, but found "
                 f"'{self.datatype.declaration}'.")
 
+        const = GOceanConstants()
         # Extract and store the required 'iterates_over',
         # 'index_offset' and 'code' properties from the parse tree for
         # ease of access.
@@ -104,8 +105,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
         self._code = self._get_property(spec_part, "code").string
 
         # meta_args contains arguments which have
-        # properties. Therefore create appropriate (GridArg or
-        # FieldArg) instances to capture this information.
+        # properties. Therefore create appropriate (GridArg, ScalarArg
+        # or FieldArg) instances to capture this information.
         meta_args = self._get_property(spec_part, "meta_args")
         args = walk(meta_args, Fortran2003.Ac_Value_List)
         if not args:
@@ -116,16 +117,22 @@ class KernelMetadataSymbol(DataTypeSymbol):
         self._meta_args = []
         for meta_arg in args[0].children:
             if len(meta_arg.children[1].children) == 2:
+                # Grid args have 2 arguments
                 self._meta_args.append(self.GridArg(meta_arg, self))
             elif len(meta_arg.children[1].children) == 3:
-                arg2 = meta_arg.children[1].children[1].string
+                # scalar and field args have 3 arguments
+                arg2 = meta_arg.children[1].children[1].string.lower()
                 if arg2 in const.VALID_FIELD_GRID_TYPES:
                     self._meta_args.append(self.FieldArg(meta_arg, self))
                 elif arg2 in const.VALID_SCALAR_TYPES:
                     self._meta_args.append(self.ScalarArg(meta_arg, self))
                 else:
-                    raise ParseError(f"Expected 'meta_arg' entries with 3 arguments to either be a field or a scalar, but found '{arg2}' instead of '{const.VALID_FIELD_GRID_TYPES}' (fields) or '{const.VALID_SCALAR_TYPES}' (scalars).")
-
+                    raise ParseError(
+                        f"Expected a 'meta_arg' entry with 3 arguments to "
+                        f"either be a field or a scalar, but found '{arg2}' "
+                        f"as the second argument instead of "
+                        f"'{const.VALID_FIELD_GRID_TYPES}' (fields) or "
+                        f"'{const.VALID_SCALAR_TYPES}' (scalars).")
             else:
                 raise ParseError(
                     f"'meta_args' should have either 2 or 3 arguments, but "
@@ -191,17 +198,17 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"Expecting a specific binding for the type-bound "
                     f"procedure, but found '{specific_binding}' in "
                     f"'{spec_part}'.")
-            binding_name = specific_binding.children[3].string
-            if not binding_name.lower() == "code":
+            binding_name = specific_binding.children[3]
+            procedure_name = specific_binding.children[4]
+            if binding_name.string.lower() != "code" and procedure_name:
                 raise ParseError(
                     f"Expecting the type-bound procedure binding-name to be "
-                    f"'code' but found '{str(binding_name)}' in "
-                    f"'{spec_part}'.")
-            procedure_name = specific_binding.children[4]
+                    f"'code' if there is a procedure name, but found "
+                    f"'{str(binding_name)}' in '{spec_part}'.")
             if not procedure_name:
-                raise ParseError(
-                    f"Expecting the type-bound procedure binding to have a "
-                    f"procedure name but found '{spec_part}'.")
+                # Support the alternative metadata format that does
+                # not include 'code =>'
+                procedure_name = binding_name
             return procedure_name
 
         # The should be a variable declaration within the derived type.
@@ -651,3 +658,156 @@ class KernelMetadataSymbol(DataTypeSymbol):
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
                 self._parent.write_fortran_string()
+
+
+    class ScalarArg():
+        '''Internal class to capture Kernel metadata argument information for
+        a scalar.
+
+        :param meta_arg: an fparser2 tree representation of the metadata.
+        :type meta_arg: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :param parent: a KernelMetadataSymbol instance that captures \
+            other parts of the metadata and references this instance.
+        :type parent: :py:class`psyclone.psyir.common.kernel. \
+            KernelMetadataSymbol`
+
+        :raises ParseError: if the metadata does not contain three \
+            arguments.
+
+        '''
+        def __init__(self, meta_arg, parent):
+            self._parent = parent
+
+            arg_list = meta_arg.children[1]
+            if len(arg_list.children) != 3:
+                raise ParseError(
+                    f"There should be 3 kernel metadata entries for a scalar "
+                    f"argument, but found {len(arg_list.children)} in "
+                    f"{str(meta_arg)}.")
+
+            access = arg_list.children[0].string
+            self._validate_access(access)
+            self._access = access
+
+            datatype = arg_list.children[1].string
+            self._validate_datatype(datatype)
+            self._datatype = datatype
+
+            form = arg_list.children[2].string
+            self._validate_form(form)
+            self._form = form
+
+        def write_fortran_string(self):
+            '''
+            :returns: the metadata represented by this class as a \
+                Fortran string.
+            :rtype: str
+            '''
+            return f"go_arg({self.access}, {self.datatype}, {self.form})"
+
+        @staticmethod
+        def _validate_access(value):
+            '''Check that 'value' is a valid 'access' value.
+
+            :param str value: the value to check.
+
+            raises ValueError: if the supplied value is invalid.
+
+            '''
+            const = GOceanConstants()
+            if value.lower() not in const.VALID_INTRINSIC_TYPES:
+                raise ValueError(
+                    f"The first metadata entry for a scalar argument should "
+                    f"be one of {const.VALID_INTRINSIC_TYPES}, but found "
+                    f"'{value}'.")
+
+        @property
+        def access(self):
+            '''
+            :returns: the value of access.
+            :rtype: str
+            '''
+            return self._access
+
+        @access.setter
+        def access(self, value):
+            '''
+            :param str value: the new value for access.
+            '''
+            self._validate_access(value)
+            self._access = value
+            # Update the underlying string representation of the datatype.
+            self._parent.datatype.declaration = \
+                self._parent.write_fortran_string()
+
+        @staticmethod
+        def _validate_datatype(value):
+            '''Check that 'value' is a valid scalar 'datatype' value.
+
+            :param str value: the value to check.
+
+            raises ValueError: if the supplied value is invalid.
+
+            '''
+            const = GOceanConstants()
+            if value.lower() not in const.VALID_SCALAR_TYPES:
+                raise ValueError(
+                    f"The second metadata entry for a scalar argument should "
+                    f"be one of {const.VALID_SCALAR_TYPES}, but found "
+                    f"'{value}'.")
+
+        @property
+        def datatype(self):
+            '''
+            :returns: the value of access.
+            :rtype: str
+            '''
+            return self._datatype
+
+        @datatype.setter
+        def datatype(self, value):
+            '''
+            :param str value: the new value for datatype.
+            '''
+            self._validate_datatype(value)
+            self._datatype = value
+            # Update the underlying string representation of the datatype.
+            self._parent.datatype.declaration = \
+                self._parent.write_fortran_string()
+
+        @staticmethod
+        def _validate_form(value):
+            '''Check that 'value' is a valid 'form' value.
+
+            :param str value: the value to check.
+
+            raises ValueError: if the supplied value is invalid.
+
+            '''
+            const = GOceanConstants()
+            if value.lower() not in const.VALID_STENCIL_NAMES:
+                raise ValueError(
+                    f"The third metadata entry for a scalar should "
+                    f"be one of {const.VALID_STENCIL_NAMES}, but "
+                    f"found '{value}'.")
+
+        @property
+        def form(self):
+            '''
+            :returns: the form of access.
+            :rtype: str
+            '''
+            return self._form
+
+        @form.setter
+        def form(self, value):
+            '''
+            :param str value: the new value for form.
+            '''
+            self._validate_form(value)
+            self._form = value
+            # Update the underlying string representation of the datatype.
+            self._parent.datatype.declaration = \
+                self._parent.write_fortran_string()
+

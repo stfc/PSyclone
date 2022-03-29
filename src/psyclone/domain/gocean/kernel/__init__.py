@@ -38,9 +38,3 @@ layer.
 
 '''
 from psyclone.domain.gocean.kernel.psyir import KernelMetadataSymbol
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.kernel import KernelMetadataSymbol
-
-__all__ = ['KernelMetadataSymbol']

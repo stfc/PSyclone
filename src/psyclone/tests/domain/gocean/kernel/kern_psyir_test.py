@@ -52,10 +52,11 @@ from psyclone.psyir.symbols import INTEGER_TYPE
 
 METADATA = (
     "  type, extends(kernel_type) :: compute_cu\n"
-    "     type(go_arg), dimension(3) :: meta_args =                 &\n"
+    "     type(go_arg), dimension(4) :: meta_args =                 &\n"
     "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
     "             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)), &\n"
-    "             go_arg(GO_READ,  GO_GRID_AREA_T)                  &\n"
+    "             go_arg(GO_READ,  GO_GRID_AREA_T),                 &\n"
+    "             go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE)       &\n"
     "           /)\n"
     "     integer :: ITERATES_OVER = GO_ALL_PTS\n"
     "     integer :: index_offset = GO_OFFSET_SW\n"
@@ -180,7 +181,9 @@ def test_kernelmetadatasymbol_setup_indexoffset(fortran_reader):
 def test_kernelmetadatasymbol_setup_code(fortran_reader):
     '''Test that the setup method raises an exception if the required type
     bound procedure does not exist or has an invalid value. Also test
-    that it works as expected if the value is valid.
+    that it works as expected if the value is valid. Also test that it
+    works when the procedure name is specified with and without 'code
+    =>'.
 
     '''
     # no contains
@@ -228,21 +231,8 @@ def test_kernelmetadatasymbol_setup_code(fortran_reader):
     with pytest.raises(ParseError) as info:
         _ = KernelMetadataSymbol("name", datatype)
     assert ("Expecting the type-bound procedure binding-name to be 'code' "
-            "but found 'ignore' in 'TYPE, EXTENDS(kernel_type) :: compute_cu"
-            in str(info.value))
-
-    # no procedure name
-    modified_program = PROGRAM.replace(
-        "    procedure, nopass :: code => compute_cu_code\n",
-        "    procedure, nopass :: code\n")
-    kernel_psyir = fortran_reader.psyir_from_source(modified_program)
-    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
-    datatype = symbol.datatype
-    with pytest.raises(ParseError) as info:
-        _ = KernelMetadataSymbol("name", datatype)
-    assert ("Expecting the type-bound procedure binding to have a procedure "
-            "name but found 'TYPE, EXTENDS(kernel_type) :: compute_cu"
-            in str(info.value))
+            "if there is a procedure name, but found 'ignore' in 'TYPE, "
+            "EXTENDS(kernel_type) :: compute_cu" in str(info.value))
 
     # OK
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
@@ -250,6 +240,16 @@ def test_kernelmetadatasymbol_setup_code(fortran_reader):
     datatype = symbol.datatype
     metadata = KernelMetadataSymbol("name", datatype)
     assert metadata.code == "compute_cu_code"
+
+    # OK, no procedure name
+    modified_program = PROGRAM.replace(
+        "    procedure, nopass :: code => compute_cu_code\n",
+        "    procedure, nopass :: code\n")
+    kernel_psyir = fortran_reader.psyir_from_source(modified_program)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    datatype = symbol.datatype
+    metadata = KernelMetadataSymbol("name", datatype)
+    assert metadata.code == "code"
 
 
 # metaargs does not exist, len different to nargs, wrong num args,
@@ -285,6 +285,21 @@ def test_kernelmetadatasymbol_setup_metaargs(fortran_reader):
     assert("meta_args should be a list, but found 'hello' in 'TYPE, "
            "EXTENDS(kernel_type) :: compute_cu" in str(info.value))
 
+    # nargs is 3 but not field or scalar
+    modified_program = PROGRAM.replace(
+        "GO_R_SCALAR", "INVALID")
+    kernel_psyir = fortran_reader.psyir_from_source(modified_program)
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    datatype = symbol.datatype
+    with pytest.raises(ParseError) as info:
+        _ = KernelMetadataSymbol("name", datatype)
+    print(str(info.value))
+    assert("Expected a 'meta_arg' entry with 3 arguments to either be a field "
+           "or a scalar, but found 'invalid' as the second argument instead "
+           "of '['go_cu', 'go_cv', 'go_ct', 'go_cf', 'go_every']' (fields) or "
+           "'['go_i_scalar', 'go_r_scalar']' (scalars)."
+           in str(info.value))
+    
     # nargs not 2 or 3
     modified_program = PROGRAM.replace(
         ",  GO_GRID_AREA_T", "")
@@ -301,10 +316,11 @@ def test_kernelmetadatasymbol_setup_metaargs(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     datatype = symbol.datatype
     metadata = KernelMetadataSymbol("name", datatype)
-    assert len(metadata.args) == 3
+    assert len(metadata.args) == 4
     assert isinstance(metadata.args[0], KernelMetadataSymbol.FieldArg)
     assert isinstance(metadata.args[1], KernelMetadataSymbol.FieldArg)
     assert isinstance(metadata.args[2], KernelMetadataSymbol.GridArg)
+    assert isinstance(metadata.args[3], KernelMetadataSymbol.ScalarArg)
 
 
 def test_kernelmetadatasymbol_writefortranstring(fortran_reader):
@@ -319,10 +335,11 @@ def test_kernelmetadatasymbol_writefortranstring(fortran_reader):
     result = kernel_metadata_symbol.write_fortran_string()
     assert result == (
         "TYPE, EXTENDS(kernel_type) :: name\n"
-        "TYPE(go_arg), DIMENSION(3) :: meta_args = ("
+        "TYPE(go_arg), DIMENSION(4) :: meta_args = ("
         "/go_arg(GO_WRITE, GO_CU, GO_POINTWISE), "
         "go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), "
-        "go_arg(GO_READ, GO_GRID_AREA_T)/)\n"
+        "go_arg(GO_READ, GO_GRID_AREA_T), "
+        "go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)\n"
         "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n"
         "  INTEGER :: index_offset = GO_OFFSET_SW\n"
         "  CONTAINS\n"
@@ -396,10 +413,11 @@ def test_kernelmetadatasymbol_args(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    assert len(kernel_metadata.args) == 3
+    assert len(kernel_metadata.args) == 4
     assert isinstance(kernel_metadata.args[0], KernelMetadataSymbol.FieldArg)
     assert isinstance(kernel_metadata.args[1], KernelMetadataSymbol.FieldArg)
     assert isinstance(kernel_metadata.args[2], KernelMetadataSymbol.GridArg)
+    assert isinstance(kernel_metadata.args[3], KernelMetadataSymbol.ScalarArg)
 
 
 def test_kernelmetadatasymbol_code(fortran_reader):
@@ -542,7 +560,8 @@ def test_fieldarg_error():
     arg_list = walk(spec_part, Fortran2003.Ac_Value_List)[0]
     with pytest.raises(ParseError) as info:
         _ = KernelMetadataSymbol.FieldArg(arg_list.children[2], None)
-    assert ("There sould be 3 kernel metadata entries for a field argument, "
+    print(str(info.value))
+    assert ("There should be 3 kernel metadata entries for a field argument, "
             "but found 2 in go_arg(GO_READ, GO_GRID_AREA_T)."
             in str(info.value))
 
@@ -621,18 +640,25 @@ def test_fieldarg_form(fortran_reader):
     assert ("The third metadata entry for a field should be one of "
             "['go_pointwise'] or 'go_stencil(...)', but found 'hello'."
             in str(info.value))
-    # There is only one valid value for form (other than stencil which
-    # is set separately) so test setter using differences in case.
-    assert "go_pointwise" not in kernel_metadata.datatype.declaration
-    assert "GO_POINTWISE" in kernel_metadata.datatype.declaration
+    assert "GO_CU, go_pointwise" not in kernel_metadata.datatype.declaration
+    assert "GO_CU, GO_POINTWISE" in kernel_metadata.datatype.declaration
     field_arg.form = "go_pointwise"
     assert field_arg.form == "go_pointwise"
-    assert "go_pointwise" in kernel_metadata.datatype.declaration
-    assert "GO_POINTWISE" not in kernel_metadata.datatype.declaration
+    assert "GO_CU, go_pointwise" in kernel_metadata.datatype.declaration
+    assert "GO_CU, GO_POINTWISE" not in kernel_metadata.datatype.declaration
 
 
 def test_fieldarg_stencil(fortran_reader):
     '''Test that get, set and validate work for stencil metadata.'''
+    my_program = PROGRAM.replace("GO_STENCIL", "GO_PENCIL")
+    kernel_psyir = fortran_reader.psyir_from_source(my_program)
+    datatype = kernel_psyir.children[0]. \
+        symbol_table.lookup("compute_cu").datatype
+    with pytest.raises(ValueError) as info:
+        _ = KernelMetadataSymbol("name", datatype)
+    assert ("The third metadata entry for a field should be go_stencil(...) "
+            "if it contains arguments, but found 'GO_PENCIL'."
+            in str(info.value))
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
@@ -661,11 +687,117 @@ def test_fieldarg_stencil(fortran_reader):
     field_arg = kernel_metadata.args[0]
     assert field_arg.form == "GO_POINTWISE"
     assert field_arg.stencil is None
-    assert "GO_POINTWISE" in kernel_metadata.datatype.declaration
+    assert "GO_CU, GO_POINTWISE" in kernel_metadata.datatype.declaration
     assert ("GO_STENCIL(000, 111, 000)" not in
             kernel_metadata.datatype.declaration)
     field_arg.stencil = ["000", "111", "000"]
     assert field_arg.form == "GO_STENCIL"
     assert field_arg.stencil == ["000", "111", "000"]
-    assert "GO_POINTWISE" not in kernel_metadata.datatype.declaration
+    assert "GO_CU, GO_POINTWISE" not in kernel_metadata.datatype.declaration
     assert "GO_STENCIL(000, 111, 000)" in kernel_metadata.datatype.declaration
+
+
+# internal ScalarArg class
+
+def test_scalararg_init():
+    '''Test that a instance of the ScalarArg class can be created
+    succesfully.
+
+    '''
+    reader = FortranStringReader(METADATA)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    arg_list = walk(spec_part, Fortran2003.Ac_Value_List)[0]
+    scalar_arg = KernelMetadataSymbol.ScalarArg(arg_list.children[3], None)
+    assert isinstance(scalar_arg, KernelMetadataSymbol.ScalarArg)
+    assert scalar_arg.access == "GO_READ"
+
+
+def test_scalararg_error():
+    '''Test that the expected exception is raised if the number of
+    metadata arguments passed info the constructor is incorrect.
+
+    '''
+    reader = FortranStringReader(METADATA)
+    spec_part = Fortran2003.Derived_Type_Def(reader)
+    arg_list = walk(spec_part, Fortran2003.Ac_Value_List)[0]
+    with pytest.raises(ParseError) as info:
+        _ = KernelMetadataSymbol.ScalarArg(arg_list.children[2], None)
+    assert ("There should be 3 kernel metadata entries for a scalar argument, "
+            "but found 2 in go_arg(GO_READ, GO_GRID_AREA_T)."
+            in str(info.value))
+
+
+def test_scalararg_writefortranstring(fortran_reader):
+    '''Test that the write_fortran_string method in a ScalarArg instance
+    works as expected.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0]. \
+        symbol_table.lookup("compute_cu").datatype
+    kernel_metadata = KernelMetadataSymbol("name", datatype)
+    scalar_arg = kernel_metadata.args[3]
+    result = scalar_arg.write_fortran_string()
+    assert result == "go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)"
+
+
+def test_scalararg_access(fortran_reader):
+    '''Test that get, set and validate work for access metadata.'''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0]. \
+        symbol_table.lookup("compute_cu").datatype
+    kernel_metadata = KernelMetadataSymbol("name", datatype)
+    scalar_arg = kernel_metadata.args[3]
+    assert scalar_arg.access == "GO_READ"
+    with pytest.raises(ValueError) as info:
+        scalar_arg.access = "hello"
+    assert ("The first metadata entry for a scalar argument should be one of "
+            "['go_read', 'go_write', 'go_readwrite'], but found 'hello'."
+            in str(info.value))
+    assert "GO_WRITE, GO_R_SCALAR" not in kernel_metadata.datatype.declaration
+    assert "GO_READ, GO_R_SCALAR" in kernel_metadata.datatype.declaration
+    scalar_arg.access = "GO_WRITE"
+    assert scalar_arg.access == "GO_WRITE"
+    assert "GO_WRITE, GO_R_SCALAR" in kernel_metadata.datatype.declaration
+    assert "GO_READ, GO_R_SCALAR" not in kernel_metadata.datatype.declaration
+
+
+def test_scalararg_datatype(fortran_reader):
+    '''Test that get, set and validate work for datatype metadata.'''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0]. \
+        symbol_table.lookup("compute_cu").datatype
+    kernel_metadata = KernelMetadataSymbol("name", datatype)
+    scalar_arg = kernel_metadata.args[3]
+    assert scalar_arg.datatype == "GO_R_SCALAR"
+    with pytest.raises(ValueError) as info:
+        scalar_arg.datatype = "hello"
+    assert ("The second metadata entry for a scalar argument should be "
+            "one of ['go_i_scalar', 'go_r_scalar'], but found 'hello'."
+            in str(info.value))
+    assert "GO_I_SCALAR" not in kernel_metadata.datatype.declaration
+    assert "GO_R_SCALAR" in kernel_metadata.datatype.declaration
+    scalar_arg.datatype = "GO_I_SCALAR"
+    assert scalar_arg.datatype == "GO_I_SCALAR"
+    assert "GO_I_SCALAR" in kernel_metadata.datatype.declaration
+    assert "GO_R_SCALAR" not in kernel_metadata.datatype.declaration
+
+
+def test_scalararg_form(fortran_reader):
+    '''Test that get, set and validate work for form metadata.'''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    datatype = kernel_psyir.children[0]. \
+        symbol_table.lookup("compute_cu").datatype
+    kernel_metadata = KernelMetadataSymbol("name", datatype)
+    scalar_arg = kernel_metadata.args[3]
+    assert scalar_arg.form == "GO_POINTWISE"
+    with pytest.raises(ValueError) as info:
+        scalar_arg.form = "hello"
+    assert ("The third metadata entry for a scalar should be one of "
+            "['go_pointwise'], but found 'hello'." in str(info.value))
+    assert "SCALAR, go_pointwise" not in kernel_metadata.datatype.declaration
+    assert "SCALAR, GO_POINTWISE" in kernel_metadata.datatype.declaration
+    scalar_arg.form = "go_pointwise"
+    assert scalar_arg.form == "go_pointwise"
+    assert "SCALAR, go_pointwise" in kernel_metadata.datatype.declaration
+    assert "SCALAR, GO_POINTWISE" not in kernel_metadata.datatype.declaration

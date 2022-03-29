@@ -57,21 +57,21 @@ class GOceanConstants(object):
 
         GOceanConstants.HAS_BEEN_INITIALISED = True
 
-        # Valid intrinsic types of kernel argument data, used in psyGen.
-        # Not actually used in GOcean
+        # Valid intrinsic types of kernel argument metadata.
         GOceanConstants.VALID_INTRINSIC_TYPES = ["go_read", "go_write", "go_readwrite"]
 
-        # psyGen argument types
+        # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
 
         # psyGen names of internal scalar argument types.
         GOceanConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
-        # The different grid-point types that a field can live on
+        # The different grid-point types that a field can live on.
         GOceanConstants.VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct",
                                                   "go_cf", "go_every"]
 
-        # The two scalar types we support
+        # The two scalar types we support in the kernel argument
+        # metadata.
         GOceanConstants.VALID_SCALAR_TYPES = ["go_i_scalar", "go_r_scalar"]
 
         # Index-offset schemes (for the Arakawa C-grid)
@@ -80,11 +80,11 @@ class GOceanConstants(object):
                                               "go_offset_any"]
 
         # The offset schemes for which we can currently generate constant
-        # loop bounds in the PSy layer
+        # loop bounds in the PSy layer.
         GOceanConstants.SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw",
                                              "go_offset_any"]
 
-        # The sets of grid points that a kernel may operate on
+        # The sets of grid points that a kernel may operate on.
         GOceanConstants.VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts",
                                                "go_external_pts"]
 
