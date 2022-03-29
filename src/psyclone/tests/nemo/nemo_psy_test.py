@@ -192,9 +192,9 @@ def test_schedule_view(capsys):
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     sched_str = str(sched)
-    assert "NemoLoop[id:'', variable:'ji', loop_type:'lon']" in sched_str
-    assert "NemoLoop[id:'', variable:'jj', loop_type:'lat']" in sched_str
-    assert "NemoLoop[id:'', variable:'jk', loop_type:'levels']" in sched_str
+    assert "NemoLoop[variable:'ji', loop_type:'lon']" in sched_str
+    assert "NemoLoop[variable:'jj', loop_type:'lat']" in sched_str
+    assert "NemoLoop[variable:'jk', loop_type:'levels']" in sched_str
     sched.view()
     output, _ = capsys.readouterr()
 

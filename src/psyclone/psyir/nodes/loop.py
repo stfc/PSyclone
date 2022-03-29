@@ -448,7 +448,7 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "', variable:'" + self.variable.name
+        result += "variable:'" + self.variable.name
         if self.loop_type:
             result += "', loop_type:'" + self._loop_type
         result += "']\n"
