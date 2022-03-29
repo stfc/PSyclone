@@ -226,7 +226,7 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
 
 
 def test_scoping_node_equality():
-    ''' Test the __eq__ member of ScopingNode. '''
+    ''' Test the __eq__ method of ScopingNode. '''
 
     symboltable = SymbolTable()
     symboltable2 = SymbolTable()

@@ -94,7 +94,7 @@ class Member(Node):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Member, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.name == other.name
         return is_eq
 

@@ -119,7 +119,7 @@ class ExtractNode(PSyDataNode):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(ExtractNode, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.extract_body == other.extract_body
         return is_eq
 

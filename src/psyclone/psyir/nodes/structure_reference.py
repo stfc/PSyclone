@@ -33,7 +33,6 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureReference node. '''
@@ -206,21 +205,6 @@ class StructureReference(Reference):
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
         return ref
-
-    def __eq__(self, other):
-        '''
-        Two StructureReferences are equal if they have the same type,
-        symbol and their member's are equal.
-
-        :param object other: The object to check equality to
-
-        :returns: Whether other is equal to self.
-        :rtype: bool
-        '''
-        is_eq = super(StructureReference, self).__eq__(other)
-        is_eq = is_eq and (self.symbol == other.symbol)
-        is_eq = is_eq and (self.member == other.member)
-        return is_eq
 
     def __str__(self):
         result = super(StructureReference, self).__str__()

@@ -71,7 +71,7 @@ def test_call_init():
 
 
 def test_call_equality():
-    '''Test the __eq__ member of the Call class. '''
+    '''Test the __eq__ method of the Call class. '''
     # routine arguments
     routine = RoutineSymbol("j", NoType())
     routine2 = RoutineSymbol("k", NoType())

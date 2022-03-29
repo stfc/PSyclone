@@ -33,7 +33,6 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureMember node.'''
@@ -86,24 +85,6 @@ class StructureMember(Member):
         if self._children:
             result += "\n" + str(self._children[0])
         return result
-
-    def __eq__(self, other):
-        '''
-        StructureMembers are assumed to be equivalent if they have the same
-        component name associated with them, and are the same type, and their
-        members are also ==.
-
-        :param object other: The object to check equality to
-
-        :returns: Whether other is equal to self.
-        :rtype: bool
-        '''
-        is_eq = super(StructureMember, self).__eq__(other)
-        is_eq = is_eq and self.name == other.name
-        # We know .member must exist for both self and other if
-        # is_eq is still true, so check for equivalence
-        is_eq = is_eq and self.member == other.member
-        return is_eq
 
     @staticmethod
     def _validate_child(position, child):

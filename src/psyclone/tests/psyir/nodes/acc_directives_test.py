@@ -200,8 +200,9 @@ def test_accloopdirective_node_str(monkeypatch):
 
 
 def test_accloopdirective_equality():
-    ''' Test the __eq__ member of ACCLoopDirective node. '''
-    # Set up a symbol table to use for everything in here
+    ''' Test the __eq__ method of ACCLoopDirective node. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
     symboltable = SymbolTable()
     directive1 = ACCLoopDirective()
     directive2 = ACCLoopDirective()
@@ -270,8 +271,9 @@ def test_acckernelsdirective_gencode(default_present):
 
 
 def test_acckerneldirective_equality():
-    ''' Test the __eq__ member of ACCKernelsDirective node. '''
-    # Set up a symbol table to use for everything in here
+    ''' Test the __eq__ method of ACCKernelsDirective node. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
     symboltable = SymbolTable()
     directive1 = ACCKernelsDirective()
     directive2 = ACCKernelsDirective()
@@ -334,8 +336,7 @@ def test_accupdatedirective_begin_string():
 
 
 def test_accupdatedirective_equality():
-    ''' Test the __eq__ member of ACCUpdateDirective node. '''
-    # Set up a symbol table to use for everything in here
+    ''' Test the __eq__ method of ACCUpdateDirective node. '''
     symbol = DataSymbol("x", REAL_TYPE)
     directive1 = ACCUpdateDirective(symbol, "device")
     directive2 = ACCUpdateDirective(symbol, "device")

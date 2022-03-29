@@ -76,7 +76,7 @@ class ScopingNode(Node):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(ScopingNode, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.symbol_table == other.symbol_table
         return is_eq
 

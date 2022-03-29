@@ -83,7 +83,7 @@ class Call(Statement, DataNode):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Call, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.routine == other.routine
 
         return is_eq

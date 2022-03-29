@@ -140,59 +140,6 @@ def test_struc_ref_create_errors():
             str(err.value))
 
 
-def test_struc_ref_equality():
-    ''' Tests for the equality of StructureReference. StructureReferences
-    are equal iff:
-    1. They are the same type (StructureReference)
-    2. They Reference the same structure symbol.
-    3. They Reference the same structure member.
-    '''
-    region_type = symbols.StructureType.create([
-        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE),
-        ("sub_grids", symbols.ArrayType(region_type_symbol, [3]),
-         symbols.Symbol.Visibility.PUBLIC),
-        ("data", symbols.ArrayType(symbols.REAL_TYPE, [10, 10]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
-    ssym = symbols.DataSymbol("grid", grid_type_symbol)
-    # Reference to scalar member of structure
-    sref1 = nodes.StructureReference.create(ssym, ["nx"])
-    sref2 = nodes.StructureReference.create(ssym, ["nx"])
-    sref3 = nodes.StructureReference.create(ssym, ["region"])
-
-    assert sref1 == sref2
-    assert sref1 != sref3
-    assert sref1 != region_type
-
-    # Create a simple nested structure system, i.e. a%b%c and a%b%d
-    # and check the equality rules for them as well.
-    simple_type = symbols.StructureType.create([
-        ("c", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("d", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    nested_type = symbols.StructureType.create([
-        ("z", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("b", simple_type, symbols.Symbol.Visibility.PUBLIC),
-        ("y", simple_type, symbols.Symbol.Visibility.PUBLIC)])
-
-    nested_type_symbol = symbols.DataTypeSymbol("nested_type", nested_type)
-    nest_t = symbols.DataSymbol("test", nested_type_symbol)
-
-    sref1 = nodes.StructureReference.create(nest_t, ["b", "c"])
-    sref2 = nodes.StructureReference.create(nest_t, ["b", "c"])
-    sref3 = nodes.StructureReference.create(nest_t, ["b", "d"])
-    sref4 = nodes.StructureReference.create(nest_t, ["z"])
-    sref5 = nodes.StructureReference.create(nest_t, ["y", "c"])
-
-    assert sref1 == sref2
-    assert sref1 != sref3
-    assert sref1 != sref4
-    assert sref1 != sref5
-
-
 def test_struc_ref_validate_child():
     ''' Tests for the _validate_child method. '''
     grid_type = symbols.StructureType.create([

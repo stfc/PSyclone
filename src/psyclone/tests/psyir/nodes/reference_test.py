@@ -69,24 +69,18 @@ def test_reference_equality():
     1. Both are the same type (Reference)
     2. They Reference the same symbol
     '''
-    kschedule = KernelSchedule("kname")
     symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     symbol2 = DataSymbol("rname2", INTEGER_SINGLE_TYPE)
-    kschedule.symbol_table.add(symbol1)
-    kschedule.symbol_table.add(symbol2)
 
     ref1 = Reference(symbol1)
     ref2 = Reference(symbol1)
     ref3 = Reference(symbol2)
 
-    assert ref1 != kschedule
     assert ref2 == ref1
     assert ref1 != ref3
 
-    # Create another kernel schedule with the same symbol
-    kschedule2 = KernelSchedule("kname2")
+    # Create another symbol with the same name (but not the same instance)
     symbol3 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
-    kschedule2.symbol_table.add(symbol3)
     ref4 = Reference(symbol3)
     assert ref1 != ref4
 

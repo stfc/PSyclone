@@ -422,7 +422,7 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(ACCLoopDirective, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.collapse == other.collapse
         is_eq = is_eq and self.independent == other.independent
         is_eq = is_eq and self.sequential == other.sequential
@@ -590,7 +590,7 @@ class ACCKernelsDirective(ACCRegionDirective):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(ACCKernelsDirective, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.default_present == other.default_present
 
         return is_eq
@@ -852,7 +852,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(ACCUpdateDirective, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.direction == other.direction
         is_eq = is_eq and self.symbol == other.symbol
 
@@ -874,7 +874,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         Returns the symbol to synchronise with the accelerator.
 
         :returns: the symbol to synchronise with the accelerator.
-        :rtype: str
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._symbol
 

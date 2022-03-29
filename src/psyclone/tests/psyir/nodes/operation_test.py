@@ -445,7 +445,7 @@ def test_operations_can_be_copied():
 
 
 def test_operation_equality():
-    ''' Test the __eq__ member of Operation'''
+    ''' Test the __eq__ method of Operation'''
     tmp1 = DataSymbol("tmp1", REAL_SINGLE_TYPE)
     tmp2 = DataSymbol("tmp2", REAL_SINGLE_TYPE)
     lhs1 = Reference(tmp1)

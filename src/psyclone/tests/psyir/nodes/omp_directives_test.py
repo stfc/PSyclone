@@ -93,8 +93,9 @@ def test_ompdo_constructor():
 
 
 def test_ompdo_equality():
-    ''' Test the __eq__ member of OMPDoDirective. '''
-    # Set up a symbol table to use for everything in here
+    ''' Test the __eq__ method of OMPDoDirective. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
@@ -132,6 +133,10 @@ def test_ompdo_equality():
     ompdo1.children[0]._symbol_table = symboltable
     ompdo2.children[0]._symbol_table = symboltable
     assert ompdo1 == ompdo2
+
+    loop2.detach()
+    ompdo2 = OMPDoDirective(children=[loop2], reprod=(not ompdo1.reprod))
+    assert ompdo1 != ompdo2
 
 
 def test_omp_do_children_err():
@@ -707,8 +712,9 @@ def test_omp_loop_directive_validate_global_constraints():
 
 
 def test_omploop_equality():
-    ''' Test the __eq__ member of OMPLoopDirective. '''
-    # Set up a symbol table to use for everything in here
+    ''' Test the __eq__ method of OMPLoopDirective. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)

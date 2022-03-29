@@ -88,7 +88,7 @@ class Routine(Schedule, CommentableMixin):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Routine, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.name == other.name
         is_eq = is_eq and self.is_program == other.is_program
         is_eq = is_eq and self.return_symbol == other.return_symbol

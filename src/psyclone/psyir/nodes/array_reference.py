@@ -110,7 +110,7 @@ class ArrayReference(ArrayMixin, Reference):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(ArrayReference, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.symbol == other.symbol
         return is_eq
 

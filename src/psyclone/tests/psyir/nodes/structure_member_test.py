@@ -84,28 +84,6 @@ def test_sm_constructor():
     assert smref.children == []
 
 
-def test_sm_node_equality():
-    ''' Check that two StructureMember nodes are equal appropriately. '''
-    kschedule = nodes.KernelSchedule("kname")
-    grid_var = create_structure_symbol(kschedule.symbol_table)
-    assignment = nodes.Assignment(parent=kschedule)
-    assignment2 = nodes.Assignment(parent=kschedule)
-    assignment3 = nodes.Assignment(parent=kschedule)
-    assignment4 = nodes.Assignment(parent=kschedule)
-    grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
-                                               parent=assignment)
-    grid_ref2 = nodes.StructureReference.create(grid_var, ['area', 'nx'],
-                                                parent=assignment2)
-    grid_ref3 = nodes.StructureReference.create(grid_var, ['area', 'ny'],
-                                                parent=assignment3)
-    grid_ref4 = nodes.StructureReference.create(grid_var, ['aria', 'nx'],
-                                                parent=assignment4)
-
-    assert grid_ref == grid_ref2
-    assert grid_ref != grid_ref3
-    assert grid_ref != grid_ref4
-
-
 def test_sm_node_str():
     ''' Check the node_str method of the StructureMember class.'''
     kschedule = nodes.KernelSchedule("kname")

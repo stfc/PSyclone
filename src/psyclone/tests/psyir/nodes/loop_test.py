@@ -69,7 +69,6 @@ def test_loop_init():
     assert loop._kern is None
     assert loop._iterates_over == "unknown"
     assert loop._variable is None
-    assert loop._id == ""
 
     # valid variable
     loop = Loop(variable=DataSymbol("var", INTEGER_TYPE))
@@ -407,8 +406,9 @@ def test_halo_read_access_is_abstract():
 
 
 def test_loop_equality():
-    '''Test the __eq__ member of Loop'''
-    # Set up a symbol table to use for everything in here
+    '''Test the __eq__ method of Loop'''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)

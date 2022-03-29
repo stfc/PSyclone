@@ -47,7 +47,6 @@ def test_member_constructor():
     mem = nodes.Member("fred")
     assert mem.name == "fred"
     assert str(mem) == "Member[name:'fred']"
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert mem.children == []
 
 

@@ -58,10 +58,15 @@ def test_container_init():
 
 
 def test_container_equality():
-    '''Test the __eq__ member of the container class.'''
+    '''Test the __eq__ method of the container class.'''
+    # Subclasses of ScopingNode need to have the same SymbolTable
+    symboltable = SymbolTable()
     container1 = Container("test")
     container2 = Container("test")
     container3 = Container("not_test")
+    container1._symbol_table = symboltable
+    container2._symbol_table = symboltable
+    container3._symbol_table = symboltable
     assert container1 == container2
     assert container1 != container3
 

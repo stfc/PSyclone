@@ -1203,6 +1203,9 @@ def test_node_same_root():
 
     assert zero.sameRoot(two) is False
 
+    two.detach()
+    assert zero.sameRoot(two) is False
+
 
 def test_equality():
     '''Test the equality function of the Node class'''

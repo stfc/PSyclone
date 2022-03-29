@@ -388,11 +388,11 @@ class Node(object):
         :returns: Whether other is equal to self.
         :rtype: bool
         '''
-        super(Node, self).__eq__(other)
+        super().__eq__(other)
         is_eq = type(self) is type(other)
         is_eq = is_eq and (len(self.children) == len(other.children))
-        for index, _ in enumerate(self.children):
-            is_eq = is_eq and self.children[index] == other.children[index]
+        for index, child in enumerate(self.children):
+            is_eq = is_eq and child == other.children[index]
 
         return is_eq
 

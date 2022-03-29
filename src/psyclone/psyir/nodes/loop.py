@@ -120,7 +120,6 @@ class Loop(Statement):
             # first created so only check if it is.
             self._check_variable(variable)
         self._variable = variable
-        self._id = ""
 
     def __eq__(self, other):
         '''
@@ -133,13 +132,15 @@ class Loop(Statement):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Loop, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.loop_type == other.loop_type
         is_eq = is_eq and self.field == other.field
         is_eq = is_eq and self.field_name == other.field_name
         is_eq = is_eq and self.field_space == other.field_space
         is_eq = is_eq and self.iteration_space == other.iteration_space
         is_eq = is_eq and self.kernel == other.kernel
+        # pylint: disable=protected-access
+        is_eq = is_eq and self._iterates_over == other._iterates_over
 
         is_eq = is_eq and self.variable == other.variable
 
@@ -447,7 +448,6 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "id:'" + self._id
         result += "', variable:'" + self.variable.name
         if self.loop_type:
             result += "', loop_type:'" + self._loop_type
@@ -569,7 +569,7 @@ class Loop(Statement):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
+        from psyclone.psyGen import zero_reduction_variables
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.

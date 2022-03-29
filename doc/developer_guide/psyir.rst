@@ -140,11 +140,13 @@ to perform the following steps:
 
 5. If any of the attributes in this node should be used to compute the equality
    of two nodes, specialise the ``__eq__`` member to perform the appropriate
-   checks. The default ``__eq__`` behaviour is implemented in Node, but many
-   PSyIR nodes have their own implementations, the only restriction on this
-   implementation is that it must call the ``super(MyNode).__eq__(other)``
-   as part of its implementation, to ensure any inherited equality checks
-   are correctly checked.
+   checks. The default ``__eq__`` behaviour is to check both instance types are
+   exactly the same, and each of their children also pass the equality check.
+   The only restriction on this implementation is that it must call the
+   ``super().__eq__(other)`` as part of its implementation, to ensure any
+   inherited equality checks are correctly checked. The default behaviour
+   ignores annotations and comment attributes, as they should not affect the
+   semantics of the PSyIR tree.
 
 For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a
@@ -556,12 +558,6 @@ The PSyIR ``Reference`` Node represents a variable access. It keeps
 a reference to a ``Symbol`` which will be stored in a symbol table.
 See the full ``Reference`` API in the
 :ref_guide:`Reference reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Reference`.
-
-``Reference`` nodes (and some of the sub-classes of ``Reference``) implement
-the ``__eq__`` function explicitly, as two ``Reference`` nodes that access the
-same symbol are considered to be equivalent. When using ``Reference`` nodes,
-it is important to correctly specify ``==`` vs ``is`` to ensure the behaviour
-is as expected.
 
 ArrayReference Node
 -------------------

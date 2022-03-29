@@ -852,15 +852,17 @@ class OMPDoDirective(OMPRegionDirective):
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two OMPDoDirective nodes are equal
-        if they have the same schedule (and the inherited equality is True).
+        if they have the same schedule, the same reproducible reduction option
+        (and the inherited equality is True).
 
         :param object other: the object to check equality to.
 
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(OMPDoDirective, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.omp_schedule == other.omp_schedule
+        is_eq = is_eq and self.reprod == other.reprod
 
         return is_eq
 
@@ -1127,7 +1129,7 @@ class OMPLoopDirective(OMPRegionDirective):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(OMPLoopDirective, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.collapse == other.collapse
 
         return is_eq
