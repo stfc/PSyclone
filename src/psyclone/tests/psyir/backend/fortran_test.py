@@ -1232,27 +1232,27 @@ def test_fw_routine_nameclash(fortran_writer):
     ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
-            "  integer :: var1_1_1\n"
+            "  integer :: var1_2\n"
             "  integer :: var1_1\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
             "  else\n"
-            "    var1_1_1 = 2\n"
+            "    var1_2 = 2\n"
             "  end if" in result)
     # Add a symbol to the routine scope that will clash with the first name
     # generated with reference to the else scope.
-    routine.symbol_table.add(DataSymbol("var1_1_1", INTEGER_TYPE))
+    routine.symbol_table.add(DataSymbol("var1_2", INTEGER_TYPE))
     result = fortran_writer(routine)
-    assert ("  integer :: var1_1_1\n"
+    assert ("  integer :: var1_2\n"
             "  integer :: var1\n"
-            "  integer :: var1_1_2\n"
+            "  integer :: var1_3\n"
             "  integer :: var1_1\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
             "  else\n"
-            "    var1_1_2 = 2\n"
+            "    var1_3 = 2\n"
             "  end if" in result)
 
 

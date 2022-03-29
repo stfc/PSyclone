@@ -43,6 +43,8 @@ transformations and base classes.
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.hoist_local_arrays_trans import (
+    HoistLocalArraysTrans)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans

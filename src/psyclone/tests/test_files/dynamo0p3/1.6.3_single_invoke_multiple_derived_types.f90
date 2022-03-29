@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 ! Author A. R. Porter STFC Daresbury Lab
 !         C.M. Maynard Met Office/University of Reading
 ! Modified I. Kavcic Met Office
+! Modified R. W. Ford, STFC Daresbury Lab.
 
 program single_invoke
 
@@ -47,11 +48,11 @@ program single_invoke
   type(field_type) :: f1, f2, m1, m2
   type(some_type)  :: obj_a, obj_b 
 
-  call invoke(                                                    &
-       testkern_one_int_scalar_type(f1, obj_a%iflag, f2, m1, m2), &
-       testkern_one_int_scalar_type(f1, obj_b%iflag, f2, m1, m2), &
-       testkern_one_int_scalar_type(f1, obj_a%obj_b, f2, m1, m2), &
-       testkern_one_int_scalar_type(f1, obj_b%obj_a, f2, m1, m2)  &
+  call invoke(                                                          &
+       testkern_one_int_scalar_type(f1, obj_a%iflag, f2, m1, m2),       &
+       testkern_one_int_scalar_type(f1, obj_b%iflag, f2, m1, m2),       &
+       testkern_one_int_scalar_type(f1, obj_a%obj_b%iflag, f2, m1, m2), &
+       testkern_one_int_scalar_type(f1, obj_b%obj_a%iflag, f2, m1, m2)  &
           )
 
 end program single_invoke

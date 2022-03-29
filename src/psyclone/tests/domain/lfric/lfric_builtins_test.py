@@ -31,10 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: by J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -45,17 +45,17 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 
-from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
-from psyclone.errors import GenerationError
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
+from psyclone.dynamo0p3 import DynKernelArgument
+from psyclone.errors import GenerationError, InternalError
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Reference, UnaryOperation, Literal, \
     StructureReference
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
-from psyclone.psyGen import PSyFactory
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
-
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -76,6 +76,17 @@ def setup():
     Config._instance = None
 
 
+def dummy_func(self, _1, _2=True):
+    '''Dummy routine that replaces _init_data_type_properties when used
+    with monkeypatch and sets the minimum needed values to return
+    without error for the associated tests.
+
+    '''
+    self._data_type = "dummy1"
+    self._precision = "dummy2"
+    self._proxy_data_type = "dummy3"
+    self._module_name = "dummy4"
+
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
@@ -86,6 +97,39 @@ def test_lfric_builtin_abstract_methods():
         lfric_builtins.LFRicBuiltIn()
     assert "abstract class LFRicBuiltIn" in str(err.value)
     assert "__str__" in str(err.value)
+
+
+def test_lfricxkern_abstract():
+    '''Test that the LFRicXKern class is abstract and that it sets its
+    internal _field_type variable to None.
+
+    '''
+    with pytest.raises(TypeError) as error:
+        lfric_builtins.LFRicXKern()
+    assert ("Can't instantiate abstract class LFRicXKern with abstract "
+            "method" in str(error.value))
+    assert lfric_builtins.LFRicXKern._field_type is None
+
+
+def test_lfricxkern_exception():
+    '''Test that LFRicXKern raises an exception if it is subclassed and
+    the subclass does not set the variable _field_type to a value.
+
+    '''
+
+    class Dummy(lfric_builtins.LFRicXKern):
+        '''Utility class to test that LFRicXKern raises the expected
+        exception
+
+        '''
+        def __str__(self):
+            return "dummy"
+
+    dummy = Dummy()
+    with pytest.raises(InternalError) as info:
+        dummy.gen_code(None)
+    assert ("Subclasses of LFRicXKern must set the _field_type variable "
+            "to the output datatype." in str(info.value))
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
@@ -216,9 +260,17 @@ def test_builtin_zero_writes(monkeypatch):
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_no_field_args():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that does not have any field arguments. '''
+def test_builtin_no_field_args(monkeypatch):
+    '''Check that we raise appropriate error if we encounter a built-in
+    that does not have any field arguments.
+
+    '''
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        dummy_func)
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
@@ -251,6 +303,12 @@ def test_builtin_invalid_argument_type(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
     # Restore the actual built-in-definitions file name
     monkeypatch.undo()
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
@@ -277,6 +335,12 @@ def test_builtin_invalid_data_type(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
     # Restore the actual built-in-definitions file name
     monkeypatch.undo()
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
     const = LFRicConstants()
@@ -333,6 +397,12 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         api=API)
     # Restore the actual built-in-definitions file name
     monkeypatch.undo()
+    # It is not possible to raise the required exception in normal
+    # circumstances as PSyclone will complain that the datatype and
+    # the metadata do not match. Therefore monkeypatch.
+    monkeypatch.setattr(
+        DynKernelArgument, "_init_data_type_properties",
+        dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -3192,7 +3262,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
     expected string and 2) we generate correct code for the built-in
     operation Y = int(X, i_def) where Y is an integer-valued field, X is
     the real-valued field being converted and the correct kind, 'i_def',
-    is read from the PSyclone configuration file. Test with and without
+    is picked up from the associated field. Test with and without
     annexed dofs being computed as this affects the generated code.
 
     '''
@@ -3214,7 +3284,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     # First check that the correct field types and constants are used
     output = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n")
@@ -3272,6 +3342,26 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
 
+
+def test_int_X_precision(monkeypatch):
+    '''Test that the builtin picks up and creates correct code for a
+    scalar with precision that is not the default i.e. not i_def. At
+    the moment there is no other integer precision so we make one up
+    and use monkeypatch to get round any error checks. However, this
+    does mean that we can't check whether it compiles.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.3_int_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
+    code = str(psy.gen)
+    assert "USE constants_mod, ONLY: i_solver, i_def" in code
+    assert "f2_proxy%data(df) = int(f1_proxy%data(df), i_solver)" in code
 
 # ------------- Xfail built-ins --------------------------------------------- #
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 '''
 Module containing tests for the LFRic (Dynamo0.3) constants class.
@@ -58,7 +58,7 @@ def test_specific_function_space():
     assert name == "wtheta"
 
 
-def test_specific_function_space_invalid(monkeypatch):
+def test_specific_function_space_invalid():
     ''' Check that the specific_function_space() method rejects an invalid
     function-space name. '''
     with pytest.raises(ValueError) as err:
@@ -80,3 +80,20 @@ def test_specific_function_space_internal_error(monkeypatch):
         const.specific_function_space("any_wrong")
     assert ("Error mapping from meta-data function space to actual space: "
             "cannot handle 'any_wrong'" in str(err.value))
+
+
+def test_quadrature_type_map():
+    '''Check that QUADRATURE_TYPE_MAP contains the expected structure.'''
+
+    quadrature_types = ["gh_quadrature_xyoz", "gh_quadrature_face",
+                        "gh_quadrature_edge"]
+    quadrature_properties = ["module", "type", "proxy_type", "intrinsic",
+                             "kind"]
+
+    assert len(LFRicConstants.QUADRATURE_TYPE_MAP) == len(quadrature_types)
+    for quadrature_type in quadrature_types:
+        assert quadrature_type in LFRicConstants.QUADRATURE_TYPE_MAP
+        info = LFRicConstants.QUADRATURE_TYPE_MAP[quadrature_type]
+        assert len(info) == len(quadrature_properties)
+        for item in info:
+            assert item in quadrature_properties

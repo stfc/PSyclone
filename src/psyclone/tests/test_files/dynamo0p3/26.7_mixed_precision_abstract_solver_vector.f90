@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,42 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author: R. W. Ford STFC Daresbury Lab
+!
+! Example where the field is dereferenced from an abstract_vector_type
+! and therefore its precision can't be determined by looking at the
+! declaration. As a result PSyclone is currently not able to determine
+! the type and will raise an exception.
 
-program operator_example
+module vector_type
 
-  use constants_mod,                        only : i_def
-  use quadrature_xyoz_mod,                  only : quadrature_xyoz_type
-  use quadrature_rule_gaussian_mod,         only : quadrature_rule_gaussian_type
-  use testkern_operator_nofield_scalar_mod, only : testkern_operator_nofield_scalar_type
+  use constants_mod,    only : r_def
+  use vector_mod,       only : abstract_vector_type
+  use field_vector_mod, only : field_vector_type
+  use field_mod,        only : field_type
+  use testkern_mod,     only : testkern_type
 
-  ! Pretend we have some derived types that we must dereference in order
-  ! to get the scalar and operator arguments of the kernel. Note,
-  ! "init_quadrature_symmetrical" is an actual constructor method for
-  ! this quadrature type in the LFRic code but it is not public. Here we
-  ! pretend the method is public so we can mimic the "qr" argument being
-  ! obtained by de-referencing.
-  type(some_scalar_type)              :: box
-  type(some_operator_type)            :: opbox
-  type(quadrature_xyoz_type)          :: qr
-  type(quadrature_rule_gaussian_type) :: qrl_gauss
+contains
 
-  call invoke(testkern_operator_nofield_scalar_type( &
-                       opbox%my_mapping, box%b(1),   &
-                       qr%init_quadrature_symmetrical(3_i_def, qrl_gauss)))
+  type :: some_type
+     type(field_vector_type) :: vec_type(10)
+   contains
+     procedure, public :: my_sub
+  end type some_type
 
-end program operator_example
+  contains
+
+  subroutine my_sub(self, x, m1, m2)
+    class(some_type), intent(inout) :: self
+    class (abstract_vector_type), intent(inout) :: x
+    type(field_type), intent(inout) :: m1, m2
+    real(r_def) :: a
+    select type (x)
+    type is (field_vector_type)
+      call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
+    class default
+      print *,"Error"
+    end select
+  end subroutine my_sub
+
+end module vector_type
