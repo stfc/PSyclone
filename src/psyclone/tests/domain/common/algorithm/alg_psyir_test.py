@@ -44,16 +44,15 @@ Algorithm PSyIR to processed PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from psyclone.errors import InternalError
+from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
+                                              KernelFunctor)
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, Container
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, Symbol, REAL_TYPE
-from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-    KernelFunctor
-from psyclone.errors import GenerationError
-from psyclone.domain.common.transformations import AlgTrans
 
 
 def create_alg_psyir(code):
@@ -88,20 +87,20 @@ def _check_alg_names(invoke, module_name):
 
     '''
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._psylayer_routine_root_name is None
-    assert invoke._psylayer_container_root_name is None
+    assert invoke.psylayer_routine_root_name is None
+    assert invoke.psylayer_container_root_name is None
 
     invoke.create_psylayer_symbol_root_names()
 
-    assert invoke._psylayer_routine_root_name == "invoke_0_kern"
-    assert invoke._psylayer_container_root_name == module_name
+    assert invoke.psylayer_routine_root_name == "invoke_0_kern"
+    assert invoke.psylayer_container_root_name == module_name
 
     # Check that the names are only created once.
-    routine_root_name_tmp = invoke._psylayer_routine_root_name
-    container_root_name_tmp = invoke._psylayer_container_root_name
+    routine_root_name_tmp = invoke.psylayer_routine_root_name
+    container_root_name_tmp = invoke.psylayer_container_root_name
     invoke.create_psylayer_symbol_root_names()
-    assert invoke._psylayer_routine_root_name is routine_root_name_tmp
-    assert invoke._psylayer_container_root_name is container_root_name_tmp
+    assert invoke.psylayer_routine_root_name is routine_root_name_tmp
+    assert invoke.psylayer_container_root_name is container_root_name_tmp
 
 
 def test_algorithminvokecall():
@@ -114,8 +113,8 @@ def test_algorithminvokecall():
     assert call._children_valid_format == "[KernelFunctor]*"
     assert call._text_name == "AlgorithmInvokeCall"
     assert call._colour == "green"
-    assert call._psylayer_routine_root_name is None
-    assert call._psylayer_container_root_name is None
+    assert call.psylayer_routine_root_name is None
+    assert call.psylayer_container_root_name is None
     assert call._index == 2
     assert call.parent is None
     assert call._name is None
@@ -335,7 +334,7 @@ def test_aic_createpsylayersymbolrootnames():
     _check_alg_names(invoke, "psy_my_mod")
 
     # No modules or FileContainers (should not happen)
-    invoke._psylayer_container_root_name = None
+    invoke.psylayer_container_root_name = None
     invoke.detach()
     with pytest.raises(InternalError) as error:
         invoke.create_psylayer_symbol_root_names()
