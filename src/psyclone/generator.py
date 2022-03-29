@@ -61,7 +61,7 @@ from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.gocean.transformations import KernTrans
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
@@ -277,8 +277,13 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 filepath = get_kernel_filepath(
                     container_symbol.name, kernel_paths, filename)
 
-                # Create language-level PSyIR from the kernel file
-                kernel_psyir = reader.psyir_from_file(filepath)
+                try:
+                    # Create language-level PSyIR from the kernel file
+                    kernel_psyir = reader.psyir_from_file(filepath)
+                except InternalError as info:
+                    print(f"In kernel file '{filepath}':\n{str(info.value)}",
+                          file=sys.stderr)
+                    sys.exit(1)
 
                 # Raise to Kernel PSyIR
                 kern_trans = KernTrans()

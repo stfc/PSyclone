@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
@@ -71,7 +71,8 @@ NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "nemo", "test_files")
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
-
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "gocean1p0")
 
 def delete_module(modname):
     '''A function to remove a module from Python's internal modules
@@ -337,6 +338,30 @@ def test_recurse_correct_kernel_paths():
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
         api="dynamo0.3",
         kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels")])
+
+def test_kernel_parsing_internalerror(capsys):
+    '''Checks that the expected output is provided if an internal error is
+    caught when parsing a kernel using fparser2.
+
+    '''
+    kern_filename = (os.path.join(
+        GOCEAN_BASE_PATH, "test30_invalid_kernel_declaration.f90"))
+    with pytest.raises(SystemExit):
+        main([kern_filename, "-api", "gocean1.0"])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert (
+        "In kernel file '/home/rupert/proj/PSyclone/src/psyclone/tests/"
+        "test_files/gocean1p0/kernel_invalid_declaration.f90':\n"
+        "PSyclone internal error: The kernel argument list:\n"
+        "'['i', 'j', 'cu', 'p', 'u']'\n"
+        "does not match the variable declarations:\n"
+        "IMPLICIT NONE\n"
+        "INTEGER, INTENT(IN) :: I, J\n"
+        "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
+        "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
+        "Specific PSyIR error is \"Could not find 'u' in the Symbol "
+        "Table.\".\n" in str(err))
 
 
 def test_script_file_too_short():
