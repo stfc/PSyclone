@@ -195,6 +195,64 @@ class PSyDataNode(Statement):
             self.set_region_identifier(self._module_name,
                                        self._region_name)
 
+    def __eq__(self, other):
+        '''
+        Checks the equality of this PSyDataNode with other. PSyDataNodes are
+        equal if they are the same type, and have the same prefix, var_name,
+        module_name and region_name.
+
+        :param object other: The object to check equality to
+
+        :returns: Whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.prefix == other.prefix
+        is_eq = is_eq and self.var_name == other.var_name
+        is_eq = is_eq and self.module_name == other.module_name
+        is_eq = is_eq and self.region_name == other.region_name
+        return is_eq
+
+    @property
+    def prefix(self):
+        '''
+        Returns the _prefix member of this PSyDataNode.
+
+        :returns: the _prefix member of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._prefix
+
+    @property
+    def var_name(self):
+        '''
+        Returns the _var_name member of this PSyDataNode.
+
+        :returns: the _var_name of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._var_name
+
+    @property
+    def module_name(self):
+        '''
+        Returns the _module_name of this PSyDataNode.
+
+        :returns: the _module_name of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._module_name
+
+    @property
+    def region_name(self):
+        '''
+        Returns the _region_name of this PSyDataNode.
+
+        :returns: the _region_name of this PSyDataNode.
+        :rtype: str
+        '''
+        return self._region_name
+
     @classmethod
     def create(cls, children, symbol_table, ast=None, options=None):
         '''

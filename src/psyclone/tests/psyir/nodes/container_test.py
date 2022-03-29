@@ -57,6 +57,15 @@ def test_container_init():
     assert isinstance(container._symbol_table, SymbolTable)
 
 
+def test_container_equality():
+    '''Test the __eq__ member of the container class.'''
+    container1 = Container("test")
+    container2 = Container("test")
+    container3 = Container("not_test")
+    assert container1 == container2
+    assert container1 != container3
+
+
 def test_container_init_parent():
     '''Test that a container parent argument is stored as expected.'''
     container = Container("test", parent=FileContainer("hello"))
