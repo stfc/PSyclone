@@ -37,9 +37,9 @@
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
+from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Container
-from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -58,7 +58,7 @@ class AlgTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.node.Routine` or \
             :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, str]]
 
         :raises TransformationError: if the supplied node argument is \
             not a Routine or a Container.

@@ -39,12 +39,12 @@ to the corresponding PSy-layer routine.
 '''
 
 from psyclone.core import SymbolicMaths
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, ArrayReference, Reference, Literal
-from psyclone.psyir.symbols import (RoutineSymbol, ContainerSymbol,
-                                    ImportInterface)
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
+from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import ArrayReference, Call, Literal, Reference
+from psyclone.psyir.symbols import (ContainerSymbol,
+                                    ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -61,7 +61,7 @@ class AlgInvoke2PSyCallTrans(Transformation):
         :type node: \
             :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
@@ -92,7 +92,7 @@ class AlgInvoke2PSyCallTrans(Transformation):
         :type node: \
             :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         '''
         self.validate(node, options=options)

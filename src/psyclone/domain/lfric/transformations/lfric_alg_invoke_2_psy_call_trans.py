@@ -57,7 +57,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         :type node: \
         :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
@@ -79,7 +79,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         :type node: \
         :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, str]]
 
         '''
         self.validate(node, options=options)

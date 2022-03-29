@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 ''' Module containing pytest unit tests for the LFRicAlgInvoke2PSyCallTrans
 transformation.
@@ -43,8 +43,7 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.domain.lfric.transformations import LFRicAlgInvoke2PSyCallTrans
 from psyclone.psyir.nodes import Call, Routine
-from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, Symbol, DataSymbol
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 
 

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 ''' Module containing pytest unit tests for the AlgInvoke2PSyCallTrans
 transformation.
@@ -58,10 +58,10 @@ def check_call(call, routine_name, container_name, args_info):
     :param str container_name: the name of the container containing \
         the call node.
     ;param args_info: information to check the call arguments.
-    :type args_info: list of \
-        (:py:class:`psyclone.psyir.nodes.Reference`, str) or \
-        (:py:class:`psyclone.psyir.nodes.ArrayReference`, str, [str or \
-        BinaryOperation])
+    :type args_info: \
+        List[Tuple[:py:class:`psyclone.psyir.nodes.Reference`, str]] | \
+        List[Tuple[:py:class:`psyclone.psyir.nodes.ArrayReference`, str, \
+                   str | :py:class:`psyclone.psyir.nodes.BinaryOperation`]]
 
     '''
     assert isinstance(call.routine, RoutineSymbol)
@@ -86,7 +86,7 @@ def check_call(call, routine_name, container_name, args_info):
                     assert isinstance(indices[idx2], BinaryOperation)
 
 
-def test_ai2psycall_validate():
+def test_ai2psycall_validate_argtype():
     ''' Test the validate() method of the AlgorithmInvoke2PSyCallTrans
     class. '''
     trans = AlgInvoke2PSyCallTrans()
