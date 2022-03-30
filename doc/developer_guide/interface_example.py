@@ -23,7 +23,7 @@ def some_function(filename, kernel_path, node=None):
                  (https://peps.python.org/pep-0483/).\
                  Notice the empty line between parameter and return\
                  documentation.
-    :type node: Union[:py:class:`psyclone.psyir.nodes.Node`, str]
+    :type node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     :returns: a new node in the PSyIR. The return type must always be\
               specified in a separate line with an :rtype: entry. An empty\
