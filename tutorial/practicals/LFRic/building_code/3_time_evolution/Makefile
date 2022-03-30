@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified by D. Sergeev, University of Exeter
 
 # Compiler settings
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 # Source rules
-DRIVER_SRC = write_diagnostics_mod.f90 time_evolution_driver.f90
+DRIVER_SRC = time_evolution_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
