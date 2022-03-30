@@ -327,7 +327,7 @@ def test_validate12():
     vector.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, index 0 of the 2nd "
+    assert ("To use matmul2code_trans on matmul, the first index of the 2nd "
             "argument 'y' must be a full range." in str(excinfo.value))
 
 

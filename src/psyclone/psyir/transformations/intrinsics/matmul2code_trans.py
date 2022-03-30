@@ -288,8 +288,8 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
-        :param options: a dictionary with options for the transformation.
-        :type options: dict of str:values or None
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str, str]]
 
         '''
         self.validate(node)
