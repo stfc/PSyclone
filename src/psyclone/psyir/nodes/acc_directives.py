@@ -49,7 +49,6 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import DataSymbol, ScalarType
@@ -89,25 +88,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
+            node_types = [type(node).__name__ for node in data_nodes]
             raise GenerationError(
-                "Cannot include CodeBlocks or calls to PSyData routines within"
-                " OpenACC regions but found {0} within a region enclosed "
-                "by an '{1}'".format(
-                    [type(node).__name__ for node in data_nodes],
-                    type(self).__name__))
-
-    def gen_post_region_code(self, parent):
-        '''
-        Generates any code that must be executed immediately after the end of
-        the region defined by this directive.
-
-        :param parent:
-        :type parent:
-
-        '''
-        loops = self.walk(Loop)
-        for loop in loops:
-            loop.gen_mark_halos_clean_dirty(parent)
+                f"Cannot include CodeBlocks or calls to PSyData routines "
+                f"within OpenACC regions but found {node_types} within a "
+                f"region enclosed by an '{type(self).__name__}'")
 
 
 @six.add_metaclass(abc.ABCMeta)

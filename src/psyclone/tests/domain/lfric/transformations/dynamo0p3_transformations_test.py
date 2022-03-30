@@ -6424,6 +6424,10 @@ def test_acckernelstrans_dm():
     assert (
         "      END DO\n"
         "      !$acc end kernels\n"
+        "      !\n"
+        "      ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
+        "      !\n"
         "      CALL f1_proxy%set_dirty()\n" in code)
 
 # Class ACCKernelsTrans end
@@ -6493,6 +6497,10 @@ def test_accparalleltrans_dm(tmpdir):
             "undf_w3, map_w3(:,cell))\n"
             "      END DO\n"
             "      !$acc end parallel\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the above "
+            "loop(s)\n"
+            "      !\n"
             "      CALL f1_proxy%set_dirty()\n" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

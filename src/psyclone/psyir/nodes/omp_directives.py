@@ -112,33 +112,6 @@ class OMPRegionDirective(OMPDirective, RegionDirective):
                             result.append(arg.name)
         return result
 
-    def gen_post_region_code(self, parent):
-        '''
-        Generates any code that must be executed immediately after the end of
-        the region defined by this directive.
-
-        :param parent: where to add new f2pygen nodes.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        if not Config.get().distributed_memory or self.ancestor(Loop):
-            return
-
-        commented = False
-        for loop in self.walk(Loop):
-            if not isinstance(loop.parent, Loop):
-                if not commented and loop.unique_modified_args("gh_field"):
-                    commented = True
-                    parent.add(CommentGen(parent, ""))
-                    parent.add(CommentGen(parent,
-                                          " Set halos dirty/clean for fields "
-                                          "modified in the above loop(s)"))
-                    parent.add(CommentGen(parent, ""))
-                loop.gen_mark_halos_clean_dirty(parent)
-
-        if commented:
-            parent.add(CommentGen(parent, ""))
-
 
 @six.add_metaclass(abc.ABCMeta)
 class OMPStandaloneDirective(OMPDirective, StandaloneDirective):
