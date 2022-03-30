@@ -45,6 +45,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
+from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -134,9 +135,11 @@ def test_kernelmetadatasymbol_setup_iteratesover(fortran_reader):
     datatype = symbol.datatype
     with pytest.raises(ValueError) as info:
         _ = KernelMetadataSymbol("name", datatype)
-    assert ("Expected one of ['go_all_pts', 'go_internal_pts', "
-            "'go_external_pts'] for 'iterates_over' metadata, but found "
-            "'invalid'." in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    valid_iterates_over = constants.VALID_ITERATES_OVER
+    assert (f"Expected one of {valid_iterates_over} for 'iterates_over' "
+            f"metadata, but found 'invalid'." in str(info.value))
     # OK
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
@@ -167,9 +170,11 @@ def test_kernelmetadatasymbol_setup_indexoffset(fortran_reader):
     datatype = symbol.datatype
     with pytest.raises(ValueError) as info:
         _ = KernelMetadataSymbol("name", datatype)
-    assert ("Expected one of ['go_offset_se', 'go_offset_sw', 'go_offset_ne', "
-            "'go_offset_nw', 'go_offset_any'] for 'index_offset' metadata, "
-            "but found 'invalid'." in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    supported_offsets = constants.SUPPORTED_OFFSETS
+    assert (f"Expected one of {supported_offsets} for 'index_offset' "
+            f"metadata, but found 'invalid'." in str(info.value))
     # OK
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
@@ -293,12 +298,14 @@ def test_kernelmetadatasymbol_setup_metaargs(fortran_reader):
     datatype = symbol.datatype
     with pytest.raises(ParseError) as info:
         _ = KernelMetadataSymbol("name", datatype)
-    print(str(info.value))
-    assert("Expected a 'meta_arg' entry with 3 arguments to either be a field "
-           "or a scalar, but found 'invalid' as the second argument instead "
-           "of '['go_cu', 'go_cv', 'go_ct', 'go_cf', 'go_every']' (fields) or "
-           "'['go_i_scalar', 'go_r_scalar']' (scalars)."
-           in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    field_grid_types = constants.VALID_FIELD_GRID_TYPES
+    scalar_types = constants.VALID_SCALAR_TYPES
+    assert(f"Expected a 'meta_arg' entry with 3 arguments to either be a "
+           f"field or a scalar, but found 'invalid' as the second argument "
+           f"instead of '{field_grid_types}' (fields) or '{scalar_types}' "
+           f"(scalars)." in str(info.value))
 
     # nargs not 2 or 3
     modified_program = PROGRAM.replace(
@@ -376,9 +383,11 @@ def test_kernelmetadatasymbol_iteratesover(fortran_reader):
     assert kernel_metadata.iterates_over == "GO_ALL_PTS"
     with pytest.raises(ValueError) as info:
         kernel_metadata.iterates_over = "hello"
-    assert ("Expected one of ['go_all_pts', 'go_internal_pts', "
-            "'go_external_pts'] for 'iterates_over' metadata, but found "
-            "'hello'." in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    iterates_over_types = constants.VALID_ITERATES_OVER
+    assert (f"Expected one of {iterates_over_types} for 'iterates_over' "
+            f"metadata, but found 'hello'." in str(info.value))
     assert "GO_INTERNAL_PTS" not in kernel_metadata.datatype.declaration
     assert "GO_ALL_PTS" in kernel_metadata.datatype.declaration
     kernel_metadata.iterates_over = "GO_INTERNAL_PTS"
@@ -396,9 +405,11 @@ def test_kernelmetadatasymbol_indexoffset(fortran_reader):
     assert kernel_metadata.index_offset == "GO_OFFSET_SW"
     with pytest.raises(ValueError) as info:
         kernel_metadata.index_offset = "hello"
-    assert ("Expected one of ['go_offset_se', 'go_offset_sw', 'go_offset_ne', "
-            "'go_offset_nw', 'go_offset_any'] for 'index_offset' metadata, "
-            "but found 'hello'." in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    offset_types = constants.SUPPORTED_OFFSETS
+    assert (f"Expected one of {offset_types} for 'index_offset' metadata, "
+            f"but found 'hello'." in str(info.value))
     assert "GO_OFFSET_NE" not in kernel_metadata.datatype.declaration
     assert "GO_OFFSET_SW" in kernel_metadata.datatype.declaration
     kernel_metadata.index_offset = "GO_OFFSET_NE"
@@ -489,9 +500,12 @@ def test_gridarg_access(fortran_reader):
     assert grid_arg.access == "GO_READ"
     with pytest.raises(ValueError) as info:
         grid_arg.access = "hello"
-    assert ("The first metadata entry for a grid property argument should "
-            "be one of ['go_read', 'go_write', 'go_readwrite'], but found "
-            "'hello'." in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    intrinsic_types = constants.VALID_INTRINSIC_TYPES
+    assert (f"The first metadata entry for a grid property argument should "
+            f"be one of {intrinsic_types}, but found 'hello'."
+            in str(info.value))
     assert ("GO_WRITE, GO_GRID_AREA_T" not in
             kernel_metadata.datatype.declaration)
     assert "GO_READ, GO_GRID_AREA_T" in kernel_metadata.datatype.declaration
@@ -512,21 +526,12 @@ def test_gridarg_name(fortran_reader):
     assert grid_arg.name == "GO_GRID_AREA_T"
     with pytest.raises(ValueError) as info:
         grid_arg.name = "hello"
-    print(str(info.value))
-    assert ("The second meadata entry for a grid property argument should be "
-            "one of ['go_grid_xstop', 'go_grid_ystop', 'go_grid_data', "
-            "'go_grid_internal_inner_stop', 'go_grid_internal_outer_stop', "
-            "'go_grid_whole_inner_stop', 'go_grid_whole_outer_stop', "
-            "'go_grid_internal_inner_start', 'go_grid_internal_outer_start', "
-            "'go_grid_whole_inner_start', 'go_grid_whole_outer_start', "
-            "'go_grid_area_t', 'go_grid_area_u', 'go_grid_area_v', "
-            "'go_grid_mask_t', 'go_grid_dx_t', 'go_grid_dx_u', "
-            "'go_grid_dx_v', 'go_grid_dy_t', 'go_grid_dy_u', 'go_grid_dy_v', "
-            "'go_grid_lat_u', 'go_grid_lat_v', 'go_grid_dx_const', "
-            "'go_grid_dy_const', 'go_grid_nx', 'go_grid_ny', "
-            "'go_grid_x_min_index', 'go_grid_x_max_index', "
-            "'go_grid_y_min_index', 'go_grid_y_max_index'], but found "
-            "'hello'." in str(info.value))
+    config = Config.get()
+    api_config = config.api_conf("gocean1.0")
+    grid_property_names = list(api_config.grid_properties.keys())
+    assert (f"The second meadata entry for a grid property argument should be "
+            f"one of {grid_property_names}, but found 'hello'."
+            in str(info.value))
     assert "GO_GRID_XSTOP" not in kernel_metadata.datatype.declaration
     assert "GO_GRID_AREA_T" in kernel_metadata.datatype.declaration
     grid_arg.name = "GO_GRID_XSTOP"
@@ -595,8 +600,11 @@ def test_fieldarg_access(fortran_reader):
     assert field_arg.access == "GO_WRITE"
     with pytest.raises(ValueError) as info:
         field_arg.access = "hello"
-    assert ("The first metadata entry for a field argument should be one of "
-            "['go_read', 'go_write', 'go_readwrite'], but found 'hello'."
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    intrinsic_types = constants.VALID_INTRINSIC_TYPES
+    assert (f"The first metadata entry for a field argument should be one of "
+            f"{intrinsic_types}, but found 'hello'."
             in str(info.value))
     assert "GO_READ, GO_CU" not in kernel_metadata.datatype.declaration
     assert "GO_WRITE, GO_CU" in kernel_metadata.datatype.declaration
@@ -616,9 +624,11 @@ def test_fieldarg_stagger(fortran_reader):
     assert field_arg.stagger == "GO_CU"
     with pytest.raises(ValueError) as info:
         field_arg.stagger = "hello"
-    assert ("The second metadata entry for a field argument should be one of "
-            "['go_cu', 'go_cv', 'go_ct', 'go_cf', 'go_every'], but found "
-            "'hello'." in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    field_grid_types = constants.VALID_FIELD_GRID_TYPES
+    assert (f"The second metadata entry for a field argument should be one of "
+            f"{field_grid_types}, but found 'hello'." in str(info.value))
     assert "GO_CF" not in kernel_metadata.datatype.declaration
     assert "GO_CU" in kernel_metadata.datatype.declaration
     field_arg.stagger = "GO_CF"
@@ -751,9 +761,11 @@ def test_scalararg_access(fortran_reader):
     assert scalar_arg.access == "GO_READ"
     with pytest.raises(ValueError) as info:
         scalar_arg.access = "hello"
-    assert ("The first metadata entry for a scalar argument should be one of "
-            "['go_read', 'go_write', 'go_readwrite'], but found 'hello'."
-            in str(info.value))
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    intrinsic_types = constants.VALID_INTRINSIC_TYPES
+    assert (f"The first metadata entry for a scalar argument should be one of "
+            f"{intrinsic_types}, but found 'hello'." in str(info.value))
     assert "GO_WRITE, GO_R_SCALAR" not in kernel_metadata.datatype.declaration
     assert "GO_READ, GO_R_SCALAR" in kernel_metadata.datatype.declaration
     scalar_arg.access = "GO_WRITE"
@@ -772,8 +784,11 @@ def test_scalararg_datatype(fortran_reader):
     assert scalar_arg.datatype == "GO_R_SCALAR"
     with pytest.raises(ValueError) as info:
         scalar_arg.datatype = "hello"
-    assert ("The second metadata entry for a scalar argument should be "
-            "one of ['go_i_scalar', 'go_r_scalar'], but found 'hello'."
+    config = Config.get()
+    constants = config.api_conf("gocean1.0").get_constants()
+    scalar_types = constants.VALID_SCALAR_TYPES
+    assert (f"The second metadata entry for a scalar argument should be "
+            f"one of {scalar_types}, but found 'hello'."
             in str(info.value))
     assert "GO_I_SCALAR" not in kernel_metadata.datatype.declaration
     assert "GO_R_SCALAR" in kernel_metadata.datatype.declaration

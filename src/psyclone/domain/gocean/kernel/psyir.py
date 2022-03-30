@@ -267,9 +267,9 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
         '''
         const = GOceanConstants()
-        if value.lower() not in const.VALID_OFFSET_NAMES:
+        if value.lower() not in const.SUPPORTED_OFFSETS:
             raise ValueError(
-                f"Expected one of {str(const.VALID_OFFSET_NAMES)} for "
+                f"Expected one of {str(const.SUPPORTED_OFFSETS)} for "
                 f"'index_offset' metadata, but found '{value}'.")
 
     @property
