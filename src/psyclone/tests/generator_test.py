@@ -349,9 +349,8 @@ def test_kernel_parsing_internalerror(capsys):
         main([kern_filename, "-api", "gocean1.0"])
     out, err = capsys.readouterr()
     assert out == ""
+    assert "In kernel file " in str(err)
     assert (
-        "In kernel file '/home/rupert/proj/PSyclone/src/psyclone/tests/"
-        "test_files/gocean1p0/kernel_invalid_declaration.f90':\n"
         "PSyclone internal error: The kernel argument list:\n"
         "'['i', 'j', 'cu', 'p', 'u']'\n"
         "does not match the variable declarations:\n"
