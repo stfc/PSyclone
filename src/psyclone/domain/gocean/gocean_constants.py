@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module provides a class with all GOcean related constants.
@@ -58,7 +59,8 @@ class GOceanConstants(object):
         GOceanConstants.HAS_BEEN_INITIALISED = True
 
         # Valid intrinsic types of kernel argument metadata.
-        GOceanConstants.VALID_INTRINSIC_TYPES = ["go_read", "go_write", "go_readwrite"]
+        GOceanConstants.VALID_INTRINSIC_TYPES = ["go_read", "go_write",
+                                                 "go_readwrite"]
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
@@ -94,7 +96,7 @@ class GOceanConstants(object):
         GOceanConstants.VALID_STENCIL_NAMES = ["go_pointwise"]
 
         # The name used to indicate there is a stencil. This will
-        # contain 3 arguments specified the type of stencil being
+        # contain 3 arguments specifying the type of stencil being
         # used.
         GOceanConstants.VALID_STENCIL_NAME = "go_stencil"
 

@@ -58,11 +58,13 @@ class KernTrans(Transformation):
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: :py:class:`psyclone.psyir.node.Routine` or \
-            :py:class:`psyclone.psyir.node.Container`
+        :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
+            :py:class:`psyclone.psyir.node.Container`]
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str:values]]
 
+        :raises TransformationError: if the metadata name has not been \
+            set or does not exist in the code.
         :raises TransformationError: if the supplied node argument is \
             not a Routine or a Container.
         :raises TransformationError: if the supplied node argument has \
@@ -109,17 +111,19 @@ class KernTrans(Transformation):
 
     @property
     def metadata_name(self):
-        '''Returns the name of the metadata that determines what will be
-        specialised to kernel-specific PSyIR.
+        '''
+        :returns: the name of the metadata that determines what will be \
+            specialised to kernel-specific PSyIR.
+        :rtype: str
 
         '''
         return self._metadata_name
 
     @metadata_name.setter
     def metadata_name(self, value):
-        '''Sets the name of the metadata that determines what will be
-        specialised to kernel-specific PSyIR.
-
+        '''
+        :param str value: sets the name of the metadata that \
+            determines what will be specialised to kernel-specific PSyIR.
         '''
         if not isinstance(value, str):
             raise TypeError(
@@ -132,10 +136,10 @@ class KernTrans(Transformation):
         ''' Apply transformation to the supplied PSyIR.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: :py:class:`psyclone.psyir.node.Routine` or \
-            :py:class:`psyclone.psyir.node.Container`
+        :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
+            :py:class:`psyclone.psyir.node.Container`]
         :param options: a dictionary with options for transformations.
-        :type options: Dict[str:values] or NoneType
+        :type options: Optional[Dict[str:values]]
 
         '''
         self.validate(node, options=options)

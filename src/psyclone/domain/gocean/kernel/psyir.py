@@ -164,10 +164,9 @@ class KernelMetadataSymbol(DataTypeSymbol):
     @staticmethod
     def _get_property(spec_part, property_name):
         '''Internal utility that gets the property 'property_name' from the an
-        fparser2 tree capturing gocean metadata. It is
-        assumed that the "code property is part of a type bound
-        procedure and that the other properties are part of the data
-        declarations.
+        fparser2 tree capturing gocean metadata. It is assumed that
+        the "code property is part of a type bound procedure and that
+        the other properties are part of the data declarations.
 
         :param spec_part: the fparser2 parse tree containing the metadata.
         :type spec_part: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
@@ -295,8 +294,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
     def args(self):
         '''
         :returns: a list of arg objects capturing their metadata values.
-        :rtype: list of :py:class:`psyclone.psyir.common.kernel. \
-            KernelMetadataSymbol.KernelMetadataArg`
+        :rtype: List[:py:class:`psyclone.psyir.common.kernel.\
+            KernelMetadataSymbol.KernelMetadataArg`]
         '''
         return self._meta_args
 
@@ -594,7 +593,11 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
         @staticmethod
         def _validate_stencil_name(value):
-            '''Check that value is the expected stencil name.'''
+            '''Check that value is the expected stencil name.
+
+            :raises ValueError: if an invalid stencil name is found.
+
+            '''
             const = GOceanConstants()
             if value.lower() != const.VALID_STENCIL_NAME:
                 raise ValueError(
@@ -641,7 +644,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         def stencil(self):
             '''
             :returns: the stencil value, or None if there is no stencil.
-            :rtype: List[str] or NoneType
+            :rtype: Optional[List[str]]
             '''
             return self._stencil
 
@@ -658,7 +661,6 @@ class KernelMetadataSymbol(DataTypeSymbol):
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
                 self._parent.write_fortran_string()
-
 
     class ScalarArg():
         '''Internal class to capture Kernel metadata argument information for
@@ -810,4 +812,3 @@ class KernelMetadataSymbol(DataTypeSymbol):
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
                 self._parent.write_fortran_string()
-

@@ -47,12 +47,9 @@
 from __future__ import absolute_import, print_function
 
 import argparse
-import io
 import os
 import sys
 import traceback
-
-import six
 
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
@@ -109,8 +106,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
             # a path to a file has been provided
             # we need to check the file exists
             if not os.path.isfile(script_name):
-                raise IOError("script file '{0}' not found".
-                              format(script_name))
+                raise IOError(f"script file '{script_name}' not found")
             # it exists so we need to add the path to the python
             # search path
             sys_path_appended = True
@@ -118,8 +114,8 @@ def handle_script(script_name, info, function_name, is_optional=False):
         filename, fileext = os.path.splitext(filename)
         if fileext != '.py':
             raise GenerationError(
-                "generator: expected the script file '{0}' to have "
-                "the '.py' extension".format(filename))
+                f"generator: expected the script file '{filename}' to have "
+                f"the '.py' extension")
         try:
             transmod = __import__(filename)
         except ImportError as error:
@@ -142,10 +138,9 @@ def handle_script(script_name, info, function_name, is_optional=False):
                     ''.join('    ' + line for line in lines[2:]) + '}'
                 # pylint: disable=raise-missing-from
                 raise GenerationError(
-                    "Generator: script file '{0}'\nraised the "
-                    "following exception during execution "
-                    "...\n{1}\nPlease check your script".format(
-                        script_name, e_str))
+                    f"Generator: script file '{script_name}'\nraised the "
+                    f"following exception during execution "
+                    f"...\n{e_str}\nPlease check your script")
         elif not is_optional:
             raise GenerationError(
                 f"generator: attempted to import '{filename}' but script file "
@@ -225,24 +220,23 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     else:
         if api not in Config.get().supported_apis:
             raise GenerationError(
-                "generate: Unsupported API '{0}' specified. Supported "
-                "types are {1}.".format(api, Config.get().supported_apis))
+                f"generate: Unsupported API '{api}' specified. Supported "
+                f"types are {Config.get().supported_apis}.")
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
     try:
         Config.get().kernel_naming = kern_naming
     except ValueError as verr:
-        six.raise_from(
-            GenerationError("Invalid kernel-renaming scheme supplied: {0}".
-                            format(str(verr))), verr)
+        raise GenerationError(
+            f"Invalid kernel-renaming scheme supplied: {str(verr)}") from verr
 
     if not os.path.isfile(filename):
-        raise IOError("File '{0}' not found".format(filename))
+        raise IOError(f"File '{filename}' not found")
     for kernel_path in kernel_paths:
         if not os.access(kernel_path, os.R_OK):
             raise IOError(
-                "Kernel search path '{0}' not found".format(kernel_path))
+                f"Kernel search path '{kernel_path}' not found")
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
@@ -344,10 +338,9 @@ def main(args):
                         help='directory in which to put transformed kernels, '
                         'default is the current working directory.')
     parser.add_argument('-api',
-                        help='choose a particular api from {0}, '
-                             'default \'{1}\'.'
-                        .format(str(Config.get().supported_apis),
-                                Config.get().default_api))
+                        help=f'choose a particular api from '
+                        f'{str(Config.get().supported_apis)}, '
+                        f'default \'{Config.get().default_api}\'.')
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -386,12 +379,12 @@ def main(args):
                         "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
-        help='Display version information ({0})'.format(__VERSION__))
+        help=f'Display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
 
     if args.version:
-        print("PSyclone version: {0}".format(__VERSION__))
+        print(f"PSyclone version: {__VERSION__}")
 
     if args.profile:
         Profiler.set_options(args.profile)
@@ -400,12 +393,12 @@ def main(args):
     # then check that it is valid
     if args.okern:
         if not os.path.exists(args.okern):
-            print("Specified kernel output directory ({0}) does not exist.".
-                  format(args.okern), file=sys.stderr)
+            print(f"Specified kernel output directory ({args.okern}) does "
+                  f"not exist.", file=sys.stderr)
             sys.exit(1)
         if not os.access(args.okern, os.W_OK):
-            print("Cannot write to specified kernel output directory ({0}).".
-                  format(args.okern), file=sys.stderr)
+            print(f"Cannot write to specified kernel output directory "
+                  f"({args.okern}).", file=sys.stderr)
             sys.exit(1)
         kern_out_path = args.okern
     else:
@@ -423,9 +416,8 @@ def main(args):
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported APIs are "
-              "{1}.".format(args.api, Config.get().supported_apis),
-              file=sys.stderr)
+        print(f"Unsupported API '{args.api}' specified. Supported APIs are "
+              f"{Config.get().supported_apis}.", file=sys.stderr)
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
@@ -456,13 +448,13 @@ def main(args):
                             kern_naming=args.kernel_renaming)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
-        print("Warning: {0}".format(exc_value))
+        print(f"Warning: {exc_value}")
         # no invoke calls were found in the algorithm file so we do
         # not need to process it, or generate any psy layer code, so
         # output the original algorithm file and set the psy file to
         # be empty
-        alg_file = open(args.filename)
-        alg = alg_file.read()
+        with open(args.filename, encoding="utf8") as alg_file:
+            alg = alg_file.read()
         psy = ""
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
@@ -484,27 +476,16 @@ def main(args):
         psy_str = str(psy)
         alg_str = str(alg)
     if args.oalg is not None:
-        write_unicode_file(alg_str, args.oalg)
+        with open(args.oalg, mode='w', encoding="utf8") as alg_file:
+            alg_file.write(alg_str)
     else:
-        print("Transformed algorithm code:\n%s" % alg_str)
+        print(f"Transformed algorithm code:\n{alg_str}")
 
     if not psy_str:
         # empty file so do not output anything
         pass
     elif args.opsy is not None:
-        write_unicode_file(psy_str, args.opsy)
+        with open(args.opsy, mode='w', encoding="utf8") as psy_file:
+            psy_file.write(psy_str)
     else:
-        print("Generated psy layer code:\n", psy_str)
-
-
-def write_unicode_file(contents, filename):
-    '''Wrapper routine that ensures that a string is encoded as unicode before
-    writing to file.
-
-    :param str contents: string to write to file.
-    :param str filename: the name of the file to create.
-
-    '''
-    encoding = {'encoding': 'utf-8'}
-    with io.open(filename, mode='w', **encoding) as file_object:
-        file_object.write(contents)
+        print(f"Generated psy layer code:\n{psy_str}")
