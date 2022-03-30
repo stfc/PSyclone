@@ -132,7 +132,7 @@ def main(args):
                         args.test_filename)
             with open(args.test_filename, mode='w',
                       encoding='utf8') as harness_file:
-                adjoint_file.write(test_fortran_str)
+                harness_file.write(test_fortran_str)
         else:
             print(test_fortran_str, file=sys.stdout)
 
