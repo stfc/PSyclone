@@ -2,7 +2,8 @@
 
 This directory contains a runnable example of kernel that uses
 OpenACC. The framework for this stand-alone example is explained in
-more details in the directory ``../full_example``.
+more details in the directory
+``<PSYCLONEHOME>/examples/lfric/eg17/full_example``.
 
 The script ``acc_parallel_dm.py`` applies the OpenACC transformation to all 
 kernels. See the [OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html#openacc)
