@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,8 +81,8 @@ class RoutineSymbol(TypedSymbol):
     def __str__(self):
         # This implementation could be moved to TypedSymbol but it is kept
         # here to enable us to keep TypedSymbol abstract.
-        return "{0} : {1} <{2}>".format(self.name, type(self).__name__,
-                                        str(self.datatype))
+        return "{0}: {1}<{2}>".format(self.name, type(self).__name__,
+                                      str(self.datatype))
 
 
 # For Sphinx AutoAPI documentation generation

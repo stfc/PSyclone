@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR routine into a
@@ -65,7 +66,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> trans = CreateNemoInvokeScheduleTrans()
     >>> trans.apply(psyir.children[0])
     >>> psyir.view()
-    FileContainer[None]
+    FileContainer[]
         NemoInvokeSchedule[invoke='sub']
             0: Loop[type='None', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

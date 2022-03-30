@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 '''Module containing tests for the matmul2code transformation.'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
@@ -535,7 +534,8 @@ def test_get_array_bound_error():
 
 def test_get_array_bound():
     '''Test that the _get_array_bound utility function returns the expected
-    bound values for different types of array declaration.
+    bound values for different types of array declaration. Also checks that
+    new nodes are created each time the utility is called.
 
     '''
     scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
@@ -555,6 +555,11 @@ def test_get_array_bound():
     assert isinstance(step, Literal)
     assert step.value == "1"
     assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # Check that the method creates new nodes each time.
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 0)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
     # symbol
     (lower_bound, upper_bound, step) = _get_array_bound(reference, 1)
     assert isinstance(lower_bound, Literal)
@@ -565,6 +570,11 @@ def test_get_array_bound():
     assert isinstance(step, Literal)
     assert step.value == "1"
     assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # Check that the method creates new nodes each time.
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
 
     # deferred and attribute
     def _check_ulbound(lower_bound, upper_bound, step, index):
@@ -594,8 +604,16 @@ def test_get_array_bound():
         assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     (lower_bound, upper_bound, step) = _get_array_bound(reference, 2)
     _check_ulbound(lower_bound, upper_bound, step, 2)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 2)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
     (lower_bound, upper_bound, step) = _get_array_bound(reference, 3)
     _check_ulbound(lower_bound, upper_bound, step, 3)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 3)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
 
 
 def test_apply_matrix_matrix(tmpdir, fortran_reader, fortran_writer):
