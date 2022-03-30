@@ -82,7 +82,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
     :param str script_name: name of the script to load.
     :param info: PSyclone representation of the algorithm or psy layer \
         to which the script is applied.
-    :type info: :py:class:`psyclone.psyGen.PSy` or \
+    :type info: :py:class:`psyclone.psyGen.PSy` | \
         :py:class:`psyclone.psyir.nodes.Node`
     :param str function_name: the name of the function to call in the \
         script.
@@ -174,7 +174,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         search for the files containing the kernel source (if \
         different from the location of the algorithm specification). \
         Defaults to None.
-    :type kernel_paths: list of str or NoneType
+    :type kernel_paths: Optional[List[str]]
     :param str script_name: a script file that can apply optimisations \
         to the PSy layer (can be a path to a file or a filename that \
         relies on the PYTHONPATH to find the module). Defaults to None.
@@ -191,9 +191,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         kernels. Defaults to "multiple".
     :return: 2-tuple containing the fparser1 AST for the algorithm code and \
         the fparser1 AST or a string (for NEMO) of the psy code.
-    :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
-             :py:class:`fparser.one.block_statements.Module`) or \
-            (:py:class:`fparser.one.block_statements.BeginSource`, str)
+    :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`, \
+            :py:class:`fparser.one.block_statements.Module`] | \
+            Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
@@ -319,8 +319,11 @@ def main(args):
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
     results.
-    :param list args: the list of command-line arguments that PSyclone has \
-                      been invoked with.
+
+    :param args: the list of command-line arguments that PSyclone has \
+        been invoked with.
+    :type args: List[str]
+
     '''
     # pylint: disable=too-many-statements,too-many-branches
 

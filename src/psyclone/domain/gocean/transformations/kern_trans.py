@@ -61,7 +61,7 @@ class KernTrans(Transformation):
         :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
             :py:class:`psyclone.psyir.node.Container`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str:values]]
+        :type options: Optional[Dict[str: str]]
 
         :raises TransformationError: if the metadata name has not been \
             set or does not exist in the code.
@@ -139,7 +139,7 @@ class KernTrans(Transformation):
         :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
             :py:class:`psyclone.psyir.node.Container`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str:values]]
+        :type options: Optional[Dict[str: str]]
 
         '''
         self.validate(node, options=options)

@@ -652,7 +652,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
         def stencil(self, value_list):
             '''
             :param value_list: the new value for stencil.
-            :type value_list: list[str]
+            :type value_list: List[str]
             '''
             self._validate_stencil(value_list)
             self._stencil = value_list
