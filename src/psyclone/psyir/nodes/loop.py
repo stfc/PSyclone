@@ -593,6 +593,9 @@ class Loop(Statement):
         following execution of this loop. This default implementation does
         nothing.
 
+        TODO #1648 - this method should be removed when the corresponding
+        one in DynLoop is removed.
+
         :param parent: the node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 

@@ -43,7 +43,6 @@
     Argument). '''
 
 # Imports
-from __future__ import print_function, absolute_import
 import abc
 import os
 from enum import Enum
@@ -62,9 +61,8 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DirectiveGen, DoGen,
-                              IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
-                              UseGen)
+                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen)
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -75,7 +73,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective) #ParallelDoDirective)
+                                  ACCRegionDirective, OMPRegionDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
