@@ -54,7 +54,7 @@ def trans(psy):
     '''
 
     # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
+    # TODO: import the transformation and create an instance
     # ------------------------------------------------------
     # from ... import ...
     # extract = ...()
