@@ -94,6 +94,104 @@ def create_matmul():
     return matmul
 
 
+def test_get_array_bound_error():
+    '''Test that the _get_array_bound() utility function raises the
+    expected exception if the shape of the array's symbol is not
+    supported.'''
+    array_type = ArrayType(REAL_TYPE, [10])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+    array_type._shape = [0.2]
+    with pytest.raises(TransformationError) as excinfo:
+        _get_array_bound(reference, 0)
+    assert ("Transformation Error: Unsupported index type 'float' found for "
+            "dimension 1 of array 'x'." in str(excinfo.value))
+
+
+def test_get_array_bound():
+    '''Test that the _get_array_bound utility function returns the expected
+    bound values for different types of array declaration. Also checks that
+    new nodes are created each time the utility is called.
+
+    '''
+    scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
+    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol),
+                                       ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.ATTRIBUTE])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+    # literal value
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
+    assert isinstance(lower_bound, Literal)
+    assert lower_bound.value == "1"
+    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(upper_bound, Literal)
+    assert upper_bound.value == "10"
+    assert upper_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(step, Literal)
+    assert step.value == "1"
+    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # Check that the method creates new nodes each time.
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 0)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
+    # symbol
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 1)
+    assert isinstance(lower_bound, Literal)
+    assert lower_bound.value == "1"
+    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(upper_bound, Reference)
+    assert upper_bound.symbol.name == "n"
+    assert isinstance(step, Literal)
+    assert step.value == "1"
+    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    # Check that the method creates new nodes each time.
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
+
+    # deferred and attribute
+    def _check_ulbound(lower_bound, upper_bound, step, index):
+        '''Internal utility routine that checks LBOUND and UBOUND are used
+        correctly for the lower and upper array bounds
+        respectively.
+
+        '''
+        assert isinstance(lower_bound, BinaryOperation)
+        assert lower_bound.operator == BinaryOperation.Operator.LBOUND
+        assert isinstance(lower_bound.children[0], Reference)
+        assert lower_bound.children[0].symbol is array_symbol
+        assert isinstance(lower_bound.children[1], Literal)
+        assert (lower_bound.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER)
+        assert lower_bound.children[1].value == str(index)
+        assert isinstance(upper_bound, BinaryOperation)
+        assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+        assert isinstance(upper_bound.children[0], Reference)
+        assert upper_bound.children[0].symbol is array_symbol
+        assert isinstance(upper_bound.children[1], Literal)
+        assert (upper_bound.children[1].datatype.intrinsic ==
+                ScalarType.Intrinsic.INTEGER)
+        assert upper_bound.children[1].value == str(index)
+        assert isinstance(step, Literal)
+        assert step.value == "1"
+        assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 2)
+    _check_ulbound(lower_bound, upper_bound, step, 2)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 2)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 3)
+    _check_ulbound(lower_bound, upper_bound, step, 3)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 3)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
+
+
 def test_initialise():
     '''Check that the str and name methods work as expected.
 
@@ -290,9 +388,8 @@ def test_validate10():
     matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, indices 0 and 1 of the "
-            "1st argument 'x' must be full ranges."
-            in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, the first two indices of the "
+            "1st argument 'x' must be full ranges." in str(excinfo.value))
 
 
 def test_validate11():
@@ -331,6 +428,22 @@ def test_validate12():
             "argument 'y' must be a full range." in str(excinfo.value))
 
 
+def test_validate_2nd_dim_2nd_arg():
+    ''' Check that the Matmul2Code validate method raises the expected
+    exception when the second dimension of the second argument to MATMUL
+    is not a full range. '''
+    trans = Matmul2CodeTrans()
+    matmul = create_matmul()
+    matrix2 = matmul.children[1]
+    matrix2.children[1] = Range.create(Literal("1", INTEGER_TYPE),
+                                       Literal("2", INTEGER_TYPE))
+    with pytest.raises(NotImplementedError) as excinfo:
+        trans.validate(matmul)
+    assert ("To use matmul2code_trans on matmul for a matrix-matrix "
+            "multiplication, the second index of the 2nd argument 'y' must "
+            "be a full range." in str(excinfo))
+
+
 def test_validate13():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL binary operation but
@@ -362,7 +475,7 @@ def test_validate14():
     trans.validate(matmul)
 
 
-def test_apply1(tmpdir):
+def test_apply_matvect(tmpdir):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes extra indices for the vector
@@ -395,7 +508,7 @@ def test_apply1(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply2(tmpdir, fortran_writer):
+def test_apply_matvect_additional_indices(tmpdir, fortran_writer):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes extra indices for the vector
@@ -429,7 +542,7 @@ def test_apply2(tmpdir, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply3(tmpdir, fortran_writer):
+def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example includes the array and vector being
@@ -479,7 +592,7 @@ def test_apply3(tmpdir, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply4(tmpdir, fortran_writer):
+def test_apply_matvect_increment(tmpdir, fortran_writer):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example make the lhs be the same array as the
@@ -518,108 +631,10 @@ def test_apply4(tmpdir, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_get_array_bound_error():
-    '''Test that the _get_array_bound() utility function raises the
-    expected exception if the shape of the array's symbol is not
-    supported.'''
-    array_type = ArrayType(REAL_TYPE, [10])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    array_type._shape = [0.2]
-    with pytest.raises(TransformationError) as excinfo:
-        _get_array_bound(reference, 0)
-    assert ("Transformation Error: Unsupported index type 'float' found for "
-            "dimension 1 of array 'x'." in str(excinfo.value))
-
-
-def test_get_array_bound():
-    '''Test that the _get_array_bound utility function returns the expected
-    bound values for different types of array declaration. Also checks that
-    new nodes are created each time the utility is called.
-
-    '''
-    scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol),
-                                       ArrayType.Extent.DEFERRED,
-                                       ArrayType.Extent.ATTRIBUTE])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    # literal value
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(upper_bound, Literal)
-    assert upper_bound.value == "10"
-    assert upper_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # Check that the method creates new nodes each time.
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 0)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-    # symbol
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 1)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(upper_bound, Reference)
-    assert upper_bound.symbol.name == "n"
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # Check that the method creates new nodes each time.
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # deferred and attribute
-    def _check_ulbound(lower_bound, upper_bound, step, index):
-        '''Internal utility routine that checks LBOUND and UBOUND are used
-        correctly for the lower and upper array bounds
-        respectively.
-
-        '''
-        assert isinstance(lower_bound, BinaryOperation)
-        assert lower_bound.operator == BinaryOperation.Operator.LBOUND
-        assert isinstance(lower_bound.children[0], Reference)
-        assert lower_bound.children[0].symbol is array_symbol
-        assert isinstance(lower_bound.children[1], Literal)
-        assert (lower_bound.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert lower_bound.children[1].value == str(index)
-        assert isinstance(upper_bound, BinaryOperation)
-        assert upper_bound.operator == BinaryOperation.Operator.UBOUND
-        assert isinstance(upper_bound.children[0], Reference)
-        assert upper_bound.children[0].symbol is array_symbol
-        assert isinstance(upper_bound.children[1], Literal)
-        assert (upper_bound.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert upper_bound.children[1].value == str(index)
-        assert isinstance(step, Literal)
-        assert step.value == "1"
-        assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 2)
-    _check_ulbound(lower_bound, upper_bound, step, 2)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 2)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 3)
-    _check_ulbound(lower_bound, upper_bound, step, 3)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 3)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-
-def test_apply_matrix_matrix(tmpdir, fortran_reader, fortran_writer):
+def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     '''
     Check the apply method works when the second argument to matmul is a
-    matrix rather than a vector.
+    matrix rather than a vector and no indices are supplied.
 
     '''
     psyir = fortran_reader.psyir_from_source(
@@ -652,4 +667,79 @@ def test_apply_matrix_matrix(tmpdir, fortran_reader, fortran_writer):
         "  enddo\n"
         "\n"
         "end subroutine my_sub" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+
+def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
+    '''
+    Check the apply method works when the second argument to matmul is a
+    matrix but additional indices are present.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(3,6,4) :: jac\n"
+        "  real, dimension(5,3,4) :: jac_inv\n"
+        "  real, dimension(5,6,2) :: result\n"
+        "  result(:,:,2) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "  real, dimension(3,6,4) :: jac\n"
+        "  real, dimension(5,3,4) :: jac_inv\n"
+        "  real, dimension(5,6,2) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do i = 1, 5, 1\n"
+        "    do j = 1, 6, 1\n"
+        "      result(i,j,2) = 0.0\n"
+        "      do ii = 1, 3, 1\n"
+        "        result(i,j,2) = result(i,j,2) + "
+        "jac(ii,i,1) * jac_inv(j,ii,2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+
+def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
+    '''
+    Check the apply method works when there are already symbols present
+    with names that would clash with the new loop variables.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real :: i, j, ii\n"
+        "  real, dimension(3,6,4) :: jac\n"
+        "  real, dimension(5,3,4) :: jac_inv\n"
+        "  real, dimension(5,6,2) :: result\n"
+        "  result(:,:,2) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "  real, dimension(3,6,4) :: jac\n"
+        "  real, dimension(5,3,4) :: jac_inv\n"
+        "  real, dimension(5,6,2) :: result\n"
+        "  integer :: i_1\n"
+        "  integer :: j_1\n"
+        "  integer :: ii_1\n"
+        "\n"
+        "  do i_1 = 1, 5, 1\n"
+        "    do j_1 = 1, 6, 1\n"
+        "      result(i_1,j_1,2) = 0.0\n"
+        "      do ii_1 = 1, 3, 1\n"
+        "        result(i_1,j_1,2) = result(i_1,j_1,2) + "
+        "jac(ii_1,i_1,1) * jac_inv(j_1,ii_1,2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
     assert Compile(tmpdir).string_compiles(out)

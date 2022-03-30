@@ -199,7 +199,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         if len(matrix.symbol.shape) > 2 and not matrix.children:
             # If the matrix has no children then it is a reference. If
-            # it is a reference then the number of arguments must be 2.
+            # it is a reference then the number of dimensions must be 2.
             raise TransformationError(
                 f"Expected 1st child of a MATMUL BinaryOperation to have 2 "
                 f"dimensions, but found '{len(matrix.symbol.shape)}'.")
@@ -220,8 +220,9 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # dimension.
             if not (matrix.is_full_range(0) and matrix.is_full_range(1)):
                 raise NotImplementedError(
-                    f"To use matmul2code_trans on matmul, indices 0 and 1 of "
-                    f"the 1st argument '{matrix.name}' must be full ranges.")
+                    f"To use matmul2code_trans on matmul, the first two "
+                    f"indices of the 1st argument '{matrix.name}' must be "
+                    f"full ranges.")
 
             if len(matrix.children) > 2:
                 # The 3rd index and onwards must not be ranges.
@@ -297,19 +298,18 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         arg2 = node.children[1]
         if (len(arg2.children) > 1 and isinstance(arg2.children[1], Range) or
                 not arg2.children and len(arg2.symbol.shape) == 2):
-            self._apply_matrix_matrix(node, options=options)
+            self._apply_matrix_matrix(node)
         else:
-            self._apply_matrix_vector(node, options=options)
+            self._apply_matrix_vector(node)
 
-    def _apply_matrix_vector(self, node, options=None):
+    @staticmethod
+    def _apply_matrix_vector(node):
         '''
         Apply the transformation for the case of a matrix-vector
         multiplication.
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
-        :param options: a dictionary with options for the transformation.
-        :type options: dict of str:values or None
 
         '''
         # pylint: disable=too-many-locals
@@ -375,15 +375,14 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # remove the original matmul
         assignment.parent.children.remove(assignment)
 
-    def _apply_matrix_matrix(self, node, options=None):
+    @staticmethod
+    def _apply_matrix_matrix(node):
         '''
         Apply the transformation for the case of a matrix-matrix
         multiplication.
 
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
-        :param options: a dictionary with options for the transformation.
-        :type options: dict of str:values or None
 
         '''
         # pylint: disable=too-many-locals
