@@ -35,10 +35,7 @@
 # Modified: I. Kavcic, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
 
-
 '''Tests for GOceanConstants API-specific constants.'''
-
-from __future__ import absolute_import, print_function
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants

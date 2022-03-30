@@ -299,7 +299,7 @@ def test_kernelmetadatasymbol_setup_metaargs(fortran_reader):
            "of '['go_cu', 'go_cv', 'go_ct', 'go_cf', 'go_every']' (fields) or "
            "'['go_i_scalar', 'go_r_scalar']' (scalars)."
            in str(info.value))
-    
+
     # nargs not 2 or 3
     modified_program = PROGRAM.replace(
         ",  GO_GRID_AREA_T", "")

@@ -44,19 +44,16 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
-from __future__ import absolute_import
-import io
 import os
 import re
 import stat
 from sys import modules
 import pytest
-import six
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
-from psyclone.generator import generate, main, write_unicode_file
+from psyclone.generator import generate, main
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
@@ -72,7 +69,8 @@ NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "gocean1p0")
+                                "test_files", "gocean1p0")
+
 
 def delete_module(modname):
     '''A function to remove a module from Python's internal modules
@@ -339,6 +337,7 @@ def test_recurse_correct_kernel_paths():
         api="dynamo0.3",
         kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels")])
 
+
 def test_kernel_parsing_internalerror(capsys):
     '''Checks that the expected output is provided if an internal error is
     caught when parsing a kernel using fparser2.
@@ -517,7 +516,7 @@ def test_api_no_alg():
     alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
                         api="nemo")
     assert alg is None
-    assert isinstance(psy, six.string_types)
+    assert isinstance(psy, str)
     assert psy.startswith("program")
 
 
@@ -588,7 +587,7 @@ def test_main_version(capsys):
     with pytest.raises(SystemExit):
         main(["-h"])
     output, _ = capsys.readouterr()
-    assert "Display version information ({0})".format(__VERSION__) in output
+    assert f"Display version information ({__VERSION__})" in output
 
     # Now test -v, but it needs a filename for argparse to work. Just use
     # some invalid parameters - "-v" prints its output before that.
@@ -596,7 +595,7 @@ def test_main_version(capsys):
         main(["-v", "does-not-exist"])
     output, _ = capsys.readouterr()
 
-    assert "PSyclone version: {0}".format(__VERSION__) in output
+    assert f"PSyclone version: {__VERSION__}" in output
 
 
 def test_main_profile(capsys):
@@ -840,12 +839,13 @@ def test_main_no_invoke_alg_stdout(capsys):
     main([kern_filename])
     out, _ = capsys.readouterr()
 
-    kern_file = open(kern_filename)
-    kern_str = kern_file.read()
-    expected_output = ("Warning: Algorithm Error: Algorithm file contains no "
-                       "invoke() calls: refusing to generate empty PSy code\n"
-                       "Transformed algorithm code:\n") + kern_str + "\n"
-    assert expected_output == out
+    with open(kern_filename, encoding="utf8") as kern_file:
+        kern_str = kern_file.read()
+        expected_output = (
+            f"Warning: Algorithm Error: Algorithm file contains no "
+            f"invoke() calls: refusing to generate empty PSy code\n"
+            f"Transformed algorithm code:\n{kern_str}\n")
+        assert expected_output == out
 
 
 def test_main_write_psy_file(capsys, tmpdir):
@@ -865,14 +865,12 @@ def test_main_write_psy_file(capsys, tmpdir):
     assert os.path.isfile(psy_filename)
 
     # extract psy file content
-    psy_file = open(psy_filename)
-    psy_str = psy_file.read()
-
-    # check content of generated psy file by comparing it with stdout
-    main([alg_filename])
-    stdout, _ = capsys.readouterr()
-
-    assert psy_str in stdout
+    with open(psy_filename, encoding="utf8") as psy_file:
+        psy_str = psy_file.read()
+        # check content of generated psy file by comparing it with stdout
+        main([alg_filename])
+        stdout, _ = capsys.readouterr()
+        assert psy_str in stdout
 
 
 def test_main_no_invoke_alg_file(capsys, tmpdir):
@@ -894,17 +892,17 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     stdout, _ = capsys.readouterr()
 
     # check stdout contains warning
-    kern_file = open(kern_filename)
-    kern_str = kern_file.read()
-    expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
-                       "no invoke() calls: refusing to generate empty PSy "
-                       "code\n")
-    assert expected_stdout == stdout
+    with open(kern_filename, encoding="utf8") as kern_file:
+        kern_str = kern_file.read()
+        expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
+                           "no invoke() calls: refusing to generate empty PSy "
+                           "code\n")
+        assert expected_stdout == stdout
 
     # check alg file has same output as input file
-    expected_file = open(alg_filename)
-    expected_alg_str = expected_file.read()
-    assert expected_alg_str == kern_str
+    with open(alg_filename, encoding="utf8") as expected_file:
+        expected_alg_str = expected_file.read()
+        assert expected_alg_str == kern_str
     os.remove(alg_filename)
 
     # check psy file is not created
@@ -943,8 +941,8 @@ def test_main_kern_output_no_write(tmpdir, capsys):
         main([alg_filename, '-okern', str(new_dir)])
     assert str(err.value) == "1"
     _, output = capsys.readouterr()
-    assert ("Cannot write to specified kernel output directory ({0})".
-            format(str(new_dir)) in output)
+    assert (f"Cannot write to specified kernel output directory "
+            f"({str(new_dir)})" in output)
 
 
 def test_main_kern_output_dir(tmpdir):
@@ -1027,27 +1025,6 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_write_utf_file(tmpdir):
-    '''Unit tests for the write_unicode_file utility routine.'''
-
-    # First for plain ASCII
-    out_file1 = os.path.join(str(tmpdir), "out1.txt")
-    write_unicode_file("This contains only ASCII", out_file1)
-
-    # Second with a character that has no ASCII representation
-    with open(out_file1, "r") as infile:
-        content = infile.read()
-        assert "This contains only ASCII" in content
-    out_file2 = os.path.join(str(tmpdir), "out2.txt")
-    test_str = "This contains UTF: "+chr(1200)
-    encoding = {'encoding': 'utf-8'}
-    write_unicode_file(test_str, out_file2)
-
-    with io.open(out_file2, mode="r", **encoding) as infile:
-        content = infile.read()
-    assert test_str in content
-
-
 def test_utf_char(tmpdir):
     '''Test that the generate method works OK when both the Algorithm and
     Kernel code contain utf-encoded chars.
@@ -1059,8 +1036,7 @@ def test_utf_char(tmpdir):
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
     # non-ASCII characters).
-    encoding = {'encoding': 'utf-8'}
-    with io.open(algfile, "r", **encoding) as afile:
+    with open(algfile, "r", encoding="utf8") as afile:
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg

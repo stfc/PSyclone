@@ -43,7 +43,6 @@ import pytest
 
 from psyclone.domain.gocean.transformations import KernTrans
 from psyclone.domain.gocean.kernel import KernelMetadataSymbol
-from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import FileContainer, Node
 from psyclone.psyir.symbols import SymbolTable
