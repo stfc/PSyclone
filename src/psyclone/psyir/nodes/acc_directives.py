@@ -41,18 +41,21 @@
 ''' This module contains the implementation of the various OpenACC Directive
 nodes.'''
 
-from __future__ import absolute_import
 import abc
 import six
-from psyclone.f2pygen import DirectiveGen, CommentGen
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
+from psyclone.f2pygen import DirectiveGen, CommentGen
+from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
+                                              ACCCopyOutClause)
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import DataSymbol, ScalarType
-from psyclone.core import AccessType, VariablesAccessInfo
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -603,6 +606,112 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
+    def __init__(self, children=None, parent=None):
+        super().__init__(children=children, parent=parent)
+
+        # Identify the inputs and outputs to the region (variables that
+        # are read and written).
+        var_accesses = VariablesAccessInfo(children)
+        table = self.scope.symbol_table
+        readers = set()
+        writers = set()
+        for signature in var_accesses.all_signatures:
+            sym = table.lookup(signature.var_name)
+            accesses = var_accesses[signature]
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are passed by value when OpenACC
+                # kernels are launched.
+                continue
+            if accesses.is_read():
+                readers.add(signature)
+            if accesses.is_written():
+                writers.add(signature)
+        readwrites = readers.intersection(writers)
+        # Are any of the read-writes written before they are read?
+        for signature in list(readwrites)[:]:
+            accesses = var_accesses[signature]
+            if accesses[0].access_type == AccessType.WRITE:
+                # First access is a write so treat as a write
+                writers.add(signature)
+                readers.discard(signature)
+                readwrites.discard(signature)
+        readers_list = sorted(list(readers - readwrites))
+        writers_list = sorted(list(writers - readwrites))
+        readwrites_list = sorted(list(readwrites))
+
+        nodes = []
+        for sig in readers_list:
+            nodes.extend(self.sig2ref(var_accesses, sig))
+        if nodes:
+            self.addchild(ACCCopyInClause(children=nodes))
+        nodes = []
+        for sig in writers_list:
+            nodes.extend(self.sig2ref(var_accesses, sig))
+        if nodes:
+            self.addchild(ACCCopyOutClause(children=nodes))
+        nodes = []
+        for sig in readwrites_list:
+            nodes.extend(self.sig2ref(var_accesses, sig))
+        if nodes:
+            self.addchild(ACCCopyClause(children=nodes))
+
+    @staticmethod
+    def sig2ref(var_accesses, sig):
+        '''
+        Convert the supplied signature into a list of references.
+
+        :param var_accesses:
+        :type var_accesses:
+        :param sig:
+        :type sig:
+
+        :returns:
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
+
+        '''
+        from psyclone.core.signature import Signature
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.structure_reference import StructureReference
+
+        node = var_accesses[sig].all_accesses[0].node
+
+        if isinstance(node, StructureReference):
+
+            member_sig, index_lists = node.get_signature_and_indices()
+            print(member_sig)
+            print(index_lists)
+            refs = [Reference(node.symbol)]
+            for idx in range(1, len(member_sig)):
+                refs.append(StructureReference.create(
+                    node.symbol, list(member_sig[1:idx+1])))
+            return refs
+
+            #  my_struct(ii)%my_array(ji)
+            # If we're inside a loop over ii then we'll actually need a loop:
+            # do ii = 1, N
+            # !$ acc data copyin(my_struct(ii)%my_array)
+            # end do
+            for access in var_accesses[sig].all_accesses:
+                node = access.node
+                # TODO need to make sure that loop is not outside the region!
+                loop_vars = []
+                loop = node.ancestor(Loop)
+                while loop:
+                    loop_vars.append(loop.variable)
+                    loop = loop.ancestor(Loop)
+                array_accesses = node.walk(ArrayMixin)
+                for access in array_accesses:
+                    idx_accesses = VariablesAccessInfo(access.indices)
+                    if any(Signature(loop_var.name) in
+                           idx_accesses.all_signatures for loop_var in
+                           loop_vars):
+                        print(access)
+                        pass
+
+        # TODO lookup array bounds here.
+        return [Reference(node.symbol)]
+
     def gen_code(self, _):
         '''
         :raises InternalError: the ACC data directive is currently only \
@@ -613,6 +722,15 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        return isinstance(child, (ACCCopyClause, ACCCopyInClause,
+                                  ACCCopyOutClause))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -670,6 +788,8 @@ class ACCDataDirective(ACCRegionDirective):
             return access_list
 
         result = "acc data"
+        return result
+        # TODO delete the rest!
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).

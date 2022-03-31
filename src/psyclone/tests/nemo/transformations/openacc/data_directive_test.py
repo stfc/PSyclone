@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,6 @@
    representation of NEMO code using the OpenACC data directive.
 
 '''
-
-from __future__ import print_function, absolute_import
 
 import os
 import pytest
@@ -186,13 +184,14 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  do jk = 1, jpkm1, 1\n"
-            "    !$acc data copyin(ptb,wmask) copyout(zdk1t,zdkt)\n"
+            "    !$acc data copyin(ptb, wmask) copyout(zdk1t, zdkt)\n"
             "    do jj = 1, jpj, 1") in gen_code
 
     assert ("    end if\n"
             "    !$acc end data\n"
-            "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
-            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) copyout(zftu) copy(pta)\n"
+            "    !$acc data copyin(e2_e1u, e2u, e3t_n, e3u_n, pahu, r1_e1e2t, "
+            "umask, uslp, wmask, zdit, zdk1t, zdkt, zftv) copyout(zftu) "
+            "copy(pta)\n"
             "    do jj = 1, jpjm1, 1") in gen_code
 
     assert ("    enddo\n"
@@ -249,7 +248,7 @@ END subroutine data_ref
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "!$acc data copyin(a) copyout(prof,prof%npind)" in gen_code
+    assert "!$acc data copyin(a) copyout(prof, prof%npind)" in gen_code
 
 
 def test_data_ref_read(parser):
@@ -270,7 +269,7 @@ def test_data_ref_read(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "copyin(fld,fld%data)" in gen_code
+    assert "copyin(fld, fld%data)" in gen_code
 
 
 def test_array_section():
@@ -282,7 +281,7 @@ def test_array_section():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen).lower()
-    assert "!$acc data copyin(b,c) copyout(a)" in gen_code
+    assert "!$acc data copyin(b, c) copyout(a)" in gen_code
 
 
 def test_kind_parameter(parser):
@@ -327,7 +326,7 @@ def test_no_copyin_intrinsics(parser):
         acc_trans.apply(schedule.children[0:1])
         gen_code = str(psy.gen)
         idx = intrinsic.index("(")
-        assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
+        assert f"copyin({intrinsic[0:idx]})" not in gen_code.lower()
 
 
 def test_no_code_blocks(parser):

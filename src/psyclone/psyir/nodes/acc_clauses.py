@@ -31,40 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementations of the various OpenMP Directive
+''' This module contains the implementations of the various OpenACC Directive
 Clause nodes.'''
 
 from psyclone.psyir.nodes.clause import Clause
-from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.reference import Reference
 
 
-class OMPNowaitClause(Clause):
+class ACCCopyClause(Clause):
     '''
-    OpenMP nowait clause. Disable the implicit barrier at the end of the
-    associated directive.
-    '''
-    _children_valid_format = None
-    _text_name = "NowaitClause"
-    _clause_string = "nowait"
+    OpenACC copy clause. Specifies a list of variables that are to be copied
+    to the device and the start of a region and back again at the end.
 
-
-class OMPGrainsizeClause(Clause):
     '''
-    OpenMP grainsize clause, used by OMPTaskloopDirective. Controls the
-    grainsize of the associated directive.
-    '''
-    _children_valid_format = "Literal"
-    _text_name = "GrainsizeClause"
-    _clause_string = "grainsize"
+    _children_valid_format = "Reference"
+    _text_name = "CopyClause"
+    _clause_string = "copy"
 
     @staticmethod
     def _validate_child(position, child):
         '''
-         Decides whether a given child and position are valid for this node.
-         One child allowed, of type Literal.
+        Decides whether a given child and position are valid for this node.
+        Any number of children allowed, all of type Reference.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -74,25 +65,24 @@ class OMPGrainsizeClause(Clause):
         :rtype: bool
 
         '''
-        if position == 0:
-            return isinstance(child, Literal)
-        return False
+        return isinstance(child, Reference)
 
 
-class OMPNumTasksClause(Clause):
+class ACCCopyInClause(Clause):
     '''
-    OpenMP numtasks clause, used by OMPTaskloopDirective. Controls the number
-    of tasks created by OpenMP for the associated directive.
+    OpenACC copy clause. Specifies a list of variables that are to be copied
+    to the device and the start of a region and back again at the end.
+
     '''
-    _children_valid_format = "Literal"
-    _text_name = "NumTasksClause"
-    _clause_string = "num_tasks"
+    _children_valid_format = "Reference"
+    _text_name = "CopyInClause"
+    _clause_string = "copyin"
 
     @staticmethod
     def _validate_child(position, child):
         '''
-         Decides whether a given child and position are valid for this node.
-         One child allowed, of type Literal.
+        Decides whether a given child and position are valid for this node.
+        Any number of children allowed, all of type Reference.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -102,16 +92,34 @@ class OMPNumTasksClause(Clause):
         :rtype: bool
 
         '''
-        if position == 0:
-            return isinstance(child, Literal)
-        return False
+        return isinstance(child, Reference)
 
 
-class OMPNogroupClause(Clause):
+class ACCCopyOutClause(Clause):
     '''
-    OpenMP nogroup clause, used by OMPTaskloopDirective to disable the
-    implicit Taskgroup associated with a Taskloop.
+    OpenACC copy clause. Specifies a list of variables that are to be copied
+    to the device and the start of a region and back again at the end.
+
     '''
-    _children_valid_format = None
-    _text_name = "NogroupClause"
-    _clause_string = "nogroup"
+    _children_valid_format = "Reference"
+    _text_name = "CopyOutClause"
+    _clause_string = "copyout"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Any number of children allowed, all of type Reference.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, Reference)
+
+
+__all__ = ["ACCCopyClause", "ACCCopyInClause", "ACCCopyOutClause"]
