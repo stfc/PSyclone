@@ -3364,7 +3364,11 @@ class Fparser2Reader(object):
 
         self.process_nodes(parent=unary_op, nodes=arg_nodes)
 
-        unary_op.append_named_arg(arg_names[0], unary_op.children[0])
+        # Detach the child and add it again with the argument
+        # name
+        child = unary_op.children[0]
+        child.detach()
+        unary_op.append_named_arg(arg_names[0], child)
 
         return unary_op
 
@@ -3420,8 +3424,13 @@ class Fparser2Reader(object):
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
 
-        binary_op.append_named_arg(arg_names[0], binary_op.children[0])
-        binary_op.append_named_arg(arg_names[1], binary_op.children[1])
+        # Detach the children and add them again with the argument
+        # names
+        child_list = binary_op.children[:]
+        for child in child_list:
+            child.detach()
+        for idx, child in enumerate(child_list):
+            binary_op.append_named_arg(arg_names[idx], child)
 
         return binary_op
 
@@ -3472,8 +3481,14 @@ class Fparser2Reader(object):
 
         self.process_nodes(parent=nary_op, nodes=arg_nodes)
 
-        for idx, child in enumerate(nary_op.children):
+        # Detach the children and add them again with the argument
+        # names
+        child_list = nary_op.children[:]
+        for child in child_list:
+            child.detach()
+        for idx, child in enumerate(child_list):
             nary_op.append_named_arg(arg_names[idx], child)
+
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -3802,7 +3817,12 @@ class Fparser2Reader(object):
 
         self.process_nodes(parent=call, nodes=arg_nodes)
 
-        for idx, child in enumerate(call.children):
+        # Detach the children and add them again with the argument
+        # names
+        child_list = call.children[:]
+        for child in child_list:
+            child.detach()
+        for idx, child in enumerate(child_list):
             call.append_named_arg(arg_names[idx], child)
 
         # Point to the original CALL statement in the parse tree.
