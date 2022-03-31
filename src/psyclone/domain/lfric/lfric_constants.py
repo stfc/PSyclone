@@ -302,6 +302,12 @@ class LFRicConstants(object):
                                "proxy_type": "r_solver_field_proxy_type",
                                "intrinsic": "real",
                                "kind": "r_solver"},
+            # 'real'-valued field with data of kind 'r_tran'
+            "r_tran_field": {"module": "r_tran_field_mod",
+                             "type": "r_tran_field_type",
+                             "proxy_type": "r_tran_field_proxy_type",
+                             "intrinsic": "real",
+                             "kind": "r_tran"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",

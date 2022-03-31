@@ -1029,6 +1029,7 @@ class DynamoPSy(PSy):
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
                        const.DATA_TYPE_MAP["r_solver_field"]["module"],
+                       const.DATA_TYPE_MAP["r_tran_field"]["module"],
                        const.DATA_TYPE_MAP["integer_field"]["module"],
                        const.DATA_TYPE_MAP["operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
@@ -9148,6 +9149,11 @@ class DynKernelArgument(KernelArgument):
                 # from an r_solver_field_vector_type. The type of fields within
                 # r_solver_field_vector_type is always r_solver_field_type.
                 alg_datatype = "r_solver_field_type"
+            elif alg_datatype == "r_tran_field_vector_type":
+                # This is a field that has been passed by de-referencing
+                # from an r_tran_field_vector_type. The type of fields within
+                # r_tran_field_vector_type is always r_tran_field_type.
+                alg_datatype = "r_tran_field_type"
             else:
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
@@ -9309,6 +9315,8 @@ class DynKernelArgument(KernelArgument):
                 argtype = "field"
             elif alg_datatype == "r_solver_field_type":
                 argtype = "r_solver_field"
+            elif alg_datatype == "r_tran_field_type":
+                argtype = "r_tran_field"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
