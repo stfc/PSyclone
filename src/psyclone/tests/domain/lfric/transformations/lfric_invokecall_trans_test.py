@@ -161,7 +161,7 @@ def test_multi_named_arg_error(fortran_reader):
     code = (
         "subroutine alg()\n"
         "  use kern_mod\n"
-        "  call invoke(name='first', name='second')\n"
+        "  call invoke(name1='first', name2='second')\n"
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -172,13 +172,15 @@ def test_multi_named_arg_error(fortran_reader):
         lfric_invoke_trans.validate(subroutine[0])
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are 2 in "
-            "'call invoke(name='first', name='second')\n'." in str(info.value))
+            "'call invoke(name1='first', name2='second')\n'."
+            in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.apply(subroutine[0], 0)
     assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are 2 in "
-            "'call invoke(name='first', name='second')\n'." in str(info.value))
+            "'call invoke(name1='first', name2='second')\n'."
+            in str(info.value))
 
 
 def test_codeblock_invalid(monkeypatch, fortran_reader):

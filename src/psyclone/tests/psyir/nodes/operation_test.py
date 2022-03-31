@@ -71,82 +71,91 @@ def test_operation_appendnamedarg():
     '''Test the append_named_arg method in the Operation class. Check
     it raises the expected exceptions if arguments are invalid and
     that it works as expected when the input is valid. We use the
-    BinaryOperation node to perform the tests.
+    NaryOperation node to perform the tests.
 
     '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    nary_operation = NaryOperation(NaryOperation.Operator.SUM)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     op3 = Literal("3", INTEGER_SINGLE_TYPE)
     # name arg wrong type
     with pytest.raises(TypeError) as info:
-        binary_operation.append_named_arg(1, op1)
+        nary_operation.append_named_arg(1, op1)
     assert ("A name should be a string or None, but found int."
             in str(info.value))
     # name arg invalid
     with pytest.raises(ValueError) as info:
-        binary_operation.append_named_arg("_", op2)
+        nary_operation.append_named_arg("_", op2)
     assert "Invalid name '_' found." in str(info.value)
     # name arg already used
-    binary_operation.append_named_arg("name1", op1)
+    nary_operation.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
-        binary_operation.append_named_arg("name1", op2)
+        nary_operation.append_named_arg("name1", op2)
     assert ("The value of the name argument (name1) in 'append_named_arg' in "
             "the 'Operator' node is already used for a named argument."
             in str(info.value))
     # ok
-    binary_operation.append_named_arg("name2", op2)
-    binary_operation.append_named_arg(None, op3)
-    assert binary_operation.children == [op1, op2, op3]
-    assert binary_operation.argument_names == ["name1", "name2", None]
+    nary_operation.append_named_arg("name2", op2)
+    nary_operation.append_named_arg(None, op3)
+    assert nary_operation.children == [op1, op2, op3]
+    assert nary_operation.argument_names == ["name1", "name2", None]
+    # too many args
+    binary_operation = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, op1.copy(), op2.copy())
+    with pytest.raises(GenerationError) as info:
+        binary_operation.append_named_arg(None, op3.copy())
+    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'." in str(info.value))
 
 
 def test_operation_insertnamedarg():
     '''Test the insert_named_arg method in the Operation class. Check
     it raises the expected exceptions if arguments are invalid and
     that it works as expected when the input is valid. We use the
-    BinaryOperation node to perform the tests.
+    NaryOperation node to perform the tests.
 
     '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    nary_operation = NaryOperation(NaryOperation.Operator.SUM)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     op3 = Literal("3", INTEGER_SINGLE_TYPE)
     # name arg wrong type
     with pytest.raises(TypeError) as info:
-        binary_operation.insert_named_arg(1, op1, 0)
+        nary_operation.insert_named_arg(1, op1, 0)
     assert ("A name should be a string or None, but found int."
             in str(info.value))
     # name arg invalid
     with pytest.raises(ValueError) as info:
-        binary_operation.append_named_arg(" a", op2)
+        nary_operation.append_named_arg(" a", op2)
     assert "Invalid name ' a' found." in str(info.value)
     # name arg already used
-    binary_operation.insert_named_arg("name1", op1, 0)
+    nary_operation.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
-        binary_operation.insert_named_arg("name1", op2, 0)
+        nary_operation.insert_named_arg("name1", op2, 0)
     assert ("The value of the name argument (name1) in 'insert_named_arg' in "
             "the 'Operator' node is already used for a named argument."
             in str(info.value))
     # invalid index type
     with pytest.raises(TypeError) as info:
-        binary_operation.insert_named_arg("name2", op2, "hello")
+        nary_operation.insert_named_arg("name2", op2, "hello")
     assert ("The 'index' argument in 'insert_named_arg' in the 'Operator' "
             "node should be an int but found str." in str(info.value))
-    # invalid index value
-    with pytest.raises(GenerationError) as info:
-        binary_operation.insert_named_arg("name2", op2, 3)
-    assert ("Item 'Literal' can't be child 3 of 'BinaryOperation'. The valid "
-            "format is: 'DataNode, DataNode'." in str(info.value))
     # ok
-    assert binary_operation.children == [op1]
-    assert binary_operation.argument_names == ["name1"]
-    binary_operation.insert_named_arg("name2", op2, 0)
-    assert binary_operation.children == [op2, op1]
-    assert binary_operation.argument_names == ["name2", "name1"]
-    binary_operation.insert_named_arg(None, op3, 0)
-    assert binary_operation.children == [op3, op2, op1]
-    assert binary_operation.argument_names == [None, "name2", "name1"]
+    assert nary_operation.children == [op1]
+    assert nary_operation.argument_names == ["name1"]
+    nary_operation.insert_named_arg("name2", op2, 0)
+    assert nary_operation.children == [op2, op1]
+    assert nary_operation.argument_names == ["name2", "name1"]
+    nary_operation.insert_named_arg(None, op3, 0)
+    assert nary_operation.children == [op3, op2, op1]
+    assert nary_operation.argument_names == [None, "name2", "name1"]
+    # invalid index value
+    binary_operation = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, op1.copy(), op2.copy())
+    with pytest.raises(GenerationError) as info:
+        binary_operation.insert_named_arg("name2", op2.copy(), 2)
+    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
+            "format is: 'DataNode, DataNode'." in str(info.value))
 
 
 def test_operation_replacenamedarg():

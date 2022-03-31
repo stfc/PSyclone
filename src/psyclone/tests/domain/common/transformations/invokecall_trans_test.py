@@ -214,7 +214,7 @@ def test_multi_named_arg_error():
     code = (
         "subroutine alg()\n"
         "  use kern_mod\n"
-        "  call invoke(name='first', name='second')\n"
+        "  call invoke(name1='first', name2='second')\n"
         "end subroutine alg\n")
 
     reader = FortranReader()
@@ -226,14 +226,16 @@ def test_multi_named_arg_error():
         invoke_trans.validate(invoke)
     assert ("Error in InvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are 2 in "
-            "'call invoke(name='first', name='second')\n'." in str(info.value))
+            "'call invoke(name1='first', name2='second')\n'."
+            in str(info.value))
 
     invoke_trans._call_name = None
     with pytest.raises(TransformationError) as info:
         invoke_trans.apply(invoke, 0)
     assert ("Error in InvokeCallTrans transformation. There should be at "
             "most one named argument in an invoke, but there are 2 in "
-            "'call invoke(name='first', name='second')\n'." in str(info.value))
+            "'call invoke(name1='first', name2='second')\n'."
+            in str(info.value))
 
 
 def test_codeblock_invalid(monkeypatch):
@@ -502,25 +504,3 @@ def test_apply_expr(fortran_reader):
     assert len(klr.children) == 2
     arg = klr.children[0]
     assert isinstance(arg, BinaryOperation)
-
-
-def test_multi_name():
-    '''Check that the expected exception is raised if a name is provided
-    more than once.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke(name='Shaw', name='Fernandez')\n"
-        "end subroutine alg\n")
-
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
-    invoke_trans = InvokeCallTrans()
-
-    with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir.children[0][0])
-    assert ("There should be at most one named argument in an invoke, but "
-            "there are 2 in 'call invoke(name='Shaw', name='Fernandez')\n'."
-            in str(info.value))
