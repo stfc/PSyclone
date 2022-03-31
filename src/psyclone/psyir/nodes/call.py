@@ -36,7 +36,8 @@
 
 ''' This module contains the Call node implementation.'''
 
-from __future__ import absolute_import
+import re
+
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import RoutineSymbol
@@ -72,7 +73,11 @@ class Call(Statement, DataNode):
                 f"'{type(routine).__name__}'.")
 
         self._routine = routine
-        self._named_args = []
+        # The internal _argument_names list can be inconsistent with
+        # the order of the children. Use the property/methods
+        # internally and/or the _reconcile() method to make consistent
+        # when required.
+        self._argument_names = []
 
     @classmethod
     def create(cls, routine, arguments):
@@ -124,6 +129,7 @@ class Call(Statement, DataNode):
                         f"method of Call class is a tuple, its first "
                         f"argument should be a str, but found "
                         f"{type(arg[0]).__name__}.")
+                Call._validate_name(arg[0])
                 name, arg = arg
             call.append_named_arg(name, arg)
         return call
@@ -132,53 +138,43 @@ class Call(Statement, DataNode):
         '''Append a named argument to this call.
 
            :param name: the argument name.
-           :type name: str or NoneType
+           :type name: Optional[str]
            :param arg: the argument expression.
            :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
 
-           :raises TypeError: if the name argument is the wrong type.
            :raises ValueError: if the name argument is already used \
                for an existing argument.
 
         '''
+        self._validate_name(name)
         if name is not None:
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"The 'name' argument in 'append_named_arg' in the "
-                    f"'Call' node should be a string or None, but found "
-                    f"{type(name).__name__}.")
-            for check_name in self.named_args:
+            for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
                         f"'append_named_arg' in the 'Call' node is "
                         f"already used for a named argument.")
-        self._named_args.append((id(arg), name))
+        self._argument_names.append((id(arg), name))
         self.children.append(arg)
 
     def insert_named_arg(self, name, arg, index):
         '''Insert a named argument to the call.
 
            :param name: the argument name.
-           :type name: str or NoneType
+           :type name: Optional[str]
            :param arg: the argument expression.
            :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
            :param int index: where in the argument list to insert the \
                named argument.
 
-           :raises TypeError: if the name argument is the wrong type.
            :raises ValueError: if the name argument is already used \
                for an existing argument.
            :raises TypeError: if the index argument is the wrong type.
 
         '''
+        self._validate_name(name)
         if name is not None:
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"The 'name' argument in 'insert_named_arg' in the "
-                    f"'Call' node should be a string or None, but found "
-                    f"{type(name).__name__}.")
-            for check_name in self.named_args:
+            for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
@@ -189,7 +185,7 @@ class Call(Statement, DataNode):
                 f"The 'index' argument in 'insert_named_arg' in the "
                 f"'Call' node should be an int but found "
                 f"{type(index).__name__}.")
-        self._named_args.insert(index, (id(arg), name))
+        self._argument_names.insert(index, (id(arg), name))
         self.children.insert(index, arg)
 
     def replace_named_arg(self, existing_name, arg):
@@ -208,21 +204,43 @@ class Call(Statement, DataNode):
         if not isinstance(existing_name, str):
             raise TypeError(
                 f"The 'name' argument in 'replace_named_arg' in the "
-                f"'Call' node should be a string or None, but found "
+                f"'Call' node should be a string, but found "
                 f"{type(existing_name).__name__}.")
         index = 0
         # pylint: disable=undefined-loop-variable
-        for named_arg in self._named_args:
+        for named_arg in self._argument_names:
             if named_arg[1].lower() == existing_name:
                 break
             index += 1
         else:
             raise ValueError(
                 f"The value of the existing_name argument ({existing_name}) "
-                f"in 'insert_named_arg' in the 'Call' node is not found "
+                f"in 'insert_named_arg' in the 'Call' node was not found "
                 f"in the existing arguments.")
         self.children[index] = arg
-        self._named_args[index] = (id(arg), named_arg[1])
+        self._argument_names[index] = (id(arg), named_arg[1])
+
+    @staticmethod
+    def _validate_name(name):
+        '''Utility method that checks that the supplied name has a valid
+        format.
+
+        :param name: the name to check.
+        :type name: Optional[str]
+
+        :raises TypeError: if the name is not a string or None.
+        :raises ValueError: if this is not a valid name.
+
+        '''
+        if name is None:
+            return
+        if not isinstance(name, str):
+            raise TypeError(
+                f"A name should be a string or None, but found "
+                f"{type(name).__name__}.")
+        if not re.match(r'^[a-zA-Z]\w*$', name):
+            raise ValueError(
+                f"Invalid name '{name}' found.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -246,29 +264,29 @@ class Call(Statement, DataNode):
         return self._routine
 
     @property
-    def named_args(self):
+    def argument_names(self):
         '''
-        :returns: a list containing the names of named arguments. If the \
-            entry is None then the argument is a positional argument.
-        :rtype: List[Union[str, NoneType]]
+        :returns: a list with the name of each argument. If the entry is \
+            None then the argument is a positional argument.
+        :rtype: List[Optional[str]]
         '''
-        self.reconcile()
-        return [entry[1] for entry in self._named_args]
+        self._reconcile()
+        return [entry[1] for entry in self._argument_names]
 
-    def reconcile(self):
-        '''update the _named_args values in case child arguments have been
-        removed, added, re-ordered, or modified.
+    def _reconcile(self):
+        '''Update the _argument_names values in case child arguments have been
+        removed, added, or re-ordered.
 
         '''
-        new_named_args = []
+        new_argument_names = []
         for child in self.children:
-            for arg in self._named_args:
+            for arg in self._argument_names:
                 if id(child) == arg[0]:
-                    new_named_args.append(arg)
+                    new_argument_names.append(arg)
                     break
             else:
-                new_named_args.append((id(child), None))
-        self._named_args = new_named_args
+                new_argument_names.append((id(child), None))
+        self._argument_names = new_argument_names
 
     def node_str(self, colour=True):
         '''
@@ -295,17 +313,17 @@ class Call(Statement, DataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # ensure _named_args is consistent with actual arguments
+        # ensure _argument_names is consistent with actual arguments
         # before copying.
-        self.reconcile()
+        self._reconcile()
         # copy
         new_copy = super(Call, self).copy()
-        # Fix invalid id's in _named_args after copying.
+        # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []
         for idx, child in enumerate(new_copy.children):
-            my_tuple = (id(child), new_copy._named_args[idx][1])
+            my_tuple = (id(child), new_copy._argument_names[idx][1])
             new_list.append(my_tuple)
-        new_copy._named_args = new_list
+        new_copy._argument_names = new_list
 
         return new_copy

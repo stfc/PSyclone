@@ -3364,7 +3364,8 @@ class Fparser2Reader(object):
 
         self.process_nodes(parent=unary_op, nodes=arg_nodes)
 
-        unary_op._named_args = [(id(unary_op.children[0]), arg_names[0])]
+        unary_op.append_named_arg(arg_names[0], unary_op.children[0])
+
         return unary_op
 
     def _binary_op_handler(self, node, parent):
@@ -3419,9 +3420,9 @@ class Fparser2Reader(object):
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
 
-        binary_op._named_args = [
-            (id(binary_op.children[0]), arg_names[0]),
-            (id(binary_op.children[1]), arg_names[1])]
+        binary_op.append_named_arg(arg_names[0], binary_op.children[0])
+        binary_op.append_named_arg(arg_names[1], binary_op.children[1])
+
         return binary_op
 
     def _nary_op_handler(self, node, parent):
@@ -3472,7 +3473,7 @@ class Fparser2Reader(object):
         self.process_nodes(parent=nary_op, nodes=arg_nodes)
 
         for idx, child in enumerate(nary_op.children):
-            nary_op._named_args.append((id(child), arg_names[idx]))
+            nary_op.append_named_arg(arg_names[idx], child)
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -3802,7 +3803,7 @@ class Fparser2Reader(object):
         self.process_nodes(parent=call, nodes=arg_nodes)
 
         for idx, child in enumerate(call.children):
-            call._named_args.append((id(child), arg_names[idx]))
+            call.append_named_arg(arg_names[idx], child)
 
         # Point to the original CALL statement in the parse tree.
         call.ast = node

@@ -71,7 +71,7 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
         for idx, call_arg in enumerate(call.children):
 
             arg_info = []
-            if call.named_args[idx]:
+            if call.argument_names[idx]:
                 call_name = f"'{call_arg.value}'"
             elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference

@@ -318,13 +318,13 @@ def _validate_named_args(node):
             f"Call or Operation node, but found '{type(node).__name__}'.")
 
     found_named_arg = False
-    for named_arg in node.named_args:
-        if found_named_arg and not named_arg:
+    for name in node.argument_names:
+        if found_named_arg and not name:
             raise VisitorError(
                 f"Fortran expects all named arguments to occur after all "
                 f"positional arguments but this is not the case for "
                 f"{str(node)}")
-        if named_arg:
+        if name:
             found_named_arg = True
 
 
@@ -1107,10 +1107,10 @@ class FortranWriter(LanguageWriter):
 
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
-        if node.named_args[0]:
-            lhs = f"{node.named_args[0]}={lhs}"
-        if node.named_args[1]:
-            rhs = f"{node.named_args[1]}={rhs}"
+        if node.argument_names[0]:
+            lhs = f"{node.argument_names[0]}={lhs}"
+        if node.argument_names[1]:
+            rhs = f"{node.argument_names[1]}={rhs}"
         try:
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
@@ -1158,8 +1158,9 @@ class FortranWriter(LanguageWriter):
 
         arg_list = []
         for idx, child in enumerate(node.children):
-            if node.named_args[idx]:
-                arg_list.append(f"{node.named_args[idx]}={self._visit(child)}")
+            if node.argument_names[idx]:
+                arg_list.append(
+                    f"{node.argument_names[idx]}={self._visit(child)}")
             else:
                 arg_list.append(self._visit(child))
         try:
@@ -1355,8 +1356,8 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                if node.named_args[0]:
-                    result = f"{fort_oper}({node.named_args[0]}={content})"
+                if node.argument_names[0]:
+                    result = f"{fort_oper}({node.argument_names[0]}={content})"
                 else:
                     result = f"{fort_oper}({content})"
                 return result
@@ -1532,9 +1533,9 @@ class FortranWriter(LanguageWriter):
 
         result_list = []
         for idx, child in enumerate(node.children):
-            if node.named_args[idx]:
+            if node.argument_names[idx]:
                 result_list.append(
-                    f"{node.named_args[idx]}={self._visit(child)}")
+                    f"{node.argument_names[idx]}={self._visit(child)}")
             else:
                 result_list.append(self._visit(child))
         args = ", ".join(result_list)

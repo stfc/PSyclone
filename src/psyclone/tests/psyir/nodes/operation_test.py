@@ -76,15 +76,19 @@ def test_operation_appendnamedarg():
     '''
     binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
+    op3 = Literal("3", INTEGER_SINGLE_TYPE)
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         binary_operation.append_named_arg(1, op1)
-    assert ("The 'name' argument in 'append_named_arg' in the 'Operator' "
-            "node should be a string or None, but found int."
+    assert ("A name should be a string or None, but found int."
             in str(info.value))
-    binary_operation.append_named_arg("name1", op1)
+    # name arg invalid
+    with pytest.raises(ValueError) as info:
+        binary_operation.append_named_arg("_", op2)
+    assert "Invalid name '_' found." in str(info.value)
     # name arg already used
+    binary_operation.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
         binary_operation.append_named_arg("name1", op2)
     assert ("The value of the name argument (name1) in 'append_named_arg' in "
@@ -92,8 +96,9 @@ def test_operation_appendnamedarg():
             in str(info.value))
     # ok
     binary_operation.append_named_arg("name2", op2)
-    assert binary_operation.children == [op1, op2]
-    assert binary_operation.named_args == ["name1", "name2"]
+    binary_operation.append_named_arg(None, op3)
+    assert binary_operation.children == [op1, op2, op3]
+    assert binary_operation.argument_names == ["name1", "name2", None]
 
 
 def test_operation_insertnamedarg():
@@ -105,15 +110,19 @@ def test_operation_insertnamedarg():
     '''
     binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
+    op3 = Literal("3", INTEGER_SINGLE_TYPE)
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         binary_operation.insert_named_arg(1, op1, 0)
-    assert ("The 'name' argument in 'insert_named_arg' in the 'Operator' "
-            "node should be a string or None, but found int."
+    assert ("A name should be a string or None, but found int."
             in str(info.value))
-    binary_operation.insert_named_arg("name1", op1, 0)
+    # name arg invalid
+    with pytest.raises(ValueError) as info:
+        binary_operation.append_named_arg(" a", op2)
+    assert "Invalid name ' a' found." in str(info.value)
     # name arg already used
+    binary_operation.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
         binary_operation.insert_named_arg("name1", op2, 0)
     assert ("The value of the name argument (name1) in 'insert_named_arg' in "
@@ -131,10 +140,13 @@ def test_operation_insertnamedarg():
             "format is: 'DataNode, DataNode'." in str(info.value))
     # ok
     assert binary_operation.children == [op1]
-    assert binary_operation.named_args == ["name1"]
+    assert binary_operation.argument_names == ["name1"]
     binary_operation.insert_named_arg("name2", op2, 0)
     assert binary_operation.children == [op2, op1]
-    assert binary_operation.named_args == ["name2", "name1"]
+    assert binary_operation.argument_names == ["name2", "name1"]
+    binary_operation.insert_named_arg(None, op3, 0)
+    assert binary_operation.children == [op3, op2, op1]
+    assert binary_operation.argument_names == [None, "name2", "name1"]
 
 
 def test_operation_replacenamedarg():
@@ -146,8 +158,8 @@ def test_operation_replacenamedarg():
     '''
     binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
-    op3 = Literal("1", INTEGER_SINGLE_TYPE)
+    op2 = Literal("2", INTEGER_SINGLE_TYPE)
+    op3 = Literal("3", INTEGER_SINGLE_TYPE)
     binary_operation.append_named_arg("name1", op1)
     binary_operation.append_named_arg("name2", op2)
 
@@ -165,18 +177,18 @@ def test_operation_replacenamedarg():
             "existing arguments." in str(info.value))
     # ok
     assert binary_operation.children == [op1, op2]
-    assert binary_operation.named_args == ["name1", "name2"]
-    assert binary_operation._named_args[0][0] == id(op1)
-    assert binary_operation._named_args[1][0] == id(op2)
+    assert binary_operation.argument_names == ["name1", "name2"]
+    assert binary_operation._argument_names[0][0] == id(op1)
+    assert binary_operation._argument_names[1][0] == id(op2)
     binary_operation.replace_named_arg("name1", op3)
     assert binary_operation.children == [op3, op2]
-    assert binary_operation.named_args == ["name1", "name2"]
-    assert binary_operation._named_args[0][0] == id(op3)
-    assert binary_operation._named_args[1][0] == id(op2)
+    assert binary_operation.argument_names == ["name1", "name2"]
+    assert binary_operation._argument_names[0][0] == id(op3)
+    assert binary_operation._argument_names[1][0] == id(op2)
 
 
-def test_operation_removearg():
-    '''Test the named_args property makes things consistent if a child
+def test_operation_argumentnames_after_removearg():
+    '''Test the argument_names property makes things consistent if a child
     argument is removed. This is used transparently by the class to
     keep things consistent. We use the BinaryOperation node to perform
     the tests.
@@ -188,18 +200,18 @@ def test_operation_removearg():
     binary_operation.append_named_arg("name1", op1)
     binary_operation.append_named_arg("name2", op2)
     assert len(binary_operation.children) == 2
-    assert len(binary_operation._named_args) == 2
-    assert binary_operation.named_args == ["name1", "name2"]
+    assert len(binary_operation._argument_names) == 2
+    assert binary_operation.argument_names == ["name1", "name2"]
     binary_operation.children.pop(0)
     assert len(binary_operation.children) == 1
-    assert len(binary_operation._named_args) == 2
-    # named_args property makes _named_args list consistent.
-    assert binary_operation.named_args == ["name2"]
-    assert len(binary_operation._named_args) == 1
+    assert len(binary_operation._argument_names) == 2
+    # argument_names property makes _argument_names list consistent.
+    assert binary_operation.argument_names == ["name2"]
+    assert len(binary_operation._argument_names) == 1
 
 
-def test_operation_addarg():
-    '''Test the named_args property makes things consistent if a child
+def test_operation_argumentnames_after_addarg():
+    '''Test the argument_names property makes things consistent if a child
     argument is added. This is used transparently by the class to
     keep things consistent. We use the NaryOperation node to perform
     the tests (as it allows an arbitrary number of arguments.
@@ -212,18 +224,18 @@ def test_operation_addarg():
     nary_operation.append_named_arg("name1", op1)
     nary_operation.append_named_arg("name2", op2)
     assert len(nary_operation.children) == 2
-    assert len(nary_operation._named_args) == 2
-    assert nary_operation.named_args == ["name1", "name2"]
+    assert len(nary_operation._argument_names) == 2
+    assert nary_operation.argument_names == ["name1", "name2"]
     nary_operation.children.append(op3)
     assert len(nary_operation.children) == 3
-    assert len(nary_operation._named_args) == 2
-    # named_args property makes _named_args list consistent.
-    assert nary_operation.named_args == ["name1", "name2", None]
-    assert len(nary_operation._named_args) == 3
+    assert len(nary_operation._argument_names) == 2
+    # argument_names property makes _argument_names list consistent.
+    assert nary_operation.argument_names == ["name1", "name2", None]
+    assert len(nary_operation._argument_names) == 3
 
 
-def test_operation_replacearg():
-    '''Test the named_args property makes things consistent if a child
+def test_operation_argumentnames_after_replacearg():
+    '''Test the argument_names property makes things consistent if a child
     argument is replaced with another. This is used transparently by
     the class to keep things consistent. We use the BinaryOperation
     node to perform the tests.
@@ -236,18 +248,18 @@ def test_operation_replacearg():
     binary_operation.append_named_arg("name1", op1)
     binary_operation.append_named_arg("name2", op2)
     assert len(binary_operation.children) == 2
-    assert len(binary_operation._named_args) == 2
-    assert binary_operation.named_args == ["name1", "name2"]
+    assert len(binary_operation._argument_names) == 2
+    assert binary_operation.argument_names == ["name1", "name2"]
     binary_operation.children[0] = op3
     assert len(binary_operation.children) == 2
-    assert len(binary_operation._named_args) == 2
-    # named_args property makes _named_args list consistent.
-    assert binary_operation.named_args == [None, "name2"]
-    assert len(binary_operation._named_args) == 2
+    assert len(binary_operation._argument_names) == 2
+    # argument_names property makes _argument_names list consistent.
+    assert binary_operation.argument_names == [None, "name2"]
+    assert len(binary_operation._argument_names) == 2
 
 
-def test_operation_reorderearg():
-    '''Test the named_args property makes things consistent if child
+def test_operation_argumentnames_after_reorderearg():
+    '''Test the argument_names property makes things consistent if child
     arguments are re-order. This is used transparently by the class to
     keep things consistent. We use the BinaryOperation node to perform
     the tests.
@@ -259,18 +271,18 @@ def test_operation_reorderearg():
     binary_operation.append_named_arg("name1", op1)
     binary_operation.append_named_arg("name2", op2)
     assert len(binary_operation.children) == 2
-    assert len(binary_operation._named_args) == 2
-    assert binary_operation.named_args == ["name1", "name2"]
+    assert len(binary_operation._argument_names) == 2
+    assert binary_operation.argument_names == ["name1", "name2"]
     tmp0 = binary_operation.children[0]
     tmp1 = binary_operation.children[1]
     tmp0.detach()
     tmp1.detach()
     binary_operation.children.extend([tmp1, tmp0])
     assert len(binary_operation.children) == 2
-    assert len(binary_operation._named_args) == 2
-    # named_args property makes _named_args list consistent.
-    assert binary_operation.named_args == ["name2", "name1"]
-    assert len(binary_operation._named_args) == 2
+    assert len(binary_operation._argument_names) == 2
+    # argument_names property makes _argument_names list consistent.
+    assert binary_operation.argument_names == ["name2", "name1"]
+    assert len(binary_operation._argument_names) == 2
 
 
 def test_operation_reconcile_add():
@@ -284,20 +296,20 @@ def test_operation_reconcile_add():
     oper = NaryOperation.create(
         NaryOperation.Operator.SUM, [("name1", op1), ("name2", op2)])
     # consistent
-    assert len(oper._named_args) == 2
-    assert oper._named_args[0] == (id(oper.children[0]), "name1")
-    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    assert len(oper._argument_names) == 2
+    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
     oper.children.append(op3)
     # inconsistent
-    assert len(oper._named_args) == 2
-    assert oper._named_args[0] == (id(oper.children[0]), "name1")
-    assert oper._named_args[1] == (id(oper.children[1]), "name2")
-    oper.reconcile()
+    assert len(oper._argument_names) == 2
+    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
+    oper._reconcile()
     # consistent
-    assert len(oper._named_args) == 3
-    assert oper._named_args[0] == (id(oper.children[0]), "name1")
-    assert oper._named_args[1] == (id(oper.children[1]), "name2")
-    assert oper._named_args[2] == (id(oper.children[2]), None)
+    assert len(oper._argument_names) == 3
+    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
+    assert oper._argument_names[2] == (id(oper.children[2]), None)
 
 
 def test_operation_reconcile_reorder():
@@ -310,19 +322,19 @@ def test_operation_reconcile_reorder():
     oper = BinaryOperation.create(
         BinaryOperation.Operator.SUM, ("name1", op1), ("name2", op2))
     # consistent
-    assert len(oper._named_args) == 2
-    assert oper._named_args[0] == (id(oper.children[0]), "name1")
-    assert oper._named_args[1] == (id(oper.children[1]), "name2")
+    assert len(oper._argument_names) == 2
+    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
     oper.children = [op2.detach(), op1.detach()]
     # inconsistent
-    assert len(oper._named_args) == 2
-    assert oper._named_args[0] != (id(oper.children[0]), "name1")
-    assert oper._named_args[1] != (id(oper.children[1]), "name2")
-    oper.reconcile()
+    assert len(oper._argument_names) == 2
+    assert oper._argument_names[0] != (id(oper.children[0]), "name1")
+    assert oper._argument_names[1] != (id(oper.children[1]), "name2")
+    oper._reconcile()
     # consistent
-    assert len(oper._named_args) == 2
-    assert oper._named_args[0] == (id(oper.children[0]), "name2")
-    assert oper._named_args[1] == (id(oper.children[1]), "name1")
+    assert len(oper._argument_names) == 2
+    assert oper._argument_names[0] == (id(oper.children[0]), "name2")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name1")
 
 
 # Test BinaryOperation class
@@ -452,6 +464,12 @@ def test_binaryoperation_create_invalid():
             "is a tuple, its first argument should be a str, but found "
             "int." in str(excinfo.value))
 
+    # rhs has an invalid name (1st element invalid value)
+    oper = BinaryOperation.Operator.SUM
+    with pytest.raises(ValueError) as info:
+        _ = BinaryOperation.create(oper, ref1, ("_", 2))
+    assert "Invalid name '_' found." in str(info.value)
+
 
 def test_binaryoperation_children_validation():
     '''Test that children added to BinaryOperation are validated.
@@ -567,7 +585,7 @@ def test_unaryoperation_named_create():
     child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
     oper = UnaryOperation.Operator.SIN
     unaryoperation = UnaryOperation.create(oper, ("name", child))
-    assert unaryoperation.named_args == ["name"]
+    assert unaryoperation.argument_names == ["name"]
     check_links(unaryoperation, [child])
     result = FortranWriter().unaryoperation_node(unaryoperation)
     assert result == "SIN(name=tmp)"
@@ -606,6 +624,17 @@ def test_unaryoperation_create_invalid2():
 
 
 def test_unaryoperation_create_invalid3():
+    '''Test that the create method in a UnaryOperation class raises the
+    expected exception a named argument is provided with an invalid name.
+
+    '''
+    oper = UnaryOperation.Operator.SIN
+    with pytest.raises(ValueError) as info:
+        _ = UnaryOperation.create(oper, ("1", 2))
+    assert "Invalid name '1' found." in str(info.value)
+
+
+def test_unaryoperation_create_invalid4():
     '''Test that the create method in a UnaryOperation class raises the
     expected exception if the provided argument is a tuple with the
     wrong number of arguments.
@@ -844,19 +873,19 @@ def test_copy():
         BinaryOperation.Operator.SUM, ("name1", op1), ("name2", op2))
     # consistent operation
     oper_copy = oper.copy()
-    assert oper._named_args[0] == (id(oper.children[0]), "name1")
-    assert oper._named_args[1] == (id(oper.children[1]), "name2")
-    assert oper_copy._named_args[0] == (id(oper_copy.children[0]), "name1")
-    assert oper_copy._named_args[1] == (id(oper_copy.children[1]), "name2")
-    assert oper._named_args != oper_copy._named_args
+    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
+    assert oper_copy._argument_names[0] == (id(oper_copy.children[0]), "name1")
+    assert oper_copy._argument_names[1] == (id(oper_copy.children[1]), "name2")
+    assert oper._argument_names != oper_copy._argument_names
 
     oper.children = [op2.detach(), op1.detach()]
-    assert oper._named_args[0] != (id(oper.children[0]), "name2")
-    assert oper._named_args[1] != (id(oper.children[1]), "name1")
+    assert oper._argument_names[0] != (id(oper.children[0]), "name2")
+    assert oper._argument_names[1] != (id(oper.children[1]), "name1")
     # inconsistent operation
     oper_copy = oper.copy()
-    assert oper._named_args[0] == (id(oper.children[0]), "name2")
-    assert oper._named_args[1] == (id(oper.children[1]), "name1")
-    assert oper_copy._named_args[0] == (id(oper_copy.children[0]), "name2")
-    assert oper_copy._named_args[1] == (id(oper_copy.children[1]), "name1")
-    assert oper._named_args != oper_copy._named_args
+    assert oper._argument_names[0] == (id(oper.children[0]), "name2")
+    assert oper._argument_names[1] == (id(oper.children[1]), "name1")
+    assert oper_copy._argument_names[0] == (id(oper_copy.children[0]), "name2")
+    assert oper_copy._argument_names[1] == (id(oper_copy.children[1]), "name1")
+    assert oper._argument_names != oper_copy._argument_names

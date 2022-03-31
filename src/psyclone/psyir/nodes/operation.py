@@ -41,6 +41,7 @@ sub-classes.'''
 
 import abc
 from enum import Enum
+import re
 import six
 
 from psyclone.errors import GenerationError
@@ -80,59 +81,49 @@ class Operation(DataNode):
                 f"{type(self).__name__}.Operator but found "
                 f"{type(operator).__name__}.")
         self._operator = operator
-        self._named_args = []
+        self._argument_names = []
 
     def append_named_arg(self, name, arg):
         '''Append a named argument to this operation.
 
            :param name: the argument name.
-           :type name: str or NoneType
+           :type name: Optional[str]
            :param arg: the argument expression.
            :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
 
-           :raises TypeError: if the name argument is the wrong type.
            :raises ValueError: if the name argument is already used \
                for an existing argument.
 
         '''
+        self._validate_name(name)
         if name is not None:
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"The 'name' argument in 'append_named_arg' in the "
-                    f"'Operator' node should be a string or None, but found "
-                    f"{type(name).__name__}.")
-            for check_name in self.named_args:
+            for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
                         f"'append_named_arg' in the 'Operator' node is "
                         f"already used for a named argument.")
-        self._named_args.append((id(arg), name))
+        self._argument_names.append((id(arg), name))
         self.children.append(arg)
 
     def insert_named_arg(self, name, arg, index):
         '''Insert a named argument to the operation.
 
            :param name: the argument name.
-           :type name: str or NoneType
+           :type name: Optional[str]
            :param arg: the argument expression.
            :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
            :param int index: where in the argument list to insert the \
                named argument.
 
-           :raises TypeError: if the name argument is the wrong type.
            :raises ValueError: if the name argument is already used \
                for an existing argument.
            :raises TypeError: if the index argument is the wrong type.
 
         '''
+        self._validate_name(name)
         if name is not None:
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"The 'name' argument in 'insert_named_arg' in the "
-                    f"'Operator' node should be a string or None, but found "
-                    f"{type(name).__name__}.")
-            for check_name in self.named_args:
+            for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
@@ -143,7 +134,7 @@ class Operation(DataNode):
                 f"The 'index' argument in 'insert_named_arg' in the "
                 f"'Operator' node should be an int but found "
                 f"{type(index).__name__}.")
-        self._named_args.insert(index, (id(arg), name))
+        self._argument_names.insert(index, (id(arg), name))
         self.children.insert(index, arg)
 
     def replace_named_arg(self, existing_name, arg):
@@ -166,7 +157,7 @@ class Operation(DataNode):
                 f"{type(existing_name).__name__}.")
         index = 0
         # pylint: disable=undefined-loop-variable
-        for named_arg in self._named_args:
+        for named_arg in self._argument_names:
             if named_arg[1].lower() == existing_name:
                 break
             index += 1
@@ -176,7 +167,29 @@ class Operation(DataNode):
                 f"in 'insert_named_arg' in the 'Operator' node is not found "
                 f"in the existing arguments.")
         self.children[index] = arg
-        self._named_args[index] = (id(arg), named_arg[1])
+        self._argument_names[index] = (id(arg), named_arg[1])
+
+    @staticmethod
+    def _validate_name(name):
+        '''Utility method that checks that the supplied name has a valid
+        format.
+
+        :param name: the name to check.
+        :type name: Optional[str]
+
+        :raises TypeError: if the name is not a string or None.
+        :raises ValueError: if this is not a valid name.
+
+        '''
+        if name is None:
+            return
+        if not isinstance(name, str):
+            raise TypeError(
+                f"A name should be a string or None, but found "
+                f"{type(name).__name__}.")
+        if not re.match(r'^[a-zA-Z]\w*$', name):
+            raise ValueError(
+                f"Invalid name '{name}' found.")
 
     @property
     def operator(self):
@@ -205,29 +218,29 @@ class Operation(DataNode):
             "[operator:'" + self._operator.name + "']"
 
     @property
-    def named_args(self):
+    def argument_names(self):
         '''
         :returns: a list containing the names of named arguments. If the \
             entry is None then the argument is a positional argument.
-        :rtype: List[Union[str, NoneType]]
+        :rtype: List[Optional[str]]
         '''
-        self.reconcile()
-        return [entry[1] for entry in self._named_args]
+        self._reconcile()
+        return [entry[1] for entry in self._argument_names]
 
-    def reconcile(self):
-        '''update the _named_args values in case child arguments have been
-        removed, added, or modified.
+    def _reconcile(self):
+        '''update the _argument_names values in case child arguments have been
+        removed, or added.
 
         '''
-        new_named_args = []
+        new_argument_names = []
         for child in self.children:
-            for arg in self._named_args:
+            for arg in self._argument_names:
                 if id(child) == arg[0]:
-                    new_named_args.append(arg)
+                    new_argument_names.append(arg)
                     break
             else:
-                new_named_args.append((id(child), None))
-        self._named_args = new_named_args
+                new_argument_names.append((id(child), None))
+        self._argument_names = new_argument_names
 
     def is_elemental(self):
         '''
@@ -241,8 +254,8 @@ class Operation(DataNode):
     def __str__(self):
         result = f"{self.node_str(False)}\n"
         for idx, entity in enumerate(self._children):
-            if self.named_args[idx]:
-                result += f"{self.named_args[idx]}={str(entity)}\n"
+            if self.argument_names[idx]:
+                result += f"{self.argument_names[idx]}={str(entity)}\n"
             else:
                 result += f"{str(entity)}\n"
 
@@ -260,18 +273,18 @@ class Operation(DataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # ensure _named_args is consistent with actual arguments
+        # ensure _argument_names is consistent with actual arguments
         # before copying.
         # pylint: disable=protected-access
-        self.reconcile()
+        self._reconcile()
         # copy
         new_copy = super(Operation, self).copy()
-        # Fix invalid id's in _named_args after copying.
+        # Fix invalid id's in _argument_names after copying.
         new_list = []
         for idx, child in enumerate(new_copy.children):
-            my_tuple = (id(child), new_copy._named_args[idx][1])
+            my_tuple = (id(child), new_copy._argument_names[idx][1])
             new_list.append(my_tuple)
-        new_copy._named_args = new_list
+        new_copy._argument_names = new_list
 
         return new_copy
 
@@ -322,7 +335,7 @@ class UnaryOperation(Operation):
             :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
         :param operand: the PSyIR node that oper operates on, or a tuple \
             containing the name of the argument and the PSyIR node.
-        :type operand: Union[:py:class:`psyclone.psyir.nodes.Node` or \
+        :type operand: Union[:py:class:`psyclone.psyir.nodes.Node` | \
             Tuple[str, :py:class:``psyclone.psyir.nodes.Node``]]
 
         :returns: a UnaryOperation instance.
@@ -353,6 +366,7 @@ class UnaryOperation(Operation):
                     f"UnaryOperation class is a tuple, its first "
                     f"argument should be a str, but found "
                     f"{type(operand[0]).__name__}.")
+            Operation._validate_name(operand[0])
             name, operand = operand
 
         unary_op.append_named_arg(name, operand)
@@ -525,6 +539,10 @@ class BinaryOperation(Operation):
         rhs_name = None
         if isinstance(rhs, tuple):
             rhs_name, rhs = rhs
+
+        Operation._validate_name(lhs_name)
+        Operation._validate_name(rhs_name)
+
         binary_op = BinaryOperation(operator)
         binary_op.append_named_arg(lhs_name, lhs)
         binary_op.append_named_arg(rhs_name, rhs)
@@ -607,6 +625,7 @@ class NaryOperation(Operation):
                         f"method of NaryOperation class is a tuple, "
                         f"its first argument should be a str, but found "
                         f"{type(operand[0]).__name__}.")
+                Operation._validate_name(operand[0])
                 name, operand = operand
             nary_op.append_named_arg(name, operand)
         return nary_op

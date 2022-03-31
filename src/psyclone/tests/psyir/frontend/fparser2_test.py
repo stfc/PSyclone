@@ -1897,8 +1897,8 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     if expected_type is not CodeBlock:
         assert assign.rhs._operator == expected_op, \
             "Fails when parsing '" + code + "'"
-        assert len(assign.rhs.children) == len(assign.rhs.named_args)
-        for named_arg in assign.rhs.named_args:
+        assert len(assign.rhs.children) == len(assign.rhs.argument_names)
+        for named_arg in assign.rhs.argument_names:
             assert named_arg is None
 
 
@@ -1936,10 +1936,11 @@ def test_handling_intrinsics_named_args(
         "Fails when parsing '" + code + "'"
     assert assign.rhs._operator == expected_op, \
         "Fails when parsing '" + code + "'"
-    assert len(assign.rhs.children) == len(assign.rhs._named_args)
+    assert len(assign.rhs.children) == len(assign.rhs._argument_names)
     for idx, child in enumerate(assign.rhs.children):
-        assert assign.rhs._named_args[idx] == (id(child), expected_names[idx])
-    assert assign.rhs.named_args == expected_names
+        assert (assign.rhs._argument_names[idx] ==
+                (id(child), expected_names[idx]))
+    assert assign.rhs.argument_names == expected_names
 
 
 @pytest.mark.usefixtures("f2008_parser")

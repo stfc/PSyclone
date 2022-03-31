@@ -157,6 +157,10 @@ class InvokeCallTrans(Transformation):
         :raises TransformationError: if the supplied call argument \
             does not have the expected name which would identify it as an \
             invoke call.
+        :raises TransformationError: if the there is more than one \
+            named argument.
+        :raises TransformationError: if the named argument does not
+            conform to the name=str format.
         :raises TransformationError: if the invoke arguments are not a \
             PSyIR ArrayReference or CodeBlock.
 
@@ -173,15 +177,15 @@ class InvokeCallTrans(Transformation):
                 f"Error in {self.name} transformation. The supplied call "
                 f"argument should be a `Call` node with name 'invoke' but "
                 f"found '{node.routine.name}'.")
-        names = [name for name in node.named_args if name]
+        names = [name for name in node.argument_names if name]
         if len(names) > 1:
             raise TransformationError(
                 f"Error in {self.name} transformation. There should be at "
                 f"most one named argument in an invoke, but there are "
                 f"{len(names)} in '{self._writer(node)}'.")
         for idx, arg in enumerate(node.children):
-            if ((node.named_args[idx]) and
-                    (not (node.named_args[idx].lower() == "name")
+            if ((node.argument_names[idx]) and
+                    (not (node.argument_names[idx].lower() == "name")
                      or not (isinstance(arg, Literal) and
                              isinstance(arg.datatype, ScalarType) and
                              arg.datatype.intrinsic ==
@@ -190,7 +194,7 @@ class InvokeCallTrans(Transformation):
                     f"Error in {self.name} transformation. If there is a "
                     f"named argument, it must take the form name='str', "
                     f"but found '{self._writer(node)}'.")
-            if node.named_args[idx]:
+            if node.argument_names[idx]:
                 pass
             elif isinstance(arg, ArrayReference):
                 pass
@@ -222,7 +226,7 @@ class InvokeCallTrans(Transformation):
         for idx, call_arg in enumerate(call.children):
 
             arg_info = []
-            if call.named_args[idx]:
+            if call.argument_names[idx]:
                 call_name = f"'{call_arg.value}'"
             elif isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference

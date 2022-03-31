@@ -576,54 +576,72 @@ Both ``RegionDirective`` and ``StandaloneDirective`` may also have
 member. See the full API in the :ref_guide:`Directive reference guide
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 
-.. _named_arguments-label
+.. _named_arguments-label:
 
 Named arguments
 ---------------
 
-The Call node and the three subclasses of Operation (UnaryOperation,
-BinaryOperation and NaryOperation) all support named arguments.
+The `Call` node and the three subclasses of the `Operation` node
+(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
+named arguments.
 
-This is implemented via an `_named_args()` list in the nodes. It was
-decided to implement it this way, rather than adding a new
-(`NamedArgument`) node as it does not increase the number of PSyIR
-nodes and keeps it simple when iterating over all children (the
-arguments) of these nodes.
+The argument names are provided by the `argument_names` property. This
+property returns a list of names. The first entry in the list refers
+to the first argument, the second entry in the list refers to the
+second argument, etc. An argument name is stored as a string. If an
+argument is not a named argument then the list entry will contain
+`None`. For example, for the following call::
 
-However, the `_named_args()` implementation raises consistency
-problems as it is possible to insert, modify, move or delete children
-(argument) nodes directly. To solve this problem, `_named_args()` not
-only keeps the names of named arguments but also a reference (the
-`id`) of the associated child. A `rationalise()` method then checks
-whether the `_named_args()` list and the arguments match and fixes any
-inconsistency.
+    call example(arg0, name1=arg1, name2=arg2)
 
-The `rationalise()` method is called before the `named_args` property
-returns its values, thereby ensuring that any access to `named_args`
-is always consistent.
+the following list would be returned by the `argument_names` property::
 
-`rationalise` looks through the arguments and tries to match them with
-one of the stored id's. If there is no match it is assumed that this
-is not a named argument. This approach keeps the names of named
-arguments if arguments are re-ordered, however if the argument is
-modified directly then it will no longer be a named argument. Further,
-a directly inserted argument will not be a named argument and the name
-of a deleted argument will be removed.
+    [None, "name1", "name2"]
+
+It was decided to implement it this way, rather than adding a new
+(`NamedArgument`) node, as 1) there is no increase in the number and
+types of PSyIR nodes and 2) iterating over all children (the
+arguments) of these nodes is kept simple.
 
 The following methods support the setting and updating of named
 arguments:  `create()`, `append_named_arg()`, `insert_named_arg()` and
 `replace_named_arg()`.
 
+However, this implementation raises consistency problems as it is
+possible to insert, modify, move or delete children (argument) nodes
+directly. This would make the argument names list inconsistent as the
+names themselves are stored within the node.
+
+To solve this problem, the argument names are stored internally in an
+`_argument_names` list which not only keeps the argument names but
+also keeps a reference (the `id`) to the associated child argument. An
+internal `_reconcile()` method then checks whether the internal
+`_argument_names` list and the actual arguments match and fixes any
+inconsistencies.
+
+The `_reconcile()` method is called before the `argument_names`
+property returns its values, thereby ensuring that any access to
+`argument_names` is always consistent.
+
+The `_reconcile()` method looks through the arguments and tries to
+match them with one of the stored id's. If there is no match it is
+assumed that this is not a named argument. This approach has the
+following behaviour: the argument names are kept if arguments are
+re-ordered; an argument that has replaced a named argument will not be
+a named argument; an inserted argument will not be a named argument,
+and the name of a deleted named argument will be removed.
+
 Making a copy of the `Call` node or one of the three subclasses of
-Operation (`UnaryOperation`, `BinaryOperation` or `NaryOperation`)
-causes problems with consistency between the `_named_args()` list and
-the arguments. The reason for this is that the arguments get copied
-and therefore have a different `id` whereas the `id`s in the
-`_named_args()` list are simply copied. Therefore the `copy()` method
-is specialised to update the `id`s. A second issue is that the
-`_named_args()` list may already be inconsistent when a copy is
-made. Therefore `rationalise()` is also called in the specialisation
-of the `copy()` method.
+Operation nodes (`UnaryOperation`, `BinaryOperation` or
+`NaryOperation`) also causes problems with consistency between the
+internal `_argument_names` list and the arguments. The reason for this
+is that the arguments get copied and therefore have a different `id`,
+whereas the `id`s in the internal `_argument_names` list are simply
+copied. To solve this problem, the `copy()` method is specialised to
+update the `id`s. A second issue is that the internal
+`_argument_names` list may already be inconsistent when a copy is
+made. Therefore the `_reconcile()` method is also called in the
+specialisation of the `copy()` method.
 
 
 References to Structures and Structure Members
