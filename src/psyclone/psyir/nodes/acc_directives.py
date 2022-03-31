@@ -693,7 +693,44 @@ class ACCDataDirective(ACCRegionDirective):
         if isinstance(node, StructureReference):
 
             for accesses in var_accesses[sig].all_accesses:
+                # Find the loop variables for all Loops that contain this
+                # access and are themselves within the data region.
+                loop_vars = []
+                cursor = accesses.node.ancestor(Loop)
+                while cursor and cursor.ancestor(ACCDataDirective):
+                    loop_vars.append(Signature(cursor.variable.name))
+                    cursor = cursor.ancestor(Loop)
+                # Now check whether any of these loop variables appear within
+                # the structure reference
+                active_loop_vars = {}
+                # Loop over each component of the structure reference that is
+                # an array access.
                 array_accesses = accesses.node.walk(ArrayMixin)
+                for access in array_accesses:
+                    active_loop_vars[access.name] = []
+                    var_accesses = VariablesAccessInfo(access.indices)
+                    for var in loop_vars:
+                        if var in var_accesses.all_signatures:
+                            active_loop_vars[access.name].append(var.var_name)
+                active_accesses = [pair for pair in active_loop_vars.items()
+                                   if pair[1]]
+
+                if len(active_accesses) > 1:
+                    # For an access such as my_struct(ii)%my_array(ji) then
+                    # if we're inside a loop over ii we'll actually need
+                    # a loop to do the deep copy:
+                    #   do ii = 1, N
+                    #   !$ acc data copyin(my_struct(ii)%my_array)
+                    #   end do
+                    loop_vars = ', '.join(str(pair[1]) for pair in
+                                          active_accesses)
+                    raise NotImplementedError(
+                        f"Data region contains a structure access "
+                        f"'{node.name}' where more than one component "
+                        f"({', '.join(pair[0] for pair in active_accesses)}) "
+                        f"is an array and is iterated over (variables "
+                        f"{loop_vars}). Deep copying of data for such an"
+                        f" access is not implemented.")
 
             member_sig, index_lists = node.get_signature_and_indices()
 
@@ -725,27 +762,6 @@ class ACCDataDirective(ACCRegionDirective):
                         *base_args, members)
             return refs_dict
 
-            #  my_struct(ii)%my_array(ji)
-            # If we're inside a loop over ii then we'll actually need a loop:
-            # do ii = 1, N
-            # !$ acc data copyin(my_struct(ii)%my_array)
-            # end do
-            for access in var_accesses[sig].all_accesses:
-                node = access.node
-                # TODO need to make sure that loop is not outside the region!
-                loop_vars = []
-                loop = node.ancestor(Loop)
-                while loop:
-                    loop_vars.append(loop.variable)
-                    loop = loop.ancestor(Loop)
-                array_accesses = node.walk(ArrayMixin)
-                for access in array_accesses:
-                    idx_accesses = VariablesAccessInfo(access.indices)
-                    if any(Signature(loop_var.name) in
-                           idx_accesses.all_signatures for loop_var in
-                           loop_vars):
-                        print(access)
-                        pass
 
         if isinstance(node, Kern):
             if sig not in refs_dict:
