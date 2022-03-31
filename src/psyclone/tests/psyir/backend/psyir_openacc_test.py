@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,8 @@ from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Assignment, Reference, Loop, Directive
+from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
+                                  Schedule)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.transformations import (ACCKernelsTrans, ACCDataTrans,
                                       ACCParallelTrans)
@@ -80,13 +81,13 @@ DOUBLE_LOOP = ("program do_loop\n"
 
 
 # ----------------------------------------------------------------------------
-def test_acc_data_region(parser, fortran_writer):
+@pytest.mark.xfail(reason="ACCDataDirective clauses are not updated when "
+                   "tree is modified - TODO.")
+def test_acc_data_region(fortran_reader, fortran_writer):
     ''' Test that an ACCDataDirective node generates the expected code. '''
-    # Generate fparser2 parse tree from Fortran code.
-    reader = FortranStringReader(NEMO_TEST_CODE)
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    sched = psy.invokes.invoke_list[0].schedule
+    # Generate PSyIR from Fortran code.
+    psyir = fortran_reader.psyir_from_source(NEMO_TEST_CODE)
+    sched = psyir.walk(Schedule)[0]
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     result = fortran_writer(sched)
@@ -108,12 +109,12 @@ def test_acc_data_region(parser, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-def test_acc_data_region_contains_struct(parser, fortran_writer):
+def test_acc_data_region_contains_struct(fortran_reader, fortran_writer):
     '''
     Test that we generate correct code if a data region includes references
     to structures.
     '''
-    reader = FortranStringReader('''
+    psyir = fortran_reader.psyir_from_source('''
 module test
   use some_mod, only: grid_type
   type(grid_type) :: grid
@@ -129,14 +130,12 @@ subroutine tmp()
   enddo
 end subroutine tmp
 end module test''')
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    sched = psy.invokes.invoke_list[0].schedule
+    sched = psyir.walk(Schedule)[0]
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     gen = fortran_writer(sched)
-    assert ("  !$acc data copyin(grid,grid%flag) "
-            "copyout(grid,grid%data,grid%weights) "
+    assert ("  !$acc data copyin(grid, grid%flag) "
+            "copyout(grid, grid%data, grid%weights) "
             "copy(b)\n"
             "  do i = 1, 20, 2\n"
             "    b(i) = b(i) + i + grid%flag\n"

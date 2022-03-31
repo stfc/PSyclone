@@ -43,14 +43,18 @@ nodes.'''
 
 import abc
 import six
+from collections import OrderedDict
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
+from psyclone.psyir.nodes.array_of_structures_reference import \
+    ArrayOfStructuresReference
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
+from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
@@ -609,6 +613,12 @@ class ACCDataDirective(ACCRegionDirective):
     def __init__(self, children=None, parent=None):
         super().__init__(children=children, parent=parent)
 
+        self._parent_loop_vars = []
+        cursor = self.ancestor(Loop)
+        while cursor:
+            self._parent_loop_vars.append(cursor.variable)
+            cursor = cursor.ancestor(Loop)
+
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
         var_accesses = VariablesAccessInfo(children)
@@ -639,53 +649,81 @@ class ACCDataDirective(ACCRegionDirective):
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
 
-        nodes = []
+        # We now need to create PSyIR references for all of the signatures
+        # and add them as children of the appropriate clauses.
+        nodes_dict = OrderedDict()
         for sig in readers_list:
-            nodes.extend(self.sig2ref(var_accesses, sig))
-        if nodes:
-            self.addchild(ACCCopyInClause(children=nodes))
-        nodes = []
+            self.sig2ref(var_accesses, sig, nodes_dict)
+        if nodes_dict:
+            self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
+        nodes_dict = OrderedDict()
         for sig in writers_list:
-            nodes.extend(self.sig2ref(var_accesses, sig))
-        if nodes:
-            self.addchild(ACCCopyOutClause(children=nodes))
-        nodes = []
+            self.sig2ref(var_accesses, sig, nodes_dict)
+        if nodes_dict:
+            self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
+        nodes_dict = OrderedDict()
         for sig in readwrites_list:
-            nodes.extend(self.sig2ref(var_accesses, sig))
-        if nodes:
-            self.addchild(ACCCopyClause(children=nodes))
+            self.sig2ref(var_accesses, sig, nodes_dict)
+        if nodes_dict:
+            self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
 
     @staticmethod
-    def sig2ref(var_accesses, sig):
+    def sig2ref(var_accesses, sig, refs_dict):
         '''
-        Convert the supplied signature into a list of references.
+        Update the supplied dict of accesses with those required by the
+        supplied signature.
 
         :param var_accesses:
-        :type var_accesses:
-        :param sig:
-        :type sig:
-
-        :returns:
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :param sig: 
+        :type sig: :py:class:`psyclone.core.Signature`
+        :param OrderedDict refs_dict: the dict of accesses to update.
 
         '''
         from psyclone.core.signature import Signature
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
-        from psyclone.psyir.nodes.loop import Loop
         from psyclone.psyir.nodes.structure_reference import StructureReference
+        # Having this import at the top level causes a circular dependency due
+        # to psyGen importing FortranWriter at the top level.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Kern
 
         node = var_accesses[sig].all_accesses[0].node
 
         if isinstance(node, StructureReference):
 
+            for accesses in var_accesses[sig].all_accesses:
+                array_accesses = accesses.node.walk(ArrayMixin)
+
             member_sig, index_lists = node.get_signature_and_indices()
-            print(member_sig)
-            print(index_lists)
-            refs = [Reference(node.symbol)]
-            for idx in range(1, len(member_sig)):
-                refs.append(StructureReference.create(
-                    node.symbol, list(member_sig[1:idx+1])))
-            return refs
+
+            if Signature(node.symbol.name) not in refs_dict:
+                refs_dict[Signature(node.symbol.name)] = Reference(node.symbol)
+
+            for depth in range(1, len(member_sig)):
+                if member_sig[:depth+1] not in refs_dict:
+                    if node.is_array:
+                        base_cls = ArrayOfStructuresReference
+                        # Copy the indices so as not to modify the original
+                        # node.
+                        base_args = [node.symbol,
+                                     [idx.copy() for idx in node.indices]]
+                    else:
+                        base_cls = StructureReference
+                        base_args = [node.symbol]
+                    # Create the new lists of indices, one list for each member
+                    # of the structure access apart from the last one where
+                    # we assume the whole array (if it is an array) is
+                    # accessed. Hence the loop is 1:depth and then we set the
+                    # last one separately.
+                    new_lists = []
+                    for idx_list in index_lists[1:depth]:
+                        new_lists.append([idx.copy() for idx in idx_list])
+                    new_lists.append([])
+                    members = list(zip(member_sig[1:depth+1], new_lists))
+                    refs_dict[member_sig[:depth+1]] = base_cls.create(
+                        *base_args, members)
+            return refs_dict
 
             #  my_struct(ii)%my_array(ji)
             # If we're inside a loop over ii then we'll actually need a loop:
@@ -709,8 +747,14 @@ class ACCDataDirective(ACCRegionDirective):
                         print(access)
                         pass
 
+        if isinstance(node, Kern):
+            if sig not in refs_dict:
+                refs_dict[sig] = Reference(node.scope.symbol_table.lookup(
+                    str(sig)))
+
         # TODO lookup array bounds here.
-        return [Reference(node.symbol)]
+        if sig not in refs_dict:
+            refs_dict[sig] = Reference(node.symbol)
 
     def gen_code(self, _):
         '''

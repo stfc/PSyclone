@@ -46,7 +46,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOACCEnterDataDirective
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.nodes import ACCDataDirective
+from psyclone.psyir.nodes import ACCDataDirective, Schedule
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -272,6 +272,56 @@ def test_data_ref_read(parser):
     assert "copyin(fld, fld%data)" in gen_code
 
 
+def test_multi_array_derived_type(fortran_reader, fortran_writer):
+    '''
+    Check that we generate the correct clause if the derived-type contains
+    more than one array access but only one is iterated over.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = small_holding(2)%data(ji) + 1.0\n"
+        "end do\n"
+        "end program dtype_read\n")
+    schedule = psyir.walk(Schedule)[0]
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule.children)
+    gen_code = fortran_writer(psyir)
+    assert ("!$acc data copyin(small_holding, small_holding(2)%data) "
+            "copyout(sto_tmp)" in gen_code)
+
+
+def test_multi_array_derived_type_error(fortran_reader, fortran_writer):
+    '''
+    Check that we raise the expected error if the derived-type contains
+    more than one array access and they are both iterated over.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji, jf\n"
+        "sto_tmp(:) = 0.0\n"
+        "do jf = 1, 5\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = sto_tmp(ji) + small_holding(3)%grid(jf)%data(ji)\n"
+        "end do\n"
+        "end do\n"
+        "end program dtype_read\n")
+    schedule = psyir.walk(Schedule)[0]
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(schedule.children)
+    assert "hohohoho" in str(err.value)
+
+
 def test_array_section():
     '''Check code generation with a arrays accessed via an array section.
 
@@ -431,8 +481,9 @@ def test_array_access_in_ifblock(parser):
 
 
 def test_array_access_loop_bounds(parser):
-    ''' Check that we raise the expected error if our code that identifies
-    read and write accesses misses an array access. '''
+    ''' Check that the correct data-movement statement is generated when
+    the region contains a loop that has an array-access as one of its
+    bounds. '''
     code = ("program do_bound\n"
             "  use kind_params_mod\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
