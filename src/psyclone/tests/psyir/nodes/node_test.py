@@ -517,6 +517,9 @@ def test_node_ancestor():
     assert "must be an instance of Node but got 'int'" in str(err.value)
     # Set the limit to the kernel's parent so that no Loop is found.
     assert kern.ancestor(Loop, limit=kern.parent) is None
+    # Setting the limit to a node above the one we are searching for should
+    # have no effect.
+    assert kern.ancestor(Loop, limit=sched) is kern.parent.parent
 
 
 def test_dag_names():
@@ -930,7 +933,6 @@ def test_lower_to_language_level(monkeypatch):
     # Check all children have been visited
     for child in testnode.children:
         # This member only exists in the monkeypatched version
-        # pylint:disable=no-member
         assert child._visited_flag
 
 
