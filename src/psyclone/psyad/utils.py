@@ -37,8 +37,8 @@
 
 '''
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
-    BinaryOperation
-from psyclone.psyir.symbols import INTEGER_TYPE
+    BinaryOperation, Node
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
 
 
 def node_is_active(node, active_variables):
@@ -48,14 +48,35 @@ def node_is_active(node, active_variables):
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param active_variables: a list of active variables either as \
         PSyIR symbols or as strings.
-    :type active_variables: 
-        List[:py:class:`psyclone.psyir.symbols.DataSymbol`] or \
+    :type active_variables:
+        List[:py:class:`psyclone.psyir.symbols.DataSymbol`] | \
         List[str]
 
     :returns: True if active and False otherwise.
     :rtype: bool
 
+    :raises TypeError: if the node argument is not a node.
+    :raises TypeError: if the active_variables argument is not a list.
+    :raises ValueError: if the active variables list does not contain \
+        datasymbols or if the list does not contain strings.
+
     '''
+    if not isinstance(node, Node):
+        raise TypeError(
+            f"The node argument to the node_is_active() method should be a "
+            f"PSyIR Node, but found {type(node).__name__}")
+    if not isinstance(active_variables, list):
+        raise TypeError(
+            f"The active_variables argument to the node_is_active() method "
+            f"should be a list, but found {type(active_variables).__name__}.")
+    if not (all(isinstance(item, DataSymbol) for item in active_variables) or
+            all(isinstance(item, str) for item in active_variables)):
+        item_types = [type(item).__name__ for item in active_variables]
+        raise ValueError(
+            f"Expected the active_variables argument to the node_is_active() "
+            f"method to be a list containing either solely PSyIR DataSymbols "
+            f"or solely strings, but found {item_types}.")
+
     if active_variables and isinstance(active_variables[0], str):
         for reference in node.walk(Reference):
             if reference.symbol.name.lower() in active_variables:
@@ -75,7 +96,7 @@ def node_is_passive(node, active_variables):
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param active_variables: a list of active variables either as \
         PSyIR symbols or as strings.
-    :type active_variables: 
+    :type active_variables:
         List[:py:class:`psyclone.psyir.symbols.DataSymbol`] or \
         List[str]
 

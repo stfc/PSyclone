@@ -49,7 +49,7 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     '''PSyclone kernel transformation script which modifies the supplied
     kernel psyir by replacing array-ranges with explicit loops,
     dotproduct and matmul intrinsics with equivalent code and
-    performing symbol expansion (e.g. x(a+b) => x*a+x*b). This is
+    performing symbolic expansion (e.g. x(a+b) => x*a+x*b). This is
     called internally by the PSyAD script before transforming the code
     to its adjoint form.
 

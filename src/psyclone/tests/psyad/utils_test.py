@@ -37,6 +37,8 @@
 utils.py file within the psyad directory.
 
 '''
+import pytest
+
 from psyclone.psyad.utils import node_is_active, node_is_passive, negate_expr
 from psyclone.psyir.nodes import Literal, UnaryOperation, Reference
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
@@ -88,6 +90,33 @@ def test_active_passive(fortran_reader):
     assert node_is_passive(assignment, ["c"])
     assert not node_is_active(assignment, [symbol_c])
     assert not node_is_active(assignment, ["c"])
+
+
+def test_active_error():
+    '''Test that the node_is_active function raises the expected
+    exceptions if the arguments are invalid.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        node_is_active(None, None)
+    assert ("The node argument to the node_is_active() method should be a "
+            "PSyIR Node, but found NoneType" in str(info.value))
+    node = Reference(DataSymbol("a", INTEGER_TYPE))
+    with pytest.raises(TypeError) as info:
+        node_is_active(node, None)
+    assert ("The active_variables argument to the node_is_active() method "
+            "should be a list, but found NoneType." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        node_is_active(node, [None])
+    assert ("Expected the active_variables argument to the node_is_active() "
+            "method to be a list containing either solely PSyIR DataSymbols "
+            "or solely strings, but found ['NoneType']." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        node_is_active(node, [DataSymbol("a", INTEGER_TYPE), "a"])
+    assert ("Expected the active_variables argument to the node_is_active() "
+            "method to be a list containing either solely PSyIR DataSymbols "
+            "or solely strings, but found ['DataSymbol', 'str']."
+            in str(info.value))
 
 
 def test_negate_expr(fortran_writer):
