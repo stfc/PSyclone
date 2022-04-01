@@ -990,16 +990,14 @@ class Node(object):
         reduce the number of recursive calls.
 
         :param my_type: the class(es) for which the instances are collected.
-        :type my_type: either a single :py:class:`psyclone.Node` class \
-            or a tuple of such classes
+        :type my_type: type | Tuple(type)
         :param stop_type: class(es) at which recursion is halted (optional).
-
-        :type stop_type: None or a single :py:class:`psyclone.Node` \
-            class or a tuple of such classes
+        :type stop_type: Optional[type | Tuple(type)]
 
         :returns: list with all nodes that are instances of my_type \
-            starting at and including this node.
-        :rtype: list of :py:class:`psyclone.Node` instances.
+                  starting at and including this node.
+        :rtype: List[:py:class:`psyclone.Node`]
+
         '''
         local_list = []
         if isinstance(self, my_type):
@@ -1016,18 +1014,18 @@ class Node(object):
     def ancestor(self, my_type, excluding=None, include_self=False,
                  limit=None):
         '''
-        Search back up tree and check whether we have an ancestor that is
-        an instance of the supplied type. If we do then we return
+        Search back up the tree and check whether this node has an ancestor
+        that is an instance of the supplied type. If it does then we return
         it otherwise we return None. An individual (or tuple of) (sub-)
         class(es) to ignore may be provided via the `excluding` argument. If
-        include_self is True then the current node is included in the search.
+        `include_self` is True then the current node is included in the search.
         If `limit` is provided then the search ceases if/when the supplied
         node is encountered.
 
         :param my_type: class(es) to search for.
         :type my_type: type | Tuple[type]
         :param excluding: (sub-)class(es) to ignore or None.
-        :type excluding: Optional[class, Tuple[class]]
+        :type excluding: Optional[type, Tuple[type]]
         :param bool include_self: whether or not to include this node in the \
                                   search.
         :param limit: an optional node at which to stop the search.
