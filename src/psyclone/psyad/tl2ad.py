@@ -96,7 +96,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     # logger.debug(tl_psyir.view())
 
     # Apply any required transformations to the TL PSyIR
-    preprocess_trans(tl_psyir)
+    preprocess_trans(tl_psyir, active_variables)
 
     # Addressing issue #1238 will allow the view() method to be output
     # to the logger.
