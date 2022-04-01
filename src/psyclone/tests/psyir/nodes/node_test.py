@@ -511,6 +511,13 @@ def test_node_ancestor():
     # Check that the include_self argument behaves as expected
     anode = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
     assert anode is kern
+    # If 'limit' is supplied then it must be an instance of Node.
+    with pytest.raises(TypeError) as err:
+        kern.ancestor(Kern, limit=3)
+    assert "must be a subclass of Node but got 'int'" in str(err.value)
+    # Set the limit to the kernel's parent so that no Loop is found.
+    assert kern.ancestor(Loop, limit=kern.parent) is None
+
 
 
 def test_dag_names():
