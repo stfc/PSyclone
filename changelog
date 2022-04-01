@@ -4,6 +4,11 @@
 	2) PR #1670 for #1650. Fixes various inconsistencies in the symbol
 	table implementation.
 
+	3) PR #1674 for #1644. Fixes bug in matmul transformation.
+
+	4) PR #1673 for #1671. Fixes an error in the Makefile for the
+	'time evolution' LFRic tutorial.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
