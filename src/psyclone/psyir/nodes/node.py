@@ -824,13 +824,18 @@ class Node(object):
         '''
         return count * indent
 
-    def list(self, indent=0):
-        result = ""
-        for entity in self._children:
-            result += str(entity)+"\n"
-        return result
-
     def addchild(self, child, index=None):
+        '''
+        Adds the supplied node as a child of this node (at position index if
+        supplied). The supplied node must not have an existing parent.
+
+        :param child: the node to add as a child of this one.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :param index: optional position at which to insert new child. Default \
+                      is to append new child to the list of existing children.
+        :type index: Optional[int]
+
+        '''
         if index is not None:
             self._children.insert(index, child)
         else:
@@ -964,17 +969,15 @@ class Node(object):
             node = node.parent
         return node
 
-    def sameRoot(self, node_2):
-        if self.root == node_2.root:
-            return True
-        return False
-
     def sameParent(self, node_2):
+        '''
+        :returns: True if `node_2` has the same parent as this node, False \
+                  otherwise.
+        :rtype: bool
+        '''
         if self.parent is None or node_2.parent is None:
             return False
-        if self.parent == node_2.parent:
-            return True
-        return False
+        return self.parent == node_2.parent
 
     def walk(self, my_type, stop_type=None):
         ''' Recurse through the PSyIR tree and return all objects that are
