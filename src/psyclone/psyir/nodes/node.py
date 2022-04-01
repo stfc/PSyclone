@@ -936,7 +936,7 @@ class Node(object):
         elif position < self.START_POSITION:
             raise InternalError(
                 f"Search for Node position started from {position} instead of "
-                f"instead of {self.START_POSITION}.")
+                f"{self.START_POSITION}.")
         for child in children:
             position += 1
             if child == self:

@@ -514,10 +514,9 @@ def test_node_ancestor():
     # If 'limit' is supplied then it must be an instance of Node.
     with pytest.raises(TypeError) as err:
         kern.ancestor(Kern, limit=3)
-    assert "must be a subclass of Node but got 'int'" in str(err.value)
+    assert "must be an instance of Node but got 'int'" in str(err.value)
     # Set the limit to the kernel's parent so that no Loop is found.
     assert kern.ancestor(Loop, limit=kern.parent) is None
-
 
 
 def test_dag_names():
@@ -763,11 +762,17 @@ def test_children_validation():
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
-    # Try adding a invalid child (e.g. a return_stmt into an assignment)
+    # Try adding an invalid child (e.g. a return_stmt into an assignment)
     with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
         " is: 'DataNode, DataNode'." in str(error.value)
+
+    # Try adding a child to a leaf node.
+    with pytest.raises(GenerationError) as error:
+        return_stmt.addchild(reference)
+    assert ("Return is a LeafNode and doesn't accept children" in
+            str(error.value))
 
     # The same behaviour occurs when list insertion operations are used.
     with pytest.raises(GenerationError):
@@ -788,7 +793,7 @@ def test_children_validation():
     # Valid nodes are accepted
     assignment.addchild(reference)
 
-    # Check displaced items are also be checked when needed
+    # Check displaced items are also checked when needed
     start = Literal("0", INTEGER_TYPE)
     stop = Literal("1", INTEGER_TYPE)
     step = Literal("2", INTEGER_TYPE)
@@ -809,9 +814,12 @@ def test_children_validation():
         loop.children.pop(2)
 
     with pytest.raises(GenerationError):
+        loop.children.pop(1)
+
+    with pytest.raises(GenerationError):
         loop.children.reverse()
 
-    # But the in the right circumstances they work fine
+    # But in the right circumstances they work fine
     assert isinstance(loop.children.pop(), Schedule)
     loop.children.reverse()
     assert loop.children[0].value == "2"
