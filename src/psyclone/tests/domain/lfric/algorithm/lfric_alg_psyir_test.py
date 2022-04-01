@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicAlgorithmInvokeCall,
 LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
@@ -49,7 +49,6 @@ from psyclone.domain.lfric.algorithm import \
     LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, REAL_TYPE
 

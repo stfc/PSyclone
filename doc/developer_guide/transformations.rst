@@ -106,18 +106,10 @@ Raising Transformations for the LFRic API
 Algorithm Transformations
 =========================
 
-There are two code-generation options for Algorithm PSyIR:
-
- 1. generate the transformed version of the algorithm with normal subroutine
-    calls to PSy-layer routines;
- 2. generate an algorithm layer complete with 'invoke' calls;
-
-In normal PSyclone operation it is the first option that is required. However,
-if PSyclone is being used to generate an Algorithm layer (e.g. when
-constructing a kernel test harness) then the second option is required. In
-order to support both use cases, PSyclone provides a transformation that
-converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to the
-corresponding PSy-layer routine:
+In order to generate the transformed version of the algorithm with normal
+subroutine calls to PSy-layer routines, PSyclone provides a transformation that
+converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to an
+appropriate subroutine:
 
 .. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
 
