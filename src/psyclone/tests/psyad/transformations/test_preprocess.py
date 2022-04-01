@@ -37,9 +37,12 @@
 file within the psyad/transformations directory
 
 '''
+import pytest
+
+from psyclone.psyad.transformations.preprocess import (
+    associativity, preprocess_trans)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.tests.utilities import Compile
 
 
@@ -55,7 +58,7 @@ def test_preprocess_no_change():
         "end program test\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
-    preprocess_trans(psyir)
+    preprocess_trans(psyir, [])
     writer = FortranWriter()
     result = writer(psyir)
     assert result == code
@@ -85,7 +88,7 @@ def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
         "  a = res_dot_product\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    preprocess_trans(psyir)
+    preprocess_trans(psyir, [])
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
@@ -125,23 +128,25 @@ def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
         "  a = res_dot_product\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    preprocess_trans(psyir)
+    preprocess_trans(psyir, [])
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
 
 
 def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
-    '''Test that the preprocess script replaces assignments that contain
-    arrays that use range notation with equivalent code that uses
-    explicit loops.
+    '''Test that the preprocess script replaces active assignments that
+    contain arrays that use range notation with equivalent code that
+    uses explicit loops. Also check that they are not modified if they
+    are not active.
 
     '''
     code = (
         "program test\n"
-        "real, dimension(10,10,10) :: a,b,c,d\n"
+        "real, dimension(10,10,10) :: a,b,c,d,e,f\n"
         "a(:,1,:) = b(:,1,:) * c(:,1,:)\n"
         "d(1,1,1) = 0.0\n"
+        "e(:,:,:) = f(:,:,:)\n"
         "print *, \"hello\"\n"
         "end program test\n")
     expected = (
@@ -150,6 +155,8 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
         "  real, dimension(10,10,10) :: b\n"
         "  real, dimension(10,10,10) :: c\n"
         "  real, dimension(10,10,10) :: d\n"
+        "  real, dimension(10,10,10) :: e\n"
+        "  real, dimension(10,10,10) :: f\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n\n"
         "  do idx = LBOUND(a, 3), UBOUND(a, 3), 1\n"
@@ -158,10 +165,140 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
         "    enddo\n"
         "  enddo\n"
         "  d(1,1,1) = 0.0\n"
+        "  e(:,:,:) = f(:,:,:)\n"
         "  PRINT *, \"hello\"\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    preprocess_trans(psyir)
+    preprocess_trans(psyir, ["a", "c"])
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_preprocess_associativity(fortran_reader, fortran_writer):
+    '''Test that the associativity function is called from the preprocess
+    script.
+
+    '''
+    code = (
+        "program test\n"
+        "  integer :: a, b, c, d\n"
+        "  a = b * (c + d)\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer :: c\n"
+        "  integer :: d\n\n"
+        "  a = b * c + b * d\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "c", "d"])
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+@pytest.mark.parametrize("operation", ["+", "-"])
+def test_associativity1(operation, fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected for x*(a+-b)
+    where a and b are active and x is inactive.
+
+    '''
+    code = (
+        f"program test\n"
+        f"  integer :: a, b, c, d, e, f\n"
+        f"  a = (b*e/f) * (c {operation} d)\n"
+        f"end program test\n")
+    expected = (
+        f"program test\n"
+        f"  integer :: a\n"
+        f"  integer :: b\n"
+        f"  integer :: c\n"
+        f"  integer :: d\n"
+        f"  integer :: e\n"
+        f"  integer :: f\n\n"
+        f"  a = b * e / f * c {operation} b * e / f * d\n\n"
+        f"end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    associativity(psyir.children[0][0], ["a", "c", "d"])
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+@pytest.mark.parametrize("operation", ["*", "/"])
+def test_associativity2(operation, fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected for (a+b)*/x
+    where a and b are active and x is inactive.
+
+    '''
+    code = (
+        f"program test\n"
+        f"  integer :: a, b, c, d, e, f\n"
+        f"  a = (c + d) {operation} (b*e/f)\n"
+        f"end program test\n")
+    expected = (
+        f"program test\n"
+        f"  integer :: a\n"
+        f"  integer :: b\n"
+        f"  integer :: c\n"
+        f"  integer :: d\n"
+        f"  integer :: e\n"
+        f"  integer :: f\n\n"
+        f"  a = c {operation} (b * e / f) + d {operation} (b * e / f)\n\n"
+        f"end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    associativity(psyir.children[0][0], ["a", "c", "d"])
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+def test_associativity3(fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when the
+    function needs to be applied multiple times in an assignment.
+
+    '''
+    code = (
+        "program test\n"
+        "  integer :: a, b, c, d, e, f, g\n"
+        "  a = b * (c + f * (d + g)) / e\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer :: c\n"
+        "  integer :: d\n"
+        "  integer :: e\n"
+        "  integer :: f\n"
+        "  integer :: g\n\n"
+        "  a = b * c / e + (b * (f * d) / e + b * (f * g) / e)\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    associativity(psyir.children[0][0], ["d", "c", "g"])
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+def test_preprocess_associativity4(fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when we have
+    array ranges.
+
+    '''
+    code = (
+        "program test\n"
+        "  integer :: a, b, c(10), d(10)\n"
+        "  a = b*(sum(c(:)) + sum(d(:)))\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer, dimension(10) :: c\n"
+        "  integer, dimension(10) :: d\n\n"
+        "  a = b * SUM(c(:)) + b * SUM(d(:))\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "c", "d"])
+    result = fortran_writer(psyir)
+    assert result == expected
