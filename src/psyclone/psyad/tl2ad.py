@@ -95,7 +95,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
 
     # Apply any required transformations to the TL PSyIR
     logger.debug("Preprocessing")
-    preprocess_trans(tl_psyir)
+    preprocess_trans(tl_psyir, active_variables)
 
     logger.debug(f"PSyIR after TL preprocessing\n"
                  f"{tl_psyir.view(colour=False)}")

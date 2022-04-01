@@ -6,6 +6,12 @@
 
 	3) PR #1674 for #1644. Fixes bug in matmul transformation.
 
+	4) PR #1673 for #1671. Fixes an error in the Makefile for the
+	'time evolution' LFRic tutorial.
+
+	5) PR #1628 for #1491. Extends PSyAD pre-processing phase to
+	expand any expressions involving active variables.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
