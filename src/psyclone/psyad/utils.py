@@ -48,14 +48,14 @@ def node_is_active(node, active_variables):
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param active_variables: a list of active variables either as \
         PSyIR symbols or as strings.
-    :type active_variables:
+    :type active_variables: \
         List[:py:class:`psyclone.psyir.symbols.DataSymbol`] | \
         List[str]
 
     :returns: True if active and False otherwise.
     :rtype: bool
 
-    :raises TypeError: if the node argument is not a node.
+    :raises TypeError: if the node argument is not a Node.
     :raises TypeError: if the active_variables argument is not a list.
     :raises ValueError: if the active variables list does not contain \
         datasymbols or if the list does not contain strings.
@@ -96,7 +96,7 @@ def node_is_passive(node, active_variables):
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param active_variables: a list of active variables either as \
         PSyIR symbols or as strings.
-    :type active_variables:
+    :type active_variables: \
         List[:py:class:`psyclone.psyir.symbols.DataSymbol`] or \
         List[str]
 
