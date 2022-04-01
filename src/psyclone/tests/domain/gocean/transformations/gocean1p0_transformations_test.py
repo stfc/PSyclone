@@ -1291,7 +1291,7 @@ def test_acc_data_copyin(tmpdir):
     # Create a data region for the whole schedule
     accdt.apply(schedule)
     code = str(psy.gen)
-
+    print(code)
     assert (
         "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
         "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
@@ -1318,7 +1318,7 @@ def test_acc_data_grid_copyin(tmpdir):
     # Create a data region for the whole schedule
     accdt.apply(schedule)
     code = str(psy.gen)
-
+    print(code)
     # TODO grid properties are effectively duplicated in this list (but the
     # OpenACC deep-copy support should spot this).
     pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"

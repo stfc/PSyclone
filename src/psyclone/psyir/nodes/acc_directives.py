@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
@@ -47,8 +47,7 @@ import six
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.directive import StandaloneDirective, \
-    RegionDirective
+from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import DataSymbol, ScalarType
@@ -94,6 +93,27 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
                 "by an '{1}'".format(
                     [type(node).__name__ for node in data_nodes],
                     type(self).__name__))
+
+    @property
+    def ref_list(self):
+        '''
+        Returns a set of the references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this
+        directive. This is the set of quantities that must be
+        available on the remote device (probably a GPU) before
+        the parallel region can be begun.
+
+        :returns: set of variable names
+        :rtype: set of str
+        '''
+        from psyclone.psyir.tools import DependencyTools
+        variables = set()
+
+        # Look-up the kernels that are children of this node
+        for call in self.kernels():
+            for arg in call.arguments.acc_args:
+                variables.add(arg)
+        return variables
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -150,9 +170,9 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
                                                     parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        # The _variables_to_copy are computed dynamically until the
+        # The _sig_list are computed dynamically until the
         # _node_lowered flag is set to True, after that re-use the stored ones.
-        self._variables_to_copy = []
+        self._sig_list = set()
         self._node_lowered = False
 
     def gen_code(self, parent):
@@ -165,40 +185,15 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        from psyclone.psyGen import InvokeSchedule
         self.validate_global_constraints()
+        self.lower_to_language_level()
+        self.begin_string()
 
-        # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel or kernels
-        # directive)
-        # 1. Find all parallel and kernels directives. We store this list for
-        #    later use in any sub-class.
-        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                (ACCParallelDirective, ACCKernelsDirective))
-        # 2. For each directive, loop over each of the fields used by
-        #    the kernels it contains (this list is given by ref_list)
-        #    and add it to our list if we don't already have it
-        var_list = []
-        # TODO grid properties are effectively duplicated in this list (but
-        # the OpenACC deep-copy support should spot this).
-        for pdir in self._acc_dirs:
-            for var in pdir.ref_list:
-                if var not in var_list:
-                    var_list.append(var)
-        # 3. Convert this list of objects into a comma-delimited string
-        var_str = ",".join(var_list)
-        # 4. Add the enter data directive.
-        if var_str:
-            copy_in_str = "copyin("+var_str+")"
-        else:
-            # There should be at least one variable to copyin.
-            raise GenerationError(
-                "ACCEnterData directive did not find any data to copyin. "
-                "Perhaps there are no ACCParallel or ACCKernels directives "
-                "within the region.")
+        # Add the enter data directive.
+        copy_in_str = "copyin(" + ",".join(sorted(self._sig_list)) + ")"
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
-        # 5. Call an API-specific subclass of this class in case
+        # Call an API-specific subclass of this class in case
         # additional declarations are required.
         self.data_on_device(parent)
         parent.add(CommentGen(parent, ""))
@@ -220,17 +215,14 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
                     (ACCParallelDirective, ACCKernelsDirective))
             # 2. For each directive, loop over each of the fields used by
             #    the kernels it contains (this list is given by ref_list)
-            #    and add it to our list if we don't already have it
-            self._variables_to_copy = []
+            #    and add it to our set
             # TODO grid properties are effectively duplicated in this list (but
             # the OpenACC deep-copy support should spot this).
             for pdir in self._acc_dirs:
-                for var in pdir.ref_list:
-                    if var not in self._variables_to_copy:
-                        self._variables_to_copy.append(var)
+                self._sig_list.update(pdir.ref_list)
             self._node_lowered = True
 
-        super(ACCEnterDataDirective, self).lower_to_language_level()
+        super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive. The visitor is
@@ -240,18 +232,14 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        # The enter data clauses are given by the _variables_to_copy list
-        var_str = ",".join(self._variables_to_copy)
-        if var_str:
-            copy_in_str = "copyin("+var_str+")"
-        else:
+        if not self._sig_list:
             # There should be at least one variable to copyin.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
-                "within the region.")
+                "within the region?")
 
-        return "acc enter data " + copy_in_str
+        return f"acc enter data copyin({','.join(sorted(self._sig_list))})"
 
     def data_on_device(self, parent):
         '''
@@ -351,27 +339,6 @@ class ACCParallelDirective(ACCRegionDirective):
         return "acc end parallel"
 
     @property
-    def ref_list(self):
-        '''
-        Returns a list of the references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this
-        directive. This is the list of quantities that must be
-        available on the remote device (probably a GPU) before
-        the parallel region can be begun.
-
-        :returns: list of variable names
-        :rtype: list of str
-        '''
-        variables = []
-
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                if arg not in variables:
-                    variables.append(arg)
-        return variables
-
-    @property
     def fields(self):
         '''
         Returns a list of the names of field objects required by the Kernel
@@ -421,10 +388,9 @@ class ACCLoopDirective(ACCRegionDirective):
         :rtype: str
         '''
         text = self.coloured_name(colour)
-        text += "[sequential={0},".format(self._sequential)
-        text += "collapse={0},".format(self._collapse)
-        text += "independent={0}".format(self._independent)
-        text += "]"
+        text += f"[sequential={self._sequential},"
+        text += f"collapse={self._collapse},"
+        text += f"independent={self._independent}]"
         return text
 
     def validate_global_constraints(self):
@@ -547,27 +513,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         for child in self.children:
             child.gen_code(parent)
         parent.add(DirectiveGen(parent, *self.end_string().split()))
-
-    @property
-    def ref_list(self):
-        '''
-        Returns a list of the references (whether to arrays or objects)
-        required by the Kernel call(s) that are children of this
-        directive. This is the list of quantities that must be
-        available on the remote device (probably a GPU) before
-        the parallel region can be begun.
-
-        :returns: list of variable names
-        :rtype: list of str
-        '''
-        variables = []
-
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                if arg not in variables:
-                    variables.append(arg)
-        return variables
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -724,8 +669,8 @@ class ACCDataDirective(ACCRegionDirective):
 
 class ACCUpdateDirective(ACCStandaloneDirective):
     ''' Class representing the !$ACC UPDATE directive of OpenACC in the PSyIR.
-    It includes a direction attribute that can be set to 'host' or 'device' and
-    the symbol that is being updated.
+    It includes a direction attribute that can be set to 'self', 'host' or
+    'device' and the symbol that is being updated.
 
     :param symbol: the symbol to synchronise with the accelerator.
     :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`.
@@ -739,16 +684,15 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
 
     :raises ValueError: if the direction argument is not a string with \
-                            value 'host' or 'device'.
+                        value 'self', 'host' or 'device'.
     :raises TypeError: if the symbol is not a DataSymbol.
 
     '''
 
-    _VALID_DIRECTIONS = ("host", "device")
+    _VALID_DIRECTIONS = ("self", "host", "device")
 
     def __init__(self, symbol, direction, children=None, parent=None):
-        super(ACCUpdateDirective, self).__init__(children=children,
-                                                 parent=parent)
+        super().__init__(children=children, parent=parent)
         if not isinstance(direction, six.string_types) or direction not in \
                 self._VALID_DIRECTIONS:
             raise ValueError(
