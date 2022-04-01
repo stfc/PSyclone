@@ -88,11 +88,10 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         data_nodes = self.walk((PSyDataNode, CodeBlock))
         if data_nodes:
             raise GenerationError(
-                "Cannot include CodeBlocks or calls to PSyData routines within"
-                " OpenACC regions but found {0} within a region enclosed "
-                "by an '{1}'".format(
-                    [type(node).__name__ for node in data_nodes],
-                    type(self).__name__))
+                f"Cannot include CodeBlocks or calls to PSyData routines within"
+                f" OpenACC regions but found "
+                f"{[type(node).__name__ for node in data_nodes]} within a "
+                f"region enclosed by an '{type(self).__name__}'")
 
     @property
     def ref_list(self):
@@ -282,15 +281,14 @@ class ACCParallelDirective(ACCRegionDirective):
         # directive
         if nodes and nodes[0].abs_position > self.abs_position:
             raise GenerationError(
-                "An ACC parallel region must be preceded by an ACC enter-"
-                "data directive but in '{0}' this is not the case.".
-                format(routine.name))
+                f"An ACC parallel region must be preceded by an ACC enter data"
+                f" directive but in '{routine.name}' this is not the case.")
 
         if not nodes and not self.ancestor(ACCDataDirective):
             raise GenerationError(
-                "An ACC parallel region must either be preceded by an ACC "
-                "enter data directive or enclosed within an ACC data region "
-                "but in '{0}' this is not the case.".format(routine.name))
+                f"An ACC parallel region must either be preceded by an ACC "
+                f"enter data directive or enclosed within an ACC data region "
+                f"but in '{routine.name}' this is not the case.")
 
         super(ACCParallelDirective, self).validate_global_constraints()
 
@@ -457,7 +455,7 @@ class ACCLoopDirective(ACCRegionDirective):
             if self._independent:
                 clauses.append("independent")
             if self._collapse:
-                clauses.append("collapse({0})".format(self._collapse))
+                clauses.append(f"collapse({self._collapse})")
         return " ".join(clauses)
 
     def end_string(self):
@@ -646,14 +644,14 @@ class ACCDataDirective(ACCRegionDirective):
         writers_list = sorted(list(writers - readwrites))
         readwrites_list = sorted(list(readwrites))
         if readers_list:
-            result += " copyin({0})".format(
-                ",".join(_create_access_list(readers_list, var_accesses)))
+            result += f""" copyin({",".join(
+                _create_access_list(readers_list, var_accesses))})"""
         if writers_list:
-            result += " copyout({0})".format(
-                ",".join(_create_access_list(writers_list, var_accesses)))
+            result += f""" copyout({",".join(
+                _create_access_list(writers_list, var_accesses))})"""
         if readwrites_list:
-            result += " copy({0})".format(",".join(
-                _create_access_list(readwrites_list, var_accesses)))
+            result += f""" copy({",".join(
+                _create_access_list(readwrites_list, var_accesses))})"""
 
         return result
 
@@ -696,14 +694,14 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         if not isinstance(direction, six.string_types) or direction not in \
                 self._VALID_DIRECTIONS:
             raise ValueError(
-                "The ACCUpdateDirective direction argument must be a string "
-                "with any of the values in '{0}' but found '{1}'.".format(
-                    self._VALID_DIRECTIONS, direction))
+                f"The ACCUpdateDirective direction argument must be a string "
+                f"with any of the values in '{self._VALID_DIRECTIONS}' "
+                f"but found '{direction}'.")
 
         if not isinstance(symbol, DataSymbol):
             raise TypeError(
-                "The ACCUpdateDirective symbol argument must be a 'DataSymbol"
-                "' but found '{0}'.".format(type(symbol).__name__))
+                f"The ACCUpdateDirective symbol argument must be a 'DataSymbol"
+                f"' but found '{type(symbol).__name__}'.")
 
         self._direction = direction
         self._symbol = symbol
