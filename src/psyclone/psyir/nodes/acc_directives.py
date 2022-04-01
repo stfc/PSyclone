@@ -679,9 +679,10 @@ class ACCDataDirective(ACCRegionDirective):
         :type sig: :py:class:`psyclone.core.Signature`
         :param OrderedDict refs_dict: the dict of accesses to update.
 
+        :raises NotImplementedError: if a non-leaf structure component is \
+                                     iterated over, e.g. a(i)%b.
         '''
         from psyclone.core.signature import Signature
-        from psyclone.psyir.nodes.array_mixin import ArrayMixin
         from psyclone.psyir.nodes.structure_reference import StructureReference
         # Having this import at the top level causes a circular dependency due
         # to psyGen importing FortranWriter at the top level.
@@ -691,46 +692,6 @@ class ACCDataDirective(ACCRegionDirective):
         node = var_accesses[sig].all_accesses[0].node
 
         if isinstance(node, StructureReference):
-
-            for accesses in var_accesses[sig].all_accesses:
-                # Find the loop variables for all Loops that contain this
-                # access and are themselves within the data region.
-                loop_vars = []
-                cursor = accesses.node.ancestor(Loop)
-                while cursor and cursor.ancestor(ACCDataDirective):
-                    loop_vars.append(Signature(cursor.variable.name))
-                    cursor = cursor.ancestor(Loop)
-                # Now check whether any of these loop variables appear within
-                # the structure reference
-                active_loop_vars = {}
-                # Loop over each component of the structure reference that is
-                # an array access.
-                array_accesses = accesses.node.walk(ArrayMixin)
-                for access in array_accesses:
-                    active_loop_vars[access.name] = []
-                    var_accesses = VariablesAccessInfo(access.indices)
-                    for var in loop_vars:
-                        if var in var_accesses.all_signatures:
-                            active_loop_vars[access.name].append(var.var_name)
-                active_accesses = [pair for pair in active_loop_vars.items()
-                                   if pair[1]]
-
-                if len(active_accesses) > 1:
-                    # For an access such as my_struct(ii)%my_array(ji) then
-                    # if we're inside a loop over ii we'll actually need
-                    # a loop to do the deep copy:
-                    #   do ii = 1, N
-                    #   !$ acc data copyin(my_struct(ii)%my_array)
-                    #   end do
-                    loop_vars = ', '.join(str(pair[1]) for pair in
-                                          active_accesses)
-                    raise NotImplementedError(
-                        f"Data region contains a structure access "
-                        f"'{node.name}' where more than one component "
-                        f"({', '.join(pair[0] for pair in active_accesses)}) "
-                        f"is an array and is iterated over (variables "
-                        f"{loop_vars}). Deep copying of data for such an"
-                        f" access is not implemented.")
 
             member_sig, index_lists = node.get_signature_and_indices()
 

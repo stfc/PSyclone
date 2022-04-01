@@ -3119,7 +3119,7 @@ class ACCDataTrans(RegionTrans):
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCDataDirective(
-            parent=parent, children=[node.detach() for node in node_list])
+                parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
 
@@ -3153,6 +3153,50 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        from psyclone.psyir.nodes.structure_member import StructureMember
+        from psyclone.core.signature import Signature
+        from psyclone.core import VariablesAccessInfo
+        # Check that we don't have any accesses to arrays of derived types
+        # that we can't yet deep copy.
+        from psyclone.psyir.nodes import StructureReference
+        for node in node_list:
+            for sref in node.walk(StructureReference):
+
+                # Find the loop variables for all Loops that contain this
+                # access and are themselves within the data region.
+                loop_vars = []
+                cursor = sref.ancestor(Loop, limit=node)
+                while cursor:
+                    loop_vars.append(Signature(cursor.variable.name))
+                    cursor = cursor.ancestor(Loop)
+
+                # Now check whether any of these loop variables appear within
+                # the structure reference.
+                # Loop over each component of the structure reference that is
+                # an array access.
+                array_accesses = sref.walk(ArrayMixin)
+                for access in array_accesses:
+                    if not isinstance(access, StructureMember):
+                        continue
+                    var_accesses = VariablesAccessInfo(access.indices)
+                    for var in loop_vars:
+                        if var not in var_accesses.all_signatures:
+                            continue
+                        # For an access such as my_struct(ii)%my_array(ji)
+                        # then
+                        # if we're inside a loop over ii we'll actually need
+                        # a loop to do the deep copy:
+                        #   do ii = 1, N
+                        #   !$ acc data copyin(my_struct(ii)%my_array)
+                        #   end do
+                        raise TransformationError(
+                            f"Data region contains a structure access "
+                            f"'{node.name}' where component '{access.name}' "
+                            f"is an array and is iterated over (variable "
+                            f"'{var}'). Deep copying of data for structures "
+                            f"is only supported where the deepest "
+                            f"component is the one being iterated over.")
 
 
 class KernelImportsToArguments(Transformation):
