@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the Node PSyIR node. '''
 
-from __future__ import absolute_import
 import sys
 import os
 import re

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ print(PSY.gen)
 
 print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 TRANS_INFO = TransInfo()
 print(TRANS_INFO.list)
@@ -87,7 +87,7 @@ FUSE_TRANS.apply(SCHEDULE.children[0],
                  SCHEDULE.children[1])
 FUSE_TRANS.apply(SCHEDULE.children[0],
                  SCHEDULE.children[1])
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 # fuse all inner loops
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
@@ -96,6 +96,6 @@ FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
                  SCHEDULE.children[0].loop_body[1])
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
                  SCHEDULE.children[0].loop_body[1])
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 print(PSY.gen)

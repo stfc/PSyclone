@@ -40,8 +40,6 @@
 This module contains the abstract Node implementation.
 
 '''
-from __future__ import print_function
-
 import copy
 import six
 
@@ -847,12 +845,6 @@ class Node(object):
                 node.view(
                     depth=depth + 1, _index=idx, colour=colour, indent=indent))
         result = result + "".join(children_result_list)
-        return result
-
-    def list(self, indent=0):
-        result = ""
-        for entity in self._children:
-            result += str(entity)+"\n"
         return result
 
     def addchild(self, child, index=None):

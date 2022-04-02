@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+
 '''A PSyclone transformation script that transforms all synchronous
 halo exchanges into asynchronous halo exchanges and moves the halo
 exchange start part of each asynchronous halo exchange as early as
@@ -96,4 +97,4 @@ def trans(psy):
                 pass
 
         # Take a look at the modified PSy-layer PSyIR
-        schedule.view()
+        print(schedule.view())

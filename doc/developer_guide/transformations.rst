@@ -35,15 +35,6 @@
 
 .. testsetup::
 
-    # TODO 1238: This is not necessary anymore once we can explicitly
-    #            disable colouring.
-    import psyclone.psyir.nodes.node
-    def new_colored(text, _):
-        return text
-
-    # Disable colouring in output to allow passing of tests
-    psyclone.psyir.nodes.node.colored = new_colored
-
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
     SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
