@@ -1998,9 +1998,9 @@ def test_r_solver(tmpdir):
     appropriate precision in the PSy-layer and all required constants
     are declared.
 
-    This test could be removed once #1638 is addressed as the
-    test_mixed_precision_args test covers the same ground as test but
-    currently does not compile.
+    This test could be removed once issues #1638/#1667 are addressed
+    as the test_mixed_precision_args test covers the same ground as
+    test but currently does not compile.
 
     '''
     _, invoke_info = parse(
@@ -4358,10 +4358,11 @@ def test_mixed_precision_args(tmpdir):
     if Compile.TEST_COMPILE:
         if not LFRicBuild(tmpdir).code_compiles(psy):
             pytest.xfail(
-                "Issue #1638. This example will not compile as there is no "
-                "support for r_solver operators in the infrastructure.")
+                "Issues #1638/#1667. This example will not compile as there "
+                "is no support for r_solver operators or r_trans in the "
+                "infrastructure.")
         else:
             assert False, (
-                "Issue #1638. This example is not expected to compile as "
-                "there is no support for r_solver operators in the "
-                "infrastructure.")
+                "Issues #1638/#1667. This example is not expected to compile "
+                "as there is no support for r_solver operators or r_trans in "
+                "the infrastructure.")
