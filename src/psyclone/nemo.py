@@ -341,42 +341,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
         PSyIR constructs.
 
         '''
-        from psyclone.psyGen import InvokeSchedule
-        from psyclone.psyir.tools import DependencyTools
-        if not self._node_lowered:
-            dep_tools = DependencyTools()
-            # We must generate a list of all of the fields accessed by
-            # OpenACC kernels (calls within an OpenACC parallel or kernels
-            # directive)
-            # 1. Find all parallel and kernels directives. We store this list
-            # for later use in any sub-class.
-            routine = self.ancestor(InvokeSchedule)
-            self._acc_dirs = routine.walk((ACCParallelDirective,
-                                           ACCKernelsDirective))
-            # 2. For each directive, loop over each of the variables used by
-            #    the kernels it contains and add it to our list if we don't
-            #    already have it
-            self._variables_to_copy = []
+        super().lower_to_language_level()
 
-            for pdir in self._acc_dirs:
-                inputs, outputs = dep_tools.get_in_out_parameters(
-                    pdir.children)
-                for sig in (inputs + outputs):
-                    if sig.is_structure:
-                        # Perform a deep copy of the necessary elements of
-                        # the structure.
-                        for idx in range(len(sig)):
-                            name = "%".join(sig[0:idx+1])
-                            if name not in self._variables_to_copy:
-                                self._variables_to_copy.append(name)
-                    else:
-                        name = sig.var_name
-                        # TODO use Config to get loop variable names
-                        if name in ["ji", "jj", "jk"]:
-                            continue
-                        # TODO examine type of sym?
-                        if name not in self._variables_to_copy:
-                            self._variables_to_copy.append(name)
-            self._node_lowered = True
-
-        super(ACCEnterDataDirective, self).lower_to_language_level()
+        loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
+        self._sig_list.difference_update(loop_var)
