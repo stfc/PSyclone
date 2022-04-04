@@ -348,11 +348,11 @@ class Loop(Statement):
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
-        return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
-                format(self.coloured_name(self._colour),
-                       self._loop_type, self._field_space,
-                       self.iteration_space))
+        return (f"{self.coloured_name(colour)}[type='{self._loop_type}', "
+                f"field_space='{self._field_space}', "
+                f"it_space='{self.iteration_space}']")
 
     @property
     def field_space(self):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ def trans(psy):
     print(psy.invokes.names)
 
     schedule = psy.invokes.get('invoke_0').schedule
-    schedule.view()
+    print(schedule.view())
 
     lftrans = LFRicLoopFuseTrans()
 
@@ -74,6 +74,6 @@ def trans(psy):
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
-    schedule.view()
+    print(schedule.view())
 
     return psy

@@ -684,6 +684,6 @@ def trans(psy):
               f"{invoke.name}")
         add_profiling(sched.children)
 
-        sched.view()
+        print(sched.view())
 
     return psy

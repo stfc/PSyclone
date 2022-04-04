@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified by D. Sergeev, University of Exeter
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel extraction code to
@@ -63,5 +64,5 @@ def trans(psy):
     # Enclose everything in a extract region
     extract.apply(schedule, {"region_name": ("time_evolution", "propagate")})
 
-    schedule.view()
+    print(schedule.view())
     return psy
