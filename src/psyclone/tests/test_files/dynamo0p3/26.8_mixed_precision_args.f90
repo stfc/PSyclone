@@ -40,7 +40,7 @@
 
 program mixed_precision
 
-  use constants_mod, only : r_def, r_solver
+  use constants_mod, only : r_def, r_solver, r_tran
   use mixed_mod, only : mixed_type
 
   real(r_def)                  :: Scalar_r_def
