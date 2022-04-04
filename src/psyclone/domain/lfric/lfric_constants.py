@@ -335,16 +335,6 @@ class LFRicConstants(object):
                 "intrinsic": "real",
                 "kind": "r_solver"}}
 
-        # In the current implementation it can be difficult to
-        # determine when certain LFRic data structures are used or not
-        # when generating the PSy-layer. Therefore, to keep things
-        # simple we always add the modules associated with the
-        # following datatypes to the PSy-layer whether they are used
-        # or not.
-        LFRicConstants.PSY_LAYER_DATA_TYPE_NAMES = [
-            "field", "r_solver_field", "r_tran_field", "integer_field",
-            "operator"]
-
         # Mapping from a vector type used in the algorithm-layer to
         # the actual type used in the PSy-layer.
         LFRicConstants.FIELD_VECTOR_TO_FIELD_MAP = {

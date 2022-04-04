@@ -1028,13 +1028,14 @@ class DynamoPSy(PSy):
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         infmod_list = [const_mod]
-        # In the current implementation it can be difficult to
-        # determine when LFRic data structures are used. Therefore, to
-        # keep things simple we always add the following modules whether
-        # they are used or not.
-        for data_type_name in const.PSY_LAYER_DATA_TYPE_NAMES:
-            infmod_list.append(const.DATA_TYPE_MAP[data_type_name]["module"])
+        # Add all field and operator modules that might be used in the
+        # algorithm layer. These do not appear in the code unless a
+        # variable is added to the "only" part of the
+        # _infrastructure_modules map.
+        for data_type_info in const.DATA_TYPE_MAP.values():
+            infmod_list.append(data_type_info["module"])
 
+        # This also removes any duplicates from infmod_list
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 

@@ -70,13 +70,12 @@ def test_dynamopsy():
     assert issubclass(DynamoPSy, PSy)
     assert isinstance(dynamo_psy._invokes, DynamoInvokes)
     infrastructure_modules = dynamo_psy._infrastructure_modules
-    assert len(infrastructure_modules) == 6
     assert isinstance(infrastructure_modules, OrderedDict)
     assert infrastructure_modules["constants_mod"] == ["i_def"]
     const = LFRicConstants()
-    assert len(const.PSY_LAYER_DATA_TYPE_NAMES) == 5
-    for data_type_name in const.PSY_LAYER_DATA_TYPE_NAMES:
-        module_name = const.DATA_TYPE_MAP[data_type_name]["module"]
+    names = (item["module"] for item in const.DATA_TYPE_MAP.values())
+    assert len(names)+1 == len(infrastructure_modules)
+    for module_name in names:
         assert infrastructure_modules[module_name] == set()
 
 
