@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,18 +59,18 @@ def trans(psy):
     print(psy.invokes.names)
     invoke = invokes.get("invoke_1")
     schedule = invoke.schedule
-    schedule.view()
+    print(schedule.view())
     # Find the kernel we want to inline.
     kern = schedule.walk(Kern)[0]
     # Setting module inline directly.
     kern.module_inline = True
-    schedule.view()
+    print(schedule.view())
     # Unsetting module inline via a transformation.
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern, {"inline": False})
-    schedule.view()
+    print(schedule.view())
     # Setting module inline via a transformation.
     inline_trans.apply(kern)
-    schedule.view()
+    print(schedule.view())
 
     return psy

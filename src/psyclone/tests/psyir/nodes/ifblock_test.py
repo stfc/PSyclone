@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,8 +72,8 @@ def test_ifblock_node_str():
     assert colouredif+"[annotations='was_elseif']" in output
 
 
-def test_ifblock_view_indices(capsys):
-    ''' Check that the view method only displays indices on the nodes
+def test_ifblock_view_indices():
+    ''' Check that the view() method only displays indices on the nodes
     in the body (and else body) of an IfBlock. '''
     colouredif = colored("If", IfBlock._colour)
     colouredreturn = colored("Return", Return._colour)
@@ -81,8 +81,7 @@ def test_ifblock_view_indices(capsys):
     condition = Reference(DataSymbol('condition1', REAL_SINGLE_TYPE))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
-    ifblock.view()
-    output, _ = capsys.readouterr()
+    output = ifblock.view()
     # Check that we only prepend child indices where it makes sense
     assert colouredif + "[]" in output
     assert "0: " + colouredreturn in output

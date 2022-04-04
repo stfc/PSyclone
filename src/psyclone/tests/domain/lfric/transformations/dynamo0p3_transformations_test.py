@@ -3595,7 +3595,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 
 
-def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
+def test_reprod_view(monkeypatch, annexed, dist_mem):
     '''test that we generate a correct view() for OpenMP do
     reductions. Also test with and without annexed dofs being computed
     as this affects the output.
@@ -3629,9 +3629,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
             rtrans.apply(child)
-    schedule.view()
-    # only display reprod in schedule view if a reduction
-    result, _ = capsys.readouterr()
+    result = schedule.view()
     if dist_mem:  # annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=True]\n" +
@@ -3854,14 +3852,12 @@ def test_move_forward():
     target_index = 2
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    schedule.view()
     assert orig_arg != new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index-1]
-    schedule.view()
     assert orig_arg == new_arg
 
 
@@ -3876,7 +3872,6 @@ def test_move_forward_after():
     target_index = 2
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    schedule.view()
     assert orig_arg != new_arg
 
     move_trans.apply(schedule.children[initial_index],
@@ -3884,7 +3879,6 @@ def test_move_forward_after():
                      {"position": "after"})
 
     new_arg = schedule.children[target_index]
-    schedule.view()
     assert orig_arg == new_arg
 
 
@@ -4235,7 +4229,6 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    schedule.view()
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
@@ -6332,16 +6325,13 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     psy, invoke = get_invoke("22.2_intergrid_3levels.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    schedule.view()
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = LFRicLoopFuseTrans()
     ctrans.apply(loops[0])
     ctrans.apply(loops[1])
-    schedule.view()
     loops = schedule.walk(Loop)
     ftrans.apply(loops[0], loops[2])
-    schedule.view()
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6918,7 +6908,6 @@ def test_move_vector_halo_exchange():
     _, invoke = get_invoke("8.3_multikernel_invokes_vector.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    schedule.view()
 
     # reverse the order of the vector halo exchanges
     mtrans = MoveTrans()
@@ -7000,7 +6989,6 @@ def test_vector_async_halo_exchange(tmpdir):
     # start and end calls.
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[6], {"depth": 2})
-    schedule.view()
     from psyclone.dynamo0p3 import DynHaloExchangeStart, \
         DynHaloExchangeEnd
     assert len(schedule.children) == 8

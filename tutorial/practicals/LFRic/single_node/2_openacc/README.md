@@ -169,7 +169,7 @@ In case you're having problems, this is what your script should now look like:
                 loop_trans.apply(loop)
         for kernel in schedule.coded_kernels():
             routine_trans.apply(kernel)
-    schedule.view()
+    print(schedule.view())
     return psy
 ```
 
