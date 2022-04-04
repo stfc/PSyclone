@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,10 +74,10 @@ print(PSY.invokes.names)
 
 # Print the Schedule of each of these Invokes
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 SCHEDULE = PSY.invokes.get('invoke_1').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 SCHEDULE = PSY.invokes.get('invoke_2').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
