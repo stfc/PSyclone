@@ -134,7 +134,7 @@ class SymPyWriter(FortranWriter):
         return sympy_type_map
 
     @staticmethod
-    def convert_to_sympy_expressions(list_of_expressions):
+    def get_sympy_expressions_and_symbol_map(list_of_expressions):
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -142,14 +142,19 @@ class SymPyWriter(FortranWriter):
         constants with kind specification, ...), including the renaming of
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+        It also returns the symbol map, i.e. the mapping of Fortran symbol
+        names to SymPy Symbols.
 
         :param list_of_expressions: the list of expressions which are to be \
             converted into SymPy-parsable strings.
         :type list_of_expressions: list of \
             :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: the converted PSyIR expressions.
-        :rtype: list of SymPy expressions
+        :returns: a 2-tuple consisting of the the converted PSyIR \
+            expressions, followed by a dictionary mapping the symbol names \
+            to SymPy Symbols.
+        :rtype: 2-tuple (list of SymPy expressions, \
+            dict of string:Sympy-data-type)
 
         '''
         # Create the type_map that will include all symbols used in both
@@ -168,9 +173,36 @@ class SymPyWriter(FortranWriter):
             # We use the `_visit()` call which avoids creating a copy
             # of the whole tree, which causes huge slowdown of this call.
             # TODO #1587 - disable deep copy of tree
+            # pylint: disable=protected-access
             expression_str_list.append(writer._visit(expr))
 
-        return [parse_expr(expr, type_map) for expr in expression_str_list]
+        return ([parse_expr(expr, type_map) for expr in expression_str_list],
+                type_map)
+
+    @staticmethod
+    def convert_to_sympy_expressions(list_of_expressions):
+        '''
+        This function takes a list of PSyIR expressions, and converts
+        them all into Sympy expressions using the SymPy parser.
+        It takes care of all Fortran specific conversion required (e.g.
+        constants with kind specification, ...), including the renaming of
+        member accesses, as described in
+        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+
+        :param list_of_expressions: the list of expressions which are to be \
+            converted into SymPy-parsable strings.
+        :type list_of_expressions: list of \
+            :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: the converted PSyIR expressions.
+        :rtype: list of SymPy expressions
+
+        '''
+
+        # Use existing functionality, and ignore the returned symbol map
+        sympy_expressions, _ = SymPyWriter.\
+            get_sympy_expressions_and_symbol_map(list_of_expressions)
+        return sympy_expressions
 
     def member_node(self, node):
         '''In SymPy an access to a member 'b' of a structure 'a'
