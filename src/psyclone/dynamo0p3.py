@@ -1027,11 +1027,14 @@ class DynamoPSy(PSy):
         # the "use" statements in modules that contain PSy-layer routines.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
-                       const.DATA_TYPE_MAP["r_solver_field"]["module"],
-                       const.DATA_TYPE_MAP["r_tran_field"]["module"],
-                       const.DATA_TYPE_MAP["integer_field"]["module"],
-                       const.DATA_TYPE_MAP["operator"]["module"]]
+        infmod_list = [const_mod]
+        # In the current implementation it can be difficult to
+        # determine when LFRic data structures are used. Therefore, to
+        # keep things simple we always add the following modules whether
+        # they are used or not.
+        for data_type_name in const.PSY_LAYER_DATA_TYPE_NAMES:
+            infmod_list.append(const.DATA_TYPE_MAP[data_type_name]["module"])
+
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -9138,23 +9141,11 @@ class DynKernelArgument(KernelArgument):
         if alg_datatype_info:
             alg_datatype, alg_precision = alg_datatype_info
 
+        const = LFRicConstants()
         if arg_info and arg_info.form == "collection":
-            if alg_datatype == "field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from a field_vector_type. The type of fields within
-                # field_vector_type is always field_type.
-                alg_datatype = "field_type"
-            elif alg_datatype == "r_solver_field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from an r_solver_field_vector_type. The type of fields within
-                # r_solver_field_vector_type is always r_solver_field_type.
-                alg_datatype = "r_solver_field_type"
-            elif alg_datatype == "r_tran_field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from an r_tran_field_vector_type. The type of fields within
-                # r_tran_field_vector_type is always r_tran_field_type.
-                alg_datatype = "r_tran_field_type"
-            else:
+            try:
+                alg_datatype = const.FIELD_VECTOR_TO_FIELD_MAP[alg_datatype]
+            except KeyError:
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
