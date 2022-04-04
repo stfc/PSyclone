@@ -1028,16 +1028,32 @@ class DynamoPSy(PSy):
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
+                       const.DATA_TYPE_MAP["r_solver_field"]["module"],
                        const.DATA_TYPE_MAP["integer_field"]["module"],
                        const.DATA_TYPE_MAP["operator"]["module"]]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
-        # Get configuration for valid argument kinds (start with
-        # 'real' and 'integer' kinds)
+
+        kind_names = set()
+
+        # The infrastructure declares integer types with default
+        # precision so always add this.
         api_config = Config.get().api_conf("dynamo0.3")
-        self._infrastructure_modules[const_mod] = {
-            api_config.default_kind["real"],
-            api_config.default_kind["integer"]}
+        kind_names.add(api_config.default_kind["integer"])
+
+        # Datatypes declare precision information themselves. However,
+        # that is not the case for literals. Therefore deal
+        # with these separately here.
+        for invoke in self.invokes.invoke_list:
+            schedule = invoke.schedule
+            for kernel in schedule.kernels():
+                for arg in kernel.args:
+                    if arg.is_literal:
+                        kind_names.add(arg.precision)
+        # Add precision names to the dictionary storing the required
+        # LFRic constants. Sort the names so that all versions of
+        # Python return the same order (for testing purposes).
+        self._infrastructure_modules[const_mod] = list(sorted(kind_names))
 
     @property
     def name(self):
@@ -2277,9 +2293,14 @@ class DynReferenceElement(DynCollection):
 
         # Declare the necessary arrays
         array_decls = [arr + "(:,:)" for arr in self._arg_properties.keys()]
-        parent.add(DeclGen(parent, datatype="real",
-                           kind=api_config.default_kind["real"],
+        my_kind = api_config.default_kind["real"]
+        parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        const_mod_list = self._invoke.invokes.psy. \
+            infrastructure_modules[const_mod]
+        if my_kind not in const_mod_list:
+            const_mod_list.append(my_kind)
 
     def _stub_declarations(self, parent):
         '''
@@ -2820,21 +2841,26 @@ class LFRicFields(DynCollection):
                 format(list(fld_multi_type), self._invoke.name,
                        const.VALID_FIELD_DATA_TYPES))
 
-        # Add the Invoke subroutine argument declarations for real
-        # and integer fields
-        if real_field_arg_list:
-            fld_type = real_field_args[0].data_type
-            fld_mod = real_field_args[0].module_name
+        # Create a field argument map that splits the (real and
+        # integer) fields into their different datatypes.
+        field_datatype_map = OrderedDict()
+        for arg in real_field_args + int_field_args:
+            try:
+                field_datatype_map[
+                    (arg.data_type, arg.module_name)].append(arg)
+            except KeyError:
+                # This datatype has not been seen before so create a
+                # new entry
+                field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
+
+        # Add the Invoke subroutine argument declarations for the
+        # different fields types. They are declared as intent "in" as
+        # they contain a pointer to the data that is modified.
+        for fld_type, fld_mod in field_datatype_map:
+            args = field_datatype_map[(fld_type, fld_mod)]
+            arg_list = [arg.declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=real_field_arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
-        if int_field_arg_list:
-            fld_type = int_field_args[0].data_type
-            fld_mod = int_field_args[0].module_name
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=int_field_arg_list,
+                                   entity_decls=arg_list,
                                    intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
@@ -3089,47 +3115,59 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         const = LFRicConstants()
-        # Real field proxies
+        # Filter field arguments by intrinsic type
         real_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        real_field_proxy_decs = [arg.proxy_declaration_name for
-                                 arg in real_field_args]
-        if real_field_proxy_decs:
-            fld_type = real_field_args[0].proxy_data_type
-            fld_mod = real_field_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=fld_type,
-                                   entity_decls=real_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
-             add(fld_type))
-        # Integer field proxies
         int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        int_field_proxy_decs = [arg.proxy_declaration_name for
-                                arg in int_field_args]
-        if int_field_proxy_decs:
-            fld_type = int_field_args[0].proxy_data_type
-            fld_mod = int_field_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=fld_type,
-                                   entity_decls=int_field_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[fld_mod].
-             add(fld_type))
+
+        # Create a field argument map that splits the (real and
+        # integer) fields into their different datatypes for their
+        # proxy's
+        field_datatype_map = OrderedDict()
+        for arg in real_field_args + int_field_args:
+            try:
+                field_datatype_map[
+                    (arg.proxy_data_type, arg.module_name)].append(arg)
+            except KeyError:
+                # This datatype has not been seen before so create a
+                # new entry
+                field_datatype_map[
+                    (arg.proxy_data_type, arg.module_name)] = [arg]
+
+        # Add the Invoke subroutine declarations for the different
+        # field-type proxies
+        for (fld_type, fld_mod), args in field_datatype_map.items():
+            arg_list = [arg.proxy_declaration_name for arg in args]
+            parent.add(TypeDeclGen(parent, datatype=fld_type,
+                                   entity_decls=arg_list))
+            (self._invoke.invokes.psy.
+             infrastructure_modules[fld_mod].add(fld_type))
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
-        op_proxy_decs = [arg.proxy_declaration_name for arg in op_args]
-        if op_proxy_decs:
-            op_type = op_args[0].proxy_data_type
-            op_mod = op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=op_proxy_decs))
+        # Filter operators by their proxy datatype
+        operators_datatype_map = OrderedDict()
+        for op_arg in op_args:
+            try:
+                operators_datatype_map[op_arg.proxy_data_type].append(op_arg)
+            except KeyError:
+                # This proxy datatype has not been seen before so
+                # create new entry
+                operators_datatype_map[op_arg.proxy_data_type] = [op_arg]
+        # Declare the operator proxies
+        for operator_datatype, operators_list in \
+                operators_datatype_map.items():
+            operators_names = [arg.proxy_declaration_name for
+                               arg in operators_list]
+            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
+                                   entity_decls=operators_names))
+            op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+             add(operator_datatype))
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
@@ -3461,26 +3499,57 @@ class LFRicScalarArgs(DynCollection):
         self._create_declarations(parent)
 
     def _create_declarations(self, parent):
-        '''
-        Add declarations for the scalar arguments.
+        '''Add declarations for the scalar arguments.
 
         :param parent: the f2pygen node in which to insert declarations \
                        (Invoke or Kernel).
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if neither self._invoke nor \
+            self._kernel are set.
+
         '''
         const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        const_mod_list = None
+        if self._invoke:
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
-                dtype = self._real_scalars[intent][0].intrinsic_type
-                dkind = self._real_scalars[intent][0].precision
-                real_scalar_names = [arg.declaration_name for arg
-                                     in self._real_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=real_scalar_names,
-                            intent=intent))
+                # Filter scalars based on precision
+                real_scalars_precision_map = OrderedDict()
+                for real_scalar in self._real_scalars[intent]:
+                    try:
+                        real_scalars_precision_map[
+                            real_scalar.precision].append(real_scalar)
+                    except KeyError:
+                        # This precision has not been seen before so
+                        # create a new entry
+                        real_scalars_precision_map[
+                            real_scalar.precision] = [real_scalar]
+                # Declare scalars
+                for real_scalar_kind, real_scalars_list in \
+                        real_scalars_precision_map.items():
+                    real_scalar_type = real_scalars_list[0].intrinsic_type
+                    real_scalar_names = [arg.declaration_name for arg
+                                         in real_scalars_list]
+                    parent.add(
+                        DeclGen(parent, datatype=real_scalar_type,
+                                kind=real_scalar_kind,
+                                entity_decls=real_scalar_names,
+                                intent=intent))
+                    if self._invoke:
+                        if real_scalar_kind not in const_mod_list:
+                            const_mod_list.append(real_scalar_kind)
+                    elif self._kernel:
+                        self._kernel.argument_kinds.add(real_scalar_kind)
+                    else:
+                        raise InternalError(
+                            "Expected the declaration of real scalar kernel "
+                            "arguments to be for either an invoke or a "
+                            "kernel stub, but it is neither.")
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3493,24 +3562,38 @@ class LFRicScalarArgs(DynCollection):
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=integer_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
+                else:
+                    raise InternalError(
+                        "Expected the declaration of integer scalar kernel "
+                        "arguments to be for either an invoke or a "
+                        "kernel stub, but it is neither.")
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
                 dtype = self._logical_scalars[intent][0].intrinsic_type
                 dkind = self._logical_scalars[intent][0].precision
-                if self._invoke:
-                    const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-                    (self._invoke.invokes.psy.
-                     infrastructure_modules[const_mod].add(dkind))
-                if self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
                 logical_scalar_names = [arg.declaration_name for arg
                                         in self._logical_scalars[intent]]
                 parent.add(
                     DeclGen(parent, datatype=dtype, kind=dkind,
                             entity_decls=logical_scalar_names,
                             intent=intent))
+                if self._invoke:
+                    if dkind not in const_mod_list:
+                        const_mod_list.append(dkind)
+                elif self._kernel:
+                    self._kernel.argument_kinds.add(dkind)
+                else:
+                    raise InternalError(
+                        "Expected the declaration of logical scalar kernel "
+                        "arguments to be for either an invoke or a "
+                        "kernel stub, but it is neither.")
 
 
 class DynLMAOperators(DynCollection):
@@ -3563,16 +3646,25 @@ class DynLMAOperators(DynCollection):
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
-        # Create a list of operator names
-        op_arg_list = [arg.declaration_name for arg in op_args]
-        if op_arg_list:
-            op_type = op_args[0].data_type
-            op_mod = op_args[0].module_name
-            parent.add(TypeDeclGen(parent, datatype=op_type,
-                                   entity_decls=op_arg_list,
-                                   intent="in"))
+        # Filter operators by their datatype
+        operators_datatype_map = OrderedDict()
+        for op_arg in op_args:
+            try:
+                operators_datatype_map[op_arg.data_type].append(op_arg)
+            except KeyError:
+                # This datatype has not been seen before so create new entry
+                operators_datatype_map[op_arg.data_type] = [op_arg]
+        # Declare the operators
+        for op_datatype, op_list in operators_datatype_map.items():
+            operators_names = [arg.declaration_name for arg in op_list]
+            parent.add(TypeDeclGen(
+                parent, datatype=op_datatype,
+                entity_decls=operators_names, intent="in"))
+            op_mod = op_list[0].module_name
+            # Record that we will need to import this operator
+            # datatype from the appropriate infrastructure module
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+             add(op_datatype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3716,6 +3808,16 @@ class DynCMAOperators(DynCollection):
             parent.add(DeclGen(parent, datatype=cma_dtype,
                                kind=cma_kind, pointer=True,
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
+            const = LFRicConstants()
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if cma_kind not in const_mod_list:
+                # Record that we will need to import the kind of this
+                # cma operator from the appropriate infrastructure
+                # module
+                const_mod_list.append(cma_kind)
+
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
@@ -4605,31 +4707,35 @@ class DynBasisFunctions(DynCollection):
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
 
+        const = LFRicConstants()
+
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             if shape == "gh_quadrature_xyoz":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in", dimension="np_xy"+qr_name,
-                                   entity_decls=["weights_xy"+qr_name]))
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in", dimension="np_z"+qr_name,
-                                   entity_decls=["weights_z"+qr_name]))
+                datatype = const.QUADRATURE_TYPE_MAP[shape]["intrinsic"]
+                kind = const.QUADRATURE_TYPE_MAP[shape]["kind"]
+                parent.add(DeclGen(
+                    parent, datatype=datatype, kind=kind,
+                    intent="in", dimension="np_xy"+qr_name,
+                    entity_decls=["weights_xy"+qr_name]))
+                parent.add(DeclGen(
+                    parent, datatype=datatype, kind=kind,
+                    intent="in", dimension="np_z"+qr_name,
+                    entity_decls=["weights_z"+qr_name]))
             elif shape == "gh_quadrature_face":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in",
-                                   dimension=",".join(["np_xyz"+qr_name,
-                                                       "nfaces"+qr_name]),
-                                   entity_decls=["weights_xyz"+qr_name]))
+                parent.add(DeclGen(
+                    parent,
+                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
+                    entity_decls=["weights_xyz"+qr_name]))
             elif shape == "gh_quadrature_edge":
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=api_config.default_kind["real"],
-                                   intent="in",
-                                   dimension=",".join(["np_xyz"+qr_name,
-                                                       "nedges"+qr_name]),
-                                   entity_decls=["weights_xyz"+qr_name]))
+                parent.add(DeclGen(
+                    parent,
+                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                    dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
+                    entity_decls=["weights_xyz"+qr_name]))
             else:
                 raise InternalError(
                     "Quadrature shapes other than {0} are not yet "
@@ -4730,10 +4836,19 @@ class DynBasisFunctions(DynCollection):
                 rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
+            my_kind = api_config.default_kind["real"]
             parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+                               kind=my_kind,
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if my_kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # pointer declaration (associated with a function
+                # space) from the appropriate infrastructure module
+                const_mod_list.append(my_kind)
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -4782,10 +4897,16 @@ class DynBasisFunctions(DynCollection):
 
         # declare the basis function arrays
         if basis_declarations:
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
+            my_kind = api_config.default_kind["real"]
+            parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                                allocatable=True,
                                entity_decls=basis_declarations))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            # Default kind (r_def) will always already exist due to
+            # arrays associated with gh_shape, so there is no need to
+            # declare it here.
 
         # Compute the values for any basis arrays
         self._compute_basis_fns(parent)
@@ -4946,10 +5067,22 @@ class DynBasisFunctions(DynCollection):
                                   for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in self.qr_weight_vars["xyoz"]]
+            const = LFRicConstants()
+            datatype = \
+                const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             parent.add(
-                DeclGen(parent, datatype="real",
-                        kind=api_config.default_kind["real"],
+                DeclGen(parent, datatype=datatype, kind=kind,
                         pointer=True, entity_decls=decl_list))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # declaration (associated with quadrature) from
+                # the appropriate infrastructure module
+                const_mod_list.append(kind)
+
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
             parent.add(
@@ -5022,10 +5155,20 @@ class DynBasisFunctions(DynCollection):
             decl_list = [
                 symbol_table.find_or_create_tag(name+"_"+qr_arg_name).name
                 + "(:,:) => null()" for name in self.qr_weight_vars[qr_type]]
+            const = LFRicConstants()
+            datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
+            kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]
             parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind=api_config.default_kind["real"],
+                DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
                         entity_decls=decl_list))
+            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+            const_mod_list = self._invoke.invokes.psy. \
+                infrastructure_modules[const_mod]
+            if kind not in const_mod_list:
+                # Record that we will need to import the kind for a
+                # declaration (associated with quadrature) from the
+                # appropriate infrastructure module
+                const_mod_list.append(kind)
             # Get the quadrature proxy
             proxy_name = symbol_table.find_or_create_tag(
                 qr_arg_name+"_proxy").name
@@ -7758,7 +7901,7 @@ class DynKern(CodedKern):
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
-        self._setup(ktype, "dummy_name", args, None)
+        self._setup(ktype, "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):
         '''
@@ -7774,9 +7917,8 @@ class DynKern(CodedKern):
                 self._eval_shapes = kmetadata.eval_shapes[:]
                 break
 
-    def _setup(self, ktype, module_name, args, parent):
-        '''
-        Internal setup of kernel information.
+    def _setup(self, ktype, module_name, args, parent, check=True):
+        '''Internal setup of kernel information.
 
         :param ktype: object holding information on the parsed metadata for \
                       this kernel.
@@ -7789,12 +7931,14 @@ class DynKern(CodedKern):
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param bool check: whether to check for consistency between the \
+            kernel metadata and the algorithm layer. Defaults to True.
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
         CodedKern.__init__(self, DynKernelArguments,
                            KernelCall(module_name, ktype, args),
-                           parent, check=False)
+                           parent, check)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -8129,12 +8273,11 @@ class DynKern(CodedKern):
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
-        # Add "use" statement with kinds (precisions) of all arguments
+        # Add wildcard "use" statement for all supported argument
+        # kinds (precisions)
         sub_stub.add(
             UseGen(sub_stub,
-                   name=const.UTILITIES_MOD_MAP["constants"]["module"],
-                   only=True, funcnames=sorted(list(self._argument_kinds),
-                                               reverse=True)))
+                   name=const.UTILITIES_MOD_MAP["constants"]["module"]))
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)
@@ -8551,10 +8694,12 @@ class DynKernelArguments(Arguments):
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel meta-data specifies stencil extent.
     '''
-    def __init__(self, call, parent_call):
+    def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
@@ -8572,7 +8717,7 @@ class DynKernelArguments(Arguments):
         idx = 0
         for arg in call.ktype.arg_descriptors:
             dyn_argument = DynKernelArgument(self, arg, call.args[idx],
-                                             parent_call)
+                                             parent_call, check)
             idx += 1
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
@@ -8869,13 +9014,15 @@ class DynKernelArgument(KernelArgument):
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the kernel object with which this argument is associated.
     :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :param bool check: whether to check for consistency between the \
+        kernel metadata and the algorithm layer. Defaults to True.
 
     :raises InternalError: for an unsupported metadata in the argument \
                            descriptor data type.
 
     '''
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
-    def __init__(self, kernel_args, arg_meta_data, arg_info, call):
+    def __init__(self, kernel_args, arg_meta_data, arg_info, call, check=True):
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -8927,12 +9074,15 @@ class DynKernelArgument(KernelArgument):
         # only function space is not passed to a kernel that modifies
         # it. Note, issue #79 is also related to this.
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
-
         # Argument proxy data type (if/as defined in LFRic infrastructure)
         self._proxy_data_type = None
         # Set up kernel argument information for scalar, field and operator
         # arguments: precision, module name, data type and proxy data type
-        self._init_data_type_properties()
+        self._init_data_type_properties(arg_info, check)
+        # Complete the initialisation of the argument (after
+        # _init_data_type_properties() so the precision info etc is
+        # already set up)
+        self._complete_init(arg_info)
 
     def ref_name(self, function_space=None):
         '''
@@ -8996,76 +9146,282 @@ class DynKernelArgument(KernelArgument):
             "DynKernelArgument.ref_name(fs): Found unsupported argument "
             "type '{0}'.".format(self._argument_type))
 
-    def _init_data_type_properties(self):
-        '''
-        Set up kernel argument information from LFRicConstants: precision,
+    def _init_data_type_properties(self, arg_info, check=True):
+        '''Set up kernel argument information from LFRicConstants: precision,
         data type, proxy data type and module name. This is currently
         supported for scalar, field and operator arguments.
 
+        :param arg_info: information on how this argument is specified \
+            in the Algorithm layer.
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        '''
+        alg_datatype_info = None
+        if arg_info:
+            alg_datatype_info = arg_info._datatype
+        alg_datatype = None
+        alg_precision = None
+        if alg_datatype_info:
+            alg_datatype, alg_precision = alg_datatype_info
+
+        if arg_info and arg_info.form == "collection":
+            if alg_datatype == "field_vector_type":
+                # This is a field that has been passed by de-referencing
+                # from a field_vector_type. The type of fields within
+                # field_vector_type is always field_type.
+                alg_datatype = "field_type"
+            elif alg_datatype == "r_solver_field_vector_type":
+                # This is a field that has been passed by de-referencing
+                # from an r_solver_field_vector_type. The type of fields within
+                # r_solver_field_vector_type is always r_solver_field_type.
+                alg_datatype = "r_solver_field_type"
+            else:
+                # The collection datatype is not recognised or supported.
+                alg_datatype = None
+
+        if self.is_scalar:
+            self._init_scalar_properties(alg_datatype, alg_precision,
+                                         check)
+        elif self.is_field:
+            self._init_field_properties(alg_datatype, check)
+        elif self.is_operator:
+            self._init_operator_properties(alg_datatype, check)
+        else:
+            raise InternalError(
+                f"Supported argument types are scalar, field and operator, "
+                f"but the argument '{self.name}' in kernel "
+                f"'{self._call.name}' is none of these.")
+
+    def _init_scalar_properties(
+            self, alg_datatype, alg_precision, check=True):
+        '''Set up the properties of this scalar using algorithm datatype
+        information if it is available.
+
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param alg_precision: the precision of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_precision: str or NoneType
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        :raises InternalError: if the intrinsic type of the scalar is \
+            not supported.
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises GenerationError: if the datatype for a gh_scalar \
+            could not be found in the algorithm layer.
+        :raises NotImplementedError: if the scalar is a reduction and \
+            its intrinsic type is not real.
+        :raises GenerationError: if the scalar is a reduction and is \
+            not declared with default precision.
+
         '''
         const = LFRicConstants()
+        # Check the type of scalar defined in the metadata is supported.
+        if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
+            raise InternalError(
+                f"Expected one of {const.VALID_INTRINSIC_TYPES} intrinsic "
+                f"types for a scalar argument but found "
+                f"'{self.intrinsic_type}' in the metadata of kernel "
+                f"{self._call.name} for argument {self.name}.")
 
-        # All supported scalars have the same metadata, 'GH_SCALAR', so we
-        # check by their intrinsic type
-        if self.is_scalar:
+        # Check the metadata and algorithm types are consistent if
+        # the algorithm information is available and is not being ignored.
+        if check and alg_datatype and \
+           alg_datatype != self.intrinsic_type:
+            raise GenerationError(
+                f"The kernel metadata for argument '{self.name}' in "
+                f"kernel '{self._call.name}' specifies this argument "
+                f"should be a scalar of type '{self.intrinsic_type}' but "
+                f"in the algorithm layer it is defined as a "
+                f"'{alg_datatype}'.")
 
-            if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
-                raise InternalError(
-                    "Expected one of {0} intrinsic types for a scalar "
-                    "argument but found '{1}'.".
-                    format(const.VALID_INTRINSIC_TYPES, self.intrinsic_type))
-            if self.intrinsic_type == "real" and self.access in \
-               AccessType.get_valid_reduction_modes():
-                # Set 'real' scalar reduction properties as defined in
-                # the LFRic infrastructure
-                self._precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-                self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
-                self._proxy_data_type = const.DATA_TYPE_MAP[
-                    "reduction"]["proxy_type"]
-                self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        # If the algorithm information is not being ignored and
+        # the datatype is known in the algorithm layer and it is
+        # not a literal then its precision should also be defined.
+        if check and alg_datatype and not alg_precision and \
+           not self.is_literal:
+            raise GenerationError(
+                f"LFRic coding standards require scalars to have "
+                f"their precision defined in the algorithm layer but "
+                f"'{self.name}' in '{self._call.name}' does not.")
+
+        if self.access in AccessType.get_valid_reduction_modes():
+            # Treat reductions separately to other scalars as it
+            # is expected that they should match the precision of
+            # the field they are reducing. At the moment there is
+            # an assumption that the precision will always be a
+            # particular value (the default), see issue #1570.
+
+            # Only real reductions are supported.
+            if not self.intrinsic_type == "real":
+                raise NotImplementedError(
+                    "Reductions for datatypes other than real are not yet "
+                    "supported in PSyclone.")
+
+            expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
+            # If the algorithm information is not being ignored
+            # then check that the expected precision and the
+            # precision defined in the algorithn layer are
+            # the same.
+            if check and alg_precision and \
+               alg_precision != expected_precision:
+                raise GenerationError(
+                    f"This scalar is a reduction which assumes precision "
+                    f"of type '{expected_precision}' but the algorithm "
+                    f"declares this scalar with precision "
+                    f"'{alg_precision}'.")
+
+            # Use the default 'real' scalar reduction properties.
+            self._precision = expected_precision
+            self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
+            self._proxy_data_type = const.DATA_TYPE_MAP[
+                "reduction"]["proxy_type"]
+            self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        else:
+            # This is a scalar that is not part of a reduction.
+
+            if check and alg_precision:
+                # Use the algorithm precision if it is available
+                # and not being ignored.
+                self._precision = alg_precision
             else:
-                # Set read-only scalar precision
+                # Use default precision for this datatype if the
+                # algorithm precision is either not avaiable or is
+                # being ignored.
                 self._precision = const.SCALAR_PRECISION_MAP[
                     self.intrinsic_type]
 
-        # All supported fields have the same metadata, 'GH_FIELD', so we
-        # check by their intrinsic type
-        if self.is_field:
+    def _init_field_properties(self, alg_datatype, check=True):
+        '''Set up the properties of this field using algorithm datatype
+        information if it is available.
 
-            if self.intrinsic_type == "real":
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_field \
+            could not be found in the algorithm layer.
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises InternalError: if the intrinsic type of the field is \
+            not supported (i.e. is not real or integer).
+
+        '''
+        const = LFRicConstants()
+        argtype = None
+        # If the algorithm information is not being ignored then
+        # it must be available.
+        if check and not alg_datatype:
+            raise GenerationError(
+                f"It was not possible to determine the field type from "
+                f"the algorithm layer for argument '{self.name}' in "
+                f"kernel '{self._call.name}'.")
+
+        # If the algorithm information is not being ignored then
+        # check the metadata and algorithm type are consistent and
+        # that the metadata specifies a supported intrinsic type.
+        if self.intrinsic_type == "real":
+            if not check:
+                # Use the default as we are ignoring any algorithm info
                 argtype = "field"
-            elif self.intrinsic_type == "integer":
-                argtype = "integer_field"
+            elif alg_datatype == "field_type":
+                argtype = "field"
+            elif alg_datatype == "r_solver_field_type":
+                argtype = "r_solver_field"
             else:
-                raise InternalError(
-                    "Expected one of {0} intrinsic types for a field "
-                    "argument but found '{1}'.".
-                    format(const.VALID_FIELD_INTRINSIC_TYPES,
-                           self.intrinsic_type))
-            # Set field properties as defined in the LFRic infrastructure
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is a real "
+                    f"field, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
 
-        # All supported operators have the same intrinsic type, 'real', so we
-        # check by their argument type
-        if self.is_operator:
+        elif self.intrinsic_type == "integer":
+            if check and alg_datatype != "integer_field_type":
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is an "
+                    f"integer field, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+            argtype = "integer_field"
+        else:
+            raise InternalError(
+                f"Expected one of {const.VALID_FIELD_INTRINSIC_TYPES} "
+                f"intrinsic types for a field argument but found "
+                f"'{self.intrinsic_type}'.")
+        self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+        self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+        self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+        self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-            if self.argument_type == "gh_operator":
+    def _init_operator_properties(self, alg_datatype, check=True):
+        '''Set up the properties of this operator using algorithm datatype
+        information if it is available.
+
+        :param alg_datatype: the datatype of this argument as \
+            specified in the algorithm layer or None if it is not \
+            known.
+        :type alg_datatype: str or NoneType
+        :param bool check: whether to use the algorithm \
+            information. Optional argument that defaults to True.
+        :raises GenerationError: if the datatype for a gh_operator \
+            could not be found in the algorithm layer (and check is \
+            True).
+        :raises GenerationError: if the datatype specified in the \
+            algorithm layer is inconsistent with the kernel metadata.
+        :raises InternalError: if this argument is not an operator.
+
+        '''
+        const = LFRicConstants()
+        argtype = None
+        if self.argument_type == "gh_operator":
+            if not check:
+                # Use the default as we are ignoring any algorithm info
                 argtype = "operator"
-            elif self.argument_type == "gh_columnwise_operator":
-                argtype = "columnwise_operator"
+            elif not alg_datatype:
+                # Raise an exception as we require algorithm
+                # information to determine the precision of the
+                # operator
+                raise GenerationError(
+                    f"It was not possible to determine the operator type "
+                    f"from the algorithm layer for argument '{self.name}' "
+                    f"in kernel '{self._call.name}'.")
+            elif alg_datatype == "operator_type":
+                argtype = "operator"
+            elif alg_datatype == "r_solver_operator_type":
+                argtype = "r_solver_operator"
             else:
-                raise InternalError(
-                    "Expected 'gh_operator' or 'gh_columnwise_operator' "
-                    "argument type but found '{0}'.".
-                    format(self.argument_type))
-            # Set operator properties as defined in the LFRic infrastructure
-            self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
-            self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is an "
+                    f"operator, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+        elif self.argument_type == "gh_columnwise_operator":
+            if check and alg_datatype and \
+               alg_datatype != "columnwise_operator_type":
+                raise GenerationError(
+                    f"The metadata for argument '{self.name}' in kernel "
+                    f"'{self._call.name}' specifies that this is a "
+                    f"columnwise operator, however it is declared as a "
+                    f"'{alg_datatype}' in the algorithm code.")
+            argtype = "columnwise_operator"
+        else:
+            raise InternalError(
+                f"Expected 'gh_operator' or 'gh_columnwise_operator' "
+                f"argument type but found '{self.argument_type}'.")
+        self._data_type = const.DATA_TYPE_MAP[argtype]["type"]
+        self._precision = const.DATA_TYPE_MAP[argtype]["kind"]
+        self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
+        self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
     @property
     def is_scalar(self):
@@ -9402,18 +9758,12 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
-        const = LFRicConstants()
-
         # We want to put any Container symbols in the outermost scope so find
         # the corresponding symbol table.
         symbol_table = self._call.scope.symbol_table
         root_table = symbol_table
         while root_table.parent_symbol_table():
             root_table = root_table.parent_symbol_table()
-
-        proxy_str = ""
-        if proxy:
-            proxy_str = "_proxy"
 
         def _find_or_create_type(mod_name, type_name):
             '''
@@ -9439,27 +9789,18 @@ class DynKernelArgument(KernelArgument):
                         ))
 
         if self.is_scalar:
-
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
-                if self.access in AccessType.get_valid_reduction_modes():
-                    # Set 'real' scalar reduction properties as defined in
-                    # the LFRic infrastructure
-                    kind_name = const.DATA_TYPE_MAP["reduction"]["kind"]
-                else:
-                    # Set read-only 'real' scalar precision
-                    kind_name = const.SCALAR_PRECISION_MAP["real"]
                 prim_type = ScalarType.Intrinsic.REAL
             elif self.intrinsic_type == "integer":
-                kind_name = const.SCALAR_PRECISION_MAP["integer"]
                 prim_type = ScalarType.Intrinsic.INTEGER
             elif self.intrinsic_type == "logical":
-                kind_name = const.SCALAR_PRECISION_MAP["logical"]
                 prim_type = ScalarType.Intrinsic.BOOLEAN
             else:
                 raise NotImplementedError(
-                    "Unsupported scalar type '{0}'".format(
-                        self.intrinsic_type))
+                    f"Unsupported scalar type '{self.intrinsic_type}'")
+
+            kind_name = self.precision
             try:
                 kind_symbol = symbol_table.lookup(kind_name)
             except KeyError:
@@ -9480,45 +9821,18 @@ class DynKernelArgument(KernelArgument):
                 root_table.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
 
-        if self.is_field:
-
-            # Find or create the DataTypeSymbol for the appropriate field type.
-            if self.intrinsic_type == "real":
-                argtype = "field"
-            elif self.intrinsic_type == "integer":
-                argtype = "integer_field"
+        if self.is_field or self.is_operator:
+            # Find or create the DataTypeSymbol for the appropriate
+            # field or operator type.
+            mod_name = self._module_name
+            if proxy:
+                type_name = self._proxy_data_type
             else:
-                raise NotImplementedError(
-                    "Fields may only be of 'real' or 'integer' type but found "
-                    "'{0}'".format(self.intrinsic_type))
-
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
-            type_name = "{0}{1}_type".format(argtype, proxy_str)
-
-            return _find_or_create_type(mod_name, type_name)
-
-        if self.is_operator:
-
-            # Find or create the DataTypeSymbol for the appropriate operator
-            # type.
-            if self.argument_type == "gh_operator":
-                argtype = "operator"
-            elif self.argument_type == "gh_columnwise_operator":
-                argtype = "columnwise_operator"
-            else:
-                raise NotImplementedError(
-                    "Operators may only be of 'gh_operator' or 'gh_columnwise_"
-                    "operator' type but found '{0}'".format(
-                        self.argument_type))
-
-            mod_name = const.DATA_TYPE_MAP[argtype]["module"]
-            type_name = "{0}{1}_type".format(argtype, proxy_str)
-
+                type_name = self._data_type
             return _find_or_create_type(mod_name, type_name)
 
         raise NotImplementedError(
-            "'{0}' is not a scalar, field or operator argument"
-            "".format(str(self)))
+            f"'{str(self)}' is not a scalar, field or operator argument")
 
 
 class DynKernCallFactory(object):

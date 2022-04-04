@@ -111,6 +111,7 @@ def test_generate_adjoint_str_trans():
         "  real, dimension(10) :: c\n"
         "  integer :: i\n"
         "  real :: res_dot_product\n\n"
+        "  a = 0.0\n  b = 0.0\n  res_dot_product = 0.0\n"
         "  res_dot_product = res_dot_product + a\n"
         "  a = 0.0\n"
         "  do i = 10, 1, -1\n"
@@ -282,6 +283,7 @@ def test_generate_adjoint(fortran_reader):
     expected_ad_fortran_str = (
         "program test_adj\n"
         "  real :: a\n  real :: b\n  real :: c\n\n"
+        "  a = 0.0\n  b = 0.0\n  c = 0.0\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
@@ -310,6 +312,7 @@ def test_generate_adjoint_kind(fortran_reader):
         "  use kinds_mod, only : r_def\n"
         "  real(kind=r_def) :: a\n  real(kind=r_def) :: b\n  "
         "real(kind=r_def) :: c\n\n"
+        "  a = 0.0_r_def\n  b = 0.0_r_def\n  c = 0.0_r_def\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
@@ -344,15 +347,16 @@ def test_generate_adjoint_errors():
     assert ("The supplied PSyIR does not contain any routines." in
             str(err.value))
     # Multiple routines
-    symbol_table = cont.symbol_table
+    symbol_table = SymbolTable()
     symbol = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
     assignment = Assignment.create(
         Reference(symbol), Literal("0.0", REAL_TYPE))
-    cont.addchild(Routine.create("my_kern1", symbol_table, [assignment]))
-    assignment = Assignment.create(
-        Reference(symbol), Literal("0.0", REAL_TYPE))
-    cont.addchild(Routine.create("my_kern2", symbol_table, [assignment]))
+    routine1 = Routine.create("my_kern1", symbol_table, [assignment])
+    routine2 = routine1.copy()
+    routine2.name = "my_kern2"
+    cont.addchild(routine1)
+    cont.addchild(routine2)
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint(cont, [symbol.name])
     assert ("The supplied Fortran must contain one and only one routine but "

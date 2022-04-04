@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso, Bureau of Meteorology
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -63,7 +64,7 @@ class CreateNemoLoopTrans(Transformation):
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])
     >>> psyir.view()
-    FileContainer[None]
+    FileContainer[]
         Routine[name:'sub']
             0: Loop[type='lon', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

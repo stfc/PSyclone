@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -143,10 +143,10 @@ def test_containersymbol_str():
     '''Test that a ContainerSymbol instance can be stringified'''
 
     sym = ContainerSymbol("my_mod")
-    assert str(sym) == "my_mod: <not linked>"
+    assert str(sym) == "my_mod: ContainerSymbol<not linked>"
 
     sym._reference = Container("my_mod")
-    assert str(sym) == "my_mod: <linked>"
+    assert str(sym) == "my_mod: ContainerSymbol<linked>"
 
 
 def test_containersymbol_resolve_external_container(monkeypatch):

@@ -101,7 +101,27 @@ Raising Transformations for the LFRic API
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
 
-.. autoclass:: psyclone.domain.lfric.transformations.LFRicInvokeCallTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicRaiseCall2InvokeTrans
+
+Algorithm Transformations
+=========================
+
+In order to generate the transformed version of the algorithm with normal
+subroutine calls to PSy-layer routines, PSyclone provides a transformation that
+converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to an
+appropriate subroutine:
+
+.. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
+
+Algorithm Transformations for the LFRic API
+-------------------------------------------
+
+Since the LFRic API has the concept of Builtin kernels, there is more work
+to do when transforming an invoke into a call to a PSy layer routine and
+therefore there is a specialised class for this:
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
+
 
 OpenACC
 =======
@@ -152,16 +172,6 @@ PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
 Such code may then be executed on devices such as GPUs and FPGAs
 (Field-Programmable Gate Arrays).
-
-Since OpenCL code is very different to that which PSyclone
-normally generates, its creation is handled by ``gen_ocl`` methods
-instead of the normal ``gen_code``. There is work in progress to
-deprecate both of these generation methods and let the
-``psyclone.domain.gocean.transformations.GOOpenCLTrans``
-transformation handle the code modification entirely in PSyIR.
-However, for the time being the transformation only modifies part of
-the schedule and sets the  ``InvokeSchedule.opencl`` flag, which
-in turn triggers the ``gen_ocl`` path at generation time.
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an

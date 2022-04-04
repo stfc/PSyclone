@@ -595,7 +595,7 @@ def test_field_arg_lfricconst_properties(monkeypatch):
     const = LFRicConstants()
     monkeypatch.setattr(field_arg, "_intrinsic_type", "black")
     with pytest.raises(InternalError) as err:
-        field_arg._init_data_type_properties()
+        field_arg._init_data_type_properties(None, False)
     assert ("Expected one of {0} intrinsic types for a field "
             "argument but found 'black'.".
             format(const.VALID_FIELD_INTRINSIC_TYPES)) in str(err.value)
