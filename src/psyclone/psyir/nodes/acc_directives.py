@@ -106,10 +106,18 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         '''
         variables = set()
 
-        # Look-up the kernels that are children of this node
-        for call in self.kernels():
-            for arg in call.arguments.acc_args:
-                variables.add(arg)
+        try:
+            # Look-up the kernels that are children of this node
+            for call in self.kernels():
+                for arg in call.arguments.acc_args:
+                    variables.add(arg)
+        except AttributeError:
+            dep_tools = DependencyTools()
+            inputs, outputs = dep_tools.get_in_out_parameters(self.children)
+            for sig in (inputs + outputs):
+                for idx in range(len(sig)):
+                    # TODO this is Fortran specific
+                    variables.add("%".join(sig[:idx+1]))
         return variables
 
 
@@ -848,10 +856,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        if self._conditional:
-            condition = "if_present "
-        else:
-            condition = ""
+        condition = "if_present " if self._conditional else ""
         name_list = []
         for sig in self._sig_list:
             if sig.is_structure:
