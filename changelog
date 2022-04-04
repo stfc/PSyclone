@@ -12,6 +12,12 @@
 	5) PR #1628 for #1491. Extends PSyAD pre-processing phase to
 	expand any expressions involving active variables.
 
+	6) PR #1666 towards #1618. Modified prototype PSyIR-based
+	algorithm generation to use a transformation to convert from
+	invoke's to processed algorithm code, rather than it being done as
+	part of lowering in the backend. This allows algorithm code with
+	invoke's to be output by the backend.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
