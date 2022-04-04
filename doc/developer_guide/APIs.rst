@@ -893,6 +893,19 @@ qr_var        Quadrature argument name   	  `str`
 nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
 ============= =================================== ===================
 
+Precision
+---------
+
+The different types (kinds) of precision for scalar, fields and
+operators are specified in the `lfric_constants.py` file. Adding a new
+precision (kind) name to PSyclone for the lfric API should simply be a
+case of adding the appropriate entry to this file. Doing this will
+provide a working version, but, of course, it ignores any additional
+tests, an example and updating the documentation. The suggested
+approach here would be to search for an existing precision type
+e.g. r_tran and see where and how this is used in tests and examples
+and where it is mentioned in the documentation.
+
 Modifying the Schedule
 ----------------------
 

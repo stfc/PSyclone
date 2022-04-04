@@ -412,6 +412,8 @@ associated kernel metadata description and their precision:
 +--------------------------+------------------------+----------+	    
 | REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER |
 +--------------------------+------------------------+----------+	    
+| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN   |
++--------------------------+------------------------+----------+	    
 | INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF    |
 +--------------------------+------------------------+----------+	    
 | LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF    |
@@ -419,6 +421,8 @@ associated kernel metadata description and their precision:
 | FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF    |
 +--------------------------+------------------------+----------+	    
 | R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN   |
 +--------------------------+------------------------+----------+	    
 | INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF    |
 +--------------------------+------------------------+----------+	    
@@ -430,7 +434,7 @@ associated kernel metadata description and their precision:
 +--------------------------+------------------------+----------+	    
 
 As can be seen from the above table, the kernel metadata does not
-capture all of the precision options. In particular, from the metadata
+capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a `REAL` scalar, `REAL` field
 or `REAL` operator has precision `R_DEF` or `R_SOLVER`.
 
@@ -455,9 +459,10 @@ configuration and 64-bits in another:
 
   program test
 
-    use constants_mod, only : r_def, r_solver
-    use field_mod,     only : field_type, r_solver_field_type
-    use example_mod,   only : example_type
+    use constants_mod,      only : r_def, r_solver
+    use field_mod,          only : field_type
+    use r_solver_field_mod, only : r_solver_field_type
+    use example_mod,        only : example_type
 
     type(field_type)          :: field_r_def
     type(r_solver_field_type) :: field_r_solver
@@ -531,16 +536,18 @@ will abort with a message that indicates the problem.
 
 Supported field types are `field_type` (which contains `real` data
 with precision `r_def`), `r_solver_field_type` (which contains `real`
-data with precision `r_solver`) and `integer_field_type` (which
+data with precision `r_solver`), `r_tran_field_type` (which contains
+`real` data with precision `r_tran`) and `integer_field_type` (which
 contains `integer` data with precision `i_def`).
 
 Field Vectors
 +++++++++++++
 
 If PSyclone finds an argument that is declared as a
-`field_vector_type` or `r_solver_field_vector_type` it will assume
-that the actual field being referenced is of type `field_type` or
-`r_solver_field_type` respectively.
+`field_vector_type`, `r_solver_field_vector_type` or
+`r_tran_field_vector_type` it will assume that the actual field being
+referenced is of type `field_type`, `r_solver_field_type`, or
+`r_tran_field_type` respectively.
 
 If PSyclone finds an argument that is declared as an
 `abstract_field_type` then it will not know the actual type of the
@@ -593,10 +600,10 @@ no declaration information is found then default precision values are
 used, as specified in the PSyclone config file (`r_def` for real,
 `i_def` for integer and `l_def` for logical).
 
-Supported precisions for scalars are `r_def` and `r_solver` for real
-data, `i_def` for integer data and `l_def` for logical data. If an
-unsupported scalar precision is found then PSyclone will abort with a
-message that indicates the problem.
+Supported precisions for scalars are `r_def`, `r_solver` and `r_tran`
+for real data, `i_def` for integer data and `l_def` for logical
+data. If an unsupported scalar precision is found then PSyclone will
+abort with a message that indicates the problem.
 
 LMA Operators
 +++++++++++++
