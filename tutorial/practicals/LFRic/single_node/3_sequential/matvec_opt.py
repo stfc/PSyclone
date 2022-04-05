@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab.
+# Author: R. W. Ford STFC Daresbury Lab
 
 
 '''An example PSyclone transformation script to demonstrate
@@ -74,5 +74,5 @@ def trans(psy):
                 for bin_op in kernel_schedule.walk(BinaryOperation):
                     if bin_op.operator is BinaryOperation.Operator.MATMUL:
                         matmul2code_trans.apply(bin_op)
-                kernel_schedule.view()
+                print(kernel_schedule.view())
     return psy

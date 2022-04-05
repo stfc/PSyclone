@@ -171,7 +171,7 @@ node can be integrated and used in the PSyIR tree:
 
     >>> schedule.addchild(mynode)
 
-    >>> schedule.view()
+    >>> print(schedule.view())
     Schedule[]
         MyNodeName[]
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]

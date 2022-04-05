@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone via the -s option.
 It adds kernel extraction code to
@@ -79,5 +80,5 @@ def trans(psy):
                   {"create_driver": True,
                    "region_name": ("main", "update")})
 
-    schedule.view()
+    print(schedule.view())
     return psy

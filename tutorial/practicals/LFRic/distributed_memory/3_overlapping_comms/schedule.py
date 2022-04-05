@@ -17,4 +17,4 @@ def trans(psy):
     # Get the schedule (the PSyIR representation of the PSy-layer)
     schedule = invoke.schedule
     # Take a look at the PSy-layer PSyIR
-    schedule.view()
+    print(schedule.view())

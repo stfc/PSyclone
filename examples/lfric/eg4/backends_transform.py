@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option.
@@ -54,7 +55,7 @@ def trans(psy):
         schedule = invoke.schedule
 
         print("DSL level view:")
-        schedule.view()
+        print(schedule.view())
 
     print("f2pygen code:")
     print(str(psy.gen))
@@ -65,12 +66,12 @@ def trans(psy):
 
     for invoke in psy.invokes.invoke_list:
         # In-place lowering to Language-level PSyIR
-        schedule.symbol_table.view()
+        print(schedule.symbol_table.view())
         schedule.lower_to_language_level()
 
         print("")
         print("Language level view:")
-        schedule.view()
+        print(schedule.view())
 
     print("")
     print("FortranWriter code:")

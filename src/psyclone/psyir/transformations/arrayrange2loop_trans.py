@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ class ArrayRange2LoopTrans(Transformation):
     >>> from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     >>>     TransformationError
     >>>
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>> trans = ArrayRange2LoopTrans()
     >>> for assignment in schedule.walk(Assignment):
     >>>     while True:
@@ -76,7 +76,7 @@ class ArrayRange2LoopTrans(Transformation):
     >>>             trans.apply(assignment)
     >>>         except TransformationError:
     >>>             break
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
 
