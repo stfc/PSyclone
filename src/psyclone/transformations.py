@@ -349,7 +349,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
@@ -366,7 +366,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # Ensure loop dependencies are satisfied
     >>> taskwaittrans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
     def __init__(self, grainsize=None, num_tasks=None, nogroup=False):
@@ -1006,7 +1006,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>> new_schedule = schedule
     >>>
     # Apply the OpenACC Loop transformation to *every* loop
@@ -1103,13 +1103,13 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>> psy = PSyFactory("dynamo0.3").create(invokeInfo)
         >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> # Uncomment the following line to see a text view of the schedule
-        >>> # schedule.view()
+        >>> # print(schedule.view())
         >>>
         >>> from psyclone.transformations import OMPParallelLoopTrans
         >>> trans = OMPParallelLoopTrans()
         >>> trans.apply(schedule.children[0])
         >>> # Uncomment the following line to see a text view of the schedule
-        >>> # schedule.view()
+        >>> # print(schedule.view())
 
     '''
     def __str__(self):
@@ -1353,7 +1353,7 @@ class ColourTrans(LoopTrans):
     >>>     ctrans.apply(child)
     >>>
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
     def __str__(self):
@@ -1416,7 +1416,7 @@ class KernelModuleInlineTrans(KernelTrans):
     >>>
     >>> inline_trans.apply(schedule.children[0].loop_body[0])
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     .. warning ::
         For this transformation to work correctly, the Kernel subroutine
@@ -1502,7 +1502,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>>     otrans.apply(child.children[0])
     >>>
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     Colouring in the LFRic (Dynamo 0.3) API is subject to the following rules:
 
@@ -1732,7 +1732,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
@@ -1741,7 +1741,7 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1863,7 +1863,7 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # MASTER region
@@ -1872,7 +1872,7 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1917,7 +1917,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
@@ -1928,7 +1928,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> # PARALLEL region
     >>> rtrans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1994,14 +1994,14 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
     >>> ptrans.apply(schedule.children)
     >>> # Add an enter-data directive
     >>> dtrans.apply(schedule)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
@@ -2034,14 +2034,14 @@ class MoveTrans(Transformation):
     >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
     >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> from psyclone.transformations import MoveTrans
     >>> trans=MoveTrans()
     >>> trans.apply(schedule.children[0], schedule.children[2],
     ...             options = {"position":"after")
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     Nodes may only be moved to a new location with the same parent
     and must not break any dependencies otherwise an exception is
@@ -2365,13 +2365,13 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
     >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
     >>> trans.apply(schedule.children[0])
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     '''
 
@@ -2452,14 +2452,16 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
     >>> trans = Dynamo0p3KernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
     >>>     trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
-    >>>     kernel_schedule.symbol_table.view()
+    >>>     # Uncomment the following line to see a text view of the
+    >>>     # symbol table
+    >>>     # print(kernel_schedule.symbol_table.view())
 
     '''
 
@@ -2778,12 +2780,12 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Add an enter-data directive
     >>> dtrans.apply(schedule)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
 
     ...
 
@@ -2887,7 +2889,7 @@ class ACCRoutineTrans(Transformation):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
@@ -3008,7 +3010,7 @@ class ACCKernelsTrans(RegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Transform the kernel
     >>> ktrans.apply(kernels)
@@ -3120,7 +3122,7 @@ class ACCDataTrans(RegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Enclose the kernels
     >>> dtrans.apply(kernels)

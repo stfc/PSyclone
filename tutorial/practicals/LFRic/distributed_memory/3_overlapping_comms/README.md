@@ -47,7 +47,7 @@ you determine the position of the particular nodes in the tree.
 
 Take a look at the provided `schedule.py` script file. The `schedule` variable
 in the script is the root of the tree (which is why
-`schedule.view()` prints out a view of the whole schedule). You will
+`schedule.view()` provides a view of the whole schedule). You will
 need to traverse this tree to get to the halo exchanges and then apply
 the transformation to the appropriate nodes.
 
@@ -126,7 +126,7 @@ def trans(psy):
     schedule = invoke.schedule
     for hex_node in schedule.walk(DynHaloExchange):
         async_hex.apply(hex_node)
-    schedule.view()
+    print(schedule.view())
 ```
 
 You are now ready to transform the code. Run your script:

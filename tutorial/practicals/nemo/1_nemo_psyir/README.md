@@ -268,7 +268,7 @@ source code.
    which Fortran loop body this corresponds to, e.g.:
 
    ```python
-   kernels[0].view()
+   print(kernels[0].view())
    ```
 
 ## 4. Conclusion

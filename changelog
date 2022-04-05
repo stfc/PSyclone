@@ -18,6 +18,10 @@
 	part of lowering in the backend. This allows algorithm code with
 	invoke's to be output by the backend.
 
+	7) PR #1613 for #1238 and #1528. Improves the view() method so that
+	it returns a str rather than printing to stdout. Also allows colour
+	to be disabled.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-

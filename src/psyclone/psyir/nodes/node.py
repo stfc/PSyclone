@@ -40,16 +40,11 @@
 This module contains the abstract Node implementation.
 
 '''
-from __future__ import print_function
-
 import copy
 import six
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
-
-# Default indentation string
-INDENTATION_STRING = "    "
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -797,41 +792,59 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def view(self, indent=0, index=None):
-        ''' Print out description of current node to stdout and
-        then call view() on all child nodes.
+    def view(self, depth=0, colour=True, indent="    ", _index=None):
+        '''Output a human readable description of the current node and all of
+        its descendents as a string.
 
-        :param int indent: depth of indent for output text.
-        :param int index: the position of this Node wrt its siblings or None.
+        :param int depth: depth of the tree hierarchy for output \
+            text. Defaults to 0.
+        :param bool colour: whether to include colour coding in the \
+            output. Defaults to True.
+        :param str indent: the indent to apply as the depth \
+            increases. Defaults to 4 spaces.
+        :param int _index: the position of this node wrt its siblings \
+            or None. Defaults to None.
 
-        '''
-        from psyclone.psyir.nodes import Schedule
-        if not isinstance(self.parent, Schedule) or index is None:
-            result = "{0}{1}".format(self.indent(indent),
-                                     self.node_str(colour=True))
-        else:
-            result = "{0}{1}: {2}".format(self.indent(indent), index,
-                                          self.node_str(colour=True))
-        print(six.text_type(result))
-        for idx, entity in enumerate(self._children):
-            entity.view(indent=indent + 1, index=idx)
-
-    @staticmethod
-    def indent(count, indent=INDENTATION_STRING):
-        '''
-        Helper function to produce indentation strings.
-
-        :param int count: Number of indentation levels.
-        :param str indent: String representing one indentation level.
-        :returns: Complete indentation string.
+        :returns: a representation of this node and its descendents.
         :rtype: str
-        '''
-        return count * indent
 
-    def list(self, indent=0):
-        result = ""
-        for entity in self._children:
-            result += str(entity)+"\n"
+        :raises TypeError: if one of the arguments is the wrong type.
+        :raises ValueError: if the depth argument is negative.
+
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Schedule
+
+        if not isinstance(depth, int):
+            raise TypeError(
+                f"depth argument should be an int but found "
+                f"{type(depth).__name__}.")
+        if depth < 0:
+            raise ValueError(
+                f"depth argument should be a positive integer but "
+                f"found {depth}.")
+        if not isinstance(colour, bool):
+            raise TypeError(
+                f"colour argument should be a bool but found "
+                f"{type(colour).__name__}.")
+        if not isinstance(indent, str):
+            raise TypeError(
+                f"indent argument should be a str but found "
+                f"{type(indent).__name__}.")
+
+        full_indent = depth*indent
+        description = self.node_str(colour=colour)
+        if not isinstance(self.parent, Schedule) or _index is None:
+            result = f"{full_indent}{description}\n"
+        else:
+            result = f"{full_indent}{_index}: {description}\n"
+        children_result_list = []
+        for idx, node in enumerate(self._children):
+            children_result_list.append(
+                node.view(
+                    depth=depth + 1, _index=idx, colour=colour, indent=indent))
+        result = result + "".join(children_result_list)
         return result
 
     def addchild(self, child, index=None):

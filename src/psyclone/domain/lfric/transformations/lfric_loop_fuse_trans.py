@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
     >>> ftrans =  LFRicLoopFuseTrans()
     >>>
     >>> ftrans.apply(schedule[0], schedule[1])
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     The optional argument `same_space` can be set as
 
