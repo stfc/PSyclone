@@ -1558,7 +1558,7 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy0%data)
-        lhs = arg_refs[1]
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
                                      scalar_args[0], lhs.copy())
         assign = Assignment.create(lhs, rhs)
@@ -1622,7 +1622,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy0%data)
-        lhs = arg_refs[1]
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
                                      scalar_args[0], lhs.copy())
         assign = Assignment.create(lhs, rhs)
