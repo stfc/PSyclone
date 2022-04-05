@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -369,6 +370,26 @@ class Node(object):
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. The basic implementation of this
+        checks whether the nodes are the same type, and whether all children
+        of the nodes are equal, and if so then
+        they are considered equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        super().__eq__(other)
+        is_eq = type(self) is type(other)
+        is_eq = is_eq and (len(self.children) == len(other.children))
+        for index, child in enumerate(self.children):
+            is_eq = is_eq and child == other.children[index]
+
+        return is_eq
 
     @staticmethod
     def _validate_child(position, child):
@@ -903,7 +924,9 @@ class Node(object):
         '''
         if self.parent is None:
             return self.START_POSITION
-        return self.parent.children.index(self)
+        for index, child in enumerate(self.parent.children):
+            if child is self:
+                return index
 
     @property
     def abs_position(self):
@@ -918,7 +941,7 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found.
 
         '''
-        if self.root == self:
+        if self.root is self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
@@ -952,7 +975,7 @@ class Node(object):
                 "instead of {1}.".format(position, self.START_POSITION))
         for child in children:
             position += 1
-            if child == self:
+            if child is self:
                 return True, position
             if child.children:
                 found, position = self._find_position(child.children, position)
@@ -978,14 +1001,14 @@ class Node(object):
         return node
 
     def sameRoot(self, node_2):
-        if self.root == node_2.root:
+        if self.root is node_2.root:
             return True
         return False
 
     def sameParent(self, node_2):
         if self.parent is None or node_2.parent is None:
             return False
-        if self.parent == node_2.parent:
+        if self.parent is node_2.parent:
             return True
         return False
 
@@ -1104,7 +1127,12 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        position = all_nodes.index(self)
+        position = None
+        for index, node in enumerate(all_nodes):
+            if node is self:
+                position = index
+                break
+
         return all_nodes[position+1:]
 
     def preceding(self, reverse=False, routine=True):
@@ -1138,7 +1166,11 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        position = all_nodes.index(self)
+        position = None
+        for index, node in enumerate(all_nodes):
+            if node is self:
+                position = index
+                break
         nodes = all_nodes[:position]
         if reverse:
             nodes.reverse()
@@ -1291,7 +1323,8 @@ class Node(object):
 
         '''
         if self.parent:
-            self.parent.children.remove(self)
+            index = self.position
+            self.parent.children.pop(index)
         return self
 
     def _refine_copy(self, other):
