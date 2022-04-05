@@ -99,21 +99,6 @@ class ArrayReference(ArrayMixin, Reference):
             array.addchild(child)
         return array
 
-    def __eq__(self, other):
-        '''
-        Checks whether two nodes are equal. Two ArrayReference nodes are equal
-        if they have the same children (inherited check from parent) and the
-        same symbol.
-
-        :param object other: the object to check equality to.
-
-        :returns: whether other is equal to self.
-        :rtype: bool
-        '''
-        is_eq = super().__eq__(other)
-        is_eq = is_eq and self.symbol == other.symbol
-        return is_eq
-
     def __str__(self):
         result = super(ArrayReference, self).__str__() + "\n"
         for entity in self._children:

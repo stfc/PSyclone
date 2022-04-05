@@ -235,7 +235,7 @@ def test_literal_equality():
     literal = Literal("1", INTEGER_SINGLE_TYPE)
     literal2 = Literal("1", INTEGER_SINGLE_TYPE)
     literal3 = Literal("10", INTEGER_SINGLE_TYPE)
-    literal4 = Literal("10.0", REAL_DOUBLE_TYPE)
+    literal4 = Literal("1", REAL_DOUBLE_TYPE)
 
     assert literal == literal2
     assert literal != literal3

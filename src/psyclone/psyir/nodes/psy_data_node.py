@@ -201,9 +201,9 @@ class PSyDataNode(Statement):
         equal if they are the same type, and have the same prefix, var_name,
         module_name and region_name.
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super().__eq__(other)

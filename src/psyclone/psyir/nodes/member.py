@@ -89,9 +89,9 @@ class Member(Node):
         Members are assumed to be equivalent if they have the same
         component name associated with them, and are the same type.
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super().__eq__(other)

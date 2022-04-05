@@ -122,9 +122,9 @@ class Literal(DataNode):
         equal if they are the same type, and have the same datatype and
         value string (for now only compared with ==).
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super().__eq__(other)

@@ -71,9 +71,9 @@ class Reference(DataNode):
         equivalent if they are the same type of Reference and their symbol
         is the same.
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super().__eq__(other)

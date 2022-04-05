@@ -74,9 +74,9 @@ class Container(ScopingNode, CommentableMixin):
         '''Checks the equality of this Container with other. Containers are
         equal if they are the same type, and have the same name.
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super().__eq__(other)

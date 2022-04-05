@@ -55,3 +55,7 @@ def test_extract_node_equality():
 
     assert node1 == node2
     assert node1 != node3
+
+    node1._post_name = "testa"
+    node2._post_name = "testb"
+    assert node1 != node2

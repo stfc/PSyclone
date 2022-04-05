@@ -72,9 +72,9 @@ class ScopingNode(Node):
         Checks whether two nodes are equal. Scoping nodes are equal if their
         symbol tables are equal.
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super().__eq__(other)

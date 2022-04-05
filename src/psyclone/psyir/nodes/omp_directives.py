@@ -894,9 +894,8 @@ class OMPDoDirective(OMPRegionDirective):
 
     @property
     def omp_schedule(self):
-        ''' returns the omp_schedule for this object.
-
-        :returns: The omp_schedule for this object.
+        '''
+        :returns: the omp_schedule for this object.
         :rtype: str
         '''
         return self._omp_schedule

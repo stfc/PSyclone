@@ -120,7 +120,7 @@ class ExtractNode(PSyDataNode):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.extract_body == other.extract_body
+        is_eq = is_eq and self.post_name == other.post_name
         return is_eq
 
     @property
@@ -131,6 +131,14 @@ class ExtractNode(PSyDataNode):
 
         '''
         return super(ExtractNode, self).psy_data_body
+
+    @property
+    def post_name(self):
+        '''
+        :returns: the _post_name member of this ExtractNode.
+        :rtype: str
+        '''
+        return self._post_name
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ

@@ -86,9 +86,9 @@ class Operation(DataNode):
         if they are the same type, have the same operator and if the inherited
         equality is True.
 
-        :param object other: The object to check equality to
+        :param object other: the object to check equality to.
 
-        :returns: Whether other is equal to self.
+        :returns: whether other is equal to self.
         :rtype: bool
         '''
         is_eq = super(Operation, self).__eq__(other)
