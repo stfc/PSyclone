@@ -1441,7 +1441,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Sum real field elements ============================ #
+# ============== Sum of real field elements ========================= #
 # ------------------------------------------------------------------- #
 
 
@@ -1500,6 +1500,135 @@ class LFRicSignXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+
+
+# ------------------------------------------------------------------- #
+# ============== Maximum of (real scalar, real field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMaxAXKern(LFRicBuiltIn):
+    ''' Returns the maximum of a real scalar and real-valued field
+    elements using the Fortran intrinsic `max` function. The result
+    is stored as another, real-valued, field:`Y = max(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: max_aX (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MAX(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncMaxAXKern(LFRicBuiltIn):
+    ''' Returns the maximum of a real scalar and real-valued field
+    elements using the Fortran intrinsic `max` function. The result
+    is stored in the same, real-valued, field:`X = max(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_max_aX (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MAX(ascalar, proxy0%data)
+        lhs = arg_refs[1]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+# ------------------------------------------------------------------- #
+# ============== Minimum of (real scalar, real field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMinAXKern(LFRicBuiltIn):
+    ''' Returns the minimum of a real scalar and real-valued field
+    elements using the Fortran intrinsic `min` function. The result
+    is stored as another, real-valued, field:`Y = min(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: min_aX (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MIN(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncMinAXKern(LFRicBuiltIn):
+    ''' Returns the minimum of a real scalar and real-valued field
+    elements using the Fortran intrinsic `min` function. The result
+    is stored in the same, real-valued, field:`X = min(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_min_aX (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MIN(ascalar, proxy0%data)
+        lhs = arg_refs[1]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -1731,6 +1860,62 @@ class LFRicIntSignXKern(LFRicSignXKern):
 
 
 # ------------------------------------------------------------------- #
+# ======== Maximum of (integer scalar, integer field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntMaxAXKern(LFRicMaxAXKern):
+    ''' Returns the maximum of an integer scalar and integer-valued
+    field elements using the Fortran intrinsic `max` function. The
+    result is stored as another, integer-valued, field:`Y = max(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicMaxAXKern`.
+    '''
+    def __str__(self):
+        return "Built-in: int_max_aX (integer-valued fields)"
+
+
+class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
+    ''' Returns the maximum of an integer scalar and integer-valued
+    field elements using the Fortran intrinsic `max` function. The
+    result is stored in the same, integer-valued, field:`X = max(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncMaxAXKern`.
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_max_aX (integer-valued field)"
+
+
+# ------------------------------------------------------------------- #
+# ======== Minimum of (integer scalar, integer field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntMinAXKern(LFRicMinAXKern):
+    ''' Returns the minimum of an integer scalar and integer-valued
+    field elements using the Fortran intrinsic `min` function. The
+    result is stored as another, integer-valued, field:`Y = min(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicMinAXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_min_aX (integer-valued fields)"
+
+
+class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
+    ''' Returns the minimum of an integer scalar and integer-valued
+    field elements using the Fortran intrinsic `min` function. The
+    result is stored in the same, integer-valued, field:`X = min(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncMinAXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_min_aX (integer-valued field)"
+
+
+# ------------------------------------------------------------------- #
 # ============== Converting integer to real field elements ========== #
 # ------------------------------------------------------------------- #
 
@@ -1802,6 +1987,12 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "sum_X": LFRicSumXKern,
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
+    # Maximum of a real scalar value and real field elements
+    "max_aX": LFRicMaxAXKern,
+    "inc_max_aX": LFRicIncMaxAXKern,
+    # Minimum of a real scalar value and real field elements
+    "min_aX": LFRicMinAXKern,
+    "inc_min_aX": LFRicIncMinAXKern,
     # Converting real to integer field elements
     "int_X": LFRicIntXKern}
 
@@ -1829,6 +2020,12 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_setval_X": LFRicIntSetvalXKern,
     # Sign of integer field elements applied to a scalar value
     "int_sign_X": LFRicIntSignXKern,
+    # Maximum of an integer scalar value and integer field elements
+    "int_max_aX": LFRicIntMaxAXKern,
+    "int_inc_max_aX": LFRicIntIncMaxAXKern,
+    # Minimum of an integer scalar value and integer field elements
+    "int_min_aX": LFRicIntMinAXKern,
+    "int_inc_min_aX": LFRicIntIncMinAXKern,
     # Converting integer to real field elements
     "real_X": LFRicRealXKern}
 
