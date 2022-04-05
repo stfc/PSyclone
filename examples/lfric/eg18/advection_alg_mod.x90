@@ -39,8 +39,8 @@
 ! -----------------------------------------------------------------------------
 ! Modified: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
-! Example algorithm that invokes one kernel that has a GH_READINC access
-! and another that has a GH_WRITE access, both for fields on continuous
+! Example algorithm that invokes one kernel that has a 'GH_READINC' access
+! and another that has a 'GH_WRITE' access, both for fields on continuous
 ! function spaces.
 module advection_alg_mod
 
@@ -64,7 +64,7 @@ module advection_alg_mod
 
   call invoke( impose_min_flux_kernel_type(field, mass_flux_i,         &
                                div, mm_w3_inv, 0.0_r_def, dt_substep), &
-	       testkern_write_any_type(field, mass_flux_i) )
+               testkern_write_any_type(field, mass_flux_i) )
 
 end subroutine advection_alg
 

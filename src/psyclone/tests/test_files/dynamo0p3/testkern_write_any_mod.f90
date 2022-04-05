@@ -72,10 +72,10 @@ contains
     integer(kind=i_def), intent(in) :: ndf_aspc1
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: undf_aspc1, undf_w2
-    integer(kind=i_def), intent(in), dimension(ndf_aspc1)  :: map_aspc1
-    integer(kind=i_def), intent(in), dimension(ndf_w2)     :: map_w2
-    real(kind=r_def), intent(out), dimension(undf_aspc1)   :: field1
-    real(kind=r_def), intent(in), dimension(undf_w2)       :: field2
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_w2)    :: map_w2
+    real(kind=r_def), intent(out), dimension(undf_aspc1)  :: field1
+    real(kind=r_def), intent(in), dimension(undf_w2)      :: field2
 
   end subroutine testkern_write_any_code
 

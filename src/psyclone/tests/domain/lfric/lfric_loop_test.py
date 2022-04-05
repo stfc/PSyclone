@@ -65,7 +65,9 @@ TEST_API = "dynamo0.3"
 
 def test_constructor_invalid_loop_type(monkeypatch):
     ''' Check that the constructor raises the expected errors when an invalid
-    loop type is specified. '''
+    loop type is specified.
+
+    '''
     # An invalid type should be caught by the setter in the base Loop class.
     with pytest.raises(GenerationError) as err:
         DynLoop(loop_type="wrong")
@@ -83,7 +85,9 @@ def test_constructor_invalid_loop_type(monkeypatch):
 
 def test_set_lower_bound_functions():
     ''' Test that we raise appropriate exceptions when the lower bound of
-    a DynLoop is set to invalid values. '''
+    a DynLoop is set to invalid values.
+
+    '''
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -98,7 +102,9 @@ def test_set_lower_bound_functions():
 
 def test_set_upper_bound_functions():
     ''' Test that we raise appropriate exceptions when the upper bound of
-    a DynLoop is set to invalid values. '''
+    a DynLoop is set to invalid values.
+
+    '''
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -116,7 +122,9 @@ def test_set_upper_bound_functions():
 
 def test_lower_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
-    method - first GenerationError'''
+    method - first GenerationError.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -130,7 +138,9 @@ def test_lower_bound_fortran_1():
 
 def test_lower_bound_fortran_2(monkeypatch):
     ''' Tests we raise an exception in the DynLoop:_lower_bound_fortran()
-    method - second GenerationError. '''
+    method - second GenerationError.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -150,7 +160,9 @@ def test_lower_bound_fortran_2(monkeypatch):
                           ("cell_halo", 1, "ncells_cell()"),
                           ("cell_halo", 10, "cell_halo_cell(9)")])
 def test_lower_bound_fortran_3(monkeypatch, name, index, output):
-    ''' Test _lower_bound_fortran() with multiple valid iteration spaces. '''
+    ''' Test _lower_bound_fortran() with multiple valid iteration spaces.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -163,7 +175,9 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
 
 
 def test_mesh_name():
-    ''' Tests for the _mesh_name property of DynLoop. '''
+    ''' Tests for the _mesh_name property of DynLoop.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -175,7 +189,9 @@ def test_mesh_name():
 
 
 def test_mesh_name_intergrid():
-    ''' Tests for the _mesh_name property of DynLoop. '''
+    ''' Tests for the _mesh_name property of DynLoop.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
@@ -189,7 +205,9 @@ def test_mesh_name_intergrid():
 
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
-    method when 'cell_halo', 'dof_halo' or 'inner' are used'''
+    method when 'cell_halo', 'dof_halo' or 'inner' are used.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -206,7 +224,9 @@ def test_upper_bound_fortran_1():
 
 def test_upper_bound_fortran_2(monkeypatch):
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
-    method if an invalid value is provided'''
+    method if an invalid value is provided.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -227,7 +247,9 @@ def test_upper_bound_fortran_2(monkeypatch):
 
 def test_upper_bound_inner(monkeypatch):
     ''' Check that we get the correct Fortran generated if a loop's upper
-    bound is "inner". '''
+    bound is "inner".
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -239,7 +261,9 @@ def test_upper_bound_inner(monkeypatch):
 
 def test_upper_bound_ncolour(dist_mem):
     ''' Check that we get the correct Fortran for the upper bound of a
-    coloured loop. '''
+    coloured loop.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
@@ -267,7 +291,9 @@ def test_upper_bound_ncolour(dist_mem):
 
 def test_upper_bound_ncolour_intergrid(dist_mem):
     ''' Check that we get the correct Fortran for a coloured loop's upper bound
-    if it contains an inter-grid kernel. '''
+    if it contains an inter-grid kernel.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
@@ -298,7 +324,9 @@ def test_upper_bound_ncolour_intergrid(dist_mem):
 
 def test_loop_start_expr(dist_mem):
     ''' Test that the start_expr property returns the expected reference
-    to a symbol. '''
+    to a symbol.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
@@ -313,7 +341,9 @@ def test_loop_start_expr(dist_mem):
 
 
 def test_loop_stop_expr(dist_mem):
-    ''' Test the stop_expr property of a loop with and without colouring. '''
+    ''' Test the stop_expr property of a loop with and without colouring.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
@@ -348,7 +378,9 @@ def test_loop_stop_expr(dist_mem):
 
 def test_loop_stop_expr_intergrid(dist_mem):
     ''' Test the stop_expr property for a loop containing an
-    inter-grid kernel. '''
+    inter-grid kernel.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
@@ -384,7 +416,9 @@ def test_loop_stop_expr_intergrid(dist_mem):
 
 def test_lfricloop_gen_code_err():
     ''' Test that the gen_code method raises the expected exception if the loop
-    type is 'colours' and is within an OpenMP parallel region. '''
+    type is 'colours' and is within an OpenMP parallel region.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -446,7 +480,7 @@ def test_dynloop_load_unexpected_func_space():
 
 def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
     ''' Test that the load() method sets the loop bounds correctly when
-    supplied with a Builtin kernel. We test with both possible settings of
+    supplied with a Built-in kernel. We test with both possible settings of
     api_config.compute_annexed_dofs.
 
     '''
@@ -457,7 +491,7 @@ def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
         os.path.join(BASE_PATH, "15.1.2_builtin_and_normal_kernel_invoke.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    # Now get access to the DynLoop and its associated Builtin kernel.
+    # Now get access to the DynLoop and its associated Built-in kernel.
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.walk(DynLoop)[0]
     kernel = loop.loop_body[0]
@@ -472,7 +506,9 @@ def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
 def test_loop_load_bound_names_continuous(dist_mem):
     ''' Test that the load() method sets the loop bounds names as
     expected when given a user-supplied kernel that updates fields on
-    continuous function spaces. '''
+    continuous function spaces.
+
+    '''
     # First create a working instance of the DynLoop class.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"), api=TEST_API)
@@ -511,7 +547,9 @@ def test_loop_load_bound_names_continuous(dist_mem):
 def test_loop_load_bound_names_anyspace(dist_mem):
     ''' Test that the load() method sets the loop bounds names as
     expected when given a user-supplied kernel that updates fields on
-    unknown ('anyspace') function spaces. '''
+    unknown ('any_space') function spaces.
+
+    '''
     # First create a working instance of the DynLoop class.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11_any_space.f90"), api=TEST_API)
@@ -607,7 +645,9 @@ def test_itn_space_fld_and_op_writers(tmpdir):
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
     of args. (Loop must include L1 halo because we're writing to an
-    operator.) '''
+    operator.)
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.2_single_invoke_write_fld_op.f90"),
         api=TEST_API)
@@ -706,7 +746,9 @@ def test_no_halo_for_discontinuous(tmpdir):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinuous field and there are no
-    stencil accesses '''
+    stencil accesses.
+
+    '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w2v.f90"),
                     api=TEST_API)
@@ -831,6 +873,7 @@ def test_dynloop_halo_read_access_error2(monkeypatch):
 def test_null_loop():
     ''' Check that we can create a 'null'-type loop and that the validation
     check in the load() method behaves as expected.
+
     '''
     loop = DynLoop(loop_type="null")
     assert loop.loop_type == "null"

@@ -82,6 +82,64 @@ def setup():
     Config._instance = None
 
 
+def test_colour_trans_create_colours_loop(dist_mem):
+    '''
+    Test the _create_colours_loop() method of Dynamo0p3ColourTrans.
+    We test with and without distributed memory and for the case where
+    the kernel has a GH_WRITE access to a continuous field. (The latter
+    is a special case as it does not require a halo access.)
+
+    '''
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type",
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+    loop = schedule.walk(Loop)[0]
+    kernel = loop.loop_body[0]
+
+    new_loop = ctrans._create_colours_loop(loop)
+    assert isinstance(new_loop, DynLoop)
+    assert new_loop.loop_type == "colours"
+    colour_loop = new_loop.loop_body[0]
+    assert isinstance(colour_loop, DynLoop)
+    assert colour_loop.loop_type == "colour"
+    assert new_loop.field_space == loop.field_space
+    assert colour_loop.field_space == loop.field_space
+    assert colour_loop.field_name == loop.field_name
+    assert new_loop._lower_bound_name == "start"
+    assert new_loop._upper_bound_name == "ncolours"
+    assert colour_loop._lower_bound_name == "start"
+    if dist_mem:
+        # Since the kernel has a GH_INC access we need to loop into the
+        # halo.
+        assert colour_loop._upper_bound_name == "colour_halo"
+    else:
+        assert colour_loop._upper_bound_name == "ncolour"
+
+    # Modify one GH_INC to be GH_WRITE. Since there is still a GH_INC this
+    # should have no effect - we still need to loop into the halo if DM
+    # is enabled.
+    kernel.args[2]._access = AccessType.WRITE
+    new_loop1 = DynLoop(parent=schedule)
+    new_loop1.load(kernel)
+    new_cloop = ctrans._create_colours_loop(new_loop1)
+    colour_loop = new_cloop.loop_body[0]
+    if dist_mem:
+        assert colour_loop._upper_bound_name == "colour_halo"
+    else:
+        assert colour_loop._upper_bound_name == "ncolour"
+
+    # Finally, change the remaining GH_INC access to be GH_WRITE. We no
+    # longer need to loop into the halo.
+    kernel.args[1]._access = AccessType.WRITE
+    new_loop1 = DynLoop(parent=schedule)
+    new_loop1.load(kernel)
+    new_cloop = ctrans._create_colours_loop(new_loop1)
+    colour_loop = new_cloop.loop_body[0]
+    assert colour_loop._upper_bound_name == "ncolour"
+
+
 def test_colour_trans_declarations(tmpdir, dist_mem):
     ''' Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory

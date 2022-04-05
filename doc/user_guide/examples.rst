@@ -605,14 +605,14 @@ the field data. This contrasts with a ``GH_INC`` access which simply
 increments the field data. As an increment is effectively a read
 followed by a write, it may not be clear why we need to distinguish
 between these cases. The reason for distinguishing is that the
-``GH_INC`` access is able to remove a halo exchange, or at least
-reduce its depth by one, in certain circumstances, whereas a
+``GH_INC`` access is able to remove a halo exchange (or at least
+reduce its depth by one) in certain circumstances, whereas a
 ``GH_READINC`` is not able to take advantage of this optimisation.
 
-A kernel with ``GH_WRITE`` for a continuous field must guarantee to
-write the same value to a given shared dof, independent of which cell
+A kernel with a ``GH_WRITE`` access for a continuous field must guarantee to
+write the same value to a given shared DoF, independent of which cell
 is being updated. As :ref:`described <dev_guide:iterators_continuous>`
-in the Developer Guide, this means that annexed dofs are computed
+in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.
 

@@ -1506,7 +1506,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     Colouring in the LFRic (Dynamo 0.3) API is subject to the following rules:
 
-    * Only kernels with an iteration space of CELLS and which increment a
+    * Only kernels which operate on CELL_COLUMNs and which increment a
       continuous field require colouring. Kernels that update a discontinuous
       field will cause this transformation to raise an exception. Kernels that
       only write a continuous field also do not require colouring but are
@@ -1568,8 +1568,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     def _create_colours_loop(self, node):
         '''
-        Creates a nested loop (colours, and cells of a given colour) to
-        replace the supplied loop over cells.
+        Creates a nested loop (colours, and cells of a given colour) which
+        can be used to replace the supplied loop over cells.
 
         :param node: the loop for which to create a coloured version.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -1579,7 +1579,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # Create a colours loop. This loops over colours and must be run
-        # sequentially
+        # sequentially.
         colours_loop = node.__class__(parent=node.parent, loop_type="colours")
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space

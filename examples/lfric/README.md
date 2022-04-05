@@ -355,7 +355,7 @@ invalid).
 
 ``GH_WRITE`` when used for a continuous field means that the kernel
 guarantees to write the same value to a given shared entity, independent
-of which cell is currently being updated. This means that annexed dofs
+of which cell is currently being updated. This means that annexed DoFs
 on owned cells will be correctly computed without the need to iterate
 into the L1 halo and thus the outer loop limit is always
 ``last_edge_cell``, irrespective of whether distributed memory is turned on.
