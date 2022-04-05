@@ -400,6 +400,20 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_colour_trans_continuous_write(dist_mem, tmpdir):
+    '''Test the colouring transformation for a loop containing a kernel that has
+    a GH_WRITE access for a field on a continuous space.
+
+    '''
+    psy, invoke = get_invoke("14.1.2_stencil_w2_write.f90", TEST_API,
+                             name="invoke_0_testkern_write_w2_stencil_type",
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+    loop = schedule.walk(Loop)[0]
+    ctrans.apply(loop)
+
+
 def test_colouring_not_a_loop(dist_mem):
     '''Test that we raise an appropriate error if we attempt to colour
     something that is not a loop. We test when distributed memory is
