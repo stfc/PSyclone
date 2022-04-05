@@ -37,15 +37,15 @@ program single_invoke
 
   ! Description: single point-wise operation (maximum of a real scalar and
   ! real-valued field elements) specified in an invoke call.
-  use constants_mod, only: r_def
-  use field_mod,     only: field_type
+  use constants_mod,      only: r_solver
+  use r_solver_field_mod, only: r_solver_field_type
 
   implicit none
 
-  type(field_type) :: f1
-  real(r_def)      :: a
+  type(r_solver_field_type) :: f1
+  real(r_solver)            :: a
 
-  a = 1.0
+  a = 1.0_r_solver
 
   call invoke( inc_max_aX(a, f1) )
 

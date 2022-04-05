@@ -1080,7 +1080,7 @@ def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check for the correct field type declarations
+    # Check for the correct field and scalar type declarations
     output = (
         "      INTEGER(KIND=i_def), intent(in) :: a\n"
         "      TYPE(integer_field_type), intent(in) :: f2, f1\n"
@@ -1146,7 +1146,7 @@ def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check for the correct field type declarations
+    # Check for the correct field and scalar type declarations
     output = (
         "      INTEGER(KIND=i_def), intent(in) :: a\n"
         "      TYPE(integer_field_type), intent(in) :: f1\n"

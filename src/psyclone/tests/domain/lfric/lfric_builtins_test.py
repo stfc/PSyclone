@@ -3280,7 +3280,17 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Check for the correct field and scalar type declarations
+    output = (
+        "      REAL(KIND=r_solver), intent(in) :: a\n"
+        "      TYPE(r_solver_field_type), intent(in) :: f2, f1\n"
+        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      TYPE(r_solver_field_proxy_type) f2_proxy, f1_proxy\n")
+    assert output in code
+
     if not dist_mem:
+        assert "INTEGER(KIND=i_def) undf_aspc1_f2\n" in code
         output = (
             "      loop0_stop = undf_aspc1_f2\n"
             "      !\n"
@@ -3301,6 +3311,7 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                 "  f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
                 "enddo") in code
     else:
+        assert "INTEGER(KIND=i_def) max_halo_depth_mesh\n" in code
         output_dm_2 = (
             "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
             "      !\n"
@@ -3342,6 +3353,15 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check for the correct field and scalar type declarations
+    output = (
+        "      REAL(KIND=r_solver), intent(in) :: a\n"
+        "      TYPE(r_solver_field_type), intent(in) :: f1\n"
+        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      TYPE(r_solver_field_proxy_type) f1_proxy\n")
+    assert output in code
 
     if not dist_mem:
         output = (
