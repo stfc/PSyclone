@@ -3254,6 +3254,264 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
+# ------------- Maximum of (real scalar, real field elements) --------------- #
+
+
+def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicMaxAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = max(a, X) where 'a' is a real scalar and Y and X
+    are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.4_max_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: max_aX (real-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicIncMaxAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = max(a, X) where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being computed
+    as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.5_inc_max_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: inc_max_aX (real-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Minimum of (real scalar, real field elements) --------------- #
+
+
+def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicMinAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = min(a, X) where 'a' is a real scalar and Y and X
+    are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.6_min_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: min_aX (real-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicIncMinAXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = min(a, X) where 'a' is a real scalar and X is a
+    real-valued field. Test with and without annexed dofs being computed
+    as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.7_inc_min_aX_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: inc_min_aX (real-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
 # ------------- Converting real to integer field elements ------------------- #
 
 
