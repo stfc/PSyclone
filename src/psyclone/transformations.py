@@ -1367,49 +1367,42 @@ class ColourTrans(LoopTrans):
 
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str,str]]
 
         '''
         self.validate(node, options=options)
 
         node_parent = node.parent
-        node_position = node.position
 
-        # create a colours loop. This loops over colours and must be run
-        # sequentially
-        colours_loop = node.__class__(parent=node_parent, loop_type="colours")
-        colours_loop.field_space = node.field_space
-        colours_loop.iteration_space = node.iteration_space
-        colours_loop.set_lower_bound("start")
-        colours_loop.set_upper_bound("ncolours")
+        colours_loop = self._create_colours_loop(node)
+
         # Add this loop as a child of the original node's parent
-        node_parent.addchild(colours_loop, index=node_position)
+        node.parent.addchild(colours_loop, index=node.position)
 
-        # create a colour loop. This loops over a particular colour and
-        # can be run in parallel
-        colour_loop = node.__class__(parent=colours_loop.loop_body,
-                                     loop_type="colour")
-        colour_loop.field_space = node.field_space
-        colour_loop.field_name = node.field_name
-        colour_loop.iteration_space = node.iteration_space
-        colour_loop.set_lower_bound("start")
-        colour_loop.kernel = node.kernel
-
-        if Config.get().distributed_memory:
-            index = node.upper_bound_halo_depth
-            colour_loop.set_upper_bound("colour_halo", index)
-        else:  # no distributed memory
-            colour_loop.set_upper_bound("ncolour")
-        # Add this loop as a child of our loop over colours
-        colours_loop.loop_body.addchild(colour_loop)
-
-        # add contents of node to colour loop
-        colour_loop.loop_body.children.extend(
+        # Add contents of node to colour loop.
+        colours_loop.loop_body[0].loop_body.children.extend(
             node.loop_body.pop_all_children())
 
-        # remove original loop
+        # Remove original loop.
         node_parent.children.remove(node)
+
+    def _create_colours_loop(self, node):
+        '''
+        Creates a nested loop (colours, and cells of a given colour) to
+        replace the supplied loop over cells.
+
+        :param node: the loop for which to create a coloured version.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: doubly-nested loop over colours and cells of a given colour.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :raises NotImplementedError: this method must be overridden in an \
+                                     API-specific sub-class.
+        '''
+        raise InternalError("_create_colours_loop() must be overridden in an "
+                            "API-specific sub-class.")
 
 
 class KernelModuleInlineTrans(KernelTrans):
@@ -1539,7 +1532,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        super(Dynamo0p3ColourTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we need colouring
         const = LFRicConstants()
@@ -1571,7 +1564,51 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-        ColourTrans.apply(self, node)
+        super().apply(node, options=options)
+
+    def _create_colours_loop(self, node):
+        '''
+        Creates a nested loop (colours, and cells of a given colour) to
+        replace the supplied loop over cells.
+
+        :param node: the loop for which to create a coloured version.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: doubly-nested loop over colours and cells of a given colour.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        '''
+        # Create a colours loop. This loops over colours and must be run
+        # sequentially
+        colours_loop = node.__class__(parent=node.parent, loop_type="colours")
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
+        colours_loop.set_lower_bound("start")
+        colours_loop.set_upper_bound("ncolours")
+
+        # Create a colour loop. This loops over cells of a particular colour
+        # and can be run in parallel.
+        colour_loop = node.__class__(parent=colours_loop.loop_body,
+                                     loop_type="colour")
+        colour_loop.field_space = node.field_space
+        colour_loop.field_name = node.field_name
+        colour_loop.iteration_space = node.iteration_space
+        colour_loop.set_lower_bound("start")
+        colour_loop.kernel = node.kernel
+
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            colour_loop.set_upper_bound("colour_halo", index)
+        else:
+            # No halo access.
+            colour_loop.set_upper_bound("ncolour")
+
+        # Add this loop as a child of our loop over colours
+        colours_loop.loop_body.addchild(colour_loop)
+
+        return colours_loop
 
 
 class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
