@@ -41,6 +41,7 @@ from __future__ import print_function, absolute_import
 import pytest
 
 from psyclone.core import SymbolicMaths
+from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
 
 def test_sym_maths_get():
@@ -239,6 +240,41 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
 
     sym_maths = SymbolicMaths.get()
     assert sym_maths.never_equal(schedule[0].rhs, schedule[1].rhs) is result
+
+
+@pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
+                                                ("i", "i", set()),
+                                                ("i*i", "2*i-1", set([1])),
+                                                ("i*i", "4", set([2, -2])),
+                                                ])
+def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
+    '''Test that the sympy based comparison handles complex
+    expressions that are not equal.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use some_mod
+                integer :: i, j, k, x
+                type(my_mod_type) :: a, b
+                x = {exp1}
+                x = {exp2}
+                end program test_prog
+                '''
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
+
+    sym_maths = SymbolicMaths.get()
+    sympy_expressions, symbol_map = SymPyWriter.\
+        get_sympy_expressions_and_symbol_map([schedule[0].rhs,
+                                              schedule[1].rhs])
+    # Get the symbol used for 'i', so we can solve for 'i'
+    i = symbol_map["i"]
+    solution = sym_maths.solve_equal_for(sympy_expressions[0],
+                                         sympy_expressions[1], i)
+    # The result is a list. Convert to set to do an order-independent test
+    assert set(solution) == result
 
 
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),

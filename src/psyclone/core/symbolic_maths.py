@@ -38,7 +38,7 @@
 functions.'''
 
 
-from sympy import simplify, core
+from sympy import simplify, core, solve
 
 
 class SymbolicMaths:
@@ -162,3 +162,12 @@ class SymbolicMaths:
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def solve_equal_for(exp1, exp2, symbol):
+        '''Returns all solutions of exp1==exp2, solved for
+        the specified symbol.
+
+        '''
+        return solve(exp1-exp2, symbol)
