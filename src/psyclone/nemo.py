@@ -45,12 +45,11 @@ from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.domain.nemo import NemoConstants
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
-from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop, Schedule, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.errors import GenerationError
 
 
 class NemoInvoke(Invoke):

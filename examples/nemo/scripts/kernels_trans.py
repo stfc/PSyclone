@@ -61,14 +61,14 @@ from __future__ import print_function
 import logging
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
+from psyclone.errors import InternalError
+from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
 from psyclone.psyir.symbols import ScalarType
-from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
-from psyclone.errors import InternalError
+from psyclone.psyir.transformations import TransformationError, ProfileTrans
 
 # Which version of the NVIDIA (PGI) compiler we are targetting (different
 # versions have different bugs that we have to workaround).

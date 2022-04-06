@@ -48,11 +48,12 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.gocean1p0 import GOInvokeSchedule
-from psyclone.dynamo0p3 import DynInvokeSchedule
-from psyclone.nemo import NemoInvokeSchedule
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule, BuiltIn
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.nemo import NemoInvokeSchedule
+from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
+    BuiltIn
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Assignment, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
@@ -2767,11 +2768,11 @@ class ACCEnterDataTrans(Transformation):
         # Ensure that the proposed transformation is valid
         self.validate(sched, options)
 
-        if isinstance(sched, GOInvokeSchedule):
-            from psyclone.gocean1p0 import GOACCEnterDataDirective as \
-                AccEnterDataDir
-        elif isinstance(sched, DynInvokeSchedule):
+        if isinstance(sched, DynInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
+                AccEnterDataDir
+        elif isinstance(sched, GOInvokeSchedule):
+            from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that validate() has done its job
@@ -2798,8 +2799,6 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
         super(ACCEnterDataTrans, self).validate(sched, options)
 
         if not isinstance(sched, nodes.Schedule):
@@ -2814,8 +2813,7 @@ class ACCEnterDataTrans(Transformation):
 
         # Check that we don't already have a data region of any sort
         directives = sched.walk(Directive)
-        if any(isinstance(ddir, (ACCDataDirective,
-                                 ACCEnterDataDirective))
+        if any(isinstance(ddir, (ACCDataDirective, ACCEnterDataDirective))
                for ddir in directives):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
@@ -3180,9 +3178,6 @@ class KernelImportsToArguments(Transformation):
             imports of symbols from one or more containers (e.g. a USE without\
             an ONLY clause in Fortran).
         '''
-        from psyclone.psyGen import CodedKern
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 f"The {self.name} transformation can only be applied to "
