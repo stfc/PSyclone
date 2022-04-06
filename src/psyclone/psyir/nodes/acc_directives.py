@@ -163,8 +163,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`.
     '''
     def __init__(self, children=None, parent=None):
-        super(ACCEnterDataDirective, self).__init__(children=children,
-                                                    parent=parent)
+        super().__init__(children=children, parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
         # The _sig_list are computed dynamically until the
@@ -293,7 +292,7 @@ class ACCParallelDirective(ACCRegionDirective):
                 f"enter data directive or enclosed within an ACC data region "
                 f"but in '{routine.name}' this is not the case.")
 
-        super(ACCParallelDirective, self).validate_global_constraints()
+        super().validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -374,8 +373,7 @@ class ACCLoopDirective(ACCRegionDirective):
         self._collapse = collapse
         self._independent = independent
         self._sequential = sequential
-        super(ACCLoopDirective, self).__init__(children=children,
-                                               parent=parent)
+        super().__init__(children=children, parent=parent)
 
     def node_str(self, colour=True):
         '''
@@ -411,7 +409,7 @@ class ACCLoopDirective(ACCRegionDirective):
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
 
-        super(ACCLoopDirective, self).validate_global_constraints()
+        super().validate_global_constraints()
 
     def gen_code(self, parent):
         '''
@@ -489,8 +487,7 @@ class ACCKernelsDirective(ACCRegionDirective):
 
     '''
     def __init__(self, children=None, parent=None, default_present=True):
-        super(ACCKernelsDirective, self).__init__(children=children,
-                                                  parent=parent)
+        super().__init__(children=children, parent=parent)
         self._default_present = default_present
 
     def gen_code(self, parent):

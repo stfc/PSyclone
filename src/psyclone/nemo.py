@@ -197,7 +197,7 @@ class NemoKern(InlinedKern):
 
     '''
     def __init__(self, psyir_nodes, parent=None):
-        super(NemoKern, self).__init__(psyir_nodes, parent=parent)
+        super().__init__(psyir_nodes, parent=parent)
         self._name = ""
 
         # Whether this kernel performs a reduction. Not currently supported

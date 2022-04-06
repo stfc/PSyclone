@@ -213,7 +213,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         '''
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
-        super(ParallelLoopTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we are not a sequential loop
         # TODO add a list of loop types that are sequential
@@ -377,7 +377,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_grainsize = grainsize
         self.omp_num_tasks = num_tasks
         self.omp_nogroup = nogroup
-        super(OMPTaskloopTrans, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP TASKLOOP' directive to a loop"
@@ -561,7 +561,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super(OMPTaskloopTrans, self).apply(node, options)
+            super().apply(node, options)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
@@ -828,7 +828,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._omp_schedule = ""
         self.omp_schedule = omp_schedule
 
-        super(OMPLoopTrans, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP DO' directive to a loop"
@@ -984,7 +984,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                 "nthreads", tag="omp_num_threads",
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        super(OMPLoopTrans, self).apply(node, options)
+        super().apply(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
@@ -1034,7 +1034,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         # to the loop directive.
         self._independent = True
         self._sequential = False
-        super(ACCLoopTrans, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
@@ -1091,7 +1091,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         self._sequential = options.get("sequential", False)
 
         # Call the apply() method of the base class
-        super(ACCLoopTrans, self).apply(node, options)
+        super().apply(node, options)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -1130,7 +1130,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         '''
         # Check that the supplied Node is a Loop
-        super(OMPParallelLoopTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
@@ -1330,7 +1330,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                      not "inner" or "outer".
 
         '''
-        super(GOceanOMPLoopTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1538,7 +1538,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        super(Dynamo0p3ColourTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we need colouring
         const = LFRicConstants()
@@ -1585,7 +1585,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Holds the class instance for the type of parallel region
         # to generate
         self._pdirective = None
-        super(ParallelRegionTrans, self).__init__()
+        super().__init__()
 
     @abc.abstractmethod
     def __str__(self):
@@ -1626,7 +1626,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 raise TransformationError(
                     f"Error in {self.name} transformation: supplied nodes are "
                     f"not children of the same parent.")
-        super(ParallelRegionTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
     def apply(self, target_nodes, options=None):
         '''
@@ -1711,7 +1711,7 @@ class OMPSingleTrans(ParallelRegionTrans):
                            nodes.OMPParallelDirective)
 
     def __init__(self, nowait=False):
-        super(OMPSingleTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = self._directive
         # Store whether this single directive has a barrier or not
@@ -1799,7 +1799,7 @@ class OMPSingleTrans(ParallelRegionTrans):
         if options.get("nowait") is not None:
             self.omp_nowait = options.get("nowait")
 
-        super(OMPSingleTrans, self).apply(node_list, options)
+        super().apply(node_list, options)
 
 
 class OMPMasterTrans(ParallelRegionTrans):
@@ -1842,7 +1842,7 @@ class OMPMasterTrans(ParallelRegionTrans):
                            nodes.OMPParallelDirective)
 
     def __init__(self):
-        super(OMPMasterTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = nodes.OMPMasterDirective
 
@@ -1897,7 +1897,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                            psyGen.HaloExchange)
 
     def __init__(self):
-        super(OMPParallelTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = nodes.OMPParallelDirective
 
@@ -1933,7 +1933,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                                       "region within another OpenMP region.")
 
         # Now call the general validation checks
-        super(OMPParallelTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -1969,7 +1969,7 @@ class ACCParallelTrans(ParallelRegionTrans):
                            nodes.ACCDataDirective, nodes.ACCEnterDataDirective)
 
     def __init__(self):
-        super(ACCParallelTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = nodes.ACCParallelDirective
 
@@ -2165,8 +2165,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
 
         '''
         # check node is a loop
-        super(Dynamo0p3RedundantComputationTrans, self).validate(
-            node, options=options)
+        super().validate(node, options=options)
 
         # Check loop's parent is the InvokeSchedule, or that it is nested
         # in a colours loop and perform other colour(s) loop checks,
@@ -2799,7 +2798,7 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
-        super(ACCEnterDataTrans, self).validate(sched, options)
+        super().validate(sched, options)
 
         if not isinstance(sched, nodes.Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
@@ -2897,7 +2896,7 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if any of the symbols in the kernel are \
                                      accessed via a module use statement.
         '''
-        super(ACCRoutineTrans, self).validate(node, options)
+        super().validate(node, options)
 
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
@@ -3035,7 +3034,7 @@ class ACCKernelsTrans(RegionTrans):
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
-        super(ACCKernelsTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within
         # the proposed region
@@ -3131,7 +3130,7 @@ class ACCDataTrans(RegionTrans):
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
 
-        super(ACCDataTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
