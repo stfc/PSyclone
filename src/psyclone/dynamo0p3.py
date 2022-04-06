@@ -4797,10 +4797,24 @@ class DynBasisFunctions(DynCollection):
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
+            we_have_basis = False
+            we_have_diff_basis = False
+            for basis_fn in self._basis_fns:
+                if basis_fn['type'] == "basis":
+                    we_have_basis = True
+                elif basis_fn['type'] == "diff-basis":
+                    we_have_diff_basis = True
+
+            if we_have_basis and we_have_diff_basis:
+                which_funcnames = ["BASIS", "DIFF_BASIS"]
+            elif we_have_basis:
+                which_funcnames = ["BASIS"]
+            else:
+                which_funcnames = ["DIFF_BASIS"]
             parent.add(
                 UseGen(parent, name=const.
                        FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
-                       only=True, funcnames=["BASIS", "DIFF_BASIS"]))
+                       only=True, funcnames=which_funcnames))
 
         if self._qr_vars:
             parent.add(CommentGen(parent, ""))
