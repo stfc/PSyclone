@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module to capture PSyclone-specific PSyIR for the Kernel
+'''Module to capture GOcean-specific PSyIR for the Kernel
 layer.
 
 '''

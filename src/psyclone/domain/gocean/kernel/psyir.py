@@ -365,10 +365,10 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.VALID_INTRINSIC_TYPES:
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a grid property argument "
-                    f"should be one of {const.VALID_INTRINSIC_TYPES}, but "
+                    f"should be one of {const.VALID_ACCESS_TYPES}, but "
                     f"found '{value}'.")
 
         @property
@@ -496,10 +496,10 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.VALID_INTRINSIC_TYPES:
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a field argument should "
-                    f"be one of {const.VALID_INTRINSIC_TYPES}, but found "
+                    f"be one of {const.VALID_ACCESS_TYPES}, but found "
                     f"'{value}'.")
 
         @property
@@ -718,10 +718,10 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.VALID_INTRINSIC_TYPES:
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a scalar argument should "
-                    f"be one of {const.VALID_INTRINSIC_TYPES}, but found "
+                    f"be one of {const.VALID_ACCESS_TYPES}, but found "
                     f"'{value}'.")
 
         @property

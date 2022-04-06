@@ -72,9 +72,10 @@ form. As the PSyIR does not understand the structure of kernel
 metadata the specialised classes parse the associated codeblock and
 underlying fparser2 tree. These classes also provide a simple way to
 modify the metadata values which will be useful for cases such as
-generating adjoint kernels using psyad. In the future this Kernel
-PSyIR and the Algorithm PSyIR will replace the original approach. The
-relevant code can be seen in generator.py.
+generating adjoint kernels using psyad (see the :ref:`user guide
+<psyad_user_guide:introduction>` for more details). In the future this
+Kernel PSyIR and the Algorithm PSyIR will replace the original
+approach. The relevant code can be seen in generator.py.
 
 In the original approach the `parse` module contains modules for
 parsing algorithm (`algorithm.py`) and kernel (`kernel.py`) code as

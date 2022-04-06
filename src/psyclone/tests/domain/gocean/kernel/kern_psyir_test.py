@@ -502,9 +502,9 @@ def test_gridarg_access(fortran_reader):
         grid_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
-    intrinsic_types = constants.VALID_INTRINSIC_TYPES
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a grid property argument should "
-            f"be one of {intrinsic_types}, but found 'hello'."
+            f"be one of {access_types}, but found 'hello'."
             in str(info.value))
     assert ("GO_WRITE, GO_GRID_AREA_T" not in
             kernel_metadata.datatype.declaration)
@@ -602,9 +602,9 @@ def test_fieldarg_access(fortran_reader):
         field_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
-    intrinsic_types = constants.VALID_INTRINSIC_TYPES
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a field argument should be one of "
-            f"{intrinsic_types}, but found 'hello'."
+            f"{access_types}, but found 'hello'."
             in str(info.value))
     assert "GO_READ, GO_CU" not in kernel_metadata.datatype.declaration
     assert "GO_WRITE, GO_CU" in kernel_metadata.datatype.declaration
@@ -763,9 +763,9 @@ def test_scalararg_access(fortran_reader):
         scalar_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
-    intrinsic_types = constants.VALID_INTRINSIC_TYPES
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a scalar argument should be one of "
-            f"{intrinsic_types}, but found 'hello'." in str(info.value))
+            f"{access_types}, but found 'hello'." in str(info.value))
     assert "GO_WRITE, GO_R_SCALAR" not in kernel_metadata.datatype.declaration
     assert "GO_READ, GO_R_SCALAR" in kernel_metadata.datatype.declaration
     scalar_arg.access = "GO_WRITE"

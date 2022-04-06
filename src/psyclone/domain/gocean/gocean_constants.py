@@ -39,15 +39,13 @@ This module provides a class with all GOcean related constants.
 '''
 
 # Imports
-from __future__ import print_function, absolute_import
+from psyclone.configuration import Config
 
 
 # pylint: disable=too-few-public-methods
 class GOceanConstants(object):
-    '''This class stores all GOcean constants.
-    It stores all values in class variables (to avoid re-evaluating them).
-    At this stage it only contains the variables that might be used in
-    psyGen.
+    '''This class stores all GOcean constants. It stores all values in
+    class variables (to avoid re-evaluating them).
 
     '''
     HAS_BEEN_INITIALISED = False
@@ -56,11 +54,16 @@ class GOceanConstants(object):
         if GOceanConstants.HAS_BEEN_INITIALISED:
             return
 
+        api_config = Config.get().api_conf("gocean1.0")
+
         GOceanConstants.HAS_BEEN_INITIALISED = True
 
         # Valid intrinsic types of kernel argument metadata.
-        GOceanConstants.VALID_INTRINSIC_TYPES = ["go_read", "go_write",
-                                                 "go_readwrite"]
+        GOceanConstants.VALID_INTRINSIC_TYPES = []
+
+        # Valid access types (GO_READ etc) from the config file
+        GOceanConstants.VALID_ACCESS_TYPES = \
+            list(api_config.get_access_mapping().keys())
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
