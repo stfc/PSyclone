@@ -47,7 +47,6 @@ import six
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
@@ -205,6 +204,9 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         PSyIR constructs.
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import InvokeSchedule
+
         if not self._node_lowered:
             # We must generate a list of all of the fields accessed by OpenACC
             # kernels (calls within an OpenACC parallel or kernels directive)
