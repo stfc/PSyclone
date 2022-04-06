@@ -197,10 +197,10 @@ def test_colour_trans(tmpdir, dist_mem):
 
     if dist_mem:
         assert ("integer(kind=i_def), allocatable :: "
-                "last_cell_all_colours(:,:)" in gen)
+                "last_halo_cell_all_colours(:,:)" in gen)
     else:
         assert ("integer(kind=i_def), allocatable :: "
-                "last_cell_all_colours(:)" in gen)
+                "last_edge_cell_all_colours(:)" in gen)
 
     # Check that we're calling the API to get the no. of colours
     # and the generated loop bounds are correct
@@ -213,18 +213,18 @@ def test_colour_trans(tmpdir, dist_mem):
     assert "loop1_start = 1" in gen
 
     if dist_mem:
-        assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_"
+        assert ("last_halo_cell_all_colours = mesh%get_last_halo_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_cell_all_colours(colour,"
+            "        do cell=loop1_start,last_halo_cell_all_colours(colour,"
             "1)\n")
     else:  # not dist_mem
-        assert ("last_cell_all_colours = mesh%get_last_edge_cell_all_"
+        assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_cell_all_colours(colour)\n")
+            "        do cell=loop1_start,last_edge_cell_all_colours(colour)\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
@@ -293,30 +293,26 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
-
-    if dist_mem:
-        index = 1
-    else:
-        index = 0
+    loop = schedule.walk(Loop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as a
     # string
     gen = str(psy.gen)
 
     if dist_mem:
-        lookup = "last_cell_all_colours(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "last_cell_all_colours(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
 
     assert (
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,{0}\n"
-        "          !\n"
-        "          CALL columnwise_op_asm_field_kernel_code("
-        "cmap(colour, ".format(lookup)) in gen
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        DO cell=loop1_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL columnwise_op_asm_field_kernel_code("
+        f"cmap(colour, ") in gen
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
@@ -342,14 +338,10 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
-
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
+    loop = schedule.walk(Loop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string
@@ -406,12 +398,20 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
 
     '''
     psy, invoke = get_invoke("14.1.2_stencil_w2_write.f90", TEST_API,
-                             name="invoke_0_testkern_write_w2_stencil_type",
-                             dist_mem=dist_mem)
+                             name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
-    loop = schedule.walk(Loop)[0]
-    ctrans.apply(loop)
+    for loop in schedule.walk(Loop):
+        ctrans.apply(loop)
+    gen = str(psy.gen)
+
+    # The loop should not access the halo, irrespective of whether dm is
+    # enabled.
+    assert ("last_edge_cell_all_colours = "
+            "mesh%get_last_edge_cell_all_colours()" in gen)
+    assert "DO cell=loop1_start,last_edge_cell_all_colours(colour)" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colouring_not_a_loop(dist_mem):
@@ -524,14 +524,14 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     assert ("      ncolour = mesh%get_ncolours()\n"
             "      cmap => mesh%get_colour_map()\n" in code)
     if dist_mem:
-        lookup = "last_cell_all_colours(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "last_cell_all_colours(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
     output = (
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        !$omp parallel do default(shared), private(cell), "
-        "schedule(static)\n"
-        "        DO cell=loop1_start,{0}\n".format(lookup))
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        !$omp parallel do default(shared), private(cell), "
+        f"schedule(static)\n"
+        f"        DO cell=loop1_start,{lookup}\n")
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1297,40 +1297,40 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert "loop0_stop = ncolour" in code
 
     if dist_mem:
-        lookup = "last_cell_all_colours(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "last_cell_all_colours(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
-        "      !\n"
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        !$omp parallel default(shared), private(cell)\n"
-        "        !$omp do schedule(static)\n"
-        "        DO cell=loop1_start,{0}\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
-        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO\n"
-        "        !$omp end do\n"
-        "        !$omp do schedule(static)\n"
-        "        DO cell=loop2_start,{0}\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
-        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO\n"
-        "        !$omp end do\n"
-        "        !$omp end parallel\n"
-        "      END DO\n".format(lookup))
+        f"      !\n"
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        !$omp parallel default(shared), private(cell)\n"
+        f"        !$omp do schedule(static)\n"
+        f"        DO cell=loop1_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+        f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        f"        END DO\n"
+        f"        !$omp end do\n"
+        f"        !$omp do schedule(static)\n"
+        f"        DO cell=loop2_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+        f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        f"        END DO\n"
+        f"        !$omp end do\n"
+        f"        !$omp end parallel\n"
+        f"      END DO\n")
 
     assert output in code
 
@@ -5521,11 +5521,11 @@ def test_rc_colour(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,2)\n"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,2)\n"
         in result)
 
     # We've requested redundant computation out to the level 2 halo
@@ -5572,11 +5572,11 @@ def test_rc_max_colour(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh)\n"
         in result)
 
@@ -5647,11 +5647,11 @@ def test_rc_then_colour(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,3)\n"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,3)\n"
         "          !\n"
         "          CALL testkern_code(nlayers, a, f1_proxy%data,"
         " f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
@@ -5705,11 +5705,11 @@ def test_rc_then_colour2(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = mesh%"
+            "get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh)\n" in result)
 
     assert (
@@ -5766,11 +5766,11 @@ def test_loop_fuse_then_rc(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = mesh%"
+            "get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh)\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
@@ -6241,18 +6241,18 @@ def test_intergrid_colour(dist_mem):
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
     if dist_mem:
-        assert ("last_cell_all_colours_fld_m = "
+        assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
             "      do colour=loop1_start,loop1_stop\n"
-            "        do cell=loop2_start,last_cell_all_colours_fld_m"
+            "        do cell=loop2_start,last_halo_cell_all_colours_fld_m"
             "(colour,1)\n")
     else:
-        assert ("last_cell_all_colours_fld_m = "
+        assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
             "      do colour=loop1_start,loop1_stop\n"
-            "        do cell=loop2_start,last_cell_all_colours_fld_m"
+            "        do cell=loop2_start,last_edge_cell_all_colours_fld_m"
             "(colour)\n")
     assert expected in gen
     expected = (
@@ -6331,15 +6331,15 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
             "schedule(static)\n" in gen)
 
     if dist_mem:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_cell_"
-                "all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_cell_all_colours_fld_c(colour,1)\n"
-                in gen)
+        assert ("last_halo_cell_all_colours_fld_c = "
+                "mesh_fld_c%get_last_halo_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_halo_cell_all_colours_fld_c"
+                "(colour,1)\n" in gen)
     else:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
+        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
                 "cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_cell_all_colours_fld_c(colour)\n"
-                in gen)
+        assert ("DO cell=loop5_start,last_edge_cell_all_colours_fld_c"
+                "(colour)\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6364,28 +6364,28 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
+        assert ("last_halo_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
                 "cell_all_colours()" in gen)
-        upper_bound = "last_cell_all_colours_fld_c(colour,1)"
+        upper_bound = "last_halo_cell_all_colours_fld_c(colour,1)"
     else:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
+        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
                 "cell_all_colours()\n" in gen)
-        upper_bound = "last_cell_all_colours_fld_c(colour)"
+        upper_bound = "last_edge_cell_all_colours_fld_c(colour)"
     assert "loop0_stop = ncolour_fld_c\n" in gen
-    assert ("      DO colour=loop0_start,loop0_stop\n"
-            "        !$omp parallel default(shared), private(cell)\n"
-            "        !$omp do schedule(static)\n"
-            "        DO cell=loop1_start,{0}\n"
-            "          !\n"
-            "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
-            "ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            "undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
-            "        END DO\n"
-            "        !$omp end do\n"
-            "        !$omp end parallel\n"
-            "      END DO\n".format(upper_bound) in gen)
+    assert (f"      DO colour=loop0_start,loop0_stop\n"
+            f"        !$omp parallel default(shared), private(cell)\n"
+            f"        !$omp do schedule(static)\n"
+            f"        DO cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
+            f"(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
+            f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
+            f"fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
+            f"undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
+            f"        END DO\n"
+            f"        !$omp end do\n"
+            f"        !$omp end parallel\n"
+            f"      END DO\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

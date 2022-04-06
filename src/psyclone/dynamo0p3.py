@@ -2035,15 +2035,22 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
+        const = LFRicConstants()
         # Since colouring is applied via transformations, we have to check for
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
+        need_colour_halo_limits = False
         for call in self._calls:
             if call.is_coloured() and not call.is_intergrid:
-                need_colour_limits = True
-                break
+                loop = call.parent.parent
+                # Record whether or not this coloured loop accesses the halo.
+                if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+                    need_colour_halo_limits = True
+                else:
+                    need_colour_limits = True
 
-        if not self._properties and not need_colour_limits:
+        if not self._properties and not (need_colour_limits or
+                                         need_colour_halo_limits):
             # If no mesh properties are required and there's no colouring
             # (which requires a mesh object to lookup loop bounds) then we
             # need do nothing.
@@ -2074,18 +2081,19 @@ class LFRicMeshProperties(DynCollection):
                                      rhs=mesh+"%get_ncells_2d()"))
             else:
                 raise InternalError(
-                    "Found unsupported mesh property '{0}' when generating "
-                    "initialisation code. Only members of the "
-                    "MeshProperty Enum are permitted "
-                    "({1})".format(str(prop), list(MeshProperty)))
+                    f"Found unsupported mesh property '{str(prop)}' when "
+                    f"generating initialisation code. Only members of the "
+                    f"MeshProperty Enum are permitted ({list(MeshProperty)})")
 
+        if need_colour_halo_limits:
+            lhs = self._symbol_table.find_or_create_tag(
+                "last_halo_cell_all_colours").name
+            rhs = f"{mesh}%get_last_halo_cell_all_colours()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
         if need_colour_limits:
             lhs = self._symbol_table.find_or_create_tag(
-                "last_cell_all_colours").name
-            if Config.get().distributed_memory:
-                rhs = mesh + "%get_last_halo_cell_all_colours()"
-            else:
-                rhs = mesh + "%get_last_edge_cell_all_colours()"
+                "last_edge_cell_all_colours").name
+            rhs = f"{mesh}%get_last_edge_cell_all_colours()"
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
@@ -3904,6 +3912,7 @@ class DynMeshes(object):
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
+        self._needs_colourmap_halo = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
@@ -4030,6 +4039,7 @@ class DynMeshes(object):
         and happens after the Schedule has already been constructed.
 
         '''
+        const = LFRicConstants()
         have_non_intergrid = False
 
         array_type_1d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
@@ -4039,8 +4049,13 @@ class DynMeshes(object):
         for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
-            # invoke have been coloured
-            self._needs_colourmap = True
+            # invoke have been coloured and if so, whether the associated loop
+            # goes into the halo.
+            if (call.parent.parent.upper_bound_name in
+                    const.HALO_ACCESS_LOOP_BOUNDS):
+                self._needs_colourmap_halo = True
+            else:
+                self._needs_colourmap = True
 
             if not call.is_intergrid:
                 have_non_intergrid = True
@@ -4063,12 +4078,13 @@ class DynMeshes(object):
                 datatype=INTEGER_TYPE).name
             # Array holding the last halo or edge cell of a given colour
             # and halo depth.
-            base_name = "last_cell_all_colours_" + carg_name
             if Config.get().distributed_memory:
+                base_name = "last_halo_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_tag(
                     base_name, symbol_type=DataSymbol,
                     datatype=array_type_2d).name
             else:
+                base_name = "last_edge_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_tag(
                     base_name, symbol_type=DataSymbol,
                     datatype=array_type_1d).name
@@ -4078,7 +4094,8 @@ class DynMeshes(object):
             self._ig_kernels[call].ncolours_var = ncolours
             self._ig_kernels[call].last_cell_var = last_cell
 
-        if have_non_intergrid and self._needs_colourmap:
+        if have_non_intergrid and (self._needs_colourmap or
+                                   self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
@@ -4088,13 +4105,16 @@ class DynMeshes(object):
             # TODO #1258 this variable should have precision 'i_def'.
             ncolours = self._schedule.symbol_table.find_or_create_tag(
                 "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-            if Config.get().distributed_memory:
+            if self._needs_colourmap_halo:
                 dtype = array_type_2d
-            else:
+                self._symbol_table.find_or_create_tag(
+                    "last_halo_cell_all_colours", symbol_type=DataSymbol,
+                    datatype=dtype)
+            if self._needs_colourmap:
                 dtype = array_type_1d
-            self._symbol_table.find_or_create_tag("last_cell_all_colours",
-                                                  symbol_type=DataSymbol,
-                                                  datatype=dtype)
+                self._symbol_table.find_or_create_tag(
+                    "last_edge_cell_all_colours", symbol_type=DataSymbol,
+                    datatype=dtype)
 
     def declarations(self, parent):
         '''
@@ -4176,7 +4196,8 @@ class DynMeshes(object):
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
 
-        if not self._ig_kernels and self._needs_colourmap:
+        if not self._ig_kernels and (self._needs_colourmap or
+                                     self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -4194,14 +4215,16 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
-            last_cell = self._symbol_table.find_or_create_tag(
-                "last_cell_all_colours")
-            if Config.get().distributed_memory:
+            if self._needs_colourmap_halo:
+                last_cell = self._symbol_table.find_or_create_tag(
+                    "last_halo_cell_all_colours")
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
                                    entity_decls=[last_cell.name+"(:,:)"]))
-            else:
+            if self._needs_colourmap:
+                last_cell = self._symbol_table.find_or_create_tag(
+                    "last_edge_cell_all_colours")
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
@@ -4240,7 +4263,7 @@ class DynMeshes(object):
                     f"max_halo_depth_{self._mesh_tag_names[0]}").name
                 parent.add(AssignGen(parent, lhs=depth_name,
                                      rhs=f"{mesh_name}%get_halo_depth()"))
-            if self._needs_colourmap:
+            if self._needs_colourmap or self._needs_colourmap_halo:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
@@ -7265,7 +7288,7 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            root_name = "last_cell_all_colours"
+            root_name = "last_edge_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = self.ancestor(
@@ -7284,7 +7307,7 @@ class DynLoop(Loop):
                 depth = self.ancestor(InvokeSchedule).symbol_table.\
                     find_or_create_tag(
                         f"max_halo_depth_{self._mesh_name}").name
-            root_name = "last_cell_all_colours"
+            root_name = "last_halo_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = self.ancestor(
@@ -7592,8 +7615,9 @@ class DynLoop(Loop):
             colour_var = parent_loop.variable
 
             asym = sym_table.lookup(self.kernel.last_cell_all_colours)
+            const = LFRicConstants()
 
-            if Config.get().distributed_memory:
+            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
                     # DynInvokeSchedule constructor has been extended to
@@ -8113,8 +8137,15 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             return invoke.meshes.intergrid_kernels[self].last_cell_var
 
-        return self.scope.symbol_table.lookup_with_tag(
-            "last_cell_all_colours").name
+        const = LFRicConstants()
+
+        if (self.ancestor(Loop).upper_bound_name in
+                const.HALO_ACCESS_LOOP_BOUNDS):
+            return self.scope.symbol_table.lookup_with_tag(
+                "last_halo_cell_all_colours").name
+        else:
+            return self.scope.symbol_table.lookup_with_tag(
+                "last_edge_cell_all_colours").name
 
     @property
     def ncolours_var(self):
