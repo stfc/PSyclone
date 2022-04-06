@@ -38,7 +38,7 @@
 functions.'''
 
 
-from sympy import simplify, core, solve
+from sympy import simplify, core, solveset, Complexes
 
 
 class SymbolicMaths:
@@ -167,7 +167,37 @@ class SymbolicMaths:
     @staticmethod
     def solve_equal_for(exp1, exp2, symbol):
         '''Returns all solutions of exp1==exp2, solved for
-        the specified symbol.
+        the specified symbol. It restricts the solution domain to integer
+        values. If there is an infinite number of solutions, it returns
+        the string 'independent', indicating that the solution of exp1==exp2
+        does not depend on the specified symbol. This is done to avoid that
+        the SymPy instance representing an infinite set is used elsewhere
+        in PSyclone (i.e. creating a dependency in other modules to SymPy).
+        The FiniteSet returned otherwise is compatible witha Python set
+        and so does not introduce any dependencies.
+
+        :param exp1: the first expression.
+        :type exp1: a SymPy expressio.
+        :param exp2: the second expression.
+        :type exp2: a SymPy expressio.
+        :param symbol: the symbol for which to solve.
+        :type exp2: a SymPy Symbol
+
+        :returns: a set of solutions, or "independent".
+        :rtype: a SymPy.FiniteSet of solutions, or "str"
 
         '''
-        return solve(exp1-exp2, symbol)
+        # We could restrict the domain to Integers, but in case of
+        # general solutions (x=i+1 or so), we get an intersection as
+        # as result, which is then difficult to handle. It's actually
+        # easier to not restrict the domain, and detect and interpret
+        # a non-integer solution later.
+        solution = solveset(exp1-exp2, symbol)
+        if solution == Complexes:
+            # The solution is actually independent of the symbol
+            # Return a string (instead of the SymPy specific set
+            # instance, which would introduce dependencies on
+            # SymPy to other files).
+            return "independent"
+
+        return solution

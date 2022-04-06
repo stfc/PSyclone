@@ -222,7 +222,7 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
                                                 ])
 def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     '''Test that the sympy based comparison handles complex
-    expressions that are not equal.
+    expressions that are tested for never equal.
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -243,9 +243,13 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
 
 
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
-                                                ("i", "i", set()),
+                                                # Infinite solutions (i is any
+                                                # integer) are returned as
+                                                # string "independent"
+                                                ("i", "i", "independent"),
                                                 ("i*i", "2*i-1", set([1])),
                                                 ("i*i", "4", set([2, -2])),
+                                                ("2*i", "2*i+1", set()),
                                                 ])
 def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     '''Test that the sympy based comparison handles complex
@@ -273,8 +277,7 @@ def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     i = symbol_map["i"]
     solution = sym_maths.solve_equal_for(sympy_expressions[0],
                                          sympy_expressions[1], i)
-    # The result is a list. Convert to set to do an order-independent test
-    assert set(solution) == result
+    assert solution == result
 
 
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),
