@@ -674,7 +674,7 @@ class InvokeSchedule(Routine):
     >>> invokes.names
     >>> invoke = invokes.get("name")
     >>> schedule = invoke.schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
@@ -684,14 +684,16 @@ class InvokeSchedule(Routine):
      :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
     def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
-                 reserved_names=None, parent=None):
-        super(InvokeSchedule, self).__init__(name, parent=parent)
+                 reserved_names=None, **kwargs):
+        super().__init__(name, **kwargs)
 
         self._invoke = None
 

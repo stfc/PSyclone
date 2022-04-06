@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''A transformation script that adds a KERNELS region plus LOOP COLLAPSE
 directives to the tracer-advection mini-app.  In order to use it you
@@ -97,4 +98,4 @@ def trans(psy):
     # a data region
     ACC_DATA_TRANS.apply(tloop)
 
-    sched.view()
+    print(sched.view())

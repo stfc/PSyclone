@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -62,8 +63,8 @@ class CreateNemoLoopTrans(Transformation):
     >>> loops = psyir.walk(Loop)
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])
-    >>> psyir.view()
-    FileContainer[None]
+    >>> print(psyir.view(colour=False))
+    FileContainer[]
         Routine[name:'sub']
             0: Loop[type='lon', field_space='None', it_space='None']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -76,6 +77,7 @@ class CreateNemoLoopTrans(Transformation):
                         BinaryOperation[operator:'MUL']
                             Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
                             Reference[name:'ji']
+    <BLANKLINE>
 
     As shown above, the resulting Schedule now contains a NemoLoop, indicated
     by the "type='lon'" (for 'longitude') annotation for the Loop node.

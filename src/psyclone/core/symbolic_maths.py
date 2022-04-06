@@ -32,13 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
 
-from sympy import simplify, core, solveset, Complexes
+from sympy import Complexes, core, expand, simplify, solveset
 
 
 class SymbolicMaths:
@@ -201,3 +202,44 @@ class SymbolicMaths:
             return "independent"
 
         return solution
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def expand(expr):
+        '''Expand a PSyIR expression. This is done by converting the PSyIR
+        expression to a sympy expression, applying the expansion
+        operation and then converting the resultant output back into
+        PSyIR.
+
+        Currently does not work if the PSyIR expression contains Range
+        nodes, see issue #1655.
+
+        :param expr: the expression to be expanded.
+        :type expr: py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
+        from psyclone.psyir.frontend.fortran import FortranReader
+        from psyclone.psyir.nodes import Reference, Literal, Routine
+
+        # variables and literals do not require expansion
+        if isinstance(expr, (Reference, Literal)):
+            return
+        # Convert the PSyIR expression to a sympy expression
+        sympy_expression = SymPyWriter.convert_to_sympy_expressions([expr])
+        # Expand the expression
+        result = expand(sympy_expression[0])
+        # If the expanded result is the same as the original then
+        # nothing needs to be done.
+        if result == sympy_expression[0]:
+            return
+        # Find the required symbol table in the original PSyIR
+        symbol_table = expr.ancestor(Routine).symbol_table
+        # Convert the new sympy expression to PSyIR
+        reader = FortranReader()
+        new_expr = reader.psyir_from_expression(str(result), symbol_table)
+        # Replace the old PSyIR expression with the new expanded PSyIR
+        # expression
+        expr.replace_with(new_expr)
