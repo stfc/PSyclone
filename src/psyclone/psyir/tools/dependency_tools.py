@@ -42,12 +42,15 @@
 
 from __future__ import absolute_import, print_function
 
+from sympy import Symbol, Integer
+
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, Signature, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
 
 class DependencyTools(object):
@@ -434,7 +437,7 @@ class DependencyTools(object):
         #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
         partition_infos = []
         for i, indx in enumerate(comp_ind1.iterate()):
-            partition_infos.append((indices_1[i].union(indices_2[i]),[indx]))
+            partition_infos.append((indices_1[i].union(indices_2[i]), [indx]))
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_vars:
@@ -466,36 +469,118 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def independent_0_var(index, access1, access2):
-        '''Checks if the two accesses, that are not dependent on any
+    def independent_0_var(index_exp1, index_exp2):
+        '''Checks if the two index expressions, that are not dependent on any
         loop variable, are independent or not. E.g. `a(3)` and `a(5)`
         are independent of each other, `a(n)` and `a(n)` are not.
-        Even `a(n)` and `a(3)` are considered dependend, since no
-        restriction on the variable `n` is made.
+        Even `a(n)` and `a(3)` are considered dependent, since no
+        restriction on the variable `n` is made, so `n` could be 3.
 
-        :param index: The subscription index to be checked.
-        :type param: 2-tuple of integer
-
-        :param access1: the first access.
-        :type access1:
-            :py:class:`psyclone.core.access_info.AccessInfo`
-        :param access2: the second access.
-        :type access2:
-            :py:class:`psyclone.core.access_info.AccessInfo`
+        :param index_exp1: the first index expression to compare.
+        :type index_exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param index_exp2: the second index expression to compare.
+        :type index_exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         sym_maths = SymbolicMaths.get()
 
         # If the indices can be shown to be never equal, the accesses
         # to the given subscript are always independent.
-        if sym_maths.never_equal(access1.component_indices[index],
-                                 access2.component_indices[index]):
+        if sym_maths.never_equal(index_exp1, index_exp2):
             return True
 
         # Otherwise we have to conservatively assume that the accesses
         # are dependent on each other. Additional tests could be added,
         # e.g. `a(n)` and `a(5)` ... if it should be known that n != 5.
         return False
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def independent_1_var(var_name, index_read, index_written):
+        '''Computes the dependency distance between two accesses to the
+        same variable. The distance specifies in how many loop iterations
+        the same memory location would be accessed. E.g. `a(i)=a(i-1)`
+        would have a distance of 1: solving i=(i+di)-1 gives di=1
+        Similarly, `a(i) = a(i) + 1` has a distance of 0, and
+        `a(2*i)=a(2*i+1)` will have a distance of -0.5 (which indicates that
+        with an index that's an integer the accesses are independent). More
+        complex examples can have several solutions, e.g. `a(i*i) = a(i*i)+1`.
+        This will have the distance 0 and `-2*i`. The latter would result
+        in a negative loop index (i-2*i<0), indicating that actually no
+        dependency exists.
+        This function will return the distance, if it is an integer value
+        independent of loop iterations, and None otherwise.
+        Multiple solution are not handled yet, since they are unlikely to
+        be observed in code handled with PSyclone, so they will also
+        return None.
+
+        :param str var_name: name of the one variable used in the two \
+            index expressions.
+        :param index_read: the index expression of the variable read that \
+            is to be compare.
+        :type index_read: :py:class:`psyclone.psyir.nodes.Node`
+        :param index_written: the index expression of the variable written \
+            that is to be compare.
+        :type index_written: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: the dependency distance in loop iterations if it is a
+            independent integer value, and None otherwise.
+        :rtype: int or None.
+
+        '''
+        sym_maths = SymbolicMaths.get()
+        sympy_expressions, symbol_map = SymPyWriter.\
+            get_sympy_expressions_and_symbol_map([index_read, index_written])
+
+        var = symbol_map[var_name]
+        # Create a unique 'dx' variable name if 'x' is the variable
+        d_var_name = "d_"+var_name
+        idx = 1
+        while d_var_name in symbol_map:
+            d_var_name = f"d{idx}_{var_name}"
+
+        # Create a sympy symbol for this new variable
+        d_var = Symbol(d_var_name)
+
+        # Replace 'var' with 'var+d_var' in the read expression in order
+        # to determine distance between the two accesses:
+        sympy_expressions[1] = sympy_expressions[1].subs({var: (var+d_var)})
+
+        # Now solve for `d_var` to identify the distance
+        solutions = sym_maths.solve_equal_for(sympy_expressions[0],
+                                              sympy_expressions[1],
+                                              d_var)
+        if solutions == "independent":
+            # The solution is independent of the variable, i.e. every value
+            # of the variable is a solution. So there are certainly
+            # dependencies.
+            return None
+
+        if len(solutions) == 1:
+            # solutions is a FiniteSet, which can't be accessed directly,
+            # so convert this one element to a one element list:
+            sol = list(solutions)[0]
+            # If the loop variable is used in the solution, in general
+            # we have a dependency. Loop start/end/step values could be
+            # evaluated here. We then also need to check if `i+di` (i.e. the
+            # iteration to which the dependency is) is a valid iteration
+            # E.g. in case of a(i^2)=a(i^2) --> di=0 or di=-2*i -->
+            # i+di = -i < 0 for i>0. So this is not a valid loop iteration, so
+            # that means no dependencies)
+            if var in sol.free_symbols:
+                return None
+            # Otherwise return the distance of the dependency (i.e. how many
+            # loop iterations apart the same memory location will be accessed).
+            # If this should be 0, it means no dependency. Though even here
+            # loop boundaries could be used for further checks - e.g. if
+            # the distance is N with N loop iterations, e.g.:
+            # do i=1, N: a(i)=a(i+N)
+            # Then there would still be no dependency.
+            if not isinstance(sol, Integer):
+                return None
+            return sol
+
+        return None
 
     # -------------------------------------------------------------------------
     def is_scalar_parallelisable(self, var_info):

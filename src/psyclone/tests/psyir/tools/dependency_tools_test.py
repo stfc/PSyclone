@@ -365,12 +365,24 @@ def test_get_indices(expression, correct, parser):
 
 
 # -----------------------------------------------------------------------------
+# This list contains the test cases and expected partition information.
+# The first two entries of each 3-tuple are the LHS and RHS. The third
+# element is the partition information, which is a list of partitions. Each
+# individual partition contains first a set of loop variables used, and
+# then the indices where the variables are used. Each index is a 2-tuple,
+# used as a component index (see core/component_indices)
 @pytest.mark.parametrize("lhs, rhs, partition",
                          [("a1(i+i+j)", "a1(i)", [({"i", "j"}, {(0, 0)})]),
                           # n is not a loop variable, it must be ignored:
                           ("a1(i+j+n)", "a1(i)", [({"i", "j"}, {(0, 0)})]),
                           ("a1(n)", "a1(n)", [(set(), {(0, 0)})]),
                           ("a1(i+j+3)", "a1(i)", [({"i", "j"}, {(0, 0)})]),
+                          ("dv(i)%a(j)", "dv(i+1)%a(j+1)",
+                           [({"i"}, {(0, 0)}),
+                            ({"j"}, {(1, 0)})]),
+                          ("dv(i)%a(i+j+3)%c(k)", "dv(i)%a(i)%c(k)",
+                           [({"i", "j"}, {(0, 0), (1, 0)}),
+                            ({"k"}, {(2, 0)})]),
                           ("a3(i,j,k)", "a3(i,j,k)", [({"i"}, {(0, 0)}),
                                                       ({"j"}, {(0, 1)}),
                                                       ({"k"}, {(0, 2)})]),
@@ -449,7 +461,7 @@ def test_partition(lhs, rhs, partition, parser):
                           ("a1(n)", "a1(5)", False),
                           ("a1(n)", "a1(m)", False),
                           ])
-def test_array_access_pairs_0vars(lhs, rhs, is_dependent, parser):
+def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
     '''Tests that array indices that use 0 loop variables are
     detected as independent.
     '''
@@ -465,13 +477,56 @@ def test_array_access_pairs_0vars(lhs, rhs, is_dependent, parser):
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
     access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    index = (0, 0)
+    lhs_index0 = access_info_lhs.component_indices[index]
+    rhs_index0 = access_info_rhs.component_indices[index]
 
     dep_tools = DependencyTools(["unknown"])
 
-    index = (0, 0)
-    result = dep_tools.independent_0_var(index, access_info_rhs,
-                                         access_info_lhs)
+    result = dep_tools.independent_0_var(lhs_index0, rhs_index0)
     assert result is is_dependent
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("lhs, rhs, distance",
+                         [("a1(i)", "a1(i)", 0),
+                          ("a1(i)", "a1(2)", None),
+                          ("a1(i+1)", "a1(i)", 1),
+                          ("a1(i)", "a1(i+1)", -1),
+                          ("a1(i-1)", "a1(i+2)", -3),
+                          ("a1(i+1)", "a1(i-2)", 3),
+                          ("aq1(2*i)", "a1(i+1)", None),
+                          ("a1(i*i)", "a1(i*i)", None),
+                          ("a1(i-d_i)", "a1(i-d_i)", 0),
+                          ("a1(2*i)", "a1(2*i+1)", None),
+                          ("a1(i*i)", "a1(-1)", None),
+                          ("a1(i-i+2)", "a1(2)", None),
+                          ])
+def test_array_access_pairs_1_var(lhs, rhs, distance, parser):
+    '''Tests the array checks of can_loop_be_parallelised.
+    '''
+    reader = FortranStringReader(f'''program test
+                                 integer i, j, k, d_i
+                                 integer, parameter :: n=10, m=10
+                                 integer, dimension(10, 10) :: indx
+                                 real, dimension(n) :: a1
+                                 real, dimension(n, m) :: a2
+                                 real, dimension(n, m, n) :: a3
+                                 {lhs} = {rhs}
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    assign = psy.invokes.get("test").schedule[0]
+    sig = Signature("a1")
+    # Get all access info for the expression to 'a1'
+    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
+    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    subscript_lhs = access_info_lhs.component_indices[(0, 0)]
+    subscript_rhs = access_info_rhs.component_indices[(0, 0)]
+
+    dep_tools = DependencyTools(["unknown"])
+    result = dep_tools.independent_1_var("i", subscript_lhs, subscript_rhs)
+    assert result == distance
 
 
 # -----------------------------------------------------------------------------
