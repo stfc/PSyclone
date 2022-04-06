@@ -76,6 +76,24 @@ class Routine(Schedule, CommentableMixin):
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two Routine nodes are equal
+        if they haev the same name, same return symbol, same is_program and
+        the inherited __eq__ is True.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.name == other.name
+        is_eq = is_eq and self.is_program == other.is_program
+        is_eq = is_eq and self.return_symbol == other.return_symbol
+
+        return is_eq
+
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
                return_symbol=None):

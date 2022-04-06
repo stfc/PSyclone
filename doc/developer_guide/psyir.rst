@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
@@ -137,6 +137,16 @@ to perform the following steps:
 4. If any of the attributes introduced by this method should not be
    shallow-copied when creating a duplicate of this PSyIR branch, specialise
    the ``_refine_copy`` method to perform the appropriate copy actions.
+
+5. If any of the attributes in this node should be used to compute the equality
+   of two nodes, specialise the ``__eq__`` member to perform the appropriate
+   checks. The default ``__eq__`` behaviour is to check both instance types are
+   exactly the same, and each of their children also pass the equality check.
+   The only restriction on this implementation is that it must call the
+   ``super().__eq__(other)`` as part of its implementation, to ensure any
+   inherited equality checks are correctly checked. The default behaviour
+   ignores annotations and comment attributes, as they should not affect the
+   semantics of the PSyIR tree.
 
 For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a
