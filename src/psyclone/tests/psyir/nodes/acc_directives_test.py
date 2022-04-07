@@ -308,12 +308,12 @@ def test_accupdatedirective_init():
 
     # Check argument validations
     with pytest.raises(TypeError) as err:
-        _ = ACCUpdateDirective("invalid", "host")
-    assert ("The ACCUpdateDirective signatures argument must either be a "
-            "'Signature' or a list of Signatures but found 'str'."
+        _ = ACCUpdateDirective(["invalid"], "host")
+    assert ("The ACCUpdateDirective signatures argument must be a "
+            "list of signatures but got ['str']"
             in str(err.value))
 
-    sig = Signature("x")
+    sig = [Signature("x")]
     with pytest.raises(ValueError) as err:
         _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
@@ -322,7 +322,7 @@ def test_accupdatedirective_init():
 
     # Successful init
     directive = ACCUpdateDirective(sig, "host")
-    assert directive._sig_list == [sig]
+    assert directive._sig_list == sig
     assert directive._direction == "host"
     assert directive._conditional is True
 
@@ -333,7 +333,7 @@ def test_accupdatedirective_init():
 def test_accupdatedirective_begin_string():
     ''' Test the begin_string method of ACCUpdateDirective. '''
 
-    sig = Signature("x")
+    sig = [Signature("x")]
     directive1 = ACCUpdateDirective(sig, "host", conditional=False)
     directive2 = ACCUpdateDirective(sig, "device")
 
@@ -343,13 +343,13 @@ def test_accupdatedirective_begin_string():
 
 def test_accupdatedirective_equality():
     ''' Test the __eq__ method of ACCUpdateDirective node. '''
-    sig = Signature("x")
+    sig = [Signature("x")]
     directive1 = ACCUpdateDirective(sig, "device")
     directive2 = ACCUpdateDirective(sig, "device")
     assert directive1 == directive2
 
     # Check equality fails when different signatures
-    directive3 = ACCUpdateDirective(Signature("t"), "device")
+    directive3 = ACCUpdateDirective([Signature("t")], "device")
     assert directive1 != directive3
 
     # Check equality fails when different directions

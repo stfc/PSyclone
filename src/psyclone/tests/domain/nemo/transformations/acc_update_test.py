@@ -92,7 +92,7 @@ end SUBROUTINE tra_ldf_iso
     gen_code = str(psy.gen).lower()
     assert ("  real, dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
-            "  !$acc enter data copyin(zftv,jpi,tmask,zftu)\n"
+            "  !$acc enter data copyin(jpi,tmask,zftu,zftv)\n"
             "  !$acc kernels\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc end kernels\n"
