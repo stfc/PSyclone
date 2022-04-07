@@ -1319,8 +1319,8 @@ def test_acc_data_grid_copyin(tmpdir):
     accdt.apply(schedule)
     code = str(psy.gen)
 
-    # TODO grid properties are effectively duplicated in this list (but the
-    # OpenACC deep-copy support should spot this).
+    # TODO GOcean grid properties are duplicated in this set under
+    # different names (the OpenACC deep copy support should spot this).
     pcopy = ("!$acc enter data copyin(cu_fld,cu_fld%data,d_fld,d_fld%data,"
              "d_fld%grid,d_fld%grid%area_t,d_fld%grid%area_u,d_fld%grid%tmask,"
              "du_fld,du_fld%data,u_fld,u_fld%data,u_fld%grid,"
