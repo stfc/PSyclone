@@ -113,6 +113,12 @@ def test_create_function_spaces(prog, fortran_writer):
     names are supplied. '''
     fs_mod_sym = prog.symbol_table.new_symbol("fs_continuity_mod",
                                               symbol_type=ContainerSymbol)
+    prog.symbol_table.new_symbol("function_space_type", symbol_type=DataSymbol,
+                                 datatype=DeferredType(),
+                                 interface=ImportInterface(fs_mod_sym))
+    prog.symbol_table.new_symbol("mesh", symbol_type=DataSymbol,
+                                 datatype=DeferredType(),
+                                 interface=ImportInterface(fs_mod_sym))
     alg_gen._create_function_spaces(prog, ["w3", "w1"])
     gen = fortran_writer(prog)
     for space in ["w1", "w3"]:
@@ -122,8 +128,8 @@ def test_create_function_spaces(prog, fortran_writer):
                 in gen)
         assert (f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr" in gen)
-        assert (f"vector_space_{space} = function_space_type(mesh, "
-                f"element_order, {space}, ndata_sz)" in gen)
+        assert (f"vector_space_{space} = function_space_type(mesh,"
+                f"element_order,{space},ndata_sz)" in gen)
         assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
 
 
@@ -139,7 +145,7 @@ def test_initialise_field(prog, fortran_writer):
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     alg_gen.initialise_field(prog, sym, "w3")
     gen = fortran_writer(prog)
-    assert ("CALL field1 % initialise(vector_space = vector_space_w3_ptr, "
+    assert ("call field1 % initialise(vector_space = vector_space_w3_ptr, "
             "name = 'field1')" in gen)
     # Second - a field vector.
     dtype = ArrayType(ftype, [3])
@@ -147,7 +153,7 @@ def test_initialise_field(prog, fortran_writer):
     alg_gen.initialise_field(prog, sym, "w2")
     gen = fortran_writer(prog)
     for idx in range(1, 4):
-        assert (f"CALL fieldv2({idx}) % initialise(vector_space = "
+        assert (f"call fieldv2({idx}) % initialise(vector_space = "
                 f"vector_space_w2_ptr, name = 'fieldv2')" in gen)
     # Third - invalid type.
     sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
