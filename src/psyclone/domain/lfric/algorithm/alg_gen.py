@@ -246,10 +246,9 @@ def _create_function_spaces(prog, fspaces):
                 f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr"))
         cblock = reader.psyir_from_expression(
-            f"function_space_type(mesh, {order.name}, {space}, ndata_sz)",
-            table)
+            f"function_space_type(mesh, {order.name}, {space}, "
+            f"{ndata_sz.name})", table)
         prog.addchild(Assignment.create(Reference(vsym), cblock))
-        # TODO - psyir_from_statement() is being implemented in #1637.
         prog.addchild(reader.psyir_from_statement(
             f"{vsym_ptr.name} => {vsym.name}\n", table))
 
@@ -276,7 +275,8 @@ def initialise_field(prog, sym, space):
         prog.addchild(
             reader.psyir_from_statement(
                 f"CALL {sym.name} % initialise(vector_space = "
-                f"vector_space_{space}_ptr, name = '{sym.name}')", prog.table))
+                f"vector_space_{space}_ptr, name = '{sym.name}')",
+                prog.symbol_table))
 
     elif isinstance(sym.datatype, ArrayType):
         # Field vector argument.
@@ -286,7 +286,7 @@ def initialise_field(prog, sym, space):
                 reader.psyir_from_statement(
                     f"CALL {sym.name}({dim}) % initialise(vector_space = "
                     f"vector_space_{space}_ptr, name = '{sym.name}')",
-                    prog.table))
+                    prog.symbol_table))
     else:
         raise InternalError(
             f"Expected a field symbol to either be of ArrayType or have "

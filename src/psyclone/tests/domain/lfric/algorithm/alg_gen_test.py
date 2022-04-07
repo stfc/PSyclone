@@ -52,6 +52,7 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 
 
+@pytest.mark.usefixtures("parser")
 @pytest.fixture(name="prog", scope="function")
 def create_prog_fixture():
     '''
@@ -101,10 +102,8 @@ def test_create_function_spaces_no_spaces(prog, fortran_writer):
 def test_create_function_spaces_invalid_space(prog):
     ''' Check that the expected error is raised if an invalid function-space
     name is supplied. '''
-    prog.symbol_table.new_symbol("fs_continuity_mod",
-                                 symbol_type=ContainerSymbol)
     with pytest.raises(InternalError) as err:
-        alg_gen._create_function_spaces(prog, ["w3", "wwrong", "w1"])
+        alg_gen._create_function_spaces(prog, ["wwrong", "w1"])
     assert ("Function space 'wwrong' is not a valid LFRic function space "
             "(one of [" in str(err.value))
 
@@ -180,7 +179,7 @@ def test_initialise_quadrature(prog, fortran_writer):
     assert qrule.datatype is qtype
     # Check that the constructor is called in the generated code.
     gen = fortran_writer(prog)
-    assert ("qr = quadrature_xyoz_type(element_order + 3, quadrature_rule)"
+    assert ("qr = quadrature_xyoz_type(element_order + 3,quadrature_rule)"
             in gen)
 
 
