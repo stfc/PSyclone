@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, Bureau of Meteorology
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Loop into a
@@ -63,7 +63,7 @@ class CreateNemoLoopTrans(Transformation):
     >>> loops = psyir.walk(Loop)
     >>> trans = CreateNemoLoopTrans()
     >>> trans.apply(loops[0])
-    >>> psyir.view()
+    >>> print(psyir.view(colour=False))
     FileContainer[]
         Routine[name:'sub']
             0: Loop[type='lon', field_space='None', it_space='None']
@@ -77,6 +77,7 @@ class CreateNemoLoopTrans(Transformation):
                         BinaryOperation[operator:'MUL']
                             Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
                             Reference[name:'ji']
+    <BLANKLINE>
 
     As shown above, the resulting Schedule now contains a NemoLoop, indicated
     by the "type='lon'" (for 'longitude') annotation for the Loop node.

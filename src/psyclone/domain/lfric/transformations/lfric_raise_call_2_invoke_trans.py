@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
 '''Specialise generic PSyIR representing an invoke call withing the
 algorithm layer to an LFRic algorithm-layer-specific invoke call which
@@ -40,13 +40,13 @@ uses specialised classes.
 '''
 from psyclone.psyir.nodes import ArrayReference
 
-from psyclone.domain.common.transformations import InvokeCallTrans
+from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
     LFRicKernelFunctor, LFRicAlgorithmInvokeCall
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
-class LFRicInvokeCallTrans(InvokeCallTrans):
+class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
@@ -92,9 +92,10 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                         node_type = LFRicBuiltinFunctor
                     else:
                         node_type = LFRicKernelFunctor
-                    type_symbol = InvokeCallTrans._get_symbol(
+                    type_symbol = RaiseCall2InvokeTrans._get_symbol(
                         call, fp2_node)
-                    args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                    args = RaiseCall2InvokeTrans._parse_args(
+                        call_arg, fp2_node)
                     arg_info.append((node_type, type_symbol, args))
 
             for (node_type, type_symbol, args) in arg_info:
@@ -105,14 +106,5 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
 
-        '''
-        return "LFRicInvokeCallTrans"
-
-
-__all__ = ['LFRicInvokeCallTrans']
+__all__ = ['LFRicRaiseCall2InvokeTrans']

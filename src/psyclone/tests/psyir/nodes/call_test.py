@@ -71,6 +71,19 @@ def test_call_init():
     assert call.children == []
 
 
+def test_call_equality():
+    '''Test the __eq__ method of the Call class. '''
+    # routine arguments
+    routine = RoutineSymbol("j", NoType())
+    routine2 = RoutineSymbol("k", NoType())
+    call1 = Call(routine)
+    call2 = Call(routine)
+    assert call1 == call2
+
+    call3 = Call(routine2)
+    assert call1 != call3
+
+
 def test_call_init_error():
     '''Test that the appropriate exception is raised if the routine
     argument is not a RoutineSymbol.

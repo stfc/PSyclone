@@ -875,7 +875,10 @@ def test_operations_can_be_copied():
 
 
 def test_copy():
-    ''' Test that the copy() method behaves as expected. '''
+    '''Test that the copy() method behaves as expected when there are
+    named arguments.
+
+    '''
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     oper = BinaryOperation.create(
@@ -898,3 +901,24 @@ def test_copy():
     assert oper_copy._argument_names[0] == (id(oper_copy.children[0]), "name2")
     assert oper_copy._argument_names[1] == (id(oper_copy.children[1]), "name1")
     assert oper._argument_names != oper_copy._argument_names
+
+
+def test_operation_equality():
+    ''' Test the __eq__ method of Operation'''
+    tmp1 = DataSymbol("tmp1", REAL_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", REAL_SINGLE_TYPE)
+    lhs1 = Reference(tmp1)
+    rhs1 = Reference(tmp2)
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation1 = BinaryOperation.create(oper, lhs1, rhs1)
+
+    lhs2 = Reference(tmp1)
+    rhs2 = Reference(tmp2)
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation2 = BinaryOperation.create(oper, lhs2, rhs2)
+
+    assert binaryoperation1 == binaryoperation2
+
+    # change the operator
+    binaryoperation2._operator = BinaryOperation.Operator.SUB
+    assert binaryoperation1 != binaryoperation2

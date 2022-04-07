@@ -52,12 +52,12 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>> ast, invokeInfo = parse("shallow_alg.f90")
     >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>>
     >>> from psyclone.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
     >>> ftrans.apply(schedule[0], schedule[1])
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
     def __str__(self):

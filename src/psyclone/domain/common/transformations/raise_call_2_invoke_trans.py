@@ -31,17 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an invoke call within the
 algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-
 # pylint: disable=protected-access
 
-from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec
+from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
+    Name, Char_Literal_Constant
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
@@ -53,7 +53,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
-class InvokeCallTrans(Transformation):
+class RaiseCall2InvokeTrans(Transformation):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to a PSyclone version with specialised domain-specific
     nodes.
@@ -199,6 +199,7 @@ class InvokeCallTrans(Transformation):
             elif isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
+                # pylint: disable=protected-access
                 for fp2_node in arg._fp2_nodes:
                     self._validate_fp2_node(fp2_node)
             else:
@@ -225,6 +226,7 @@ class InvokeCallTrans(Transformation):
         calls = []
         for idx, call_arg in enumerate(call.children):
 
+            # pylint: disable=protected-access
             arg_info = []
             if call.argument_names[idx]:
                 call_name = f"'{call_arg.value}'"
@@ -240,9 +242,9 @@ class InvokeCallTrans(Transformation):
                         call_name = fp2_node.children[1].string
                     else:
                         # This child is a kernel
-                        type_symbol = InvokeCallTrans._get_symbol(
+                        type_symbol = self._get_symbol(
                             call, fp2_node)
-                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                        args = self._parse_args(call_arg, fp2_node)
                         arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
@@ -253,14 +255,5 @@ class InvokeCallTrans(Transformation):
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
 
-        '''
-        return "InvokeCallTrans"
-
-
-__all__ = ['InvokeCallTrans']
+__all__ = ['RaiseCall2InvokeTrans']

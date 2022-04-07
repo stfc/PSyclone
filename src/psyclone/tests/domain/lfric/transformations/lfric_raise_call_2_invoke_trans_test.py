@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, Literal, Reference
 
-from psyclone.domain.lfric.transformations import LFRicInvokeCallTrans
+from psyclone.domain.lfric.transformations import LFRicRaiseCall2InvokeTrans
 from psyclone.domain.lfric.algorithm import LFRicAlgorithmInvokeCall, \
     LFRicKernelFunctor, LFRicBuiltinFunctor
 
@@ -104,9 +104,9 @@ def test_init():
     arguments and its name method returns the expected value.
 
     '''
-    invoke_trans = LFRicInvokeCallTrans()
-    assert invoke_trans.name == "LFRicInvokeCallTrans"
-    assert isinstance(invoke_trans, LFRicInvokeCallTrans)
+    invoke_trans = LFRicRaiseCall2InvokeTrans()
+    assert invoke_trans.name == "LFRicRaiseCall2InvokeTrans"
+    assert isinstance(invoke_trans, LFRicRaiseCall2InvokeTrans)
 
 
 def test_structure_contructor(fortran_reader):
@@ -122,7 +122,7 @@ def test_structure_contructor(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     lfric_invoke_trans.validate(subroutine.children[0])
     lfric_invoke_trans._validate_fp2_node(
@@ -143,12 +143,12 @@ def test_named_arg_error(string, fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert (f"Error in LFRicInvokeCallTrans transformation. If there is a "
-            f"named argument, it must take the form name='str', but found "
+    assert (f"Error in LFRicRaiseCall2InvokeTrans transformation. If there is "
+            f"a named argument, it must take the form name='str', but found "
             f"'call invoke({string})\n'." in str(info.value))
 
 
@@ -166,20 +166,20 @@ def test_multi_named_arg_error(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are 2 in "
-            "'call invoke(name1='first', name2='second')\n'."
+    assert ("Error in LFRicRaiseCall2InvokeTrans transformation. There "
+            "should be at most one named argument in an invoke, but there "
+            "are 2 in 'call invoke(name1='first', name2='second')\n'."
             in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.apply(subroutine[0], 0)
-    assert ("Error in LFRicInvokeCallTrans transformation. There should be at "
-            "most one named argument in an invoke, but there are 2 in "
-            "'call invoke(name1='first', name2='second')\n'."
+    assert ("Error in LFRicRaiseCall2InvokeTrans transformation. There "
+            "should be at most one named argument in an invoke, but there "
+            "are 2 in 'call invoke(name1='first', name2='second')\n'."
             in str(info.value))
 
 
@@ -201,7 +201,7 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
@@ -227,7 +227,7 @@ def test_apply_codedkern_arrayref(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     lfric_invoke_trans.apply(subroutine[0], 1)
 
@@ -254,7 +254,7 @@ def test_apply_codedkern_structconstruct(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     lfric_invoke_trans.apply(subroutine[0], 2)
 
@@ -280,7 +280,7 @@ def test_apply_builtin_structconstruct(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     lfric_invoke_trans.apply(subroutine[0], 3)
 
@@ -307,7 +307,7 @@ def test_apply_builtin_arrayref(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     lfric_invoke_trans.apply(subroutine[0], 4)
 
@@ -336,7 +336,7 @@ def test_apply_mixed(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    lfric_invoke_trans = LFRicInvokeCallTrans()
+    lfric_invoke_trans = LFRicRaiseCall2InvokeTrans()
 
     lfric_invoke_trans.apply(subroutine[0], 5)
 

@@ -34,22 +34,18 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
 This module contains the abstract Node implementation.
 
 '''
-from __future__ import print_function
-
 import copy
 import six
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
-
-# Default indentation string
-INDENTATION_STRING = "    "
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -374,6 +370,26 @@ class Node(object):
                         "annotations are: {2}.".format(
                             self.__class__.__name__, annotation,
                             self.valid_annotations))
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. The basic implementation of this
+        checks whether the nodes are the same type, and whether all children
+        of the nodes are equal, and if so then
+        they are considered equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        super().__eq__(other)
+        is_eq = type(self) is type(other)
+        is_eq = is_eq and (len(self.children) == len(other.children))
+        for index, child in enumerate(self.children):
+            is_eq = is_eq and child == other.children[index]
+
+        return is_eq
 
     @staticmethod
     def _validate_child(position, child):
@@ -797,41 +813,59 @@ class Node(object):
             my_depth += 1
         return my_depth
 
-    def view(self, indent=0, index=None):
-        ''' Print out description of current node to stdout and
-        then call view() on all child nodes.
+    def view(self, depth=0, colour=True, indent="    ", _index=None):
+        '''Output a human readable description of the current node and all of
+        its descendents as a string.
 
-        :param int indent: depth of indent for output text.
-        :param int index: the position of this Node wrt its siblings or None.
+        :param int depth: depth of the tree hierarchy for output \
+            text. Defaults to 0.
+        :param bool colour: whether to include colour coding in the \
+            output. Defaults to True.
+        :param str indent: the indent to apply as the depth \
+            increases. Defaults to 4 spaces.
+        :param int _index: the position of this node wrt its siblings \
+            or None. Defaults to None.
 
-        '''
-        from psyclone.psyir.nodes import Schedule
-        if not isinstance(self.parent, Schedule) or index is None:
-            result = "{0}{1}".format(self.indent(indent),
-                                     self.node_str(colour=True))
-        else:
-            result = "{0}{1}: {2}".format(self.indent(indent), index,
-                                          self.node_str(colour=True))
-        print(six.text_type(result))
-        for idx, entity in enumerate(self._children):
-            entity.view(indent=indent + 1, index=idx)
-
-    @staticmethod
-    def indent(count, indent=INDENTATION_STRING):
-        '''
-        Helper function to produce indentation strings.
-
-        :param int count: Number of indentation levels.
-        :param str indent: String representing one indentation level.
-        :returns: Complete indentation string.
+        :returns: a representation of this node and its descendents.
         :rtype: str
-        '''
-        return count * indent
 
-    def list(self, indent=0):
-        result = ""
-        for entity in self._children:
-            result += str(entity)+"\n"
+        :raises TypeError: if one of the arguments is the wrong type.
+        :raises ValueError: if the depth argument is negative.
+
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Schedule
+
+        if not isinstance(depth, int):
+            raise TypeError(
+                f"depth argument should be an int but found "
+                f"{type(depth).__name__}.")
+        if depth < 0:
+            raise ValueError(
+                f"depth argument should be a positive integer but "
+                f"found {depth}.")
+        if not isinstance(colour, bool):
+            raise TypeError(
+                f"colour argument should be a bool but found "
+                f"{type(colour).__name__}.")
+        if not isinstance(indent, str):
+            raise TypeError(
+                f"indent argument should be a str but found "
+                f"{type(indent).__name__}.")
+
+        full_indent = depth*indent
+        description = self.node_str(colour=colour)
+        if not isinstance(self.parent, Schedule) or _index is None:
+            result = f"{full_indent}{description}\n"
+        else:
+            result = f"{full_indent}{_index}: {description}\n"
+        children_result_list = []
+        for idx, node in enumerate(self._children):
+            children_result_list.append(
+                node.view(
+                    depth=depth + 1, _index=idx, colour=colour, indent=indent))
+        result = result + "".join(children_result_list)
         return result
 
     def addchild(self, child, index=None):
@@ -890,7 +924,9 @@ class Node(object):
         '''
         if self.parent is None:
             return self.START_POSITION
-        return self.parent.children.index(self)
+        for index, child in enumerate(self.parent.children):
+            if child is self:
+                return index
 
     @property
     def abs_position(self):
@@ -905,7 +941,7 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found.
 
         '''
-        if self.root == self:
+        if self.root is self:
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
@@ -939,7 +975,7 @@ class Node(object):
                 "instead of {1}.".format(position, self.START_POSITION))
         for child in children:
             position += 1
-            if child == self:
+            if child is self:
                 return True, position
             if child.children:
                 found, position = self._find_position(child.children, position)
@@ -965,14 +1001,14 @@ class Node(object):
         return node
 
     def sameRoot(self, node_2):
-        if self.root == node_2.root:
+        if self.root is node_2.root:
             return True
         return False
 
     def sameParent(self, node_2):
         if self.parent is None or node_2.parent is None:
             return False
-        if self.parent == node_2.parent:
+        if self.parent is node_2.parent:
             return True
         return False
 
@@ -1091,7 +1127,12 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        position = all_nodes.index(self)
+        position = None
+        for index, node in enumerate(all_nodes):
+            if node is self:
+                position = index
+                break
+
         return all_nodes[position+1:]
 
     def preceding(self, reverse=False, routine=True):
@@ -1125,7 +1166,11 @@ class Node(object):
             if routine_node:
                 root = routine_node
         all_nodes = root.walk(Node)
-        position = all_nodes.index(self)
+        position = None
+        for index, node in enumerate(all_nodes):
+            if node is self:
+                position = index
+                break
         nodes = all_nodes[:position]
         if reverse:
             nodes.reverse()
@@ -1278,7 +1323,8 @@ class Node(object):
 
         '''
         if self.parent:
-            self.parent.children.remove(self)
+            index = self.position
+            self.parent.children.pop(index)
         return self
 
     def _refine_copy(self, other):
