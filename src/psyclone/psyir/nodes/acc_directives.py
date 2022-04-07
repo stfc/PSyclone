@@ -108,10 +108,12 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
 
         try:
             # Look-up the kernels that are children of this node
+            if not self.kernels(): raise AttributeError
             for call in self.kernels():
                 for arg in call.arguments.acc_args:
                     variables.add(arg)
         except AttributeError:
+            from psyclone.psyir.tools import DependencyTools
             dep_tools = DependencyTools()
             inputs, outputs = dep_tools.get_in_out_parameters(self.children)
             for sig in (inputs + outputs):
@@ -130,8 +132,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
     ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
 
     def gen_code(self, parent):
-        '''Generate the fortran ACC Routine Directive and any associated
-        code.
+        '''Generate the fortran ACC Routine Directive and any associated code.
 
         :param parent: the parent Node in the Schedule to which to add our \
                        content.
@@ -160,11 +161,9 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
     '''
     Class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
-    in which fields are marked as being on the remote device is API-
-    -dependent.
+    in which fields are marked as being on the remote device is API-dependent.
 
-    :param children: list of nodes which this directive should \
-                     have as children.
+    :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
@@ -288,15 +287,15 @@ class ACCParallelDirective(ACCRegionDirective):
         # not have children. Instead, we go back up to the Schedule and
         # walk down from there.
         routine = self.ancestor(Routine)
-        nodes = routine.walk(ACCEnterDataDirective)
-        # Check that any enter-data directive comes before this parallel
+        enter_dir = routine.walk(ACCEnterDataDirective)
+        # Check that any enter data directive comes before this parallel
         # directive
-        if nodes and nodes[0].abs_position > self.abs_position:
+        if enter_dir and enter_dir[0].abs_position > self.abs_position:
             raise GenerationError(
                 f"An ACC parallel region must be preceded by an ACC enter data"
                 f" directive but in '{routine.name}' this is not the case.")
 
-        if not nodes and not self.ancestor(ACCDataDirective):
+        if not enter_dir and not self.ancestor(ACCDataDirective):
             raise GenerationError(
                 f"An ACC parallel region must either be preceded by an ACC "
                 f"enter data directive or enclosed within an ACC data region "
@@ -514,12 +513,12 @@ class ACCLoopDirective(ACCRegionDirective):
             clauses = ["acc", "loop"]
 
         if self._sequential:
-            clauses.append("seq")
+            clauses += ["seq"]
         else:
             if self._independent:
-                clauses.append("independent")
+                clauses += ["independent"]
             if self._collapse:
-                clauses.append(f"collapse({self._collapse})")
+                clauses += [f"collapse({self._collapse})"]
         return " ".join(clauses)
 
     def end_string(self):
@@ -731,9 +730,9 @@ class ACCDataDirective(ACCRegionDirective):
                 writers.add(signature)
                 readers.discard(signature)
                 readwrites.discard(signature)
-        readers_list = sorted(list(readers - readwrites))
-        writers_list = sorted(list(writers - readwrites))
-        readwrites_list = sorted(list(readwrites))
+        readers_list = sorted(readers - readwrites)
+        writers_list = sorted(writers - readwrites)
+        readwrites_list = sorted(readwrites)
         if readers_list:
             result += f""" copyin({",".join(
                 _create_access_list(readers_list, var_accesses))})"""
@@ -763,18 +762,22 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     :param signatures: the access signature(s) that need to be synchronised \
                        with the accelerator.
-    :type signatures: [list of] :py:class:`psyclone.core.Signature`
+    :type signatures: List[:py:class:`psyclone.core.Signature`]
     :param str direction: the direction of the synchronisation.
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param bool conditional: whether or not to include the 'if_present' clause
+                             on the update directive (this instructs the
+                             directive to silently ignore any variables that
+                             are not on the device).
 
 
     :raises ValueError: if the direction argument is not a string with \
                         value 'self', 'host' or 'device'.
-    :raises TypeError: if the symbol is not a DataSymbol.
+    :raises TypeError: if signatures is not a list of access signatures.
 
     '''
 
@@ -783,37 +786,27 @@ class ACCUpdateDirective(ACCStandaloneDirective):
     def __init__(self, signatures, direction, children=None, parent=None,
                  conditional=True):
         super().__init__(children=children, parent=parent)
-        if not isinstance(direction, six.string_types) or direction not in \
-                self._VALID_DIRECTIONS:
+
+        if direction not in self._VALID_DIRECTIONS:
             raise ValueError(
                 f"The ACCUpdateDirective direction argument must be a string "
                 f"with any of the values in '{self._VALID_DIRECTIONS}' but "
                 f"found '{direction}'.")
-        if isinstance(signatures, Signature):
-            self._sig_list = [signatures]
-        elif isinstance(signatures, list):
-            if not all(isinstance(sig, Signature) for sig in signatures):
-                raise TypeError(
-                    f"The ACCUpdateDirective signatures argument must be a "
-                    f"list of 'Signature' objects but got "
-                    f"{[type(sig).__name__ for sig in signatures]}")
-            self._sig_list = signatures
-        else:
-            raise TypeError(
-                f"The ACCUpdateDirective signatures argument must either be a "
-                f"'Signature' or a list of Signatures but found "
-                f"'{type(signatures).__name__}'.")
 
+        if not all(isinstance(sig, Signature) for sig in signatures):
+            raise TypeError(
+                f"The ACCUpdateDirective signatures argument must be a "
+                f"list of signatures but got "
+                f"{[type(sig).__name__ for sig in signatures]}")
+
+        self._sig_list = signatures
         self._direction = direction
-        # Whether or not we include the 'if_present' clause on the update
-        # directive (this instructs the directive to silently ignore any
-        # variables that are not on the GPU).
         self._conditional = conditional
 
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two ACCUpdateDirective nodes are
-        equal if their direction and symbol members are equal.
+        equal if their direction and sig_list members are equal.
 
         :param object other: the object to check equality to.
 
@@ -822,7 +815,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.direction == other.direction
-        is_eq = is_eq and self.symbol == other.symbol
+        is_eq = is_eq and self.sig_list == other.sig_list
 
         return is_eq
 
@@ -837,14 +830,14 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         return self._direction
 
     @property
-    def symbol(self):
+    def sig_list(self):
         '''
         Returns the symbol to synchronise with the accelerator.
 
         :returns: the symbol to synchronise with the accelerator.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return self._symbol
+        return self._sig_list
 
     def begin_string(self):
         '''
@@ -857,17 +850,13 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         '''
         condition = "if_present " if self._conditional else ""
-        name_list = []
+        names = set()
         for sig in self._sig_list:
-            if sig.is_structure:
-                for idx in range(len(sig)):
-                    # TODO this is Fortran specific
-                    name = "%".join(sig[0:idx+1])
-                    if name not in name_list:
-                        name_list.append(name)
-            else:
-                name_list.append(sig.var_name)
-        sym_list = ",".join(name_list)
+            for idx in range(len(sig)):
+                # TODO this is 1) Fortran specific and 2) repeated code
+                name = "%".join(sig[:idx+1])
+                names.add(name)
+        sym_list = ",".join(sorted(names))
         return f"acc update {condition}{self._direction}({sym_list})"
 
 
