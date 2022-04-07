@@ -6,6 +6,25 @@
 
 	3) PR #1674 for #1644. Fixes bug in matmul transformation.
 
+	4) PR #1673 for #1671. Fixes an error in the Makefile for the
+	'time evolution' LFRic tutorial.
+
+	5) PR #1628 for #1491. Extends PSyAD pre-processing phase to
+	expand any expressions involving active variables.
+
+	6) PR #1666 towards #1618. Modified prototype PSyIR-based
+	algorithm generation to use a transformation to convert from
+	invoke's to processed algorithm code, rather than it being done as
+	part of lowering in the backend. This allows algorithm code with
+	invoke's to be output by the backend.
+
+	7) PR #1613 for #1238 and #1528. Improves the view() method so that
+	it returns a str rather than printing to stdout. Also allows colour
+	to be disabled.
+
+	8) PR #1656 for #1649 and #1645. Add equality operator to all core
+	PSyIR nodes in order to compare nodes by value.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-

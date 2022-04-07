@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR routine into a
@@ -65,7 +65,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoInvokeScheduleTrans()
     >>> trans.apply(psyir.children[0])
-    >>> psyir.view()
+    >>> print(psyir.view(colour=False))
     FileContainer[]
         NemoInvokeSchedule[invoke='sub']
             0: Loop[type='None', field_space='None', it_space='None']
@@ -79,6 +79,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
                         BinaryOperation[operator:'MUL']
                             Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
                             Reference[name:'ji']
+    <BLANKLINE>
 
     The root node of this example has been transformed from a Routine into a
     NemoInvokeSchedule.

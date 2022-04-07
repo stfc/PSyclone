@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
+
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
@@ -75,7 +77,7 @@ class OMPTaskwaitTrans(Transformation):
     >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
@@ -90,7 +92,8 @@ class OMPTaskwaitTrans(Transformation):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> taskwaittrans.apply(schedule.children)
-    >>> schedule.view()
+    >>> print(schedule.view())
+
     '''
     def __str__(self):
         rval = ("Adds 'OpenMP TASKWAIT' directives to an OpenMP parallel "
@@ -470,7 +473,7 @@ class OMPTaskwaitTrans(Transformation):
                     fdep_parent = forward_dep.parent
                     # Find the position of the forward_dep in its parent's
                     # children list
-                    loc = fdep_parent.children.index(forward_dep)
+                    loc = forward_dep.position
                     # We've found the position, so we now insert an
                     # OMPTaskwaitDirective in that location instead
                     fdep_parent.addchild(OMPTaskwaitDirective(), loc)

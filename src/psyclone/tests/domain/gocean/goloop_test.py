@@ -197,7 +197,7 @@ def test_goloop_bounds_invalid_iteration_space():
     gojloop.iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
-    assert ("Cannot generate custom loop bound for loop GOLoop[id:'', "
+    assert ("Cannot generate custom loop bound for loop GOLoop["
             "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't find "
             "any suitable field." in str(err.value))
 

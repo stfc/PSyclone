@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Author A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+
+''' Performs pytest tests on the ExtractNode PSyIR node. '''
+
+from psyclone.psyir.nodes import ExtractNode, Schedule
+from psyclone.psyir.symbols import SymbolTable
 
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Kernels directives generically. This can be
-applied via the -s option in the psyclone script.
+def test_extract_node_equality():
+    ''' Test the __eq__ method of ExtractNode. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    symboltable2 = SymbolTable()
+    sched1 = Schedule(symbol_table=symboltable)
+    sched2 = Schedule(symbol_table=symboltable)
+    sched3 = Schedule(symbol_table=symboltable2)
+    node1 = ExtractNode(children=[sched1])
+    node2 = ExtractNode(children=[sched2])
+    node3 = ExtractNode(children=[sched3])
 
-'''
-from __future__ import print_function
-from psyclone.transformations import ACCKernelsTrans
+    assert node1 == node2
+    assert node1 != node3
 
-
-def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC Kernels directives generically.'''
-    kernels_trans = ACCKernelsTrans()
-
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
-
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
-        kernels_trans.apply(schedule)
-        print(schedule.view())
-
-    return psy
+    node1._post_name = "testa"
+    node2._post_name = "testb"
+    assert node1 != node2

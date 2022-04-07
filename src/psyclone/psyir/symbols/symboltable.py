@@ -1329,9 +1329,11 @@ class SymbolTable():
 
     def view(self):
         '''
-        Print a representation of this Symbol Table to stdout.
+        :returns: a representation of this Symbol Table.
+        :rtype: str
+
         '''
-        print(str(self))
+        return str(self)
 
     def __str__(self):
         header = "Symbol Table"
