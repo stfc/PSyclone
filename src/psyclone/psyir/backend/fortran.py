@@ -805,6 +805,9 @@ class FortranWriter(LanguageWriter):
                     has_wildcard_import = symbol_table.has_wildcard_imports()
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
+                    if "%" in sym.name:
+                        # TODO need support for type-bound procedures
+                        continue
                     raise VisitorError(
                         f"Routine symbol '{sym.name}' does not have an "
                         f"ImportInterface or LocalInterface, is not a Fortran "
