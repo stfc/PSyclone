@@ -1804,11 +1804,11 @@ def test_dynkernelargument_idtp_vector_field():
     ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
     ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran")])
 def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
-    '''Test the _init_data_type_properties method in the DynKernelArgument
-    class for a field that is part of a non-default-precision
-    vector_field (a collection of fields) in the algorithm layer and
-    is de-referenced to the expected specific field in an invoke
-    argument list.
+    '''Test the '_init_data_type_properties' method in the
+    DynKernelArgument class for a field that is part of a
+    non-default-precision vector_field (a collection of fields) in the
+    algorithm layer and is de-referenced to the expected specific
+    field in an invoke argument list.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, filename), api=TEST_API)
@@ -1993,14 +1993,13 @@ def test_initdatatypeproperties_unknown_field_type():
 
 # Functional tests
 
+# TODO: Remove this test once issues #1638/#1667 are
+# addressed as the 'test_mixed_precision_args' test covers the same
+# ground as this test but currently does not compile.
 def test_r_solver(tmpdir):
     '''Test that fields and scalars declared as r_solver are given the
     appropriate precision in the PSy-layer and all required constants
     are declared.
-
-    This test could be removed once issues #1638/#1667 are addressed
-    as the test_mixed_precision_args test covers the same ground as
-    test but currently does not compile.
 
     '''
     _, invoke_info = parse(
@@ -4359,10 +4358,10 @@ def test_mixed_precision_args(tmpdir):
         if not LFRicBuild(tmpdir).code_compiles(psy):
             pytest.xfail(
                 "Issues #1638/#1667. This example will not compile as there "
-                "is no support for r_solver operators or r_trans in the "
-                "infrastructure.")
+                "is no support for 'r_solver' operators or 'r_trans' fields "
+                "in the infrastructure.")
         else:
             assert False, (
                 "Issues #1638/#1667. This example is not expected to compile "
-                "as there is no support for r_solver operators or r_trans in "
-                "the infrastructure.")
+                "as there is no support for 'r_solver' operators or "
+                "'r_trans' fields in the infrastructure.")

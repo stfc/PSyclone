@@ -1145,9 +1145,9 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 @pytest.mark.parametrize("kind_name", ["r_solver", "r_tran"])
 def test_real_X_precision(tmpdir, monkeypatch, kind_name):
-    '''Test that the builtin picks up and creates correct code for a
-    scalar with precision that is not the default i.e. not r_def. Try
-    with two examples to make sure it works in general.
+    '''Test that the built-in picks up and creates correct code for a
+    scalar with precision that is not the default i.e. not
+    'r_def'. Try with two examples to make sure it works in general.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,

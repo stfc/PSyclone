@@ -242,15 +242,15 @@ def test_parser_invokeinfo_datatypes():
 
 
 def test_parser_invokeinfo_datatypes_mixed():
-    '''Test that the invoke_info method in the Parser class captures the
+    '''Test that the 'invoke_info' method in the Parser class captures the
     required datatype information with mixed-precision fields, scalars
-    and operators e.g. defined as r_solver_field_type, r_solver and
-    r_solver_operator_type respectively.
+    and operators e.g. defined as 'r_solver_field_type', 'r_solver'
+    and 'r_solver_operator_type' respectively.
 
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
     covers the situation where the variable is declared and used with
-    different case e.g. real a\n call invoke(kern(A)).
+    different case e.g. 'real a\n call invoke(kern(A))'.
 
     '''
     alg_filename = os.path.join(

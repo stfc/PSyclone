@@ -1032,7 +1032,7 @@ class DynamoPSy(PSy):
         # Add all field and operator modules that might be used in the
         # algorithm layer. These do not appear in the code unless a
         # variable is added to the "only" part of the
-        # _infrastructure_modules map.
+        # '_infrastructure_modules' map.
         for data_type_info in const.DATA_TYPE_MAP.values():
             infmod_list.append(data_type_info["module"])
 

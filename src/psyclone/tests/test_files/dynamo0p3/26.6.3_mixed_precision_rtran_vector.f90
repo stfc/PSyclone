@@ -29,13 +29,13 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: R. W. Ford STFC Daresbury Lab
+! Author: R. W. Ford, STFC Daresbury Lab
 !
-! Example where the field is dereferenced from an r_tran_vector_type
+! Example where the field is dereferenced from an 'r_tran_vector_type'
 ! and therefore has no type information. The LFRic rules state that an
-! r_tran_vector_type can only contain fields of type
-! r_tran_field_type in LFRic code. This is checked at runtime by the
-! algorithm code using a select statement.
+! 'r_tran_vector_type' can only contain fields of type
+! 'r_tran_field_type' in LFRic code. This is checked at runtime by the
+! algorithm code using a 'select' statement.
 
 module vector_type
 
