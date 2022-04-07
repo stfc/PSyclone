@@ -81,6 +81,21 @@ class Operation(DataNode):
                 f"{type(operator).__name__}.")
         self._operator = operator
 
+    def __eq__(self, other):
+        '''Checks whether two Operations are equal. Operations are equal
+        if they are the same type, have the same operator and if the inherited
+        equality is True.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super(Operation, self).__eq__(other)
+        is_eq = is_eq and self.operator == other.operator
+
+        return is_eq
+
     @property
     def operator(self):
         '''

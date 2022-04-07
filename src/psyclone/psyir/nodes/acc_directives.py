@@ -367,6 +367,8 @@ class ACCLoopDirective(ACCRegionDirective):
                          iteration space or None.
     :param bool independent: Whether or not to add the `independent` clause \
                              to the loop directive.
+    :param bool sequential: whether or not to add the `seq` clause to the \
+                            loop directive.
     '''
     def __init__(self, children=None, parent=None, collapse=None,
                  independent=True, sequential=False):
@@ -374,6 +376,56 @@ class ACCLoopDirective(ACCRegionDirective):
         self._independent = independent
         self._sequential = sequential
         super().__init__(children=children, parent=parent)
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCLoopDirective nodes are
+        equal if their collapse, independent and sequential members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.collapse == other.collapse
+        is_eq = is_eq and self.independent == other.independent
+        is_eq = is_eq and self.sequential == other.sequential
+
+        return is_eq
+
+    @property
+    def collapse(self):
+        ''' Returns the number of nested loops to collapse into a single
+        iteration space for this node.
+
+        :returns: the number of nested loops to collapse into a single \
+                  iteration space for this node.
+        :rtype: int or None
+        '''
+        return self._collapse
+
+    @property
+    def independent(self):
+        ''' Returns whether the independent clause will be added to this
+        loop directive.
+
+        :returns: whether the independent clause will be added to this loop \
+                  directive.
+        :rtype: bool
+        '''
+        return self._independent
+
+    @property
+    def sequential(self):
+        '''
+        Returns whether or not to add the `seq` clause to the loop directive.
+
+        :returns: whether or not the `seq` clause is added to this loop \
+                  directive.
+        :rtype: bool
+        '''
+        return self._sequential
 
     def node_str(self, colour=True):
         '''
@@ -489,6 +541,32 @@ class ACCKernelsDirective(ACCRegionDirective):
     def __init__(self, children=None, parent=None, default_present=True):
         super().__init__(children=children, parent=parent)
         self._default_present = default_present
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCKernelsDirective nodes are
+        equal if their default_present members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.default_present == other.default_present
+
+        return is_eq
+
+    @property
+    def default_present(self):
+        ''' Returns whether the "default(present)" clause is added to the
+        kernels directive.
+
+        :returns: whether the "default(present)" clause is added to the \
+                  kernels directive.
+        :rtype: bool
+        '''
+        return self._default_present
 
     def gen_code(self, parent):
         '''
@@ -702,6 +780,42 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         self._direction = direction
         self._symbol = symbol
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCUpdateDirective nodes are
+        equal if their direction and symbol members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.direction == other.direction
+        is_eq = is_eq and self.symbol == other.symbol
+
+        return is_eq
+
+    @property
+    def direction(self):
+        '''
+        Returns the direction of the synchronisation.
+
+        :returns: the direction of the synchronisation.
+        :rtype: str
+        '''
+        return self._direction
+
+    @property
+    def symbol(self):
+        '''
+        Returns the symbol to synchronise with the accelerator.
+
+        :returns: the symbol to synchronise with the accelerator.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        return self._symbol
 
     def begin_string(self):
         '''

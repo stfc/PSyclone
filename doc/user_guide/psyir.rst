@@ -564,6 +564,48 @@ More examples of using this approach can be found in the PSyclone
 ``examples/psyir`` directory.
 
 
+Comparing PSyIR nodes
+=====================
+The ``==`` (equality) operator for PSyIR nodes performs a specialised equality check
+to compare the value of each node. This is also useful when comparing entire
+subtrees since the equality operator automatically recurses through the children
+and compares each child with the appropriate equality semantics, e.g.
+
+.. code-block:: python
+
+    # Is the loop upper bound expression exactly the same?
+    if loop1.stop_expr == loop2.stop_expr:
+	    print("Same upper bound!")
+
+The equality operator will handle expressions like ``my_array%my_field(:3)`` with the
+derived type fields and the range components automatically, but it cannot handle
+symbolically equivalent fields, i.e. ``my_array%my_field(:3) != my_array%my_field(:2+1)``.
+
+Annotations and code comments are ignored in the equality comparison since they don't
+alter the semantic meaning of the code. So these two statements compare to True:
+
+.. code-block:: fortran
+    
+    a = a + 1
+    a = a + 1 !Increases a by 1
+
+Sometimes there are cases where one really means to check for the specific instance
+of a node. In this case, Python provides the ``is`` operator, e.g.
+
+.. code-block:: python
+
+    # Is the self instance part of this routine?
+    is_here = any(node is self for node in routine.walk(Node))
+
+Additionally, PSyIR nodes cannot be used as map keys or similar. The easiest way
+to do this is just use the id as the key:
+
+.. code-block:: python
+
+    node_map = {}
+    node_map[id(mynode)] = "element"
+
+
 Modifying the PSyIR
 ===================
 

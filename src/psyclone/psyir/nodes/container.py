@@ -70,6 +70,19 @@ class Container(ScopingNode, CommentableMixin):
         super().__init__(**kwargs)
         self._name = name
 
+    def __eq__(self, other):
+        '''Checks the equality of this Container with other. Containers are
+        equal if they are the same type, and have the same name.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.name == other.name
+        return is_eq
+
     @staticmethod
     def _validate_child(position, child):
         '''
