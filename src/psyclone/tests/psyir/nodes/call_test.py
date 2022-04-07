@@ -42,7 +42,7 @@ from psyclone.psyir.nodes import (
     Call, Reference, ArrayReference, Schedule, Literal)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
-    RoutineSymbol, NoType
+    RoutineSymbol, NoType, REAL_TYPE
 from psyclone.errors import GenerationError
 
 
@@ -82,6 +82,19 @@ def test_call_equality():
 
     call3 = Call(routine2)
     assert call1 != call3
+
+    # Check with argument names
+    call4 = Call.create(routine, [("name", Literal("1.0", REAL_TYPE))])
+    call5 = Call.create(routine, [("name", Literal("1.0", REAL_TYPE))])
+    assert call4 == call5
+
+    # Check with argument name and no argument name
+    call6 = Call.create(routine, [Literal("1.0", REAL_TYPE)])
+    assert call4 != call6
+
+    # Check with different argument names
+    call7 = Call.create(routine, [("new_name", Literal("1.0", REAL_TYPE))])
+    assert call4 != call7
 
 
 def test_call_init_error():
@@ -173,7 +186,6 @@ def test_call_create_error5():
 
 
 def test_call_create_error6():
-
     '''Test that the appropriate exception is raised if one or more of the
     arguments argument list entries to the create method is not a
     DataNode.

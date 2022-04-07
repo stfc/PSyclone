@@ -476,7 +476,7 @@ def test_binaryoperation_create_invalid():
     # rhs has an invalid name (1st element invalid value)
     oper = BinaryOperation.Operator.SUM
     with pytest.raises(ValueError) as info:
-        _ = BinaryOperation.create(oper, ref1, ("_", 2))
+        _ = BinaryOperation.create(oper, ref1.copy(), ("_", 2))
     assert "Invalid name '_' found." in str(info.value)
 
 
@@ -907,18 +907,31 @@ def test_operation_equality():
     ''' Test the __eq__ method of Operation'''
     tmp1 = DataSymbol("tmp1", REAL_SINGLE_TYPE)
     tmp2 = DataSymbol("tmp2", REAL_SINGLE_TYPE)
-    lhs1 = Reference(tmp1)
-    rhs1 = Reference(tmp2)
+    lhs = Reference(tmp1)
+    rhs = Reference(tmp2)
     oper = BinaryOperation.Operator.ADD
-    binaryoperation1 = BinaryOperation.create(oper, lhs1, rhs1)
+    binaryoperation1 = BinaryOperation.create(oper, lhs, rhs)
 
-    lhs2 = Reference(tmp1)
-    rhs2 = Reference(tmp2)
     oper = BinaryOperation.Operator.ADD
-    binaryoperation2 = BinaryOperation.create(oper, lhs2, rhs2)
+    binaryoperation2 = BinaryOperation.create(oper, lhs.copy(), rhs.copy())
 
     assert binaryoperation1 == binaryoperation2
 
     # change the operator
     binaryoperation2._operator = BinaryOperation.Operator.SUB
     assert binaryoperation1 != binaryoperation2
+
+    # Check with arguments names
+    binaryoperation3 = BinaryOperation.create(
+        oper, ("name1", lhs.copy()), rhs.copy())
+    binaryoperation4 = BinaryOperation.create(
+        oper, ("name1", lhs.copy()), rhs.copy())
+    assert binaryoperation3 == binaryoperation4
+
+    # Check with argument name and no argument name
+    assert binaryoperation3 != binaryoperation1
+
+    # Check with different argument names
+    binaryoperation5 = BinaryOperation.create(
+        oper, ("new_name", lhs.copy()), rhs.copy())
+    assert binaryoperation3 != binaryoperation5

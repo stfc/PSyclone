@@ -91,6 +91,7 @@ class Call(Statement, DataNode):
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.routine == other.routine
+        is_eq = is_eq and self.argument_names == other.argument_names
 
         return is_eq
 
@@ -144,7 +145,6 @@ class Call(Statement, DataNode):
                         f"method of Call class is a tuple, its first "
                         f"argument should be a str, but found "
                         f"{type(arg[0]).__name__}.")
-                Call._validate_name(arg[0])
                 name, arg = arg
             call.append_named_arg(name, arg)
         return call

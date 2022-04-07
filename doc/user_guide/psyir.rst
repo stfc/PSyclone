@@ -720,14 +720,14 @@ Named arguments can be set or modified via the `create()`,
 methods.
 
 If an argument is inserted directly (via the children list) then it is
-assumed that this is not a named argument. If (the parent node of) an
-argument is modified then it is assumed that this argument is no
+assumed that this is not a named argument. If the top node of an
+argument is replaced then it is assumed that this argument is no
 longer a named argument. If arguments are re-ordered then the names
 follow the re-ordering.
 
-The names of named arguments can be accessed via the `arg_names`
-property. This list has an entry for each argument and either
-containts a name or None (if this is not a named argument).
+The names of named arguments can be accessed via the `argument_names`
+property. This list has an entry for each argument and either contains
+a name or None (if this is not a named argument).
 
 The PSyIR does not constrain which arguments are specified as being
 named and what those names are. It is the developer's responsibility

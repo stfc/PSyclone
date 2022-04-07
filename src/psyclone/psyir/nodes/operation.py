@@ -203,6 +203,7 @@ class Operation(DataNode):
         '''
         is_eq = super(Operation, self).__eq__(other)
         is_eq = is_eq and self.operator == other.operator
+        is_eq = is_eq and self.argument_names == other.argument_names
 
         return is_eq
 
@@ -381,7 +382,6 @@ class UnaryOperation(Operation):
                     f"UnaryOperation class is a tuple, its first "
                     f"argument should be a str, but found "
                     f"{type(operand[0]).__name__}.")
-            Operation._validate_name(operand[0])
             name, operand = operand
 
         unary_op.append_named_arg(name, operand)
@@ -555,9 +555,6 @@ class BinaryOperation(Operation):
         if isinstance(rhs, tuple):
             rhs_name, rhs = rhs
 
-        Operation._validate_name(lhs_name)
-        Operation._validate_name(rhs_name)
-
         binary_op = BinaryOperation(operator)
         binary_op.append_named_arg(lhs_name, lhs)
         binary_op.append_named_arg(rhs_name, rhs)
@@ -640,7 +637,6 @@ class NaryOperation(Operation):
                         f"method of NaryOperation class is a tuple, "
                         f"its first argument should be a str, but found "
                         f"{type(operand[0]).__name__}.")
-                Operation._validate_name(operand[0])
                 name, operand = operand
             nary_op.append_named_arg(name, operand)
         return nary_op
