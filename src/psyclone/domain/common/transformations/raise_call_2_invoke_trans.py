@@ -236,16 +236,13 @@ class RaiseCall2InvokeTrans(Transformation):
                 type_symbol = call_arg.symbol
                 arg_info.append((type_symbol, args))
             else:
-                for fp2_node in call_arg._fp2_nodes:
-                    if isinstance(fp2_node, Actual_Arg_Spec):
-                        # This child is a named argument.
-                        call_name = fp2_node.children[1].string
-                    else:
-                        # This child is a kernel
-                        type_symbol = self._get_symbol(
-                            call, fp2_node)
-                        args = self._parse_args(call_arg, fp2_node)
-                        arg_info.append((type_symbol, args))
+                # The validates check that this can only be a Codeblock with
+                # a StructureConstructor fparser2 node inside
+                for fp2_node in call_arg.get_ast_nodes:
+                    # This child is a kernel
+                    type_symbol = self._get_symbol(call, fp2_node)
+                    args = self._parse_args(call_arg, fp2_node)
+                    arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)

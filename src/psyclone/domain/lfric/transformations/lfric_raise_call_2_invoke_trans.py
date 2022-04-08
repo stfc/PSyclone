@@ -85,7 +85,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                     type_symbol = call_arg.symbol
                 arg_info.append((node_type, type_symbol, args))
             else:
-                for fp2_node in call_arg._fp2_nodes:
+                for fp2_node in call_arg.get_ast_nodes:
                     # This child is a kernel or builtin
                     name = fp2_node.children[0].string
                     if name in builtins:
