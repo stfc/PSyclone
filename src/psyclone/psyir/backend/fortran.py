@@ -50,8 +50,9 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
-    Symbol, SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
+    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
+    UnresolvedInterface
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -652,6 +653,7 @@ class FortranWriter(LanguageWriter):
             but is not of UnknownFortranType.
         :raises InternalError: if include_visibility is True and the \
             visibility of the symbol is not of the correct type.
+        :raises VisitorError: if the supplied symbol is of DeferredType.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -687,7 +689,14 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
+        if isinstance(symbol.datatype, DeferredType):
+            raise VisitorError(
+                f"Local Symbol '{symbol.name}' is of DeferredType and "
+                f"therefore no declaration can be created for it. Should it "
+                f"have an ImportInterface?")
+
         self._depth += 1
+
         for member in symbol.datatype.components.values():
             # We always want to specify the visibility of components within
             # a derived type.
@@ -826,6 +835,9 @@ class FortranWriter(LanguageWriter):
                     has_wildcard_import = symbol_table.has_wildcard_imports()
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
+                    if "%" in sym.name:
+                        # TODO need support for type-bound procedures
+                        continue
                     raise VisitorError(
                         f"Routine symbol '{sym.name}' does not have an "
                         f"ImportInterface or LocalInterface, is not a Fortran "
@@ -1525,7 +1537,7 @@ class FortranWriter(LanguageWriter):
         :param node: a Call PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
 
-        :returns: the Fortran code as a string.
+        :returns: the equivalent Fortran code.
         :rtype: str
 
         '''
@@ -1543,3 +1555,20 @@ class FortranWriter(LanguageWriter):
             return f"{self._nindent}call {node.routine.name}({args})\n"
         # Otherwise it is inside-expression function call
         return f"{node.routine.name}({args})"
+
+    def kernelfunctor_node(self, node):
+        '''
+        Translate the Kernel functor into Fortran.
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
+
+        :returns: the equivalent Fortran code.
+        :rtype: str
+
+        '''
+        result_list = []
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ", ".join(result_list)
+        return f"{node.name}({args})"

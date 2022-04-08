@@ -378,7 +378,7 @@ algorithm layer run:
 
 ```sh
 cd eg20/
-psyclone-kern --alg-gen ../code/testkern_mod.F90
+psyclone-kern -gen alg ../code/testkern_mod.F90
 ```
 
 ## Code

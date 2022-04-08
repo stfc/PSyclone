@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -607,6 +607,20 @@ cases. The reason for distinguishing is that the ``GH_INC`` access is
 able to remove a halo exchange, or at least reduce its depth by one,
 in certain circumstances, whereas a ``GH_READINC`` is not able to take
 advantage of this optimisation.
+
+Example 20: Algorithm Generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm layer for a kernel. A makefile is provide that also
+runs ``psyclone`` to create an executable program from the generated
+algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+.. code-block:: bash
+
+    cd eg20/
+    psyclone-kern -gen alg ../code/testkern_mod.F90
 
 
 NEMO

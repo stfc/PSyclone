@@ -42,7 +42,6 @@ create suitable algorithm-layer code which invokes that kernel.
 
 '''
 
-from __future__ import absolute_import
 # fparser contains classes that are generated at run time.
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import (Main_Program, Module, Use_Stmt,
@@ -243,18 +242,5 @@ def adduse(location, name, only=None, funcnames=None):
     spec_part.content.insert(0, use)
 
 
-def generate(kernel_filename, api):
-    '''
-    Given a kernel filename, creates an algorithm layer that invokes that
-    kernel for the specified PSyclone API.
-
-    # TODO #1555 implement this routine.
-
-    :param str kernel_filename: name of a file containing kernel metadata.
-    :param str api: the PSyclone API that the metadata conforms to.
-
-    :raises NotImplementedError: this routine is just a stub.
-
-    '''
-    raise NotImplementedError("Algorithm generation from kernel metadata is "
-                              "not yet implemented - #1555.")
+# For auto-API documentation generation.
+__all__ = ["NoInvokesError", "Alg"]

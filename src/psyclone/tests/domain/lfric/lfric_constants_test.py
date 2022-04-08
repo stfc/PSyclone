@@ -31,11 +31,55 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
-'''This module tests the contents of the lfric_constants.py file.'''
+'''
+Module containing tests for the LFRic (Dynamo0.3) constants class.
+'''
 
+import pytest
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import InternalError
+
+
+def test_specific_function_space():
+    ''' Check that the lookup of a specific function space for a valid
+    wildcard name works as expected.
+
+    '''
+    name = LFRicConstants().specific_function_space("ANY_W2")
+    assert name == "w2"
+    name = LFRicConstants().specific_function_space("ANY_space_3")
+    assert name == "w0"
+    name = LFRicConstants().specific_function_space(
+        "ANY_disCONTINUOUS_space_3")
+    assert name == "w3"
+    name = LFRicConstants().specific_function_space("wtheta")
+    assert name == "wtheta"
+
+
+def test_specific_function_space_invalid():
+    ''' Check that the specific_function_space() method rejects an invalid
+    function-space name. '''
+    with pytest.raises(ValueError) as err:
+        LFRicConstants().specific_function_space("wrong")
+    assert ("'wrong' is not a recognised LFRic function space (one of"
+            in str(err.value))
+
+
+def test_specific_function_space_internal_error(monkeypatch):
+    ''' Check that the lookup of a specific function space raises the expected
+    internal error if an unhandled case is found.
+    '''
+    const = LFRicConstants()
+    # We have to monkeypatch the list of valid FS names to get to the bit
+    # of code we want to test.
+    monkeypatch.setattr(LFRicConstants,
+                        "VALID_FUNCTION_SPACE_NAMES", ["any_wrong"])
+    with pytest.raises(InternalError) as err:
+        const.specific_function_space("any_wrong")
+    assert ("Error mapping from meta-data function space to actual space: "
+            "cannot handle 'any_wrong'" in str(err.value))
 
 
 def test_quadrature_type_map():

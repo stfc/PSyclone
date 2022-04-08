@@ -588,14 +588,3 @@ def test_adduse_nospec(parser):
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
             "('PROGRAM', Name('test'))'.") in str(excinfo.value)
-
-
-def test_generate_notimplemented():
-    '''
-    Check that calling :py:func:`psyclone.alg_gen.generate` raises the
-    expected error. (This function will be implemented as part of #1555.)
-
-    '''
-    with pytest.raises(NotImplementedError) as err:
-        alg_gen.generate(None, None)
-    assert "not yet implemented - #1555" in str(err.value)
