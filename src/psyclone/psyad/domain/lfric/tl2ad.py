@@ -36,12 +36,14 @@
 ''' Provides LFRic-specific PSyclone adjoint functionality. '''
 
 from fparser import api as fpapi
+from psyclone.domain.lfric.algorithm import (
+    LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.alg_gen import (
-    create_alg_driver, create_invoke_call, construct_kernel_args,
+    _create_alg_driver, construct_kernel_args,
     initialise_field)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+from psyclone.parse.kernel import KernelTypeFactory
 from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
                                   Literal, BinaryOperation)
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
@@ -103,7 +105,7 @@ def generate_lfric_adjoint_test(tl_source):
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
     '''
-    prog = create_alg_driver("main", 10)
+    prog = _create_alg_driver("main", 10)
     table = prog.symbol_table
 
     # Parse the kernel metadata (this still uses fparser1 as that's what
@@ -141,6 +143,14 @@ def generate_lfric_adjoint_test(tl_source):
         input_sym.copy_properties(sym)
         input_symbols[sym] = input_sym
 
+    # Create symbols for the various Builtins that we will use.
+    # TODO these symbols are not added to the SymbolTable because they only
+    # exist as part of the DSL.
+    setval_c = DataTypeSymbol("setval_c", DeferredType())
+    setval_x = DataTypeSymbol("setval_x", DeferredType())
+    setval_rand = DataTypeSymbol("setval_random", DeferredType())
+    x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
+
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
     random_num = RoutineSymbol("random_number")
@@ -155,23 +165,34 @@ def generate_lfric_adjoint_test(tl_source):
         input_sym = input_symbols[sym]
         if isinstance(sym.datatype, DataTypeSymbol):
             initialise_field(prog, input_sym, space)
-            kernel_list.append(("setval_random", [sym.name]))
-            kernel_list.append(("setval_X", [input_sym.name, sym.name]))
+            kernel_list.append(LFRicBuiltinFunctor.create(setval_rand,
+                                                          [Reference(sym)]))
+            kernel_list.append(LFRicBuiltinFunctor.create(
+                setval_x, [Reference(input_sym), Reference(sym)]))
         elif isinstance(sym.datatype, ArrayType):
             initialise_field(prog, input_sym, space)
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
-                kernel_list.append(("setval_random",
-                                    [f"{sym.name}({dim})"]))
-                kernel_list.append(("setval_X", [f"{input_sym.name}({dim})",
-                                                 f"{sym.name}({dim})"]))
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(setval_rand,
+                                               ArrayReference.create(sym,
+                                                                     [dim])))
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(
+                        setval_x, [ArrayReference.create(input_sym, [dim]),
+                                   ArrayReference.create(sym, [dim])]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
 
-    kernel_list.append((kernel_routine.name, kern_args.arglist))
+    # Finally, add the kernel itself to the list for the invoke().
+    arg_nodes = []
+    for arg in kern_args.arglist:
+        arg_nodes.append(Reference(table.lookup(arg)))
+    kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
+    kernel_list.append(kern)
 
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL,
                            table.lookup("r_def"))
@@ -185,7 +206,9 @@ def generate_lfric_adjoint_test(tl_source):
                                       datatype=rdef_type)
             prog.addchild(Assignment.create(Reference(ip_sym),
                                             Literal("0.0", rdef_type)))
-            kernel_list.append(("X_innerproduct_X", [ip_sym.name, sym.name]))
+            kernel_list.append(
+                LFRicBuiltinFunctor.create(x_innerprod_x, [Reference(ip_sym),
+                                                           Reference(sym)]))
         elif isinstance(sym.datatype, ArrayType):
             dtype = ArrayType(rdef_type, sym.datatype.shape)
             ip_sym = table.new_symbol(inner_prod_name, symbol_type=DataSymbol,
@@ -196,9 +219,11 @@ def generate_lfric_adjoint_test(tl_source):
                     ArrayReference.create(ip_sym,
                                           [Literal(str(dim), INTEGER_TYPE)]),
                     Literal("0.0", rdef_type)))
-                kernel_list.append(("X_innerproduct_X",
-                                    [f"{ip_sym.name}({dim})",
-                                     f"{sym.name}({dim})"]))
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(
+                        x_innerprod_x,
+                        [ArrayReference.create(ip_sym, [dim]),
+                         ArrayReference.create(sym, [dim])]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -207,7 +232,8 @@ def generate_lfric_adjoint_test(tl_source):
         field_ip_symbols.append(ip_sym)
 
     # Create the 'call invoke(...)' for the list of kernels.
-    prog.addchild(create_invoke_call(kernel_list))
+    invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
+    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
 
     # Compute the first inner products.
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,
