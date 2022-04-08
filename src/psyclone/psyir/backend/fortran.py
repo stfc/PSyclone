@@ -1491,11 +1491,10 @@ class FortranWriter(LanguageWriter):
         :param node: a Call PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
 
-        :returns: the Fortran code as a string.
+        :returns: the equivalent Fortran code.
         :rtype: str
 
         '''
-
         result_list = []
         for child in node.children:
             result_list.append(self._visit(child))
@@ -1504,3 +1503,20 @@ class FortranWriter(LanguageWriter):
             return f"{self._nindent}call {node.routine.name}({args})\n"
         # Otherwise it is inside-expression function call
         return f"{node.routine.name}({args})"
+
+    def kernelfunctor_node(self, node):
+        '''
+        Translate the Kernel functor into Fortran.
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.domain.common.algorithm.KernelFunctor`
+
+        :returns: the equivalent Fortran code.
+        :rtype: str
+
+        '''
+        result_list = []
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ", ".join(result_list)
+        return f"{node.name}({args})"

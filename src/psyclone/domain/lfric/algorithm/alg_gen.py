@@ -448,7 +448,8 @@ def generate(kernel_path):
     # table, the backend will currently fail because it is undefined.
     # TODO #1645 will address this.
     setval_c = DataTypeSymbol("setval_c", DeferredType())
-    table.add(setval_c)
+    # TODO don't add it to the table in order to allow the backend to work.
+    # table.add(setval_c)
 
     # As with the scalar initialisation, we don't worry about precision
     # here since we are just setting the field values to unity. If the
