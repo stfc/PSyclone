@@ -94,10 +94,29 @@ def test_create_alg_driver(fortran_writer):
     psyir = alg_gen._create_alg_driver("my_prog", 8)
     assert isinstance(psyir, Routine)
     assert psyir.symbol_table.lookup("r_def")
-    # TODO #284 ideally we'd test that the generated code compiles.
-    gen = fortran_writer(psyir)
+    # TODO #284 ideally we'd test that the generated code compiles but that
+    # would require a full PSyclone pass and then compilation of the resulting
+    # Algorithm and PSy code.
+    gen = fortran_writer(psyir).lower()
+
     assert "program my_prog" in gen
-    assert "uniform_extrusion_type(0.0_r_def, 100.0_r_def, 8)" in gen
+    assert "use mesh_mod, only : mesh_type, plane" in gen
+    assert ("use partition_mod, only : partition_type, "
+            "partitioner_interface, partitioner_planar" in gen)
+    assert "use global_mesh_base_mod, only : global_mesh_base_type" in gen
+    assert "use extrusion_mod, only : uniform_extrusion_type" in gen
+    assert "type(partition_type) :: partition" in gen
+    assert "type(mesh_type), target :: mesh" in gen
+    assert "type(global_mesh_base_type), target :: global_mesh" in gen
+    assert "class(global_mesh_base_type), pointer :: global_mesh_ptr" in gen
+    assert "type(uniform_extrusion_type), target :: extrusion" in gen
+    assert "type(uniform_extrusion_type), pointer :: extrusion_ptr" in gen
+    assert "global_mesh = global_mesh_base_type()" in gen
+    assert "global_mesh_ptr => global_mesh" in gen
+    assert "partitioner_ptr => partitioner_planar" in gen
+    assert ("extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 8)"
+            in gen)
+    assert "mesh = mesh_type(global_mesh_ptr,partition,extrusion_ptr)" in gen
 
 
 def test_create_function_spaces_no_spaces(prog, fortran_writer):

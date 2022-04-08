@@ -49,7 +49,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType)
+    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType,
+    LocalInterface)
 
 
 # The order of the finite-element scheme that will be used by any generated
@@ -85,8 +86,20 @@ def _create_alg_driver(name, nlayers):
     # For simplicity we use a template algorithm layer.
     alg_code = f'''\
 PROGRAM {name}
-  USE some_mod
+  use some_mod
+  use mesh_mod, only: mesh_type, PLANE
+  use partition_mod, only: partition_type, partitioner_planar, \
+partitioner_interface
+  use global_mesh_base_mod, only: global_mesh_base_type
+  use extrusion_mod, only: uniform_extrusion_type
   IMPLICIT NONE
+  type(partition_type) :: partition
+  type(mesh_type), target :: mesh
+  type(global_mesh_base_type), target :: global_mesh
+  class(global_mesh_base_type), pointer :: global_mesh_ptr
+  type(uniform_extrusion_type), target :: extrusion
+  type(uniform_extrusion_type), pointer :: extrusion_ptr
+
   global_mesh = global_mesh_base_type()
   global_mesh_ptr => global_mesh
   partitioner_ptr => partitioner_planar
@@ -94,12 +107,13 @@ PROGRAM {name}
   extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, {nlayers})
   extrusion_ptr => extrusion
   mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
-  WRITE(*, *) "Mesh has", mesh % get_nlayers(), "layers."
+  write(*, *) "Mesh has", mesh % get_nlayers(), "layers."
 END PROGRAM {name}
 '''
     # Create the PSyIR of this code.
     reader = FortranReader()
     psyir = reader.psyir_from_source(alg_code)
+
     prog = psyir.walk(Routine)[0].detach()
     table = prog.symbol_table
     # Remove the fake container symbol (needed to prevent FortranReader from
@@ -108,8 +122,7 @@ END PROGRAM {name}
 
     # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "global_mesh_base_mod", "mesh_mod", "partition_mod",
-                "extrusion_mod", "constants_mod"]:
+                "constants_mod"]:
         table.new_symbol(mod, symbol_type=ContainerSymbol)
 
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -123,59 +136,13 @@ END PROGRAM {name}
                      interface=ImportInterface(
                          table.lookup("function_space_mod")))
 
-    table.new_symbol("global_mesh_base_type",
-                     symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("global_mesh_base_mod")))
-
-    table.new_symbol(
-        "mesh_type", symbol_type=DataTypeSymbol,
-        datatype=DeferredType(),
-        interface=ImportInterface(table.lookup("mesh_mod")))
-    table.new_symbol(
-        "PLANE", symbol_type=DataSymbol,
-        datatype=DeferredType(),
-        interface=ImportInterface(table.lookup("mesh_mod")))
-    table.new_symbol(
-        "uniform_extrusion_type", symbol_type=DataTypeSymbol,
-        datatype=DeferredType(),
-        interface=ImportInterface(table.lookup("extrusion_mod")))
-    part_type = table.new_symbol(
-        "partition_type", symbol_type=DataTypeSymbol,
-        datatype=DeferredType(),
-        interface=ImportInterface(table.lookup("partition_mod")))
-    table.new_symbol("partition", symbol_type=DataSymbol,
-                     datatype=part_type)
-
-    table.new_symbol("mesh", symbol_type=DataSymbol,
-                     datatype=UnknownFortranType(
-                         "TYPE(mesh_type), TARGET :: mesh"))
-    table.new_symbol("global_mesh", symbol_type=DataSymbol,
-                     datatype=UnknownFortranType(
-                         "TYPE(global_mesh_base_type), TARGET :: global_mesh"))
-    table.new_symbol("global_mesh_ptr", symbol_type=DataSymbol,
-                     datatype=UnknownFortranType(
-                         "CLASS(global_mesh_base_type), POINTER :: "
-                         "global_mesh_ptr"))
-    table.new_symbol("extrusion", symbol_type=DataSymbol,
-                     datatype=UnknownFortranType(
-                         "TYPE(uniform_extrusion_type), TARGET :: extrusion"))
-    table.new_symbol("extrusion_ptr", symbol_type=DataSymbol,
-                     datatype=UnknownFortranType(
-                         "TYPE(uniform_extrusion_type), POINTER :: "
-                         "extrusion_ptr"))
-
-    table.new_symbol(
-        "partitioner_planar", symbol_type=RoutineSymbol,
-        interface=ImportInterface(table.lookup("partition_mod")))
-    table.new_symbol(
-        "partitioner_interface",
-        interface=ImportInterface(table.lookup("partition_mod")))
-    table.new_symbol(
-        "partitioner_ptr", symbol_type=DataSymbol,
-        datatype=UnknownFortranType("PROCEDURE(partitioner_interface), "
-                                    "POINTER :: partitioner_ptr"))
+    # If we put this declaration in the template code above then we just
+    # end up with a CodeBlock (Issue #1687) so we have to massage it here.
+    part_ptr = table.lookup("partitioner_ptr")
+    part_ptr.specialise(DataSymbol, interface=LocalInterface(),
+                        datatype=UnknownFortranType(
+                            "PROCEDURE(partitioner_interface), "
+                            "POINTER :: partitioner_ptr"))
 
     table.new_symbol("r_def", symbol_type=DataSymbol,
                      datatype=INTEGER_TYPE,
