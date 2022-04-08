@@ -47,7 +47,7 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.nodes import BinaryOperation, CodeBlock, DataNode, \
+from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
     Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, ScalarType, \
@@ -296,6 +296,36 @@ def add_accessibility_to_unknown_declaration(symbol):
                     f"that it is public: '{symbol.datatype.declaration}'")
             first_part = first_part.rstrip() + ", private "
     return "::".join([first_part]+parts[1:])
+
+
+def _validate_named_args(node):
+    '''Utility function that check that all named args occur after all
+    positional args. The check is applicable to Call and Operation
+    nodes. This is a Fortran restriction, not a PSyIR restriction.
+
+    :param node: the node to check.
+    :type node: :py:class:`psyclone.psyir.nodes.Call` or subclass of \
+    :py:class:`psyclone.psyir.nodes.Operation`
+
+    raises TypeError: if the node is not a Call or Operation.
+    raises VisitorError: if the all of the positional arguments are \
+        not before all of the named arguments.
+
+    '''
+    if not isinstance(node, (Call, Operation)):
+        raise TypeError(
+            f"The _validate_named_args utility function expects either a "
+            f"Call or Operation node, but found '{type(node).__name__}'.")
+
+    found_named_arg = False
+    for name in node.argument_names:
+        if found_named_arg and not name:
+            raise VisitorError(
+                f"Fortran expects all named arguments to occur after all "
+                f"positional arguments but this is not the case for "
+                f"{str(node)}")
+        if name:
+            found_named_arg = True
 
 
 class FortranWriter(LanguageWriter):
@@ -1020,20 +1050,7 @@ class FortranWriter(LanguageWriter):
                     whole_routine_scope.add(symbol)
                 except KeyError:
                     new_name = whole_routine_scope.next_available_name(
-                        symbol.name)
-                    while True:
-                        # Ensure that the new name isn't already in the current
-                        # symbol table.
-                        local_name = schedule.symbol_table.next_available_name(
-                            new_name)
-                        if local_name == new_name:
-                            # new_name is availble in the current symbol table
-                            # so we're done.
-                            break
-                        # new_name clashed with an entry in the current symbol
-                        # table so try again.
-                        new_name = whole_routine_scope.next_available_name(
-                            local_name)
+                        symbol.name, other_table=schedule.symbol_table)
                     schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
 
@@ -1051,7 +1068,6 @@ class FortranWriter(LanguageWriter):
             exec_statements += self._visit(child)
         result += (
             f"{imports}"
-            f"{self._nindent}implicit none\n"
             f"{declarations}\n"
             f"{exec_statements}\n")
 
@@ -1087,8 +1103,14 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        _validate_named_args(node)
+
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
+        if node.argument_names[0]:
+            lhs = f"{node.argument_names[0]}={lhs}"
+        if node.argument_names[1]:
+            rhs = f"{node.argument_names[1]}={rhs}"
         try:
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
@@ -1132,9 +1154,15 @@ class FortranWriter(LanguageWriter):
         :raises VisitorError: if an unexpected N-ary operator is found.
 
         '''
+        _validate_named_args(node)
+
         arg_list = []
-        for child in node.children:
-            arg_list.append(self._visit(child))
+        for idx, child in enumerate(node.children):
+            if node.argument_names[idx]:
+                arg_list.append(
+                    f"{node.argument_names[idx]}={self._visit(child)}")
+            else:
+                arg_list.append(self._visit(child))
         try:
             fort_oper = self.get_operator(node.operator)
             return f"{fort_oper}(" + ", ".join(arg_list) + ")"
@@ -1328,7 +1356,11 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                return f"{fort_oper}({content})"
+                if node.argument_names[0]:
+                    result = f"{fort_oper}({node.argument_names[0]}={content})"
+                else:
+                    result = f"{fort_oper}({content})"
+                return result
             # It's not an intrinsic function so we need to consider the
             # parent node. If that is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
@@ -1497,10 +1529,15 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        _validate_named_args(node)
 
         result_list = []
-        for child in node.children:
-            result_list.append(self._visit(child))
+        for idx, child in enumerate(node.children):
+            if node.argument_names[idx]:
+                result_list.append(
+                    f"{node.argument_names[idx]}={self._visit(child)}")
+            else:
+                result_list.append(self._visit(child))
         args = ", ".join(result_list)
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"
