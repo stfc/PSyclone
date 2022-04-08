@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,9 @@ program operator_example
   type(quadrature_xyoz_type), pointer :: qr => null
   integer(i_def)                      :: mesh_id = 1
   integer(i_def)                      :: element_order = 0
-  real(r_def)                         :: a
+  integer(i_def)                      :: a
 
-  a = 1.0_r_def
+  a = 1_i_def
   mm_w0 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W0), &
                         function_space_collection%get_fs(mesh_id,element_order,W0))
 

@@ -57,7 +57,9 @@ import six
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall
+from psyclone.domain.common.transformations import (AlgTrans,
+                                                    AlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -264,12 +266,17 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for algorithm optimisations
             handle_script(script_name, psyir, "trans_alg", is_optional=True)
 
+        # Transform 'invoke' calls into calls to PSy-layer subroutines
+        invoke_trans = AlgInvoke2PSyCallTrans()
+        for invoke in psyir.walk(AlgorithmInvokeCall):
+            invoke_trans.apply(invoke)
+
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
         alg_gen = writer(psyir)
 
         # Create the PSy-layer
-        # TODO: issue #753 replace invoke_info with alg psyir
+        # TODO: issue #1629 replace invoke_info with alg psyir
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
@@ -440,13 +447,7 @@ def main(args):
     except Exception:  # pylint: disable=broad-except
         print("Error, unexpected exception, please report to the authors:",
               file=sys.stderr)
-        exc_type, exc_value, exc_tb = sys.exc_info()
-        print("Description ...", file=sys.stderr)
-        print(exc_value, file=sys.stderr)
-        print("Type ...", file=sys.stderr)
-        print(exc_type, file=sys.stderr)
-        print("Stacktrace ...", file=sys.stderr)
-        traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
+        traceback.print_exception(*sys.exc_info(), file=sys.stderr)
         sys.exit(1)
     if args.limit != 'off':
         # Limit the line length of the output Fortran to ensure it conforms

@@ -44,7 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    FortranWriter, precedence
+    FortranWriter, precedence, _validate_named_args
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
@@ -530,6 +530,30 @@ def test_precedence_error():
     '''
     with pytest.raises(KeyError):
         _ = precedence('invalid')
+
+
+def test_validate_named_args():
+    '''Check that the _validate_named_args utility function works as
+    expected
+
+    '''
+    # type error
+    with pytest.raises(TypeError) as info:
+        _validate_named_args(None)
+    assert ("The _validate_named_args utility function expects either a "
+            "Call or Operation node, but found 'NoneType'." in str(info.value))
+    # visitor error
+    call = Call.create(RoutineSymbol("hello"), [
+        ("name", Literal("1.0", REAL_TYPE)), Literal("2.0", REAL_TYPE)])
+    with pytest.raises(VisitorError) as info:
+        _validate_named_args(call)
+    assert("Fortran expects all named arguments to occur after all "
+           "positional arguments but this is not the case for "
+           "Call[name='hello']" in str(info.value))
+    # ok
+    call = Call.create(RoutineSymbol("hello"), [
+        Literal("1.0", REAL_TYPE), ("name", Literal("2.0", REAL_TYPE))])
+    _validate_named_args(call)
 
 
 def test_fw_gen_use(fortran_writer):
@@ -1226,27 +1250,27 @@ def test_fw_routine_nameclash(fortran_writer):
     ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
-            "  integer :: var1_1_1\n"
+            "  integer :: var1_2\n"
             "  integer :: var1_1\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
             "  else\n"
-            "    var1_1_1 = 2\n"
+            "    var1_2 = 2\n"
             "  end if" in result)
     # Add a symbol to the routine scope that will clash with the first name
     # generated with reference to the else scope.
-    routine.symbol_table.add(DataSymbol("var1_1_1", INTEGER_TYPE))
+    routine.symbol_table.add(DataSymbol("var1_2", INTEGER_TYPE))
     result = fortran_writer(routine)
-    assert ("  integer :: var1_1_1\n"
+    assert ("  integer :: var1_2\n"
             "  integer :: var1\n"
-            "  integer :: var1_1_2\n"
+            "  integer :: var1_3\n"
             "  integer :: var1_1\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
             "  else\n"
-            "    var1_1_2 = 2\n"
+            "    var1_3 = 2\n"
             "  end if" in result)
 
 
@@ -1358,10 +1382,12 @@ def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_binaryoperator_sum(fortran_writer, tmpdir, fortran_reader):
-    '''Check the FortranWriter class binary_operation method with the sum
-    operator correctly prints out the Fortran representation of an
-    intrinsic.
+def test_fw_binaryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+    '''Check the FortranWriter class binary_operation method operator
+    correctly prints out the Fortran representation of an intrinsic
+    with a named argument. The sum intrinsic is used here. Also check
+    that the expected exception is raised if all of the named
+    arguments are not after the positional arguments.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1379,8 +1405,29 @@ def test_fw_binaryoperator_sum(fortran_writer, tmpdir, fortran_reader):
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = SUM(array, dim = 1)" in result
+    assert "a = SUM(array, dim=1)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+    code = code.replace("sum(array,dim=1)", "sum(array=array,1)")
+    schedule = fortran_reader.psyir_from_source(code)
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(schedule)
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "BinaryOperation[operator:'SUM']" in str(info.value))
+
+
+def test_fw_binaryoperator_namedarg2(fortran_writer):
+    '''Check the FortranWriter class binary_operation method operator
+    correctly outputs the Fortran representation of an intrinsic with
+    its first argument being a named argument.
+
+    '''
+    intrinsic = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, ("test1", Literal("1.0", REAL_TYPE)),
+        ("test2", Literal("2.0", REAL_TYPE)))
+    result = fortran_writer(intrinsic)
+    assert result == "SUM(test1=1.0, test2=2.0)"
 
 
 def test_fw_binaryoperator_matmul(fortran_writer, tmpdir, fortran_reader):
@@ -1543,6 +1590,42 @@ def test_fw_naryoperator(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(schedule)
     assert "a = MAX(1.0, 1.0, 2.0)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_naryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+    '''Check the FortranWriter class nary_operation method operator
+    correctly prints out the Fortran representation of an intrinsic
+    with a named argument. The sum intrinsic is used here. Also check
+    that the expected exception is raised if all of the named
+    arguments are not after the positional arguments.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(array, n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: array(n)\n"
+        "  integer :: a\n"
+        "    a = sum(array,dim=1,mask=.false.)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+
+    # Generate Fortran from the PSyIR schedule
+    result = fortran_writer(schedule)
+    assert "a = SUM(array, dim=1, mask=.false.)" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+    code = code.replace(
+        "sum(array,dim=1,mask=.false.)", "sum(array,dim=1,.false.)")
+    schedule = fortran_reader.psyir_from_source(code)
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(schedule)
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "NaryOperation[operator:'SUM']" in str(info.value))
 
 
 def test_fw_naryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -1864,6 +1947,18 @@ def test_fw_unaryoperator2(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(schedule)
     assert "a = SIN(1.0)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_unaryoperator_namedarg(fortran_writer):
+    '''Check the FortranWriter class unary_operation method operator
+    correctly outputs the Fortran representation of an intrinsic with
+    a named argument.
+
+    '''
+    intrinsic = UnaryOperation.create(
+        UnaryOperation.Operator.SUM, ("value", Literal("1.0", REAL_TYPE)))
+    result = fortran_writer(intrinsic)
+    assert result == "SUM(value=1.0)"
 
 
 def test_fw_unaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -2203,6 +2298,31 @@ def test_fw_call_node(fortran_writer):
     assert expected in result
 
 
+def test_fw_call_node_namedargs(fortran_writer):
+    '''Test the PSyIR call node is translated to the required Fortran code
+    when there are named arguments and that the expected exception is
+    raised if all of the named arguments are not after the positional
+    arguments.
+
+    '''
+    routine_symbol = RoutineSymbol("mysub")
+    call = Call.create(
+        routine_symbol,
+        [Literal("1.0", REAL_TYPE),
+         ("arg2", Literal("2.0", REAL_TYPE)),
+         ("arg3", Literal("3.0", REAL_TYPE))])
+    result = fortran_writer(call)
+    assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
+
+    call.children[2] = Literal("4.0", REAL_TYPE)
+
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(call)
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "Call[name='mysub']" in str(info.value))
+
+
 def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     '''Test that a PSyIR call node with arguments represented by CodeBlocks
     is translated to the required Fortran code.
@@ -2214,13 +2334,13 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
         "subroutine test()\n"
         "  use my_mod, only : kernel\n"
         "  real :: a, b\n"
-        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "  call kernel(a, 'not'//'nice', b, name='roo')\n"
         "end subroutine")
     call_node = psyir.walk(Call)[0]
     cblocks = psyir.walk(CodeBlock)
-    assert len(cblocks) == 2
+    assert len(cblocks) == 1
     gen = fortran_writer(call_node)
-    assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+    assert gen == '''call kernel(a, 'not' // 'nice', b, name='roo')\n'''
 
 
 def test_fw_comments(fortran_writer):

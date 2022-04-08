@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -46,10 +46,12 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
+from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
-from psyclone.transformations import ACCKernelsTrans, \
+from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
     OMPParallelTrans, MoveTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, OMPLoopTrans, \
     ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans
@@ -1291,9 +1293,9 @@ def test_acc_data_copyin(tmpdir):
     code = str(psy.gen)
 
     assert (
-        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
-        "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+        "      !$acc enter data copyin(cu_fld,cu_fld%data,cv_fld,cv_fld%data,"
+        "p_fld,p_fld%data,u_fld,u_fld%data,unew_fld,unew_fld%data,"
+        "uold_fld,uold_fld%data,v_fld,v_fld%data)\n" in code)
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1317,13 +1319,12 @@ def test_acc_data_grid_copyin(tmpdir):
     accdt.apply(schedule)
     code = str(psy.gen)
 
-    # TODO grid properties are effectively duplicated in this list (but the
-    # OpenACC deep-copy support should spot this).
-    pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
-             "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
-             "u_fld%grid%area_u,d_fld,d_fld%data,du_fld,du_fld%data,"
-             "d_fld%grid,d_fld%grid%tmask,d_fld%grid%area_t,"
-             "d_fld%grid%area_u)")
+    # TODO GOcean grid properties are duplicated in this set under
+    # different names (the OpenACC deep copy support should spot this).
+    pcopy = ("!$acc enter data copyin(cu_fld,cu_fld%data,d_fld,d_fld%data,"
+             "d_fld%grid,d_fld%grid%area_t,d_fld%grid%area_u,d_fld%grid%tmask,"
+             "du_fld,du_fld%data,u_fld,u_fld%data,u_fld%grid,"
+             "u_fld%grid%area_t,u_fld%grid%area_u,u_fld%grid%tmask)")
     assert pcopy in code
     # Check that we flag that the fields are now on the device
     for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
@@ -1592,7 +1593,7 @@ def test_acc_loop_before_enter_data():
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An ACC parallel region must be preceded by an ACC enter-data "
+    assert ("An ACC parallel region must be preceded by an ACC enter data "
             "directive but in 'invoke_0' this is not the case." in
             str(err.value))
 
@@ -1695,6 +1696,79 @@ def test_acc_kernels_error():
         accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
             " and dynamo0.3 front-ends" in str(err.value))
+
+
+def test_accroutinetrans_module_use():
+    ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
+    use statement. '''
+    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
+                           idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0])
+    assert ("imported interface: ['rdt']. If these symbols represent data then"
+            " they must first" in str(err.value))
+
+
+def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
+    ''' Test that we can transform a kernel by adding a "!$acc routine"
+    directive to it. '''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    assert isinstance(kern, GOKern)
+    rtrans = ACCRoutineTrans()
+    assert rtrans.name == "ACCRoutineTrans"
+    rtrans.apply(kern)
+    # Check that there is a acc routine directive in the kernel
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert "!$acc routine\n" in code
+
+    # If the kernel schedule is not accessible, the transformation fails
+    def raise_gen_error():
+        '''Simple function that raises GenerationError.'''
+        raise GenerationError("error")
+    monkeypatch.setattr(kern, "get_kernel_schedule", raise_gen_error)
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kern)
+    assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
+            "transform such a kernel." in str(err.value))
+
+
+def test_accroutinetrans_with_routine(fortran_writer):
+    ''' Test that we can transform a routine by adding a "!$acc routine"
+    directive to it. '''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    assert isinstance(kern, GOKern)
+    rtrans = ACCRoutineTrans()
+    assert rtrans.name == "ACCRoutineTrans"
+    routine = kern.get_kernel_schedule()
+    rtrans.apply(routine)
+    # Check that there is a acc routine directive in the routine
+    code = fortran_writer(routine)
+    assert "!$acc routine\n" in code
+
+    # Even if applied multiple times the Directive is only there once
+    previous_num_children = len(routine.children)
+    rtrans.apply(routine)
+    assert previous_num_children == len(routine.children)
+
+
+def test_accroutinetrans_with_invalid_node():
+    ''' Test that ACCRoutineTrans raises the appropriate error when a node
+    that is not a Routine or a Kern is provided.'''
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched[0]
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kern)
+    assert ("The ACCRoutineTrans must be applied to a sub-class of Kern or "
+            "Routine but got 'GOLoop'." in str(err.value))
 
 
 def test_all_go_loop_trans_base_validate(monkeypatch):

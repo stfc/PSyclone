@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for creating drivers that read
@@ -521,9 +522,10 @@ def test_driver_creation_import_modules(fortran_reader):
     symbol_table = program.scope.symbol_table
     all_symbols = symbol_table.get_symbols()
     assert len(all_symbols) == 2
-    assert str(all_symbols["my_module"]) == "my_module: <not linked>"
+    assert str(all_symbols["my_module"]) == \
+        "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == "mod_func : RoutineSymbol <DeferredType>"
+    assert str(mod_func) == "mod_func: RoutineSymbol<DeferredType>"
 
 
 # -----------------------------------------------------------------------------

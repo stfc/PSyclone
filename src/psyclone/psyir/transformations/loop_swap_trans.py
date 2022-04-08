@@ -67,13 +67,13 @@ class LoopSwapTrans(LoopTrans):
      >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
      >>> schedule = psy.invokes.get('invoke_0').schedule
      >>> # Uncomment the following line to see a text view of the schedule
-     >>> # schedule.view()
+     >>> # print(schedule.view())
      >>>
      >>> from psyclone.transformations import LoopSwapTrans
      >>> swap = LoopSwapTrans()
      >>> swap.apply(schedule.children[0])
      >>> # Uncomment the following line to see a text view of the schedule
-     >>> # schedule.view()
+     >>> # print(schedule.view())
 
     '''
 

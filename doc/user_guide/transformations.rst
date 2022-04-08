@@ -214,6 +214,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.HoistLocalArraysTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
       :noindex:
@@ -289,31 +295,36 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.OMPDeclareTargetTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members: apply, omp_schedule, omp_worksharing
     :noindex:
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTaskloopTrans
-    :members: apply, omp_grainsize, omp_num_tasks
+.. autoclass:: psyclone.transformations.OMPMasterTrans
+    :inherited-members:
+    :exclude-members: name
     :noindex:
 
-####
-
-.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
-    :members: apply
-    :noindex:
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP master regions.  Attempting to
+          create a master region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the single region. The
+          :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
-    :members: apply
-    :noindex:
-
-####
-
-.. autoclass:: psyclone.transformations.OMPTargetTrans
     :members: apply
     :noindex:
 
@@ -353,20 +364,21 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPMasterTrans
-    :inherited-members:
-    :exclude-members: name
+.. autoclass:: psyclone.transformations.OMPTargetTrans
+    :members: apply
     :noindex:
 
-.. note:: PSyclone does not support (distributed-memory) halo swaps or
-          global sums within OpenMP master regions.  Attempting to
-          create a master region for a set of nodes that includes
-          halo swaps or global sums will produce an error. In such
-          cases it may be possible to re-order the nodes in the
-          Schedule such that the halo swaps or global sums are
-          performed outside the single region. The
-          :ref:`MoveTrans <sec_move_trans>` transformation may be used
-          for this.
+####
+
+.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+    :members: apply, omp_grainsize, omp_num_tasks
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
+    :members: apply
+    :noindex:
 
 ####
 
@@ -628,7 +640,7 @@ in. For example::
 
     # Get the schedule associated with the required invoke
     > schedule = invoke.schedule
-    > schedule.view()
+    > print(schedule.view())
     InvokeSchedule[invoke='invoke_0', dm=True]
         0: Loop[type='dof', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
             Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
@@ -647,7 +659,7 @@ with the new one. For example::
 
     # Apply it to the loop schedule of the selected invoke
     > ol.apply(schedule.children[0])
-    > schedule.view()
+    > print(schedule.view())
 
     # Generate the Fortran code for the new PSy layer
     > print(psy.gen)
@@ -755,6 +767,7 @@ transformations currently supported allow the addition of:
 
 * an **OpenMP Parallel** directive
 * an **OpenMP Target** directive
+* an **OpenMP Declare Target** directive
 * an **OpenMP Do/For/Loop** directive
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
@@ -845,10 +858,9 @@ OpenCL functionality. It also relies upon the device acceleration support
 provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
-.. note:: The generated OpenCL files follow the `--kernel-renaming` argument
-    conventions, but in addition to the `<modulename>` they also include the
-    `<kernelname>` as part of the filename in the format:
-    `<modulename>_<kernelname>_index.cl`
+.. note:: The generated OpenCL kernels are written in a file called
+    opencl_kernels_<index>.cl where the index keeps increasing if the
+    file name already exist.
 
 
 The ``GOOpenCLTrans`` transformation accepts an `options` argument with a

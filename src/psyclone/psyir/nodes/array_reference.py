@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, DeferredType, UnknownType
 from psyclone.errors import GenerationError
 
 
@@ -74,23 +74,25 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         if not isinstance(symbol, DataSymbol):
             raise GenerationError(
-                "symbol argument in create method of ArrayReference class "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
+                f"symbol argument in create method of ArrayReference class "
+                f"should be a DataSymbol but found '{type(symbol).__name__}'.")
         if not isinstance(indices, list):
             raise GenerationError(
-                "indices argument in create method of ArrayReference class "
-                "should be a list but found '{0}'."
-                "".format(type(indices).__name__))
+                f"indices argument in create method of ArrayReference class "
+                f"should be a list but found '{type(indices).__name__}'.")
         if not symbol.is_array:
-            raise GenerationError(
-                "expecting the symbol to be an array, not a scalar.")
-        if len(symbol.shape) != len(indices):
-            raise GenerationError(
-                "the symbol should have the same number of dimensions as "
-                "indices (provided in the 'indices' argument). "
-                "Expecting '{0}' but found '{1}'.".format(
-                    len(indices), len(symbol.shape)))
+            # Deferred and Unknown types may still be arrays
+            if not isinstance(symbol.datatype, (DeferredType, UnknownType)):
+                raise GenerationError(
+                    f"expecting the symbol '{symbol.name}' to be an array, but"
+                    f" found '{symbol.datatype}'.")
+        if symbol.is_array:
+            if len(symbol.shape) != len(indices):
+                raise GenerationError(
+                    f"the symbol '{symbol.name}' should have the same number "
+                    f"of dimensions as indices (provided in the 'indices' "
+                    f"argument). Expecting '{len(indices)}' but found "
+                    f"'{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
         for child in indices:

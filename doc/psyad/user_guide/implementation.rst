@@ -68,7 +68,7 @@ trajectory) variables. The active variables are the ones that are
 transformed and reversed, whereas the passive (trajectory) variables
 remain unchanged.
 
-.. Note:: it should be possisble to only need to specify global
+.. Note:: it should be possible to only need to specify global
 	  variables (ones with a lifetime beyond the code i.e. passed
 	  in via argument, modules etc.) as local variables will
 	  inherit being active or passive based on how they are
@@ -82,6 +82,8 @@ Statements
 As the line-by-line method is used then there are rules that must be
 followed for the different types of statements. This section goes
 through the rules for each supported statement type.
+
+.. _sec_assignment:
 
 Assignment
 ----------
@@ -280,6 +282,10 @@ divides then it is is, in fact, valid and should not result in an
 exception. For example :math:`A=x(/y/B)` is equivalent to
 :math:`A=(x/y)B`. Issue #1348 captures this current limitation.
 
+When zero-ing active variables (see step 1 in the
+:ref:`psyir_schedule` section) only variables that are scalars or
+arrays and are of type REAL or INTEGER are currently supported. Issue
+#1627 captures this limitation.
 
 Transformation
 **************
@@ -297,18 +303,26 @@ The PSyIR captures a sequence of statements as children of a
 linear code are transformed to to their adjoint form by implementing
 the following rules:
 
-1) Each statement is examined to see whether it contains any active
+1) If there are any active variables that are local to the Schedule in
+the tangent linear code then they may need to be zero'ed in the
+adjoint form. The current implementation does not try to determine
+which local active variables need to be zero'ed and instead zero's all
+of them. This approach is always safe but may zero some variables when
+it is not required. The current implementation sets arrays to zero, it
+does not use array notation or loops.
+
+2) Each statement is examined to see whether it contains any active
 variables. A statement that contains one or more active variables is
 classed as an ``active statement`` and a statement that does not
 contain any active variables is classed as a ``passive statement``.
 
-2) Any passive statements are left unchanged and immediately output
+3) Any passive statements are left unchanged and immediately output
 as PSyIR in the same order as they were found in the tangent linear
 code. Therefore the resulting sequence of statements in the adjoint
 code will contains all passive statements before all active
 statements.
 
-3) The order of any active tangent-linear statements are then reversed
+4) The order of any active tangent-linear statements are then reversed
 and the rules associated with each statement type are applied
 individually to each statement and the resultant PSyIR returned.
 
@@ -364,27 +378,51 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
+.. _pre-processing:
+  
+Pre-processing
+++++++++++++++
+
+PSyAD implements an internal pre-processing phase where code
+containing unsupported code structures or constructs is transformed
+into code that can be processed. These structures/constructs are
+detailed below.
+
+Array Notation
+--------------
+
+Array notation in tangent-linear codes is translated into equivalent
+loops in the pre-processing phase before the tangent-linear code is
+transformed into its adjoint. This is performed as the rules that are
+applied to transform a tangent-linear code into its adjoint are not
+always correct when array notation is used. Only array notation that
+contains active variables is translated into equivalent loops.
+
 Intrinsics
 ----------
 
 If an intrinsic function, such as ``matmul`` or ``transpose``, is
 found in a tangent-linear code and it contains active variables then
-it must be transformed to its associated adjoint form.
+it must be transformed such that it is replaced by equivalent Fortran
+code. This is performed in the pre-processing phase.
 
 If an unsupported intrinsic function is found then PSyAD will raise an
 exception.
 
-The only supported intrinsic at this time is ``dot_product``.
+The only supported intrinsics at this time are ``dot_product`` and
+``matmul``.
 
-If a ``dot_product`` intrinsic is found in the tangent-linear code it
-is first transformed into equivalent inline code before the code is
-transformed to its adjoint form. The PSyIR ``DotProduct2CodeTrans``
-transformation is used by PSyAD to perform this transformation. See
-the :ref:`user_guide:available_trans` section of the user guide for
-more information.
+If a ``dot_product`` or ``matmul`` intrinsic is found in the
+tangent-linear code it is first transformed into equivalent inline
+code before the code is transformed to its adjoint form. The PSyIR
+``DotProduct2CodeTrans`` or ``Matmul2CodeTrans`` transformations are
+used to perform these manipulations. See the
+:ref:`user_guide:available_trans` section of the user guide for more
+information on these transformations.
 
-.. note:: At the moment all ``dot_product`` instrinsics are transformed
-	  irrespective of whether they act on active variables or not.
+.. note:: At the moment all ``dot_product`` and ``matmul`` instrinsics
+	  are transformed irrespective of whether their arguments and
+	  return values are (or contain) active variables or not.
 
 .. note:: Note, the transformed tangent-linear code can contain new
           variables, some of which might be active. Any such active
@@ -394,6 +432,17 @@ more information.
           variables will be detected automatically by PSyAD, see issue
           #1595.
 
+Associativity
+-------------
+
+As described in the :ref:`sec_assignment` section, PSyAD expects
+tangent-linear code to be written as a sum of products of inactive and
+active variables. Therefore if code such as :math:`a(b+c)` is found
+(where :math:`b` and :math:`c` are active) then it must be transformed
+into a recognised form. This is achieved by expanding all such
+expressions as part of the pre-processing phase. In this example, the
+resulting code is :math:`a*b + a*c` which PSyAD can then take the
+adjoint of.
 
 Test Harness
 ++++++++++++

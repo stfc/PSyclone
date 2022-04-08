@@ -274,16 +274,15 @@ def test_extract_node_representation(capsys):
     etrans.apply(children)
 
     # Test view() method
-    schedule.view()
-    output, _ = capsys.readouterr()
+    output = schedule.view()
     expected_output = colored("Extract", ExtractNode._colour)
     assert expected_output in output
 
     # Test __str__ method
 
-    assert "End DynLoop\nExtractStart[var=extract_psy_data]\nDynLoop[id:''" \
+    assert "End DynLoop\nExtractStart[var=extract_psy_data]\nDynLoop[" \
         in str(schedule)
-    assert "End DynLoop\nExtractEnd[var=extract_psy_data]\nDynLoop[id:''" in \
+    assert "End DynLoop\nExtractEnd[var=extract_psy_data]\nDynLoop[" in \
         str(schedule)
     # Count the loops inside and outside the extract to check it is in
     # the right place
@@ -545,7 +544,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=loop1_start,loop1_stop
-        f1_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)
+        f1_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + f2_proxy%data(df)
       END DO
       !$omp end parallel do
       CALL extract_psy_data%PostStart

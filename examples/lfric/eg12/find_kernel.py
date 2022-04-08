@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 Python helper script which returns the information useful for Kernel
@@ -125,7 +125,7 @@ if INVOKE_NAME:
     for idx, name in enumerate(INVOKE_NAME):
         print("\n- Invoke '" + name + "' with the Schedule: ")
         schedule = PSY.invokes.get(name).schedule
-        schedule.view()
+        print(schedule.view())
 else:
     print("Kernel call '" + KERNEL_NAME + "' was not found in "
           + ALG_NAME)

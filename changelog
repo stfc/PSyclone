@@ -1,3 +1,37 @@
+	1) PR #1672. Fixes BOZ literal standard incompatibility in the
+	nvidia profiling wrapper code.
+
+	2) PR #1670 for #1650. Fixes various inconsistencies in the symbol
+	table implementation.
+
+	3) PR #1674 for #1644. Fixes bug in matmul transformation.
+
+	4) PR #1673 for #1671. Fixes an error in the Makefile for the
+	'time evolution' LFRic tutorial.
+
+	5) PR #1628 for #1491. Extends PSyAD pre-processing phase to
+	expand any expressions involving active variables.
+
+	6) PR #1666 towards #1618. Modified prototype PSyIR-based
+	algorithm generation to use a transformation to convert from
+	invoke's to processed algorithm code, rather than it being done as
+	part of lowering in the backend. This allows algorithm code with
+	invoke's to be output by the backend.
+
+	7) PR #1613 for #1238 and #1528. Improves the view() method so that
+	it returns a str rather than printing to stdout. Also allows colour
+	to be disabled.
+
+	8) PR #1656 for #1649 and #1645. Add equality operator to all core
+	PSyIR nodes in order to compare nodes by value.
+
+	9) PR #1680. Refactors some of the code in various ACC directives to
+	minimise duplication and switch to f-strings.
+
+	10) PR #1639 for #1630. Add support for named arguments in Call and
+	Operation PSyIR nodes, including Fortran front-end and backend support.
+
+release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
 	checking functionality (in PSyData).
@@ -131,6 +165,44 @@
 	psyclone-kern. This more generic script can be extended to other
 	kernel modification options in the future (in particular
 	generating an algorithm layer from a kernel).
+
+	44) PR #1607 for #1559. Transform MATRIX_MULTIPLY to equivalent
+	code before creating adjoint.
+
+	45) PR #1527 towards #1525. Adds lower_to_language_level methods
+	to all LFRic builtins with the exception of those involving
+	reductions or type casting.
+
+	50) PR #1616 for #1615. Fixes list of files to profile in NEMO
+	kernels script plus some other typos.
+
+	51) PR #1621 for #1581. Extends PSyAD to make use of the
+	ArrayRange2Loop transformation to remove any array ranges before
+	constructing the adjoint.
+
+	52) PR #1622 towards #1618. Fixes code generation for PSyIR of
+	Algorithm Layer by removing `invoke` symbol during lowering.
+
+	53) PR #1609 for #1584, #1041 and #490. Adds transformation to
+	add OpenMP target directive to routines and updates existing
+	one for OpenACC to use PSyIR instead of parse tree.
+
+	54) PR #1625 for #1606. Fixes bug in PSyAD by ensuring that all
+	local, active variables are initialised to zero.
+
+	55) PR #1349 for #1277. Extend the LFRic API to use algorithm
+	precision/types when generating the PSy layer. Required for
+	mixed-precision support.
+
+	56) PR #1624 towards #1618. Bug fix for LFRic algorithm PSyIR module
+	and subroutine names.
+
+	57) PR #1637 for #1634. Add HoistLocalArraysTrans transformation.
+
+	58) PR #1553 for #1134. Completes the movement of OpenCL-generation
+	into its own transformation.
+
+	59) PR #1657 for #1640. Changes ready for new 2.2 release.
 
 release 2.1.0 3rd November 2021
 

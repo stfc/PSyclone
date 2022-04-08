@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing pytest tests for kernel stub code generation and the related
@@ -109,10 +110,9 @@ def test_lfricfields_stub_err():
     with pytest.raises(InternalError) as err:
         LFRicFields(kernel)._stub_declarations(sub_stub)
     const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_type' in "
-            "kernel stub declarations for the field argument 'field_2'. "
-            "Supported types are {0}.".
-            format(const.VALID_FIELD_DATA_TYPES)
+    assert (f"Found an unsupported data type 'gh_invalid_type' in "
+            f"kernel stub declarations for the field argument 'field_2'. "
+            f"Supported types are {const.VALID_FIELD_DATA_TYPES}."
             in str(err.value))
 
 
@@ -166,7 +166,7 @@ def test_int_field_gen_stub():
         "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, ndf_w2trace, "
         "undf_w2trace, map_w2trace, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
@@ -230,7 +230,7 @@ def test_int_field_all_stencils_gen_stub():
         "field_4_stencil_size, field_4_stencil_dofmap, ndf_w2broken, "
         "undf_w2broken, map_w2broken, ndf_w1, undf_w1, map_w1, "
         "ndf_w0, undf_w0, map_w0, ndf_w2v, undf_w2v, map_w2v)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -294,7 +294,7 @@ def test_real_int_field_gen_stub():
         "map_w2, ndf_wtheta, undf_wtheta, map_wtheta, ndf_w3, undf_w3, "
         "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, "
         "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"

@@ -819,6 +819,33 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
         "StructureReference or ArrayOfStructuresReference.".format(base_ref))
 
 
+def _get_arg_names(node_list):
+    '''Utility function that given an fparser2 argument list returns two
+    separate lists, one with the arguments themselves and another with
+    the argument names.
+
+    :param node_list: a list of fparser2 argument nodes which could \
+        be positional or named.
+    :type node_list: List[:py:class:`fparser.two.utils.Base`]
+
+    :returns: a list of fparser2 arguments with any name \
+        information and a separate list of named argument names.
+    :rtype: Tuple[List[:py:class:`fparser.two.utils.Base`], \
+         Union[List[str], None]]
+
+    '''
+    arg_names = []
+    arg_nodes = []
+    for node in node_list:
+        if isinstance(node, Fortran2003.Actual_Arg_Spec):
+            arg_names.append(node.children[0].string)
+            arg_nodes.append(node.children[1])
+        else:
+            arg_names.append(None)
+            arg_nodes.append(node)
+    return arg_nodes, arg_names
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -1773,6 +1800,7 @@ class Fparser2Reader(object):
                 datatype = base_type
 
             # Make sure the declared symbol exists in the SymbolTable
+            tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=parent)
                 if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
@@ -1781,13 +1809,13 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol in order to free the exact name
                     # for the DataSymbol.
                     symbol_table.remove(sym)
-                    # And trigger the exception path
+                    # And trigger the exception path but keeping the same tag
+                    tag = "own_routine_symbol"
                     raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
-                        "Symbol '{0}' already present in SymbolTable with "
-                        "a defined interface ({1}).".format(
-                            sym_name, str(sym.interface)))
+                        f"Symbol '{sym_name}' already present in SymbolTable "
+                        f"with a defined interface ({sym.interface}).")
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,
@@ -1798,9 +1826,15 @@ class Fparser2Reader(object):
                     # NotImplementedError in order to create an UnknownType
                     # Therefore, the Error doesn't need raise_from or message
                     # pylint: disable=raise-missing-from
+                    if tag:
+                        raise InternalError(
+                            f"The fparser2 frontend does not support "
+                            f"declarations where the routine name is of "
+                            f"UnknownType, but found this case in "
+                            f"'{sym_name}'.")
                     raise NotImplementedError()
 
-                symbol_table.add(sym)
+                symbol_table.add(sym, tag=tag)
 
             # The Symbol must have the interface given by the declaration. We
             # take a copy to ensure that it can be modified without side
@@ -2008,12 +2042,15 @@ class Fparser2Reader(object):
                         # Check whether the symbol we're about to add
                         # corresponds to the routine we're currently inside. If
                         # it does then we remove the RoutineSymbol in order to
-                        # free the exact name for the DataSymbol.
+                        # free the exact name for the DataSymbol, but we keep
+                        # the tag to reintroduce it to the new symbol.
+                        tag = None
                         try:
                             routine_sym = parent.symbol_table.lookup_with_tag(
                                 "own_routine_symbol")
                             if routine_sym.name.lower() == symbol_name:
                                 parent.symbol_table.remove(routine_sym)
+                                tag = "own_routine_symbol"  # Keep the tag
                         except KeyError:
                             pass
 
@@ -2024,14 +2061,15 @@ class Fparser2Reader(object):
                             parent.symbol_table.add(
                                 DataSymbol(symbol_name,
                                            UnknownFortranType(str(node)),
-                                           visibility=vis))
+                                           visibility=vis),
+                                tag=tag)
                         except KeyError as err:
                             if len(orig_children) == 1:
-                                six.raise_from(SymbolError(
-                                    "Error while processing unsupported "
-                                    "declaration ('{0}'). An entry for symbol "
-                                    "'{1}' is already in the symbol table.".
-                                    format(str(node), symbol_name)), err)
+                                raise SymbolError(
+                                    f"Error while processing unsupported "
+                                    f"declaration ('{node}'). An entry for "
+                                    f"symbol '{symbol_name}' is already in "
+                                    f"the symbol table.") from err
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
 
@@ -3320,7 +3358,17 @@ class Fparser2Reader(object):
         else:
             node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-        self.process_nodes(parent=unary_op, nodes=node_list)
+
+        # Store the names of any named args
+        arg_nodes, arg_names = _get_arg_names(node_list)
+
+        self.process_nodes(parent=unary_op, nodes=arg_nodes)
+
+        # Detach the child and add it again with the argument
+        # name
+        child = unary_op.children[0]
+        child.detach()
+        unary_op.append_named_arg(arg_names[0], child)
 
         return unary_op
 
@@ -3370,8 +3418,19 @@ class Fparser2Reader(object):
 
         binary_op = BinaryOperation(operator, parent=parent)
 
-        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
-        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
+        # Store the names of any named args
+        new_arg_nodes, arg_names = _get_arg_names(arg_nodes)
+
+        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
+        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
+
+        # Detach the children and add them again with the argument
+        # names
+        child_list = binary_op.children[:]
+        for child in child_list:
+            child.detach()
+        for idx, child in enumerate(child_list):
+            binary_op.append_named_arg(arg_names[idx], child)
 
         return binary_op
 
@@ -3416,7 +3475,20 @@ class Fparser2Reader(object):
 
         # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
         # to process the `items` of that...
-        self.process_nodes(parent=nary_op, nodes=list(node.items[1].items))
+
+        # Store the names of any named args
+        arg_nodes, arg_names = _get_arg_names(node.items[1].items)
+
+        self.process_nodes(parent=nary_op, nodes=arg_nodes)
+
+        # Detach the children and add them again with the argument
+        # names
+        child_list = nary_op.children[:]
+        for child in child_list:
+            child.detach()
+        for idx, child in enumerate(child_list):
+            nary_op.append_named_arg(arg_names[idx], child)
+
         return nary_op
 
     def _intrinsic_handler(self, node, parent):
@@ -3737,10 +3809,21 @@ class Fparser2Reader(object):
 
         call = Call(routine_symbol, parent=parent)
 
-        args = []
+        arg_nodes = []
+        arg_names = []
         if node.items[1]:
-            args = list(node.items[1].items)
-        self.process_nodes(parent=call, nodes=args)
+            # Store the names of any named args
+            arg_nodes, arg_names = _get_arg_names(node.items[1].items)
+
+        self.process_nodes(parent=call, nodes=arg_nodes)
+
+        # Detach the children and add them again with the argument
+        # names
+        child_list = call.children[:]
+        for child in child_list:
+            child.detach()
+        for idx, child in enumerate(child_list):
+            call.append_named_arg(arg_names[idx], child)
 
         # Point to the original CALL statement in the parse tree.
         call.ast = node

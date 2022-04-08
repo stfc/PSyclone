@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicAlgorithmInvokeCall,
 LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
@@ -49,7 +49,6 @@ from psyclone.domain.lfric.algorithm import \
     LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, REAL_TYPE
 
@@ -134,47 +133,21 @@ def test_lfricalgorithminvokecall_create_noname():
     assert call._name is None
 
 
-def test_lfricalgorithminvoke_call_root_name():
-    '''Check that an LFRicAlgorithmInvokeCall node is translated into the
-    expected PSyIR call node when the lower_to_language_level() method
-    is called. This test exercises the _def_routine_root_name(). The
-    rest of the functionality is in the parent class.
-
-    '''
+def test_aic_defcontainerrootname():
+    '''Check that _def_container_root_name returns the expected value'''
     code = (
         "subroutine alg1()\n"
         "  use kern_mod, only : kern\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field1\n"
         "  call invoke(kern(field1))\n"
-        "  call invoke(kern(field1), name=\"test 1\")\n"
         "end subroutine alg1\n")
-
     psyir = create_alg_psyir(code)
-
-    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 2
-    assert len(psyir.walk(LFRicKernelFunctor)) == 2
-
-    psyir.lower_to_language_level()
-
-    assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 0
-    assert len(psyir.walk(LFRicKernelFunctor)) == 0
-    call0 = psyir.children[0][0]
-    assert call0.routine.name == "invoke_0_kern"
-    assert call0.routine.is_import
-    assert call0.routine.interface.container_symbol.name == "psy_alg1"
-    args = call0.children
-    assert len(args) == 1
-    assert isinstance(args[0], Reference)
-    assert args[0].symbol.name == "field1"
-    call1 = psyir.children[0][1]
-    assert call1.routine.name == "invoke_test_1"
-    assert call1.routine.is_import
-    assert call1.routine.interface.container_symbol.name == "psy_alg1"
-    args = call1.children
-    assert len(args) == 1
-    assert isinstance(args[0], Reference)
-    assert args[0].symbol.name == "field1"
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, LFRicAlgorithmInvokeCall)
+    routine_node = psyir.children[0]
+    name = invoke._def_container_root_name(routine_node)
+    assert name == "alg1_psy"
 
 
 def test_lfricbuiltinfunctor():
