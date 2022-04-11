@@ -125,7 +125,7 @@ class NemoPSy(PSy):
         self._name = str(names[0]) + "_psy"
 
         processor = Fparser2Reader()
-        psyir = processor.generate_psyir(ast)
+        psyir = processor.generate_container(ast)
 
         self._invokes = NemoInvokes(psyir, self)
         self._container = psyir

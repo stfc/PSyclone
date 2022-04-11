@@ -202,7 +202,7 @@ class Routine(Schedule, CommentableMixin):
             if 'own_routine_symbol' in self.symbol_table.tags_dict:
                 existing_symbol = self.symbol_table.lookup_with_tag(
                         'own_routine_symbol', scope_limit=self)
-                if existing_symbol.name == new_name:
+                if existing_symbol.name.lower() == new_name.lower():
                     self._name = new_name
                     return  # The preexisting symbol already matches
                 # Otherwise raise an exception

@@ -3927,6 +3927,7 @@ class Fparser2Reader(object):
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
                 routine.symbol_table.new_symbol(return_name,
+                                                tag="own_routine_symbol",
                                                 symbol_type=DataSymbol,
                                                 datatype=base_type,
                                                 shadowing=True)
