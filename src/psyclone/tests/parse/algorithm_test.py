@@ -244,7 +244,7 @@ def test_parser_invokeinfo_datatypes():
 def test_parser_invokeinfo_datatypes_mixed():
     '''Test that the 'invoke_info' method in the Parser class captures the
     required datatype information with mixed-precision fields, scalars
-    and operators e.g. defined as 'r_solver_field_type', 'r_solver'
+    and operators, e.g. defined as 'r_solver_field_type', 'r_solver'
     and 'r_solver_operator_type' respectively.
 
     Also tests that the datatype information is always lower case
