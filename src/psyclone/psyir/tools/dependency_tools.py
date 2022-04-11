@@ -532,6 +532,11 @@ class DependencyTools(object):
         sympy_expressions, symbol_map = SymPyWriter.\
             get_sympy_expressions_and_symbol_map([index_read, index_written])
 
+        # If the subscripts do not even depend on the specified variable,
+        # any dependency distance is possible (e.g. `do i  a(j)=a(j)+1`)
+        if var_name not in symbol_map:
+            return None
+
         var = symbol_map[var_name]
         # Create a unique 'dx' variable name if 'x' is the variable
         d_var_name = "d_"+var_name
@@ -552,7 +557,7 @@ class DependencyTools(object):
                                               d_var)
         if solutions == "independent":
             # The solution is independent of the variable, i.e. every value
-            # of the variable is a solution. So there are certainly
+            # of `d_var` is a solution. So there are certainly
             # dependencies.
             return None
 

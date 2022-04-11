@@ -419,8 +419,8 @@ def test_partition(lhs, rhs, partition, parser):
     access_info_lhs = VariablesAccessInfo(assign.lhs)
     access_info_rhs = VariablesAccessInfo(assign.rhs)
 
-    # Find the access that is not to i,j, or k --> this must be
-    # the 'main' array variable we need to check for:
+    # Find the access that is an array (and therefore not a loop variable)
+    #  --> this must be the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
         if access_info_lhs[sig].is_array():
@@ -481,21 +481,22 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
     lhs_index0 = access_info_lhs.component_indices[index]
     rhs_index0 = access_info_rhs.component_indices[index]
 
-    dep_tools = DependencyTools(["unknown"])
-
-    result = dep_tools.independent_0_var(lhs_index0, rhs_index0)
+    result = DependencyTools.independent_0_var(lhs_index0, rhs_index0)
     assert result is is_dependent
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("lhs, rhs, distance",
                          [("a1(i)", "a1(i)", 0),
+                          # This expression does not depend on the variable
+                          # 'i' at all:
+                          ("a1(j)", "a1(j)", None),
                           ("a1(i)", "a1(2)", None),
                           ("a1(i+1)", "a1(i)", 1),
                           ("a1(i)", "a1(i+1)", -1),
                           ("a1(i-1)", "a1(i+2)", -3),
                           ("a1(i+1)", "a1(i-2)", 3),
-                          ("aq1(2*i)", "a1(i+1)", None),
+                          ("a1(2*i)", "a1(i+1)", None),
                           ("a1(i*i)", "a1(i*i)", None),
                           ("a1(i-d_i)", "a1(i-d_i)", 0),
                           ("a1(2*i)", "a1(2*i+1)", None),
