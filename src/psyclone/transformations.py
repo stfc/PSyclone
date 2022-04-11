@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, and S. Siso STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
@@ -48,10 +48,12 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.errors import InternalError, GenerationError
+from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.psyGen import Transformation, Kern, InvokeSchedule, BuiltIn
+from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
+    BuiltIn
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Assignment, \
     Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
@@ -91,9 +93,9 @@ def check_intergrid(node):
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
-                "This Transformation cannot currently be applied to nodes "
-                "which have inter-grid kernels as descendents and {0} is "
-                "such a kernel.".format(kern.name))
+                f"This Transformation cannot currently be applied to nodes "
+                f"which have inter-grid kernels as descendents and {kern.name}"
+                f" is such a kernel.")
 
 
 class KernelTrans(Transformation):
@@ -211,7 +213,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         '''
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
-        super(ParallelLoopTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we are not a sequential loop
         # TODO add a list of loop types that are sequential
@@ -229,12 +231,12 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         if collapse:
             if not isinstance(collapse, int):
                 raise TransformationError(
-                    "The 'collapse' argument must be an integer but got an "
-                    "object of type {0}".format(type(collapse)))
+                    f"The 'collapse' argument must be an integer but got an "
+                    f"object of type {type(collapse)}")
             if collapse < 2:
                 raise TransformationError(
-                    "It only makes sense to collapse 2 or more loops "
-                    "but got a value of {0}".format(collapse))
+                    f"It only makes sense to collapse 2 or more loops "
+                    f"but got a value of {collapse}")
             # Count the number of loops in the loop nest
             loop_count = 0
             cnode = node
@@ -244,8 +246,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 cnode = cnode.loop_body[0]
             if collapse > loop_count:
                 raise TransformationError(
-                    "Cannot apply COLLAPSE({0}) clause to a loop nest "
-                    "containing only {1} loops".format(collapse, loop_count))
+                    f"Cannot apply COLLAPSE({collapse}) clause to a loop nest "
+                    f"containing only {loop_count} loops")
 
         # Check that there are no loop-carried dependencies
         dep_tools = DependencyTools()
@@ -375,7 +377,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_grainsize = grainsize
         self.omp_num_tasks = num_tasks
         self.omp_nogroup = nogroup
-        super(OMPTaskloopTrans, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP TASKLOOP' directive to a loop"
@@ -404,8 +406,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         raises TypeError: if the nogroup parameter is not a bool.
         '''
         if not isinstance(nogroup, bool):
-            raise TypeError("Expected nogroup to be a bool "
-                            "but got a {0}".format(type(nogroup).__name__))
+            raise TypeError(f"Expected nogroup to be a bool "
+                            f"but got a {type(nogroup).__name__}")
         self._nogroup = nogroup
 
     @property
@@ -436,12 +438,12 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                      both specified.
         '''
         if (not isinstance(value, int)) and (value is not None):
-            raise TransformationError("grainsize must be an integer or None, "
-                                      "got {0}".format(type(value).__name__))
+            raise TransformationError(f"grainsize must be an integer or None, "
+                                      f"got {type(value).__name__}")
 
         if (value is not None) and (value <= 0):
-            raise TransformationError("grainsize must be a positive "
-                                      "integer, got {0}".format(value))
+            raise TransformationError(f"grainsize must be a positive "
+                                      f"integer, got {value}")
 
         if value is not None and self.omp_num_tasks is not None:
             raise TransformationError(
@@ -478,12 +480,12 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
         '''
         if (not isinstance(value, int)) and (value is not None):
-            raise TransformationError("num_tasks must be an integer or None,"
-                                      " got {0}".format(type(value).__name__))
+            raise TransformationError(f"num_tasks must be an integer or None,"
+                                      f" got {type(value).__name__}")
 
         if (value is not None) and (value <= 0):
-            raise TransformationError("num_tasks must be a positive "
-                                      "integer, got {0}".format(value))
+            raise TransformationError(f"num_tasks must be a positive "
+                                      f"integer, got {value}")
 
         if value is not None and self.omp_grainsize is not None:
             raise TransformationError(
@@ -559,7 +561,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super(OMPTaskloopTrans, self).apply(node, options)
+            super().apply(node, options)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
@@ -826,7 +828,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         self._omp_schedule = ""
         self.omp_schedule = omp_schedule
 
-        super(OMPLoopTrans, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return "Adds an 'OpenMP DO' directive to a loop"
@@ -848,8 +850,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         '''
         if not isinstance(value, bool):
             raise TypeError(
-                "The OMPLoopTrans.omp_worksharing property must be a boolean"
-                " but found a '{0}'.".format(type(value).__name__))
+                f"The OMPLoopTrans.omp_worksharing property must be a boolean"
+                f" but found a '{type(value).__name__}'.")
         self._omp_worksharing = value
 
     @property
@@ -875,14 +877,15 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         if not isinstance(value, str):
             raise TypeError(
-                "The OMPLoopTrans.omp_schedule property must be a 'str'"
-                " but found a '{0}'.".format(type(value).__name__))
+                f"The OMPLoopTrans.omp_schedule property must be a 'str'"
+                f" but found a '{type(value).__name__}'.")
 
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
         if value_parts[0].lower() not in VALID_OMP_SCHEDULES:
-            raise ValueError("Valid OpenMP schedules are {0} but got '{1}'."
-                             "".format(VALID_OMP_SCHEDULES, value_parts[0]))
+            raise ValueError(f"Valid OpenMP schedules are "
+                             f"{VALID_OMP_SCHEDULES} but got "
+                             f"'{value_parts[0]}'.")
 
         if len(value_parts) > 1:
             if value_parts[0] == "auto":
@@ -891,8 +894,8 @@ class OMPLoopTrans(ParallelLoopTrans):
             try:
                 int(value_parts[1].strip())
             except ValueError as err:
-                raise ValueError("Supplied OpenMP schedule '{0}' has an "
-                                 "invalid chunk-size.".format(value)) from err
+                raise ValueError(f"Supplied OpenMP schedule '{value}' has an "
+                                 f"invalid chunk-size.") from err
 
         self._omp_schedule = value
 
@@ -981,7 +984,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                 "nthreads", tag="omp_num_threads",
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        super(OMPLoopTrans, self).apply(node, options)
+        super().apply(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
@@ -1031,7 +1034,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         # to the loop directive.
         self._independent = True
         self._sequential = False
-        super(ACCLoopTrans, self).__init__()
+        super().__init__()
 
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
@@ -1088,7 +1091,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         self._sequential = options.get("sequential", False)
 
         # Call the apply() method of the base class
-        super(ACCLoopTrans, self).apply(node, options)
+        super().apply(node, options)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -1127,7 +1130,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         '''
         # Check that the supplied Node is a Loop
-        super(OMPParallelLoopTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
@@ -1206,9 +1209,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
            const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
-                    "Error in {0} transformation. The kernel has an "
-                    "argument with INC access. Colouring is required.".
-                    format(self.name))
+                    f"Error in {self.name} transformation. The kernel has an "
+                    f"argument with INC access. Colouring is required.")
 
         OMPParallelLoopTrans.apply(self, node)
 
@@ -1294,9 +1296,8 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # it should be
         if node.loop_type != 'colour' and node.has_inc_arg():
             raise TransformationError(
-                "Error in {0} transformation. The kernel has an argument"
-                " with INC access. Colouring is required.".
-                format(self.name))
+                f"Error in {self.name} transformation. The kernel has an "
+                f"argument with INC access. Colouring is required.")
 
         OMPLoopTrans.apply(self, node, options)
 
@@ -1329,7 +1330,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                      not "inner" or "outer".
 
         '''
-        super(GOceanOMPLoopTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1537,7 +1538,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        super(Dynamo0p3ColourTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         # Check we need colouring
         const = LFRicConstants()
@@ -1552,9 +1553,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # an empty string.
         if node.loop_type != "":
             raise TransformationError(
-                "Error in DynamoColour transformation. Only loops over cells "
-                "may be coloured but this loop is over {0}".
-                format(node.loop_type))
+                f"Error in DynamoColour transformation. Only loops over cells "
+                f"may be coloured but this loop is over {node.loop_type}")
 
         # Check whether we have a field that has INC access
         if not node.has_inc_arg():
@@ -1585,7 +1585,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Holds the class instance for the type of parallel region
         # to generate
         self._pdirective = None
-        super(ParallelRegionTrans, self).__init__()
+        super().__init__()
 
     @abc.abstractmethod
     def __str__(self):
@@ -1615,18 +1615,18 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         '''
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
-                "A {0} transformation cannot be applied to an InvokeSchedule "
-                "but only to one or more nodes from within an InvokeSchedule.".
-                format(self.name))
+                f"A {self.name} transformation cannot be applied to an "
+                f"InvokeSchedule but only to one or more nodes from within an "
+                f"InvokeSchedule.")
 
         node_parent = node_list[0].parent
 
         for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError(
-                    "Error in {0} transformation: supplied nodes are not "
-                    "children of the same parent.".format(self.name))
-        super(ParallelRegionTrans, self).validate(node_list, options)
+                    f"Error in {self.name} transformation: supplied nodes are "
+                    f"not children of the same parent.")
+        super().validate(node_list, options)
 
     def apply(self, target_nodes, options=None):
         '''
@@ -1711,7 +1711,7 @@ class OMPSingleTrans(ParallelRegionTrans):
                            nodes.OMPParallelDirective)
 
     def __init__(self, nowait=False):
-        super(OMPSingleTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = self._directive
         # Store whether this single directive has a barrier or not
@@ -1749,8 +1749,8 @@ class OMPSingleTrans(ParallelRegionTrans):
 
         '''
         if not isinstance(value, bool):
-            raise TypeError("Expected nowait to be a bool "
-                            "but got a {0}".format(type(value).__name__))
+            raise TypeError(f"Expected nowait to be a bool "
+                            f"but got a {type(value).__name__}")
         self._omp_nowait = value
 
     def _directive(self, children):
@@ -1799,7 +1799,7 @@ class OMPSingleTrans(ParallelRegionTrans):
         if options.get("nowait") is not None:
             self.omp_nowait = options.get("nowait")
 
-        super(OMPSingleTrans, self).apply(node_list, options)
+        super().apply(node_list, options)
 
 
 class OMPMasterTrans(ParallelRegionTrans):
@@ -1842,7 +1842,7 @@ class OMPMasterTrans(ParallelRegionTrans):
                            nodes.OMPParallelDirective)
 
     def __init__(self):
-        super(OMPMasterTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = nodes.OMPMasterDirective
 
@@ -1897,7 +1897,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                            psyGen.HaloExchange)
 
     def __init__(self):
-        super(OMPParallelTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = nodes.OMPParallelDirective
 
@@ -1933,7 +1933,7 @@ class OMPParallelTrans(ParallelRegionTrans):
                                       "region within another OpenMP region.")
 
         # Now call the general validation checks
-        super(OMPParallelTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -1969,7 +1969,7 @@ class ACCParallelTrans(ParallelRegionTrans):
                            nodes.ACCDataDirective, nodes.ACCEnterDataDirective)
 
     def __init__(self):
-        super(ACCParallelTrans, self).__init__()
+        super().__init__()
         # Set the type of directive that the base class will use
         self._pdirective = nodes.ACCParallelDirective
 
@@ -2165,8 +2165,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
 
         '''
         # check node is a loop
-        super(Dynamo0p3RedundantComputationTrans, self).validate(
-            node, options=options)
+        super().validate(node, options=options)
 
         # Check loop's parent is the InvokeSchedule, or that it is nested
         # in a colours loop and perform other colour(s) loop checks,
@@ -2179,38 +2178,35 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         dir_node = node.ancestor(nodes.Directive)
         if dir_node:
             raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the supplied loop is sits beneath a directive of "
-                "type {0}. Redundant computation must be applied before "
-                "directives are added.".format(type(dir_node)))
+                f"In the Dynamo0p3RedundantComputation transformation apply "
+                f"method the supplied loop is sits beneath a directive of "
+                f"type {type(dir_node)}. Redundant computation must be applied"
+                f" before directives are added.")
         if not (isinstance(node.parent, DynInvokeSchedule) or
                 isinstance(node.parent.parent, nodes.Loop)):
             raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation "
-                "apply method the parent of the supplied loop must be "
-                "the DynInvokeSchedule, or a Loop, but found {0}".
-                format(type(node.parent)))
+                f"In the Dynamo0p3RedundantComputation transformation "
+                f"apply method the parent of the supplied loop must be the "
+                f"DynInvokeSchedule, or a Loop, but found {type(node.parent)}")
         if isinstance(node.parent.parent, nodes.Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method, if the parent of the supplied Loop is "
-                    "also a Loop then the supplied Loop must iterate over "
-                    "'colour', but found '{0}'".format(node.loop_type))
+                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"apply method, if the parent of the supplied Loop is "
+                    f"also a Loop then the supplied Loop must iterate over "
+                    f"'colour', but found '{node.loop_type}'")
             if node.parent.parent.loop_type != "colours":
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method, if the parent of the supplied Loop is "
-                    "also a Loop then the parent must iterate over "
-                    "'colours', but found '{0}'"
-                    "".format(node.parent.parent.loop_type))
+                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"apply method, if the parent of the supplied Loop is "
+                    f"also a Loop then the parent must iterate over "
+                    f"'colours', but found '{node.parent.parent.loop_type}'")
             if not isinstance(node.parent.parent.parent, DynInvokeSchedule):
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method, if the parent of the supplied Loop is "
-                    "also a Loop then the parent's parent must be the "
-                    "DynInvokeSchedule, but found {0}"
-                    .format(type(node.parent)))
+                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"apply method, if the parent of the supplied Loop is "
+                    f"also a Loop then the parent's parent must be the "
+                    f"DynInvokeSchedule, but found {type(node.parent)}")
         if not Config.get().distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -2220,9 +2216,9 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         # empty loop_type iterates over cell-columns.
         if node.loop_type not in ["", "dof", "colour"]:
             raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the loop type must be one of '' (cell-columns), 'dof' "
-                "or 'colour', but found '{0}'".format(node.loop_type))
+                f"In the Dynamo0p3RedundantComputation transformation apply "
+                f"method the loop type must be one of '' (cell-columns), 'dof'"
+                f" or 'colour', but found '{node.loop_type}'")
 
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
@@ -2243,18 +2239,18 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     for arg in call.arguments.args:
                         if arg.stencil:
                             raise TransformationError(
-                                "In the Dynamo0p3RedundantComputation "
-                                "transformation apply method the loop "
-                                "contains field '{0}' with a stencil "
-                                "access in kernel '{1}', so it is invalid "
-                                "to set redundant computation to maximum "
-                                "depth".format(arg.name, call.name))
+                                f"In the Dynamo0p3RedundantComputation "
+                                f"transformation apply method the loop "
+                                f"contains field '{arg.name}' with a stencil "
+                                f"access in kernel '{call.name}', so it is "
+                                f"invalid to set redundant computation to "
+                                f"maximum depth")
         else:
             if not isinstance(depth, int):
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method the supplied depth should be an integer but "
-                    "found type '{0}'".format(type(depth)))
+                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"apply method the supplied depth should be an integer but"
+                    f" found type '{type(depth)}'")
             if depth < 1:
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
@@ -2264,11 +2260,10 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 if node.upper_bound_halo_depth:
                     if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(
-                            "In the Dynamo0p3RedundantComputation "
-                            "transformation apply method the supplied depth "
-                            "({0}) must be greater than the existing halo "
-                            "depth ({1})".format(depth,
-                                                 node.upper_bound_halo_depth))
+                            f"In the Dynamo0p3RedundantComputation "
+                            f"transformation apply method the supplied depth "
+                            f"({depth}) must be greater than the existing halo"
+                            f" depth ({node.upper_bound_halo_depth})")
                 else:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -2308,8 +2303,8 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             loop.set_upper_bound("dof_halo", depth)
         else:
             raise TransformationError(
-                "Unsupported loop_type '{0}' found in Dynamo0p3Redundant"
-                "ComputationTrans.apply()".format(loop.loop_type))
+                f"Unsupported loop_type '{loop.loop_type}' found in "
+                f"Dynamo0p3Redundant ComputationTrans.apply()")
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
@@ -2396,9 +2391,9 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
             raise TransformationError(
-                "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
-                "node must be a synchronous halo exchange but found '{0}'."
-                .format(type(node)))
+                f"Error in Dynamo0p3AsyncHaloExchange transformation. Supplied"
+                f" node must be a synchronous halo exchange but found "
+                f"'{type(node)}'.")
 
 
 class Dynamo0p3KernelConstTrans(Transformation):
@@ -2530,20 +2525,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 symbol = symbol_table.argument_list[arg_index]
             except IndexError as err:
                 raise TransformationError(
-                    "The argument index '{0}' is greater than the number of "
-                    "arguments '{1}'."
-                    .format(arg_index,
-                            len(symbol_table.argument_list))) from err
+                    f"The argument index '{arg_index}' is greater than the "
+                    f"number of arguments "
+                    f"'{len(symbol_table.argument_list)}'.") from err
             # Perform some basic checks on the argument to make sure
             # it is the expected type
             if not isinstance(symbol.datatype, ScalarType):
                 raise TransformationError(
-                    "Expected entry to be a scalar argument but found "
-                    "'{0}'.".format(type(symbol.datatype).__name__))
+                    f"Expected entry to be a scalar argument but found "
+                    f"'{type(symbol.datatype).__name__}'.")
             if symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
                 raise TransformationError(
-                    "Expected entry to be a scalar integer argument "
-                    "but found '{0}'.".format(symbol.datatype))
+                    f"Expected entry to be a scalar integer argument "
+                    f"but found '{symbol.datatype}'.")
             if symbol.is_constant:
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
@@ -2562,12 +2556,11 @@ class Dynamo0p3KernelConstTrans(Transformation):
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
             if function_space:
-                print("    Modified {0}, arg position {1}, function space "
-                      "{2}, value {3}.".format(orig_name, arg_position,
-                                               function_space, value))
+                print(f"    Modified {orig_name}, arg position {arg_position},"
+                      f" function space {function_space}, value {value}.")
             else:
-                print("    Modified {0}, arg position {1}, value {2}."
-                      "".format(orig_name, arg_position, value))
+                print(f"    Modified {orig_name}, arg position {arg_position},"
+                      f" value {value}.")
         # --------------------------------------------------------------------
 
         self.validate(node, options)
@@ -2586,8 +2579,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             kernel_schedule = kernel.get_kernel_schedule()
         except NotImplementedError as excinfo:
             raise TransformationError(
-                "Failed to parse kernel '{0}'. Error reported was '{1}'."
-                "".format(kernel.name, str(excinfo))) from excinfo
+                f"Failed to parse kernel '{kernel.name}'. Error reported was "
+                f"'{excinfo}'.") from excinfo
 
         symbol_table = kernel_schedule.symbol_table
         if number_of_layers:
@@ -2606,9 +2599,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                               element_order+3)
             else:
                 raise TransformationError(
-                    "Error in Dynamo0p3KernelConstTrans transformation. "
-                    "Support is currently limited to 'xyoz' quadrature but "
-                    "found {0}.".format(kernel.eval_shapes))
+                    f"Error in Dynamo0p3KernelConstTrans transformation. "
+                    f"Support is currently limited to 'xyoz' quadrature but "
+                    f"found {kernel.eval_shapes}.")
 
         const = LFRicConstants()
         if element_order is not None:
@@ -2619,9 +2612,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                          const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
                          ["any_w2"])):
                     # skip any_space_*, any_discontinuous_space_* and any_w2
-                    print(
-                        "    Skipped dofs, arg position {0}, function space "
-                        "{1}".format(info.position, info.function_space))
+                    print(f"    Skipped dofs, arg position {info.position}, "
+                          f"function space {info.function_space}")
                 else:
                     try:
                         ndofs = Dynamo0p3KernelConstTrans. \
@@ -2629,12 +2621,11 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                     info.function_space](element_order)
                     except KeyError as err:
                         raise InternalError(
-                            "Error in Dynamo0p3KernelConstTrans "
-                            "transformation. Unsupported function space "
-                            "'{0}' found. Expecting one of {1}."
-                            "".format(info.function_space,
-                                      Dynamo0p3KernelConstTrans.
-                                      space_to_dofs.keys())) from err
+                            f"Error in Dynamo0p3KernelConstTrans "
+                            f"transformation. Unsupported function space "
+                            f"'{info.function_space}' found. Expecting one of "
+                            f"""{Dynamo0p3KernelConstTrans.
+                                 space_to_dofs.keys()}.""") from err
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
@@ -2669,9 +2660,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
         from psyclone.dynamo0p3 import DynKern
         if not isinstance(node, DynKern):
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. Supplied "
-                "node must be a dynamo kernel but found '{0}'."
-                .format(type(node)))
+                f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
+                f"node must be a dynamo kernel but found '{type(node)}'.")
 
         if not options:
             options = {}
@@ -2682,32 +2672,32 @@ class Dynamo0p3KernelConstTrans(Transformation):
         if cellshape.lower() != "quadrilateral":
             # Only quadrilaterals are currently supported
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. Supplied "
-                "cellshape must be set to 'quadrilateral' but found '{0}'."
-                .format(cellshape))
+                f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
+                f"cellshape must be set to 'quadrilateral' but found "
+                f"'{cellshape}'.")
 
         if element_order is not None and \
            (not isinstance(element_order, int) or element_order < 0):
             # element order must be 0 or a positive integer
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. The "
-                "element_order argument must be >= 0 but found '{0}'."
-                .format(element_order))
+                f"Error in Dynamo0p3KernelConstTrans transformation. The "
+                f"element_order argument must be >= 0 but found "
+                f"'{element_order}'.")
 
         if number_of_layers is not None and \
            (not isinstance(number_of_layers, int) or number_of_layers < 1):
             # number of layers must be a positive integer
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. The "
-                "number_of_layers argument must be > 0 but found '{0}'."
-                .format(number_of_layers))
+                f"Error in Dynamo0p3KernelConstTrans transformation. The "
+                f"number_of_layers argument must be > 0 but found "
+                f"'{number_of_layers}'.")
 
         if quadrature not in [False, True]:
             # quadrature must be a boolean value
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. The "
-                "quadrature argument must be boolean but found '{0}'."
-                .format(quadrature))
+                f"Error in Dynamo0p3KernelConstTrans transformation. The "
+                f"quadrature argument must be boolean but found "
+                f"'{quadrature}'.")
 
         if element_order is None and not number_of_layers:
             # As a minimum, element order or number of layers must have values.
@@ -2774,22 +2764,20 @@ class ACCEnterDataTrans(Transformation):
         :type options: dictionary of string:values or None
 
         '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
         # Ensure that the proposed transformation is valid
         self.validate(sched, options)
 
-        if isinstance(sched, GOInvokeSchedule):
-            from psyclone.gocean1p0 import GOACCEnterDataDirective as \
-                AccEnterDataDir
-        elif isinstance(sched, DynInvokeSchedule):
+        if isinstance(sched, DynInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
+                AccEnterDataDir
+        elif isinstance(sched, GOInvokeSchedule):
+            from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that validate() has done its job
             raise InternalError(
-                "ACCEnterDataTrans.validate() has not rejected an "
-                "(unsupported) schedule of type {0}".format(type(sched)))
+                f"ACCEnterDataTrans.validate() has not rejected an "
+                f"(unsupported) schedule of type {type(sched)}")
 
         # Add the directive
         data_dir = AccEnterDataDir(parent=sched, children=[])
@@ -2810,9 +2798,7 @@ class ACCEnterDataTrans(Transformation):
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
         '''
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
-        super(ACCEnterDataTrans, self).validate(sched, options)
+        super().validate(sched, options)
 
         if not isinstance(sched, nodes.Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
@@ -2821,13 +2807,12 @@ class ACCEnterDataTrans(Transformation):
 
         if not isinstance(sched, (GOInvokeSchedule, DynInvokeSchedule)):
             raise NotImplementedError(
-                "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
-                "a schedule of type {0}".format(type(sched)))
+                f"ACCEnterDataTrans: ACCEnterDataDirective not implemented for"
+                f" a schedule of type {type(sched)}")
 
         # Check that we don't already have a data region of any sort
         directives = sched.walk(Directive)
-        if any(isinstance(ddir, (ACCDataDirective,
-                                 ACCEnterDataDirective))
+        if any(isinstance(ddir, (ACCDataDirective, ACCEnterDataDirective))
                for ddir in directives):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
@@ -2911,7 +2896,7 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if any of the symbols in the kernel are \
                                      accessed via a module use statement.
         '''
-        super(ACCRoutineTrans, self).validate(node, options)
+        super().validate(node, options)
 
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
@@ -3049,7 +3034,7 @@ class ACCKernelsTrans(RegionTrans):
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
-        super(ACCKernelsTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within
         # the proposed region
@@ -3145,7 +3130,7 @@ class ACCDataTrans(RegionTrans):
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
 
-        super(ACCDataTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
@@ -3192,37 +3177,33 @@ class KernelImportsToArguments(Transformation):
             imports of symbols from one or more containers (e.g. a USE without\
             an ONLY clause in Fortran).
         '''
-        from psyclone.psyGen import CodedKern
-        from psyclone.gocean1p0 import GOInvokeSchedule
-
         if not isinstance(node, CodedKern):
             raise TransformationError(
-                "The {0} transformation can only be applied to CodedKern "
-                "nodes but found '{1}' instead.".
-                format(self.name, type(node).__name__))
+                f"The {self.name} transformation can only be applied to "
+                f"CodedKern nodes but found '{type(node).__name__}' instead.")
 
         invoke_schedule = node.ancestor(InvokeSchedule)
         if not isinstance(invoke_schedule, GOInvokeSchedule):
             raise TransformationError(
-                "The {0} transformation is currently only supported for the "
-                "GOcean API but got an InvokeSchedule of type: '{1}'".
-                format(self.name, type(invoke_schedule).__name__))
+                f"The {self.name} transformation is currently only supported "
+                f"for the GOcean API but got an InvokeSchedule of type: "
+                f"'{type(invoke_schedule).__name__}'")
 
         # Check that there are no unqualified imports or undeclared symbols
         try:
             kernel = node.get_kernel_schedule()
         except SymbolError as err:
             raise TransformationError(
-                "Kernel '{0}' contains undeclared symbol: {1}".format(
-                    node.name, str(err.value))) from err
+                f"Kernel '{node.name}' contains undeclared symbol: "
+                f"{err.value}") from err
 
         symtab = kernel.symbol_table
         for container in symtab.containersymbols:
             if container.wildcard_import:
                 raise TransformationError(
-                    "Kernel '{0}' has a wildcard import of symbols from "
-                    "container '{1}'. This is not supported.".format(
-                        node.name, container.name))
+                    f"Kernel '{node.name}' has a wildcard import of symbols "
+                    f"from container '{container.name}'. This is not "
+                    f"supported.")
 
         # TODO #649. Check for variables accessed by the kernel but declared
         # in an outer scope.
@@ -3298,10 +3279,10 @@ class KernelImportsToArguments(Transformation):
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
-                    "The imported variable '{0}' could not be promoted to an "
-                    "argument because the GOcean infrastructure does not have"
-                    " any scalar type equivalent to the PSyIR {1} type.".
-                    format(updated_sym.name, updated_sym.datatype))
+                    f"The imported variable '{updated_sym.name}' could not be "
+                    f"promoted to an argument because the GOcean "
+                    f"infrastructure does not have any scalar type equivalent "
+                    f"to the PSyIR {updated_sym.datatype} type.")
 
             # Add the imported variable in the call argument list
             node.arguments.append(updated_sym.name, go_space)

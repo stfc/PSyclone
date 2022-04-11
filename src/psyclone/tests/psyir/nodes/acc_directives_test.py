@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def test_accenterdatadirective_gencode_1():
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
     # Test that the same error is produced by the begin_string() which is used
     # by the PSyIR backend
@@ -94,7 +94,7 @@ def test_accenterdatadirective_gencode_1():
         sched[0].begin_string()
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
 
 # (2/4) Method gen_code
@@ -114,7 +114,7 @@ def test_accenterdatadirective_gencode_2():
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
 
 # (3/4) Method gen_code
@@ -135,10 +135,10 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n" in code)
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # (4/4) Method gen_code
@@ -166,10 +166,10 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
-        "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
-        "f3_proxy,f3_proxy%data)\n" in code)
+        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,f3_proxy,f3_proxy%data,m1_proxy,m1_proxy%data,"
+        "m2_proxy,m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+        "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # Class ACCLoopDirective start
@@ -315,8 +315,8 @@ def test_accupdatedirective_init():
     with pytest.raises(ValueError) as err:
         _ = ACCUpdateDirective(symbol, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
-            "any of the values in '('host', 'device')' but found 'invalid'."
-            in str(err.value))
+            "any of the values in '('self', 'host', 'device')' but found "
+            "'invalid'." in str(err.value))
 
     # Successful init
     directive = ACCUpdateDirective(symbol, "host")
