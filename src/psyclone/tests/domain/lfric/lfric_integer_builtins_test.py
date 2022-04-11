@@ -1389,9 +1389,11 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_real_X_precision(tmpdir, monkeypatch):
-    '''Test that the builtin picks up and creates correct code for a
-    scalar with precision that is not the default i.e. not r_def.
+@pytest.mark.parametrize("kind_name", ["r_solver", "r_tran"])
+def test_real_X_precision(tmpdir, monkeypatch, kind_name):
+    '''Test that the built-in picks up and creates correct code for a
+    scalar with precision that is not the default i.e. not
+    'r_def'. Try with two examples to make sure it works in general.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1401,9 +1403,9 @@ def test_real_X_precision(tmpdir, monkeypatch):
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    monkeypatch.setattr(kern.args[0], "_precision", "r_solver")
+    monkeypatch.setattr(kern.args[0], "_precision", kind_name)
     code = str(psy.gen)
-    assert "USE constants_mod, ONLY: r_solver, i_def" in code
-    assert "f2_proxy%data(df) = real(f1_proxy%data(df), r_solver)" in code
+    assert f"USE constants_mod, ONLY: {kind_name}, i_def" in code
+    assert f"f2_proxy%data(df) = real(f1_proxy%data(df), {kind_name})" in code
     # Test code generation
     assert LFRicBuild(tmpdir).code_compiles(psy)
