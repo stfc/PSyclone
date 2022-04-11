@@ -525,9 +525,61 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, parser):
     subscript_lhs = access_info_lhs.component_indices[(0, 0)]
     subscript_rhs = access_info_rhs.component_indices[(0, 0)]
 
-    dep_tools = DependencyTools(["unknown"])
-    result = dep_tools.independent_1_var("i", subscript_lhs, subscript_rhs)
+    result = DependencyTools.independent_1_var("i", subscript_lhs,
+                                               subscript_rhs)
     assert result == distance
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("lhs, rhs, independent",
+                         [("a3(i, j, 1)", "a3(i, i, 1)", True),
+                          ("a2(i, i)", "a2(i+j, i)", True),
+                          ("a2(i, j)", "a2(i+j, j)", False),
+                          ("a2(i, j)", "a2(j, i)", False),
+                          ("a3(i, j, indx(i,j))", "a3(i, i, indx(i,j))", True),
+                          ])
+def test_array_access_pairs_multi_var(lhs, rhs, independent, parser):
+    '''Tests the array checks of can_loop_be_parallelised.
+    '''
+    reader = FortranStringReader(f'''program test
+                                 integer i, j, k, d_i
+                                 integer, parameter :: n=10, m=10
+                                 integer, dimension(10, 10) :: indx
+                                 real, dimension(n) :: a1
+                                 real, dimension(n, m) :: a2
+                                 real, dimension(n, m, n) :: a3
+                                 {lhs} = {rhs}
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    assign = psy.invokes.get("test").schedule[0]
+
+    access_info_lhs = VariablesAccessInfo(assign.lhs)
+    access_info_rhs = VariablesAccessInfo(assign.rhs)
+
+    # Find the access that is not to i,j, or k --> this must be
+    # the 'main' array variable we need to check for:
+    sig = None
+    for sig in access_info_lhs:
+        if access_info_lhs[sig].is_array():
+            break
+
+    # Get all accesses to the array variable. It has only one
+    # access on each side (left/right)
+    access_lhs = access_info_lhs[sig][0]
+    access_rhs = access_info_rhs[sig][0]
+    partition = \
+        DependencyTools.partition(access_lhs.component_indices,
+                                  access_rhs.component_indices,
+                                  ["i", "j", "k", "l"])
+
+    # Get all access info for the expression to 'a1'
+    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
+    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    result = DependencyTools.\
+        independent_multi_subscript("i", access_info_lhs, access_info_rhs,
+                                    partition[0][0], partition[0][1])
+    assert result == independent
 
 
 # -----------------------------------------------------------------------------

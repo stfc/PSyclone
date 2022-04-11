@@ -283,7 +283,7 @@ class DependencyTools(object):
         return True
 
     # -------------------------------------------------------------------------
-    def array_access_parallelisable(self, loop_variable, var_info):
+    def array_access_parallelisable_old(self, loop_variable, var_info):
         '''Tries to determine if the access pattern for a variable
         given in `var_info` allows parallelisation along the variable
         `loop_variable`. The following messages might be provided
@@ -588,6 +588,126 @@ class DependencyTools(object):
         return None
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def independent_multi_subscript(var_name, read_access, written_access,
+                                    set_of_vars, subscripts):
+        '''
+        Test multiple subscripts that share variables.
+        '''
+        # If we find one subscript that is independent, the loop can be
+        # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
+        # the first subscript is i, means that each different iteration
+        # will access a different column, even if index(i) is 5.
+
+        for ind in subscripts:
+            index_read = read_access.component_indices[ind]
+            index_written = written_access.component_indices[ind]
+            distance = DependencyTools.independent_1_var(var_name, index_read,
+                                                         index_written)
+            if distance == 0:
+                # Notice that distance 0 will only be returned if the subscript
+                # actually depends on the loop variable.
+                return True
+        # Additional tests could be added here (e.g. to see that
+        # `a(i,i)=a(i,i+1)+1` can be parallelised.
+
+        return False
+
+    # -------------------------------------------------------------------------
+    def is_array_access_parallelisable(self, loop_variables, read_access,
+                                       write_access):
+        print("iap", loop_variables)
+        partitions = self.partition(read_access.component_indices,
+                                    write_access.component_indices,
+                                    loop_variables)
+        loop_var = loop_variables[0]
+        for set_of_vars, subscripts in partitions:
+            print("iaap", set_of_vars, subscripts)
+            # First only test independent subscripts:
+            if len(subscripts) == 1:
+                # There is only one subscript involved in this test.
+                # Get its index:
+                subscript = subscripts[0]
+                index_read = read_access.component_indices[subscript]
+                index_write = write_access.component_indices[subscript]
+                if len(set_of_vars) == 0:
+                    # No loop variable used, constant access (which might
+                    # still be using unknown non-loop variables).
+                    # E.g. `a(5) = a(n)`
+                    indep = self.independent_0_var(index_read, index_write)
+                    # If we can show that there is at least one subscript
+                    # that is independent (`a(5, i)` and `a(3, i)`), we know
+                    # that the accesses are independent.
+                    if indep:
+                        return True
+                elif len(set_of_vars) == 1:
+                    # One loop variable used in both accesses.
+                    # E.g. `a(2*i+3) = a(i*i)`
+                    distance = self.independent_1_var(loop_var, index_read,
+                                                      index_write)
+                    # If the dependency distance is 0, it means that in each
+                    # iteration a different index is accessed, so the loop
+                    # can be parallelised.
+                    if distance == 0:
+                        return True
+                else:
+                    # One subscript with several loop variables, e.g.
+                    # a(i+j) in a nest of i and j loops. Assume that there
+                    # will be dependencies.
+                    return False
+            else:
+                # This is reached only if there is more than one subscript in
+                # which one or several variables are used
+                indep = self.independent_multi_subscript(loop_var,
+                                                         read_access,
+                                                         write_access,
+                                                         set_of_vars,
+                                                         subscripts)
+                if indep:
+                    return True
+
+        return False
+
+    # -------------------------------------------------------------------------
+    def array_access_parallelisable(self, loop_variables, var_info):
+        '''Tries to determine if the access pattern for a variable
+        given in `var_info` allows parallelisation along the variable
+        `loop_variable`. The following messages might be provided
+        to the user using the message API:
+
+        * if the array access does not depend on the loop variable, a
+          warning is added (e.g. for the variable `a` in `a(1,2) = b(i,j)`).
+        * if the array variable is accessed inconsistently, e.g.
+          `a(i,j) = a(j,i) + 1`.
+
+        :param str loop_variables: all loop variables involved.
+        :param var_info: access information for this variable.
+        :type var_info: \
+            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+
+        :return: whether the variable can be used in parallel.
+        :rtype: bool
+        '''
+        # pylint: disable=too-many-locals
+        # If a variable is read-only, it can be parallelised
+        if var_info.is_read_only():
+            return True
+
+        all_write_accesses = var_info.all_write_accesses
+
+        for write_access in all_write_accesses:
+            # We need to compare each write access with any other access,
+            # including itself (to detect write-write race conditions:
+            # a((i-2)**2) = b(i) - i=1 and i=3 would write to a(1))
+            for read_access in var_info:
+                print("VAR_INFO", var_info)
+                if not self.is_array_access_parallelisable(loop_variables,
+                                                           read_access,
+                                                           write_access):
+                    return False
+        return True
+
+    # -------------------------------------------------------------------------
     def is_scalar_parallelisable(self, var_info):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
@@ -636,6 +756,109 @@ class DependencyTools(object):
                                  test_all_variables=False,
                                  signatures_to_ignore=None,
                                  var_accesses=None):
+        # pylint: disable=too-many-arguments, too-many-branches
+        # pylint: disable=too-many-locals
+        '''This function analyses a loop in the PsyIR to see if
+        it can be safely parallelised over the specified variable.
+
+        :param loop: the loop node to be analysed.
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop_variable: Optional symbol of the variable that is \
+            parallelised. If not specified, the loop variable of the loop \
+            is used.
+        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
+        :param bool only_nested_loops: if True, a loop must have an inner\
+                                       loop in order to be considered\
+                                       parallelisable (default: True).
+        :param bool test_all_variables: if True, it will test if all variable\
+                                        accesses can be parallelised,\
+                                        otherwise it will stop after the first\
+                                        variable is found that can not be\
+                                        parallelised.
+        :param signatures_to_ignore: list of signatures for which to skip \
+                                     the access checks.
+        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
+        :param var_accesses: optional argument containing the variable access\
+                             pattern of the loop (default: None).
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :returns: True if the loop can be parallelised.
+        :rtype: bool
+
+        :raises TypeError: if the supplied node is not a Loop.
+
+        '''
+        self._clear_messages()
+
+        if not isinstance(loop, Loop):
+            raise TypeError(f"can_loop_be_parallelised: node must be an "
+                            f"instance of class Loop but got "
+                            f"'{type(loop).__name__}'")
+        if not loop_variable:
+            loop_variable = loop.variable
+
+        # Check if the loop type should be parallelised, e.g. to avoid
+        # parallelising inner loops which might not have enough work. This
+        # is supposed to be a fast first check to avoid collecting variable
+        # accesses in some unsuitable loops.
+        if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
+            # Appropriate messages will have been added already, so just exit
+            return False
+
+        if not var_accesses:
+            var_accesses = VariablesAccessInfo()
+            loop.reference_accesses(var_accesses)
+        if not signatures_to_ignore:
+            signatures_to_ignore = []
+
+        # Collect all variables used as loop variable:
+        loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
+
+        result = True
+        # Now check all variables used in the loop
+        for signature in var_accesses.all_signatures:
+            # This string contains derived type information, e.g.
+            # "a%b"
+            var_string = str(signature)
+            # Ignore all loop variables - they look like reductions because of
+            # the write-read access in the loop:
+            if var_string in loop_vars:
+                continue
+            if signature in signatures_to_ignore:
+                continue
+
+            # This returns the first component of the signature,
+            # i.e. in case of "a%b" it will only return "a"
+            var_name = signature.var_name
+            var_info = var_accesses[signature]
+            symbol_table = loop.scope.symbol_table
+            symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
+            is_array = symbol.is_array_access(access_info=var_info)
+            if is_array:
+                # Handle arrays
+                par_able = self.array_access_parallelisable(loop_vars,
+                                                            var_info)
+            else:
+                # Handle scalar variable
+                par_able = self.is_scalar_parallelisable(var_info)
+            if not par_able:
+                if not test_all_variables:
+                    return False
+                # The user might have requested to continue in order to get
+                # all messages for all variables preventing parallelisation,
+                # not just the first one
+                result = False
+
+        return result
+
+    # -------------------------------------------------------------------------
+    def can_loop_be_parallelised_old(self, loop, loop_variable=None,
+                                     only_nested_loops=True,
+                                     test_all_variables=False,
+                                     signatures_to_ignore=None,
+                                     var_accesses=None):
         # pylint: disable=too-many-arguments, too-many-branches
         # pylint: disable=too-many-locals
         '''This function analyses a loop in the PsyIR to see if
