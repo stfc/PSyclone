@@ -564,6 +564,116 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm in code
 
 
+def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntXMinusAKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = X - a where 'a' is an integer scalar and X and Y
+    are integer-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.22.5_int_X_minus_a_builtin.f90"),
+                           api=API)
+
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule[0].loop_body[0]
+    assert str(kern) == "Built-in: int_X_minus_a (integer-valued fields)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
+def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntIncXMinusAKern returns
+    the expected string and 2) we generate correct code for the
+    built-in operation X = X - a where 'a' is an integer scalar and
+    X is an integer-valued field. Test with and without annexed dofs
+    being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.22.6_int_inc_X_minus_a_builtin.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: int_inc_X_minus_a (integer-valued field)"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0")
+        assert output in code
+    else:
+        output_dm = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
+
+
 # ------------- Multiplying integer fields ---------------------------------- #
 
 
