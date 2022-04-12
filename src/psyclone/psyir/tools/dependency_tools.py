@@ -41,6 +41,7 @@
     dependency analysis.'''
 
 from __future__ import absolute_import, print_function
+from enum import Enum
 
 from sympy import Symbol, Integer
 
@@ -52,6 +53,65 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
 
+class DACode(Enum):
+    '''A simple enum to store the various info, warning and error
+    codes used in the dependency analysis.
+
+    '''
+    INFO_NOT_NESTED_LOOP = 1
+    INFO_WRONG_LOOP_TYPE = 2
+
+    WARN_SCALAR_WRITTEN_ONCE = 100
+    WARN_SCALAR_REDUCTION = 101
+
+    ERROR_WRITE_WRITE_RACE = 200
+    ERROR_DEPENDENCY = 201
+
+
+# ============================================================================
+class Message:
+    '''This class stores an (error or warning) message, a numerical code
+    for the message, and a list of variable names used. The DependencyTools
+    use instance of this class to provide feedback to the caller: a user
+    can be given the error message as it is, a script can analyse the
+    numerical code and/or additional information.
+
+    :param str message: the message.
+    :param int code: error or warning code.
+    :param var_names: list of variable names (defaults to []).
+    :type var_names: list of str
+
+    '''
+    def __init__(self, message, code, var_names=None):
+        self._message = message
+        self._code = code
+        if var_names:
+            self._var_names = var_names
+        else:
+            self._var_names = []
+
+    # ------------------------------------------------------------------------
+    def __str__(self):
+        return self._message
+
+    # ------------------------------------------------------------------------
+    @property
+    def code(self):
+        ''':returns: the numerical code of this message.
+
+        '''
+        return self._code
+
+    # ------------------------------------------------------------------------
+    @property
+    def var_names(self):
+        ''':returns: the numerical code of this message.
+
+        '''
+        return self._var_names
+
+
+# ============================================================================
 class DependencyTools(object):
     '''This class provides some useful dependency tools, allowing a user to
     overwrite/modify functions depending on the application. It includes
@@ -101,29 +161,41 @@ class DependencyTools(object):
         self._messages = []
 
     # -------------------------------------------------------------------------
-    def _add_info(self, message):
+    def _add_info(self, message, code, var_names=None):
         '''Adds an informational message to the internal message
         handling system.
 
         :param str message: the message for the user.
+        :param int code: error or warning code.
+        :param var_names: list of variable names (defaults to []).
+        :type var_names: list of str
+
         '''
-        self._messages.append("Info: "+message)
+        self._messages.append(Message(f"Info: {message}", code, var_names))
 
     # -------------------------------------------------------------------------
-    def _add_warning(self, message):
+    def _add_warning(self, message, code, var_names=None):
         '''Adds a warning message to the internal message handling system.
 
         :param str message: the message for the user.
+        :param int code: error or warning code.
+        :param var_names: list of variable names (defaults to []).
+        :type var_names: list of str
+
         '''
-        self._messages.append("Warning: "+message)
+        self._messages.append(Message(f"Warning: {message}", code, var_names))
 
     # -------------------------------------------------------------------------
-    def _add_error(self, message):
+    def _add_error(self, message, code, var_names=None):
         '''Adds an error message to the internal message handling system.
 
         :param str message: the message for the user.
+        :param int code: error or warning code.
+        :param var_names: list of variable names.
+        :type var_names: list of str
+
         '''
-        self._messages.append("Error: "+message)
+        self._messages.append(Message(f"Error: {message}", code, var_names))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -156,12 +228,14 @@ class DependencyTools(object):
         if only_nested_loops:
             all_loops = loop.walk(Loop)
             if len(all_loops) == 1:
-                self._add_info("Not a nested loop.")
+                self._add_info("Not a nested loop.",
+                               DACode.INFO_NOT_NESTED_LOOP)
                 return False
 
         if self._loop_types_to_parallelise:
             if loop.loop_type not in self._loop_types_to_parallelise:
-                self._add_info(f"Loop has wrong loop type '{loop.loop_type}'.")
+                self._add_info(f"Loop has wrong loop type '{loop.loop_type}'.",
+                               DACode.INFO_WRONG_LOOP_TYPE)
                 return False
         return True
 
@@ -224,7 +298,8 @@ class DependencyTools(object):
             # So in any case we add the information for the user to decide.
             self._add_warning(f"Variable '{var_info.var_name}' is written to, "
                               f"and does not depend on the loop variable "
-                              f"'{loop_variable.name}'.")
+                              f"'{loop_variable.name}'.",
+                              DACode.ERROR_WRITE_WRITE_RACE)
             return False
 
         # Now we have confirmed that all parallel accesses to the variable
@@ -243,7 +318,8 @@ class DependencyTools(object):
                                   f"and is accessed using indices '"
                                   f"{self._language_writer(first_index)}' and "
                                   f"'{self._language_writer(index)}' and can "
-                                  f"therefore not be parallelised.")
+                                  f"therefore not be parallelised.",
+                                  DACode.ERROR_DEPENDENCY)
                 return False
         return True
 
@@ -251,10 +327,10 @@ class DependencyTools(object):
     @staticmethod
     def get_flat_indices(component_indices, set_of_loop_vars):
         '''This function takes an array reference, and returns a flat
-        list of variable names used in each subscript. For example,
-        `a(i1+i2)%b(j*j+j,k)%c(l,5)` would return `[(i1,i2),(j,k),(l),()]`.
-        This result is used in partitioning subscripts in the dependency
-        analysis.
+        list of which variable from the given set of variables is used in each
+        subscript. For example, `a(i1+i2)%b(j*j+j,k)%c(l,5)` would return
+        `[(i1,i2),(j,k),(l),()]`. This result is used in partitioning
+        subscripts in the dependency analysis.
 
         :param component_indices: the component indices used in an array \
             access.
@@ -412,12 +488,12 @@ class DependencyTools(object):
             get_sympy_expressions_and_symbol_map([index_read, index_written])
 
         # If the subscripts do not even depend on the specified variable,
-        # any dependency distance is possible (e.g. `do i  a(j)=a(j)+1`)
+        # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
         if var_name not in symbol_map:
             return None
 
         var = symbol_map[var_name]
-        # Create a unique 'dx' variable name if 'x' is the variable
+        # Create a unique 'dx' variable name if 'x' is the variable.
         d_var_name = "d_"+var_name
         idx = 1
         while d_var_name in symbol_map:
@@ -444,15 +520,21 @@ class DependencyTools(object):
             # solutions is a FiniteSet, which can't be accessed directly,
             # so convert this one element to a one element list:
             sol = list(solutions)[0]
-            # If the loop variable is used in the solution, in general
-            # we have a dependency. Loop start/end/step values could be
-            # evaluated here. We then also need to check if `i+di` (i.e. the
-            # iteration to which the dependency is) is a valid iteration
-            # E.g. in case of a(i^2)=a(i^2) --> di=0 or di=-2*i -->
-            # i+di = -i < 0 for i>0. So this is not a valid loop iteration, so
-            # that means no dependencies)
             if var in sol.free_symbols:
+                # If the loop variable is used in the solution, in general
+                # we have a dependency. Loop start/end/step values could be
+                # evaluated here. We then also need to check if `i+di` (i.e.
+                # the iteration to which the dependency is) is a valid
+                # iteration. E.g. in case of a(i^2)=a(i^2) --> di=0 or di=-2*i
+                # --> # i+di = -i < 0 for i>0. Since this is not a valid loop
+                # iteration that means no dependencies.
                 return None
+
+            if not isinstance(sol, Integer):
+                # This likely indicates several (or an infinite) number of
+                # iterations.
+                return None
+
             # Otherwise return the distance of the dependency (i.e. how many
             # loop iterations apart the same memory location will be accessed).
             # If this should be 0, it means no dependency. Though even here
@@ -460,8 +542,6 @@ class DependencyTools(object):
             # the distance is N with N loop iterations, e.g.:
             # do i=1, N: a(i)=a(i+N)
             # Then there would still be no dependency.
-            if not isinstance(sol, Integer):
-                return None
             return sol
 
         return None
@@ -470,8 +550,9 @@ class DependencyTools(object):
     @staticmethod
     def independent_multi_subscript(var_name, write_access, other_access,
                                     set_of_vars, subscripts):
-        '''
-        Test multiple subscripts that share variables.
+        '''Test multiple subscripts that share variables. This includes caes
+        like `a(i,i) = a(i,i+1)` or `a(i, indx(i)) = a(i,5)` etc.
+
         '''
         # If we find one subscript that is independent, the loop can be
         # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
@@ -503,7 +584,6 @@ class DependencyTools(object):
                                     loop_variables)
         loop_var = loop_variables[0]
         for set_of_vars, subscripts in partitions:
-            print("iaap", set_of_vars, subscripts)
             # First only test independent subscripts:
             if len(subscripts) == 1:
                 # There is only one subscript involved in this test.
@@ -579,11 +659,32 @@ class DependencyTools(object):
         for write_access in all_write_accesses:
             # We need to compare each write access with any other access,
             # including itself (to detect write-write race conditions:
-            # a((i-2)**2) = b(i) - i=1 and i=3 would write to a(1))
-            for access in var_info:
+            # a((i-2)**2) = b(i): i=1 and i=3 would write to a(1))
+            for other_access in var_info:
                 if not self.is_array_access_parallelisable(loop_variables,
                                                            write_access,
-                                                           access):
+                                                           other_access):
+                    # There is a dependency. Try to give precise error
+                    # messages:
+                    if write_access is other_access:
+                        # The write access has a dependency on itself, e.g.
+                        # a(3) = ...    or a((i-2)**2) = ...
+                        # Both would result in a write-write conflict
+                        str_access = self._language_writer(write_access.node)
+                        self._add_error(f"The write access to '{str_access}' "
+                                        f"causes a write-write race "
+                                        f"condition.",
+                                        DACode.ERROR_WRITE_WRITE_RACE,
+                                        [str_access])
+                    else:
+                        str_write = self._language_writer(write_access.node)
+                        str_other = self._language_writer(other_access.node)
+                        self._add_error(f"The write access to '{str_write}' "
+                                        f"and to '{str_other}' are dependent "
+                                        f"and cannot be parallelised.",
+                                        DACode.ERROR_DEPENDENCY,
+                                        [str_write, str_other])
+
                     return False
         return True
 
@@ -611,7 +712,9 @@ class DependencyTools(object):
             # which prohibits parallelisation.
             # We could potentially use lastprivate here?
             self._add_warning(f"Scalar variable '{var_info.var_name}' is "
-                              f"only written once.")
+                              f"only written once.",
+                              DACode.WARN_SCALAR_WRITTEN_ONCE,
+                              [f"{var_info.var_name}"])
             return False
 
         # Now we have at least two accesses. If the first access is a WRITE,
@@ -627,7 +730,9 @@ class DependencyTools(object):
         # Otherwise there is a read first, which would indicate that this loop
         # is a reduction, which is not supported atm.
         self._add_warning(f"Variable '{var_info.var_name}' is read first, "
-                          f"which indicates a reduction.")
+                          f"which indicates a reduction.",
+                          DACode.WARN_SCALAR_REDUCTION,
+                          [var_info.var_name])
         return False
 
     # -------------------------------------------------------------------------
