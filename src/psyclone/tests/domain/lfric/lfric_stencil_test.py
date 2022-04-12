@@ -1953,8 +1953,7 @@ def test_discontinuous_stencil_w3_writer(tmpdir):
         "        CALL f2_proxy%halo_exchange(depth=extent)\n"
         "      END IF\n"
         "      !\n"
-        "      CALL f4_proxy%halo_exchange(depth=extent)\n"
-        "      !\n")
+        "      CALL f4_proxy%halo_exchange(depth=extent)\n")
     assert output3 in result
 
 
