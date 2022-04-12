@@ -43,7 +43,6 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools.dependency_tools import DependencyTools
@@ -227,95 +226,6 @@ def test_arrays_parallelise(parser):
     assert parallel is False
     assert ("Variable 'mask' is written and is accessed using indices "
             "'jj + 1' and 'jj' and can therefore not be parallelised"
-            in dep_tools.get_all_messages()[0])
-
-
-# -----------------------------------------------------------------------------
-def test_array_access_consistent(parser):
-    '''Tests the array checks of can_loop_be_parallelised.
-    '''
-    # pylint: disable=too-many-locals
-    reader = FortranStringReader('''program test
-                                 integer ji, jj, jk
-                                 integer, parameter :: jpi=5, jpj=10
-                                 real, dimension(jpi,jpi) :: a, b, c
-                                 do jj = 1, jpj   ! loop 0
-                                    do ji = 1, jpi
-                                       a(ji, jj) = -1.0d0
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 1
-                                    do ji = 1, jpi
-                                       a(ji, jj) = b(ji, jj)
-                                       c(ji, jj) = a(ji, jj)
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 2
-                                    do ji = 1, jpi
-                                       a(jj, ji) = b(ji, jj)
-                                     end do
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"])
-
-    var_info0 = VariablesAccessInfo(loops[0])
-    var_info1 = VariablesAccessInfo(loops[1])
-    jj_symbol = loops.scope.symbol_table.lookup("jj")
-
-    # Test 1: provide access pattern of different variables:
-    sig_a = Signature("a")
-    sig_b = Signature("b")
-    sig_c = Signature("c")
-    with pytest.raises(InternalError) as err:
-        _ = dep_tools.array_accesses_consistent(jj_symbol,
-                                                [var_info0[sig_a],
-                                                 var_info1[sig_b],
-                                                 var_info1[sig_c]])
-    assert ("Inconsistent signature provided in 'array_accesses_consistent'. "
-            "Expected all accesses to be for 'a', but also got 'b,c'."
-            in str(err.value))
-
-    # Test 2: provide a consistent list of accesses.
-    # Check number of messages and returned access array for correctness.
-    a_access_1st_loop = var_info0[sig_a]
-    a_access_2nd_loop = var_info1[sig_a]
-    all_ind = []
-    consistent = dep_tools.array_accesses_consistent(jj_symbol,
-                                                     [a_access_1st_loop,
-                                                      a_access_2nd_loop],
-                                                     all_ind)
-    assert consistent is True
-    # pylint: disable=use-implicit-booleaness-not-comparison
-    assert dep_tools.get_all_messages() == []
-    assert len(all_ind) == 3
-    assert all_ind[0] == a_access_1st_loop[0].component_indices[(0, 1)]
-    assert all_ind[1] == a_access_2nd_loop[0].component_indices[(0, 1)]
-    assert all_ind[2] == a_access_2nd_loop[1].component_indices[(0, 1)]
-
-    # Test 3: provide a single instance (not a list).
-    all_ind = []
-    consistent = dep_tools.array_accesses_consistent(jj_symbol,
-                                                     a_access_1st_loop,
-                                                     all_ind)
-    assert consistent is True
-    assert dep_tools.get_all_messages() == []
-    assert all_ind == [a_access_1st_loop[0].component_indices[(0, 1)]]
-
-    # Test 4: trigger an error.
-    var_info2 = VariablesAccessInfo(loops[2])
-    a_access_3rd_loop = var_info2[sig_a]
-    all_ind = []
-    consistent = dep_tools.array_accesses_consistent(jj_symbol,
-                                                     [a_access_1st_loop,
-                                                      a_access_3rd_loop],
-                                                     all_ind)
-    assert consistent is False
-    assert len(dep_tools.get_all_messages()) == 1
-    assert ("Variable 'a' is written to and the loop variable 'jj' is used "
-            "in different index locations: a(ji,jj) and a(jj,ji)."
             in dep_tools.get_all_messages()[0])
 
 
@@ -580,6 +490,42 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, parser):
         independent_multi_subscript("i", access_info_lhs, access_info_rhs,
                                     partition[0][0], partition[0][1])
     assert result == independent
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("lhs, rhs, is_parallelisable",
+                         [("a2(i, n)", "a2(i, n)", True),
+                          # ("a2(i*i-i+n, 1)", "a2(i+n, 2)", True),
+                          ("a2(i*i-i+d_i, 1)", "a2(i+d_i, 2)", True),
+                          # ("a2(i, 1)", "a2(i, 2)", True),
+                          # ("a2(i, n-1)", "a2(i, n-1)", True),
+                          # ("a2(i, n)", "a2(i, n-1)", True),
+                          # ("a1(n)", "a1(m)", False),
+                          ])
+def test_improved_dependency_analysis(lhs, rhs, is_parallelisable, parser):
+    '''Tests the array checks of can_loop_be_parallelised.
+    '''
+    reader = FortranStringReader(f'''program test
+                                 integer i, j, k, d_i
+                                 integer, parameter :: n=10, m=10
+                                 integer, dimension(10, 10) :: indx
+                                 real, dimension(n) :: a1
+                                 real, dimension(n, m) :: a2
+                                 real, dimension(n, m, n) :: a3
+                                 do k = 1, n
+                                    do j = 1, m
+                                       do i = 1, n
+                                       {lhs} = {rhs}
+                                       end do
+                                    end do
+                                 end do
+                                 end program test''')
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    loops = psy.invokes.get("test").schedule
+    dep_tools = DependencyTools(["unknown"])
+    result = dep_tools.can_loop_be_parallelised(loops[0])
+    assert result is is_parallelisable
 
 
 # -----------------------------------------------------------------------------

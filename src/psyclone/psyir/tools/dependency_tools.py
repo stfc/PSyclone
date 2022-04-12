@@ -45,9 +45,8 @@ from __future__ import absolute_import, print_function
 from sympy import Symbol, Integer
 
 from psyclone.configuration import Config
-from psyclone.core import (AccessType, Signature, SymbolicMaths,
+from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -137,122 +136,6 @@ class DependencyTools(object):
         return self._messages
 
     # -------------------------------------------------------------------------
-    def array_accesses_consistent(self, loop_variable, var_infos,
-                                  all_indices=None):
-        '''Check whether all accesses to an array, whose accesses are
-        specified in the `var_infos` parameter, have consistent usage of
-        the loop variable. This can be used e.g. to verify whether two loops
-        may be fused by providing the access information of each loop in
-        the `var_infos` parameter as a list. For example, `a(i,j)` and
-        `a(j,i)` would be inconsistent. It does not test for index values
-        (e.g. `a(i,j)` and `a(i+3,j)`).
-
-        If the optional argument `all_indices` is given, it will store the
-        list of all accesses that use the loop variable. This is an additional
-        convenient result that can simplify further tests.
-
-        :param loop_variable: symbol of the variable associated with the \
-            loops being fused.
-        :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param var_infos: access information for an array. Can be either a \
-            single object, or a list of access objects.
-        :type var_infos: a list or a single instance of \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
-        :param all_indices: optional list argument which will store all \
-            indices that use the specified loop variable.
-        :type all_indices: None or a list to which all PSyIR expressions \
-            of indices that use the loop variable are added.
-
-        :returns: True if all array accesses are consistent.
-        :rtype: bool
-
-        :raises InternalError: if more than one one SingleVariableAccessInfo
-            object is given and the information is for different variables.
-        '''
-
-        # pylint: disable=too-many-locals
-        consistent = True
-
-        if not isinstance(var_infos, list):
-            all_accesses = var_infos.all_accesses
-            signature = var_infos.signature
-        else:
-            # Verify that all var_info objects are indeed for
-            # the same variable.
-            signature = var_infos[0].signature
-            different = [vi.signature for vi in var_infos
-                         if vi.signature != signature]
-            if different:
-                diff_string = ",".join([str(sig) for sig in different])
-                raise InternalError(f"Inconsistent signature provided in "
-                                    f"'array_accesses_consistent'. Expected "
-                                    f"all accesses to be for '{signature}', "
-                                    f"but also got '{diff_string}'.")
-            all_accesses = []
-            for var_info in var_infos:
-                all_accesses = all_accesses + var_info.all_accesses
-
-        # The variable 'first_index' will store the index of the component
-        # and the dimension used when accessing it (i.e. it is a 2-tuple),
-        # which is what `ComponentIndices.iterate` returns.
-        # For example, `a(i)%b(j,k)` would have `(1, 0)` as the `first_index`
-        # when checking for the loop variable `j`. This 2-tuple can be
-        # used to get the corresponding PSyIR node from the component_indices
-        # object. In 'first_component_indices' it will also store the
-        # ComponentIndices of the first access. This is used for more
-        # informative error messages if required.
-        first_index = None
-        first_component_indices = None
-
-        # Test all access to the array. Consider the following code (enclosed
-        # in nested j, i loops), when analysing the 'j' loop:
-        #       a(i,j) = a(i,j) + 1    ! (1)
-        #       b(i,j) = sin(a(i,j))   ! (2)
-        #       c(i,j) = b(j,i)        ! (3)
-        # When testing the accesses to 'a', three access will be reported,
-        # a read and a write access in (1), and another read access in (2).
-        # These accesses are consistent, they all have 'j' as the second
-        # dimension. When testing 'b' on the other hand, there will be
-        # two accesses (write in (2) and read in (3)), but the accesses are
-        # not consistent - 'j' is used in dimension 2 when writing, and
-        # in dimension 1 when reading.
-
-        # Loop over all the accesses to the array:
-        for access in all_accesses:
-            component_indices = access.component_indices
-            # Now verify that the index variable is always used
-            # at the same place:
-            for indx in component_indices.iterate():
-                index_expression = component_indices[indx]
-                accesses = VariablesAccessInfo(index_expression)
-
-                # If the loop variable is not used at all, no need to
-                # check indices
-                if Signature(loop_variable.name) not in accesses:
-                    continue
-                # Store the first access information:
-                if not first_index:
-                    first_index = indx
-                    first_component_indices = component_indices
-                elif first_index != indx:
-                    # If a previously identified index location does not match
-                    # the current index location (e.g. a(i,j), and a(j,i) ),
-                    # then add an error message:
-                    consistent = False
-                    self._add_error(
-                        f"Variable '{signature.var_name}' is written to and "
-                        f"the loop variable '{loop_variable.name}' is used "
-                        f"in different index locations: "
-                        f"{signature.to_language(first_component_indices)} "
-                        f"and {signature.to_language(component_indices)}.")
-                if all_indices is not None:
-                    # If requested, collect all indices that are actually
-                    # used as a convenience additional result for the user
-                    all_indices.append(index_expression)
-
-        return consistent
-
-    # -------------------------------------------------------------------------
     def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
         '''Simple first test to see if a loop should even be considered to
         be parallelised. The default implementation tests whether the loop
@@ -320,10 +203,6 @@ class DependencyTools(object):
 
         # Detect if this variable adds a new message, and if so, abort early
         all_indices = []
-        consistent = self.array_accesses_consistent(loop_variable, var_info,
-                                                    all_indices)
-        if not consistent:
-            return False
 
         if not all_indices:
             # An array is used that is not actually dependent on the parallel
@@ -589,7 +468,7 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def independent_multi_subscript(var_name, read_access, written_access,
+    def independent_multi_subscript(var_name, write_access, other_access,
                                     set_of_vars, subscripts):
         '''
         Test multiple subscripts that share variables.
@@ -600,10 +479,11 @@ class DependencyTools(object):
         # will access a different column, even if index(i) is 5.
 
         for ind in subscripts:
-            index_read = read_access.component_indices[ind]
-            index_written = written_access.component_indices[ind]
-            distance = DependencyTools.independent_1_var(var_name, index_read,
-                                                         index_written)
+            index_written = write_access.component_indices[ind]
+            index_other = other_access.component_indices[ind]
+            distance = DependencyTools.independent_1_var(var_name,
+                                                         index_written,
+                                                         index_other)
             if distance == 0:
                 # Notice that distance 0 will only be returned if the subscript
                 # actually depends on the loop variable.
@@ -614,11 +494,12 @@ class DependencyTools(object):
         return False
 
     # -------------------------------------------------------------------------
-    def is_array_access_parallelisable(self, loop_variables, read_access,
-                                       write_access):
-        print("iap", loop_variables)
-        partitions = self.partition(read_access.component_indices,
-                                    write_access.component_indices,
+    def is_array_access_parallelisable(self, loop_variables, write_access,
+                                       other_access):
+        '''Checks if the read and write ac
+        '''
+        partitions = self.partition(write_access.component_indices,
+                                    other_access.component_indices,
                                     loop_variables)
         loop_var = loop_variables[0]
         for set_of_vars, subscripts in partitions:
@@ -628,13 +509,13 @@ class DependencyTools(object):
                 # There is only one subscript involved in this test.
                 # Get its index:
                 subscript = subscripts[0]
-                index_read = read_access.component_indices[subscript]
                 index_write = write_access.component_indices[subscript]
+                index_other = other_access.component_indices[subscript]
                 if len(set_of_vars) == 0:
                     # No loop variable used, constant access (which might
                     # still be using unknown non-loop variables).
                     # E.g. `a(5) = a(n)`
-                    indep = self.independent_0_var(index_read, index_write)
+                    indep = self.independent_0_var(index_write, index_other)
                     # If we can show that there is at least one subscript
                     # that is independent (`a(5, i)` and `a(3, i)`), we know
                     # that the accesses are independent.
@@ -643,8 +524,8 @@ class DependencyTools(object):
                 elif len(set_of_vars) == 1:
                     # One loop variable used in both accesses.
                     # E.g. `a(2*i+3) = a(i*i)`
-                    distance = self.independent_1_var(loop_var, index_read,
-                                                      index_write)
+                    distance = self.independent_1_var(loop_var, index_write,
+                                                      index_other)
                     # If the dependency distance is 0, it means that in each
                     # iteration a different index is accessed, so the loop
                     # can be parallelised.
@@ -659,8 +540,8 @@ class DependencyTools(object):
                 # This is reached only if there is more than one subscript in
                 # which one or several variables are used
                 indep = self.independent_multi_subscript(loop_var,
-                                                         read_access,
                                                          write_access,
+                                                         other_access,
                                                          set_of_vars,
                                                          subscripts)
                 if indep:
@@ -699,11 +580,10 @@ class DependencyTools(object):
             # We need to compare each write access with any other access,
             # including itself (to detect write-write race conditions:
             # a((i-2)**2) = b(i) - i=1 and i=3 would write to a(1))
-            for read_access in var_info:
-                print("VAR_INFO", var_info)
+            for access in var_info:
                 if not self.is_array_access_parallelisable(loop_variables,
-                                                           read_access,
-                                                           write_access):
+                                                           write_access,
+                                                           access):
                     return False
         return True
 
