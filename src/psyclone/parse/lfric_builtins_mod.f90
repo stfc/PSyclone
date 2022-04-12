@@ -247,6 +247,30 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_a_minus_X_code
   end type inc_a_minus_X
 
+  !> field2 = field1 - scalar
+  type, public, extends(kernel_type) :: X_minus_a
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              )         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_minus_a_code
+  end type X_minus_a
+
+  !> field = field - scalar
+  type, public, extends(kernel_type) :: inc_X_minus_a
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  )     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_X_minus_a_code
+  end type inc_X_minus_a
 
   !> field3 = scalar*field1 - field2
   type, public, extends(kernel_type) :: aX_minus_Y
@@ -960,6 +984,12 @@ contains
 
   subroutine inc_a_minus_X_code()
   end subroutine inc_a_minus_X_code
+
+  subroutine X_minus_a_code()
+  end subroutine X_minus_a_code
+
+  subroutine inc_X_minus_a_code()
+  end subroutine inc_X_minus_a_code
 
   subroutine aX_minus_Y_code()
   end subroutine aX_minus_Y_code

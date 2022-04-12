@@ -822,8 +822,8 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
-    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are
-    real-valued fields (DoF-wise subtraction of a scalar value).
+    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are real-valued
+    fields (DoF-wise subtraction of field elements from a scalar value).
 
     '''
     def __str__(self):
@@ -851,7 +851,7 @@ class LFRicAMinusXKern(LFRicBuiltIn):
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
     ''' `X = a - X` where `a` is a real scalar and `X` is a real-valued
-    field (DoF-wise subtraction of a scalar value).
+    field (DoF-wise subtraction of field elements from a scalar value).
 
     '''
     def __str__(self):
@@ -873,6 +873,63 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicXMinusAKern(LFRicBuiltIn):
+    ''' `Y = X - a` where `a` is a real scalar and `X` and `Y` are real-valued
+    fields (DoF-wise subtraction of a scalar value from field elements).
+
+    '''
+    def __str__(self):
+        return "Built-in: X_minus_a (real-valued fields)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) - ascalar
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     arg_refs[1], scalar_args[0])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncXMinusAKern(LFRicBuiltIn):
+    ''' `X = X - a` where `a` is a real scalar and `X` is a real-valued
+    field (DoF-wise subtraction of a scalar value from field elements).
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_X_minus_a (real-valued field)"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) - ascalar
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -1955,6 +2012,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "inc_X_minus_Y": LFRicIncXMinusYKern,
     "a_minus_X": LFRicAMinusXKern,
     "inc_a_minus_X": LFRicIncAMinusXKern,
+    "X_minus_a": LFRicXMinusAKern,
+    "inc_X_minus_a": LFRicIncXMinusAKern,
     "aX_minus_Y": LFRicAXMinusYKern,
     "X_minus_bY": LFRicXMinusBYKern,
     "inc_X_minus_bY": LFRicIncXMinusBYKern,
@@ -2056,6 +2115,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncXMinusYKern',
            'LFRicAMinusXKern',
            'LFRicIncAMinusXKern',
+           'LFRicXMinusAKern',
+           'LFRicIncXMinusAKern',
            'LFRicAXMinusYKern',
            'LFRicXMinusBYKern',
            'LFRicIncXMinusBYKern',
@@ -2077,6 +2138,10 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',
            'LFRicSignXKern',
+           'LFRicMaxAXKern',
+           'LFRicIncMaxAXKern',
+           'LFRicMinAXKern',
+           'LFRicIncMinAXKern',
            'LFRicIntXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
@@ -2093,4 +2158,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntSetvalCKern',
            'LFRicIntSetvalXKern',
            'LFRicIntSignXKern',
+           'LFRicIntMaxAXKern',
+           'LFRicIntIncMaxAXKern',
+           'LFRicIntMinAXKern',
+           'LFRicIntIncMinAXKern',
            'LFRicRealXKern']
