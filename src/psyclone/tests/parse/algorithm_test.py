@@ -242,28 +242,34 @@ def test_parser_invokeinfo_datatypes():
 
 
 def test_parser_invokeinfo_datatypes_mixed():
-    '''Test that the invoke_info method in the Parser class captures the
-    required datatype information with mixed-precision fields, and
-    scalars e.g. defined as r_solver_field_type and r_solver
-    respectively.
+    '''Test that the 'invoke_info' method in the Parser class captures the
+    required datatype information with mixed-precision fields, scalars
+    and operators, e.g. defined as 'r_solver_field_type', 'r_solver'
+    and 'r_solver_operator_type' respectively.
 
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
     covers the situation where the variable is declared and used with
-    different case e.g. real a\n call invoke(kern(A)).
+    different case e.g. 'real a\n call invoke(kern(A))'.
 
     '''
     alg_filename = os.path.join(
-        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+        LFRIC_BASE_PATH, "26.8_mixed_precision_args.f90")
     parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
-    args = info.calls[0].kcalls[0].args
-    assert args[0]._datatype == ("real", "r_solver")
-    assert args[1]._datatype == ("r_solver_field_type", None)
-    assert args[2]._datatype == ("r_solver_field_type", None)
-    assert args[3]._datatype == ("field_type", None)
-    assert args[4]._datatype == ("field_type", None)
+    args0 = info.calls[0].kcalls[0].args
+    args1 = info.calls[0].kcalls[1].args
+    args2 = info.calls[0].kcalls[2].args
+    assert args0[0]._datatype == ("real", "r_def")
+    assert args0[1]._datatype == ("field_type", None)
+    assert args0[2]._datatype == ("operator_type", None)
+    assert args1[0]._datatype == ("real", "r_solver")
+    assert args1[1]._datatype == ("r_solver_field_type", None)
+    assert args1[2]._datatype == ("r_solver_operator_type", None)
+    assert args2[0]._datatype == ("real", "r_tran")
+    assert args2[1]._datatype == ("r_tran_field_type", None)
+    assert args2[2]._datatype == ("operator_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -595,6 +601,7 @@ def test_getkernel_isliteral(content, datatype):
     ("1.0 * 1.0", ("real", None)),
     ("(1_i_def * 1_i_def)", ("integer", "i_def")),
     ("(1.0_r_solver * 1.0_r_solver)", ("real", "r_solver")),
+    ("(1.0_r_tran * 1.0_r_tran)", ("real", "r_tran")),
     ("(1.0_r_def + 2.0_r_def) * 2.0_r_def", ("real", "r_def"))])
 def test_getkernel_isliteral_expr(content, datatype):
     '''Test that the get_kernel function recognises the possible forms of

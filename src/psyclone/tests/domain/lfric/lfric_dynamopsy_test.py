@@ -39,6 +39,7 @@ dynamo0.3.py file.'''
 from collections import OrderedDict
 import os
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynamoPSy, DynamoInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
@@ -69,13 +70,13 @@ def test_dynamopsy():
     assert issubclass(DynamoPSy, PSy)
     assert isinstance(dynamo_psy._invokes, DynamoInvokes)
     infrastructure_modules = dynamo_psy._infrastructure_modules
-    assert len(infrastructure_modules) == 5
     assert isinstance(infrastructure_modules, OrderedDict)
     assert infrastructure_modules["constants_mod"] == ["i_def"]
-    assert infrastructure_modules["field_mod"] == set()
-    assert infrastructure_modules["r_solver_field_mod"] == set()
-    assert infrastructure_modules["integer_field_mod"] == set()
-    assert infrastructure_modules["operator_mod"] == set()
+    const = LFRicConstants()
+    names = set(item["module"] for item in const.DATA_TYPE_MAP.values())
+    assert len(names)+1 == len(infrastructure_modules)
+    for module_name in names:
+        assert infrastructure_modules[module_name] == set()
 
 
 def test_dynamopsy_kind():
@@ -91,13 +92,14 @@ def test_dynamopsy_kind():
     result = str(dynamo_psy.gen)
     assert "USE constants_mod, ONLY: r_def, i_def" in result
     assert "f1_proxy%data(df) = 0.0\n" in result
-    # 2: Literal kind value is declared
-    invoke_info.calls[0].kcalls[0].args[1]._text = "0.0_r_solver"
-    invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", "r_solver")
-    dynamo_psy = DynamoPSy(invoke_info)
-    result = str(dynamo_psy.gen)
-    assert "USE constants_mod, ONLY: r_solver, i_def" in result
-    assert "f1_proxy%data(df) = 0.0_r_solver" in result
+    # 2: Literal kind value is declared (trying with two cases to check)
+    for kind_name in ["r_solver", "r_tran"]:
+        invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
+        invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
+        dynamo_psy = DynamoPSy(invoke_info)
+        result = str(dynamo_psy.gen)
+        assert f"USE constants_mod, ONLY: {kind_name}, i_def" in result
+        assert f"f1_proxy%data(df) = 0.0_{kind_name}" in result
 
 
 def test_dynamopsy_names():

@@ -35,21 +35,25 @@
 
 ! Example of calling the same kernel with data in the algorithm layer
 ! that might use different precision. Scalars, fields and operators
-! are provided as an illustration.
+! are provided as an illustration. Mixed case is also used for
+! variables to check that this does not affect the generated code.
 
 program mixed_precision
 
-  use constants_mod, only : r_def, r_solver
+  use constants_mod, only : r_def, r_solver, r_tran
   use mixed_mod, only : mixed_type
 
-  real(r_def)                  :: scalar_r_def
-  real(r_solver)               :: scalar_r_solver
-  type(field_type)             :: field_r_def
-  type(r_solver_field_type)    :: field_r_solver
+  real(r_def)                  :: Scalar_r_def
+  real(r_solver)               :: sCalar_r_solver
+  real(r_tran)                 :: scAlar_r_tran
+  type(field_type)             :: fieLd_r_def
+  type(r_solver_field_type)    :: fielD_r_solver
+  type(r_tran_field_type)      :: field_r_tran
   type(operator_type)          :: operator_r_def
   type(r_solver_operator_type) :: operator_r_solver
 
-  call invoke(mixed_type(scalar_r_def, field_r_def, operator_r_def),          &
-              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver))
+  call invoke(mixed_type(scalar_r_deF, field_R_def, opeRator_r_def),          &
+              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), &
+              mixed_type(scalar_r_tran, field_r_tran, operator_r_def))
 
 end program mixed_precision

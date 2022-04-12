@@ -1028,10 +1028,15 @@ class DynamoPSy(PSy):
         # the "use" statements in modules that contain PSy-layer routines.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
-                       const.DATA_TYPE_MAP["r_solver_field"]["module"],
-                       const.DATA_TYPE_MAP["integer_field"]["module"],
-                       const.DATA_TYPE_MAP["operator"]["module"]]
+        infmod_list = [const_mod]
+        # Add all field and operator modules that might be used in the
+        # algorithm layer. These do not appear in the code unless a
+        # variable is added to the "only" part of the
+        # '_infrastructure_modules' map.
+        for data_type_info in const.DATA_TYPE_MAP.values():
+            infmod_list.append(data_type_info["module"])
+
+        # This also removes any duplicates from infmod_list
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -9145,18 +9150,11 @@ class DynKernelArgument(KernelArgument):
         if alg_datatype_info:
             alg_datatype, alg_precision = alg_datatype_info
 
+        const = LFRicConstants()
         if arg_info and arg_info.form == "collection":
-            if alg_datatype == "field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from a field_vector_type. The type of fields within
-                # field_vector_type is always field_type.
-                alg_datatype = "field_type"
-            elif alg_datatype == "r_solver_field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from an r_solver_field_vector_type. The type of fields within
-                # r_solver_field_vector_type is always r_solver_field_type.
-                alg_datatype = "r_solver_field_type"
-            else:
+            try:
+                alg_datatype = const.FIELD_VECTOR_TO_FIELD_MAP[alg_datatype]
+            except KeyError:
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
@@ -9317,6 +9315,8 @@ class DynKernelArgument(KernelArgument):
                 argtype = "field"
             elif alg_datatype == "r_solver_field_type":
                 argtype = "r_solver_field"
+            elif alg_datatype == "r_tran_field_type":
+                argtype = "r_tran_field"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
