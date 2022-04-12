@@ -1916,7 +1916,7 @@ def test_discontinuous_stencil_w3_writer(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=True).create(invoke_info)
-    result = str(psy.gen); print(result)
+    result = str(psy.gen)
 
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1945,15 +1945,19 @@ def test_discontinuous_stencil_w3_writer(tmpdir):
     # Check halo exchanges for the second invoke with the reverse
     # ordering of kernel calls
     output3 = (
-        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      CALL f4_proxy%set_dirty()\n"
-        "      !\n"
-        "      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=extent)\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      CALL f4_proxy%halo_exchange(depth=extent)\n")
+        "      IF (f2_proxy%is_dirty(depth=max(1,extent))) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=max(1,extent))\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n")
     assert output3 in result
 
 
