@@ -1265,6 +1265,64 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         self.replace_with(assign)
 
 
+class LFRicXDividebyAKern(LFRicBuiltIn):
+    ''' Divide the first, real-valued, field by a real scalar and return
+    the result as a second, real-valued, field.
+
+    '''
+    def __str__(self):
+        return ("Built-in: Divide a real-valued field by a real scalar "
+                "(Y = X/a)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) / ascalar
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     arg_refs[1], scalar_args[0])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
+class LFRicIncXDividebyAKern(LFRicBuiltIn):
+    ''' Divide a real-valued field by a real scalar and return it.
+
+    '''
+    def __str__(self):
+        return ("Built-in: Divide a real-valued field by a real scalar "
+                "(X = X/a)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) / ascalar
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     lhs.copy(), scalar_args[0])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+
+
 # ------------------------------------------------------------------- #
 # ============== Inverse scaling of real fields ===================== #
 # ------------------------------------------------------------------- #
@@ -2051,6 +2109,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Dividing real fields
     "X_divideby_Y": LFRicXDividebyYKern,
     "inc_X_divideby_Y": LFRicIncXDividebyYKern,
+    "X_divideby_a": LFRicXDividebyAKern,
+    "inc_X_divideby_a": LFRicIncXDividebyAKern,
     # Dividing a real scalar by elements of a real field
     # (inverse scaling of fields)
     "a_divideby_X": LFRicADividebyXKern,
@@ -2153,6 +2213,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncATimesXKern',
            'LFRicXDividebyYKern',
            'LFRicIncXDividebyYKern',
+           'LFRicXDividebyAKern',
+           'LFRicIncXDividebyAKern',
            'LFRicADividebyXKern',
            'LFRicIncADividebyXKern',
            'LFRicIncXPowrealAKern',

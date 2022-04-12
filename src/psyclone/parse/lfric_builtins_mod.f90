@@ -428,6 +428,32 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y
 
+  !> field2 = field1/scalar
+  type, public, extends(kernel_type) :: X_divideby_a
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              )         &
+
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_divideby_a_code
+  end type X_divideby_a
+
+  !> field = field/scalar
+  type, public, extends(kernel_type) :: inc_X_divideby_a
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  )     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_X_divideby_a_code
+  end type inc_X_divideby_a
+
 ! ------------------------------------------------------------------- !
 ! ============== Inverse scaling of real fields ===================== !
 ! ------------------------------------------------------------------- !
@@ -1052,6 +1078,12 @@ contains
 
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
+
+  subroutine X_divideby_a_code()
+  end subroutine X_divideby_a_code
+
+  subroutine inc_X_divideby_a_code()
+  end subroutine inc_X_divideby_a_code
 
   ! Dividing a real scalar by elements of a
   ! real field (inverse scaling of fields)
