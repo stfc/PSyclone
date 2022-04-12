@@ -4773,7 +4773,7 @@ class DynBasisFunctions(DynCollection):
                 for var in self._qr_vars[shape]:
                     var_names.append(
                         self._symbol_table.find_or_create_tag(var+"_proxy")
-                                          .name)
+                        .name)
                 parent.add(
                     TypeDeclGen(
                         parent,
@@ -5956,19 +5956,24 @@ class DynHaloExchange(HaloExchange):
         :rtype: str
 
         '''
-        # get information about reading from the halo from all read fields
+        # Get information about reading from the halo from all "read" fields
         # dependendent on this halo exchange
         depth_info_list = self._compute_halo_read_depth_info()
 
-        # if there is only one entry in the list we can just return
-        # the depth
-        if len(depth_info_list) == 1:
-            return str(depth_info_list[0])
-        # the depth information can't be reduced to a single
-        # expression, therefore we need to determine the maximum
-        # of all expresssions
+        # Create string representation of depth info list and filter
+        # out empty entries
         depth_str_list = [str(depth_info) for depth_info in
                           depth_info_list]
+        depth_str_list = " ".join(depth_str_list).split()
+
+        # If there is only one entry in the list we can just return
+        # the depth
+        if len(depth_str_list) == 1:
+            return str(depth_str_list[0])
+
+        # The depth information can't be reduced to a single
+        # expression, therefore we need to determine the maximum
+        # of all expresssions
         return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
@@ -9759,13 +9764,12 @@ class DynKernelArgument(KernelArgument):
 
             '''
             return root_table.find_or_create(
-                    type_name,
-                    symbol_type=DataTypeSymbol,
-                    datatype=DeferredType(),
-                    interface=ImportInterface(root_table.find_or_create(
-                        mod_name,
-                        symbol_type=ContainerSymbol)
-                        ))
+                type_name,
+                symbol_type=DataTypeSymbol,
+                datatype=DeferredType(),
+                interface=ImportInterface(root_table.find_or_create(
+                    mod_name,
+                    symbol_type=ContainerSymbol)))
 
         if self.is_scalar:
             # Find or create the DataType for the appropriate scalar type.
