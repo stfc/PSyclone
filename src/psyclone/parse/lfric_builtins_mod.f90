@@ -761,6 +761,31 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_inc_a_minus_X_code
   end type int_inc_a_minus_X
 
+  !> ifield2 = ifield1 - iscalar
+  type, public, extends(kernel_type) :: int_X_minus_a
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              )      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_X_minus_a_code
+  end type int_X_minus_a
+
+  !> ifield = ifield - iscalar
+  type, public, extends(kernel_type) :: int_inc_X_minus_a
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              )      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_X_minus_a_code
+  end type int_inc_X_minus_a
+
 ! ------------------------------------------------------------------- !
 ! ============== Multiplying integer fields ========================= !
 ! ------------------------------------------------------------------- !
@@ -1110,6 +1135,12 @@ contains
 
   subroutine int_inc_a_minus_X_code()
   end subroutine int_inc_a_minus_X_code
+
+  subroutine int_X_minus_a_code()
+  end subroutine int_X_minus_a_code
+
+  subroutine int_inc_X_minus_a_code()
+  end subroutine int_inc_X_minus_a_code
 
   ! Multiplying integer fields
   subroutine int_X_times_Y_code()

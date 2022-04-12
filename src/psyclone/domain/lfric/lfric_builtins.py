@@ -1813,6 +1813,29 @@ class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
         return "Built-in: int_inc_a_minus_X (integer-valued field)"
 
 
+class LFRicIntXMinusAKern(LFRicXMinusAKern):
+    ''' Subtract an integer scalar value, `a`, from each element of an
+    integer-valued field, `X`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicXMinusAKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_X_minus_a (integer-valued fields)"
+
+
+class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
+    ''' Subtract an integer scalar value, `a`, from each element of an
+    integer-valued field, `X`, and return the result in the same field.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncXMinusAKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_X_minus_a (integer-valued field)"
+
+
 # ------------------------------------------------------------------- #
 # ============== Multiplying integer fields ========================= #
 # ------------------------------------------------------------------- #
@@ -2067,6 +2090,8 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
     "int_a_minus_X": LFRicIntAMinusXKern,
     "int_inc_a_minus_X": LFRicIntIncAMinusXKern,
+    "int_X_minus_a": LFRicIntXMinusAKern,
+    "int_inc_X_minus_a": LFRicIntIncXMinusAKern,
     # Multiplying (scaled) real fields
     "int_X_times_Y": LFRicIntXTimesYKern,
     "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
@@ -2151,6 +2176,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncXMinusYKern',
            'LFRicIntAMinusXKern',
            'LFRicIntIncAMinusXKern',
+           'LFRicIntXMinusAKern',
+           'LFRicIntIncXMinusAKern',
            'LFRicIntXTimesYKern',
            'LFRicIntIncXTimesYKern',
            'LFRicIntATimesXKern',
