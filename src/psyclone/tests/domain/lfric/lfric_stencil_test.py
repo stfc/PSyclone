@@ -1916,7 +1916,7 @@ def test_discontinuous_stencil_w3_writer(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=True).create(invoke_info)
-    result = str(psy.gen)
+    result = str(psy.gen); print(result)
 
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
