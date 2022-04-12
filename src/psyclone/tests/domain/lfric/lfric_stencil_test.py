@@ -1905,6 +1905,59 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
     assert output3 in result
 
 
+def test_discontinuous_stencil_w3_writer(tmpdir):
+    ''' Test for the correct halo exchange depth when discontinuous
+    stencil readers are followed by discontinuous non-stencil writers
+    in the same invoke. Also check for the reverse order of kernel calls.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.27_discontinuous_stencil_w3_writer.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=True).create(invoke_info)
+    result = str(psy.gen)
+
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check loop bounds
+    output1 = (
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_edge_cell()\n"
+        "      loop1_start = 1\n"
+        "      loop1_stop = mesh%get_last_edge_cell()\n")
+    assert output1 in result
+
+    # Check halo exchanges for the first invoke
+    output2 = (
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=max(extent,1))) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=max(extent,1))\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=extent)\n"
+        "      END IF\n")
+    assert output2 in result
+
+    # Check halo exchanges for the second invoke with the reverse
+    # ordering of kernel calls
+    output3 = (
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f4_proxy%set_dirty()\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=extent)\n"
+        "      END IF\n"
+        "      !\n"
+        "      CALL f4_proxy%halo_exchange(depth=extent)\n"
+        "      !\n")
+    assert output3 in result
+
+
 @pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
 def test_multi_kernel_any_space_stencil_1(dist_mem):
     ''' This is a test for stencils and any_space with two kernels. We test
