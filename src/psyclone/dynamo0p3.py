@@ -5973,7 +5973,7 @@ class DynHaloExchange(HaloExchange):
 
         # The depth information can't be reduced to a single
         # expression, therefore we need to determine the maximum
-        # of all expresssions
+        # of all expressions
         return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
