@@ -2644,6 +2644,170 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
         assert output_dm_2 in code
 
 
+def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    ''' Test that 1) the str method of LFRicXDividebyAKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = X/a where 'a' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being computed
+    as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.5.5_X_divideby_a_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == ("Built-in: Divide a real-valued field by a real "
+                         "scalar (Y = X/a)")
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check for the correct field and scalar type declarations
+    output = (
+        "      REAL(KIND=r_solver), intent(in) :: a_scalar\n"
+        "      TYPE(r_solver_field_type), intent(in) :: f2\n"
+        "      TYPE(field_type), intent(in) :: f1\n"
+        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      TYPE(field_proxy_type) f1_proxy\n"
+        "      TYPE(r_solver_field_proxy_type) f2_proxy\n")
+    assert output in code
+
+    if not dist_mem:
+        output = (
+            "      f2_proxy = f2%get_proxy()\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
+            "      !\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "      END DO")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f2_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f2_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+def test_inc_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem,
+                          fortran_writer):
+    ''' Test that 1) the str method of LFRicIncXDividebyAKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X/a where 'a' is a real scalar and X is a real-valued
+    field. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.5.6_inc_X_divideby_a_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == ("Built-in: Divide a real-valued field by a real "
+                         "scalar (X = X/a)")
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check for the correct field and scalar type declarations
+    output = (
+        "      REAL(KIND=r_def), intent(in) :: a_scalar\n"
+        "      TYPE(r_tran_field_type), intent(in) :: f1\n"
+        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      TYPE(r_tran_field_proxy_type) f1_proxy\n")
+    assert output in code
+
+    if not dist_mem:
+        output = (
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f1\n"
+            "      !\n"
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Set-up all of the loop bounds\n"
+            "      !\n"
+            "      loop0_start = 1\n"
+            "      loop0_stop = undf_aspc1_f1\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "      END DO")
+        assert output in code
+
+        # Test the lower_to_language_level() method
+        kern.lower_to_language_level()
+        loop = first_invoke.schedule.walk(Loop)[0]
+        code = fortran_writer(loop)
+        assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  f1_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+                "enddo") in code
+    else:
+        output_dm_2 = (
+            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
 # ------------- Inverse scaling of real fields ------------------------------ #
 
 
