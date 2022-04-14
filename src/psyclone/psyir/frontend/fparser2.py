@@ -3844,7 +3844,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
         '''
-        name = node.children[0].children[1].string
+        name = node.children[0].children[1].string.lower()
         routine = Routine(name, parent=parent)
 
         # Deal with any arguments
@@ -3927,6 +3927,7 @@ class Fparser2Reader(object):
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
                 routine.symbol_table.new_symbol(return_name,
+                                                tag="own_routine_symbol",
                                                 symbol_type=DataSymbol,
                                                 datatype=base_type,
                                                 shadowing=True)
