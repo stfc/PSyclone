@@ -3902,6 +3902,7 @@ class Fparser2Reader(object):
 
             # Ensure that we have an explicit declaration for the symbol
             # returned by the function.
+            keep_tag = None
             if return_name in routine.symbol_table:
                 symbol = routine.symbol_table.lookup(return_name)
                 # If the symbol table still contains a RoutineSymbol
@@ -3918,6 +3919,7 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
                     routine.symbol_table.remove(symbol)
+                    keep_tag = "own_routine_symbol"
 
             if return_name not in routine.symbol_table:
                 # There is no existing declaration for the symbol returned by
@@ -3927,7 +3929,7 @@ class Fparser2Reader(object):
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
                 routine.symbol_table.new_symbol(return_name,
-                                                tag="own_routine_symbol",
+                                                tag=keep_tag,
                                                 symbol_type=DataSymbol,
                                                 datatype=base_type,
                                                 shadowing=True)

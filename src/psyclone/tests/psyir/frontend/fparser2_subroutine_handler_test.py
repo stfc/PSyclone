@@ -181,6 +181,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
+    # Also check that the "own_routine_symbol" tag is maintained
+    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
+        is return_sym
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
