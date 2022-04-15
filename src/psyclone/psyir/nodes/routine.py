@@ -96,7 +96,7 @@ class Routine(Schedule, CommentableMixin):
 
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
-               return_symbol=None):
+               return_symbol_name=None):
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
         so that it is able to act as a Factory for subclasses - e.g. it
@@ -109,10 +109,8 @@ class Routine(Schedule, CommentableMixin):
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param bool is_program: whether this Routine represents the entry \
             point into a program (i.e. Fortran Program or C main()).
-        :param return_symbol: the Symbol that holds the return value of this \
-            routine (if any). Must be present in the supplied symbol_table.
-        :type return_symbol: :py:class:`psyclone.psyir.symbols.DataType` or \
-            NoneType
+        :param str return_symbol_name: name of the symbol that holds the \
+            return value of this routine (if any). Must be present in the \
 
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyGen.Routine` or subclass
@@ -143,8 +141,9 @@ class Routine(Schedule, CommentableMixin):
 
         routine = cls(name, is_program=is_program, symbol_table=symbol_table)
         routine.children = children
-        if return_symbol:
-            routine.return_symbol = return_symbol
+        if return_symbol_name:
+            routine.return_symbol = routine.symbol_table.lookup(
+                                       return_symbol_name, scope_limit=routine)
         return routine
 
     def node_str(self, colour=True):
@@ -272,6 +271,17 @@ class Routine(Schedule, CommentableMixin):
         # may be given after the Routine is created.
         self.symbol_table.lookup(self._name).datatype = value.datatype
 
+    def _refine_copy(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        super()._refine_copy(other)
+        if self.return_symbol is not None:
+            other.return_symbol = other.symbol_table.lookup(self.return_symbol.name)
 
 # For automatic documentation generation
 __all__ = ["Routine"]

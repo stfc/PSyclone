@@ -231,7 +231,8 @@ def test_scoping_node_equality():
     symboltable = SymbolTable()
     symboltable2 = SymbolTable()
     sched1 = Schedule(symbol_table=symboltable)
-    sched2 = Schedule(symbol_table=symboltable)
+    sched2 = Schedule()
+    sched2._symbol_table = symboltable
     sched3 = Schedule(symbol_table=symboltable2)
 
     assert sched1 == sched2

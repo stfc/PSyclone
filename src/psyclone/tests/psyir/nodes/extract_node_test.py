@@ -47,7 +47,8 @@ def test_extract_node_equality():
     symboltable = SymbolTable()
     symboltable2 = SymbolTable()
     sched1 = Schedule(symbol_table=symboltable)
-    sched2 = Schedule(symbol_table=symboltable)
+    sched2 = Schedule()
+    sched2._symbol_table = symboltable  # Make sure it has the same ST instance
     sched3 = Schedule(symbol_table=symboltable2)
     node1 = ExtractNode(children=[sched1])
     node2 = ExtractNode(children=[sched2])

@@ -1760,14 +1760,12 @@ class Fparser2Reader(object):
             if initialisation:
                 if has_constant_value:
                     # If it is a parameter parse its initialization into
-                    # a dummy Assignment inside a Schedule which temporally
-                    # hijacks the parent's node symbol table
-                    tmp_sch = Schedule(symbol_table=symbol_table)
-                    dummynode = Assignment(parent=tmp_sch)
-                    tmp_sch.addchild(dummynode)
+                    # a dummy Assignment (but connected to the parent scope
+                    # since symbols must be resolved)
+                    dummynode = Assignment(parent=parent)
                     expr = initialisation.items[1]
                     self.process_nodes(parent=dummynode, nodes=[expr])
-                    ct_expr = dummynode.children[0]
+                    ct_expr = dummynode.children[0].detach()
                 else:
                     raise NotImplementedError(
                         "Could not process {0}. Initialisations on the"

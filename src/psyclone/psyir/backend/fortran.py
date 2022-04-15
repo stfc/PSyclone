@@ -1044,8 +1044,11 @@ class FortranWriter(LanguageWriter):
         # clashes that appear when merging the scopes.
         whole_routine_scope = SymbolTable(node)
 
+        own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
         for schedule in node.walk(Schedule):
             for symbol in schedule.symbol_table.symbols[:]:
+                if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
+                    continue
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:

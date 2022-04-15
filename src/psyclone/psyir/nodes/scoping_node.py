@@ -62,10 +62,16 @@ class ScopingNode(Node):
         super(ScopingNode, self).__init__(self, children=children,
                                           parent=parent)
         if symbol_table:
-            self._symbol_table = symbol_table
+            if symbol_table._node is not None:
+                # If the provided SymbolTable is already part of a scope
+                # we do a deep_copy, otherwise we would make the other scope
+                # invalid.
+                self._symbol_table = symbol_table.deep_copy()
+            else:
+                self._symbol_table = symbol_table
+            self._symbol_table._node = self
         else:
             self._symbol_table = self._symbol_table_class(self)
-        self._symbol_table._node = self
 
     def __eq__(self, other):
         '''

@@ -1313,7 +1313,8 @@ def test_equality():
     # equality check.
     symboltable = SymbolTable()
     parent1 = Schedule(symbol_table=symboltable)
-    parent2 = Schedule(symbol_table=symboltable)
+    parent2 = Schedule()
+    parent2._symbol_table = symboltable
     zero = Statement()
     one = Statement()
 

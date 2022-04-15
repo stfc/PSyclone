@@ -431,7 +431,8 @@ def test_loop_equality():
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
-    sched2 = Schedule(symbol_table=symboltable)
+    sched2 = Schedule()
+    sched2._symbol_table = symboltable
     child_node2 = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
