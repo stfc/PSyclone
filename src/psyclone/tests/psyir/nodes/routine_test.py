@@ -106,8 +106,6 @@ def test_routine_name_setter_preexisting_tag():
     node = Routine("hello")
     symtab = node.symbol_table
 
-    # FIXME: Is symboltable.deepcopy copying tags?
-    return
     # Creating a routine that will try to set the routine name to 'bye' while
     # having a differently named 'own_routine_symbol' tag in the symbol table
     with pytest.raises(KeyError) as err:
@@ -118,10 +116,10 @@ def test_routine_name_setter_preexisting_tag():
 
     # But it is fine if the name is the same
     node2 = Routine("hello", symbol_table=symtab)
-    assert symtab.node is node2
     # And successive name changes are also fine
     node2.name = "bye"
-    assert symtab.lookup_with_tag("own_routine_symbol").name == "bye"
+    assert node2.symbol_table.lookup_with_tag("own_routine_symbol").name == \
+        "bye"
 
 
 def test_routine_return_symbol_setter():
