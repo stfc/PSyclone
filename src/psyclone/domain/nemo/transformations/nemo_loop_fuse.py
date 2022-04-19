@@ -71,27 +71,24 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         sym_maths = SymbolicMaths.get()
 
         if not sym_maths.equal(node1.start_expr, node2.start_expr):
-            raise TransformationError("Lower loop bounds must be identical, "
-                                      "but are '{0}'' and '{1}'"
-                                      .format(node1.start_expr,
-                                              node2.start_expr))
+            raise TransformationError(f"Lower loop bounds must be identical, "
+                                      f"but are '{node1.start_expr}' and "
+                                      f"'{node2.start_expr}'")
         if not sym_maths.equal(node1.stop_expr, node2.stop_expr):
-            raise TransformationError("Upper loop bounds must be identical, "
-                                      "but are '{0}'' and '{1}'"
-                                      .format(node1.stop_expr,
-                                              node2.stop_expr))
+            raise TransformationError(f"Upper loop bounds must be identical, "
+                                      f"but are '{node1.stop_expr}' and "
+                                      f"'{node2.stop_expr}'")
         if not sym_maths.equal(node1.step_expr, node2.step_expr):
-            raise TransformationError("Step size in loops must be identical, "
-                                      "but are '{0}'' and '{1}'"
-                                      .format(node1.step_expr,
-                                              node2.step_expr))
+            raise TransformationError(f"Step size in loops must be identical, "
+                                      f"but are '{node1.step_expr}' and "
+                                      f"'{node2.step_expr}'")
         loop_var1 = node1.variable
         loop_var2 = node2.variable
 
         if loop_var1 != loop_var2:
-            raise TransformationError("Loop variables must be the same, "
-                                      "but are '{0}' and '{1}'".
-                                      format(loop_var1.name, loop_var2.name))
+            raise TransformationError(f"Loop variables must be the same, "
+                                      f"but are '{loop_var1.name}' and "
+                                      f"'{loop_var2.name}'")
         vars1 = VariablesAccessInfo(node1)
         vars2 = VariablesAccessInfo(node2)
 
@@ -151,8 +148,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             return
 
         raise TransformationError(
-            "Scalar variable '{0}' is written in one loop, but only read "
-            "in the other loop.".format(var_info1.var_name))
+            f"Scalar variable '{var_info1.var_name}' is written in one loop, "
+            f"but only read in the other loop.")
 
     # -------------------------------------------------------------------------
     @staticmethod
