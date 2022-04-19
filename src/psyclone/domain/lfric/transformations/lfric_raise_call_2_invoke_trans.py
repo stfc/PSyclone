@@ -38,8 +38,6 @@ algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from fparser.two.Fortran2003 import Actual_Arg_Spec
-
 from psyclone.psyir.nodes import ArrayReference
 
 from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
@@ -70,10 +68,12 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
 
         call_name = None
         calls = []
-        for call_arg in call.children:
+        for idx, call_arg in enumerate(call.children):
 
             arg_info = []
-            if isinstance(call_arg, ArrayReference):
+            if call.argument_names[idx]:
+                call_name = f"'{call_arg.value}'"
+            elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
                 name = call_arg.name
@@ -85,21 +85,18 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                     type_symbol = call_arg.symbol
                 arg_info.append((node_type, type_symbol, args))
             else:
-                for fp2_node in call_arg._fp2_nodes:
-                    if isinstance(fp2_node, Actual_Arg_Spec):
-                        # This child is a named argument
-                        call_name = fp2_node.children[1].string
+                for fp2_node in call_arg.get_ast_nodes:
+                    # This child is a kernel or builtin
+                    name = fp2_node.children[0].string
+                    if name in builtins:
+                        node_type = LFRicBuiltinFunctor
                     else:
-                        # This child is a kernel or builtin
-                        name = fp2_node.children[0].string
-                        if name in builtins:
-                            node_type = LFRicBuiltinFunctor
-                        else:
-                            node_type = LFRicKernelFunctor
-                        type_symbol = self._get_symbol(
-                            call, fp2_node)
-                        args = self._parse_args(call_arg, fp2_node)
-                        arg_info.append((node_type, type_symbol, args))
+                        node_type = LFRicKernelFunctor
+                    type_symbol = RaiseCall2InvokeTrans._get_symbol(
+                        call, fp2_node)
+                    args = RaiseCall2InvokeTrans._parse_args(
+                        call_arg, fp2_node)
+                    arg_info.append((node_type, type_symbol, args))
 
             for (node_type, type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)

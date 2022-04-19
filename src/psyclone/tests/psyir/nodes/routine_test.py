@@ -202,3 +202,53 @@ def test_routine_create():
     assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
+
+
+def test_routine_equality():
+    ''' Test the __eq__ method for Routines.'''
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol_table.add(symbol)
+    assignment = Assignment.create(Reference(symbol),
+                                   Literal("0.0", REAL_TYPE))
+    assignment2 = Assignment.create(Reference(symbol),
+                                    Literal("0.0", REAL_TYPE))
+
+    ksched1 = Routine.create("mod_name", symbol_table, [assignment],
+                             is_program=True, return_symbol=symbol)
+    ksched2 = Routine.create("mod_name", symbol_table, [assignment2],
+                             is_program=True, return_symbol=symbol)
+    assert ksched1 == ksched2
+
+    # Test non-equality if different names.
+    assignment2.detach()
+    ksched3 = Routine.create("mod_name", symbol_table, [assignment2],
+                             is_program=True, return_symbol=symbol)
+    # Workaround for the routine name
+    ksched3.name = "mod_name2"
+
+    assert ksched1 != ksched3
+
+    # Reset the name so we can create more routines
+    ksched3.name = "mod_name"
+
+    # Test non-equality if different is_program status
+    assignment2.detach()
+    ksched4 = Routine.create("mod_name", symbol_table, [assignment2],
+                             is_program=False, return_symbol=symbol)
+    assert ksched1 != ksched4
+
+    # Test non-equality if different return symbols
+    assignment2.detach()
+    ksched5 = Routine.create("mod_name", symbol_table, [assignment2],
+                             is_program=True, return_symbol=None)
+    assert ksched1 != ksched5
+
+    # Test non-equality if different children lists
+    assignment2.detach()
+    assignment3 = Assignment.create(Reference(symbol),
+                                    Literal("0.0", REAL_TYPE))
+    ksched6 = Routine.create("mod_name", symbol_table, [assignment2,
+                                                        assignment3],
+                             is_program=True, return_symbol=symbol)
+    assert ksched1 != ksched6

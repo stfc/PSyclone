@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by: S. Siso, STFC Daresbury Laboratory
 #              A. R. Porter, STFC Daresbury Laboratory
+#              A. B. G. Chalk, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
@@ -352,7 +353,7 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             if access.access_type == AccessType.WRITE:
                 result = True
@@ -377,7 +378,7 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             if access.access_type == AccessType.READ:
                 result = True
@@ -405,7 +406,7 @@ class SingleVariableAccessInfo(object):
         result = False
 
         for access in self._accesses:
-            if access.node == reference:
+            if access.node is reference:
                 return result
             result = True
         raise ValueError("Reference not found in 'is_accessed_before' for "

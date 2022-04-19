@@ -47,7 +47,6 @@ def test_member_constructor():
     mem = nodes.Member("fred")
     assert mem.name == "fred"
     assert str(mem) == "Member[name:'fred']"
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert mem.children == []
 
 
@@ -88,3 +87,13 @@ def test_member_get_signature():
     signature, indices = mem.get_signature_and_indices()
     assert str(signature) == "fred"
     assert indices == [[]]
+
+
+def test_member_equality():
+    ''' Test member equality. '''
+    mem = nodes.Member("m1")
+    mem2 = nodes.Member("m1")
+    mem3 = nodes.Member("notm1")
+
+    assert mem == mem2
+    assert mem != mem3

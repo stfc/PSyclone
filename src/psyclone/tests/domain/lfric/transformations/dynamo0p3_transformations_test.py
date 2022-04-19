@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # MOdified J. Henrichs, Bureau of Meteorology
@@ -3811,13 +3811,13 @@ def test_move_back():
     target_index = 0
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_back_after():
@@ -3831,14 +3831,14 @@ def test_move_back_after():
     target_index = 0
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
                      {"position": "after"})
 
     new_arg = schedule.children[target_index+1]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_forward():
@@ -3852,13 +3852,13 @@ def test_move_forward():
     target_index = 2
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index-1]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_forward_after():
@@ -3872,14 +3872,14 @@ def test_move_forward_after():
     target_index = 2
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
                      {"position": "after"})
 
     new_arg = schedule.children[target_index]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 # test that move with dependencies fails
@@ -6404,11 +6404,11 @@ def test_accenterdata_builtin(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
-            "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-            "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
-            "undf_w3,map_w3,0.0_r_def,ndf_aspc1_f1,undf_aspc1_f1,"
-            "map_aspc1_f1)" in output)
+    assert ("!$acc enter data copyin(0.0_r_def,f1_proxy,f1_proxy%data,"
+            "f2_proxy,f2_proxy%data,ginger,m1_proxy,m1_proxy%data,m2_proxy,"
+            "m2_proxy%data,map_aspc1_f1,map_w1,map_w2,map_w3,ndf_aspc1_f1,"
+            "ndf_w1,ndf_w2,ndf_w3,nlayers,undf_aspc1_f1,undf_w1,undf_w2,"
+            "undf_w3)" in output)
     assert "loop1_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
             "      do df=loop1_start,loop1_stop\n"
@@ -6464,10 +6464,10 @@ def test_accparalleltrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n"
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
         "      DO cell=loop0_start,loop0_stop") in code
@@ -6498,10 +6498,10 @@ def test_acclooptrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n"
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
         "      !$acc loop independent\n"

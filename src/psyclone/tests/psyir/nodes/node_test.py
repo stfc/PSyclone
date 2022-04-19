@@ -49,11 +49,11 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
-    BinaryOperation, ArrayReference, Range
+    BinaryOperation, ArrayReference, Call, Range
 from psyclone.psyir.nodes.node import ChildrenList, Node, \
     _graphviz_digraph_class
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
 # pylint: disable=redefined-outer-name
 from psyclone.psyir.nodes.node import colored
@@ -1145,22 +1145,31 @@ def test_detach():
     ''' Check that the detach method removes a node from its parent node. '''
 
     # Create a PSyIR tree
-    parent = Schedule()
-    node1 = Statement()
-    parent.addchild(node1)
-    node2 = Statement()
-    parent.addchild(node2)
+    routine = RoutineSymbol("test", NoType())
+    e_sym = DataSymbol("e", REAL_TYPE)
+    f_sym = DataSymbol("f", REAL_TYPE)
+    e_ref = Reference(e_sym)
+    lit = Literal("1", REAL_TYPE)
+    e_ref2 = Reference(e_sym)
+    f_ref = Reference(f_sym)
+    node1 = Call(routine)
+    node1.addchild(e_ref)
+    node1.addchild(lit)
+    node1.addchild(e_ref2)
+    node1.addchild(f_ref)
 
-    # Execute the detach method on node 1, it should return itself
-    assert node1.detach() is node1
+    # Execute the detach method on e_ref2, it should return itself
+    assert e_ref2.detach() is e_ref2
 
     # Check that the resulting nodes and connections are correct
-    assert node1.parent is None
-    assert len(parent.children) == 1
-    assert parent.children[0] is node2
+    assert e_ref2.parent is None
+    assert len(node1.children) == 3
+    assert node1.children[0] is e_ref
+    assert node1.children[1] is lit
+    assert node1.children[2] is f_ref
 
     # Executing it again still succeeds
-    assert node1.detach() is node1
+    assert e_ref2.detach() is e_ref2
 
 
 def test_parent_references_coherency():
@@ -1294,3 +1303,37 @@ def test_following_preceding():
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(routine=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
+
+
+def test_equality():
+    '''Test the equality function of the Node class'''
+    # Use same symbol table to avoid pollution from the ScopingNode
+    # equality check.
+    symboltable = SymbolTable()
+    parent1 = Schedule(symbol_table=symboltable)
+    parent2 = Schedule(symbol_table=symboltable)
+    zero = Statement()
+    one = Statement()
+
+    assert parent1 != zero
+    assert parent1 == parent2
+    assert zero == one
+
+    # zero and one are equal for now, so parents are equal if they
+    # contain exactly one of either
+    parent1.addchild(zero)
+    parent2.addchild(one)
+    assert parent1 == parent2
+
+    # Add a second child to parent1
+    two = Statement()
+    parent1.addchild(two)
+    assert parent1 != parent2
+
+    # Same number of children, but children not equal
+    two.detach()
+    one.detach()
+    three = Assignment.create(Reference(DataSymbol("a", INTEGER_TYPE)),
+                              Literal("2", INTEGER_TYPE))
+    parent1.addchild(three)
+    assert parent1 != parent2
