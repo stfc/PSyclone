@@ -51,9 +51,8 @@ transform: psy.f90
 psy.f90 alg.f90: main_alg.x90 tl_hydrostatic_kernel_mod_adj.f90
 	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 main_alg.x90
 
-# The first command will write the adjoint kernel to stdout. The
-# second, if supported, would write both it and the corresponding test
-# harness to separate files. Note, one of the variables provided in the
+# Create the adjoint kernel and the corresponding test
+# harness in separate files. Note, one of the variables provided in the
 # psyad command line below (res_dot_product) did not exist in the
 # original code and is a by-product of psyad replacing a dot_product
 # intrinsic with equivalent code. This and all other local variables

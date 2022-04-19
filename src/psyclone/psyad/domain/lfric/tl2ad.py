@@ -97,27 +97,29 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
 
 def generate_lfric_adjoint_test(tl_source):
     '''
-    :param str kernel_name: name of the TL LFRic kernel.
-    :param str kernel_path: location of the source file for the kernel.
+    :param str tl_source: the Fortran source of an LFRic module defining a \
+                          tangent-linear kernel.
 
-    :returns: PSyIR of an Algorithm that tests the adjoint of the specified \
+    :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
     '''
-    prog = _create_alg_driver("main", 10)
+    prog = _create_alg_driver("main", 100)
     table = prog.symbol_table
 
     # Parse the kernel metadata (this still uses fparser1 as that's what
     # the meta-data handling is currently based upon).
     parse_tree = fpapi.parse(tl_source)
-    # TODO need some way of getting this.
-    kernel_name = "tl_hydrostatic_kernel_type"
 
     # Get the name of the module that contains the kernel and create a
     # ContainerSymbol for it.
     kernel_mod_name = parse_tree.content[0].name
     kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
+    # Assume the LFRic naming convention is followed in order to infer the name
+    # of the TL kernel.
+    kernel_name = kernel_mod_name.replace("_mod", "_type")
+
     adj_mod = table.new_symbol(kernel_mod_name+"_adj",
                                symbol_type=ContainerSymbol)
     kernel_routine = table.new_symbol(kernel_name,
