@@ -1,7 +1,7 @@
 # Stand-alone LFRic Kernel OpenACC Example
 
-This directory contains a runnable example of kernel that uses
-OpenACC. The framework for this stand-alone example is explained in
+This directory contains a runnable example of an LFRic mini-app that
+uses OpenACC. The framework for this stand-alone example is explained in
 more details in the directory
 ``<PSYCLONEHOME>/examples/lfric/eg17/full_example``.
 
@@ -33,3 +33,6 @@ The binary can be executed using ``example_openacc`` without additional paramete
  Mesh has           5 layers.
 20210318131720.135+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
 ```
+
+If you are using NVIDIA hardware, you can specify NV_ACC_NOTIFY=3
+when running in order to see GPU-related activity.

@@ -79,6 +79,7 @@ transform_parallel_dm:
 	${PSYCLONE} -s ./acc_parallel_dm.py \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
+#TODO #1669 - the code currently does not compile
 compile: transform_parallel_dm $(EXEC)
 
 run: compile
@@ -89,9 +90,6 @@ $(EXEC): $(LFRIC_LIB) $(OBJ)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
-
-$(EXTRACT_LIB): $(LFRIC_LIB)
-	$(MAKE) -C $(EXTRACT_DIR)
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o
