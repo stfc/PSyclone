@@ -1040,7 +1040,7 @@ class Node(object):
 
         :returns: list with all nodes that are instances of my_type \
                   starting at and including this node.
-        :rtype: List[:py:class:`psyclone.Node`]
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         local_list = []
@@ -1069,7 +1069,7 @@ class Node(object):
         :param my_type: class(es) to search for.
         :type my_type: type | Tuple[type]
         :param excluding: (sub-)class(es) to ignore or None.
-        :type excluding: Optional[type, Tuple[type]]
+        :type excluding: Optional[type | Tuple[type]]
         :param bool include_self: whether or not to include this node in the \
                                   search.
         :param limit: an optional node at which to stop the search.
@@ -1077,7 +1077,7 @@ class Node(object):
 
         :returns: First ancestor Node that is an instance of any of the \
                   requested classes or None if not found.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` | NoneType
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises TypeError: if `excluding` is provided but is not a type or \
                            tuple of types.
