@@ -259,9 +259,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 # The DependencyTools also returns False for things that are
                 # not an issue, so we ignore specific messages.
                 for message in dep_tools.get_all_messages():
-                    if "is only written once." in message:
+                    if message.code == DACode.WARN_SCALAR_WRITTEN_ONCE:
                         continue
-                    messages = "\n".join(dep_tools.get_all_messages())
+                    all_msg_str = [str(message) for message in
+                                   dep_tools.get_all_messages()]
+                    messages = "\n".join(all_msg_str)
                     raise TransformationError(
                         f"Dependency analysis failed with the following "
                         f"messages:\n{messages}")
