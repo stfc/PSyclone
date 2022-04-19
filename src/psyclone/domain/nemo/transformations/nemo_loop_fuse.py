@@ -37,6 +37,7 @@
 '''
 
 from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 
@@ -174,35 +175,42 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             inconsistent indices, e.g. a(i,j) and a(j,i).
 
         '''
-
+        # pylint: disable=too-many-locals
         dep_tools = DependencyTools()
-        all_indices = []
-        consistent = dep_tools.array_accesses_consistent(loop_variable,
-                                                         [var_info1,
-                                                          var_info2],
-                                                         all_indices)
-
-        if not consistent:
-            errors = dep_tools.get_all_messages()
-            raise TransformationError(errors[0])
-
-        if not all_indices:
-            # An array is used that is not actually dependent on the
-            # loop variable. This means the variable can not always be safely
-            # fused.
-            # do j=1, n
-            #    a(1) = b(j)+1
-            # enddo
-            # do j=1, n
-            #    c(j) = a(1) * 2
-            # enddo
-            # More tests could be done here, e.g. to see if it can be shown
-            # that each access in the first loop is different from the
-            # accesses in the second loop: a(1) in first, a(2) in second.
-            # Other special cases: reductions (a(1) = a(1) + x),
-            # array expressions : a(:) = b(j) * x(:)
-            # Potentially this could use the scalar handling code!
-            raise TransformationError(
-                "Variable '{0}' does not depend on loop variable '{1}', "
-                "but is read and written.".format(var_info1.var_name,
-                                                  loop_variable.name))
+        all_accesses = var_info1.all_accesses + var_info2.all_accesses
+        loop_var_name = loop_variable.name
+        # Compare all accesses with the first one. If the loop variable
+        # is used in a different subscript, raise an error. We test this
+        # by computing the partition of the indices:s
+        comp_1 = all_accesses[0].component_indices
+        # Note that we compare an access with itself, this will
+        # help us detecting if an array is accessed without using
+        # the loop variable (which would indicate a kind of reduction):
+        for other_access in all_accesses:
+            comp_other = other_access.component_indices
+            partitions = dep_tools.partition(comp_1, comp_other,
+                                             [loop_var_name])
+            var_found = False
+            for (set_of_vars, index) in partitions:
+                # Find the partition that contains the loop variable:
+                if loop_var_name not in set_of_vars:
+                    continue
+                var_found = True
+                # If the loop variable contains more than one index, it is
+                # used inconsistent:
+                if len(index) <= 1:
+                    continue
+                # Raise the appropriate error message:
+                writer = FortranWriter()
+                access1 = writer(all_accesses[0].node)
+                access2 = writer(other_access.node)
+                error = (f"Variable '{var_info1.signature[0]}' is written to "
+                         f"and the loop variable '{loop_var_name}' is used "
+                         f"in different index locations: {access1} and "
+                         f"{access2}.")
+                raise TransformationError(error)
+            if not var_found:
+                error = (f"Variable '{var_info1.signature[0]}' does not "
+                         f"depend on loop variable '{loop_var_name}', but is "
+                         f"read and written")
+                raise TransformationError(error)
