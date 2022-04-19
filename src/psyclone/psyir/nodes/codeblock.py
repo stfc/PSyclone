@@ -102,6 +102,23 @@ class CodeBlock(Statement, DataNode):
         # Store the structure of the code block.
         self._structure = structure
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two CodeBlock nodes are equal
+        if they are the same type, their ast_nodes lists are equal (which
+        means the same instance) and have the same structure.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.get_ast_nodes == other.get_ast_nodes
+        is_eq = is_eq and self.structure == other.structure
+
+        return is_eq
+
     @property
     def structure(self):
         '''

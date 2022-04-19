@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ def trans(psy):
         MoveTrans
 
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
+    print(schedule.view())
 
     # This transformation removes the halo exchange associated with
     # the grad_p field. This transformation is unnecessary if
@@ -61,7 +61,7 @@ def trans(psy):
     # transformation still works).
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 1})
-    schedule.view()
+    print(schedule.view())
 
     # This transformation splits the three synchronous halo exchanges
     # (for fields p, hb_inv and u_normalisation) into asynchronous
@@ -69,7 +69,7 @@ def trans(psy):
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     for kern in schedule.children[3:0:-1]:
         ahex_trans.apply(kern)
-    schedule.view()
+    print(schedule.view())
 
     # This transformation moves the start of the three halo exchanges
     # before the setval_c loop offering the potential for overlap
@@ -77,6 +77,6 @@ def trans(psy):
     mtrans = MoveTrans()
     for kern in schedule.children[5:0:-2]:
         mtrans.apply(kern, schedule.children[0])
-    schedule.view()
+    print(schedule.view())
 
     return psy

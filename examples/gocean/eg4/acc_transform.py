@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. Transforms all kernels in the invoke
@@ -55,7 +56,7 @@ def trans(psy):
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
+    print(schedule.view())
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
@@ -77,5 +78,5 @@ def trans(psy):
         ktrans.apply(kern)
         itrans.apply(kern)
 
-    schedule.view()
+    print(schedule.view())
     return psy

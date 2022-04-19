@@ -31,22 +31,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an invoke call within the
 algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-
 # pylint: disable=protected-access
 
 from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
     Name, Char_Literal_Constant
 
-from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock
+from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
-    RoutineSymbol
+    RoutineSymbol, ScalarType
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
 from psyclone.psyGen import Transformation
@@ -54,7 +53,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
-class InvokeCallTrans(Transformation):
+class RaiseCall2InvokeTrans(Transformation):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to a PSyclone version with specialised domain-specific
     nodes.
@@ -130,42 +129,19 @@ class InvokeCallTrans(Transformation):
     def _validate_fp2_node(self, fp2_node):
         '''Validation routine for an fparser2 node within a code block.
 
-        :param fp2_node: an fparser2 Structure Constructor or Actual \
-            Arg Spec node.
+        :param fp2_node: an fparser2 Structure Constructor.
         :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor` or \
-            :py:class:`fparser.two.Fortran2003.Actual_Arg_Spec
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :raises TransformationError: if the named argument is not in \
-            the expected form.
-        :raises TransformationError: if more than one named argument \
-            is found.
         :raises TransformationError: if the fparser2 node is not the \
             expected type.
 
         '''
-        if isinstance(fp2_node, Structure_Constructor):
-            pass
-        elif isinstance(fp2_node, Actual_Arg_Spec):
-            if not (isinstance(fp2_node.children[0], Name) and
-                    fp2_node.children[0].string.lower() == "name" and
-                    isinstance(fp2_node.children[1], Char_Literal_Constant)):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. If there is a "
-                    f"named argument, it must take the form name='str', but "
-                    f"found '{str(fp2_node)}'.")
-            if self._call_name:
-                raise TransformationError(
-                    f"Error in {self.name} transformation. There should be at "
-                    f"most one named argument in an invoke, but there are at "
-                    f"least two: {self._call_name} and "
-                    f"{fp2_node.children[1].string}.")
-            self._call_name = fp2_node.children[1].string
-        else:
+        if not isinstance(fp2_node, Structure_Constructor):
             raise TransformationError(
                 f"Error in {self.name} transformation. Expecting an algorithm "
-                f"invoke codeblock to contain either Structure-Constructor or "
-                f"actual-arg-spec, but found '{type(fp2_node).__name__}'.")
+                f"invoke codeblock to contain a Structure-Constructor, but "
+                f"found '{type(fp2_node).__name__}'.")
 
     def validate(self, node, options=None):
         '''Validate the node argument.
@@ -181,6 +157,10 @@ class InvokeCallTrans(Transformation):
         :raises TransformationError: if the supplied call argument \
             does not have the expected name which would identify it as an \
             invoke call.
+        :raises TransformationError: if the there is more than one \
+            named argument.
+        :raises TransformationError: if the named argument does not
+            conform to the name=str format.
         :raises TransformationError: if the invoke arguments are not a \
             PSyIR ArrayReference or CodeBlock.
 
@@ -197,10 +177,29 @@ class InvokeCallTrans(Transformation):
                 f"Error in {self.name} transformation. The supplied call "
                 f"argument should be a `Call` node with name 'invoke' but "
                 f"found '{node.routine.name}'.")
-        for arg in node.children:
-            if isinstance(arg, ArrayReference):
+        names = [name for name in node.argument_names if name]
+        if len(names) > 1:
+            raise TransformationError(
+                f"Error in {self.name} transformation. There should be at "
+                f"most one named argument in an invoke, but there are "
+                f"{len(names)} in '{self._writer(node)}'.")
+        for idx, arg in enumerate(node.children):
+            if ((node.argument_names[idx]) and
+                    (not (node.argument_names[idx].lower() == "name")
+                     or not (isinstance(arg, Literal) and
+                             isinstance(arg.datatype, ScalarType) and
+                             arg.datatype.intrinsic ==
+                             ScalarType.Intrinsic.CHARACTER))):
+                raise TransformationError(
+                    f"Error in {self.name} transformation. If there is a "
+                    f"named argument, it must take the form name='str', "
+                    f"but found '{self._writer(node)}'.")
+            if node.argument_names[idx]:
+                pass
+            elif isinstance(arg, ArrayReference):
                 pass
             elif isinstance(arg, CodeBlock):
+                # pylint: disable=protected-access
                 for fp2_node in arg._fp2_nodes:
                     self._validate_fp2_node(fp2_node)
             else:
@@ -225,25 +224,25 @@ class InvokeCallTrans(Transformation):
 
         call_name = None
         calls = []
-        for call_arg in call.children:
+        for idx, call_arg in enumerate(call.children):
 
+            # pylint: disable=protected-access
             arg_info = []
-            if isinstance(call_arg, ArrayReference):
+            if call.argument_names[idx]:
+                call_name = f"'{call_arg.value}'"
+            elif isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
                 type_symbol = call_arg.symbol
                 arg_info.append((type_symbol, args))
             else:
-                for fp2_node in call_arg._fp2_nodes:
-                    if isinstance(fp2_node, Actual_Arg_Spec):
-                        # This child is a named argument.
-                        call_name = fp2_node.children[1].string
-                    else:
-                        # This child is a kernel
-                        type_symbol = InvokeCallTrans._get_symbol(
-                            call, fp2_node)
-                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
-                        arg_info.append((type_symbol, args))
+                # The validates check that this can only be a Codeblock with
+                # a StructureConstructor fparser2 node inside
+                for fp2_node in call_arg.get_ast_nodes:
+                    # This child is a kernel
+                    type_symbol = self._get_symbol(call, fp2_node)
+                    args = self._parse_args(call_arg, fp2_node)
+                    arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
@@ -253,14 +252,5 @@ class InvokeCallTrans(Transformation):
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
 
-        '''
-        return "InvokeCallTrans"
-
-
-__all__ = ['InvokeCallTrans']
+__all__ = ['RaiseCall2InvokeTrans']

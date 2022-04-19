@@ -153,7 +153,7 @@ the contents of a PSyIR node. If we were to look at the LFRic eg6 example
 we would see the following output:
 ::
 
-   >>> schedule.view()
+   >>> print(schedule.view())
    InvokeSchedule[invoke='invoke_0', dm=True]
        0: Directive[OMP parallel do]
            Schedule[]

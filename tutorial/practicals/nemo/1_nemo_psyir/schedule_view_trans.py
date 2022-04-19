@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''A transformation script that simply prints the PSyIR of each invoke
 to stdout. No actual transformations are performed.
@@ -75,4 +76,4 @@ def trans(psy):
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
-        sched.view()
+        print(sched.view())
