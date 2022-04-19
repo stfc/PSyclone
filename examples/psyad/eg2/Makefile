@@ -37,7 +37,7 @@ PSYROOT=../../..
 include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-GENERATED_FILES += tl_hydrostatic_kernel_mod_adj.[fF]90 test_harness.exe \
+GENERATED_FILES += *_mod_adj.[fF]90 test_harness.exe \
                    *.x90 alg.f90 psy.f90 *.mod *.o
 
 LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -46,9 +46,20 @@ LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none
 
+ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
+TL_KERNEL_NAME ?= tl_hydrostatic_kernel
+TL_KERNEL_FILE = ${TL_KERNEL_NAME}_mod.F90
+ADJ_KERNEL_X90_FILE = $(subst .F90,_adj.x90,${TL_KERNEL_FILE})
+ADJ_KERNEL_F90_FILE = $(subst .x90,.f90,${ADJ_KERNEL_X90_FILE})
+
+TL_PROC_NAME = $(subst _kernel,_code,${TL_KERNEL_NAME})
+ADJ_PROC_NAME = ${TL_PROC_NAME}_adj
+TL_KERNEL_TYPE = ${TL_KERNEL_NAME}_type
+ADJ_KERNEL_TYPE = ${TL_KERNEL_TYPE}_adj
+
 transform: psy.f90
 
-psy.f90 alg.f90: main_alg.x90 tl_hydrostatic_kernel_mod_adj.f90
+psy.f90 alg.f90: main_alg.x90 ${ADJ_KERNEL_F90_FILE}
 	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 main_alg.x90
 
 # Create the adjoint kernel and the corresponding test
@@ -58,22 +69,21 @@ psy.f90 alg.f90: main_alg.x90 tl_hydrostatic_kernel_mod_adj.f90
 # intrinsic with equivalent code. This and all other local variables
 # will not need to be specified on the command line once issue #1556
 # has been addressed.
-tl_hydrostatic_kernel_mod_adj.x90 main_alg.x90: tl_hydrostatic_kernel_mod.F90
-	$(PSYAD) -api dynamo0.3 tl_hydrostatic_kernel_mod.F90 -otest main_alg.x90 -oad tl_hydrostatic_kernel_mod_adj.x90 -a r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
+${ADJ_KERNEL_X90_FILE} main_alg.x90: ${TL_KERNEL_FILE}
+	$(PSYAD) -api dynamo0.3 $< -otest main_alg.x90 -oad ${ADJ_KERNEL_X90_FILE} -a ${ACTIVE_VAR_LIST}
 
-tl_hydrostatic_kernel_mod_adj.f90: tl_hydrostatic_kernel_mod_adj.x90
+${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
 	# Currently PSyAD does not update the kernel metadata (issue #1453)
 	# so we do that manually here.
-	sed -e 's/PROCEDURE, NOPASS :: tl_hydrostatic_code/PROCEDURE, NOPASS :: tl_hydrostatic_code_adj/' -e 's/:: tl_hydrostatic_kernel_type/:: tl_hydrostatic_kernel_type_adj/' tl_hydrostatic_kernel_mod_adj.x90 > tl_hydrostatic_kernel_mod_adj.f90
+	sed -e 's/PROCEDURE, NOPASS :: ${TL_PROC_NAME}/PROCEDURE, NOPASS :: ${ADJ_PROC_NAME}/' -e 's/:: ${TL_KERNEL_TYPE}/:: ${ADJ_KERNEL_TYPE}/' $< > $@
 
-compile: tl_hydrostatic_kernel_mod_adj.f90 alg.f90 psy.f90 test_harness.exe
+compile: ${ADJ_KERNEL_F90_FILE} alg.f90 psy.f90 ${LFRIC_LIB} test_harness.exe
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
 
-test_harness.exe: ${LFRIC_LIB} tl_hydrostatic_kernel_mod.o tl_hydrostatic_kernel_mod_adj.o psy.o alg.o
-	$(F90) $(F90FLAGS) -o test_harness.exe tl_hydrostatic_kernel_mod.o \
-                  tl_hydrostatic_kernel_mod_adj.o psy.o alg.o ${LFRIC_LIB}
+test_harness.exe: $(subst .F90,.o,${TL_KERNEL_FILE}) $(subst .f90,.o,${ADJ_KERNEL_F90_FILE}) psy.o alg.o ${LFRIC_LIB}
+	$(F90) $(F90FLAGS) -o test_harness.exe $^
 
 psy.o: ${LFRIC_LIB}
 
