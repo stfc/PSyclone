@@ -1601,8 +1601,8 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def __str__(self):
         pass  # pragma: no cover
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def name(self):
         ''' Returns the name of this transformation as a string.'''
 
