@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,10 +34,11 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modifications: A. R. Porter, STFC Daresbury Laboratory
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
+# The compiler to use may be specified via the F90 and F90FLAGS
+# environment variables. To use the NVIDIA compiler and enable
+# openacc compilation, use:
+# export F90=nvfortran
+# export F90FLAGS="-acc"
 
 PSYROOT=../../..
 
