@@ -41,31 +41,39 @@
     dependency analysis.'''
 
 from __future__ import absolute_import, print_function
-from enum import Enum
+from enum import IntEnum
 
 from sympy import Symbol, Integer
 
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
 
-class DACode(Enum):
+class DACode(IntEnum):
     '''A simple enum to store the various info, warning and error
-    codes used in the dependency analysis.
+    codes used in the dependency analysis. It is based in IntEnum
+    so the codes can be compared with the *_MIN and _MAX values.
 
     '''
-    INFO_NOT_NESTED_LOOP = 1
-    INFO_WRONG_LOOP_TYPE = 2
+    INFO_MIN = 1
+    INFO_NOT_NESTED_LOOP = 2
+    INFO_WRONG_LOOP_TYPE = 3
+    INFO_MAX = 99
 
-    WARN_SCALAR_WRITTEN_ONCE = 100
-    WARN_SCALAR_REDUCTION = 101
+    WARN_MIN = 100
+    WARN_SCALAR_WRITTEN_ONCE = 101
+    WARN_SCALAR_REDUCTION = 102
+    WARN_MAX = 199
 
-    ERROR_WRITE_WRITE_RACE = 200
-    ERROR_DEPENDENCY = 201
+    ERROR_MIN = 200
+    ERROR_WRITE_WRITE_RACE = 201
+    ERROR_DEPENDENCY = 202
+    ERROR_MAX = 299
 
 
 # ============================================================================
@@ -98,6 +106,7 @@ class Message:
     @property
     def code(self):
         ''':returns: the numerical code of this message.
+        :rtype: int
 
         '''
         return self._code
@@ -106,6 +115,7 @@ class Message:
     @property
     def var_names(self):
         ''':returns: the numerical code of this message.
+        :rtype: str
 
         '''
         return self._var_names
@@ -161,7 +171,7 @@ class DependencyTools(object):
         self._messages = []
 
     # -------------------------------------------------------------------------
-    def _add_info(self, message, code, var_names=None):
+    def _add_message(self, message, code, var_names=None):
         '''Adds an informational message to the internal message
         handling system.
 
@@ -171,31 +181,17 @@ class DependencyTools(object):
         :type var_names: list of str
 
         '''
-        self._messages.append(Message(f"Info: {message}", code, var_names))
+        if DACode.INFO_MIN <= code <= DACode.INFO_MAX:
+            message_type = "Info"
+        elif DACode.WARN_MIN <= code <= DACode.WARN_MAX:
+            message_type = "Warning"
+        elif DACode.ERROR_MIN <= code <= DACode.ERROR_MAX:
+            message_type = "Error"
+        else:
+            raise InternalError(f"Unknown message code {code}.")
 
-    # -------------------------------------------------------------------------
-    def _add_warning(self, message, code, var_names=None):
-        '''Adds a warning message to the internal message handling system.
-
-        :param str message: the message for the user.
-        :param int code: error or warning code.
-        :param var_names: list of variable names (defaults to []).
-        :type var_names: list of str
-
-        '''
-        self._messages.append(Message(f"Warning: {message}", code, var_names))
-
-    # -------------------------------------------------------------------------
-    def _add_error(self, message, code, var_names=None):
-        '''Adds an error message to the internal message handling system.
-
-        :param str message: the message for the user.
-        :param int code: error or warning code.
-        :param var_names: list of variable names.
-        :type var_names: list of str
-
-        '''
-        self._messages.append(Message(f"Error: {message}", code, var_names))
+        self._messages.append(Message(f"{message_type}: {message}", code,
+                                      var_names))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -228,98 +224,15 @@ class DependencyTools(object):
         if only_nested_loops:
             all_loops = loop.walk(Loop)
             if len(all_loops) == 1:
-                self._add_info("Not a nested loop.",
-                               DACode.INFO_NOT_NESTED_LOOP)
+                self._add_message("Not a nested loop.",
+                                  DACode.INFO_NOT_NESTED_LOOP)
                 return False
 
         if self._loop_types_to_parallelise:
             if loop.loop_type not in self._loop_types_to_parallelise:
-                self._add_info(f"Loop has wrong loop type '{loop.loop_type}'.",
-                               DACode.INFO_WRONG_LOOP_TYPE)
-                return False
-        return True
-
-    # -------------------------------------------------------------------------
-    def array_access_parallelisable_old(self, loop_variable, var_info):
-        '''Tries to determine if the access pattern for a variable
-        given in `var_info` allows parallelisation along the variable
-        `loop_variable`. The following messages might be provided
-        to the user using the message API:
-
-        * if the array access does not depend on the loop variable, a
-          warning is added (e.g. for the variable `a` in `a(1,2) = b(i,j)`).
-        * if the array variable is accessed inconsistently, e.g.
-          `a(i,j) = a(j,i) + 1`.
-
-        :param loop_variable: symbol of the variable that is parallelised.
-        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
-        :param var_info: access information for this variable.
-        :type var_info: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
-
-        :return: whether the variable can be used in parallel.
-        :rtype: bool
-        '''
-        # pylint: disable=too-many-locals
-        # If a variable is read-only, it can be parallelised
-        if var_info.is_read_only():
-            return True
-
-        # Now detect which dimension(s) is/are parallelised, i.e.
-        # which dimension depends on the loop_variable.  For example
-        # if a "do j..." loop is parallelised, consider expressions like
-        # a(i,j) and a(j+2, i-1) in one loop:
-        # In this case the dimensions 1 (a(i,j)) and 0 (a(j+2,i-1)) would
-        # be accessed. Since the variable is written somewhere (read-only
-        # was tested above), the variable cannot be used in parallel.
-        # Additionally, collect all indices that are actually used, since
-        # they are needed in a test further down.
-
-        # Detect if this variable adds a new message, and if so, abort early
-        all_indices = []
-
-        if not all_indices:
-            # An array is used that is not actually dependent on the parallel
-            # loop variable, but is written to (which was checked earlier
-            # in this function). This means the variable can not always be
-            # safely parallelised. Example 1:
-            # do j=1, n
-            #    a(1) = b(j)+1
-            #    c(j) = a(1) * 2
-            # enddo
-            # In this case a(1) should be a thread-private scalar.
-            # Example2:
-            # do j=1, n
-            #    if(some_cond)
-            #       a(1) = b(j)
-            #    endif
-            #  enddo
-            # In this case it is not clear if the loop can be parallelised.
-            # So in any case we add the information for the user to decide.
-            self._add_warning(f"Variable '{var_info.var_name}' is written to, "
-                              f"and does not depend on the loop variable "
-                              f"'{loop_variable.name}'.",
-                              DACode.ERROR_WRITE_WRITE_RACE)
-            return False
-
-        # Now we have confirmed that all parallel accesses to the variable
-        # are using the same dimension. If there is a case of stencil
-        # access with write operations (read-only has already been tested)
-        # the loop can not be parallelised. E.g. in one j loop:
-        # b(j) = a(j-1) + a(j+1)
-        # a(j) = c(j)
-
-        sym_maths = SymbolicMaths.get()
-
-        first_index = all_indices[0]
-        for index in all_indices[1:]:
-            if not sym_maths.equal(first_index, index):
-                self._add_warning(f"Variable '{var_info.var_name}' is written "
-                                  f"and is accessed using indices '"
-                                  f"{self._language_writer(first_index)}' and "
-                                  f"'{self._language_writer(index)}' and can "
-                                  f"therefore not be parallelised.",
-                                  DACode.ERROR_DEPENDENCY)
+                self._add_message(f"Loop has wrong loop type '"
+                                  f"{loop.loop_type}'.",
+                                  DACode.INFO_WRONG_LOOP_TYPE)
                 return False
         return True
 
@@ -451,7 +364,7 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def independent_1_var(var_name, index_read, index_written):
+    def get_dependency_distance(var_name, index_read, index_written):
         '''Computes the dependency distance between two accesses to the
         same variable. The distance specifies in how many loop iterations
         the same memory location would be accessed. E.g. `a(i)=a(i-1)`
@@ -461,7 +374,7 @@ class DependencyTools(object):
         with an index that's an integer the accesses are independent). More
         complex examples can have several solutions, e.g. `a(i*i) = a(i*i)+1`.
         This will have the distance 0 and `-2*i`. The latter would result
-        in a negative loop index (i-2*i<0), indicating that actually no
+        in a negative loop index (i+(-2*i)<0), indicating that actually no
         dependency exists.
         This function will return the distance, if it is an integer value
         independent of loop iterations, and None otherwise.
@@ -486,7 +399,6 @@ class DependencyTools(object):
         sym_maths = SymbolicMaths.get()
         sympy_expressions, symbol_map = SymPyWriter.\
             get_sympy_expressions_and_symbol_map([index_read, index_written])
-
         # If the subscripts do not even depend on the specified variable,
         # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
         if var_name not in symbol_map:
@@ -549,9 +461,26 @@ class DependencyTools(object):
     # -------------------------------------------------------------------------
     @staticmethod
     def independent_multi_subscript(var_name, write_access, other_access,
-                                    set_of_vars, subscripts):
-        '''Test multiple subscripts that share variables. This includes caes
+                                    subscripts):
+        '''Test multiple subscripts that share variables. This includes cases
         like `a(i,i) = a(i,i+1)` or `a(i, indx(i)) = a(i,5)` etc.
+        At this stage only a minimal test is done: if there is one subscript
+        that is independent, the whole access can be parallelised, e.g.
+        `a(i,i+j) = a(i,j*j-i*i)` if the 'i' loop is parallelised. Even though
+        the second subscript might be identical for different i and j values,
+        the fact that the first subscript is independent makes the access
+        parallelisable.
+
+        :param str var_name: the name of the loop variable of the loop to be \
+            parallelised.
+        :param write_access: access information a single write access.
+        :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :param other_access: access information the other (read or write) \
+            access.
+        :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+
+        :returns: whether the two accesses can be parallelised or not.
+        :type: bool
 
         '''
         # If we find one subscript that is independent, the loop can be
@@ -562,32 +491,64 @@ class DependencyTools(object):
         for ind in subscripts:
             index_written = write_access.component_indices[ind]
             index_other = other_access.component_indices[ind]
-            distance = DependencyTools.independent_1_var(var_name,
-                                                         index_written,
-                                                         index_other)
+            distance = DependencyTools.get_dependency_distance(var_name,
+                                                               index_written,
+                                                               index_other)
             if distance == 0:
-                # Notice that distance 0 will only be returned if the subscript
-                # actually depends on the loop variable.
+                # Notice that distance 0 will only be returned if the
+                # subscript actually depends on the loop variable.
                 return True
         # Additional tests could be added here (e.g. to see that
-        # `a(i,i)=a(i,i+1)+1` can be parallelised.
+        # `a(i,i)=a(i,i+1)+1` can be parallelised).
 
         return False
 
     # -------------------------------------------------------------------------
     def is_array_access_parallelisable(self, loop_variables, write_access,
                                        other_access):
-        '''Checks if the read and write ac
+        '''Checks if there is any write access that is dependent with
+        another (read or write) access in a different iteration. If there
+        is a dependency, then the access to this array cannot be parallelised,
+        it would create a race condition.
+
+        :param loop_variables: the list of all loop variables in the code to \
+            be parallelised. The first one must be the loop to be \
+            parallelised (a possible outer loop does not matter, the value of \
+            the loop variable is a constant within the loop to be parallelised.
+        :type loop_variable: list of str
+        :param write_access: access information of a single array write access.
+        :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :param other_access: access information of the second single array \
+            access (for the same variable).
+        :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+
+        :returns: whether the pair of accesses can be parallelised or not.
+        :rtype: bool
+
         '''
+
+        # Partition all subscripts to create sets of subscripts that can
+        # be analysed independently of others. For example, `a(i,j+k,k,l)`
+        # and `a(i,j,k,l)` would create three partitions:
+        # 1) subscript 0: only variable i is used.
+        # 2) subscript 1+2: uses the variables j and k
+        # 3) subscript 3: only uses l
         partitions = self.partition(write_access.component_indices,
                                     other_access.component_indices,
                                     loop_variables)
+        # Get the name of the loop variable that is to be parallelised:
         loop_var = loop_variables[0]
+
+        # Analyse each subscript partition individually. If we find even
+        # one partition that guarantees that the accesses cannot interfere
+        # with each other, the accesses can be parallelised and we do not
+        # need any further test.
         for set_of_vars, subscripts in partitions:
-            # First only test independent subscripts:
+            # First only test independent subscripts - i.e. subscripts that
+            # consistently only use one variable
             if len(subscripts) == 1:
                 # There is only one subscript involved in this test.
-                # Get its index:
+                # Get its index of its component_index:
                 subscript = subscripts[0]
                 index_write = write_access.component_indices[subscript]
                 index_other = other_access.component_indices[subscript]
@@ -604,8 +565,9 @@ class DependencyTools(object):
                 elif len(set_of_vars) == 1:
                     # One loop variable used in both accesses.
                     # E.g. `a(2*i+3) = a(i*i)`
-                    distance = self.independent_1_var(loop_var, index_write,
-                                                      index_other)
+                    distance = self.get_dependency_distance(loop_var,
+                                                            index_write,
+                                                            index_other)
                     # If the dependency distance is 0, it means that in each
                     # iteration a different index is accessed, so the loop
                     # can be parallelised.
@@ -622,7 +584,6 @@ class DependencyTools(object):
                 indep = self.independent_multi_subscript(loop_var,
                                                          write_access,
                                                          other_access,
-                                                         set_of_vars,
                                                          subscripts)
                 if indep:
                     return True
@@ -671,19 +632,20 @@ class DependencyTools(object):
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
                         str_access = self._language_writer(write_access.node)
-                        self._add_error(f"The write access to '{str_access}' "
-                                        f"causes a write-write race "
-                                        f"condition.",
-                                        DACode.ERROR_WRITE_WRITE_RACE,
-                                        [str_access])
+                        self._add_message(f"The write access to "
+                                          f"'{str_access}' causes a "
+                                          f"write-write race condition.",
+                                          DACode.ERROR_WRITE_WRITE_RACE,
+                                          [str_access])
                     else:
                         str_write = self._language_writer(write_access.node)
                         str_other = self._language_writer(other_access.node)
-                        self._add_error(f"The write access to '{str_write}' "
-                                        f"and to '{str_other}' are dependent "
-                                        f"and cannot be parallelised.",
-                                        DACode.ERROR_DEPENDENCY,
-                                        [str_write, str_other])
+                        self._add_message(f"The write access to '{str_write}' "
+                                          f"and to '{str_other}' are "
+                                          f"dependent and cannot be "
+                                          f"parallelised.",
+                                          DACode.ERROR_DEPENDENCY,
+                                          [str_write, str_other])
 
                     return False
         return True
@@ -711,7 +673,7 @@ class DependencyTools(object):
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
             # We could potentially use lastprivate here?
-            self._add_warning(f"Scalar variable '{var_info.var_name}' is "
+            self._add_message(f"Scalar variable '{var_info.var_name}' is "
                               f"only written once.",
                               DACode.WARN_SCALAR_WRITTEN_ONCE,
                               [f"{var_info.var_name}"])
@@ -729,7 +691,7 @@ class DependencyTools(object):
 
         # Otherwise there is a read first, which would indicate that this loop
         # is a reduction, which is not supported atm.
-        self._add_warning(f"Variable '{var_info.var_name}' is read first, "
+        self._add_message(f"Variable '{var_info.var_name}' is read first, "
                           f"which indicates a reduction.",
                           DACode.WARN_SCALAR_REDUCTION,
                           [var_info.var_name])
@@ -824,109 +786,6 @@ class DependencyTools(object):
             if is_array:
                 # Handle arrays
                 par_able = self.array_access_parallelisable(loop_vars,
-                                                            var_info)
-            else:
-                # Handle scalar variable
-                par_able = self.is_scalar_parallelisable(var_info)
-            if not par_able:
-                if not test_all_variables:
-                    return False
-                # The user might have requested to continue in order to get
-                # all messages for all variables preventing parallelisation,
-                # not just the first one
-                result = False
-
-        return result
-
-    # -------------------------------------------------------------------------
-    def can_loop_be_parallelised_old(self, loop, loop_variable=None,
-                                     only_nested_loops=True,
-                                     test_all_variables=False,
-                                     signatures_to_ignore=None,
-                                     var_accesses=None):
-        # pylint: disable=too-many-arguments, too-many-branches
-        # pylint: disable=too-many-locals
-        '''This function analyses a loop in the PsyIR to see if
-        it can be safely parallelised over the specified variable.
-
-        :param loop: the loop node to be analysed.
-        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param loop_variable: Optional symbol of the variable that is \
-            parallelised. If not specified, the loop variable of the loop \
-            is used.
-        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
-        :param bool only_nested_loops: if True, a loop must have an inner\
-                                       loop in order to be considered\
-                                       parallelisable (default: True).
-        :param bool test_all_variables: if True, it will test if all variable\
-                                        accesses can be parallelised,\
-                                        otherwise it will stop after the first\
-                                        variable is found that can not be\
-                                        parallelised.
-        :param signatures_to_ignore: list of signatures for which to skip \
-                                     the access checks.
-        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
-        :param var_accesses: optional argument containing the variable access\
-                             pattern of the loop (default: None).
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        :returns: True if the loop can be parallelised.
-        :rtype: bool
-
-        :raises TypeError: if the supplied node is not a Loop.
-
-        '''
-        self._clear_messages()
-
-        if not isinstance(loop, Loop):
-            raise TypeError(f"can_loop_be_parallelised: node must be an "
-                            f"instance of class Loop but got "
-                            f"'{type(loop).__name__}'")
-        if not loop_variable:
-            loop_variable = loop.variable
-
-        # Check if the loop type should be parallelised, e.g. to avoid
-        # parallelising inner loops which might not have enough work. This
-        # is supposed to be a fast first check to avoid collecting variable
-        # accesses in some unsuitable loops.
-        if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
-            # Appropriate messages will have been added already, so just exit
-            return False
-
-        if not var_accesses:
-            var_accesses = VariablesAccessInfo()
-            loop.reference_accesses(var_accesses)
-        if not signatures_to_ignore:
-            signatures_to_ignore = []
-
-        # Collect all variables used as loop variable:
-        loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
-
-        result = True
-        # Now check all variables used in the loop
-        for signature in var_accesses.all_signatures:
-            # This string contains derived type information, e.g.
-            # "a%b"
-            var_string = str(signature)
-            # Ignore all loop variables - they look like reductions because of
-            # the write-read access in the loop:
-            if var_string in loop_vars:
-                continue
-            if signature in signatures_to_ignore:
-                continue
-
-            # This returns the first component of the signature,
-            # i.e. in case of "a%b" it will only return "a"
-            var_name = signature.var_name
-            var_info = var_accesses[signature]
-            symbol_table = loop.scope.symbol_table
-            symbol = symbol_table.lookup(var_name)
-            # TODO #1270 - the is_array_access function might be moved
-            is_array = symbol.is_array_access(access_info=var_info)
-            if is_array:
-                # Handle arrays
-                par_able = self.array_access_parallelisable(loop_variable,
                                                             var_info)
             else:
                 # Handle scalar variable

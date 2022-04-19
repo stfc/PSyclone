@@ -43,6 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools.dependency_tools import DependencyTools, DACode
@@ -62,23 +63,29 @@ def test_messages():
     dep_tools = DependencyTools()
     # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
-    dep_tools._add_info("info-test", 2, ["a", "b"])
+    dep_tools._add_message("info-test", DACode.INFO_NOT_NESTED_LOOP,
+                           ["a", "b"])
     msg = dep_tools.get_all_messages()[0]
     assert str(msg) == "Info: info-test"
-    assert msg.code == 2
+    assert msg.code == DACode.INFO_NOT_NESTED_LOOP
     assert msg.var_names == ["a", "b"]
 
-    dep_tools._add_warning("warning-test", 3, ["a"])
+    dep_tools._add_message("warning-test", DACode.WARN_SCALAR_REDUCTION,
+                           ["a"])
     msg = dep_tools.get_all_messages()[1]
     assert str(msg) == "Warning: warning-test"
-    assert msg.code == 3
+    assert msg.code == DACode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
 
-    dep_tools._add_error("error-test", 1, [])
+    dep_tools._add_message("error-test", DACode.ERROR_DEPENDENCY, [])
     msg = dep_tools.get_all_messages()[2]
     assert str(msg) == "Error: error-test"
-    assert msg.code == 1
+    assert msg.code == DACode.ERROR_DEPENDENCY
     assert msg.var_names == []
+
+    with pytest.raises(InternalError) as err:
+        dep_tools._add_message("INVALID CODE", -999)
+    assert "Unknown message code -999." in str(err.value)
 
     dep_tools._clear_messages()
     # pylint: disable=use-implicit-booleaness-not-comparison
@@ -455,8 +462,8 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, parser):
     subscript_lhs = access_info_lhs.component_indices[(0, 0)]
     subscript_rhs = access_info_rhs.component_indices[(0, 0)]
 
-    result = DependencyTools.independent_1_var("i", subscript_lhs,
-                                               subscript_rhs)
+    result = DependencyTools.get_dependency_distance("i", subscript_lhs,
+                                                     subscript_rhs)
     assert result == distance
 
 
@@ -506,27 +513,38 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, parser):
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
     access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    # The variable partition contains a list, each element being a pair of
+    # a variable set (element 0) and subscripts indices (element 1).
+    # So partition[0][1] takes the subscript indices ([1]) of the first
+    # partition ([0])
     result = DependencyTools.\
         independent_multi_subscript("i", access_info_lhs, access_info_rhs,
-                                    partition[0][0], partition[0][1])
+                                    partition[0][1])
     assert result == independent
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("lhs, rhs, is_parallelisable",
-                         [("a2(i, n)", "a2(i, n)", True),
-                          # ("a2(i*i-i+n, 1)", "a2(i+n, 2)", True),
-                          ("a2(i*i-i+d_i, 1)", "a2(i+d_i, 2)", True),
-                          # ("a2(i, 1)", "a2(i, 2)", True),
-                          # ("a2(i, n-1)", "a2(i, n-1)", True),
-                          # ("a2(i, n)", "a2(i, n-1)", True),
-                          # ("a1(n)", "a1(m)", False),
+                         [("a2(k, n)", "a2(k, n)", True),
+                          ("a2(k*k-k+n, 1)", "a2(k+n, 2)", False),
+                          ("a2(k+d_k, 1)", "a2(k+d_k, 2)", True),
+                          ("a2(k, 1)", "a2(k, 2)", True),
+                          ("a2(k, n-1)", "a2(k, n-1)", True),
+                          ("a2(k, n)", "a2(k, n-1)", True),
+                          # J is an inside loop, and so will take several
+                          # values, which will result in a race condition
+                          ("a2(k+j, n)", "a2(k+j, n-1)", False),
+                          # 'n' is not a loop variable, and as such is a
+                          # constant in the loop and will not cause a
+                          # race condition if parallelised
+                          ("a2(k+n, n)", "a2(k+n, n-1)", True),
+                          ("a1(n)", "a1(m)", False),
                           ])
 def test_improved_dependency_analysis(lhs, rhs, is_parallelisable, parser):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
     reader = FortranStringReader(f'''program test
-                                 integer i, j, k, d_i
+                                 integer j, k, d_k
                                  integer, parameter :: n=10, m=10
                                  integer, dimension(10, 10) :: indx
                                  real, dimension(n) :: a1
@@ -534,9 +552,7 @@ def test_improved_dependency_analysis(lhs, rhs, is_parallelisable, parser):
                                  real, dimension(n, m, n) :: a3
                                  do k = 1, n
                                     do j = 1, m
-                                       do i = 1, n
                                        {lhs} = {rhs}
-                                       end do
                                     end do
                                  end do
                                  end program test''')
