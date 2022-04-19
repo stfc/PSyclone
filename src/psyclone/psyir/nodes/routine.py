@@ -280,8 +280,10 @@ class Routine(Schedule, CommentableMixin):
 
         '''
         super()._refine_copy(other)
-        if self.return_symbol is not None:
-            other.return_symbol = other.symbol_table.lookup(self.return_symbol.name)
+        if other.return_symbol is not None:
+            self.return_symbol = self.symbol_table.lookup(
+                    other.return_symbol.name)
+
 
 # For automatic documentation generation
 __all__ = ["Routine"]

@@ -248,3 +248,22 @@ def test_routine_equality():
                                                         assignment3],
                              is_program=True, return_symbol_name=symbol.name)
     assert ksched1 != ksched6
+
+
+def test_routine_copy():
+    '''Test that the copy method correctly creates a equivalent Routine
+    instance. '''
+    # Create a function
+    symbol_table = SymbolTable()
+    routine = Routine.create("my_func", symbol_table, [])
+    symbol = DataSymbol("my_result", REAL_TYPE)
+    routine.symbol_table.add(symbol)
+    routine.return_symbol = symbol
+
+    # After a copy the symbol tables are separate and the return symbol
+    # references a internal copy of the symbol
+    routine2 = routine.copy()
+    assert routine2.symbol_table is not routine.symbol_table
+    assert routine2.symbol_table.node is routine2
+    assert routine2.return_symbol in routine2.symbol_table.symbols
+    assert routine2.return_symbol not in routine.symbol_table.symbols
