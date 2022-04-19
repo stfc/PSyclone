@@ -121,8 +121,12 @@ def generate_lfric_adjoint_test(tl_source):
     adj_mod = table.new_symbol(kernel_mod_name+"_adj",
                                symbol_type=ContainerSymbol)
     kernel_routine = table.new_symbol(kernel_name,
+                                      symbol_type=DataTypeSymbol,
+                                      datatype=DeferredType(),
                                       interface=ImportInterface(kernel_mod))
     adj_routine = table.new_symbol(kernel_name+"_adj",
+                                   symbol_type=DataTypeSymbol,
+                                   datatype=DeferredType(),
                                    interface=ImportInterface(adj_mod))
 
     # Construct a DynKern using the metadata. This is used when constructing
@@ -146,13 +150,14 @@ def generate_lfric_adjoint_test(tl_source):
     # Create symbols for the various Builtins that we will use.
     # TODO these symbols are not added to the SymbolTable because they only
     # exist as part of the DSL.
-    setval_c = DataTypeSymbol("setval_c", DeferredType())
     setval_x = DataTypeSymbol("setval_x", DeferredType())
     setval_rand = DataTypeSymbol("setval_random", DeferredType())
     x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
+    x_innerprod_y = DataTypeSymbol("x_innerproduct_y", DeferredType())
 
     # Initialise argument values and keep copies. For scalars we use the
     # Fortran 'random_number' intrinsic directly.
+    # TODO this is Fortran specific.
     random_num = RoutineSymbol("random_number")
     for sym in kern_args.scalars:
         prog.addchild(Call.create(random_num, [Reference(sym)]))
@@ -173,14 +178,16 @@ def generate_lfric_adjoint_test(tl_source):
             initialise_field(prog, input_sym, space)
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
+                lit = Literal(str(dim), INTEGER_TYPE)
                 kernel_list.append(
                     LFRicBuiltinFunctor.create(setval_rand,
-                                               ArrayReference.create(sym,
-                                                                     [dim])))
+                                               [ArrayReference.create(sym,
+                                                                      [lit])]))
                 kernel_list.append(
                     LFRicBuiltinFunctor.create(
-                        setval_x, [ArrayReference.create(input_sym, [dim]),
-                                   ArrayReference.create(sym, [dim])]))
+                        setval_x, [ArrayReference.create(input_sym,
+                                                         [lit.copy()]),
+                                   ArrayReference.create(sym, [lit.copy()])]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -215,15 +222,15 @@ def generate_lfric_adjoint_test(tl_source):
                                       datatype=dtype)
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
+                lit = Literal(str(dim), INTEGER_TYPE)
                 prog.addchild(Assignment.create(
                     ArrayReference.create(ip_sym,
-                                          [Literal(str(dim), INTEGER_TYPE)]),
-                    Literal("0.0", rdef_type)))
+                                          [lit]), Literal("0.0", rdef_type)))
                 kernel_list.append(
                     LFRicBuiltinFunctor.create(
                         x_innerprod_x,
-                        [ArrayReference.create(ip_sym, [dim]),
-                         ArrayReference.create(sym, [dim])]))
+                        [ArrayReference.create(ip_sym, [lit.copy()]),
+                         ArrayReference.create(sym, [lit.copy()])]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -242,8 +249,11 @@ def generate_lfric_adjoint_test(tl_source):
     scalars = zip(kern_args.scalars, kern_args.scalars)
     _compute_lfric_inner_products(prog, scalars, field_ip_symbols, inner1_sym)
 
-    # Call the adjoint kernel.
-    kernel_list = [(adj_routine.name, kern_args.arglist)]
+    # Construct the functor for the adjoint kernel. We pass it the same
+    # arguments as the TL kernel.
+    adj_kern = LFRicKernelFunctor.create(adj_routine,
+                                         [arg.copy() for arg in arg_nodes])
+    kernel_list = [adj_kern]
     # Compute the inner product of its outputs
     # with the original inputs.
     field_ip_symbols = []
@@ -254,21 +264,27 @@ def generate_lfric_adjoint_test(tl_source):
         if isinstance(sym.datatype, DataTypeSymbol):
             prog.addchild(Assignment.create(Reference(ip_sym),
                                             Literal("0.0", rdef_type)))
-            kernel_list.append(("X_innerproduct_Y",
-                                [ip_sym.name, sym.name, input_sym.name]))
+            kernel_list.append(
+                LFRicBuiltinFunctor.create(
+                    x_innerprod_y, [Reference(ip_sym), Reference(sym),
+                                    Reference(input_sym)]))
         elif isinstance(sym.datatype, ArrayType):
             dtype = ArrayType(rdef_type, sym.datatype.shape)
 
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
+                lit = Literal(str(dim), INTEGER_TYPE)
                 prog.addchild(Assignment.create(
-                    ArrayReference.create(ip_sym,
-                                          [Literal(str(dim), INTEGER_TYPE)]),
+                    ArrayReference.create(ip_sym, [lit]),
                     Literal("0.0", rdef_type)))
-                kernel_list.append(("X_innerproduct_Y",
-                                    [f"{ip_sym.name}({dim})",
-                                     f"{sym.name}({dim})",
-                                     f"{input_sym.name}({dim})"]))
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(
+                        x_innerprod_y, [ArrayReference.create(ip_sym,
+                                                              [lit.copy()]),
+                                        ArrayReference.create(sym,
+                                                              [lit.copy()]),
+                                        ArrayReference.create(input_sym,
+                                                              [lit.copy()])]))
         else:
             raise InternalError(
                 f"Expected a field symbol to either be of ArrayType or have "
@@ -277,7 +293,7 @@ def generate_lfric_adjoint_test(tl_source):
         field_ip_symbols.append(ip_sym)
 
     # Create the 'call invoke(...)' for the list of kernels.
-    prog.addchild(create_invoke_call(kernel_list))
+    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 1))
 
     # Sum up the second set of inner products
     inner2_sym = table.new_symbol("inner2", symbol_type=DataSymbol,
