@@ -39,7 +39,7 @@
 functions.'''
 
 
-from sympy import Complexes, core, expand, simplify, solveset
+from sympy import Complexes, core, EmptySet, expand, simplify, solveset
 
 from psyclone.parse.utils import ParseError
 
@@ -205,6 +205,11 @@ class SymbolicMaths:
             # instance, which would introduce dependencies on
             # SymPy to other files).
             return "independent"
+
+        # If there is no solution, return a standard Python empty
+        # set (to avoid using SymPy-specific types in PSyclone)
+        if solution is EmptySet:
+            return set()
 
         return solution
 
