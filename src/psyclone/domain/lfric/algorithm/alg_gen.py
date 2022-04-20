@@ -122,7 +122,7 @@ END PROGRAM {name}
 
     # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "constants_mod"]:
+                "constants_mod", "operator_mod"]:
         table.new_symbol(mod, symbol_type=ContainerSymbol)
 
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -135,6 +135,12 @@ END PROGRAM {name}
                      datatype=DeferredType(),
                      interface=ImportInterface(
                          table.lookup("function_space_mod")))
+
+    # TODO we won't always need operator_type but figuring that out here
+    # might be hard.
+    table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
+                     datatype=DeferredType(),
+                     interface=ImportInterface(table.lookup("operator_mod")))
 
     # If we put this declaration in the template code above then we just
     # end up with a CodeBlock (Issue #1687) so we have to massage it here.
@@ -301,6 +307,24 @@ def initialise_quadrature(prog, qr_sym, shape):
                                   f"'{shape}' is not yet implemented.")
 
 
+def initialise_operator(prog, op_sym, space_to, space_from):
+    '''
+    Creates the PSyIR for initialisation of the operator
+    represented by the supplied symbol and adds it to the supplied
+    routine.
+
+    :param op_sym: TODO
+
+    '''
+    reader = FortranReader()
+    table = prog.symbol_table
+    space_to_sym = table.lookup(f"vector_space_{space_to}")
+    space_from_sym = table.lookup(f"vector_space_{space_from}")
+    psyir = reader.psyir_from_expression(f"operator_type({space_to_sym.name}, "
+                                         f"{space_from_sym.name})", table)
+    prog.addchild(Assignment.create(Reference(op_sym), psyir))
+
+
 def construct_kernel_args(prog, kern):
     '''
     Extends the supplied routine with all the declarations and initialisation
@@ -338,6 +362,11 @@ def construct_kernel_args(prog, kern):
 
     for qr_sym, shape in kern_args.quadrature_objects:
         initialise_quadrature(prog, qr_sym, shape)
+
+    for sym, space_to, space_from in kern_args.operators:
+        initialise_operator(prog, sym,
+                            const.specific_function_space(space_to.lower()),
+                            const.specific_function_space(space_from.lower()))
 
     return kern_args
 

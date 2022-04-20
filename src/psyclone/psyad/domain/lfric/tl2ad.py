@@ -196,6 +196,9 @@ def generate_lfric_adjoint_test(tl_source):
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
 
+    for blah in kern_args.operators:
+        pass
+
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
     for arg in kern_args.arglist:

@@ -69,6 +69,7 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+        self._operators = []
 
     @property
     def fields(self):
@@ -95,6 +96,13 @@ class KernCallInvokeArgList(ArgOrdering):
         '''
         return self._qr_objects
 
+    @property
+    def operators(self):
+        '''
+        TODO
+        '''
+        return self._operators
+
     def generate(self, var_accesses=None):
         ''' Ensures that our internal lists of arguments of various
         types are reset (as calling generate() populates them) before calling
@@ -108,6 +116,7 @@ class KernCallInvokeArgList(ArgOrdering):
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+        self._operators = []
         super().generate(var_accesses)
 
     def scalar(self, scalar_arg, var_accesses=None):
@@ -282,8 +291,12 @@ class KernCallInvokeArgList(ArgOrdering):
         :raises NotImplementedError: operators are not yet supported.
 
         '''
-        raise NotImplementedError(
-            "Operators are not yet supported.")
+        op_type = self._symtab.lookup("operator_type")
+        sym = self._symtab.new_symbol(arg.name, symbol_type=DataSymbol,
+                                      datatype=op_type)
+        self._operators.append((sym, arg.function_space_to.orig_name,
+                                arg.function_space_from.orig_name))
+        self.append(sym.name, var_accesses, mode=arg.access)
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.
