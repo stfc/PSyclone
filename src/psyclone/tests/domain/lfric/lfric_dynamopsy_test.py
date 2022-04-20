@@ -39,6 +39,7 @@ dynamo0.3.py file.'''
 from collections import OrderedDict
 import os
 
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynamoPSy, DynamoInvokes
 from psyclone.parse.algorithm import parse
@@ -155,6 +156,11 @@ def test_dynamopsy_gen():
         os.path.join(
             BASE_PATH, "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
+    # Make sure we have distributed memory enabled, otherwise we can
+    # get errors in parallel builds if a previous jobs leave this
+    # to be false.
+    config = Config.get()
+    config.distributed_memory = True
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert (
