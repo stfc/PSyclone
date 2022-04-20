@@ -43,6 +43,7 @@ from __future__ import absolute_import
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
                                   Reference)
@@ -156,6 +157,8 @@ class SymPyWriter(FortranWriter):
         :rtype: 2-tuple (list of SymPy expressions, \
             dict of string:Sympy-data-type)
 
+        :raises ParseError: if an invalid SymPy expression is found.
+
         '''
         # Create the type_map that will include all symbols used in both
         # expressions.
@@ -176,8 +179,12 @@ class SymPyWriter(FortranWriter):
             # pylint: disable=protected-access
             expression_str_list.append(writer._visit(expr))
 
-        return ([parse_expr(expr, type_map) for expr in expression_str_list],
-                type_map)
+        try:
+            return ([parse_expr(expr, type_map)
+                     for expr in expression_str_list],
+                    type_map)
+        except SyntaxError as err:
+            raise ParseError("Invalid SymPy expression") from err
 
     @staticmethod
     def convert_to_sympy_expressions(list_of_expressions):

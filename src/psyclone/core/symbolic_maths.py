@@ -41,6 +41,8 @@ functions.'''
 
 from sympy import Complexes, core, expand, simplify, solveset
 
+from psyclone.parse.utils import ParseError
+
 
 class SymbolicMaths:
     '''A wrapper around the symbolic maths package 'sympy'. It
@@ -119,7 +121,10 @@ class SymbolicMaths:
         :rtype: bool
 
         '''
-        result = SymbolicMaths.subtract(exp1, exp2)
+        try:
+            result = SymbolicMaths.subtract(exp1, exp2)
+        except ParseError:
+            return False
 
         # If the result is 0, they are always the same:
         if isinstance(result, core.numbers.Zero):
