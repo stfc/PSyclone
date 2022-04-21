@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: S. Siso, STFC Daresbury Laboratory
+#           A. R. Porter, STFC Daresbury Laboratory
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -42,9 +43,8 @@ matrix vector multiply. At the moment this transformation is limited
 to matrix vector multiply.
 
 '''
-from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, DataNode
+    Loop, Literal, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
@@ -78,8 +78,9 @@ def _get_array_bound(array, index):
 
     my_dim = array.symbol.shape[index]
     if isinstance(my_dim, ArrayType.ArrayBounds):
-        lower_bound = my_dim.lower
-        upper_bound = my_dim.upper
+        # Use .copy() to ensure we return new nodes.
+        lower_bound = my_dim.lower.copy()
+        upper_bound = my_dim.upper.copy()
     elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),
@@ -89,8 +90,8 @@ def _get_array_bound(array, index):
             Literal(str(index), INTEGER_TYPE))
     else:
         raise TransformationError(
-            "Unsupported index type '{0}' found for dimension {1} of array "
-            "'{2}'.".format(type(my_dim).__name__, index+1, array.name))
+            f"Unsupported index type '{type(my_dim).__name__}' found for "
+            f"dimension {index+1} of array '{array.name}'.")
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
@@ -163,34 +164,32 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if not (isinstance(matrix, Reference) and
                 isinstance(vector, Reference)):
             raise TransformationError(
-                "Expected children of a MATMUL BinaryOperation to be "
-                "references, but found '{0}', '{1}'."
-                "".format(type(matrix).__name__,
-                          type(vector).__name__))
+                f"Expected children of a MATMUL BinaryOperation to be "
+                f"references, but found '{type(matrix).__name__}', "
+                f"'{type(vector).__name__}'.")
 
         # The children of matvec should be References to arrays
         if not (matrix.symbol.shape or vector.symbol.shape):
             raise TransformationError(
-                "Expected children of a MATMUL BinaryOperation to be "
-                "references to arrays, but found '{0}', '{1}'."
-                "".format(type(matrix.symbol).__name__,
-                          type(vector.symbol).__name__))
+                f"Expected children of a MATMUL BinaryOperation to be "
+                f"references to arrays, but found "
+                f"'{type(matrix.symbol).__name__}', "
+                f"'{type(vector.symbol).__name__}'.")
 
         # The first child (the matrix) should be declared as an array
         # with at least 2 dimensions
         if len(matrix.symbol.shape) < 2:
             raise TransformationError(
-                "Expected 1st child of a MATMUL BinaryOperation to be "
-                "a matrix with at least 2 dimensions, but found '{0}'."
-                "".format(len(matrix.symbol.shape)))
+                f"Expected 1st child of a MATMUL BinaryOperation to be a "
+                f"matrix with at least 2 dimensions, but found "
+                f"'{len(matrix.symbol.shape)}'.")
+
         if len(matrix.symbol.shape) > 2 and not matrix.children:
             # If the matrix has no children then it is a reference. If
-            # it is a reference then the number of arguments must be
-            # 2.
+            # it is a reference then the number of arguments must be 2.
             raise TransformationError(
-                "Expected 1st child of a MATMUL BinaryOperation to have 2 "
-                "dimensions, but found '{0}'."
-                "".format(len(matrix.symbol.shape)))
+                f"Expected 1st child of a MATMUL BinaryOperation to have 2 "
+                f"dimensions, but found '{len(matrix.symbol.shape)}'.")
         if len(matrix.symbol.shape) == 2 and not matrix.children:
             # If the matrix only has 2 dimensions and all of its data is
             # used in the matrix vector multiply then the reference does
@@ -208,28 +207,27 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # dimension.
             if not (matrix.is_full_range(0) and matrix.is_full_range(1)):
                 raise NotImplementedError(
-                    "To use matmul2code_trans on matmul, indices 0 and 1 of "
-                    "the 1st (matrix) argument '{0}' must be full ranges."
-                    "".format(matrix.name))
+                    f"To use matmul2code_trans on matmul, indices 0 and 1 of "
+                    f"the 1st (matrix) argument '{matrix.name}' must be full "
+                    f"ranges.")
 
             if len(matrix.children) > 2:
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix.children[2:]):
                     if isinstance(index, Range):
                         raise NotImplementedError(
-                            "To use matmul2code_trans on matmul, only the "
-                            "first two indices of the 1st (matrix) argument "
-                            "are permitted to be Ranges but found {0} at "
-                            "index {1}.".format(type(index).__name__, count+2))
+                            f"To use matmul2code_trans on matmul, only the "
+                            f"first two indices of the 1st (matrix) argument "
+                            f"are permitted to be Ranges but found "
+                            f"{type(index).__name__} at index {count+2}.")
 
         if len(vector.symbol.shape) > 1 and not vector.children:
             # If the vector has no children then it is a reference. If
             # it is a reference then the number of arguments must be
             # 1.
             raise TransformationError(
-                "Expected 2nd child of a MATMUL BinaryOperation to have 1 "
-                "dimension, but found '{0}'."
-                "".format(len(vector.symbol.shape)))
+                f"Expected 2nd child of a MATMUL BinaryOperation to have 1 "
+                f"dimension, but found '{len(vector.symbol.shape)}'.")
         if len(vector.symbol.shape) == 1 and not vector.children:
             # If the vector only has 1 dimension and all of its data is
             # used in the matrix vector multiply then the reference does
@@ -244,18 +242,17 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # specify the full extent of the dimension.
             if not vector.is_full_range(0):
                 raise NotImplementedError(
-                    "To use matmul2code_trans on matmul, index 0 of the 2nd "
-                    "(vector) argument '{0}' must be a full range."
-                    "".format(matrix.name))
+                    f"To use matmul2code_trans on matmul, index 0 of the 2nd "
+                    f"(vector) argument '{vector.name}' must be a full range.")
             if len(vector.children) > 1:
                 # The 2nd index and onwards must not be ranges.
                 for (count, index) in enumerate(vector.children[1:]):
                     if isinstance(index, Range):
                         raise NotImplementedError(
-                            "To use matmul2code_trans on matmul, only the "
-                            "first index of the 2nd (vector) argument is "
-                            "permitted to be a Range but found {0} at index "
-                            "{1}.".format(type(index).__name__, count+1))
+                            f"To use matmul2code_trans on matmul, only the "
+                            f"first index of the 2nd (vector) argument is "
+                            f"permitted to be a Range but found "
+                            f"{type(index).__name__} at index {count+1}.")
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the

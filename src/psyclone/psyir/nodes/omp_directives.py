@@ -849,6 +849,23 @@ class OMPDoDirective(OMPRegionDirective):
         super(OMPDoDirective, self).__init__(children=children,
                                              parent=parent)
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two OMPDoDirective nodes are equal
+        if they have the same schedule, the same reproducible reduction option
+        (and the inherited equality is True).
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.omp_schedule == other.omp_schedule
+        is_eq = is_eq and self.reprod == other.reprod
+
+        return is_eq
+
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -874,6 +891,14 @@ class OMPDoDirective(OMPRegionDirective):
                 reduction_str += ", reduction({0}:{1})".format(
                     OMP_OPERATOR_MAPPING[reduction_type], reduction)
         return reduction_str
+
+    @property
+    def omp_schedule(self):
+        '''
+        :returns: the omp_schedule for this object.
+        :rtype: str
+        '''
+        return self._omp_schedule
 
     @property
     def reprod(self):
@@ -1091,6 +1116,22 @@ class OMPLoopDirective(OMPRegionDirective):
         super(OMPLoopDirective, self).__init__(**kwargs)
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two OMPLoopDirective nodes are
+        equal if they have the same collapse status and the inherited
+        equality is true.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.collapse == other.collapse
+
+        return is_eq
 
     @property
     def collapse(self):

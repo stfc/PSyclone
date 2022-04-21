@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (KernelType) and
@@ -1027,10 +1028,15 @@ class DynamoPSy(PSy):
         # the "use" statements in modules that contain PSy-layer routines.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod, const.DATA_TYPE_MAP["field"]["module"],
-                       const.DATA_TYPE_MAP["r_solver_field"]["module"],
-                       const.DATA_TYPE_MAP["integer_field"]["module"],
-                       const.DATA_TYPE_MAP["operator"]["module"]]
+        infmod_list = [const_mod]
+        # Add all field and operator modules that might be used in the
+        # algorithm layer. These do not appear in the code unless a
+        # variable is added to the "only" part of the
+        # '_infrastructure_modules' map.
+        for data_type_info in const.DATA_TYPE_MAP.values():
+            infmod_list.append(data_type_info["module"])
+
+        # This also removes any duplicates from infmod_list
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -3655,16 +3661,16 @@ class DynLMAOperators(DynCollection):
                 # This datatype has not been seen before so create new entry
                 operators_datatype_map[op_arg.data_type] = [op_arg]
         # Declare the operators
-        for operator_datatype, operators_list in operators_datatype_map.items():
-            operators_names = [arg.declaration_name for arg in operators_list]
+        for op_datatype, op_list in operators_datatype_map.items():
+            operators_names = [arg.declaration_name for arg in op_list]
             parent.add(TypeDeclGen(
-                parent, datatype=operator_datatype,
+                parent, datatype=op_datatype,
                 entity_decls=operators_names, intent="in"))
-            op_mod = operators_list[0].module_name
+            op_mod = op_list[0].module_name
             # Record that we will need to import this operator
             # datatype from the appropriate infrastructure module
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(operator_datatype))
+             add(op_datatype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3944,7 +3950,7 @@ class DynMeshes(object):
 
             # Create an object to capture info. on this inter-grid kernel
             # and store in our dictionary
-            self._ig_kernels[call] = DynInterGrid(fine_arg, coarse_arg)
+            self._ig_kernels[id(call)] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
             _name_set.add("mesh_{0}".format(fine_arg.name))
@@ -4049,7 +4055,7 @@ class DynMeshes(object):
             # This is an inter-grid kernel so look-up the names of
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
-            carg_name = self._ig_kernels[call].coarse.name
+            carg_name = self._ig_kernels[id(call)].coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
             colour_map = self._schedule.symbol_table.find_or_create_tag(
@@ -4074,9 +4080,9 @@ class DynMeshes(object):
                     datatype=array_type_1d).name
             # Add these names into the dictionary entry for this
             # inter-grid kernel
-            self._ig_kernels[call].colourmap = colour_map
-            self._ig_kernels[call].ncolours_var = ncolours
-            self._ig_kernels[call].last_cell_var = last_cell
+            self._ig_kernels[id(call)].colourmap = colour_map
+            self._ig_kernels[id(call)].ncolours_var = ncolours
+            self._ig_kernels[id(call)].last_cell_var = last_cell
 
         if have_non_intergrid and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
@@ -7422,7 +7428,7 @@ class DynLoop(Loop):
         # optional argument.
         required, _ = exchange.required(ignore_hex_dep=True)
         if not required:
-            exchange.parent.children.remove(exchange)
+            exchange.detach()
         else:
             # The halo exchange we have added may be replacing an
             # existing one. If so, the one being replaced will be the
@@ -7444,7 +7450,7 @@ class DynLoop(Loop):
                             "for field {0}, a subsequent dependent halo "
                             "exchange was found. This should never happen."
                             "".format(exchange.field.name))
-                    first_dep_call.parent.children.remove(first_dep_call)
+                    first_dep_call.detach()
 
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add (a) halo exchange call(s) immediately
@@ -7489,8 +7495,7 @@ class DynLoop(Loop):
                             halo_exchange = dep_arg.call
                             required, _ = halo_exchange.required()
                             if not required:
-                                halo_exchange.parent.children.remove(
-                                    halo_exchange)
+                                halo_exchange.detach()
 
     def create_halo_exchanges(self):
         '''Add halo exchanges before this loop as required by fields within
@@ -7557,7 +7562,11 @@ class DynLoop(Loop):
         inv_sched = self.ancestor(InvokeSchedule)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
-        posn = loops.index(self)
+        posn = None
+        for index, loop in enumerate(loops):
+            if loop is self:
+                posn = index
+                break
         lbound = sym_table.lookup_with_tag(f"loop{posn}_start")
         return Reference(lbound)
 
@@ -7602,7 +7611,11 @@ class DynLoop(Loop):
         # This isn't a 'colour' loop so we have already set-up a
         # variable that holds the upper bound.
         loops = inv_sched.loops()
-        posn = loops.index(self)
+        posn = None
+        for index, loop in enumerate(loops):
+            if loop is self:
+                posn = index
+                break
         ubound = sym_table.lookup_with_tag(f"loop{posn}_stop")
         return Reference(ubound)
 
@@ -8066,11 +8079,11 @@ class DynKern(CodedKern):
                                 f"coloured loop.")
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            cmap = invoke.meshes.intergrid_kernels[self].colourmap
+            cmap = invoke.meshes.intergrid_kernels[id(self)].colourmap
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
         return cmap
@@ -8093,11 +8106,11 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            return invoke.meshes.intergrid_kernels[self].last_cell_var
+            return invoke.meshes.intergrid_kernels[id(self)].last_cell_var
 
         return self.scope.symbol_table.lookup_with_tag(
             "last_cell_all_colours").name
@@ -8118,11 +8131,11 @@ class DynKern(CodedKern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
-            if self not in invoke.meshes.intergrid_kernels:
+            if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes.intergrid_kernels[self].ncolours_var
+            ncols = invoke.meshes.intergrid_kernels[id(self)].ncolours_var
         else:
             ncols = self.scope.symbol_table.lookup_with_tag("ncolour").name
         return ncols
@@ -9137,18 +9150,11 @@ class DynKernelArgument(KernelArgument):
         if alg_datatype_info:
             alg_datatype, alg_precision = alg_datatype_info
 
+        const = LFRicConstants()
         if arg_info and arg_info.form == "collection":
-            if alg_datatype == "field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from a field_vector_type. The type of fields within
-                # field_vector_type is always field_type.
-                alg_datatype = "field_type"
-            elif alg_datatype == "r_solver_field_vector_type":
-                # This is a field that has been passed by de-referencing
-                # from an r_solver_field_vector_type. The type of fields within
-                # r_solver_field_vector_type is always r_solver_field_type.
-                alg_datatype = "r_solver_field_type"
-            else:
+            try:
+                alg_datatype = const.FIELD_VECTOR_TO_FIELD_MAP[alg_datatype]
+            except KeyError:
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
@@ -9309,6 +9315,8 @@ class DynKernelArgument(KernelArgument):
                 argtype = "field"
             elif alg_datatype == "r_solver_field_type":
                 argtype = "r_solver_field"
+            elif alg_datatype == "r_tran_field_type":
+                argtype = "r_tran_field"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "

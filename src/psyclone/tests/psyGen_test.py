@@ -539,9 +539,9 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
     assert ("Can not module-inline subroutine 'ru_code' because symbol"
-            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
-            "already exists and changing names of module-inlined subroutines "
-            "is not implemented yet.") in str(err.value)
+            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
+            "same name already exists and changing names of module-inlined "
+            "subroutines is not implemented yet.") in str(err.value)
 
     # TODO # 898. Manually force removal of previous symbol as
     # symbol_table.remove() for DataSymbols is not implemented yet.
@@ -1021,7 +1021,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
     builtin = schedule.walk(BuiltIn)[0]
     arg = builtin.arguments.args[0]
     arg._precision = ""
-    
+
     generated_code = str(psy.gen)
 
     if dist_mem:

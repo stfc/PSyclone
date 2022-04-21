@@ -91,16 +91,14 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
-    # Addressing issue #1238 will allow the view() method to be output
-    # to the logger.
-    # logger.debug(tl_psyir.view())
+    logger.debug(f"PSyIR\n{tl_psyir.view(colour=False)}")
 
     # Apply any required transformations to the TL PSyIR
-    preprocess_trans(tl_psyir)
+    logger.debug("Preprocessing")
+    preprocess_trans(tl_psyir, active_variables)
 
-    # Addressing issue #1238 will allow the view() method to be output
-    # to the logger.
-    # logger.debug(tl_psyir.view())
+    logger.debug(f"PSyIR after TL preprocessing\n"
+                 f"{tl_psyir.view(colour=False)}")
 
     # TL to AD translation
     ad_psyir = generate_adjoint(tl_psyir, active_variables)

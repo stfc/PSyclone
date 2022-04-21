@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,10 +66,22 @@ class Container(ScopingNode, CommentableMixin):
     _text_name = "Container"
     _colour = "green"
 
-    def __init__(self, name, parent=None, symbol_table=None):
-        super(Container, self).__init__(parent=parent,
-                                        symbol_table=symbol_table)
+    def __init__(self, name, **kwargs):
+        super().__init__(**kwargs)
         self._name = name
+
+    def __eq__(self, other):
+        '''Checks the equality of this Container with other. Containers are
+        equal if they are the same type, and have the same name.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.name == other.name
+        return is_eq
 
     @staticmethod
     def _validate_child(position, child):
@@ -109,24 +121,19 @@ class Container(ScopingNode, CommentableMixin):
         '''
         if not isinstance(name, str):
             raise GenerationError(
-                "name argument in create method of Container class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
+                f"name argument in create method of Container class "
+                f"should be a string but found '{type(name).__name__}'.")
         if not isinstance(symbol_table, SymbolTable):
             raise GenerationError(
-                "symbol_table argument in create method of Container class "
-                "should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
+                f"symbol_table argument in create method of Container class "
+                f"should be a SymbolTable but found "
+                f"'{type(symbol_table).__name__}'.")
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of Container class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of Container class "
+                f"should be a list but found '{type(children).__name__}'.")
 
-        container = cls(name)
-        # pylint: disable=protected-access
-        container._symbol_table = symbol_table
-        symbol_table._node = container
+        container = cls(name, symbol_table=symbol_table)
         container.children = children
         return container
 
@@ -158,10 +165,10 @@ class Container(ScopingNode, CommentableMixin):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[{0}]".format(self.name)
+        return self.coloured_name(colour) + f"[{self.name}]"
 
     def __str__(self):
-        return "Container[{0}]\n".format(self.name)
+        return f"Container[{self.name}]\n"
 
 
 # For AutoAPI documentation generation

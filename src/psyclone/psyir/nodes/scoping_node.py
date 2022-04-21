@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,21 @@ class ScopingNode(Node):
             self._symbol_table = symbol_table
         else:
             self._symbol_table = self._symbol_table_class(self)
+        self._symbol_table._node = self
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Scoping nodes are equal if their
+        symbol tables are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.symbol_table == other.symbol_table
+        return is_eq
 
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
