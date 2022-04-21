@@ -214,7 +214,8 @@ def _create_function_spaces(prog, fspaces):
                                     f"TYPE(function_space_type), TARGET :: "
                                     f"vector_space_{space}"))
         vsym_ptr = table.new_symbol(
-            f"vector_space_{space}_ptr", symbol_type=DataSymbol,
+            f"vector_space_{space}_ptr", tag=f"{space}_ptr",
+            symbol_type=DataSymbol,
             datatype=UnknownFortranType(
                 f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr"))
@@ -318,8 +319,8 @@ def initialise_operator(prog, op_sym, space_to, space_from):
     '''
     reader = FortranReader()
     table = prog.symbol_table
-    space_to_sym = table.lookup(f"vector_space_{space_to}")
-    space_from_sym = table.lookup(f"vector_space_{space_from}")
+    space_to_sym = table.lookup_with_tag(f"{space_to}_ptr")
+    space_from_sym = table.lookup_with_tag(f"{space_from}_ptr")
     psyir = reader.psyir_from_expression(f"operator_type({space_to_sym.name}, "
                                          f"{space_from_sym.name})", table)
     prog.addchild(Assignment.create(Reference(op_sym), psyir))

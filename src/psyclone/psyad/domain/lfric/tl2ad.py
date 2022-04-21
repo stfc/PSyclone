@@ -40,7 +40,7 @@ from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.alg_gen import (
     _create_alg_driver, construct_kernel_args,
-    initialise_field)
+    initialise_field, initialise_operator)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import KernelTypeFactory
@@ -147,13 +147,15 @@ def generate_lfric_adjoint_test(tl_source):
         input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
-        input_symbols[sym] = input_sym
+        input_symbols[sym.name] = input_sym
 
     # Create symbols for the various Builtins that we will use.
     # TODO these symbols are not added to the SymbolTable because they only
     # exist as part of the DSL.
     setval_x = DataTypeSymbol("setval_x", DeferredType())
     setval_rand = DataTypeSymbol("setval_random", DeferredType())
+    setop_x = DataTypeSymbol("setop_x", DeferredType())
+    setop_rand = DataTypeSymbol("setop_random", DeferredType())
     x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
     x_innerprod_y = DataTypeSymbol("x_innerproduct_y", DeferredType())
 
@@ -169,7 +171,7 @@ def generate_lfric_adjoint_test(tl_source):
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     for sym, space in kern_args.fields:
-        input_sym = input_symbols[sym]
+        input_sym = input_symbols[sym.name]
         if isinstance(sym.datatype, DataTypeSymbol):
             initialise_field(prog, input_sym, space)
             kernel_list.append(LFRicBuiltinFunctor.create(setval_rand,
@@ -196,8 +198,15 @@ def generate_lfric_adjoint_test(tl_source):
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
 
-    for blah in kern_args.operators:
-        pass
+    #import pdb; pdb.set_trace()
+    for sym, to_space, from_space in kern_args.operators:
+        input_sym = input_symbols[sym.name]
+        # Initialise the operator that will keep a copy of the input values.
+        initialise_operator(prog, input_sym, to_space, from_space)
+        kernel_list.append(LFRicBuiltinFunctor.create(setop_rand,
+                                                      [Reference(sym)]))
+        kernel_list.append(LFRicBuiltinFunctor.create(
+            setop_x, [Reference(input_sym), Reference(sym)]))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
@@ -265,7 +274,7 @@ def generate_lfric_adjoint_test(tl_source):
     for sym, space in kern_args.fields:
         inner_prod_name = sym.name+"_inner_prod"
         ip_sym = table.lookup(inner_prod_name)
-        input_sym = input_symbols[sym]
+        input_sym = input_symbols[sym.name]
         if isinstance(sym.datatype, DataTypeSymbol):
             prog.addchild(Assignment.create(Reference(ip_sym),
                                             Literal("0.0", rdef_type)))
@@ -304,7 +313,7 @@ def generate_lfric_adjoint_test(tl_source):
     inner2_sym = table.new_symbol("inner2", symbol_type=DataSymbol,
                                   datatype=rdef_type)
     scalars = zip(kern_args.scalars,
-                  [input_symbols[sym] for sym in kern_args.scalars])
+                  [input_symbols[sym.name] for sym in kern_args.scalars])
     _compute_lfric_inner_products(prog, scalars, field_ip_symbols, inner2_sym)
 
     # Finally, compare the two inner products.
