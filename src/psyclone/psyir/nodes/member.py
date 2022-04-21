@@ -139,10 +139,10 @@ class Member(Node):
         return (Signature(self.name), [[]])
 
     def rank_of_subsection(self):
-        '''Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section
-        of the array that uses array notation. e.g. for a reference
-        "a(:, 2, :)" the rank of the sub-section is 2.
+        '''Compute the rank of any array subsection represented by this
+        component of a structure type plust that of any child component
+        accesses. e.g. for a reference "a(:, 2, :)" the rank of the
+        sub-section is 2.
 
         :returns: rank of the sub-section of the array.
         :rtype: int

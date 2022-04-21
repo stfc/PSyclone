@@ -130,27 +130,13 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         return ref
 
     def rank_of_subsection(self):
-        '''Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section
-        of the array that uses array notation. e.g. for a reference
-        "a(:, 2, :)" the rank of the sub-section is 2.
-
-        :param node: the reference to check.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
-            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
-            :py:class:`psyclone.psyir.nodes.StructureReference`
+        '''Return the rank of the sub-section of this array that uses array
+        notation. e.g. for a reference a(:, 2, :)" the rank of the
+        sub-section is 2.
 
         :returns: rank of the sub-section of the array.
         :rtype: int
 
-        :raises InternalError: if no ArrayMixin node with at least one \
-                               Range in its indices is found.
-        :raises InternalError: if two or more part references in a \
-                               structure reference contain ranges.
-        :raises NotImplementedError: if the supplied node is not of a \
-                                     supported type.
-        :raises NotImplementedError: if any ranges are encountered that are \
-                                     not for the full extent of the dimension.
         '''
         return StructureReference.rank_of_subsection(self)
 
