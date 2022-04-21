@@ -81,6 +81,10 @@ transform_parallel_dm:
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 #TODO #1669 - the code currently does not compile
+#             set_dirty calls inside openacc region
+#TODO #1694 - the code currently does not compile
+#             incorrect variable names and constants
+#             when using builtin
 compile: transform_parallel_dm $(EXEC)
 
 run: compile
