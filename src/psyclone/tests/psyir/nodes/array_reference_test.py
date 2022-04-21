@@ -494,7 +494,7 @@ def test_subsection_rank_errors():
     symbol = DataSymbol("my_array", array_type)
     my_array = ArrayReference(symbol)
     with pytest.raises(InternalError) as err:
-        my_array.rank_of_subsection
+        my_array.rank_of_subsection()
     assert ("ArrayReference malformed or incomplete: must have one or more "
             "children representing array-index expressions but array "
             "'my_array' has none." in str(err.value))
@@ -504,9 +504,11 @@ def test_subsection_rank_errors():
         [Range.create(Literal("1", INTEGER_TYPE),
                       Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
-        my_array.rank_of_subsection
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
+        my_array.rank_of_subsection()
+    assert ("Only subsections that involve the full extent of a given array "
+            "dimension are supported but index 0 of 'my_array' contains a "
+            "Range that is not for the full extent: my_array(1:10)"
+            in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
@@ -515,21 +517,23 @@ def test_array_subsection_rank(fortran_reader):
     of array notation.
 
     '''
-    fake_parent = KernelSchedule()
+    fake_parent = KernelSchedule("fake")
     table = fake_parent.symbol_table
     table.new_symbol("z1_st")
     table.new_symbol("ptsu")
     table.new_symbol("n")
     psyir = fortran_reader.psyir_from_statement(
         "z1_st(:, 2, :) = ptsu(:, :, 3)", table)
-    assert psyir.lhs.rank_of_subsection == 2
+    assert psyir.lhs.rank_of_subsection() == 2
     psyir = fortran_reader.psyir_from_statement(
         "z1_st(:, :, 2, :) = ptsu(:, :, :, 3)", table)
-    assert psyir.lhs._array_notation_rank() == 3
+    assert psyir.lhs.rank_of_subsection() == 3
     # We don't support bounds on slices
     psyir = fortran_reader.psyir_from_statement(
         "z1_st(:, 1:n, 2, :) = ptsu(:, :, :, 3)", table)
     with pytest.raises(NotImplementedError) as err:
         psyir.lhs.rank_of_subsection()
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
+    assert ("Only subsections that involve the full extent of a given "
+            "array dimension are supported but index 1 of 'z1_st' contains "
+            "a Range that is not for the full extent: z1_st(:,1:n,2,:)"
+            in str(err.value))

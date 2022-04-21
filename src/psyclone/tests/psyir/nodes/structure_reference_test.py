@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -194,10 +194,8 @@ def test_array_notation_rank():
     '''
     # Structure reference containing no array access
     symbol = symbols.DataSymbol("field", symbols.DeferredType())
-    with pytest.raises(InternalError) as err:
-        nodes.StructureReference.create(
-            symbol, ["first", "second"])._array_notation_rank()
-    assert "No array access found in node 'field'" in str(err.value)
+    assert nodes.StructureReference.create(
+        symbol, ["first", "second"]).rank_of_subsection() == 0
 
     # Structure reference with ranges in more than one part reference.
     int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
@@ -217,35 +215,37 @@ def test_array_notation_rank():
         nodes.BinaryOperation.Operator.UBOUND,
         sref.copy(), int_one.copy())
     range2 = nodes.Range.create(lbound2, ubound2)
+    # TODO decide whether we want rank_of_subsection() to check that only
+    # one member of a structure reference contains array notation.
     # The create() method will prevent us creating a StructureReference with
     # a Range in more than one component so we have to monkeypatch.
-    sref = nodes.StructureReference.create(
-        symbol, [("first", [my_range.copy()]), "second"])
-    from psyclone.psyir.nodes import ArrayMember
-    sref.member.children[0] = ArrayMember.create("second", [range2])
+    #sref = nodes.StructureReference.create(
+    #    symbol, [("first", [my_range.copy()]), "second"])
+    #from psyclone.psyir.nodes import ArrayMember
+    #sref.member.children[0] = ArrayMember.create("second", [range2])
 
-    with pytest.raises(InternalError) as err:
-        sref._array_notation_rank()
-    assert ("Found a structure reference containing two or more part "
-            "references that have ranges: 'field%first(:)%second(:)'. This "
-            "is not valid PSyIR." in str(err.value))
+    #with pytest.raises(InternalError) as err:
+    #    sref.rank_of_subsection()
+    #assert ("Found a structure reference containing two or more part "
+    #        "references that have ranges: 'field%first(:)%second(:)'. This "
+    #        "is not valid PSyIR." in str(err.value))
     # Repeat but this time for an ArrayOfStructuresReference.
-    lbound3 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(symbol), int_one.copy())
-    ubound3 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(symbol), int_one.copy())
-    range3 = nodes.Range.create(lbound3, ubound3)
-    with pytest.raises(InternalError) as err:
-        nodes.ArrayOfStructuresReference.create(
-            symbol, [range3],
-            ["first", ("second", [range2.copy()])])._array_notation_rank()
-    assert ("Found a structure reference containing two or more part "
-            "references that have ranges: 'field(LBOUND(field%first, 1):"
-            "UBOUND(field%first, 1))%first%second("
-            "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
-            "valid PSyIR." in str(err.value))
+    #lbound3 = nodes.BinaryOperation.create(
+    #    nodes.BinaryOperation.Operator.LBOUND,
+    #    nodes.Reference(symbol), int_one.copy())
+    #ubound3 = nodes.BinaryOperation.create(
+    #    nodes.BinaryOperation.Operator.UBOUND,
+    #    nodes.Reference(symbol), int_one.copy())
+    #range3 = nodes.Range.create(lbound3, ubound3)
+    #with pytest.raises(InternalError) as err:
+    #    nodes.ArrayOfStructuresReference.create(
+    #        symbol, [range3],
+    #        ["first", ("second", [range2.copy()])]).rank_of_subsection()
+    #assert ("Found a structure reference containing two or more part "
+    #        "references that have ranges: 'field(LBOUND(field%first, 1):"
+    #        "UBOUND(field%first, 1))%first%second("
+    #        "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
+    #        "valid PSyIR." in str(err.value))
 
 
 def test_struc_ref_semantic_nav():

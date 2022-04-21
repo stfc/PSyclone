@@ -142,23 +142,16 @@ def test_am_is_lower_upper_bound():
     assert amem2.is_upper_bound(1) is True
 
 
-def test_array_notation_rank():
-    '''Test the _array_notation_rank method.
+def test_rank_of_subsection():
+    '''Test the rank_of_subsection method.
 
     '''
     int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
-#    # Wrong type of argument
-#    with pytest.raises(NotImplementedError) as err:
-#        Fparser2Reader._array_notation_rank(int_one)
-#    assert ("Expected either an ArrayReference, ArrayMember or a "
-#            "StructureReference but got 'Literal'" in str(err.value))
 
     # Structure reference containing no array access
     symbol = symbols.DataSymbol("field", symbols.DeferredType())
-    with pytest.raises(InternalError) as err:
-        nodes.StructureReference.create(
-            symbol, ["first", "second"])._array_notation_rank()
-    assert "No array access found in node 'field'" in str(err.value)
+    assert nodes.StructureReference.create(
+            symbol, ["first", "second"]).rank_of_subsection() == 0
 
     # Structure reference with ranges in more than one part reference.
     sref1 = nodes.StructureReference.create(symbol, ["first"])
@@ -174,13 +167,12 @@ def test_array_notation_rank():
     ubound2 = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.UBOUND, sref.copy(), int_one.copy())
     range2 = nodes.Range.create(lbound2, ubound2)
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(ValueError) as err:
         nodes.StructureReference.create(
             symbol, [("first", [range1.copy()]),
-                     ("second", [range2])])._array_notation_rank()
-    assert ("Found a structure reference containing two or more part "
-            "references that have ranges: 'field%first(:)%second(:)'. "
-            "This is not valid within a WHERE in Fortran." in str(err.value))
+                     ("second", [range2])]).rank_of_subsection()
+    assert ("create() may contain a Range but both 'first' and 'second' have "
+            "Ranges." in str(err.value))
     # Repeat but this time for an ArrayOfStructuresReference.
     lbound3 = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.LBOUND,
@@ -193,15 +185,16 @@ def test_array_notation_rank():
             symbol, [range3.copy()],
             ["first", ("second", [range2.copy()])])
     with pytest.raises(NotImplementedError) as err:
-        asref._array_notation_rank()
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
+        asref.rank_of_subsection()
+    assert ("Only subsections that involve the full extent of a given array "
+            "dimension are supported but index 0 of 'second' contains a "
+            "Range that is not for the full extent: second" in str(err.value))
 
     # An array with no subsection has rank of zero
     array_type = symbols.ArrayType(symbols.REAL_TYPE, [10])
     symbol = symbols.DataSymbol("a", array_type)
     array = nodes.ArrayReference.create(symbol, [int_one.copy()])
-    assert array.rank_of_subsection == 0
+    assert array.rank_of_subsection() == 0
 
     # If array syntax notation is found, it must be for all elements
     # in that dimension
@@ -224,18 +217,18 @@ def test_array_notation_rank():
     range2 = nodes.Range.create(lbound_op3, ubound_op3)
     one = nodes.Literal("1", symbols.INTEGER_TYPE)
     array = nodes.ArrayReference.create(symbol, [range1, one.copy(), range2])
-    result = array.rank_of_subsection
     # Two array dimensions use array notation.
-    assert result == 2
+    assert array.rank_of_subsection() == 2
 
     # Make one of the array notation dimensions differ from what is required.
     range2 = nodes.Range.create(lbound_op3.copy(), one.copy())
     array = nodes.ArrayReference.create(symbol, [range1.copy(), one.copy(),
                                                  range2.copy()])
     with pytest.raises(NotImplementedError) as excinfo:
-        array.rank_of_subsection
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(excinfo.value))
+        array.rank_of_subsection()
+    assert ("Only subsections that involve the full extent of a given array "
+            "dimension are supported but index 2 of 'a' contains a Range "
+            "that is not for the full extent: a(:,1,:1)" in str(excinfo.value))
 
 
 def test_am_same_array():
