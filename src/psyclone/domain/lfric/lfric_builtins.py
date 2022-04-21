@@ -1451,7 +1451,6 @@ class LFRicSetOpRandomKern(LFRicSetvalRandomKern):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        import pdb; pdb.set_trace()
         op_name = self._arguments.args[0].proxy_name+"%local_stencil"
         parent.add(CallGen(parent, name="random_number", args=[op_name]))
 

@@ -198,7 +198,6 @@ def generate_lfric_adjoint_test(tl_source):
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
 
-    #import pdb; pdb.set_trace()
     for sym, to_space, from_space in kern_args.operators:
         input_sym = input_symbols[sym.name]
         # Initialise the operator that will keep a copy of the input values.
