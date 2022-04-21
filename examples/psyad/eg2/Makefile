@@ -79,7 +79,7 @@ ${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
 	sed -e 's/PROCEDURE, NOPASS :: ${TL_PROC_NAME}/PROCEDURE, NOPASS :: ${ADJ_PROC_NAME}/' -e 's/:: ${TL_KERNEL_TYPE}/:: ${ADJ_KERNEL_TYPE}/' \
 -e 's/interface ${TL_PROC_NAME}/interface ${ADJ_PROC_NAME}/' \
 -e 's/module procedure ${TL_PROC_NAME}.*\w/&_adj/' \
--e 's/public :: ${TL_PROC_NAME}/public :: ${ADJ_PROC_NAME}/' $< > $@
+-e 's/public :: ${TL_PROC_NAME}$$/public :: ${ADJ_PROC_NAME}/' $< > $@
 
 compile: ${ADJ_KERNEL_F90_FILE} alg.f90 psy.f90 ${LFRIC_LIB} test_harness.exe
 
