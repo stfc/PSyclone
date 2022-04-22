@@ -39,7 +39,7 @@ import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    _get_array_bound
+    _create_matrix_ref, _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
     Assignment, Reference, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
@@ -92,6 +92,58 @@ def create_matmul():
     assign = Assignment.create(lhs, matmul)
     KernelSchedule.create("my_kern", symbol_table, [assign])
     return matmul
+
+
+def test_create_matrix_ref_1d():
+    ''' Test that the _create_matrix_ref() utility works as expected for a
+    1d array.
+
+    '''
+    array_type = ArrayType(REAL_TYPE, [10])
+    array_symbol = DataSymbol("x", array_type)
+    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
+    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [])
+    assert isinstance(ref1, ArrayReference)
+    assert ref1.symbol is array_symbol
+    assert len(ref1.indices) == 1
+    assert ref1.indices[0].symbol is i_loop_sym
+
+
+def test_create_matrix_ref_trailing_indices():
+    ''' Test that the _create_matrix_ref() utility works as expected for an
+    array that has an additional dimension that is not being looped over.
+
+    '''
+    array_type = ArrayType(REAL_TYPE, [10, 5])
+    array_symbol = DataSymbol("x", array_type)
+    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
+    k_sym = DataSymbol("k", INTEGER_TYPE)
+    k_ref = Reference(k_sym)
+    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [k_ref])
+    assert isinstance(ref1, ArrayReference)
+    assert ref1.symbol is array_symbol
+    assert len(ref1.indices) == 2
+    assert ref1.indices[0].symbol is i_loop_sym
+    # The second index should be a *copy* of the expression we supplied.
+    assert ref1.indices[1].symbol is k_sym
+    assert ref1.indices[1] is not k_ref
+
+
+def test_create_matrix_ref_2d():
+    ''' Test that the _create_matrix_ref() utility works as expected for a
+    2d array.
+
+    '''
+    array_type = ArrayType(REAL_TYPE, [10, 8])
+    array_symbol = DataSymbol("x", array_type)
+    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
+    j_loop_sym = DataSymbol("j", INTEGER_TYPE)
+    ref2 = _create_matrix_ref(array_symbol, [i_loop_sym, j_loop_sym], [])
+    assert isinstance(ref2, ArrayReference)
+    assert ref2.symbol is array_symbol
+    assert len(ref2.indices) == 2
+    assert ref2.indices[0].symbol is i_loop_sym
+    assert ref2.indices[1].symbol is j_loop_sym
 
 
 def test_get_array_bound_error():
@@ -312,8 +364,30 @@ def test_validate6():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected children of a MATMUL "
-            "BinaryOperation to be references to arrays, but found "
-            "'DataSymbol', 'DataSymbol'." in str(excinfo.value))
+            "BinaryOperation to be references to arrays but found "
+            "'DataSymbol', 'DataSymbol' for 'x', 'x'." in str(excinfo.value))
+
+
+def test_validate_structure_accesses(fortran_reader):
+    '''
+    Check that the validate() method rejects the case where one or more
+    arguments to the MATMUL are structure accesses.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  use my_mod, only: grid_type\n"
+        "  type(grid_type) :: grid, grid_inv\n"
+        "  real, dimension(5,5) :: result\n"
+        "  result = matmul(grid%data, grid_inv%data)\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assign.rhs)
+    assert ("Expected children of a MATMUL BinaryOperation to be references "
+            "to arrays but found 'DataSymbol', 'DataSymbol' for 'grid', "
+            "'grid_inv'" in str(err.value))
 
 
 def test_validate7():
@@ -459,9 +533,8 @@ def test_validate13():
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two "
-            "indices of the "
-            "2nd argument are permitted to be a Range but found "
-            "Range at index 1." in str(excinfo.value))
+            "indices of the 2nd argument are permitted to be a Range but "
+            "found Range at index 2." in str(excinfo.value))
 
 
 def test_validate14():
@@ -657,8 +730,8 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
-        "  do i = 1, 5, 1\n"
-        "    do j = 1, 6, 1\n"
+        "  do j = 1, 6, 1\n"
+        "    do i = 1, 5, 1\n"
         "      result(i,j) = 0.0\n"
         "      do ii = 1, 3, 1\n"
         "        result(i,j) = result(i,j) + jac(ii,i) * jac_inv(j,ii)\n"
@@ -695,8 +768,8 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
-        "  do i = 1, 5, 1\n"
-        "    do j = 1, 6, 1\n"
+        "  do j = 1, 6, 1\n"
+        "    do i = 1, 5, 1\n"
         "      result(i,j,2) = 0.0\n"
         "      do ii = 1, 3, 1\n"
         "        result(i,j,2) = result(i,j,2) + "
@@ -733,8 +806,8 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
         "  integer :: j_1\n"
         "  integer :: ii_1\n"
         "\n"
-        "  do i_1 = 1, 5, 1\n"
-        "    do j_1 = 1, 6, 1\n"
+        "  do j_1 = 1, 6, 1\n"
+        "    do i_1 = 1, 5, 1\n"
         "      result(i_1,j_1,2) = 0.0\n"
         "      do ii_1 = 1, 3, 1\n"
         "        result(i_1,j_1,2) = result(i_1,j_1,2) + "
