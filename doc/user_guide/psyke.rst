@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by I. Kavcic, Met Office
 .. Modified by J. Henrichs, Bureau of Meteorology
+.. Modified by R. W. Ford, STFC Daresbury Lab
 
 .. highlight:: fortran
 
@@ -201,7 +202,7 @@ would be written as:
 
   # Apply extract transformation to the selected Node
   etrans.apply(schedule.children[2])
-  schedule.view()
+  print(schedule.view())
 
 and called as:
 
@@ -320,7 +321,7 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
   otrans.apply(schedule.children[2])
   # Apply extract transformation to the selected Nodes
   etrans.apply(schedule.children[1:3])
-  schedule.view()
+  print(schedule.view())
 
 The generated code is now:
 

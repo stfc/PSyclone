@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Loop node implementation.'''
@@ -88,7 +89,6 @@ class Loop(Statement):
                  annotations=None):
         super(Loop, self).__init__(self, parent=parent,
                                    annotations=annotations)
-
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
         if annotations:
@@ -121,7 +121,31 @@ class Loop(Statement):
             # first created so only check if it is.
             self._check_variable(variable)
         self._variable = variable
-        self._id = ""
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two Loop nodes are equal
+        if they have equal loop_type, field, field_name, field_space
+        iteraction_space, kernel and variable.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.loop_type == other.loop_type
+        is_eq = is_eq and self.field == other.field
+        is_eq = is_eq and self.field_name == other.field_name
+        is_eq = is_eq and self.field_space == other.field_space
+        is_eq = is_eq and self.iteration_space == other.iteration_space
+        is_eq = is_eq and self.kernel == other.kernel
+        # pylint: disable=protected-access
+        is_eq = is_eq and self._iterates_over == other._iterates_over
+
+        is_eq = is_eq and self.variable == other.variable
+
+        return is_eq
 
     @staticmethod
     def _check_variable(variable):
@@ -348,11 +372,11 @@ class Loop(Statement):
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
-        return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
-                format(self.coloured_name(self._colour),
-                       self._loop_type, self._field_space,
-                       self.iteration_space))
+        return (f"{self.coloured_name(colour)}[type='{self._loop_type}', "
+                f"field_space='{self._field_space}', "
+                f"it_space='{self.iteration_space}']")
 
     @property
     def field_space(self):
@@ -425,8 +449,7 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "id:'" + self._id
-        result += "', variable:'" + self.variable.name
+        result += "variable:'" + self.variable.name
         if self.loop_type:
             result += "', loop_type:'" + self._loop_type
         result += "']\n"

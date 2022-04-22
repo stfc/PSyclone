@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # MOdified J. Henrichs, Bureau of Meteorology
@@ -3561,7 +3561,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 
 
-def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
+def test_reprod_view(monkeypatch, annexed, dist_mem):
     '''test that we generate a correct view() for OpenMP do
     reductions. Also test with and without annexed dofs being computed
     as this affects the output.
@@ -3595,9 +3595,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
             rtrans.apply(child)
-    schedule.view()
-    # only display reprod in schedule view if a reduction
-    result, _ = capsys.readouterr()
+    result = schedule.view()
     if dist_mem:  # annexed can be True or False
         expected = (
             isched + "[invoke='invoke_0', dm=True]\n" +
@@ -3777,13 +3775,13 @@ def test_move_back():
     target_index = 0
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_back_after():
@@ -3797,14 +3795,14 @@ def test_move_back_after():
     target_index = 0
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
                      {"position": "after"})
 
     new_arg = schedule.children[target_index+1]
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_forward():
@@ -3818,15 +3816,13 @@ def test_move_forward():
     target_index = 2
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    schedule.view()
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index])
 
     new_arg = schedule.children[target_index-1]
-    schedule.view()
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 def test_move_forward_after():
@@ -3840,16 +3836,14 @@ def test_move_forward_after():
     target_index = 2
     orig_arg = schedule.children[initial_index]
     new_arg = schedule.children[target_index]
-    schedule.view()
-    assert orig_arg != new_arg
+    assert orig_arg is not new_arg
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
                      {"position": "after"})
 
     new_arg = schedule.children[target_index]
-    schedule.view()
-    assert orig_arg == new_arg
+    assert orig_arg is new_arg
 
 
 # test that move with dependencies fails
@@ -4195,7 +4189,6 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    schedule.view()
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
@@ -6285,16 +6278,13 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
     psy, invoke = get_invoke("22.2_intergrid_3levels.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    schedule.view()
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
     ftrans = LFRicLoopFuseTrans()
     ctrans.apply(loops[0])
     ctrans.apply(loops[1])
-    schedule.view()
     loops = schedule.walk(Loop)
     ftrans.apply(loops[0], loops[2])
-    schedule.view()
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6363,11 +6353,11 @@ def test_accenterdata_builtin(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
-            "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-            "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
-            "undf_w3,map_w3,0.0_r_def,ndf_aspc1_f1,undf_aspc1_f1,"
-            "map_aspc1_f1)" in output)
+    assert ("!$acc enter data copyin(0.0_r_def,f1_proxy,f1_proxy%data,"
+            "f2_proxy,f2_proxy%data,ginger,m1_proxy,m1_proxy%data,m2_proxy,"
+            "m2_proxy%data,map_aspc1_f1,map_w1,map_w2,map_w3,ndf_aspc1_f1,"
+            "ndf_w1,ndf_w2,ndf_w3,nlayers,undf_aspc1_f1,undf_w1,undf_w2,"
+            "undf_w3)" in output)
     assert "loop1_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
             "      do df=loop1_start,loop1_stop\n"
@@ -6452,10 +6442,10 @@ def test_accparalleltrans(tmpdir):
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n"
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
         "      DO cell=loop0_start,loop0_stop") in code
@@ -6527,10 +6517,10 @@ def test_acclooptrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n"
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
         "      !$acc loop independent\n"
@@ -6937,7 +6927,6 @@ def test_move_vector_halo_exchange():
     _, invoke = get_invoke("8.3_multikernel_invokes_vector.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    schedule.view()
 
     # reverse the order of the vector halo exchanges
     mtrans = MoveTrans()

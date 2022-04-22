@@ -83,6 +83,8 @@ As the line-by-line method is used then there are rules that must be
 followed for the different types of statements. This section goes
 through the rules for each supported statement type.
 
+.. _sec_assignment:
+
 Assignment
 ----------
 
@@ -376,25 +378,33 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
+.. _pre-processing:
+  
+Pre-processing
+++++++++++++++
+
+PSyAD implements an internal pre-processing phase where code
+containing unsupported code structures or constructs is transformed
+into code that can be processed. These structures/constructs are
+detailed below.
+
 Array Notation
 --------------
 
 Array notation in tangent-linear codes is translated into equivalent
-loops before the tangent-linear code is transformed into its
-adjoint. This is performed as the rules that are applied to transform
-a tangent-linear code into its adjoint are not always correct when
-array notation is used.
-
-.. note:: At the moment all array notation is translated into
-	  equivalent loops irrespective of whether the associated
-	  variables are active or not.
+loops in the pre-processing phase before the tangent-linear code is
+transformed into its adjoint. This is performed as the rules that are
+applied to transform a tangent-linear code into its adjoint are not
+always correct when array notation is used. Only array notation that
+contains active variables is translated into equivalent loops.
 
 Intrinsics
 ----------
 
 If an intrinsic function, such as ``matmul`` or ``transpose``, is
 found in a tangent-linear code and it contains active variables then
-it must be transformed to its associated adjoint form.
+it must be transformed such that it is replaced by equivalent Fortran
+code. This is performed in the pre-processing phase.
 
 If an unsupported intrinsic function is found then PSyAD will raise an
 exception.
@@ -422,6 +432,17 @@ information on these transformations.
           variables will be detected automatically by PSyAD, see issue
           #1595.
 
+Associativity
+-------------
+
+As described in the :ref:`sec_assignment` section, PSyAD expects
+tangent-linear code to be written as a sum of products of inactive and
+active variables. Therefore if code such as :math:`a(b+c)` is found
+(where :math:`b` and :math:`c` are active) then it must be transformed
+into a recognised form. This is achieved by expanding all such
+expressions as part of the pre-processing phase. In this example, the
+resulting code is :math:`a*b + a*c` which PSyAD can then take the
+adjoint of.
 
 Test Harness
 ++++++++++++
