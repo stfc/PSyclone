@@ -45,7 +45,7 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import (ArgOrdering, LFRicConstants)
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -127,6 +127,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over != "cell_column":
+            return
         nlayers_name = self._symtab.find_or_create_tag("nlayers").name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
@@ -407,6 +409,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over != "cell_column":
+            return
         super(KernCallArgList, self).fs_common(function_space, var_accesses)
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=self.num_args,
