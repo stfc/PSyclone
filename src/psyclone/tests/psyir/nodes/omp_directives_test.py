@@ -780,6 +780,8 @@ def test_omp_task_directive_validate_global_constraints():
             " not find an ancestor node.") in str(excinfo.value)
 
 def test_omp_task_directive_1(fortran_reader, fortran_writer):
+    ''' Test a basic code generation with the task directive applied to a 
+    loop which accesses the full arrays.'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -818,7 +820,7 @@ def test_omp_task_directive_1(fortran_reader, fortran_writer):
 
   !$omp parallel default(shared) private(i,j)
   !$omp single
-  !$omp task private(i,j) shared(a) depend(in: b(i,j)) depend(out: a(i,j))
+  !$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = b(i,j) + 1
@@ -838,6 +840,8 @@ end subroutine my_subroutine\n'''
 
 
 def test_omp_task_directive_2(fortran_reader, fortran_writer):
+    ''' Test the code generation fails when attempting to access an array
+    when using an array element as an index.'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -874,6 +878,8 @@ def test_omp_task_directive_2(fortran_reader, fortran_writer):
             "expression inside an OMPTaskDirective.") in str(excinfo.value)
 
 def test_omp_task_directive_3(fortran_reader, fortran_writer):
+    '''Test the code generation correctly captures if a variable should be
+    declared as firstprivate.'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -916,7 +922,7 @@ def test_omp_task_directive_3(fortran_reader, fortran_writer):
     k = i
   enddo
   !$omp single
-  !$omp task private(i,j) firstprivate(k) shared(a) depend(in: b(:,:)) depend(out: a(:,:))
+  !$omp task private(i,j) firstprivate(k) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = k
@@ -932,6 +938,8 @@ end subroutine my_subroutine\n'''
 
 
 def test_omp_task_directive_4(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly makes the depend clause when
+    accessing an input array shifted by the step size of the outer loop.'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -969,21 +977,441 @@ def test_omp_task_directive_4(fortran_reader, fortran_writer):
   !$omp parallel default(shared) private(i,j)
   !$omp single
   do i = 1, 10, 1
-    !$omp task private(j) firstprivate(i) shared(a) depend(in: k,b(i,j),b(i+1,j)) depend(out: a(i,j))
+    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(i + 1,:)) depend(out: a(i,:))
     do j = 1, 10, 1
       a(i,j) = k
       a(i,j) = b(i + 1,j) + k
     enddo
+    !$omp end task
   enddo
-  !$omp end task
-  do i = 1, 10, 1
-    do j = 1, 10, 1
-      a(i,j) = 0
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_5(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop.
+    This is not quite a real use-case, however its a first check for this 
+    idea.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer, dimension(321, 10) :: B
+        integer :: i
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 32
+                A(i, j) = k
+                A(i, j) = B(i+1, j) + k
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer, dimension(321,10) :: b
+  integer :: i
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared) private(i,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(i + 32,:),b(i,:)) depend(out: a(i,:))
+    do j = 1, 32, 1
+      a(i,j) = k
+      a(i,j) = b(i + 1,j) + k
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_6(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop.
+    This is expected to be similar to a real use-case.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, j) = B(ii+1, j) + k
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,10) :: a
+  integer, dimension(32,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(i + 32,:),b(i,:),k) depend(out: a(i,:))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii,j) = b(ii + 1,j) + k
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+def test_omp_task_directive_7(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop.
+    This is expected to be similar to a real use-case. In this case, we have
+    multiple loops to handle. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 321) :: A
+        integer, dimension(321, 321) :: B
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        A(ii,jj) = B(ii+1,jj+1) * k
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,321) :: a
+  integer, dimension(321,321) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j, jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i + 32,j),b(i,j),b(i,j+32),b(i+32,j+32)) depend(out: a(i,j))
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          a(ii,jj) = b(ii + 1,jj + 1) * k
+        enddo
+      enddo
+      !$omp end task
     enddo
   enddo
   !$omp end single
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_8(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by a mixture of steps of the chunked loop.
+    This is expected to be similar to a real use-case. In this case, we have
+    multiple loops to handle. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 354) :: A
+        integer, dimension(321, 354) :: B
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        A(ii,jj) = B(ii+1,jj+33) * k
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,354) :: a
+  integer, dimension(321,354) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j, jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i + 32,j+32),b(i,j+32),b(i,j+2*32),b(i+32,j+2*32)) depend(out: a(i,j))
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          a(ii,jj) = b(ii + 1,jj + 33) * k
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+def test_omp_task_directive_9(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an output array is shifted by less than a full step of the outer loop.
+    This is expected to be similar to a real use-case.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 32) :: A
+        integer, dimension(321, 32) :: B
+        integer :: i, ii
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii+1, j) = B(ii, j) + k
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,32) :: a
+  integer, dimension(321,32) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(i,:),k) depend(out: a(i + 32,:),a(i,:))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii + 1,j) = b(ii,j) + k
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_10(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an output array is shifted by less than a full step of the outer loop.
+    This is expected to be similar to a real use-case. In this case, we have
+    multiple loops to handle. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 321) :: A
+        integer, dimension(321, 321) :: B
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        A(ii+1,jj+1) = B(ii,jj) * k
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,321) :: a
+  integer, dimension(321,321) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j, jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i,j),k) depend(out: a(i + 32,j),a(i,j),a(i,j+32),a(i+32,j+32))
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          a(ii + 1,jj + 1) = b(ii,jj) * k
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_11(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by a mixture of steps of the chunked loop.
+    This is expected to be similar to a real use-case. In this case, we have
+    multiple loops to handle. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 354) :: A
+        integer, dimension(321, 354) :: B
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        A(ii+1,jj+33) = B(ii,jj) * k
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,354) :: a
+  integer, dimension(321,354) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j, jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i,j),k) depend(out: a(i + 32,j + 32),a(i,j + 32),a(i,j + 64),a(i+32,j + 64))
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          a(ii + 1,jj + 33) = b(ii,jj) * k
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct

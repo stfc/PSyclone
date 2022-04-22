@@ -701,6 +701,263 @@ class OMPParallelDirective(OMPRegionDirective):
             #                       "any OpenMP directives. This is probably "
             #                       "not what you want.")
 
+class OMPTaskDirective(OMPRegionDirective):
+    '''
+    Class representing an OpenMP TASK directive in the PSyIR.
+
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    '''
+    _children_valid_format = ("Schedule, OMPPrivateClause,"
+                              "OMPFirstprivateClause, OMPSharedClause"
+                              "OMPDependClause, OMPDependClause")
+
+    def __init__(self, children=None, parent=None):
+        super(OMPTaskDirective, self).__init__(children=children,
+                                                   parent=parent)
+        # We don't know if we have a parent OMPParallelClause at initialisation
+        # so we can only create dummy clauses for now.
+        self.children.append(OMPPrivateClause())
+        self.children.append(OMPFirstprivateClause())
+        self.children.append(OMPSharedClause())
+        self.children.append(OMPDependClause(
+                depend_type=OMPDependClause.DependClauseTypes.IN))
+        self.children.append(OMPDependClause(
+                depend_type=OMPDependClause.DependClauseTypes.OUT))
+        # We store the symbol names for the parent loops so we can work out the
+        # "chunked" loop variables.
+        self._parent_loop_vars = []
+        self._proxy_loop_vars = {}
+        self._parent_parallel = None
+        self._parallel_private = None
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+         Decides whether a given child and position are valid for this node.
+         The rules are:
+         1. Child 0 must always be a Schedule.
+         2. Child 1 must always be an OMPPrivateClause
+         3. Child 2 must always be an OMPFirstprivateClause
+         4. Child 3 must always be an OMPSharedClause
+         5. Child 4 and 5 must always be OMPDependClauses
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        if position == 1:
+            return isinstance(child, OMPPrivateClause)
+        if position == 2:
+            return isinstance(child, OMPFirstprivateClause)
+        if position == 3:
+            return isinstance(child, OMPSharedClause)
+        if position == 4 or position == 5:
+            return isinstance(child, OMPDependClause)
+        return False
+
+    def _find_parent_loop_vars(self):
+        '''
+        Finds the loop variable of each parent loop inside the same
+        OMPParallelDirective and stores them in the _parent_loop_vars member.
+        Also stores the parent OMPParallelDirective in _parent_parallel.
+        '''
+        anc = self.ancestor((OMPParallelDirective, Loop))
+        while isinstance(anc, Loop):
+            # Store the loop variable of the parent loop
+            var = anc.variable
+            self._parent_loop_vars.append(var)
+            # Recurse up the tree
+            anc = anc.ancestor((OMPParallelDirective, Loop))
+
+        # Store the parent parallel directive node
+        self._parent_parallel = anc
+        self._parallel_private = anc._get_private_list().children
+
+    def _evaluate_assignment(self, node, private_list, firstprivate_list,
+                             shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        pass
+
+
+    def _evaluate_loop(self, node, private_list, firstprivate_list,
+                       shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        # Look at loop bounds etc first.
+        # Find our loop initialisation, variable and bounds
+        loop_var = node.variable
+        start_val = node.start_expr
+        stop_val = node.stop_expr
+        step_val = node.step_expr
+
+        to_remove = None
+
+        # Check if we have a loop of type do ii = i where i is a parent loop
+        # variable.
+        start_val_refs = start_val.walk(Reference)
+        if len(start_val_refs) == 1 and type(start_val_refs[0]) is Reference:
+            # Loop through the parent loop variables
+            for parent_var in self._parent_loop_vars:
+                # If its a parent loop variable, we need to make it a proxy
+                # variable for now.
+                if start_val_refs[0].symbol == parent_var:
+                    to_remove = start_val_refs[0].symbol
+                    self._proxy_loop_vars[to_remove] = parent_var
+                    break
+
+        # Loop variable is private unless already set as firstprivate.
+        # Throw exception if shared
+        loop_var_ref = Reference(loop_var)
+        if loop_var_ref not in self._parallel_private:
+            assert False #FIXME Throw exception, loop variable should not be shared
+        if loop_var_ref not in firstprivate_list:
+            if loop_var_ref not in private_list:
+                private_list.append(loop_var_ref)
+
+        # If we have a proxy variable, the parent loop variable has to be 
+        # firstprivate
+        if to_remove is not None:
+            parent_var_ref = Reference(self._proxy_loop_vars[to_remove])
+            if parent_var_ref not in firstprivate_list:
+                firstprivate_list.append(parent_var_ref)
+
+        # For all non-array accesses we make them firstprivate unless they
+        # are already declared as something else
+        for ref in start_val_refs:
+            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+                raise GenerationError("{0} not yet supported in the start "
+                                      "variable of the primary Loop in a "
+                                      "OMPTaskDirective node.".format(
+                    type(ref).__name__))
+            if (ref not in firstprivate_list and ref not in private_list and
+                ref not in shared_list):
+                firstprivate_list.append(ref.copy())
+
+        stop_val_refs = stop_val.walk(Reference)
+        for ref in stop_val_refs:
+            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+                raise GenerationError("{0} not yet supported in the stop "
+                                      "variable of the primary Loop in a "
+                                      "OMPTaskDirective node.".format(
+                    type(ref).__name__))
+            if (ref not in firstprivate_list and ref not in private_list and
+                ref not in shared_list):
+                firstprivate_list.append(ref.copy())
+
+        
+        step_val_refs = step_val.walk(Reference)
+        for ref in step_val_refs:
+            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+                raise GenerationError("{0} not yet supported in the step "
+                                      "variable of the primary Loop in a "
+                                      "OMPTaskDirective node.".format(
+                    type(ref).__name__))
+            if (ref not in firstprivate_list and ref not in private_list and
+                ref not in shared_list):
+                firstprivate_list.append(ref.copy())
+
+        # Finished handling the loop bounds now
+
+        # Recurse to the children
+        for child_node in node.children[3].children:
+            self._evaluate_node(child_node, private_list, firstprivate_list,
+                                shared_list, in_list, out_list)
+
+        # Remove any stuff added to proxy_loop_vars etc. if needed
+        if to_remove is not None:
+            self._proxy_loop_vars.pop(to_remove)
+
+    def _evaluate_ifblock(self, node, private_list, firstprivate_list,
+                          shared_list, in_list, out_list):
+        # Look at the ifblock itself first.
+
+        # Recurse to the children
+        # If block
+        for child_node in node.children[1].children:
+            self._evaluate_node(child_node, private_list, firstprivate_list,
+                                shared_list, in_list, out_list)
+        # Else block
+        for child_node in node.children[2].children:
+            self._evaluate_node(child_node, private_list, firstprivate_list,
+                                shared_list, in_list, out_list)
+
+    def _evaluate_node(self, node, private_list, firstprivate_list,
+                       shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        # For the node, check if it is Loop, Assignment or IfBlock
+        if isinstance(node, Assignment):
+            # Resolve assignment
+            self._evaluate_assignment(node, private_list, firstprivate_list,
+                                      shared_list, in_list, out_list)
+        elif isinstance(node, Loop):
+            # Resolve loop
+            self._evaluate_loop(node, private_list, firstprivate_list,
+                                shared_list, in_list, out_list)
+        elif isinstance(node, IfBlock):
+            # Resolve IfBlock
+            self._evaluate_ifblock(node, private_list, firstprivate_list,
+                                   shared_list, in_list, out_list)
+
+        # All other node types are ignored (for now, maybe some error
+        # checking might be useful).
+
+    def _compute_clauses(self):
+        '''
+        TODO: docstring
+        '''
+        private_list = []
+        firstprivate_list = []
+        shared_list = []
+        in_list = []
+        out_list = []
+
+        # Find all the parent loop variables
+        self._find_parent_loop_vars()
+
+        # Find the child loop node, and check our schedule contains a single
+        # loop for now.
+        if len(self.children[0].children) != 1:
+            assert False
+        if not isinstance(self.children[0].children[0], Loop):
+            assert False
+        self._evaluate_node(self.children[0].children[0])
+        #Not finished
+        assert False
+
+        # Make the clauses to return.
+        private_clause = OMPPrivateClause()
+        for ref in private_list:
+            private_clause.addchild(ref)
+        firstprivate_clause = OMPFirstprivateClause()
+        for ref in firstprivate_list:
+            firstprivate_clause.addchild(ref)
+        shared_clause = OMPSharedClause()
+        for ref in shared_list:
+            shared_clause.addchild(ref)
+        
+        in_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.IN)
+        for ref in in_list:
+            in_clause.addchild(ref)
+        out_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.OUT)
+        for ref in out_list:
+            out_clause.addchild(ref)
+
+        return (private_clause, firstprivate_clause, shared_clause, in_clause,
+                out_clause)
+        
 
 class OMPTaskDirective(OMPRegionDirective):
     '''
