@@ -67,31 +67,44 @@ def test_generate_adjoint_str(caplog):
     '''
     tl_code = (
         "program test\n"
-        "integer :: a\n"
-        "a = 0.0\n"
+        "integer :: a,b\n"
+        "a = b\n"
         "end program test\n")
     expected = (
-        "program test\n"
-        "  integer :: a\n\n"
+        "program test_adj\n"
+        "  integer :: a\n"
+        "  integer :: b\n\n"
+        "  b = b + a\n"
         "  a = 0.0\n\n"
-        "end program test\n")
+        "end program test_adj\n")
 
     with caplog.at_level(logging.INFO):
-        result, test_harness = generate_adjoint_str(tl_code, None)
+        result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
     assert caplog.text == ""
     assert expected in result
-    assert test_harness is None
+    assert test_harness == ""
 
     with caplog.at_level(logging.DEBUG):
-        result, test_harness = generate_adjoint_str(tl_code, None)
+        result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
-    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:58" in caplog.text
     assert tl_code in caplog.text
-    assert "DEBUG    psyclone.psyad.tl2ad:tl2ad.py:74" in caplog.text
-    assert expected in caplog.text
+    assert ("PSyIR\n"
+            "FileContainer[None]\n"
+            "    Routine[name:'test']\n"
+            "        0: Assignment[]\n"
+            "            Reference[name:'a']\n"
+            "            Reference[name:'b']\n" in caplog.text)
+    assert "Preprocessing\n" in caplog.text
+    assert ("PSyIR after TL preprocessing\n"
+            "FileContainer[None]\n"
+            "    Routine[name:'test']\n"
+            "        0: Assignment[]\n"
+            "            Reference[name:'a']\n"
+            "            Reference[name:'b']\n" in caplog.text)
+    assert "Translating from TL to AD." in caplog.text
     assert expected in result
-    assert test_harness is None
+    assert test_harness == ""
 
 
 def test_generate_adjoint_str_trans():
@@ -160,10 +173,10 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
         "end module my_mod\n"
     )
     with caplog.at_level(logging.INFO):
-        _ = generate_adjoint_str(tl_code, [], create_test=True)
+        _ = generate_adjoint_str(tl_code, ["field"], create_test=True)
     assert caplog.text == ""
     with caplog.at_level(logging.DEBUG):
-        _, harness = generate_adjoint_str(tl_code, [], create_test=True)
+        _, harness = generate_adjoint_str(tl_code, ["field"], create_test=True)
     assert ("Creating test harness for TL kernel 'kern' and AD kernel "
             "'kern_adj'" in caplog.text)
     assert ("Kernel 'kern' has the following dimensioning arguments: ['n']" in

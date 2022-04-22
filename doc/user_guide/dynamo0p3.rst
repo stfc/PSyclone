@@ -393,8 +393,8 @@ The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
 developer must declare scalars, fields and operators in the algorithm
 layer with the required LFRic-supported precision. In the current
-implementation there are two supported precisions for `REAL` data and
-one each for `INTEGER` and `LOGICAL` data. The actual precision used in
+implementation there are two supported precisions for ``REAL`` data and
+one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
 the code can be set in a configuration file. For example, INTEGER data
 could be set to be 32-bit precision. As REAL data has more than one
 supported precision, different parts of the code can be configured to
@@ -412,6 +412,8 @@ associated kernel metadata description and their precision:
 +--------------------------+------------------------+----------+	    
 | REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER |
 +--------------------------+------------------------+----------+	    
+| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN   |
++--------------------------+------------------------+----------+	    
 | INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF    |
 +--------------------------+------------------------+----------+	    
 | LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF    |
@@ -419,6 +421,8 @@ associated kernel metadata description and their precision:
 | FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF    |
 +--------------------------+------------------------+----------+	    
 | R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER |
++--------------------------+------------------------+----------+	    
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN   |
 +--------------------------+------------------------+----------+	    
 | INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF    |
 +--------------------------+------------------------+----------+	    
@@ -430,9 +434,9 @@ associated kernel metadata description and their precision:
 +--------------------------+------------------------+----------+	    
 
 As can be seen from the above table, the kernel metadata does not
-capture all of the precision options. In particular, from the metadata
-it is not possible to determine whether a `REAL` scalar, `REAL` field
-or `REAL` operator has precision `R_DEF` or `R_SOLVER`.
+capture all of the precision options. For example, from the metadata
+it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
+or ``REAL`` operator has precision ``R_DEF`` or ``R_SOLVER``.
 
 If a scalar, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
@@ -455,9 +459,10 @@ configuration and 64-bits in another:
 
   program test
 
-    use constants_mod, only : r_def, r_solver
-    use field_mod,     only : field_type, r_solver_field_type
-    use example_mod,   only : example_type
+    use constants_mod,      only : r_def, r_solver
+    use field_mod,          only : field_type
+    use r_solver_field_mod, only : r_solver_field_type
+    use example_mod,        only : example_type
 
     type(field_type)          :: field_r_def
     type(r_solver_field_type) :: field_r_solver
@@ -529,21 +534,24 @@ PSyclone must be able to determine the datatype of a field from the
 algorithm layer declarations. If it is not able to do this, PSyclone
 will abort with a message that indicates the problem.
 
-Supported field types are `field_type` (which contains `real` data
-with precision `r_def`), `r_solver_field_type` (which contains `real`
-data with precision `r_solver`) and `integer_field_type` (which
-contains `integer` data with precision `i_def`).
+Supported field types are ``field_type`` (which contains ``real`` data
+with precision ``r_def``), ``r_solver_field_type`` (which contains
+``real`` data with precision ``r_solver``), ``r_tran_field_type``
+(which contains ``real`` data with precision ``r_tran``) and
+``integer_field_type`` (which contains ``integer`` data with precision
+``i_def``).
 
 Field Vectors
 +++++++++++++
 
 If PSyclone finds an argument that is declared as a
-`field_vector_type` or `r_solver_field_vector_type` it will assume
-that the actual field being referenced is of type `field_type` or
-`r_solver_field_type` respectively.
+``field_vector_type``, ``r_solver_field_vector_type`` or
+``r_tran_field_vector_type`` it will assume that the actual field
+being referenced is of type ``field_type``, ``r_solver_field_type``,
+or ``r_tran_field_type`` respectively.
 
 If PSyclone finds an argument that is declared as an
-`abstract_field_type` then it will not know the actual type of the
+``abstract_field_type`` then it will not know the actual type of the
 argument. For instance, the following algorithm layer code will cause
 PSyclone to raise an exception::
 
@@ -581,22 +589,23 @@ Scalars
 It is not mandatory for PSyclone to be able to determine the datatype
 of a scalar from the algorithm layer. This constraint was considered
 to be too restrictive as PSyclone currently only examines the
-declarations in the same source file as the `invoke` when determining
-datatype. This means that if scalars are imported from other modules
-(as is often the case) then their datatype cannot be determined.
+declarations in the same source file as the ``invoke`` when
+determining datatype. This means that if scalars are imported from
+other modules (as is often the case) then their datatype cannot be
+determined.
 
 If the precision information for a scalar is found by PSyclone then
 this is used. If the scalar declaration is found and it contains no
 precision information then PSyclone will abort with a message that
 indicates the problem (since this violates LFRic coding standards). If
 no declaration information is found then default precision values are
-used, as specified in the PSyclone config file (`r_def` for real,
-`i_def` for integer and `l_def` for logical).
+used, as specified in the PSyclone config file (``r_def`` for real,
+``i_def`` for integer and ``l_def`` for logical).
 
-Supported precisions for scalars are `r_def` and `r_solver` for real
-data, `i_def` for integer data and `l_def` for logical data. If an
-unsupported scalar precision is found then PSyclone will abort with a
-message that indicates the problem.
+Supported precisions for scalars are ``r_def``, ``r_solver`` and
+``r_tran`` for real data, ``i_def`` for integer data and ``l_def`` for
+logical data. If an unsupported scalar precision is found then
+PSyclone will abort with a message that indicates the problem.
 
 LMA Operators
 +++++++++++++
@@ -605,17 +614,17 @@ PSyclone must be able to determine the datatype of an LMA operator.
 If it is not able to do this, PSyclone will abort with a message that
 indicates the problem.
 
-Supported LMA Operator types are `operator_type` (which contains real
-data with precision `r_def`) and `r_solver_operator_type` (which
-contains real data with precision `r_solver`).
+Supported LMA Operator types are ``operator_type`` (which contains real
+data with precision ``r_def``) and ``r_solver_operator_type`` (which
+contains real data with precision ``r_solver``).
 
 Columnwise Operators
 ++++++++++++++++++++
 
 It is not mandatory for PSyclone to be able to determine the datatype
 of a Columnwise Operator. The reason for this is that only one
-datatype is supported, a `columnwise_operator_type` which contains
-real data with precision `r_solver`. PSyclone can therefore simply add
+datatype is supported, a ``columnwise_operator_type`` which contains
+real data with precision ``r_solver``. PSyclone can therefore simply add
 this datatype in the PSy-layer. However, if the datatype information
 is found in the algorithm layer then and it is not of the expected
 type then PSyclone will abort with a message that indicates the
@@ -841,7 +850,7 @@ Rules for Inter-Grid Kernels
 ++++++++++++++++++++++++++++
 
 1) An inter-grid kernel is identified by the presence of a field or
-   field-vector argument with the optional `mesh_arg` metadata element (see
+   field-vector argument with the optional ``mesh_arg`` metadata element (see
    :ref:`dynamo0.3-intergrid-mdata`).
 
 2) An invoke that contains one or more inter-grid kernels must not contain
@@ -851,7 +860,7 @@ Rules for Inter-Grid Kernels
 3) An inter-grid kernel is only permitted to have field or field-vector
    arguments.
 
-4) All inter-grid kernel arguments must have the `mesh_arg` metadata entry.
+4) All inter-grid kernel arguments must have the ``mesh_arg`` metadata entry.
 
 5) An inter-grid kernel (and metadata) must have at least one field on
    each of the fine and coarse meshes. Specifying all fields as coarse or
@@ -3620,7 +3629,7 @@ metadata descriptors, ``GH_REAL`` and ``GH_INTEGER``.
 
 The default kind (precision) for these supported data types is
 set to ``r_def``, ``i_def`` and ``l_def``, respectively, in the
-`default_kind` dictionary in the configuration file. These default
+``default_kind`` dictionary in the configuration file. These default
 values are defined in the LFRic infrastructure code.
 
 .. note:: Whilst the ``logical`` Fortran primitive (intrinsic) data

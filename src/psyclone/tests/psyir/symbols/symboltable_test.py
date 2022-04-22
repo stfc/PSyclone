@@ -837,14 +837,13 @@ def test_has_wildcard_imports():
     assert sched_table.has_wildcard_imports() is True
 
 
-def test_view(capsys):
-    '''Test the view method of the SymbolTable class, it should print to
-    standard out a representation of the full SymbolTable.'''
+def test_view():
+    '''Test the view method of the SymbolTable class, it should return a
+    representation of the full SymbolTable.'''
     sym_table = SymbolTable()
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     sym_table.add(DataSymbol("var2", INTEGER_TYPE))
-    sym_table.view()
-    output, _ = capsys.readouterr()
+    output = sym_table.view()
     assert "Symbol Table:\n" in output
     assert "var1" in output
     assert "var2" in output

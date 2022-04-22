@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''A transformation script that adds profiling information with user-provided
 region names.
@@ -84,4 +85,4 @@ def trans(psy):
                               {"region_name": ("kloop",
                                                "{}".format(loop_counter))})
 
-        sched.view()
+        print(sched.view())
