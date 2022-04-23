@@ -147,8 +147,8 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
     .. code-block:: fortran
 
-        do i=1,P
-            do j=1,M
+        do j=1,M
+            do i=1,P
                 R(i,j) = 0.0
                 do ii=1,N
                     R(i,j) = R(i,j) + A(ii,i) * B(j,ii)
