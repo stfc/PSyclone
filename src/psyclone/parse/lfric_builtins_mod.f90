@@ -623,7 +623,7 @@ use argument_mod,  only : arg_type,            &
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -652,7 +652,7 @@ use argument_mod,  only : arg_type,            &
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -804,7 +804,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: int_inc_X_minus_a
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1), &
           arg_type(GH_SCALAR, GH_INTEGER, GH_READ              )      &
           /)
      integer :: operates_on = DOF
@@ -937,7 +937,7 @@ use argument_mod,  only : arg_type,            &
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
-          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1)      &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
           /)
      integer :: operates_on = DOF
    contains
@@ -966,7 +966,7 @@ use argument_mod,  only : arg_type,            &
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
-          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1)      &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
           /)
      integer :: operates_on = DOF
    contains
