@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,34 +31,89 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
-include ../../common.mk
+# The compiler to use may be specified via the F90 and F90FLAGS
+# environment variables. To use the NVIDIA compiler and enable
+# openacc compilation, use:
+# export F90=nvfortran
+# export F90FLAGS="-acc"
 
-.PHONY: kernels parallel_no_dm parallel_dm
+PSYROOT=../../..
 
-transform: kernels parallel_no_dm parallel_dm
+include $(PSYROOT)/examples/common.mk
 
-kernels:
-	${PSYCLONE} -s ./acc_kernels.py -nodm \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 
-parallel_no_dm:
-	${PSYCLONE} -s ./acc_parallel.py -nodm \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g
 
-# This example is broken because we end up with set_clean/dirty() calls inside
-# ACC parallel regions. TODO #450.
-parallel_dm:
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
+
+EXEC = example_openacc
+
+LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
+
+F90FLAGS += -I$(LFRIC_DIR)
+
+.PHONY: transformtransform_kernels transform_parallel transform_parallel_dm
+
+transform: transform_kernels transform_parallel transform_parallel_dm
+
+transform_kernels:
+	${PSYCLONE} -nodm -s ./acc_kernels.py \
+	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
+
+transform_parallel:
+	${PSYCLONE} -nodm -s ./acc_parallel.py \
+	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
+
+transform_parallel_dm:
+	${PSYCLONE} -dm -s ./acc_parallel_dm.py \
+	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
+
+
+%_psy.f90:	%.x90
 	${PSYCLONE} -s ./acc_parallel_dm.py \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null
+	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
-compile: transform
-	@echo "No compilation supported for lfric/eg14"
+#TODO #1669 - the code currently does not compile
+#             set_dirty calls inside openacc region
+#TODO #1694 - the code currently does not compile
+#             incorrect variable names and constants
+#             when using builtin
+compile: transform_parallel_dm $(EXEC)
 
 run: compile
-	@echo "No run targets for lfric/eg14"
+	./$(EXEC)
+
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_DIR) -l$(LFRIC_NAME)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
+
+# Dependencies
+main_psy.o:	testkern_w0_kernel_mod.o
+main_alg.o:	main_psy.o
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+# Keep the generated psy and alg files
+.precious: main_psy.f90 main_alg.f90
+
+main_alg.f90: main_psy.f90
+
+%_psy.f90:	%.x90
+	${PSYCLONE} -s ./acc_parallel_dm.py \
+	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
+
+allclean: clean
+	$(MAKE) -C $(LFRIC_DIR) allclean
