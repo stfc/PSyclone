@@ -2588,8 +2588,8 @@ As described :ref:`above <lfric-built-ins-dtype-access>`, Built-ins that
 operate on ``real``-valued fields mandate ``GH_REAL`` as the kernel
 metadata for fields and scalars.
 
-The precision of fields and scalars, however, is determined by the model
-via precision variables as described in the :ref:`Mixed Precision
+The precision of fields and scalars, however, is determined by the algorithm
+layer via precision variables as described in the :ref:`Mixed Precision
 <lfric-mixed-precision>` section. Fields can be of ``field_type`` with
 ``r_def`` precision, ``r_solver_field_type`` with ``r_solver`` precision
 and ``r_tran_field_type`` with ``r_tran`` precision. ``real`` scalars
@@ -2608,12 +2608,13 @@ Mixing precisions is not explicitly forbidden, so we may have e.g.
   real(r_def), intent(in) :: ascalar
   type(r_tran_field_type), intent(in) :: yfield, xfield
 
-The exceptions from the ability to determine the precision from the
-model are Built-ins that calculate inner product and sum of a field,
-as the scalar global reductions in the LFRic infrastructure are
-currently only able to support ``field_type`` and hence have
-``r_def`` precision. Also, the ``integer`` read-only scalars and
-``integer``-valued fields can only currently have ``i_def`` precision.
+Certain Built-ins are currently restricted in the precision of the
+arguments that they accept. Those that calculate the inner product
+and sum of a field are restricted to ``r_def`` precision because the
+scalar global reductions in the LFRic infrastructure are currently
+only able to support ``field_type`` and hence have ``r_def`` precision.
+In addition, all integer arguments to Built-ins are currently restricted
+to ``i_def`` precision.
 
 Addition
 ########
@@ -3023,21 +3024,18 @@ and *field2*, *i.e.*::
 
   innprod = SUM(field1(:)*field2(:))
 
-where **innprod** is a ``real`` global reduction scalar of ``r_def``
-precision.
+where **innprod** is a ``real`` scalar of ``r_def`` precision.
 
 X_innerproduct_X
 ^^^^^^^^^^^^^^^^
 
 **X_innerproduct_X** (**innprod**, *field*)
 
-Computes the inner product of the field *field1*
-by itself, *i.e.*::
+Computes the inner product of the field *field1* by itself, *i.e.*::
 
   innprod = SUM(field(:)*field(:))
 
-where **innprod** is a ``real`` global reduction scalar of ``r_def``
-precision.
+where **innprod** is a ``real`` scalar of ``r_def`` precision.
 
 Sum of elements
 ###############
@@ -3059,8 +3057,7 @@ in the ``real`` scalar variable *sumfld*::
 
   sumfld = SUM(field(:))
 
-where **sumfld** is a ``real`` global reduction scalar of ``r_def``
-precision.
+where **sumfld** is a ``real`` scalar of ``r_def`` precision.
 
 Sign of elements
 ################
@@ -3083,9 +3080,8 @@ The results are ``a`` for ``X >= 0`` and ``-a`` for ``X < 0``::
 DoF-wise maximum of elements
 ############################
 
-Built-ins which return the DoF-per-DoF maximum of a ``real`` scalar and
-a ``real``-valued field are denoted with the keyword **max**. They use
-the Fortran intrinsic ``max`` function.
+Built-ins which return the DoF-wise maximum of a ``real`` scalar and
+a ``real``-valued field are denoted with the keyword **max**.
 
 max_aX
 ^^^^^^
@@ -3095,7 +3091,7 @@ max_aX
 Returns maximum of *rscalar* and each element of the field *field1* as
 the second field **field2** (``Y = max(a, X)``)::
 
-  field2 = MAX(rscalar, field1)
+  field2(:) = MAX(rscalar, field1(:))
 
 inc_max_aX
 ^^^^^^^^^^
@@ -3105,14 +3101,13 @@ inc_max_aX
 Returns maximum of *rscalar* and each element of the field *field* in
 the same field (``X = max(a, X)``)::
 
-  field = MAX(rscalar, field)
+  field(:) = MAX(rscalar, field(:))
 
 DoF-wise minimum of elements
 ############################
 
-Built-ins which return the DoF-per-DoF minimum of a ``real`` scalar and
-a ``real``-valued field are denoted with the keyword **min**. They use
-the Fortran intrinsic ``min`` function.
+Built-ins which return the DoF-wise minimum of a ``real`` scalar and
+a ``real``-valued field are denoted with the keyword **min**.
 
 min_aX
 ^^^^^^
@@ -3122,7 +3117,7 @@ min_aX
 Returns minimum of *rscalar* and each element of the field *field1* as
 the second field **field2** (``Y = min(a, X)``)::
 
-  field2 = MIN(rscalar, field1)
+  field2(:) = MIN(rscalar, field1(:))
 
 inc_min_aX
 ^^^^^^^^^^
@@ -3132,7 +3127,7 @@ inc_min_aX
 Returns minimum of *rscalar* and each element of the field *field* in
 the same field (``X = min(a, X)``)::
 
-  field = MIN(rscalar, field)
+  field(:) = MIN(rscalar, field(:))
 
 Conversion of ``real`` to ``integer`` field elements
 ####################################################
@@ -3146,11 +3141,11 @@ int_X
 **int_X** (**ifield2**, *field1*)
 
 Converts ``real``-valued field elements to ``integer``-valued field
-elements using the Fortran intrinsic ``int`` function as
-``Y = int(X, i_def)``. Here ``Y`` is an ``integer``-valued field and
-``X`` is the ``real``-valued field being converted::
+elements, e.g. in Fortran this would be: ``Y = int(X, i_def)``.
+Here ``Y`` is an ``integer``-valued field and ``X`` is the
+``real``-valued field being converted::
 
-  ifield2 = INT(field1, i_def)
+  ifield2(:) = INT(field1(:), i_def)
 
 where **ifield2** is an ``integer_field_type`` of ``i_def`` precision
 and a ``real``-valued field *field1* can be of any :ref:`supported
@@ -3168,7 +3163,7 @@ mathematical operations on ``integer``-valued fields make sense.
 
 As described :ref:`above <lfric-built-ins-dtype-access>`, Built-ins that
 operate on ``integer``-valued fields mandate ``GH_INTEGER`` as the kernel
-metadata for fields and scalars. Both ``integer`` read-only scalars and
+metadata for fields and scalars. Both ``integer`` scalar arguments and
 ``integer``-valued fields can only currently have ``i_def`` precision,
 as described in the :ref:`Mixed Precision <lfric-mixed-precision>` section.
 
@@ -3378,19 +3373,18 @@ int_sign_X
 
 **int_sign_X** (**ifield2**, *iscalar*, *ifield1*)
 
-Returns the sign of an ``integer``-valued field using the Fortran
-intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a`` is an
-``integer`` scalar and ``Y`` and ``X`` are ``integer``-valued fields.
+Returns the sign of an ``integer``-valued field, e.g. in Fortran:
+``Y = sign(a, X)``. Here ``a`` is an ``integer`` scalar and ``Y``
+and ``X`` are ``integer``-valued fields.
 The results are ``a`` for ``X >= 0`` and ``-a`` for ``a < 0``::
 
-  ifield2 = SIGN(iscalar, ifield1)
+  ifield2(:) = SIGN(iscalar, ifield1(:))
 
 DoF-wise maximum of elements
 ############################
 
-Built-ins which return the DoF-per-DoF maximum of an ``integer`` scalar
+Built-ins which return the DoF-wise maximum of an ``integer`` scalar
 and an ``integer``-valued field are denoted with the keyword **max**.
-They use the Fortran intrinsic ``max`` function.
 
 int_max_aX
 ^^^^^^^^^^
@@ -3400,7 +3394,7 @@ int_max_aX
 Returns maximum of *iscalar* and each element of the field *ifield1* as
 the second field **ifield2** (``Y = max(a, X)``)::
 
-  ifield2 = MAX(iscalar, ifield1)
+  ifield2(:) = MAX(iscalar, ifield1(:))
 
 int_inc_max_aX
 ^^^^^^^^^^^^^^
@@ -3410,14 +3404,13 @@ int_inc_max_aX
 Returns maximum of *iscalar* and each element of the field *ifield* in
 the same field (``X = max(a, X)``)::
 
-  ifield = MAX(iscalar, ifield)
+  ifield(:) = MAX(iscalar, ifield(:))
 
 DoF-wise minimum of elements
 ############################
 
-Built-ins which return the DoF-per-DoF minimum of an ``integer`` scalar
+Built-ins which return the DoF-wise minimum of an ``integer`` scalar
 and an ``integer``-valued field are denoted with the keyword **min**.
-They use the Fortran intrinsic ``min`` function.
 
 int_min_aX
 ^^^^^^^^^^
@@ -3427,7 +3420,7 @@ int_min_aX
 Returns minimum of *iscalar* and each element of the field *ifield1* as
 the second field **ifield2** (``Y = min(a, X)``)::
 
-  ifield2 = MIN(iscalar, ifield1)
+  ifield2(:) = MIN(iscalar, ifield1(:))
 
 int_inc_min_aX
 ^^^^^^^^^^^^^^
@@ -3437,7 +3430,7 @@ int_inc_min_aX
 Returns minimum of *iscalar* and each element of the field *ifield* in
 the same field (``X = min(a, X)``)::
 
-  ifield = MIN(iscalar, ifield)
+  ifield(:) = MIN(iscalar, ifield(:))
 
 Conversion of ``integer`` to ``real`` field elements
 ####################################################
@@ -3451,17 +3444,17 @@ real_X
 **real_X** (**field2**, *ifield1*)
 
 Converts ``integer``-valued field elements to ``real``-valued
-field elements using the Fortran intrinsic ``real`` function as
-``Y = real(X, r_def)``. Here ``Y`` is a ``real``-valued field and
-``X`` is the ``integer``-valued field being converted::
+field elements, e.g. in Fortran this would be ``Y = real(X, r_def)``.
+Here ``Y`` is a ``real``-valued field and ``X`` is the
+``integer``-valued field being converted::
 
-  field2 = REAL(ifield1, r_<prec>)
+  field2(:) = REAL(ifield1(:), r_<prec>)
 
 where *ifield1* is an ``integer_field_type`` of ``i_def`` precision.
 The ``real``-valued **field1** can be of any :ref:`supported
 precisions <lfric-mixed-precision>` for ``GH_REAL`` fields, hence
-``r_<prec>`` is determined from the model (e.g. ``r_solver`` for
-``r_solver_field_type``).
+``r_<prec>`` is determined from the algorithm layer (e.g.
+``r_solver`` for ``r_solver_field_type``).
 
 Boundary Conditions
 -------------------
