@@ -1266,8 +1266,8 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
 
 
 class LFRicXDividebyAKern(LFRicBuiltIn):
-    ''' Divide the first, real-valued, field by a real scalar and return
-    the result as a second, real-valued, field.
+    ''' Divide a real-valued field by a real scalar and return the
+    result in another, real-valued, field.
 
     '''
     def __str__(self):
@@ -1624,8 +1624,8 @@ class LFRicSignXKern(LFRicBuiltIn):
 
 class LFRicMaxAXKern(LFRicBuiltIn):
     ''' Returns the maximum of a real scalar and real-valued field
-    elements using the Fortran intrinsic `max` function. The result
-    is stored as another, real-valued, field:`Y = max(a, X)`.
+    elements. The result is stored as another, real-valued, field:
+    `Y = max(a, X)`.
 
     '''
     def __str__(self):
@@ -1653,8 +1653,8 @@ class LFRicMaxAXKern(LFRicBuiltIn):
 
 class LFRicIncMaxAXKern(LFRicBuiltIn):
     ''' Returns the maximum of a real scalar and real-valued field
-    elements using the Fortran intrinsic `max` function. The result
-    is stored in the same, real-valued, field:`X = max(a, X)`.
+    elements. The result is stored in the same, real-valued, field:
+    `X = max(a, X)`.
 
     '''
     def __str__(self):
@@ -1688,8 +1688,8 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
 
 class LFRicMinAXKern(LFRicBuiltIn):
     ''' Returns the minimum of a real scalar and real-valued field
-    elements using the Fortran intrinsic `min` function. The result
-    is stored as another, real-valued, field:`Y = min(a, X)`.
+    elements. The result is stored as another, real-valued, field:
+    `Y = min(a, X)`.
 
     '''
     def __str__(self):
@@ -1717,8 +1717,8 @@ class LFRicMinAXKern(LFRicBuiltIn):
 
 class LFRicIncMinAXKern(LFRicBuiltIn):
     ''' Returns the minimum of a real scalar and real-valued field
-    elements using the Fortran intrinsic `min` function. The result
-    is stored in the same, real-valued, field:`X = min(a, X)`.
+    elements. The result is stored in the same, real-valued, field:
+    `X = min(a, X)`.
 
     '''
     def __str__(self):
@@ -2004,8 +2004,8 @@ class LFRicIntSignXKern(LFRicSignXKern):
 
 class LFRicIntMaxAXKern(LFRicMaxAXKern):
     ''' Returns the maximum of an integer scalar and integer-valued
-    field elements using the Fortran intrinsic `max` function. The
-    result is stored as another, integer-valued, field:`Y = max(a, X)`.
+    field elements. The result is stored as another, integer-valued,
+    field: `Y = max(a, X)`.
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicMaxAXKern`.
     '''
@@ -2015,8 +2015,8 @@ class LFRicIntMaxAXKern(LFRicMaxAXKern):
 
 class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
     ''' Returns the maximum of an integer scalar and integer-valued
-    field elements using the Fortran intrinsic `max` function. The
-    result is stored in the same, integer-valued, field:`X = max(a, X)`.
+    field elements. The result is stored in the same, integer-valued,
+    field: `X = max(a, X)`.
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicIncMaxAXKern`.
     '''
@@ -2031,8 +2031,8 @@ class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
 
 class LFRicIntMinAXKern(LFRicMinAXKern):
     ''' Returns the minimum of an integer scalar and integer-valued
-    field elements using the Fortran intrinsic `min` function. The
-    result is stored as another, integer-valued, field:`Y = min(a, X)`.
+    field elements. The result is stored as another, integer-valued,
+    field: `Y = min(a, X)`.
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicMinAXKern`.
 
@@ -2043,8 +2043,8 @@ class LFRicIntMinAXKern(LFRicMinAXKern):
 
 class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
     ''' Returns the minimum of an integer scalar and integer-valued
-    field elements using the Fortran intrinsic `min` function. The
-    result is stored in the same, integer-valued, field:`X = min(a, X)`.
+    field elements. The result is stored in the same, integer-valued,
+    field: `X = min(a, X)`.
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicIncMinAXKern`.
 
