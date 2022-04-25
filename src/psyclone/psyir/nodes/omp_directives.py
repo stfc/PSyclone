@@ -728,6 +728,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # We store the symbol names for the parent loops so we can work out the
         # "chunked" loop variables.
         self._parent_loop_vars = []
+        self._parent_loops = []
         self._proxy_loop_vars = {}
         self._parent_parallel = None
         self._parallel_private = None
@@ -761,7 +762,25 @@ class OMPTaskDirective(OMPRegionDirective):
             return isinstance(child, OMPSharedClause)
         if position == 4 or position == 5:
             return isinstance(child, OMPDependClause)
-        return False
+       return False
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPTaskDirective is not \
+                                 enclosed within an OpenMP serial region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). A taskloop
+        # directive, we must have an OMPSerialDirective as an
+        # ancestor back up the tree.
+        if not self.ancestor(OMPSerialDirective):
+            raise GenerationError(
+                "OMPTaskDirective must be inside an OMP Serial region "
+                "but could not find an ancestor node.")
 
     def _find_parent_loop_vars(self):
         '''
@@ -774,6 +793,7 @@ class OMPTaskDirective(OMPRegionDirective):
             # Store the loop variable of the parent loop
             var = anc.variable
             self._parent_loop_vars.append(var)
+            self._parent_loops.append(anc)
             # Recurse up the tree
             anc = anc.ancestor((OMPParallelDirective, Loop))
 
@@ -781,18 +801,375 @@ class OMPTaskDirective(OMPRegionDirective):
         self._parent_parallel = anc
         self._parallel_private = anc._get_private_list().children
 
+    def _evaluate_readonly_baseref(self, ref, private_list, firstprivate_list,
+                                   shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        is_private = (ref in self._parallel_private)
+        if is_private:
+            # If the reference is private in the parent parallel,
+            # then it is added to the firstprivate clause for this
+            # task if it has not yet been written to (i.e. is not
+            # yet in the private clause list).
+            if ref not in private_list and ref not in firstprivate_list:
+                firstprivate_list.append(ref)
+        else:
+            # Otherwise it was a shared variable. Its not an
+            # array so we just add the name to the in_list
+            # if not already there. If its already in out_list
+            # we still add it as this is the same as an inout
+            # dependency
+            if ref not in in_list:
+                in_list.append(ref)
+
+    def _handle_readonly_index_binop(self, index, index_list,
+                                     firstprivate_list, private_list):
+        '''
+        TODO: docstring
+        '''
+
+        # Binary Operation check
+        if node.operator is not \
+           BinaryOperation.Operator.ADD and \
+           node.operator is not \
+           BinaryOperation.Operator.SUB:
+            raise GenerationError(
+                "Binary Operator of type {0} used "
+                "as in index inside an "
+                "OMPTaskDirective which is not "
+                "supported".format(
+                    node.operator))
+        # We have ADD or SUB BinaryOperation
+        # It must be either Ref OP Lit or Lit OP Ref
+        if not( (type(node.children[0]) is \
+           Reference and type(node.children[1]) is\
+           Literal) or (type(node.children[0])\
+           is Literal and type(node.children[1])\
+           is Reference)):
+            raise GenerationError(
+                "Children of BinaryOperation are of "
+                "types {0} and {1}, expected one "
+                "Reference and one Literal when"
+                " used as an index inside an "
+                "OMPTaskDirective.".format(
+                    type(node.children[0]).
+                    __name__, type(node.children[1]).
+                __name__))
+
+        # Have Reference +/- Literal, analyse
+        # and create clause appropriately
+        index_private = False
+        is_proxy = False
+        ref = None
+        literal = None
+        ref_index = None
+        if type(node.children[0]) is Reference:
+            index_symbol = node.children[0].symbol
+            index_private = (index_symbol in self._parallel_private) #OLD CODE WAS (node.children[0] in parallel_private) WHICH IS CORRECT
+            is_proxy = (index_symbol in self._proxy_loop_vars) 
+            ref = node.children[0]
+            ref_index = 0
+            literal = node.children[1]
+        if type(node.children[1]) is Reference:
+            index_symbol = node.children[1].symbol
+            index_private = (index_symbol in self._parallel_private) #OLD CODE WAS (node.children[1] in parallel_private) WHICH IS CORRECT
+            is_proxy = (index_symbol in self._proxy_loop_vars) 
+            ref = node.children[1]
+            ref_index = 1
+            literal = node.children[0]
+
+        # We have some array access which is of the format:
+        # array( Reference +/- Literal).
+        # If the Reference is to a proxy (is_proxy is True) then we replace
+        # the Reference with the proxy variable instead. This is the most
+        # important case.
+        # If the task contains Loops, and the Reference is to one of the
+        # Loop variables, then we create a Range object for : for that dimension.
+        # All other situations are treated as a constant.
+
+        # Find the child loops that are not proxies.
+        child_loop_vars = []
+        for child_loop in self.walk(Loop):
+            if child_loop.variable not in self._proxy_loop_vars:
+                child_loop_vars.append(child_loop.variable)
+
+        # Handle the proxy_loop case
+        if is_proxy:
+            # Treat it as though we came across the parent loop variable.
+            symbols_loop = self._proxy_loop_vars[index_symbol]['loop']
+            parent_loop = self._proxy_loop_vars[index_symbol]['parent_loop']
+            real_var = self._proxy_loop_vars[index_symbol]['parent_var']
+
+            # Create a Reference to the real variable
+            real_ref = Reference(real_var)
+            # We have a Literal step value, and a Literal in
+            # the Binary Operation. These Literals must both be
+            # Integer types, so we will convert them to integers
+            # and do some divison.
+            step_val = int(parent_loop.step_expr.value)
+            literal_val = int(literal.value)
+            divisor = math.ceil(literal_val / step_val)
+            modulo = literal_val % step_val
+            # If the divisor is > 1, then we need to do
+            # divisor*step_val
+            # We also need to add divisor-1*step_val to cover the case
+            # where e.g. array(i+1) is inside a larger loop, as we
+            # need dependencies to array(i) and array(i+step), unless
+            # modulo == 0
+            step = None
+            step2 = None
+            if divisor > 1:
+                step = BinaryOperation.create(
+                        BinaryOperation.Operator.MUL,
+                        Literal(f"{divisor}", INTEGER_TYPE),
+                        Literal(f"{step_val}", INTEGER_TYPE))
+                if divisor > 2:
+                    step2 = BinaryOperation.create(
+                            BinaryOperation.Operator.MUL,
+                            Literal(f"{divisor-1}", INTEGER_TYPE),
+                            Literal(f"{step_val}", INTEGER_TYPE))
+                else:
+                    step2 = Literal(f"{step_val}", INTEGER_TYPE)
+            else:
+                step = Literal(f"{step_val}", INTEGER_TYPE)
+
+            # Create a Binary Operation of the correct format.
+            binop = None
+            binop2 = None
+            if ref_index == 0:
+                # We have Ref OP Literal
+                binop = BinaryOperation.create(
+                        node.operator, real_ref.copy(), step)
+                if modulo != 0:
+                    if step2 is not None:
+                        binop2 = BinaryOperation.create(
+                                 node.operator, real_ref.copy(), step2)
+                    else:
+                        binop2 = real_ref.copy()
+            else:
+                # We have Literal OP Ref
+                binop = BinaryOperation.create(
+                        node.operator, step, real_ref.copy())
+                if modulo != 0:
+                    if step2 is not None:
+                        binop2 = BinaryOperation.create(
+                                 node.operator, step2, real_ref.copy())
+                    else:
+                        binop2 = real_ref.copy()
+            # Add this to the list of indexes
+            if binop2 is not None:
+                index_ranges.append([binop, binop2])
+            else:
+                index_ranges.append(binop)
+
+        # Proxy use case handled.
+        
+        # If the variable is private:
+        if index_private:
+            # If the variable is in our private list
+            if ref in private_list:
+                # If its a child loop variable
+                if ref.symbol in child_loop_vars:
+                    # Return a full range (:)
+                    dim = len(index_ranges)
+                    one = Literal(str(dim+1), INTEGER_TYPE)
+                    lbound = BinaryOperation.create(
+                            BinaryOperation.Operator.LBOUND,
+                            ref.copy(), one.copy())
+                    ubound = BinaryOperation.create(
+                            BinaryOperation.Operator.UBOUND,
+                            ref.copy(), one.copy())
+                    full_range = Range.create(lbound, ubound)
+                    index_ranges.append(full_range)
+                else:
+                    # We have a private constant, written to inside
+                    # our region, so we can't do anything better than
+                    # a full range I think (since we don't know what
+                    # the value is/how it changes.
+                    # Return a full range (:)
+                    dim = len(index_ranges)
+                    one = Literal(str(dim+1), INTEGER_TYPE)
+                    lbound = BinaryOperation.create(
+                            BinaryOperation.Operator.LBOUND,
+                            ref.copy(), one.copy())
+                    ubound = BinaryOperation.create(
+                            BinaryOperation.Operator.UBOUND,
+                            ref.copy(), one.copy())
+                    full_range = Range.create(lbound, ubound)
+                    index_ranges.append(full_range)
+            elif ref in firstprivate_list:
+                # It can't be a child loop variable (these have to be private)
+                # Just has to be a firstprivate constant, which we can just use
+                # the reference to for now. Not 100% on this as the value
+                # is modifiable.
+                index_range.append(ref.copy())
+            else:
+                # Not yet been written to/read from so has to be firstprivate
+                firstprivate_list.append(ref)
+                # Has to be a constant to, so we're safe to use this reference.
+                index_range.append(ref.copy())
+        else:
+            # Have a shared variable, which we're not currently supporting
+            raise GenerationError(
+                    "Shared variable access used "
+                    "as an index inside an "
+                    "OMPTaskDirective which is not "
+                    "supported.")
+
+
+    def _evaluate_readonly_arrayref(self, ref, private_list, firstprivate_list,
+                                    shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        index_list = []
+
+        # Arrays are always shared variables in the parent parallel region.
+
+        # The reference is shared. Since it is an array,
+        # we need to check the following restrictions:
+        # 1. No ArrayReference or ArrayOfStructuresReference
+        # or StructureReference appear in the indexing.
+        # 2. Each index is a firstprivate variable, or a
+        # private parent variable that has not yet been
+        # declared (in which case we declare it as
+        # firstprivate). Alternatively each index is
+        # a BinaryOperation whose children are a
+        # Reference to a firstprivate variable and a
+        # Literal, with operator of ADD or SUB
+        for dim, index in enumerate(ref.indices):
+            if type(index) is Reference:
+                # Check whether the Reference is private
+                index_private = (index in
+                                 self._parallel_private)
+                # Check whether the reference is to a child loop variable.
+                child_loop_vars = []
+                for child_loop in self.walk(Loop):
+                    if child_loop.variable not in self._proxy_loop_vars:
+                        child_loop_vars.append(child_loop.variable)
+                
+                if index_private:
+                    if (index not in private_list and
+                        index not in firstprivate_list):
+                        firstprivate_list.append(index.copy())
+                    # Special case 1. If index belongs to a child loop
+                    # that is NOT a proxy for a parent loop, then we
+                    # can only do as well as guessing the entire range
+                    # of the loop is used.
+                    if index.symbol in child_loop_vars:
+                        # Return a :
+                        one = Literal(str(dim+1), INTEGER_TYPE)
+                        lbound = BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                ref.copy(), one.copy())
+                        ubound = BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                ref.copy(), one.copy())
+                        full_range = Range.create(lbound, ubound)
+                        index_list.append(full_range)
+                    elif index.symbol in self._proxy_loop_vars:
+                        # Special case 2. the index is a proxy for a parent
+                        # loop's variable. In this case, we add a reference to
+                        # the parent loop's value.
+                        parent_var = self._proxy_loop_vars[index.symbol]['parent_var']
+                        parent_ref = Reference(parent_var)
+                        index_list.append(parent_var)
+                    else:
+                        # Final case is just a generic Reference, in which case
+                        # just copy the Reference
+                        index_list.append(index.copy())
+                else:
+                    raise GenerationError(
+                            "Shared variable access used "
+                            "as an index inside an "
+                            "OMPTaskDirective which is not "
+                            "supported. Variable name is {0}".
+                            format(index))
+            elif type(index) is BinaryOperation:
+                # Binary Operation check
+                # A single binary operation, e.g. a(i+1) can require
+                # multiple clauses to correctly handle.
+                self._handle_readonly_index_binop(index, index_list,
+                                                  firstprivate_list,
+                                                  private_list)
+            else:
+                # Not allowed type appears
+                raise GenerationError(
+                        "{0} object is not allowed to "
+                        "appear in an Array Index "
+                        "expression inside an "
+                        "OMPTaskDirective.".format(
+                            type(index).__name__))
+        # So we have a list of (lists of) indices
+        # [ [index1, index4], index2, index3] so convert these
+        # to an ArrayReference again.
+        # To create all combinations, we use itertools.product
+        # We have to create a new list which only contains lists.
+        # Add to in_list: name(index1, index2)
+        new_index_list = []
+        for element in index_list:
+            if isinstance(element, list):
+                new_index_list.append(element)
+            else:
+                new_index_list.append([element])
+        combinations = itertools.product(*new_index_list)
+        for temp_list in combinations:
+            # We need to make copies of the members as each
+            # member can only be the child of one ArrayRef
+            final_list = []
+            for element in temp_list:
+                final_list.append(element.copy())
+            dclause = ArrayReference.create(ref.symbol,
+                                            list(final_list))
+            # Add dclause into the in_list if required
+            if dclause not in in_list:
+                in_list.append(dclause)
+        # Add to shared_list (for explicity)
+        sclause = Reference(ref.symbol)
+        if sclause not in shared_list:
+            shared_list.append(sclause)
+
+    def _evaluate_readonly_reference(self, ref, private_list,
+                                     firstprivate_list, shared_list, in_list,
+                                     out_list):
+        '''
+        TODO: docstring
+        '''
+        if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+            # Resolve ArrayReference (AOSReference)
+            self._evaluate_readonly_arrayref(ref, private_list,
+                                             firstprivate_list, shared_list,
+                                             in_list, out_list)
+        elif isinstance(ref, StructureReference):
+            # This is treated the same as a Reference, except we have to
+            # create a Reference to the symbol to handle.
+            base_ref = Reference(ref.symbol)
+            self._evaluate_readonly_baseref(base_ref, private_list,
+                                            firstprivate_list, shared_list,
+                                            in_list, out_list)
+        elif isinstance(ref, Reference):
+            self._evaluate_readonly_baseref(ref, private_list,
+                                            firstprivate_list, shared_list,
+                                            in_list, out_list)
+            
+
     def _evaluate_assignment(self, node, private_list, firstprivate_list,
                              shared_list, in_list, out_list):
         '''
         TODO: docstring
         '''
-        pass
+        # TODO Evaluate LHS
+
+        # TODO Evaluate RHS
+        assert False
 
 
     def _evaluate_loop(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
         '''
         TODO: docstring
+        TENTATIVE COMPLETE
         '''
         # Look at loop bounds etc first.
         # Find our loop initialisation, variable and bounds
@@ -808,12 +1185,18 @@ class OMPTaskDirective(OMPRegionDirective):
         start_val_refs = start_val.walk(Reference)
         if len(start_val_refs) == 1 and type(start_val_refs[0]) is Reference:
             # Loop through the parent loop variables
-            for parent_var in self._parent_loop_vars:
+            for parent_var, index in enumerate(self._parent_loop_vars):
                 # If its a parent loop variable, we need to make it a proxy
                 # variable for now.
                 if start_val_refs[0].symbol == parent_var:
                     to_remove = start_val_refs[0].symbol
-                    self._proxy_loop_vars[to_remove] = parent_var
+                    # Store the loop and parent_var
+                    subdict = {}
+                    subdict['parent_var'] = parent_var
+                    subdict['loop'] = node
+                    subdict['parent_loop'] = self._parent_loops[index]
+
+                    self._proxy_loop_vars[to_remove] = subdict
                     break
 
         # Loop variable is private unless already set as firstprivate.
@@ -828,7 +1211,7 @@ class OMPTaskDirective(OMPRegionDirective):
         # If we have a proxy variable, the parent loop variable has to be 
         # firstprivate
         if to_remove is not None:
-            parent_var_ref = Reference(self._proxy_loop_vars[to_remove])
+            parent_var_ref = Reference(self._proxy_loop_vars[to_remove]['parent_var'])
             if parent_var_ref not in firstprivate_list:
                 firstprivate_list.append(parent_var_ref)
 
@@ -880,7 +1263,10 @@ class OMPTaskDirective(OMPRegionDirective):
 
     def _evaluate_ifblock(self, node, private_list, firstprivate_list,
                           shared_list, in_list, out_list):
-        # Look at the ifblock itself first.
+        '''
+        TODO: docstring
+        '''
+        # TODO: Look at the ifblock itself first.
 
         # Recurse to the children
         # If block
