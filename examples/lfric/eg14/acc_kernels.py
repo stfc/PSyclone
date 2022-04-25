@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
@@ -39,15 +39,15 @@ API to apply OpenACC Kernels directives generically. This can be
 applied via the -s option in the psyclone script.
 
 '''
-from __future__ import print_function
-from psyclone.psyGen import HaloExchange
-from psyclone.transformations import ACCKernelsTrans
+from psyclone.psyGen import HaloExchange, CodedKern
+from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans
 
 
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 api to apply
     OpenACC Kernels directives generically.'''
     kernels_trans = ACCKernelsTrans()
+    rtrans = ACCRoutineTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -66,5 +66,10 @@ def trans(psy):
                 continue
         if node_list:
             kernels_trans.apply(node_list)
+
+        print(schedule.view())
+
+        for kernel in schedule.walk(CodedKern):
+            rtrans.apply(kernel)
 
     return psy

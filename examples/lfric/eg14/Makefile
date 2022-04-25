@@ -44,7 +44,7 @@ PSYROOT=../../..
 
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 testkern_w0_kernel_[0-9]_mod.f90
 
 kernels_redundant:
 	${PSYCLONE} -s ./acc_kernels_redundant.py \
@@ -59,7 +59,7 @@ parallel_no_dm:
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_*.o
 
 EXEC = example_openacc
 
@@ -86,7 +86,7 @@ transform_parallel_dm:
 	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
 
 
-%_psy.f90:	%.x90
+%_psy.f90: %.x90
 	${PSYCLONE} -s ./acc_parallel_dm.py \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
@@ -107,8 +107,9 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
 
 # Dependencies
-main_psy.o:	testkern_w0_kernel_mod.o
+main_psy.o:	testkern_w0_kernel_0_mod.o
 main_alg.o:	main_psy.o
+testkern_w0_kernel_0_mod.f90: transform_kernels
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
