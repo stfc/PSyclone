@@ -108,7 +108,7 @@ $(LFRIC_LIB):
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_0_mod.o
-main_alg.o:	main_psy.o
+main_alg.o:	main_psy.o testkern_w0_kernel_mod.o
 testkern_w0_kernel_0_mod.f90: transform_kernels
 
 %.o: %.F90
