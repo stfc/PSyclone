@@ -2428,7 +2428,7 @@ actually performed on the data of the *field proxies* (e.g.
 ``field1_proxy_data(:)``). For instance, ``X_plus_Y`` Built-in adds
 values of two field proxies in a loop over DoFs
 
-..code-block:: fortran
+.. code-block:: fortran
 
   DO df=loop0_start,loop0_stop
      field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
