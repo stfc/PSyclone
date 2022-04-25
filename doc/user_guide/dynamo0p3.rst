@@ -2420,22 +2420,31 @@ The Built-ins supported for the LFRic API are listed in the related
 subsections, grouped first by the data type of fields they operate on
 (:ref:`real-valued <lfric-built-ins-real>` and
 :ref:`integer-valued <lfric-built-ins-int>`) and then by the mathematical
-operation they perform. For clarity, the calculation performed by each
-Built-in is described using Fortran array syntax; this does not necessarily
-reflect the actual implementation of the Built-in (*e.g.* it could be
-implemented by PSyclone generating a call to an optimised Maths library).
+operation they perform.
+
+The field arguments in Built-ins are the derived types that represent the
+:ref:`LFRic fields <lfric-field>`, however mathematical operations are
+actually performed on the data of the *field proxies* (e.g.
+``field1_proxy_data(:)``). For instance, ``X_plus_Y`` Built-in adds
+values of two field proxies in a loop over DoFs
+
+..code-block:: fortran
+
+  DO df=loop0_start,loop0_stop
+     field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
+
+where the loop limits depend on the use of :ref:`distributed memory
+<distributed_memory>`, :ref:`annexed DoFs <lfric-annexed_dofs>` or both.
 
 As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
 :ref:`field <lfric-field>` objects is always ``in``. The field or
 scalar that has its data modified by a Built-in is marked in **bold**.
 
-.. note:: The field arguments in Built-ins are the derived types that
-          represent the :ref:`LFRic fields <lfric-field>`, however
-          mathematical operations are actually performed on the data of
-          the *field proxies* (e.g. ``field1_proxy_data(:)``). PSyclone
-          issue #1149 will revisit the representation of declarations
-          and computations in the descriptions of individual Built-ins.
+For clarity, the calculation performed by each Built-in is described using
+Fortran array syntax without the details about field proxies. The actual
+implementation of the Built-in may change in future (*e.g.* it could be
+implemented by PSyclone generating a call to an optimised Maths library).
 
 .. _dynamo0.3-api-built-ins-metadata:
 
@@ -3070,12 +3079,12 @@ sign_X
 
 **sign_X** (**field2**, *rscalar*, *field1*)
 
-Returns the sign of a ``real``-valued field using the Fortran intrinsic
-``sign`` function as ``Y = sign(a, X)``, where ``a`` is a ``real``
-scalar and ``Y`` and ``X`` are ``real``-valued fields.
-The results are ``a`` for ``X >= 0`` and ``-a`` for ``X < 0``::
+Returns the sign of a ``real``-valued field, e.g. in Fortran:
+``Y = sign(a, X)``. Here ``a`` is a ``real`` scalar and ``Y`` and ``X``
+are ``real``-valued fields. The results are ``a`` for ``X >= 0`` and
+``-a`` for ``X < 0``::
 
-  field2 = SIGN(rscalar, field1)
+  field2(:) = SIGN(rscalar, field1(:))
 
 DoF-wise maximum of elements
 ############################
