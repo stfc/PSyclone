@@ -6311,7 +6311,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         if self.vector_index:
-            ref = "(" + str(self.vector_index) + ")"
+            ref = f"({self.vector_index})"
         else:
             ref = ""
         _, known = self.required()
@@ -6588,8 +6588,7 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :parameter value: Set the known fixed (literal) halo access depth.
-        :type value: int
+        :param int value: Set the known fixed (literal) halo access depth.
 
         '''
         self._literal_depth = value
@@ -6861,9 +6860,10 @@ class HaloReadAccess(HaloDepth):
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
         elif loop.upper_bound_name == "ncolour":
-            # currenty coloured loops are always transformed from
-            # cell_halo depth 1 loops
-            self._literal_depth = 1
+            if loop.upper_bound_halo_depth:
+                self._literal_depth = loop.upper_bound_halo_depth
+            else:
+                self._literal_depth = 0
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
             if field.descriptor.stencil:
                 # no need to worry about annexed dofs (if they exist)
@@ -6872,8 +6872,10 @@ class HaloReadAccess(HaloDepth):
                 # halos)
                 pass
             else:  # there is no stencil
-                if field.discontinuous:
-                    # There are only local accesses
+                if field.discontinuous or call.all_updates_are_writes:
+                    # There are only local accesses or the kernel is of the
+                    # special form where any iteration is guaranteed to write
+                    # the same value to a given shared entity.
                     pass
                 else:
                     # This is a continuous field which therefore
@@ -7404,6 +7406,14 @@ class DynLoop(Loop):
                     # An upper bound that is part of the halo means
                     # that the halo might be accessed.
                     return True
+                if (not arg.discontinuous and
+                        self.kernel.iterates_over == "cell_column" and
+                        self.kernel.all_updates_are_writes and
+                        self._upper_bound_name == "ncells"):
+                    # This is the special case of a kernel that guarantees to
+                    # write the same value to any given dof, irrespective of
+                    # cell column.
+                    return False
                 if not arg.discontinuous and \
                    self._upper_bound_name in ["ncells", "nannexed"]:
                     # Annexed dofs may be accessed. Return False if we
