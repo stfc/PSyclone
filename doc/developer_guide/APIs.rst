@@ -654,7 +654,7 @@ In PSyclone we apply a lazy halo exchange approach (as opposed to an
 eager one), adding a halo exchange just before it is required.
 
 It is simple to determine where halo exchanges should be added for the
-initial schedule. There are three cases:
+initial schedule. There are four cases:
 
 1) loops that iterate over cells and modify a continuous field will
    access the level-1 halo. This means that any field that is read
@@ -669,7 +669,13 @@ initial schedule. There are three cases:
    variable is set to ``true`` then no halo exchange is required as
    annexed dofs will always be clean.
 
-2) continuous fields that are read from within loops that iterate over
+2) loops that iterate over cells and modify a continuous field but
+   specify `GH_WRITE` access are a special case since the value to be
+   written to any dof location is guaranteed to be independent of
+   loop iteration (i.e. the current cell column). As such, annexed
+   dofs are not required to be clean since they are not accessed.
+
+3) continuous fields that are read from within loops that iterate over
    cells and modify a discontinuous field will access their annexed
    dofs. If the annexed dofs are known to be dirty (because the
    previous modification of the field is known to be from within a
@@ -681,7 +687,7 @@ initial schedule. There are three cases:
    set to ``true`` then no halo exchange is required as annexed dofs
    will always be clean.
 
-3) fields that have a stencil access will access the halo and need
+4) fields that have a stencil access will access the halo and need
    halo exchange calls added.
 
 Halo exchanges are created separately (for fields with halo reads) for
