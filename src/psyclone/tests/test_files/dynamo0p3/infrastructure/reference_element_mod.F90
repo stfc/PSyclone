@@ -307,7 +307,8 @@ module reference_element_mod
   type, extends(reference_element_type), public :: reference_cube_type
     private
   contains
-    private
+    ! Does not compile with nvfortran
+    ! private
     procedure :: populate_entity_labels     => cube_populate_entity_labels
     procedure :: populate_vertices          => cube_populate_vertices
     procedure :: populate_entity_centres    => cube_populate_entity_centres
@@ -435,7 +436,8 @@ module reference_element_mod
   type, extends(reference_element_type), public :: reference_prism_type
     private
   contains
-    private
+    ! Does not compile with nvfortran
+    ! private
     procedure :: populate_entity_labels     => prism_populate_entity_labels
     procedure :: populate_vertices          => prism_populate_vertices
     procedure :: populate_entity_centres    => prism_populate_entity_centres

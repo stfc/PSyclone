@@ -34,6 +34,13 @@
 	11) PR #1682 for #1632. Extend the LFRic API to support transport
 	field type. Required for mixed-precision support.
 
+	12) PR #1678 for #1667. Work towards getting the LFRic OpenACC
+	example (eg14) to compile.
+
+	13) PR #1676 for #1644 Extend matmul2code transformation to
+	support matrix matrix multiplication. Previously it was limited to
+	matrix vector.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
