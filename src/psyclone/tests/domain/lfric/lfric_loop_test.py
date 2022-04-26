@@ -276,17 +276,17 @@ def test_upper_bound_ncolour(dist_mem):
     if dist_mem:
         assert loops[1]._upper_bound_name == "colour_halo"
         assert (loops[1]._upper_bound_fortran() ==
-                "last_cell_all_colours(colour, 1)")
+                "last_halo_cell_all_colours(colour, 1)")
         # Apply redundant computation to increase the depth of the access
         # to the halo.
         rtrans = Dynamo0p3RedundantComputationTrans()
         rtrans.apply(loops[1])
         assert (loops[1]._upper_bound_fortran() ==
-                "last_cell_all_colours(colour, max_halo_depth_mesh)")
+                "last_halo_cell_all_colours(colour, max_halo_depth_mesh)")
     else:
         assert loops[1]._upper_bound_name == "ncolour"
         assert (loops[1]._upper_bound_fortran() ==
-                "last_cell_all_colours(colour)")
+                "last_edge_cell_all_colours(colour)")
 
 
 def test_upper_bound_ncolour_intergrid(dist_mem):

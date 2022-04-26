@@ -8256,12 +8256,23 @@ class DynKern(CodedKern):
         :rtype: bool
 
         '''
+        if self.is_intergrid:
+            # This is not a special kernel
+            return False
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
         if not accesses.intersection(set(all_writes)):
             return True
         return False
+
+    @property
+    def accesses_annexed_dofs(self):
+        '''
+        :returns: true if this kernel accesses annexed dofs, false otherwise.
+        :rtype: bool
+        '''
+        #TODO
 
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one

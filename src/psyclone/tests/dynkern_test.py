@@ -355,7 +355,7 @@ def test_kern_last_cell_all_colours():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_cell_all_colours"
+    assert loop.kernel.last_cell_all_colours == "last_halo_cell_all_colours"
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -372,7 +372,8 @@ def test_kern_last_cell_all_colours_intergrid():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_cell_all_colours_field1"
+    assert (loop.kernel.last_cell_all_colours ==
+            "last_edge_cell_all_colours_field1")
 
 
 def test_kern_all_updates_are_writes():
