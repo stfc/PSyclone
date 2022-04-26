@@ -1374,8 +1374,6 @@ class ColourTrans(LoopTrans):
         '''
         self.validate(node, options=options)
 
-        node_parent = node.parent
-
         colours_loop = self._create_colours_loop(node)
 
         # Add this loop as a child of the original node's parent
