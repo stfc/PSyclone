@@ -592,15 +592,27 @@ class DependencyTools(object):
 
     # -------------------------------------------------------------------------
     def array_access_parallelisable(self, loop_variables, var_info):
-        '''Tries to determine if the access pattern for a variable
+        '''Tries to determine if the access pattern for an array
         given in `var_info` allows parallelisation along the variable
-        `loop_variable`. The following messages might be provided
-        to the user using the message API:
+        `loop_variable`. This implementation follows:
 
-        * if the array access does not depend on the loop variable, a
-          warning is added (e.g. for the variable `a` in `a(1,2) = b(i,j)`).
-        * if the array variable is accessed inconsistently, e.g.
-          `a(i,j) = a(j,i) + 1`.
+        "Optimizing compilers for modern architectures -
+        a dependence-based approach
+        Ken Kennedy and John R. Allen. 2001.
+        Morgan Kaufmann Publishers Inc., San Francisco, CA, USA."
+
+        Chapter 3.6 "Dependency Testing - Putting it all Together"
+        But many of the more advanced tests (e.g. multi-variable ones)
+        are not (yet) implemented, since it appears unlikely that they
+        will occur in 'real' code. But the outline of this testing follows
+        the full structure  When we use the same function for other tests
+        (loop fusion etc), the subroutines here can be generalised to use
+        the dependency direction (i.e. "<", "=", ">") and instead of
+        checking for distance 0 then check for direction being only "="").
+
+        De-facto all that is happening atm is to try to find one subscript
+        that is guaranteed to be independent, which is all that is needed
+        for parallelisation.
 
         :param str loop_variables: all loop variables involved.
         :param var_info: access information for this variable.
@@ -609,6 +621,7 @@ class DependencyTools(object):
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
+
         '''
         # pylint: disable=too-many-locals
         # If a variable is read-only, it can be parallelised

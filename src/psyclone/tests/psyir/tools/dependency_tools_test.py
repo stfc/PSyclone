@@ -399,8 +399,8 @@ def test_partition(lhs, rhs, partition, parser):
                           ("a1(n)", "a1(m)", False),
                           ])
 def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
-    '''Tests that array indices that use 0 loop variables are
-    detected as independent.
+    '''Tests that array indices that do not use a loop variable are
+    handled correctly.
     '''
     reader = FortranStringReader(f'''program test
                                  integer, parameter :: n=10, m=11
