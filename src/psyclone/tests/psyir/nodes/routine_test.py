@@ -56,6 +56,14 @@ def test_routine_constructor():
     node = Routine("hello")
     assert node._name == "hello"
 
+    # A provided symbol table instance is used if it is still unlinked
+    # to a scope, but deep copied if it already has a scope.
+    symtab = SymbolTable()
+    routine = Routine("my_routine", symbol_table=symtab)
+    assert symtab is routine.symbol_table
+    routine2 = Routine("my_routine", symbol_table=symtab)
+    assert symtab is not routine2.symbol_table
+
 
 def test_routine_properties():
     ''' Check the various properties of the Routine class. '''
@@ -116,6 +124,8 @@ def test_routine_name_setter_preexisting_tag():
 
     # But it is fine if the name is the same
     node2 = Routine("hello", symbol_table=symtab)
+    # The new routine has a new instance of the symbol table
+    assert node2.symbol_table is not node.symbol_table
     # And successive name changes are also fine
     node2.name = "bye"
     assert node2.symbol_table.lookup_with_tag("own_routine_symbol").name == \
@@ -251,7 +261,7 @@ def test_routine_equality():
 
 
 def test_routine_copy():
-    '''Test that the copy method correctly creates a equivalent Routine
+    '''Test that the copy method correctly creates an equivalent Routine
     instance. '''
     # Create a function
     symbol_table = SymbolTable()

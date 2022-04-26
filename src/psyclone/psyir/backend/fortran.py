@@ -1047,8 +1047,13 @@ class FortranWriter(LanguageWriter):
         own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
         for schedule in node.walk(Schedule):
             for symbol in schedule.symbol_table.symbols[:]:
+
+                # We don't need to add the Symbol representing this Routine to
+                # the top level symbol table because in Fortran it is already
+                # implicitly declared by the subroutine statement.
                 if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
                     continue
+
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:

@@ -1768,15 +1768,14 @@ class Fparser2Reader(object):
                     ct_expr = dummynode.children[0].detach()
                 else:
                     raise NotImplementedError(
-                        "Could not process {0}. Initialisations on the"
-                        " declaration statements are only supported for "
-                        "parameter declarations.".format(decl.items))
+                        f"Could not process {decl.items}. Initialisations on "
+                        f"the declaration statements are only supported for "
+                        f"parameter declarations.")
 
             if char_len is not None:
                 raise NotImplementedError(
-                    "Could not process {0}. Character length "
-                    "specifications are not supported."
-                    "".format(decl.items))
+                    f"Could not process {decl.items}. Character length "
+                    f"specifications are not supported.")
 
             sym_name = str(name).lower()
 

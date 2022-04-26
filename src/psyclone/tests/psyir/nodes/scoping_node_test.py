@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -230,7 +230,10 @@ def test_scoping_node_equality():
 
     symboltable = SymbolTable()
     symboltable2 = SymbolTable()
-    sched1 = Schedule(symbol_table=symboltable)
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    sched1 = Schedule()
+    sched1._symbol_table = symboltable
     sched2 = Schedule()
     sched2._symbol_table = symboltable
     sched3 = Schedule(symbol_table=symboltable2)

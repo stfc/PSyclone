@@ -432,6 +432,8 @@ def test_loop_equality():
     stop2 = stop.copy()
     step2 = step.copy()
     sched2 = Schedule()
+    # Make sure it has the same ST instance, providing it as a constructor
+    # parameter would create a copy and not use the same instance.
     sched2._symbol_table = symboltable
     child_node2 = Assignment.create(
         Reference(tmp),

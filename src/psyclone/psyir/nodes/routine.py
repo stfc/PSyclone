@@ -111,6 +111,7 @@ class Routine(Schedule, CommentableMixin):
             point into a program (i.e. Fortran Program or C main()).
         :param str return_symbol_name: name of the symbol that holds the \
             return value of this routine (if any). Must be present in the \
+            supplied symbol table.
 
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyGen.Routine` or subclass
@@ -276,7 +277,7 @@ class Routine(Schedule, CommentableMixin):
         appropriate operation during a call to the copy() method.
 
         :param other: object we are copying from.
-        :type other: :py:class:`psyclone.psyir.node.Node`
+        :type other: :py:class:`psyclone.psyir.node.Routine`
 
         '''
         super()._refine_copy(other)
