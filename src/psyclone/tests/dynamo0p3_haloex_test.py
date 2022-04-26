@@ -435,11 +435,11 @@ def test_write_cont_dirty(tmpdir):
         BASE_PATH, "14.1.1_halo_cont_write.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    # We should only have one halo exchange - for the second field argument
-    # which is on a continuous space and is read.
+    # We should have no halo exchange since this kernel is a special case
+    # and does not need to read from annexed dofs.
     hexchs = schedule.walk(DynHaloExchange)
-    assert len(hexchs) == 1
-    assert hexchs[0].field.name == "f2"
+    assert len(hexchs) == 0
+    #assert hexchs[0].field.name == "f2"
     # The field that is written to should be marked as dirty.
     code = str(psy.gen)
     assert "CALL f1_proxy%set_dirty()\n" in code
