@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -129,17 +129,21 @@ def test_call_incorrect_type(f2008_parser):
             "'RoutineSymbol', but found 'DataSymbol'." in str(info.value))
 
 
-def test_call_args(f2008_parser):
+@pytest.mark.parametrize("args,arg_names", [
+    ("1.0, a, (a+b)*2.0", [None, None, None]),
+    ("1.0, arg2=a, arg3=(a+b)*2.0", [None, "arg2", "arg3"])])
+def test_call_args(f2008_parser, args, arg_names):
     '''Test that fparser2reader transforms a Fortran subroutine call with
-    arguments into the equivalent PSyIR Call node.
+    arguments into the equivalent PSyIR Call node. Test with and
+    without named arguments.
 
     '''
     test_code = (
-        "subroutine test()\n"
-        "use my_mod, only : kernel\n"
-        "real :: a,b\n"
-        "  call kernel(1.0, a, (a+b)*2.0, name=\"roo\")\n"
-        "end subroutine")
+        f"subroutine test()\n"
+        f"use my_mod, only : kernel\n"
+        f"real :: a,b\n"
+        f"  call kernel({args})\n"
+        f"end subroutine")
     reader = FortranStringReader(test_code)
     ptree = f2008_parser(reader)
     processor = Fparser2Reader()
@@ -147,13 +151,16 @@ def test_call_args(f2008_parser):
 
     call_node = sched.children[0]
     assert isinstance(call_node, Call)
-    assert len(call_node.children) == 4
+    assert len(call_node._argument_names) == len(call_node.children)
+    for idx, child in enumerate(call_node.children):
+        assert call_node._argument_names[idx] == (id(child), arg_names[idx])
+    assert call_node.argument_names == arg_names
+    assert len(call_node.children) == 3
     assert isinstance(call_node.children[0], Literal)
     assert call_node.children[0].value == "1.0"
     assert isinstance(call_node.children[1], Reference)
     assert call_node.children[1].name == "a"
     assert isinstance(call_node.children[2], BinaryOperation)
-    assert isinstance(call_node.children[3], CodeBlock)
 
     routine_symbol = call_node.routine
     assert isinstance(routine_symbol, RoutineSymbol)
@@ -185,7 +192,7 @@ def test_call_codeblock_args(fortran_reader):
         "subroutine test()\n"
         "  use my_mod, only : kernel\n"
         "  real :: a, b\n"
-        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "  call kernel(a, 'not'//'nice', 'at'//'all', b)\n"
         "end subroutine")
     psyir = fortran_reader.psyir_from_source(test_code)
     call_node = psyir.walk(Call)[0]

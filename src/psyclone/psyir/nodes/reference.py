@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
@@ -63,6 +64,21 @@ class Reference(DataNode):
     def __init__(self, symbol, parent=None):
         super(Reference, self).__init__(parent=parent)
         self.symbol = symbol
+
+    def __eq__(self, other):
+        '''
+        Checks equivalence of two References. References are considered
+        equivalent if they are the same type of Reference and their symbol
+        is the same.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and (self.symbol == other.symbol)
+        return is_eq
 
     @property
     def is_array(self):
@@ -145,8 +161,8 @@ class Reference(DataNode):
         '''
         if (self.parent and isinstance(self.parent, Operation) and
                 self.parent.operator in [BinaryOperation.Operator.LBOUND,
-                                         BinaryOperation.Operator.UBOUND] and
-                self.parent.children.index(self) == 0):
+                                         BinaryOperation.Operator.UBOUND]
+                and self.parent.children[0] is self):
             # This reference is the first argument to a lbound or
             # ubound intrinsic. These intrinsics do not access the
             # array elements, they determine the array

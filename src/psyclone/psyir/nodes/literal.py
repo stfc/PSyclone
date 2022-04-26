@@ -117,6 +117,21 @@ class Literal(DataNode):
             self._value = value
         self._datatype = datatype
 
+    def __eq__(self, other):
+        '''Checks the equality of this Literal with other. Literals are
+        equal if they are the same type, and have the same datatype and
+        value string (for now only compared with ==).
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.datatype == other.datatype
+        is_eq = is_eq and self.value == other.value
+        return is_eq
+
     @property
     def datatype(self):
         '''

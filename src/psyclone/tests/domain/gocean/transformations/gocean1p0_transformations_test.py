@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -1293,9 +1293,9 @@ def test_acc_data_copyin(tmpdir):
     code = str(psy.gen)
 
     assert (
-        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
-        "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+        "      !$acc enter data copyin(cu_fld,cu_fld%data,cv_fld,cv_fld%data,"
+        "p_fld,p_fld%data,u_fld,u_fld%data,unew_fld,unew_fld%data,"
+        "uold_fld,uold_fld%data,v_fld,v_fld%data)\n" in code)
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1319,13 +1319,12 @@ def test_acc_data_grid_copyin(tmpdir):
     accdt.apply(schedule)
     code = str(psy.gen)
 
-    # TODO grid properties are effectively duplicated in this list (but the
-    # OpenACC deep-copy support should spot this).
-    pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
-             "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
-             "u_fld%grid%area_u,d_fld,d_fld%data,du_fld,du_fld%data,"
-             "d_fld%grid,d_fld%grid%tmask,d_fld%grid%area_t,"
-             "d_fld%grid%area_u)")
+    # TODO GOcean grid properties are duplicated in this set under
+    # different names (the OpenACC deep copy support should spot this).
+    pcopy = ("!$acc enter data copyin(cu_fld,cu_fld%data,d_fld,d_fld%data,"
+             "d_fld%grid,d_fld%grid%area_t,d_fld%grid%area_u,d_fld%grid%tmask,"
+             "du_fld,du_fld%data,u_fld,u_fld%data,u_fld%grid,"
+             "u_fld%grid%area_t,u_fld%grid%area_u,u_fld%grid%tmask)")
     assert pcopy in code
     # Check that we flag that the fields are now on the device
     for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
@@ -1594,7 +1593,7 @@ def test_acc_loop_before_enter_data():
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An ACC parallel region must be preceded by an ACC enter-data "
+    assert ("An ACC parallel region must be preceded by an ACC enter data "
             "directive but in 'invoke_0' this is not the case." in
             str(err.value))
 
