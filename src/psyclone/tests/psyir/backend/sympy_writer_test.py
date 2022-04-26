@@ -41,6 +41,7 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
@@ -309,3 +310,24 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
 
     assert sympy_list[0] == parse_expr("a%a_b_1 + a%a_c(1) + i")
     assert sympy_list[1] == parse_expr("a_b + j")
+
+
+def test_sym_writer_parse_errors(fortran_reader):
+    '''Tests that unsupported syntax (e.g. array ranges) raise the
+    expected ParseError
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = '''program test_prog
+                real :: x, a(10), b(10)
+                x = a(:) * b(:)
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    exp1 = psyir.children[0].children[0].rhs
+
+    with pytest.raises(ParseError) as err:
+        _ = SymPyWriter.convert_to_sympy_expressions([exp1])
+
+    assert "Parse Error: Invalid SymPy expression" in str(err.value)
