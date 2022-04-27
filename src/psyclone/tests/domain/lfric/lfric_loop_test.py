@@ -307,19 +307,19 @@ def test_upper_bound_ncolour_intergrid(dist_mem):
     if dist_mem:
         assert loops[1]._upper_bound_name == "colour_halo"
         assert (loops[1]._upper_bound_fortran() ==
-                "last_cell_all_colours_field1(colour, 1)")
+                "last_halo_cell_all_colours_field1(colour, 1)")
         # We can't apply redundant computation to increase the depth of the
         # access to the halo as it is not supported for inter-grid kernels.
         # Therefore we manually unset the upper bound halo depth to indicate
         # that we access the full depth.
         loops[1]._upper_bound_halo_depth = None
         assert (loops[1]._upper_bound_fortran() ==
-                "last_cell_all_colours_field1(colour, "
+                "last_halo_cell_all_colours_field1(colour, "
                 "max_halo_depth_mesh_field1)")
     else:
         assert loops[1]._upper_bound_name == "ncolour"
         assert (loops[1]._upper_bound_fortran() ==
-                "last_cell_all_colours_field1(colour)")
+                "last_edge_cell_all_colours_field1(colour)")
 
 
 def test_loop_start_expr(dist_mem):
@@ -364,9 +364,9 @@ def test_loop_stop_expr(dist_mem):
     loops = sched.walk(DynLoop)
     ubound = loops[1].stop_expr
     assert isinstance(ubound, ArrayReference)
-    assert ubound.symbol.name == "last_cell_all_colours"
     assert ubound.indices[0].name == "colour"
     if dist_mem:
+        assert ubound.symbol.name == "last_halo_cell_all_colours"
         assert isinstance(ubound.indices[1], Literal)
         assert ubound.indices[1].value == "1"
         # Alter the loop so that it goes to the full halo depth
@@ -374,6 +374,8 @@ def test_loop_stop_expr(dist_mem):
         ubound = loops[1].stop_expr
         assert isinstance(ubound.indices[1], Reference)
         assert ubound.indices[1].symbol.name == "max_halo_depth_mesh"
+    else:
+        assert ubound.symbol.name == "last_edge_cell_all_colours"
 
 
 def test_loop_stop_expr_intergrid(dist_mem):
@@ -402,9 +404,9 @@ def test_loop_stop_expr_intergrid(dist_mem):
     loops = sched.walk(DynLoop)
     ubound = loops[1].stop_expr
     assert isinstance(ubound, ArrayReference)
-    assert ubound.symbol.name == "last_cell_all_colours_field1"
     assert ubound.indices[0].name == "colour"
     if dist_mem:
+        assert ubound.symbol.name == "last_halo_cell_all_colours_field1"
         assert isinstance(ubound.indices[1], Literal)
         assert ubound.indices[1].value == "1"
         # Alter the loop so that it goes to the full halo depth
@@ -412,6 +414,8 @@ def test_loop_stop_expr_intergrid(dist_mem):
         ubound = loops[1].stop_expr
         assert isinstance(ubound.indices[1], Reference)
         assert ubound.indices[1].symbol.name == "max_halo_depth_mesh_field1"
+    else:
+        assert ubound.symbol.name == "last_edge_cell_all_colours_field1"
 
 
 def test_lfricloop_gen_code_err():
