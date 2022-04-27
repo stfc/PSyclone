@@ -179,7 +179,7 @@ def test_script_invalid_content():
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "error.py"))
     assert "attempted to import 'error' but script file " in str(error.value)
-    assert ("PSyclone/src/psyclone/tests/test_files/dynamo0p3/error.py' is "
+    assert ("src/psyclone/tests/test_files/dynamo0p3/error.py' is "
             "not valid python" in str(error.value))
 
 
@@ -222,7 +222,7 @@ def test_script_no_trans():
                 BASE_PATH, "dynamo0p3", "no_trans.py"))
     assert ("attempted to import 'no_trans' but script file "
             in str(error.value))
-    assert ("PSyclone/src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
+    assert ("src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
             "does not contain a 'trans' function" in str(error.value))
 
 
