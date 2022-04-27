@@ -5,5 +5,5 @@
       "replacement": "https://psyclone.readthedocs.io/en/latest"
     }
   ],
-  "aliveStatusCodes": [200, 401, 503]
+  "aliveStatusCodes": [200, 401, 502, 503]
 }
