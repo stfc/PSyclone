@@ -762,7 +762,7 @@ class OMPTaskDirective(OMPRegionDirective):
             return isinstance(child, OMPSharedClause)
         if position == 4 or position == 5:
             return isinstance(child, OMPDependClause)
-       return False
+        return False
 
     def validate_global_constraints(self):
         '''
@@ -813,7 +813,7 @@ class OMPTaskDirective(OMPRegionDirective):
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list).
             if ref not in private_list and ref not in firstprivate_list:
-                firstprivate_list.append(ref)
+                firstprivate_list.append(ref.copy())
         else:
             # Otherwise it was a shared variable. Its not an
             # array so we just add the name to the in_list
@@ -821,10 +821,10 @@ class OMPTaskDirective(OMPRegionDirective):
             # we still add it as this is the same as an inout
             # dependency
             if ref not in in_list:
-                in_list.append(ref)
+                in_list.append(ref.copy())
 
-    def _handle_readonly_index_binop(self, index, index_list,
-                                     firstprivate_list, private_list):
+    def _handle_index_binop(self, node, index_list,
+                            firstprivate_list, private_list):
         '''
         TODO: docstring
         '''
@@ -866,14 +866,14 @@ class OMPTaskDirective(OMPRegionDirective):
         ref_index = None
         if type(node.children[0]) is Reference:
             index_symbol = node.children[0].symbol
-            index_private = (index_symbol in self._parallel_private) #OLD CODE WAS (node.children[0] in parallel_private) WHICH IS CORRECT
+            index_private = (node.children[0] in self._parallel_private)
             is_proxy = (index_symbol in self._proxy_loop_vars) 
             ref = node.children[0]
             ref_index = 0
             literal = node.children[1]
         if type(node.children[1]) is Reference:
             index_symbol = node.children[1].symbol
-            index_private = (index_symbol in self._parallel_private) #OLD CODE WAS (node.children[1] in parallel_private) WHICH IS CORRECT
+            index_private = (node.children[1] in self._parallel_private)
             is_proxy = (index_symbol in self._proxy_loop_vars) 
             ref = node.children[1]
             ref_index = 1
@@ -959,20 +959,20 @@ class OMPTaskDirective(OMPRegionDirective):
                         binop2 = real_ref.copy()
             # Add this to the list of indexes
             if binop2 is not None:
-                index_ranges.append([binop, binop2])
+                index_list.append([binop, binop2])
             else:
-                index_ranges.append(binop)
+                index_list.append(binop)
 
         # Proxy use case handled.
         
         # If the variable is private:
-        if index_private:
+        elif index_private:
             # If the variable is in our private list
             if ref in private_list:
                 # If its a child loop variable
                 if ref.symbol in child_loop_vars:
                     # Return a full range (:)
-                    dim = len(index_ranges)
+                    dim = len(index_list)
                     one = Literal(str(dim+1), INTEGER_TYPE)
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
@@ -981,14 +981,14 @@ class OMPTaskDirective(OMPRegionDirective):
                             BinaryOperation.Operator.UBOUND,
                             ref.copy(), one.copy())
                     full_range = Range.create(lbound, ubound)
-                    index_ranges.append(full_range)
+                    index_list.append(full_range)
                 else:
                     # We have a private constant, written to inside
                     # our region, so we can't do anything better than
                     # a full range I think (since we don't know what
                     # the value is/how it changes.
                     # Return a full range (:)
-                    dim = len(index_ranges)
+                    dim = len(index_list)
                     one = Literal(str(dim+1), INTEGER_TYPE)
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
@@ -997,16 +997,85 @@ class OMPTaskDirective(OMPRegionDirective):
                             BinaryOperation.Operator.UBOUND,
                             ref.copy(), one.copy())
                     full_range = Range.create(lbound, ubound)
-                    index_ranges.append(full_range)
+                    index_list.append(full_range)
             elif ref in firstprivate_list:
-                # It can't be a child loop variable (these have to be private)
-                # Just has to be a firstprivate constant, which we can just use
-                # the reference to for now. Not 100% on this as the value
-                # is modifiable.
-                index_range.append(ref.copy())
+                # FIXME HAVE TO DO SOMETHING FOR PARENT LOOP VARIABLES
+                if ref.symbol in self._parent_loop_vars:
+                    # Non-proxy access to a parent loop variable.
+                    # In this case we have to do similar to when accessing a
+                    # proxy loop variable.
+                    
+                    # Find index of parent loop var
+                    ind = self._parent_loop_vars.index(ref.symbol)
+                    parent_loop = self._parent_loops[ind]
+                    # We have a Literal step value, and a Literal in
+                    # the Binary Operation. These Literals must both be
+                    # Integer types, so we will convert them to integers
+                    # and do some divison.
+                    step_val = int(parent_loop.step_expr.value)
+                    literal_val = int(literal.value)
+                    divisor = math.ceil(literal_val / step_val)
+                    modulo = literal_val % step_val
+                    # If the divisor is > 1, then we need to do
+                    # divisor*step_val
+                    # We also need to add divisor-1*step_val to cover the case
+                    # where e.g. array(i+1) is inside a larger loop, as we
+                    # need dependencies to array(i) and array(i+step), unless
+                    # modulo == 0
+                    step = None
+                    step2 = None
+                    if divisor > 1:
+                        step = BinaryOperation.create(
+                                BinaryOperation.Operator.MUL,
+                                Literal(f"{divisor}", INTEGER_TYPE),
+                                Literal(f"{step_val}", INTEGER_TYPE))
+                        if divisor > 2:
+                            step2 = BinaryOperation.create(
+                                    BinaryOperation.Operator.MUL,
+                                    Literal(f"{divisor-1}", INTEGER_TYPE),
+                                    Literal(f"{step_val}", INTEGER_TYPE))
+                        else:
+                            step2 = Literal(f"{step_val}", INTEGER_TYPE)
+                    else:
+                        step = Literal(f"{step_val}", INTEGER_TYPE)
+
+                    # Create a Binary Operation of the correct format.
+                    binop = None
+                    binop2 = None
+                    if ref_index == 0:
+                        # We have Ref OP Literal
+                        binop = BinaryOperation.create(
+                                node.operator, ref.copy(), step)
+                        if modulo != 0:
+                            if step2 is not None:
+                                binop2 = BinaryOperation.create(
+                                         node.operator, ref.copy(), step2)
+                            else:
+                                binop2 = ref.copy()
+                    else:
+                        # We have Literal OP Ref
+                        binop = BinaryOperation.create(
+                                node.operator, step, ref.copy())
+                        if modulo != 0:
+                            if step2 is not None:
+                                binop2 = BinaryOperation.create(
+                                         node.operator, step2, ref.copy())
+                            else:
+                                binop2 = ref.copy()
+                    # Add this to the list of indexes
+                    if binop2 is not None:
+                        index_list.append([binop, binop2])
+                    else:
+                        index_list.append(binop)
+                else:
+                    # It can't be a child loop variable (these have to be
+                    # private). Just has to be a firstprivate constant, which
+                    # we can just use the reference to for now. Not 100% on
+                    # this as the value is modifiable.
+                    index_list.append(ref.copy())
             else:
                 # Not yet been written to/read from so has to be firstprivate
-                firstprivate_list.append(ref)
+                firstprivate_list.append(ref.copy())
                 # Has to be a constant to, so we're safe to use this reference.
                 index_range.append(ref.copy())
         else:
@@ -1074,7 +1143,7 @@ class OMPTaskDirective(OMPRegionDirective):
                         # the parent loop's value.
                         parent_var = self._proxy_loop_vars[index.symbol]['parent_var']
                         parent_ref = Reference(parent_var)
-                        index_list.append(parent_var)
+                        index_list.append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1090,7 +1159,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 # Binary Operation check
                 # A single binary operation, e.g. a(i+1) can require
                 # multiple clauses to correctly handle.
-                self._handle_readonly_index_binop(index, index_list,
+                self._handle_index_binop(index, index_list,
                                                   firstprivate_list,
                                                   private_list)
             else:
@@ -1152,6 +1221,139 @@ class OMPTaskDirective(OMPRegionDirective):
             self._evaluate_readonly_baseref(ref, private_list,
                                             firstprivate_list, shared_list,
                                             in_list, out_list)
+
+    def _evaluate_write_arrayref(self, ref, private_list, firstprivate_list,
+                                 shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        # We write to this arrayref, so its shared and depend out on
+        # the array.
+
+        # Arrays are always shared at the moment, so we ignore the possibility
+        # of it being private now.
+
+        index_list = []
+        # Work out the indices needed.
+        for dim, index in enumerate(ref.indices):
+            if isinstance(index, Literal):
+                # Literals are just a value, just use the value.
+                index_list.append(index.copy())
+            elif isinstance(index, Reference):
+                index_private = (index in
+                                 self._parallel_private)
+                # Check whether the reference is to a child loop variable.
+                child_loop_vars = []
+                for child_loop in self.walk(Loop):
+                    if child_loop.variable not in self._proxy_loop_vars:
+                        child_loop_vars.append(child_loop.variable)
+                
+                if index_private:
+                    if (index not in private_list and
+                        index not in firstprivate_list):
+                        firstprivate_list.append(index.copy())
+                    # Special case 1. If index belongs to a child loop
+                    # that is NOT a proxy for a parent loop, then we
+                    # can only do as well as guessing the entire range
+                    # of the loop is used.
+                    if index.symbol in child_loop_vars:
+                        # Return a :
+                        one = Literal(str(dim+1), INTEGER_TYPE)
+                        lbound = BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                ref.copy(), one.copy())
+                        ubound = BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                ref.copy(), one.copy())
+                        full_range = Range.create(lbound, ubound)
+                        index_list.append(full_range)
+                    elif index.symbol in self._proxy_loop_vars:
+                        # Special case 2. the index is a proxy for a parent
+                        # loop's variable. In this case, we add a reference to
+                        # the parent loop's value.
+                        parent_var = self._proxy_loop_vars[index.symbol]['parent_var']
+                        parent_ref = Reference(parent_var)
+                        index_list.append(parent_ref)
+                    else:
+                        # Final case is just a generic Reference, in which case
+                        # just copy the Reference
+                        index_list.append(index.copy())
+                else:
+                    raise GenerationError(
+                            "Shared variable access used "
+                            "as an index inside an "
+                            "OMPTaskDirective which is not "
+                            "supported. Variable name is {0}".
+                            format(index))
+            elif isinstance(index, BinaryOperation):
+                self._handle_index_binop(index, index_list,
+                                               firstprivate_list,
+                                               private_list)
+
+        # So we have a list of (lists of) indices
+        # [ [index1, index4], index2, index3] so convert these
+        # to an ArrayReference again.
+        # To create all combinations, we use itertools.product
+        # We have to create a new list which only contains lists.
+        # Add to in_list: name(index1, index2)
+        new_index_list = []
+        for element in index_list:
+            if isinstance(element, list):
+                new_index_list.append(element)
+            else:
+                new_index_list.append([element])
+        combinations = itertools.product(*new_index_list)
+        for temp_list in combinations:
+            # We need to make copies of the members as each
+            # member can only be the child of one ArrayRef
+            final_list = []
+            for element in temp_list:
+                final_list.append(element.copy())
+            dclause = ArrayReference.create(ref.symbol,
+                                            list(final_list))
+            # Add dclause into the out_list if required
+            if dclause not in out_list:
+                out_list.append(dclause)
+        # Add to shared_list (for explicity)
+        sclause = Reference(ref.symbol)
+        if sclause not in shared_list:
+            shared_list.append(sclause)
+                
+
+    def _evaluate_write_baseref(self, ref, private_list, firstprivate_list,
+                                shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        # Check if its a private variable
+        is_private = ref in self._parallel_private
+        # If its private we don't need to do anything
+        if not is_private:
+            if ref not in shared_list:
+                shared_list.append(ref.copy())
+            if ref not in out_list:
+                out_list.append(ref.copy())
+
+    def _evaluate_write_reference(self, ref, private_list, firstprivate_list,
+                                  shared_list, in_list, out_list):
+        '''
+        TODO: docstring
+        '''
+        if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+            # Resoolve ArrayReference (AOSRef)
+            self._evaluate_write_arrayref(ref, private_list, firstprivate_list,
+                                          shared_list, in_list, out_list)
+        elif isinstance(ref, StructureReference):
+            # This is treated the same as a Reference, but we create a
+            # Reference to the symbol to handle.
+            base_ref = Reference(ref.symbol)
+            self._evaluate_write_baseref(base_ref, private_list,
+                                         firstprivate_list, shared_list,
+                                         in_list, out_list)
+        elif isinstance(ref, Reference):
+            self._evaluate_write_baseref(ref, private_list,
+                                         firstprivate_list, shared_list,
+                                         int_list, out_list)
             
 
     def _evaluate_assignment(self, node, private_list, firstprivate_list,
@@ -1159,10 +1361,18 @@ class OMPTaskDirective(OMPRegionDirective):
         '''
         TODO: docstring
         '''
-        # TODO Evaluate LHS
+        lhs = node.children[0]
+        rhs = node.children[1]
+        # Evaluate LHS
+        self._evaluate_write_reference(lhs, private_list, firstprivate_list,
+                                       shared_list, in_list, out_list)
 
-        # TODO Evaluate RHS
-        assert False
+        # Evaluate RHS
+        references = rhs.walk(Reference)
+        for ref in references:
+            self._evaluate_readonly_reference(ref, private_list,
+                                              firstprivate_list, shared_list,
+                                              in_list, out_list)
 
 
     def _evaluate_loop(self, node, private_list, firstprivate_list,
@@ -1185,11 +1395,11 @@ class OMPTaskDirective(OMPRegionDirective):
         start_val_refs = start_val.walk(Reference)
         if len(start_val_refs) == 1 and type(start_val_refs[0]) is Reference:
             # Loop through the parent loop variables
-            for parent_var, index in enumerate(self._parent_loop_vars):
+            for index, parent_var in enumerate(self._parent_loop_vars):
                 # If its a parent loop variable, we need to make it a proxy
                 # variable for now.
                 if start_val_refs[0].symbol == parent_var:
-                    to_remove = start_val_refs[0].symbol
+                    to_remove = loop_var
                     # Store the loop and parent_var
                     subdict = {}
                     subdict['parent_var'] = parent_var
@@ -1213,7 +1423,7 @@ class OMPTaskDirective(OMPRegionDirective):
         if to_remove is not None:
             parent_var_ref = Reference(self._proxy_loop_vars[to_remove]['parent_var'])
             if parent_var_ref not in firstprivate_list:
-                firstprivate_list.append(parent_var_ref)
+                firstprivate_list.append(parent_var_ref.copy())
 
         # For all non-array accesses we make them firstprivate unless they
         # are already declared as something else
@@ -1319,9 +1529,11 @@ class OMPTaskDirective(OMPRegionDirective):
             assert False
         if not isinstance(self.children[0].children[0], Loop):
             assert False
-        self._evaluate_node(self.children[0].children[0])
-        #Not finished
-        assert False
+        self._evaluate_node(self.children[0].children[0], private_list,
+                            firstprivate_list, shared_list, in_list,
+                            out_list)
+        #Maybe finished?
+#        assert False
 
         # Make the clauses to return.
         private_clause = OMPPrivateClause()
@@ -1345,920 +1557,920 @@ class OMPTaskDirective(OMPRegionDirective):
                 out_clause)
         
 
-class OMPTaskDirective(OMPRegionDirective):
-    '''
-    Class representing an OpenMP TASK directive in the PSyIR
-
-    :param list children: list of Nodes that are children of this Node.
-    :param parent: the Node in the AST that has this directive as a child
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    '''
-    _children_valid_format = ("Schedule, OMPPrivateClause,"
-                              "OMPFirstprivateClause, OMPSharedClause"
-                              "OMPDependClause, OMPDependClause")
-
-    def __init__(self, children=None, parent=None):
-        super(OMPTaskDirective, self).__init__(children=children,
-                                                   parent=parent)
-        # We don't know if we have a parent OMPParallelClause at initialisation
-        # so we can only create dummy clauses for now.
-        self.children.append(OMPPrivateClause())
-        self.children.append(OMPFirstprivateClause())
-        self.children.append(OMPSharedClause())
-        self.children.append(OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.IN))
-        self.children.append(OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.OUT))
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-         Decides whether a given child and position are valid for this node.
-         The rules are:
-         1. Child 0 must always be a Schedule.
-         2. Child 1 must always be an OMPPrivateClause
-         3. Child 2 must always be an OMPFirstprivateClause
-         4. Child 3 must always be an OMPSharedClause
-         5. Child 4 and 5 must always be OMPDependClauses
-
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        if position == 0:
-            return isinstance(child, Schedule)
-        if position == 1:
-            return isinstance(child, OMPPrivateClause)
-        if position == 2:
-            return isinstance(child, OMPFirstprivateClause)
-        if position == 3:
-            return isinstance(child, OMPSharedClause)
-        if position == 4 or position == 5:
-            return isinstance(child, OMPDependClause)
-        return False
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPTaskDirective is not \
-                                 enclosed within an OpenMP serial region.
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). A taskloop
-        # directive, we must have an OMPSerialDirective as an
-        # ancestor back up the tree.
-        if not self.ancestor(OMPSerialDirective):
-            raise GenerationError(
-                "OMPTaskDirective must be inside an OMP Serial region "
-                "but could not find an ancestor node.")
-
-    def handle_readonly_reference(self, ref, firstprivate_list, private_list,
-                                  shared_list, in_list, out_list,
-                                  parallel_private, start_val, stop_val,
-                                  step_val):
-        '''
-        Process a read-only reference inside the OMP Task Region. Adds the
-        Reference str to the appropriate lists for building up clauses.
-
-        FIXME finish docstring
-        :param ref: The Reference node to process
-        :type ref: TODO
-        :param firstprivate_list: The list of firstprivate variables in the \
-                                  task region.
-        :type firstprivate_list: List of Reference.
-        :param private_list: The list of private variables in the task region.
-        :type private_list: List of Reference.
-        :param shared_list: The list of shared variables in the task region.
-        :type shared_list: List of Reference.
-        :type in_list: List of Reference.
-        :param out_list: The list of output variables in the task region.
-        :type out_list: List of Reference.
-        :param parallel_private: The list of private variables in the parent \
-                                 parallel region.
-        :type parallel_private: List of Reference.
-        :param start_val: Start/init value of outermost Loop contained in the \
-                          task region.
-        :type start_val: ???
-        :param stop_val: Stop value of outermost Loop contained in the task \
-                         region.
-        :type stop_val: ???
-        :param step_val: Step value of outermost Loop contained in the task \
-                         region.
-        :type step_val: ???
-
-        FIXME Raises docstring
-        '''
-        if isinstance(ref, (ArrayReference,
-                            ArrayOfStructuresReference)):
-            # Resolve ArrayReference (AoSReference)
-            index_list = []
-            # Check if this reference is private in the parent parallel
-            # region
-            is_private = False
-            for priv_ref in parallel_private:
-                # Array References are only equivalent iff a is b so
-                # we need to check the symbol manually
-                if isinstance(priv_ref, (ArrayReference,
-                                         ArrayOfStructuresReference)):
-                    is_private = is_private or priv_ref.symbol == ref.symbol
-            # If the reference is private in the parent parallel
-            # then it is added to the firstprivate clause for this
-            # task if it has not yet been written to (i.e. is not
-            # yet in the private clause list).
-            if is_private:
-                # Have to manually check if its in private list or 
-                # first private list already
-                found = False
-                for test_refs in zip(private_list, firstprivate_list):
-                    if isinstance(test_refs, (ArrayReference,
-                                              ArrayOfStructuresReference)):
-                        found = found or test_ref.symbol == ref.symbol
-                if not found:
-                    firstprivate_list.append(ref.copy())
-            else:
-                # The reference is shared. Since it is an array,
-                # we need to check the following restrictions:
-                # 1. No ArrayReference or ArrayOfStructuresReference
-                # or StructureReference appear in the indexing.
-                # 2. Each index is a firstprivate variable, or a 
-                # private parent variable that has not yet been
-                # declared (in which case we declare it as 
-                # firstprivate). Alternatively each index is
-                # a BinaryOperation whose children are a
-                # Reference to a firstprivate variable and a
-                # Literal, with operator of ADD or SUB
-                for dim, index in enumerate(ref.indices):
-                    if type(index) is Reference:
-                        # TODO: #1636 References should have an equality
-                        # check implemented, this needs changing if not.
-                        index_private = (index in 
-                                         parallel_private)
-
-                        # Check whether the Reference is to a child loop
-                        # variable, as that is a special case
-                        child_loop_vars = []
-                        for child_loop in self.walk(Loop):
-                            child_loop_vars.append(child_loop.variable)
-                        if index_private:
-                            if (index not in private_list and
-                                index not in firstprivate_list):
-                                firstprivate_list.append(index.copy())
-                            if index.symbol in child_loop_vars:
-                                # Return a :
-                                one = Literal(str(dim+1), INTEGER_TYPE)
-                                lbound = BinaryOperation.create(
-                                        BinaryOperation.Operator.LBOUND,
-                                        ref.copy(), one.copy())
-                                ubound = BinaryOperation.create(
-                                        BinaryOperation.Operator.UBOUND,
-                                        ref.copy(), one.copy())
-                                full_range = Range.create(lbound, ubound)
-                                index_list.append(full_range)
-                            else:
-                                index_list.append(index.copy())
-                        else:
-                            raise GenerationError(
-                                    "Shared variable access used "
-                                    "as an index inside an "
-                                    "OMPTaskDirective which is not "
-                                    "supported. Variable name is {0}".
-                                    format(index))
-                    elif type(index) is BinaryOperation:
-                        # Binary Operation check
-                        # This is less simple than previously implemented.
-                        # A single binary operation, e.g. a(i+1) can require
-                        # multiple clauses to correctly handle. The current
-                        # implementation assumed that this is not the case so
-                        # just creates a single index list, assumed to handle
-                        # all scenarios, however this is not sufficient.
-                        self.handle_binary_op(index,
-                                index_list, firstprivate_list,
-                                private_list, parallel_private,
-                                start_val, stop_val)
-                    else:
-                        # Not allowed type appears
-                        raise GenerationError(
-                                "{0} object is not allowed to "
-                                "appear in an Array Index "
-                                "expression inside an "
-                                "OMPTaskDirective.".format(
-                                    type(index).__name__))
-            # So we have a list of (lists of) indices 
-            # [ [index1, index4], index2, index3] so convert these
-            # to an ArrayReference again.
-            # To create all combinations, we use itertools.product
-            # We have to create a new list which only contains lists.
-            # Add to in_list: name(index1, index2)
-            new_index_list = []
-            for element in index_list:
-                if isinstance(element, list):
-                    new_index_list.append(element)
-                else:
-                    new_index_list.append([element])
-            combinations = itertools.product(*new_index_list)
-            for temp_list in combinations:
-                # We need to make copies of the members as each
-                # member can only be the child of one ArrayRef
-                final_list = []
-                for element in temp_list:
-                    final_list.append(element.copy())
-                dclause = ArrayReference.create(ref.symbol,
-                                                list(final_list))
-                # Add dclause into the in_list if required
-                if dclause not in in_list:
-                    in_list.append(dclause)
-            # Add to shared_list (for explicity)
-            sclause = Reference(ref.symbol)
-            if sclause not in shared_list:
-                shared_list.append(sclause)
-        elif isinstance(ref, StructureReference):
-            # Read access variable.
-            # Check if this is private in the parent parallel 
-            # region
-            # FIXME Structure references should only use the highest-level
-            # symbol in the structure to perform the structure reference
-            # This code may generate the full reference (e.g a%b) instead of
-            # just a so this needs to be checked.
-
-            # Create a Reference to the entire structure to use inside any
-            # clauses.
-            base_ref = Reference(ref.symbol)
-            is_private = (base_ref in parallel_private)
-            # If the reference is private in the parent parallel,
-            # then it is added to the firstprivate clause for this
-            # task if it has not yet been written to (i.e. is not
-            # yet in the private clause list).
-            if is_private:
-                if base_ref not in private_list and base_ref not in \
-                        firstprivate_list:
-                    firstprivate_list.append(base_ref)
-            else:
-                # Otherwise it was a shared variable. Its not an
-                # array so we just add the name to the in_list
-                # if not already there. If its already in out_list
-                # we still add it as this is the same as an inout
-                # dependency
-                if base_ref not in in_list:
-                    in_list.append(base_ref)
-        elif isinstance(ref, Reference):
-            # Read access variable.
-            # Check if this is private in the parent parallel 
-            # region
-            is_private = (ref in parallel_private)
-            # If the reference is private in the parent parallel,
-            # then it is added to the firstprivate clause for this
-            # task if it has not yet been written to (i.e. is not
-            # yet in the private clause list.
-            if is_private:
-                if ref not in private_list and ref not in \
-                        firstprivate_list:
-                    firstprivate_list.append(ref.copy())
-            else:
-                # Otherwise it was a shared variable. Its not an
-                # array so we just add the name to the in_list
-                # if not already there. If its already in out_list
-                # we still add it as this is the same as an inout
-                # dependency
-                if ref not in in_list:
-                    in_list.append(ref.copy())
-
-    def handle_binary_op(self, node, index_ranges, firstprivate_list,
-                         private_list, parallel_private,
-                         start_val, stop_val):
-        '''
-        Check a binary operation is safe for using in inside an Array Index
-        inside a OMP Task region. Adds the index to the index_ranges and
-        (first)private_list.
-
-        FIXME finish docstring
-        :param node: The BinaryOp node to check 
-        :type node: TODO
-        :param index_ranges: The list of indices in the current array access
-        :type index_ranges: List of Range.
-        :param firstprivate_list: The list of firstprivate variables in the \
-                                  task region.
-        :type firstprivate_list: List of Reference.
-        :param private_list: The list of private variables in the task region.
-        :type private_list: List of Reference.
-        :param parallel_private: The list of private variables in the parent \
-                                 parallel region.
-        :type parallel_private: List of Reference.
-        :param start_val: Start/init value of outermost Loop contained in the \
-                          task region.
-        :type start_val: ???
-        :param stop_val: Stop value of outermost Loop contained in the task \
-                         region.
-        :type stop_val: ???
-
-        :raises GenerationError: If node.operator is not ADD or SUB
-        :raises GenerationError: If the children of node do not contain one \
-                                 Reference and one Literal
-        :raises GenerationError: If the child Reference is a private variable.
-        :raises GenerationError: If the child Reference is a shared variable.
-        '''
-        # Binary Operation check
-        if node.operator is not \
-           BinaryOperation.Operator.ADD and \
-           node.operator is not \
-           BinaryOperation.Operator.SUB:
-            raise GenerationError(
-                "Binary Operator of type {0} used "
-                "as in index inside an "
-                "OMPTaskDirective which is not "
-                "supported".format(
-                    node.operator))
-        # We have ADD or SUB BinaryOperation
-        if not( (type(node.children[0]) is \
-           Reference and type(node.children[1]) is\
-           Literal) or (type(node.children[0])\
-           is Literal and type(node.children[1])\
-           is Reference)):
-            raise GenerationError(
-                "Children of BinaryOperation are of "
-                "types {0} and {1}, expected one "
-                "Reference and one Literal when"
-                " used as an index inside an "
-                "OMPTaskDirective.".format(
-                    type(node.children[0]).
-                    __name__, type(node.children[1]).
-                __name__))
-
-        # Have Reference +/- Literal, analyse
-        # and create clause appropriately
-        index_private = False
-        ref = None
-        literal = None
-        ref_index = None
-        if type(node.children[0]) is Reference:
-            index_symbol = node.children[0].symbol
-            index_private = (node.children[0] in parallel_private)
-            ref = node.children[0]
-            ref_index = 0
-            literal = node.children[1]
-        if type(node.children[1]) is Reference:
-            index_symbol = node.children[1].symbol
-            index_private = (node.children[1] in parallel_private)
-            ref = node.children[1]
-            ref_index = 1
-            literal = node.children[0]
-
-        # We have some array access which is of the format:
-        # array( Reference +/- Literal).
-        # If this task directive's parent is a Loop, we have a special
-        # case where we do something special if the Reference is to the
-        # outer loop variable.
-        # If the task contains Loops, and the Reference is to one of the
-        # Loop variables, then we create a Range object for : for that dimension.
-        # All other situations are treated as a constant.
-
-        parent_loop_var = self._parent_loop_var
-        child_loop_vars = []
-        for child_loop in self.walk(Loop):
-            child_loop_vars.append(child_loop.variable)
-        # We want to add a Range object, with start as 
-        # Reference and end as (Reference +/- (stop-start))
-        if index_private:
-            if ref in private_list:
-                if ref.symbol == parent_loop_var:
-                    # Special case. This should only happen in a chunked loop
-                    # In this case we treat it as though we came across the
-                    # actual parent loop's variable, and handle that case
-                    # instead. Thus the "real" Reference is to a firstprivate
-                    # variable with a different name.
-
-                    # FIXME: Dear Reviewer, if you can think of a better way
-                    # to handle this then let me know. I don't want to restrict
-                    # this to only loops that have the "chunked" attribute, but
-                    # needs to be auto-detected in the code that we have a 
-                    # chunked loop structure. It could be detected and have a
-                    # boolean flag (such as "self._is_chunked") to control the
-                    # flow as an alternative, but treating the loop variable
-                    # the same as when accessing a parent's loop variable
-                    # makes sense to me, though with the caveat of the 
-                    # parent loop variable being "private" in this case instead
-                    # of being "firstprivate" as it would be usually.
-                    parent_loop = self.parent.parent
-                    # The step must be a Literal.
-                    if not isinstance(parent_loop.step_expr, Literal):
-                        raise NotImplementedError("PSyclone cannot compute "
-                                "the dependency clause when accessing a "
-                                "parent Loop variable inside a task when "
-                                "the step is a non-Literal value")
-                    # Create a "real" reference, which is to the parent loop's
-                    # actual variable
-                    real_ref = Reference(parent_loop.variable)
-                    # We have a Literal step value, and a Literal in
-                    # the Binary Operation. These Literals must both be
-                    # Integer types, so we will convert them to integers
-                    # and do some divison.
-                    step_val = int(parent_loop.step_expr.value)
-                    literal_val = int(literal.value)
-                    divisor = math.ceil(literal_val / step_val)
-                    modulo = literal_val % step_val
-                    # If the divisor is > 1, then we need to do
-                    # divisor*step_val
-                    # We also need to add divisor-1*step_val to cover the case
-                    # where e.g. array(i+1) is inside a larger loop, as we
-                    # need dependencies to array(i) and array(i+step), unless
-                    # module == 0
-                    step = None
-                    step2 = None
-                    if divisor > 1:
-                        step = BinaryOperation.create(
-                                BinaryOperation.Operator.MUL,
-                                Literal(f"{divisor}", INTEGER_TYPE),
-                                Literal(f"{step_val}", INTEGER_TYPE))
-                        if divisor > 2:
-                            step2 = BinaryOperation.create(
-                                    BinaryOperation.Operator.MUL,
-                                    Literal(f"{divisor-1}", INTEGER_TYPE),
-                                    Literal(f"{step_val}", INTEGER_TYPE))
-                        else:
-                            step2 = Literal(f"{step_val}", INTEGER_TYPE)
-                    else:
-                        step = Literal(f"{step_val}", INTEGER_TYPE)
-
-                    # Create a Binary Operation of the correct format.
-                    binop = None
-                    binop2 = None
-                    if ref_index == 0:
-                        # We have Ref OP Literal
-                        binop = BinaryOperation.create(
-                                node.operator, real_ref.copy(), step)
-                        if modulo != 0:
-                            if step2 is not None:
-                                binop2 = BinaryOperation.create(
-                                         node.operator, real_ref.copy(), step2)
-                            else:
-                                binop2 = real_ref.copy()
-                    else:
-                        # We have Literal OP Ref
-                        binop = BinaryOperation.create(
-                                node.operator, step, real_ref.copy())
-                        if modulo != 0:
-                            if step2 is not None:
-                                binop2 = BinaryOperation.create(
-                                         node.operator, step2, real_ref.copy())
-                            else:
-                                binop2 = real_ref.copy()
-                    # Add this to the list of indexes
-                    if binop2 is not None:
-                        index_ranges.append([binop, binop2])
-                    else:
-                        index_ranges.append(binop)
-                elif ref.symbol in child_loop_vars:
-                    # Return a :
-                    dim = len(index_ranges)
-                    one = Literal(str(dim+1), INTEGER_TYPE)
-                    lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            ref.copy(), one.copy())
-                    ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            ref.copy(), one.copy())
-                    full_range = Range.create(lbound, ubound)
-                    index_ranges.append(full_range)
-                else:
-                    # constant, so just use the Reference
-                    index_ranges.append(ref.copy())
-            elif ref in firstprivate_list:
-                if ref.symbol == parent_loop_var:
-                    # Special case.
-                    parent_loop = self.parent.parent
-                    # The step must be a Literal.
-                    if not isinstance(parent_loop.step_expr, Literal):
-                        raise NotImplementedError("PSyclone cannot compute "
-                                "the dependency clause when accessing a "
-                                "parent Loop variable inside a task when "
-                                "the step is a non-Literal value")
-                    # We have a Literal step value, and a Literal in
-                    # the Binary Operation. These Literals must both be
-                    # Integer types, so we will convert them to integers
-                    # and do some divison.
-                    step_val = int(parent_loop.step_expr.value)
-                    literal_val = int(literal.value)
-                    divisor = math.ceil(literal_val / step_val)
-                    modulo = literal_val % step_val
-                    # If the divisor is > 1, then we need to do
-                    # divisor*step_val
-                    # We also need to add divisor-1*step_val to cover the case
-                    # where e.g. array(i+1) is inside a larger loop, as we
-                    # need dependencies to array(i) and array(i+step), unless
-                    # module == 0
-                    step = None
-                    step2 = None
-                    if divisor > 1:
-                        step = BinaryOperation.create(
-                                BinaryOperation.Operator.MUL,
-                                Literal(f"{divisor}", INTEGER_TYPE),
-                                Literal(f"{step_val}", INTEGER_TYPE))
-                        if divisor > 2:
-                            step2 = BinaryOperation.create(
-                                    BinaryOperation.Operator.MUL,
-                                    Literal(f"{divisor-1}", INTEGER_TYPE),
-                                    Literal(f"{step_val}", INTEGER_TYPE))
-                        else:
-                            step2 = Literal(f"{step_val}", INTEGER_TYPE)
-                    else:
-                        step = Literal(f"{step_val}", INTEGER_TYPE)
-
-                    # Create a Binary Operation of the correct format.
-                    binop = None
-                    binop2 = None
-                    if ref_index == 0:
-                        # We have Ref OP Literal
-                        binop = BinaryOperation.create(
-                                node.operator, ref.copy(), step)
-                        if modulo != 0:
-                            if step2 is not None:
-                                binop2 = BinaryOperation.create(
-                                         node.operator, ref.copy(), step2)
-                            else:
-                                binop2 = ref.copy()
-                    else:
-                        # We have Literal OP Ref
-                        binop = BinaryOperation.create(
-                                node.operator, step, ref.copy())
-                        if modulo != 0:
-                            if step2 is not None:
-                                binop2 = BinaryOperation.create(
-                                         node.operator, step2, ref.copy())
-                            else:
-                                binop2 = ref.copy()
-
-                    # Add this to the list of indexes
-                    if binop2 is not None:
-                        index_ranges.append([binop, binop2])
-                    else:
-                        index_ranges.append(binop)
-                elif ref.symbol in child_loop_vars:
-                    # Not sure this should happen here?
-                    # Return a :
-                    dim = len(index_ranges)
-                    one = Literal(str(dim+1), INTEGER_TYPE)
-                    lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            ref.copy(), one.copy())
-                    ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            ref.copy(), one.copy())
-                    full_range = Range.create(lbound, ubound)
-                    index_ranges.append(full_range)
-                else:
-                    # constant, so just use the Reference
-                    index_ranges.append(ref.copy())
-            else:
-                firstprivate_list.append(ref.copy())
-                if ref.symbol == parent_loop_var:
-                    # Special case.
-                    parent_loop = self.parent.parent
-                    # The step must be a Literal for now.
-                    if not isinstance(parent_loop.step_expr, Literal):
-                        raise NotImplementedError("PSyclone cannot compute "
-                                "the dependency clause when accessing a "
-                                "parent Loop variable inside a task when "
-                                "the step is a non-Literal value")
-                    # We have a Literal step value, and a Literal in
-                    # the Binary Operation. These Literals must both be
-                    # Integer types, so we will convert them to integers
-                    # and do some divison.
-                    step_val = int(parent_loop.step_expr.value)
-                    literal_val = int(literal.value)
-                    divisor = math.ceil(step_val / literal_val)
-                    # If the divisor is > 1, then we need to do divisor*step_val
-                    step = None
-                    if divisor > 1:
-                        step = BinaryOperation.create(
-                                BinaryOperation.Operator.MUL,
-                                Literal(str(divisor), INTEGER_TYPE),
-                                Literal(str(step_val), INTEGER_TYPE))
-                    else:
-                        step = Literal(str(step_val), INTEGER_TYPE)
-
-                    # Create a Binary Operation of the correct format.
-                    binop = None
-                    if ref_index == 0:
-                        # We have Ref OP Literal
-                        binop = BinaryOperation.create(
-                                node.operator, ref.copy(), step)
-                    else:
-                        # We have Literal OP Ref
-                        binop = BinaryOperation.create(
-                                node.operator, step, ref.copy())
-
-                    # Add this to the list of indexes
-                    index_ranges.append(binop)
-                elif ref.symbol in child_loop_vars:
-                    # Not sure this should happen here?
-                    # Return a :
-                    dim = len(index_ranges)
-                    one = Literal(str(dim+1), INTEGER_TYPE)
-                    lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            ref.copy(), one.copy())
-                    ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            ref.copy(), one.copy())
-                    full_range = Range.create(lbound, ubound)
-                    index_ranges.append(full_range)
-                else:
-                    # constant, so just use the Reference
-                    index_ranges.append(ref.copy())
-        else:
-            # FIXME I think this should be
-            # supportable, but need to think
-            raise GenerationError(
-                    "Shared variable access used "
-                    "as an index inside an "
-                    "OMPTaskDirective which is not "
-                    "supported.")
-
-    def compute_clauses(self):
-        '''
-        TODO
-        '''
-        private_list = []
-        firstprivate_list = []
-        shared_list = []
-        in_list = []
-        out_list = []
-
-        # TODO Generate extra clauses
-
-        # Find the parent OMPParallelDirective
-        parallel_directive = self.ancestor(OMPParallelDirective)
-        # Find the OMPParallelDirective's OMPPrivateClause's child References
-        parallel_private = parallel_directive._get_private_list().children
-
-        node = self.children[0].children[0]
-
-        # Find our loop initialisation, variable and bounds
-        loop_var = node.variable
-        start_val = node.start_expr
-        stop_val = node.stop_expr
-        step_val = node.step_expr
-        schedule = node.children[3]
-
-        # Pull out loop variables used if we have a parent Loop, and by all
-        # Loops that are children of this node.
-        parent_loop_var = None
-        if isinstance(self.parent.parent, Loop):
-            parent_loop_var = self.parent.parent.variable
-            self._parent_loop = self.parent.parent
-        child_loop_vars = []
-        for child_loop in self.walk(Loop):
-            child_loop_vars.append(child_loop.variable)
-
-        # FIXME Disallow transformation if init/stop/step include array references
-        # FIXME Handle reduction variables
-
-        # Loop variable is private
-        private_list.append(Reference(loop_var))
-
-        # Any variables used in start_val, stop_val or step_val are firstprivate
-        # Get the References used for initialisation
-        start_val_refs = start_val.walk(Reference)
-
-        if len(start_val_refs) == 1 and type(start_val_refs[0]) is Reference and start_val_refs[0].symbol == parent_loop_var:
-            parent_loop_var = loop_var
-        # Store the parent_loop_var and loop_var
-        self._parent_loop_var = parent_loop_var
-        self._loop_var = loop_var
-
-        # For all non-array accesses we make them firstprivate
-        # TODO Do we worry about array references here? For now we don't allow
-        # array references or ArrayOfStruct references
-        for ref in start_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not yet supported in the start "
-                                      "variable of the primary Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
-            if ref not in firstprivate_list:
-                firstprivate_list.append(ref.copy())
-
-        stop_val_refs = stop_val.walk(Reference)
-        for ref in stop_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not yet supported in the stop "
-                                      "variable of the primary Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
-            if ref not in firstprivate_list:
-                firstprivate_list.append(ref.copy())
-
-        
-        step_val_refs = step_val.walk(Reference)
-        for ref in step_val_refs:
-            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not yet supported in the step "
-                                      "variable of the primary Loop in a "
-                                      "OMPTaskDirective node.".format(
-                    type(ref).__name__))
-            if ref not in firstprivate_list:
-                firstprivate_list.append(ref.copy())
-
-        # Look through the schedule and work out data sharing clauses.
-        statements = schedule.walk((Assignment, IfBlock, Loop))
-        for statement in statements:
-            if isinstance(statement, Assignment):
-                lhs = statement.children[0]
-                rhs = statement.children[1]
-                # check if lhs is array access
-                if isinstance(lhs, (ArrayReference,
-                                   ArrayOfStructuresReference)):
-                    # Resolve ArrayReference
-                    # We write to this reference, so it is shared and depend
-                    # out on array(variable) and other depending on + or -
-                    # in the indexing
-                    # Check if this is private in the parent parallel
-                    # region
-                    is_private = False
-                    for priv_ref in parallel_private:
-                        # Array References are only equivalent iff a is b so
-                        # we need to check the symbol manually
-                        if isinstance(priv_ref, (ArrayReference,
-                                                 ArrayOfStructuresReference)):
-                            is_private = is_private or priv_ref.symbol ==\
-                                                    ref.symbol 
-                    #FIXME THIS DOESN'T WORK AT ALL FOR SURE
-                    #FIXME Think about what happens if this is declared private
-                    # Arrays currently can't be declared private I think?
-                    index_list = []
-                    # Do something with indices
-                    for dim, index in enumerate(lhs.indices):
-                        if isinstance(index, Literal):
-                            # Literals are just value
-                            index_list.append(index.copy())
-                            print(index_list)
-                        elif isinstance(index, Reference):
-                            # If its a Reference to our parent Loop or a child
-                            # Loop we do something special
-                            index_private = index in parallel_private
-                            if index_private:
-                                if (index not in private_list and
-                                    index not in firstprivate_list):
-                                    firstprivate_list.append(index.copy())
-                                if index.symbol == parent_loop_var:
-                                    # If we find the parent_loop_var then we
-                                    # either have a chunked loop, or a parent
-                                    # loop var access.
-                                    # In both cases, we can add a reference to
-                                    # the real parent loop var.
-                                    pvar = self._parent_loop.variable
-                                    index_list.append(Reference(pvar))
-                                elif index.symbol in child_loop_vars:
-                                    # Return a :
-                                    one = Literal(str(dim+1), INTEGER_TYPE)
-                                    lbound = BinaryOperation.create(
-                                            BinaryOperation.Operator.LBOUND,
-                                            lhs.copy(), one.copy())
-                                    ubound = BinaryOperation.create(
-                                            BinaryOperation.Operator.UBOUND,
-                                            lhs.copy(), one.copy())
-                                    full_range = Range.create(lbound, ubound)
-                                    index_list.append(full_range)
-                                else:
-                                    index_list.append(index.copy())
-                            # FIXME What happens if not index_private? This
-                            # should be handled in some way probably. Probably
-                            # by throwing an error
-                        elif isinstance(index, BinaryOperation):
-                            self.handle_binary_op(index,
-                                    index_list, firstprivate_list,
-                                    private_list, parallel_private,
-                                    start_val, stop_val)
-                        else:
-                            # Not allowed type appears
-                            raise GenerationError(
-                                    "{0} object is not allowed to "
-                                    "appear in an Array Index "
-                                    "expression inside an "
-                                    "OMPTaskDirective.".format(
-                                        type(index).__name__))
-                    # So we have a list of (lists of) indices 
-                    # [ [index1, index4], index2, index3] so convert these
-                    # to an ArrayReference again.
-                    # To create all combinations, we use itertools.product
-                    # We have to create a new list which only contains lists.
-                    new_index_list = []
-                    for element in index_list:
-                        if isinstance(element, list):
-                            new_index_list.append(element)
-                        else:
-                            new_index_list.append([element])
-                    combinations = itertools.product(*new_index_list)
-                    for temp_list in combinations:
-                        # We need to make copies of the members as each
-                        # member can only be the child of one ArrayRef
-                        final_list = []
-                        for element in temp_list:
-                            final_list.append(element.copy())
-                        dclause = ArrayReference.create(lhs.symbol,
-                                                        list(final_list))
-                        # Add dclause into the out_list if required
-                        if dclause not in out_list:
-                            out_list.append(dclause)
-
-                    # Add the base reference to the shared list as appropriate.
-                    base_ref = Reference(lhs.symbol)
-                    if base_ref not in shared_list:
-                        shared_list.append(base_ref)
-                elif isinstance(lhs, StructureReference):
-                    # Resolve StructureReference
-
-                    # Pull out the symbol and create a Reference to the base 
-                    # symbol
-                    base_ref = Reference(lhs.symbol)
-                    is_private = base_ref in parallel_private
-                    if not is_private:
-                        if base_ref not in shared_list:
-                            shared_list.append(base_ref)
-                        if base_ref not in out_list:
-                            out_list.append(base_ref)
-                elif isinstance(lhs, Reference):
-                    #Resolve reference
-                    is_private = (lhs in parallel_private)
-                    if not is_private:
-                        if lhs not in shared_list:
-                            shared_list.append(lhs.copy())
-                        if lhs not in out_list:
-                            out_list.append(lhs.copy())
-
-                # Handle rhs References
-                references = rhs.walk(Reference)
-                for ref in references:
-                    self.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-            elif isinstance(statement, IfBlock):
-                # Resolve IfBlock
-                # We only need to look at the If condition (DataNode, child[0])
-                # The other statements will be covered by Assignment or Loop
-                condition = statement.children[0]
-                # Find all the References
-                references = condition.walk(Reference)
-                for ref in references:
-                    self.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-            elif isinstance(statement, Loop):
-                # Resolve Loop
-                # FIXME Handle Loop variable
-                var = statement.variable
-                # Create a reference to the variable
-                temp_ref = Reference(var)
-                if temp_ref not in private_list:
-                    private_list.append(temp_ref)
-                start = statement.children[0]
-                stop = statement.children[1]
-                end = statement.children[2]
-                # Don't need to worry about schedule, anything inside that will
-                # be caught by the outer walk.
-                for ref in start.walk(Reference):
-                    self.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-                for ref in stop.walk(Reference):
-                    self.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-                for ref in end.walk(Reference):
-                    self.handle_readonly_reference(ref,
-                            firstprivate_list, private_list, shared_list,
-                            in_list, out_list, parallel_private, start_val,
-                            stop_val, step_val)
-
-        # Make the clauses to return.
-        private_clause = OMPPrivateClause()
-        for ref in private_list:
-            private_clause.addchild(ref)
-        firstprivate_clause = OMPFirstprivateClause()
-        for ref in firstprivate_list:
-            firstprivate_clause.addchild(ref)
-        shared_clause = OMPSharedClause()
-        for ref in shared_list:
-            shared_clause.addchild(ref)
-        
-        in_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.IN)
-        for ref in in_list:
-            in_clause.addchild(ref)
-        out_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.OUT)
-        for ref in out_list:
-            out_clause.addchild(ref)
-
-        return (private_clause, firstprivate_clause, shared_clause, in_clause,
-                out_clause)
-
+#class OMPTaskDirective(OMPRegionDirective):
+#    '''
+#    Class representing an OpenMP TASK directive in the PSyIR
+#
+#    :param list children: list of Nodes that are children of this Node.
+#    :param parent: the Node in the AST that has this directive as a child
+#    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+#    '''
+#    _children_valid_format = ("Schedule, OMPPrivateClause,"
+#                              "OMPFirstprivateClause, OMPSharedClause"
+#                              "OMPDependClause, OMPDependClause")
+#
+#    def __init__(self, children=None, parent=None):
+#        super(OMPTaskDirective, self).__init__(children=children,
+#                                                   parent=parent)
+#        # We don't know if we have a parent OMPParallelClause at initialisation
+#        # so we can only create dummy clauses for now.
+#        self.children.append(OMPPrivateClause())
+#        self.children.append(OMPFirstprivateClause())
+#        self.children.append(OMPSharedClause())
+#        self.children.append(OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.IN))
+#        self.children.append(OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.OUT))
+#
+#    @staticmethod
+#    def _validate_child(position, child):
+#        '''
+#         Decides whether a given child and position are valid for this node.
+#         The rules are:
+#         1. Child 0 must always be a Schedule.
+#         2. Child 1 must always be an OMPPrivateClause
+#         3. Child 2 must always be an OMPFirstprivateClause
+#         4. Child 3 must always be an OMPSharedClause
+#         5. Child 4 and 5 must always be OMPDependClauses
+#
+#        :param int position: the position to be validated.
+#        :param child: a child to be validated.
+#        :type child: :py:class:`psyclone.psyir.nodes.Node`
+#
+#        :return: whether the given child and position are valid for this node.
+#        :rtype: bool
+#
+#        '''
+#        if position == 0:
+#            return isinstance(child, Schedule)
+#        if position == 1:
+#            return isinstance(child, OMPPrivateClause)
+#        if position == 2:
+#            return isinstance(child, OMPFirstprivateClause)
+#        if position == 3:
+#            return isinstance(child, OMPSharedClause)
+#        if position == 4 or position == 5:
+#            return isinstance(child, OMPDependClause)
+#        return False
+#
+#    def validate_global_constraints(self):
+#        '''
+#        Perform validation checks that can only be done at code-generation
+#        time.
+#
+#        :raises GenerationError: if this OMPTaskDirective is not \
+#                                 enclosed within an OpenMP serial region.
+#        '''
+#        # It is only at the point of code generation that we can check for
+#        # correctness (given that we don't mandate the order that a user
+#        # can apply transformations to the code). A taskloop
+#        # directive, we must have an OMPSerialDirective as an
+#        # ancestor back up the tree.
+#        if not self.ancestor(OMPSerialDirective):
+#            raise GenerationError(
+#                "OMPTaskDirective must be inside an OMP Serial region "
+#                "but could not find an ancestor node.")
+#
+#    def handle_readonly_reference(self, ref, firstprivate_list, private_list,
+#                                  shared_list, in_list, out_list,
+#                                  parallel_private, start_val, stop_val,
+#                                  step_val):
+#        '''
+#        Process a read-only reference inside the OMP Task Region. Adds the
+#        Reference str to the appropriate lists for building up clauses.
+#
+#        FIXME finish docstring
+#        :param ref: The Reference node to process
+#        :type ref: TODO
+#        :param firstprivate_list: The list of firstprivate variables in the \
+#                                  task region.
+#        :type firstprivate_list: List of Reference.
+#        :param private_list: The list of private variables in the task region.
+#        :type private_list: List of Reference.
+#        :param shared_list: The list of shared variables in the task region.
+#        :type shared_list: List of Reference.
+#        :type in_list: List of Reference.
+#        :param out_list: The list of output variables in the task region.
+#        :type out_list: List of Reference.
+#        :param parallel_private: The list of private variables in the parent \
+#                                 parallel region.
+#        :type parallel_private: List of Reference.
+#        :param start_val: Start/init value of outermost Loop contained in the \
+#                          task region.
+#        :type start_val: ???
+#        :param stop_val: Stop value of outermost Loop contained in the task \
+#                         region.
+#        :type stop_val: ???
+#        :param step_val: Step value of outermost Loop contained in the task \
+#                         region.
+#        :type step_val: ???
+#
+#        FIXME Raises docstring
+#        '''
+#        if isinstance(ref, (ArrayReference,
+#                            ArrayOfStructuresReference)):
+#            # Resolve ArrayReference (AoSReference)
+#            index_list = []
+#            # Check if this reference is private in the parent parallel
+#            # region
+#            is_private = False
+#            for priv_ref in parallel_private:
+#                # Array References are only equivalent iff a is b so
+#                # we need to check the symbol manually
+#                if isinstance(priv_ref, (ArrayReference,
+#                                         ArrayOfStructuresReference)):
+#                    is_private = is_private or priv_ref.symbol == ref.symbol
+#            # If the reference is private in the parent parallel
+#            # then it is added to the firstprivate clause for this
+#            # task if it has not yet been written to (i.e. is not
+#            # yet in the private clause list).
+#            if is_private:
+#                # Have to manually check if its in private list or 
+#                # first private list already
+#                found = False
+#                for test_refs in zip(private_list, firstprivate_list):
+#                    if isinstance(test_refs, (ArrayReference,
+#                                              ArrayOfStructuresReference)):
+#                        found = found or test_ref.symbol == ref.symbol
+#                if not found:
+#                    firstprivate_list.append(ref.copy())
+#            else:
+#                # The reference is shared. Since it is an array,
+#                # we need to check the following restrictions:
+#                # 1. No ArrayReference or ArrayOfStructuresReference
+#                # or StructureReference appear in the indexing.
+#                # 2. Each index is a firstprivate variable, or a 
+#                # private parent variable that has not yet been
+#                # declared (in which case we declare it as 
+#                # firstprivate). Alternatively each index is
+#                # a BinaryOperation whose children are a
+#                # Reference to a firstprivate variable and a
+#                # Literal, with operator of ADD or SUB
+#                for dim, index in enumerate(ref.indices):
+#                    if type(index) is Reference:
+#                        # TODO: #1636 References should have an equality
+#                        # check implemented, this needs changing if not.
+#                        index_private = (index in 
+#                                         parallel_private)
+#
+#                        # Check whether the Reference is to a child loop
+#                        # variable, as that is a special case
+#                        child_loop_vars = []
+#                        for child_loop in self.walk(Loop):
+#                            child_loop_vars.append(child_loop.variable)
+#                        if index_private:
+#                            if (index not in private_list and
+#                                index not in firstprivate_list):
+#                                firstprivate_list.append(index.copy())
+#                            if index.symbol in child_loop_vars:
+#                                # Return a :
+#                                one = Literal(str(dim+1), INTEGER_TYPE)
+#                                lbound = BinaryOperation.create(
+#                                        BinaryOperation.Operator.LBOUND,
+#                                        ref.copy(), one.copy())
+#                                ubound = BinaryOperation.create(
+#                                        BinaryOperation.Operator.UBOUND,
+#                                        ref.copy(), one.copy())
+#                                full_range = Range.create(lbound, ubound)
+#                                index_list.append(full_range)
+#                            else:
+#                                index_list.append(index.copy())
+#                        else:
+#                            raise GenerationError(
+#                                    "Shared variable access used "
+#                                    "as an index inside an "
+#                                    "OMPTaskDirective which is not "
+#                                    "supported. Variable name is {0}".
+#                                    format(index))
+#                    elif type(index) is BinaryOperation:
+#                        # Binary Operation check
+#                        # This is less simple than previously implemented.
+#                        # A single binary operation, e.g. a(i+1) can require
+#                        # multiple clauses to correctly handle. The current
+#                        # implementation assumed that this is not the case so
+#                        # just creates a single index list, assumed to handle
+#                        # all scenarios, however this is not sufficient.
+#                        self.handle_binary_op(index,
+#                                index_list, firstprivate_list,
+#                                private_list, parallel_private,
+#                                start_val, stop_val)
+#                    else:
+#                        # Not allowed type appears
+#                        raise GenerationError(
+#                                "{0} object is not allowed to "
+#                                "appear in an Array Index "
+#                                "expression inside an "
+#                                "OMPTaskDirective.".format(
+#                                    type(index).__name__))
+#            # So we have a list of (lists of) indices 
+#            # [ [index1, index4], index2, index3] so convert these
+#            # to an ArrayReference again.
+#            # To create all combinations, we use itertools.product
+#            # We have to create a new list which only contains lists.
+#            # Add to in_list: name(index1, index2)
+#            new_index_list = []
+#            for element in index_list:
+#                if isinstance(element, list):
+#                    new_index_list.append(element)
+#                else:
+#                    new_index_list.append([element])
+#            combinations = itertools.product(*new_index_list)
+#            for temp_list in combinations:
+#                # We need to make copies of the members as each
+#                # member can only be the child of one ArrayRef
+#                final_list = []
+#                for element in temp_list:
+#                    final_list.append(element.copy())
+#                dclause = ArrayReference.create(ref.symbol,
+#                                                list(final_list))
+#                # Add dclause into the in_list if required
+#                if dclause not in in_list:
+#                    in_list.append(dclause)
+#            # Add to shared_list (for explicity)
+#            sclause = Reference(ref.symbol)
+#            if sclause not in shared_list:
+#                shared_list.append(sclause)
+#        elif isinstance(ref, StructureReference):
+#            # Read access variable.
+#            # Check if this is private in the parent parallel 
+#            # region
+#            # FIXME Structure references should only use the highest-level
+#            # symbol in the structure to perform the structure reference
+#            # This code may generate the full reference (e.g a%b) instead of
+#            # just a so this needs to be checked.
+#
+#            # Create a Reference to the entire structure to use inside any
+#            # clauses.
+#            base_ref = Reference(ref.symbol)
+#            is_private = (base_ref in parallel_private)
+#            # If the reference is private in the parent parallel,
+#            # then it is added to the firstprivate clause for this
+#            # task if it has not yet been written to (i.e. is not
+#            # yet in the private clause list).
+#            if is_private:
+#                if base_ref not in private_list and base_ref not in \
+#                        firstprivate_list:
+#                    firstprivate_list.append(base_ref)
+#            else:
+#                # Otherwise it was a shared variable. Its not an
+#                # array so we just add the name to the in_list
+#                # if not already there. If its already in out_list
+#                # we still add it as this is the same as an inout
+#                # dependency
+#                if base_ref not in in_list:
+#                    in_list.append(base_ref)
+#        elif isinstance(ref, Reference):
+#            # Read access variable.
+#            # Check if this is private in the parent parallel 
+#            # region
+#            is_private = (ref in parallel_private)
+#            # If the reference is private in the parent parallel,
+#            # then it is added to the firstprivate clause for this
+#            # task if it has not yet been written to (i.e. is not
+#            # yet in the private clause list.
+#            if is_private:
+#                if ref not in private_list and ref not in \
+#                        firstprivate_list:
+#                    firstprivate_list.append(ref.copy())
+#            else:
+#                # Otherwise it was a shared variable. Its not an
+#                # array so we just add the name to the in_list
+#                # if not already there. If its already in out_list
+#                # we still add it as this is the same as an inout
+#                # dependency
+#                if ref not in in_list:
+#                    in_list.append(ref.copy())
+#
+#    def handle_binary_op(self, node, index_ranges, firstprivate_list,
+#                         private_list, parallel_private,
+#                         start_val, stop_val):
+#        '''
+#        Check a binary operation is safe for using in inside an Array Index
+#        inside a OMP Task region. Adds the index to the index_ranges and
+#        (first)private_list.
+#
+#        FIXME finish docstring
+#        :param node: The BinaryOp node to check 
+#        :type node: TODO
+#        :param index_ranges: The list of indices in the current array access
+#        :type index_ranges: List of Range.
+#        :param firstprivate_list: The list of firstprivate variables in the \
+#                                  task region.
+#        :type firstprivate_list: List of Reference.
+#        :param private_list: The list of private variables in the task region.
+#        :type private_list: List of Reference.
+#        :param parallel_private: The list of private variables in the parent \
+#                                 parallel region.
+#        :type parallel_private: List of Reference.
+#        :param start_val: Start/init value of outermost Loop contained in the \
+#                          task region.
+#        :type start_val: ???
+#        :param stop_val: Stop value of outermost Loop contained in the task \
+#                         region.
+#        :type stop_val: ???
+#
+#        :raises GenerationError: If node.operator is not ADD or SUB
+#        :raises GenerationError: If the children of node do not contain one \
+#                                 Reference and one Literal
+#        :raises GenerationError: If the child Reference is a private variable.
+#        :raises GenerationError: If the child Reference is a shared variable.
+#        '''
+#        # Binary Operation check
+#        if node.operator is not \
+#           BinaryOperation.Operator.ADD and \
+#           node.operator is not \
+#           BinaryOperation.Operator.SUB:
+#            raise GenerationError(
+#                "Binary Operator of type {0} used "
+#                "as in index inside an "
+#                "OMPTaskDirective which is not "
+#                "supported".format(
+#                    node.operator))
+#        # We have ADD or SUB BinaryOperation
+#        if not( (type(node.children[0]) is \
+#           Reference and type(node.children[1]) is\
+#           Literal) or (type(node.children[0])\
+#           is Literal and type(node.children[1])\
+#           is Reference)):
+#            raise GenerationError(
+#                "Children of BinaryOperation are of "
+#                "types {0} and {1}, expected one "
+#                "Reference and one Literal when"
+#                " used as an index inside an "
+#                "OMPTaskDirective.".format(
+#                    type(node.children[0]).
+#                    __name__, type(node.children[1]).
+#                __name__))
+#
+#        # Have Reference +/- Literal, analyse
+#        # and create clause appropriately
+#        index_private = False
+#        ref = None
+#        literal = None
+#        ref_index = None
+#        if type(node.children[0]) is Reference:
+#            index_symbol = node.children[0].symbol
+#            index_private = (node.children[0] in parallel_private)
+#            ref = node.children[0]
+#            ref_index = 0
+#            literal = node.children[1]
+#        if type(node.children[1]) is Reference:
+#            index_symbol = node.children[1].symbol
+#            index_private = (node.children[1] in parallel_private)
+#            ref = node.children[1]
+#            ref_index = 1
+#            literal = node.children[0]
+#
+#        # We have some array access which is of the format:
+#        # array( Reference +/- Literal).
+#        # If this task directive's parent is a Loop, we have a special
+#        # case where we do something special if the Reference is to the
+#        # outer loop variable.
+#        # If the task contains Loops, and the Reference is to one of the
+#        # Loop variables, then we create a Range object for : for that dimension.
+#        # All other situations are treated as a constant.
+#
+#        parent_loop_var = self._parent_loop_var
+#        child_loop_vars = []
+#        for child_loop in self.walk(Loop):
+#            child_loop_vars.append(child_loop.variable)
+#        # We want to add a Range object, with start as 
+#        # Reference and end as (Reference +/- (stop-start))
+#        if index_private:
+#            if ref in private_list:
+#                if ref.symbol == parent_loop_var:
+#                    # Special case. This should only happen in a chunked loop
+#                    # In this case we treat it as though we came across the
+#                    # actual parent loop's variable, and handle that case
+#                    # instead. Thus the "real" Reference is to a firstprivate
+#                    # variable with a different name.
+#
+#                    # FIXME: Dear Reviewer, if you can think of a better way
+#                    # to handle this then let me know. I don't want to restrict
+#                    # this to only loops that have the "chunked" attribute, but
+#                    # needs to be auto-detected in the code that we have a 
+#                    # chunked loop structure. It could be detected and have a
+#                    # boolean flag (such as "self._is_chunked") to control the
+#                    # flow as an alternative, but treating the loop variable
+#                    # the same as when accessing a parent's loop variable
+#                    # makes sense to me, though with the caveat of the 
+#                    # parent loop variable being "private" in this case instead
+#                    # of being "firstprivate" as it would be usually.
+#                    parent_loop = self.parent.parent
+#                    # The step must be a Literal.
+#                    if not isinstance(parent_loop.step_expr, Literal):
+#                        raise NotImplementedError("PSyclone cannot compute "
+#                                "the dependency clause when accessing a "
+#                                "parent Loop variable inside a task when "
+#                                "the step is a non-Literal value")
+#                    # Create a "real" reference, which is to the parent loop's
+#                    # actual variable
+#                    real_ref = Reference(parent_loop.variable)
+#                    # We have a Literal step value, and a Literal in
+#                    # the Binary Operation. These Literals must both be
+#                    # Integer types, so we will convert them to integers
+#                    # and do some divison.
+#                    step_val = int(parent_loop.step_expr.value)
+#                    literal_val = int(literal.value)
+#                    divisor = math.ceil(literal_val / step_val)
+#                    modulo = literal_val % step_val
+#                    # If the divisor is > 1, then we need to do
+#                    # divisor*step_val
+#                    # We also need to add divisor-1*step_val to cover the case
+#                    # where e.g. array(i+1) is inside a larger loop, as we
+#                    # need dependencies to array(i) and array(i+step), unless
+#                    # module == 0
+#                    step = None
+#                    step2 = None
+#                    if divisor > 1:
+#                        step = BinaryOperation.create(
+#                                BinaryOperation.Operator.MUL,
+#                                Literal(f"{divisor}", INTEGER_TYPE),
+#                                Literal(f"{step_val}", INTEGER_TYPE))
+#                        if divisor > 2:
+#                            step2 = BinaryOperation.create(
+#                                    BinaryOperation.Operator.MUL,
+#                                    Literal(f"{divisor-1}", INTEGER_TYPE),
+#                                    Literal(f"{step_val}", INTEGER_TYPE))
+#                        else:
+#                            step2 = Literal(f"{step_val}", INTEGER_TYPE)
+#                    else:
+#                        step = Literal(f"{step_val}", INTEGER_TYPE)
+#
+#                    # Create a Binary Operation of the correct format.
+#                    binop = None
+#                    binop2 = None
+#                    if ref_index == 0:
+#                        # We have Ref OP Literal
+#                        binop = BinaryOperation.create(
+#                                node.operator, real_ref.copy(), step)
+#                        if modulo != 0:
+#                            if step2 is not None:
+#                                binop2 = BinaryOperation.create(
+#                                         node.operator, real_ref.copy(), step2)
+#                            else:
+#                                binop2 = real_ref.copy()
+#                    else:
+#                        # We have Literal OP Ref
+#                        binop = BinaryOperation.create(
+#                                node.operator, step, real_ref.copy())
+#                        if modulo != 0:
+#                            if step2 is not None:
+#                                binop2 = BinaryOperation.create(
+#                                         node.operator, step2, real_ref.copy())
+#                            else:
+#                                binop2 = real_ref.copy()
+#                    # Add this to the list of indexes
+#                    if binop2 is not None:
+#                        index_ranges.append([binop, binop2])
+#                    else:
+#                        index_ranges.append(binop)
+#                elif ref.symbol in child_loop_vars:
+#                    # Return a :
+#                    dim = len(index_ranges)
+#                    one = Literal(str(dim+1), INTEGER_TYPE)
+#                    lbound = BinaryOperation.create(
+#                            BinaryOperation.Operator.LBOUND,
+#                            ref.copy(), one.copy())
+#                    ubound = BinaryOperation.create(
+#                            BinaryOperation.Operator.UBOUND,
+#                            ref.copy(), one.copy())
+#                    full_range = Range.create(lbound, ubound)
+#                    index_ranges.append(full_range)
+#                else:
+#                    # constant, so just use the Reference
+#                    index_ranges.append(ref.copy())
+#            elif ref in firstprivate_list:
+#                if ref.symbol == parent_loop_var:
+#                    # Special case.
+#                    parent_loop = self.parent.parent
+#                    # The step must be a Literal.
+#                    if not isinstance(parent_loop.step_expr, Literal):
+#                        raise NotImplementedError("PSyclone cannot compute "
+#                                "the dependency clause when accessing a "
+#                                "parent Loop variable inside a task when "
+#                                "the step is a non-Literal value")
+#                    # We have a Literal step value, and a Literal in
+#                    # the Binary Operation. These Literals must both be
+#                    # Integer types, so we will convert them to integers
+#                    # and do some divison.
+#                    step_val = int(parent_loop.step_expr.value)
+#                    literal_val = int(literal.value)
+#                    divisor = math.ceil(literal_val / step_val)
+#                    modulo = literal_val % step_val
+#                    # If the divisor is > 1, then we need to do
+#                    # divisor*step_val
+#                    # We also need to add divisor-1*step_val to cover the case
+#                    # where e.g. array(i+1) is inside a larger loop, as we
+#                    # need dependencies to array(i) and array(i+step), unless
+#                    # module == 0
+#                    step = None
+#                    step2 = None
+#                    if divisor > 1:
+#                        step = BinaryOperation.create(
+#                                BinaryOperation.Operator.MUL,
+#                                Literal(f"{divisor}", INTEGER_TYPE),
+#                                Literal(f"{step_val}", INTEGER_TYPE))
+#                        if divisor > 2:
+#                            step2 = BinaryOperation.create(
+#                                    BinaryOperation.Operator.MUL,
+#                                    Literal(f"{divisor-1}", INTEGER_TYPE),
+#                                    Literal(f"{step_val}", INTEGER_TYPE))
+#                        else:
+#                            step2 = Literal(f"{step_val}", INTEGER_TYPE)
+#                    else:
+#                        step = Literal(f"{step_val}", INTEGER_TYPE)
+#
+#                    # Create a Binary Operation of the correct format.
+#                    binop = None
+#                    binop2 = None
+#                    if ref_index == 0:
+#                        # We have Ref OP Literal
+#                        binop = BinaryOperation.create(
+#                                node.operator, ref.copy(), step)
+#                        if modulo != 0:
+#                            if step2 is not None:
+#                                binop2 = BinaryOperation.create(
+#                                         node.operator, ref.copy(), step2)
+#                            else:
+#                                binop2 = ref.copy()
+#                    else:
+#                        # We have Literal OP Ref
+#                        binop = BinaryOperation.create(
+#                                node.operator, step, ref.copy())
+#                        if modulo != 0:
+#                            if step2 is not None:
+#                                binop2 = BinaryOperation.create(
+#                                         node.operator, step2, ref.copy())
+#                            else:
+#                                binop2 = ref.copy()
+#
+#                    # Add this to the list of indexes
+#                    if binop2 is not None:
+#                        index_ranges.append([binop, binop2])
+#                    else:
+#                        index_ranges.append(binop)
+#                elif ref.symbol in child_loop_vars:
+#                    # Not sure this should happen here?
+#                    # Return a :
+#                    dim = len(index_ranges)
+#                    one = Literal(str(dim+1), INTEGER_TYPE)
+#                    lbound = BinaryOperation.create(
+#                            BinaryOperation.Operator.LBOUND,
+#                            ref.copy(), one.copy())
+#                    ubound = BinaryOperation.create(
+#                            BinaryOperation.Operator.UBOUND,
+#                            ref.copy(), one.copy())
+#                    full_range = Range.create(lbound, ubound)
+#                    index_ranges.append(full_range)
+#                else:
+#                    # constant, so just use the Reference
+#                    index_ranges.append(ref.copy())
+#            else:
+#                firstprivate_list.append(ref.copy())
+#                if ref.symbol == parent_loop_var:
+#                    # Special case.
+#                    parent_loop = self.parent.parent
+#                    # The step must be a Literal for now.
+#                    if not isinstance(parent_loop.step_expr, Literal):
+#                        raise NotImplementedError("PSyclone cannot compute "
+#                                "the dependency clause when accessing a "
+#                                "parent Loop variable inside a task when "
+#                                "the step is a non-Literal value")
+#                    # We have a Literal step value, and a Literal in
+#                    # the Binary Operation. These Literals must both be
+#                    # Integer types, so we will convert them to integers
+#                    # and do some divison.
+#                    step_val = int(parent_loop.step_expr.value)
+#                    literal_val = int(literal.value)
+#                    divisor = math.ceil(step_val / literal_val)
+#                    # If the divisor is > 1, then we need to do divisor*step_val
+#                    step = None
+#                    if divisor > 1:
+#                        step = BinaryOperation.create(
+#                                BinaryOperation.Operator.MUL,
+#                                Literal(str(divisor), INTEGER_TYPE),
+#                                Literal(str(step_val), INTEGER_TYPE))
+#                    else:
+#                        step = Literal(str(step_val), INTEGER_TYPE)
+#
+#                    # Create a Binary Operation of the correct format.
+#                    binop = None
+#                    if ref_index == 0:
+#                        # We have Ref OP Literal
+#                        binop = BinaryOperation.create(
+#                                node.operator, ref.copy(), step)
+#                    else:
+#                        # We have Literal OP Ref
+#                        binop = BinaryOperation.create(
+#                                node.operator, step, ref.copy())
+#
+#                    # Add this to the list of indexes
+#                    index_ranges.append(binop)
+#                elif ref.symbol in child_loop_vars:
+#                    # Not sure this should happen here?
+#                    # Return a :
+#                    dim = len(index_ranges)
+#                    one = Literal(str(dim+1), INTEGER_TYPE)
+#                    lbound = BinaryOperation.create(
+#                            BinaryOperation.Operator.LBOUND,
+#                            ref.copy(), one.copy())
+#                    ubound = BinaryOperation.create(
+#                            BinaryOperation.Operator.UBOUND,
+#                            ref.copy(), one.copy())
+#                    full_range = Range.create(lbound, ubound)
+#                    index_ranges.append(full_range)
+#                else:
+#                    # constant, so just use the Reference
+#                    index_ranges.append(ref.copy())
+#        else:
+#            # FIXME I think this should be
+#            # supportable, but need to think
+#            raise GenerationError(
+#                    "Shared variable access used "
+#                    "as an index inside an "
+#                    "OMPTaskDirective which is not "
+#                    "supported.")
+#
+#    def compute_clauses(self):
+#        '''
+#        TODO
+#        '''
+#        private_list = []
+#        firstprivate_list = []
+#        shared_list = []
+#        in_list = []
+#        out_list = []
+#
+#        # TODO Generate extra clauses
+#
+#        # Find the parent OMPParallelDirective
+#        parallel_directive = self.ancestor(OMPParallelDirective)
+#        # Find the OMPParallelDirective's OMPPrivateClause's child References
+#        parallel_private = parallel_directive._get_private_list().children
+#
+#        node = self.children[0].children[0]
+#
+#        # Find our loop initialisation, variable and bounds
+#        loop_var = node.variable
+#        start_val = node.start_expr
+#        stop_val = node.stop_expr
+#        step_val = node.step_expr
+#        schedule = node.children[3]
+#
+#        # Pull out loop variables used if we have a parent Loop, and by all
+#        # Loops that are children of this node.
+#        parent_loop_var = None
+#        if isinstance(self.parent.parent, Loop):
+#            parent_loop_var = self.parent.parent.variable
+#            self._parent_loop = self.parent.parent
+#        child_loop_vars = []
+#        for child_loop in self.walk(Loop):
+#            child_loop_vars.append(child_loop.variable)
+#
+#        # FIXME Disallow transformation if init/stop/step include array references
+#        # FIXME Handle reduction variables
+#
+#        # Loop variable is private
+#        private_list.append(Reference(loop_var))
+#
+#        # Any variables used in start_val, stop_val or step_val are firstprivate
+#        # Get the References used for initialisation
+#        start_val_refs = start_val.walk(Reference)
+#
+#        if len(start_val_refs) == 1 and type(start_val_refs[0]) is Reference and start_val_refs[0].symbol == parent_loop_var:
+#            parent_loop_var = loop_var
+#        # Store the parent_loop_var and loop_var
+#        self._parent_loop_var = parent_loop_var
+#        self._loop_var = loop_var
+#
+#        # For all non-array accesses we make them firstprivate
+#        # TODO Do we worry about array references here? For now we don't allow
+#        # array references or ArrayOfStruct references
+#        for ref in start_val_refs:
+#            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+#                raise GenerationError("{0} not yet supported in the start "
+#                                      "variable of the primary Loop in a "
+#                                      "OMPTaskDirective node.".format(
+#                    type(ref).__name__))
+#            if ref not in firstprivate_list:
+#                firstprivate_list.append(ref.copy())
+#
+#        stop_val_refs = stop_val.walk(Reference)
+#        for ref in stop_val_refs:
+#            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+#                raise GenerationError("{0} not yet supported in the stop "
+#                                      "variable of the primary Loop in a "
+#                                      "OMPTaskDirective node.".format(
+#                    type(ref).__name__))
+#            if ref not in firstprivate_list:
+#                firstprivate_list.append(ref.copy())
+#
+#        
+#        step_val_refs = step_val.walk(Reference)
+#        for ref in step_val_refs:
+#            if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+#                raise GenerationError("{0} not yet supported in the step "
+#                                      "variable of the primary Loop in a "
+#                                      "OMPTaskDirective node.".format(
+#                    type(ref).__name__))
+#            if ref not in firstprivate_list:
+#                firstprivate_list.append(ref.copy())
+#
+#        # Look through the schedule and work out data sharing clauses.
+#        statements = schedule.walk((Assignment, IfBlock, Loop))
+#        for statement in statements:
+#            if isinstance(statement, Assignment):
+#                lhs = statement.children[0]
+#                rhs = statement.children[1]
+#                # check if lhs is array access
+#                if isinstance(lhs, (ArrayReference,
+#                                   ArrayOfStructuresReference)):
+#                    # Resolve ArrayReference
+#                    # We write to this reference, so it is shared and depend
+#                    # out on array(variable) and other depending on + or -
+#                    # in the indexing
+#                    # Check if this is private in the parent parallel
+#                    # region
+#                    is_private = False
+#                    for priv_ref in parallel_private:
+#                        # Array References are only equivalent iff a is b so
+#                        # we need to check the symbol manually
+#                        if isinstance(priv_ref, (ArrayReference,
+#                                                 ArrayOfStructuresReference)):
+#                            is_private = is_private or priv_ref.symbol ==\
+#                                                    ref.symbol 
+#                    #FIXME THIS DOESN'T WORK AT ALL FOR SURE
+#                    #FIXME Think about what happens if this is declared private
+#                    # Arrays currently can't be declared private I think?
+#                    index_list = []
+#                    # Do something with indices
+#                    for dim, index in enumerate(lhs.indices):
+#                        if isinstance(index, Literal):
+#                            # Literals are just value
+#                            index_list.append(index.copy())
+#                            print(index_list)
+#                        elif isinstance(index, Reference):
+#                            # If its a Reference to our parent Loop or a child
+#                            # Loop we do something special
+#                            index_private = index in parallel_private
+#                            if index_private:
+#                                if (index not in private_list and
+#                                    index not in firstprivate_list):
+#                                    firstprivate_list.append(index.copy())
+#                                if index.symbol == parent_loop_var:
+#                                    # If we find the parent_loop_var then we
+#                                    # either have a chunked loop, or a parent
+#                                    # loop var access.
+#                                    # In both cases, we can add a reference to
+#                                    # the real parent loop var.
+#                                    pvar = self._parent_loop.variable
+#                                    index_list.append(Reference(pvar))
+#                                elif index.symbol in child_loop_vars:
+#                                    # Return a :
+#                                    one = Literal(str(dim+1), INTEGER_TYPE)
+#                                    lbound = BinaryOperation.create(
+#                                            BinaryOperation.Operator.LBOUND,
+#                                            lhs.copy(), one.copy())
+#                                    ubound = BinaryOperation.create(
+#                                            BinaryOperation.Operator.UBOUND,
+#                                            lhs.copy(), one.copy())
+#                                    full_range = Range.create(lbound, ubound)
+#                                    index_list.append(full_range)
+#                                else:
+#                                    index_list.append(index.copy())
+#                            # FIXME What happens if not index_private? This
+#                            # should be handled in some way probably. Probably
+#                            # by throwing an error
+#                        elif isinstance(index, BinaryOperation):
+#                            self.handle_binary_op(index,
+#                                    index_list, firstprivate_list,
+#                                    private_list, parallel_private,
+#                                    start_val, stop_val)
+#                        else:
+#                            # Not allowed type appears
+#                            raise GenerationError(
+#                                    "{0} object is not allowed to "
+#                                    "appear in an Array Index "
+#                                    "expression inside an "
+#                                    "OMPTaskDirective.".format(
+#                                        type(index).__name__))
+#                    # So we have a list of (lists of) indices 
+#                    # [ [index1, index4], index2, index3] so convert these
+#                    # to an ArrayReference again.
+#                    # To create all combinations, we use itertools.product
+#                    # We have to create a new list which only contains lists.
+#                    new_index_list = []
+#                    for element in index_list:
+#                        if isinstance(element, list):
+#                            new_index_list.append(element)
+#                        else:
+#                            new_index_list.append([element])
+#                    combinations = itertools.product(*new_index_list)
+#                    for temp_list in combinations:
+#                        # We need to make copies of the members as each
+#                        # member can only be the child of one ArrayRef
+#                        final_list = []
+#                        for element in temp_list:
+#                            final_list.append(element.copy())
+#                        dclause = ArrayReference.create(lhs.symbol,
+#                                                        list(final_list))
+#                        # Add dclause into the out_list if required
+#                        if dclause not in out_list:
+#                            out_list.append(dclause)
+#
+#                    # Add the base reference to the shared list as appropriate.
+#                    base_ref = Reference(lhs.symbol)
+#                    if base_ref not in shared_list:
+#                        shared_list.append(base_ref)
+#                elif isinstance(lhs, StructureReference):
+#                    # Resolve StructureReference
+#
+#                    # Pull out the symbol and create a Reference to the base 
+#                    # symbol
+#                    base_ref = Reference(lhs.symbol)
+#                    is_private = base_ref in parallel_private
+#                    if not is_private:
+#                        if base_ref not in shared_list:
+#                            shared_list.append(base_ref)
+#                        if base_ref not in out_list:
+#                            out_list.append(base_ref)
+#                elif isinstance(lhs, Reference):
+#                    #Resolve reference
+#                    is_private = (lhs in parallel_private)
+#                    if not is_private:
+#                        if lhs not in shared_list:
+#                            shared_list.append(lhs.copy())
+#                        if lhs not in out_list:
+#                            out_list.append(lhs.copy())
+#
+#                # Handle rhs References
+#                references = rhs.walk(Reference)
+#                for ref in references:
+#                    self.handle_readonly_reference(ref,
+#                            firstprivate_list, private_list, shared_list,
+#                            in_list, out_list, parallel_private, start_val,
+#                            stop_val, step_val)
+#            elif isinstance(statement, IfBlock):
+#                # Resolve IfBlock
+#                # We only need to look at the If condition (DataNode, child[0])
+#                # The other statements will be covered by Assignment or Loop
+#                condition = statement.children[0]
+#                # Find all the References
+#                references = condition.walk(Reference)
+#                for ref in references:
+#                    self.handle_readonly_reference(ref,
+#                            firstprivate_list, private_list, shared_list,
+#                            in_list, out_list, parallel_private, start_val,
+#                            stop_val, step_val)
+#            elif isinstance(statement, Loop):
+#                # Resolve Loop
+#                # FIXME Handle Loop variable
+#                var = statement.variable
+#                # Create a reference to the variable
+#                temp_ref = Reference(var)
+#                if temp_ref not in private_list:
+#                    private_list.append(temp_ref)
+#                start = statement.children[0]
+#                stop = statement.children[1]
+#                end = statement.children[2]
+#                # Don't need to worry about schedule, anything inside that will
+#                # be caught by the outer walk.
+#                for ref in start.walk(Reference):
+#                    self.handle_readonly_reference(ref,
+#                            firstprivate_list, private_list, shared_list,
+#                            in_list, out_list, parallel_private, start_val,
+#                            stop_val, step_val)
+#                for ref in stop.walk(Reference):
+#                    self.handle_readonly_reference(ref,
+#                            firstprivate_list, private_list, shared_list,
+#                            in_list, out_list, parallel_private, start_val,
+#                            stop_val, step_val)
+#                for ref in end.walk(Reference):
+#                    self.handle_readonly_reference(ref,
+#                            firstprivate_list, private_list, shared_list,
+#                            in_list, out_list, parallel_private, start_val,
+#                            stop_val, step_val)
+#
+#        # Make the clauses to return.
+#        private_clause = OMPPrivateClause()
+#        for ref in private_list:
+#            private_clause.addchild(ref)
+#        firstprivate_clause = OMPFirstprivateClause()
+#        for ref in firstprivate_list:
+#            firstprivate_clause.addchild(ref)
+#        shared_clause = OMPSharedClause()
+#        for ref in shared_list:
+#            shared_clause.addchild(ref)
+#        
+#        in_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.IN)
+#        for ref in in_list:
+#            in_clause.addchild(ref)
+#        out_clause = OMPDependClause(depend_type=OMPDependClause.DependClauseTypes.OUT)
+#        for ref in out_list:
+#            out_clause.addchild(ref)
+#
+#        return (private_clause, firstprivate_clause, shared_clause, in_clause,
+#                out_clause)
+#
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP
@@ -2271,7 +2483,7 @@ class OMPTaskDirective(OMPRegionDirective):
         '''
         self.validate_global_constraints()
         private_clause, firstprivate_clause, shared_clause, in_clause, out_clause = \
-                self.compute_clauses()
+                self._compute_clauses()
 
         if len(self.children) < 2 or private_clause != self.children[1]:
             self.children[1] = private_clause
@@ -2312,7 +2524,7 @@ class OMPTaskDirective(OMPRegionDirective):
         '''
         clause_list = []
         private_clause, firstprivate_clause, shared_clause, in_clause, out_clause = \
-                self.compute_clauses()
+                self._compute_clauses()
 
         if len(self.children) < 2 or private_clause != self.children[1]:
             self.children[1] = private_clause
