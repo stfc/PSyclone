@@ -1414,5 +1414,71 @@ def test_omp_task_directive_11(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_12(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an if statement is present. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 354) :: A
+        integer, dimension(321, 354) :: B
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        if (A(ii, jj) > 0.0) then
+                            A(ii+1,jj) = B(ii,jj) * k
+                        end if
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,354) :: a
+  integer, dimension(321,354) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: a(i,j),b(i,j),k) depend(out: a(i + 32,j),a(i,j))
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          if (a(ii,jj) > 0.0) then
+            a(ii + 1,jj) = b(ii,jj) * k
+          end if
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
     print(fortran_writer(tree))
     assert fortran_writer(tree) == correct

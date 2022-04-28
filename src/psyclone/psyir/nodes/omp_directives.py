@@ -1477,16 +1477,21 @@ class OMPTaskDirective(OMPRegionDirective):
         TODO: docstring
         '''
         # TODO: Look at the ifblock itself first.
+        for ref in node.condition.walk(Reference):
+            self._evaluate_readonly_reference(ref, private_list,
+                                              firstprivate_list, shared_list,
+                                              in_list, out_list)
 
         # Recurse to the children
         # If block
-        for child_node in node.children[1].children:
+        for child_node in node.if_body.children:
             self._evaluate_node(child_node, private_list, firstprivate_list,
                                 shared_list, in_list, out_list)
-        # Else block
-        for child_node in node.children[2].children:
-            self._evaluate_node(child_node, private_list, firstprivate_list,
-                                shared_list, in_list, out_list)
+        # Else block if present
+        if node.else_body is not None:
+           for child_node in node.else_body.children:
+               self._evaluate_node(child_node, private_list, firstprivate_list,
+                                   shared_list, in_list, out_list)
 
     def _evaluate_node(self, node, private_list, firstprivate_list,
                        shared_list, in_list, out_list):
