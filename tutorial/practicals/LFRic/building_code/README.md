@@ -153,7 +153,7 @@ background/LFRic_structure.md).
 The pared-down LFRic infrastructure used in these tutorials does not
 have the support for [distributed memory](../distributed_memory) (done
 via the [YAXT library](
-https://www.dkrz.de/redmine/projects/yaxt) in LFRic). Also, none of
+https://dkrz-sw.gitlab-pages.dkrz.de/yaxt) in LFRic). Also, none of
 the [PSyclone transformations](
 https://psyclone.readthedocs.io/en/stable/transformations.html) for
 the [shared memory](../single_node) support are applied here so the
