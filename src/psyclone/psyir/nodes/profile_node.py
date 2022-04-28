@@ -55,7 +55,7 @@ class ProfileNode(PSyDataNode):
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         this node. '''
-        result = "ProfileStart[var={0}]\n".format(self._var_name)
+        result = f"ProfileStart[var={self._var_name}]\n"
         result += str(self.psy_data_body)+"\n"
         return result+"ProfileEnd"
 

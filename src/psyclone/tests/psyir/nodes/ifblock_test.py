@@ -55,7 +55,7 @@ def test_ifblock_invalid_annotation():
 
     with pytest.raises(InternalError) as err:
         _ = IfBlock(annotations=["invalid"])
-    assert ("IfBlock with unrecognized annotation 'invalid', valid "
+    assert ("IfBlock with unknown annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
 

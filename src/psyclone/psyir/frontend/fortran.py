@@ -93,15 +93,15 @@ class FortranReader(object):
             to be brought into scope).
         '''
         if not isinstance(symbol_table, SymbolTable):
-            raise TypeError("Must be supplied with a valid SymbolTable but got"
-                            " '{0}'".format(type(symbol_table).__name__))
+            raise TypeError(f"Must be supplied with a valid SymbolTable but "
+                            f"got '{type(symbol_table).__name__}'")
 
         try:
             parse_tree = Fortran2003.Expr(source_code)
         except NoMatchError as err:
             six.raise_from(
-                ValueError("Supplied source does not represent a Fortran "
-                           "expression: '{0}'".format(source_code)), err)
+                ValueError(f"Supplied source does not represent a Fortran "
+                           f"expression: '{source_code}'"), err)
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -119,10 +119,10 @@ class FortranReader(object):
             self._processor.process_nodes(fake_parent[0], [parse_tree])
         except SymbolError as err:
             six.raise_from(
-                SymbolError("Expression '{0}' contains symbols which are not "
-                            "present in any symbol table and there are no "
-                            "wildcard imports which might be bringing them "
-                            "into scope.".format(source_code)), err)
+                SymbolError(f"Expression '{source_code}' contains symbols "
+                            f"which are not present in any symbol table and "
+                            f"there are no wildcard imports which might be "
+                            f"bringing them into scope."), err)
         return fake_parent[0].children[0].detach()
 
     def psyir_from_statement(self, source_code, symbol_table):

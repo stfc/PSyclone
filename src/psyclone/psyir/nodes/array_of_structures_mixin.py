@@ -94,16 +94,16 @@ class ArrayOfStructuresMixin(ArrayMixin):
         '''
         if len(self._children) < 2:
             raise InternalError(
-                "{0} malformed or incomplete: must "
-                "have one or more children representing array-index "
-                "expressions but found none.")
+                f"{type(self).__name__} malformed or incomplete: must "
+                f"have one or more children representing array-index "
+                f"expressions but found none.")
         for idx, child in enumerate(self._children[1:], start=1):
             if not self._validate_child(idx, child):
                 raise InternalError(
-                    "{0} malformed or incomplete: child "
-                    "{1} must represent an array-index expression but found "
-                    "'{2}' instead of psyir.nodes.DataNode or Range".format(
-                        type(self).__name__, idx, type(child).__name__))
+                    f"{type(self).__name__} malformed or incomplete: child "
+                    f"{idx} must represent an array-index expression but found "
+                    f"'{type(child).__name__}' instead of "
+                    f"psyir.nodes.DataNode or Range")
         return self._children[1:]
 
     def get_signature_and_indices(self):

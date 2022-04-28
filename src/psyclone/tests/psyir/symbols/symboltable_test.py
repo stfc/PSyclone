@@ -474,7 +474,7 @@ def test_remove_containersymbols():
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
         sym_table.remove(my_mod)
-    assert ("Cannot remove ContainerSymbol 'my_mod' because symbols "
+    assert ("Cannot remove ContainerSymbol 'my_mod' since symbols "
             "['var1'] are imported from it" in str(err.value))
     # Change the interface on var1
     var1.interface = LocalInterface()

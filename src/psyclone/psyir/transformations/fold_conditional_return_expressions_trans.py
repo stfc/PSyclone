@@ -98,9 +98,9 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         '''
         if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in {0} transformation. This transformation can only be "
-                "applied to 'Routine' nodes, but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. This transformation can "
+                f"only be applied to 'Routine' nodes, but found "
+                f"'{type(node).__name__}'.")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.

@@ -120,7 +120,7 @@ def test_asr_create_errors(component_symbol):
     here. '''
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(1, [], [])
-    assert ("'symbol' argument to ArrayOfStructuresReference.create() should "
+    assert ("'symbol' argument to ArrayOfStructuresReference.create() must "
             "be a DataSymbol but found 'int'" in str(err.value))
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:

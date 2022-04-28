@@ -363,7 +363,7 @@ def test_omptaskwait_getforwarddep_invalid_type():
     loop = Loop()
     with pytest.raises(TransformationError) as excinfo:
         OMPTaskwaitTrans.get_forward_dependence(None, loop)
-    assert ("Expected the root of the tree in which to search for a forward "
+    assert ("Expected the root of the tree in which to look for a forward "
             "dependence to be an instance of OMPParallelDirective,"
             " but was supplied an instance of 'Loop'") in str(excinfo.value)
 

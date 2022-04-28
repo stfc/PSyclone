@@ -109,7 +109,7 @@ class CWriter(LanguageWriter):
 
         for dimension, child in enumerate(indices):
             expression = self._visit(child)
-            dim_str = "{0}LEN{1}".format(var_name, dimension+1)
+            dim_str = f"{var_name}LEN{dimension+1}"
             if multiplicator:
                 summands.append(expression + " * " + multiplicator)
                 multiplicator = multiplicator + " * " + dim_str
@@ -142,9 +142,9 @@ class CWriter(LanguageWriter):
             code = code + TYPE_MAP_TO_C[intrinsic] + " "
         except (AttributeError, KeyError) as err:
             raise six.raise_from(NotImplementedError(
-                "Could not generate the C definition for the variable '{0}', "
-                "type '{1}' is currently not supported."
-                "".format(symbol.name, symbol.datatype)), err)
+                f"Could not generate the C definition for the variable "
+                f"'{symbol.name}', type '{symbol.datatype}' is currently not "
+                f"supported."), err)
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -164,7 +164,7 @@ class CWriter(LanguageWriter):
         :returns: C languague declaration of a local variable.
         :rtype: str
         '''
-        return "{0}{1};\n".format(self._nindent, self.gen_declaration(symbol))
+        return f"{self._nindent}{self.gen_declaration(symbol)};\n"
 
     def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the
@@ -180,7 +180,7 @@ class CWriter(LanguageWriter):
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
 
-        result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
+        result = f"{self._nindent}{lhs} = {rhs};\n"
         return result
 
     def literal_node(self, node):
@@ -216,8 +216,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) < 2:
             raise VisitorError(
-                "IfBlock malformed or incomplete. It should have at least "
-                "2 children, but found {0}.".format(len(node.children)))
+                f"IfBlock malformed or incomplete. It should have at least "
+                f"2 children, but found {len(node.children)}.")
 
         condition = self._visit(node.condition)
 
@@ -234,18 +234,16 @@ class CWriter(LanguageWriter):
 
         if else_body:
             result = (
-                "{0}if ({1}) {{\n"
-                "{2}"
-                "{0}}} else {{\n"
-                "{3}"
-                "{0}}}\n"
-                "".format(self._nindent, condition, if_body, else_body))
+                f"{self._nindent}if ({condition}) {{\n"
+                f"{if_body}"
+                f"{self._nindent}}} else {{\n"
+                f"{else_body}"
+                f"{self._nindent}}}\n")
         else:
             result = (
-                "{0}if ({1}) {{\n"
-                "{2}"
-                "{0}}}\n"
-                "".format(self._nindent, condition, if_body))
+                f"{self._nindent}if ({condition}) {{\n"
+                f"{if_body}"
+                f"{self._nindent}}}\n")
         return result
 
     def unaryoperation_node(self, node):
@@ -265,9 +263,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) != 1:
             raise VisitorError(
-                "UnaryOperation malformed or incomplete. It "
-                "should have exactly 1 child, but found {0}."
-                "".format(len(node.children)))
+                f"UnaryOperation malformed or incomplete. It should "
+                f"have exactly 1 child, but found {len(node.children)}.")
 
         def operator_format(operator_str, expr_str):
             '''
@@ -323,8 +320,8 @@ class CWriter(LanguageWriter):
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
             raise six.raise_from(NotImplementedError(
-                "The C backend does not support the '{0}' operator."
-                "".format(node.operator)), err)
+                f"The C backend does not support the '{node.operator}' "
+                f"operator."), err)
 
         return formatter(opstring, self._visit(node.children[0]))
 
@@ -345,9 +342,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) != 2:
             raise VisitorError(
-                "BinaryOperation malformed or incomplete. It "
-                "should have exactly 2 children, but found {0}."
-                "".format(len(node.children)))
+                f"BinaryOperation malformed or incomplete. It should "
+                f"have exactly 2 children, but found {len(node.children)}.")
 
         def operator_format(operator_str, expr1, expr2):
             '''
@@ -398,8 +394,8 @@ class CWriter(LanguageWriter):
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
             raise six.raise_from(VisitorError(
-                "The C backend does not support the '{0}' operator."
-                "".format(node.operator)), err)
+                f"The C backend does not support the '{node.operator}' "
+                f"operator."), err)
 
         return formatter(opstring,
                          self._visit(node.children[0]),
@@ -416,7 +412,7 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        return "{0}return;\n".format(self._nindent)
+        return f"{self._nindent}return;\n"
 
     def codeblock_node(self, _):
         # pylint: disable=no-self-use
@@ -451,11 +447,9 @@ class CWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        return "{0}for({1}={2}; {1}<={3}; {1}+={4})\n"\
-               "{0}{{\n"\
-               "{5}"\
-               "{0}}}\n".format(self._nindent, variable_name,
-                                start, stop, step, body)
+        return f"{self._nindent}for({variable_name}={start}; "\
+               f"{variable_name}<={stop}; {variable_name}+={step})\n"\
+               f"{self._nindent}{{\n{body}{self._nindent}}}\n"
 
     def regiondirective_node(self, node):
         '''This method is called when an RegionDirective instance is found in
@@ -470,14 +464,13 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = ["{0}#pragma {1}\n{{\n".format(self._nindent,
-                                                     node.begin_string())]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}\n{{\n"]
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
         # Note that }} is replaced with a single } in the format call
-        result_list.append("{0}}}\n".format(self._nindent))
+        result_list.append(f"{self._nindent}}}\n")
         return "".join(result_list)
 
     def standalonedirective_node(self, node):
@@ -493,8 +486,7 @@ class CWriter(LanguageWriter):
 
         '''
         # pylint: disable=no-self-use
-        result_list = ["{0}#pragma {1}\n".format(self._nindent,
-                                                 node.begin_string())]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}\n"]
         return "".join(result_list)
 
     def filecontainer_node(self, node):

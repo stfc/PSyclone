@@ -78,9 +78,8 @@ class ArrayMember(ArrayMixin, Member):
         '''
         if not isinstance(indices, list):
             raise GenerationError(
-                "indices argument in create method of ArrayMember class "
-                "should be a list but found '{0}'."
-                "".format(type(indices).__name__))
+                f"indices argument in create method of ArrayMember class "
+                f"should be a list but found '{type(indices).__name__}'.")
 
         obj = ArrayMember(member_name)
         # Add any array-index expressions as children

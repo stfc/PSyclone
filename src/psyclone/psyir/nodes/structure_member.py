@@ -114,9 +114,9 @@ class StructureMember(Member):
         '''
         if not isinstance(self.children[0], Member):
             raise InternalError(
-                "{0} malformed or incomplete. The first child "
-                "must be an instance of Member, but found '{1}'".format(
-                    type(self).__name__, type(self.children[0]).__name__))
+                f"{type(self).__name__} malformed or incomplete. The first "
+                f"child must be an instance of Member, but found "
+                f"'{type(self.children[0]).__name__}'")
         return self.children[0]
 
     def get_signature_and_indices(self):

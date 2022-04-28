@@ -128,10 +128,10 @@ class OMPTaskwaitTrans(Transformation):
             fail_on_no_taskloop = options.get("fail_on_no_taskloop", True)
         # Check the supplied node is an OMPParallelDirective
         if not isinstance(node, nodes.OMPParallelDirective):
-            raise TransformationError("OMPTaskwaitTrans was supplied a '{0}'"
-                                      " node, but expected an "
-                                      "OMPParallelDirective".format(
-                                        node.__class__.__name__))
+            raise TransformationError(f"OMPTaskwaitTrans was supplied a "
+                                      f"'{node.__class__.__name__}'"
+                                      f" node, but expected an "
+                                      f"OMPParallelDirective")
 
         # Find all the taskloops
         taskloops = node.walk(OMPTaskloopDirective)
@@ -164,19 +164,17 @@ class OMPTaskwaitTrans(Transformation):
                 # safely guarantee our forward dependency so throw an
                 # error
                 if not valid:
-                    fwriter = FortranWriter()
+                    fwr = FortranWriter()
                     # pylint: disable=cell-var-from-loop
-                    raise TransformationError(
-                                LazyString(lambda: "Couldn't satisfy the "
-                                                   "dependencies due to "
-                                                   "taskloop dependencies "
-                                                   "across barrierless OMP "
-                                                   "serial regions. Dependency"
-                                                   " is from\n{0}\nto\n{1}"
-                                           .format(
-                                               fwriter(taskloop).rstrip("\n"),
-                                               fwriter(forward_dep)
-                                                   .rstrip("\n"))))
+                    raise TransformationError(LazyString(
+                                lambda: f"Couldn't satisfy the dependencies "
+                                        f"due to taskloop dependencies across "
+                                        f"barrierless OMP serial regions. "
+                                        f"Dependency is from\n"
+                                        f"{fwr(taskloop).rstrip(chr(10))}"
+                                        f"\nto\n"
+                                        f"{fwr(forward_dep).rstrip(chr(10))}")
+                                        )
 
     @staticmethod
     def get_forward_dependence(taskloop, root):
@@ -219,11 +217,11 @@ class OMPTaskwaitTrans(Transformation):
         '''
         # Check supplied the correct type for root
         if not isinstance(root, OMPParallelDirective):
-            raise TransformationError("Expected the root of the tree in which "
-                                      "to search for a forward dependence to "
-                                      "be an instance of OMPParallelDirective,"
-                                      " but was supplied an instance of '{0}'"
-                                      .format(type(root).__name__))
+            raise TransformationError(f"Expected the root of the tree in which"
+                                      f" to look for a forward dependence to "
+                                      f"be an instance of OMPParallelDirective"
+                                      f", but was supplied an instance of "
+                                      f"'{type(root).__name__}'")
         # We only look for specific types
         node_list = root.walk((Loop, OMPDoDirective, OMPTaskloopDirective,
                                OMPTaskwaitDirective))
@@ -253,9 +251,9 @@ class OMPTaskwaitTrans(Transformation):
         if parent_parallel is None:
             fwriter = FortranWriter()
             raise InternalError(
-                    LazyString(lambda: "No parent parallel directive was "
-                                       "found for the taskloop region: {0}"
-                               .format(fwriter(taskloop).rstrip("\n"))))
+                    LazyString(lambda: f"No parent parallel directive was "
+                                       f"found for the taskloop region: "
+                                       f"{fwriter(taskloop).rstrip(chr(10))}"))
 
         for node in node_list:
             if node.abs_position <= taskloop.abs_position:
