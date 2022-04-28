@@ -52,7 +52,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
-                              CommentGen)
+                              CommentGen, PSyIRGen)
 from psyclone.psyir.nodes import Reference, Assignment, IfBlock, Loop, \
                                  ArrayReference, ArrayOfStructuresReference, \
                                  StructureReference, Literal
@@ -1077,7 +1077,7 @@ class OMPTaskDirective(OMPRegionDirective):
                 # Not yet been written to/read from so has to be firstprivate
                 firstprivate_list.append(ref.copy())
                 # Has to be a constant to, so we're safe to use this reference.
-                index_range.append(ref.copy())
+                index_list.append(ref.copy())
         else:
             # Have a shared variable, which we're not currently supporting
             raise GenerationError(
@@ -1353,7 +1353,7 @@ class OMPTaskDirective(OMPRegionDirective):
         elif isinstance(ref, Reference):
             self._evaluate_write_baseref(ref, private_list,
                                          firstprivate_list, shared_list,
-                                         int_list, out_list)
+                                         in_list, out_list)
             
 
     def _evaluate_assignment(self, node, private_list, firstprivate_list,
