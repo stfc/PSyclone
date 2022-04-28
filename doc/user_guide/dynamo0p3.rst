@@ -2425,21 +2425,23 @@ operation they perform.
 The field arguments in Built-ins are the derived types that represent the
 :ref:`LFRic fields <lfric-field>`, however mathematical operations are
 actually performed on the data of the *field proxies* (e.g.
-``field1_proxy_data(:)``). For instance, ``X_plus_Y`` Built-in adds
-values of two field proxies in a loop over DoFs
+``field1_proxy%data(:)``). For instance, ``X_plus_Y`` Built-in adds the
+values of two fields accessed via their proxies in a loop over DoFs:
 
 .. code-block:: fortran
 
   DO df=loop0_start,loop0_stop
      field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
 
-where the loop limits depend on the use of :ref:`distributed memory
-<distributed_memory>`, :ref:`annexed DoFs <lfric-annexed_dofs>` or both.
+where the precise values of the loop limits depend on the use of
+:ref:`distributed memory <distributed_memory>`,
+:ref:`annexed DoFs <lfric-annexed_dofs>` or both.
 
 As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
-:ref:`field <lfric-field>` objects is always ``in``. The field or
-scalar that has its data modified by a Built-in is marked in **bold**.
+:ref:`field <lfric-field>` objects is always ``in`` (because it is only
+the data pointed to from within the object that is modified). The field
+or scalar that has its data modified by a Built-in is marked in **bold**.
 
 For clarity, the calculation performed by each Built-in is described using
 Fortran array syntax without the details about field proxies. The actual
