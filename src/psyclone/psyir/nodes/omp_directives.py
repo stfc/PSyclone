@@ -496,7 +496,11 @@ class OMPParallelDirective(OMPRegionDirective):
             else:
                 self.addchild(private_clause, index=2)
         else:
-            self.addchild(private_clause, index=2)
+            if len(self._children) > 2 and isinstance(self._children[2],
+                                                      OMPPrivateClause):
+                self._children[2] = private_clause
+            else:
+                self.addchild(private_clause, index=2)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
