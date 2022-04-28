@@ -39,7 +39,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
+from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
+    ScopingNode
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
@@ -55,14 +56,6 @@ def test_routine_constructor():
     assert "'is_program' must be a bool" in str(err.value)
     node = Routine("hello")
     assert node._name == "hello"
-
-    # A provided symbol table instance is used if it is still unlinked
-    # to a scope, but deep copied if it already has a scope.
-    symtab = SymbolTable()
-    routine = Routine("my_routine", symbol_table=symtab)
-    assert symtab is routine.symbol_table
-    routine2 = Routine("my_routine", symbol_table=symtab)
-    assert symtab is not routine2.symbol_table
 
 
 def test_routine_properties():
@@ -117,13 +110,13 @@ def test_routine_name_setter_preexisting_tag():
     # Creating a routine that will try to set the routine name to 'bye' while
     # having a differently named 'own_routine_symbol' tag in the symbol table
     with pytest.raises(KeyError) as err:
-        node2 = Routine("bye", symbol_table=symtab)
+        node2 = Routine("bye", symbol_table=symtab.deep_copy())
     assert ("Can't assign bye as the routine name because its symbol table "
             "contains a symbol (hello: RoutineSymbol<NoType>) already tagged "
             "as 'own_routine_symbol'." in str(err.value))
 
     # But it is fine if the name is the same
-    node2 = Routine("hello", symbol_table=symtab)
+    node2 = Routine("hello", symbol_table=symtab.deep_copy())
     # The new routine has a new instance of the symbol table
     assert node2.symbol_table is not node.symbol_table
     # And successive name changes are also fine
@@ -208,8 +201,12 @@ def test_routine_create():
     assert kschedule.return_symbol is symbol
 
 
-def test_routine_equality():
+def test_routine_equality(monkeypatch):
     ''' Test the __eq__ method for Routines.'''
+    # In this test we disable the routine parent (ScopingNode) __eq__
+    # test, which is already tested in the appropriate test file.
+    monkeypatch.setattr(ScopingNode, "__eq__", lambda x, y: True)
+
     symbol_table = SymbolTable()
     symbol = DataSymbol("tmp", REAL_TYPE)
     symbol_table.add(symbol)
@@ -220,16 +217,19 @@ def test_routine_equality():
 
     ksched1 = Routine.create("mod_name", symbol_table, [assignment],
                              is_program=True, return_symbol_name=symbol.name)
-    ksched2 = Routine.create("mod_name", symbol_table, [assignment2],
-                             is_program=True)
+    ksched2 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=True)
+    # In this case we still need to associate to the same symbol table because
+    # the return symbol must point to the exact same instance.
     ksched2._symbol_table = symbol_table
     ksched2.return_symbol = symbol
     assert ksched1 == ksched2
 
     # Test non-equality if different names.
     assignment2.detach()
-    ksched3 = Routine.create("mod_name", symbol_table, [assignment2],
-                             is_program=True, return_symbol_name=symbol.name)
+    ksched3 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=True,
+                             return_symbol_name=symbol.name)
     # Workaround for the routine name
     ksched3.name = "mod_name2"
 
@@ -240,24 +240,17 @@ def test_routine_equality():
 
     # Test non-equality if different is_program status
     assignment2.detach()
-    ksched4 = Routine.create("mod_name", symbol_table, [assignment2],
-                             is_program=False, return_symbol_name=symbol.name)
+    ksched4 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=False,
+                             return_symbol_name=symbol.name)
     assert ksched1 != ksched4
 
     # Test non-equality if different return symbols
     assignment2.detach()
-    ksched5 = Routine.create("mod_name", symbol_table, [assignment2],
-                             is_program=True, return_symbol_name=None)
+    ksched5 = Routine.create("mod_name", symbol_table.deep_copy(),
+                             [assignment2], is_program=True,
+                             return_symbol_name=None)
     assert ksched1 != ksched5
-
-    # Test non-equality if different children lists
-    assignment2.detach()
-    assignment3 = Assignment.create(Reference(symbol),
-                                    Literal("0.0", REAL_TYPE))
-    ksched6 = Routine.create("mod_name", symbol_table, [assignment2,
-                                                        assignment3],
-                             is_program=True, return_symbol_name=symbol.name)
-    assert ksched1 != ksched6
 
 
 def test_routine_copy():

@@ -1323,7 +1323,7 @@ def test_deep_copy():
     assert "symbol2" in symtab2
     assert symtab2.lookup_with_tag("tag1") is symtab2.lookup("symbol2")
     assert symtab2.lookup("symbol1") in symtab2.argument_list
-    assert symtab2._node == dummy
+    assert symtab2._node is None
     assert symtab2.default_visibility == Symbol.Visibility.PRIVATE
 
     # But the symbols are not the same objects as the original ones
@@ -2064,3 +2064,17 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     for dependency in dependency_order:
         symtab.resolve_imports([symtab.lookup(dependency)])
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
+
+
+def test_detach():
+    ''' Test that the detach method of a symbol table detaches itself from its
+    current scope and returns itself. '''
+
+    # Create a symbol_table associated a a scope
+    scope = Schedule()
+    sym_table = SymbolTable(scope)
+    assert sym_table._node is scope
+
+    # Detach the symbol table
+    assert sym_table.detach() is sym_table
+    assert sym_table._node is not scope

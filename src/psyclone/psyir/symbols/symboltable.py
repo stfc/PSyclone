@@ -260,12 +260,15 @@ class SymbolTable():
         will not affect the equivalent named symbol in the original symbol
         table.
 
+        The only attribute not copied is the _node reference to the scope,
+        since that scope can only have one symbol table associated to it.
+
         :returns: a deep copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
-        new_st = type(self)(self.node)
+        new_st = type(self)()
 
         # Make a copy of each symbol in the symbol table
         for symbol in self.symbols:
@@ -1345,3 +1348,17 @@ class SymbolTable():
         header += "\n" + "-" * len(header) + "\n"
 
         return header + "\n".join(map(str, self._symbols.values())) + "\n"
+
+    def detach(self):
+        '''
+        Detach this symbol table from the associated scope and return self.
+
+        :returns: this symbol table.
+        :rtype: py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if self._node:
+            # pylint: disable=protected-access
+            self._node._symbol_table = None
+            self._node = None
+        return self

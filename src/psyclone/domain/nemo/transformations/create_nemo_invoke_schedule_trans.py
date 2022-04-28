@@ -145,7 +145,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             return_symbol_name = node.return_symbol.name
 
         new_node = NemoInvokeSchedule.create(
-            node.name, node.symbol_table, node.pop_all_children(),
+            node.name, node.symbol_table.detach(), node.pop_all_children(),
             is_program=node.is_program,
             return_symbol_name=return_symbol_name)
 

@@ -37,6 +37,7 @@
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
 from __future__ import absolute_import
+import pytest
 from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
                                   Loop, Literal, Routine, ArrayReference)
 from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
@@ -52,10 +53,18 @@ def test_scoping_node_symbol_table():
     assert container.symbol_table is container._symbol_table
     assert isinstance(container.symbol_table, SymbolTable)
 
-    # An existing symbol table can be given to the constructor
+    # A provided symbol table instance is used if it is still unlinked
+    # to a scope, otherwise it produces an error
     symtab = SymbolTable()
     container = Container("test", symbol_table=symtab)
     assert container.symbol_table is symtab
+
+    with pytest.raises(ValueError) as err:
+        container = Container("test", symbol_table=symtab)
+    assert ("Error constructing Container, the provided symbol table is "
+            "already bound to another scope (Container[test]). Consider "
+            "detaching or deepcopying the symbol table first."
+            in str(err.value))
 
 
 def test_scoping_node_copy():
