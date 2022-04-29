@@ -150,15 +150,6 @@ class OMPSharedClause(Clause):
         '''
         return isinstance(child, Reference)
 
-    def __eq__(self, other):
-        if not isinstance(other, OMPSharedClause):
-            return False
-        if len(self._children) != len(other._children):
-            return False
-        for i in range(len(self._children)):
-            if self._children[i] != other._children[i]:
-                return False
-        return True
 
 class OMPPrivateClause(Clause):
     '''
@@ -231,15 +222,6 @@ class OMPFirstprivateClause(Clause):
         '''
         return isinstance(child, Reference)
 
-    def __eq__(self, other):
-        if not isinstance(other, OMPFirstprivateClause):
-            return False
-        if len(self._children) != len(other._children):
-            return False
-        for i in range(len(self._children)):
-            if self._children[i] != other._children[i]:
-                return False
-        return True
 
 class OMPDefaultClause(Clause):
     '''
@@ -354,16 +336,9 @@ class OMPDependClause(OperandClause):
         3. Same number of children.
         4. Their children are equal.
         '''
-        if not isinstance(other, OMPDependClause):
-            return False
-        if self.operand != other.operand:
-            return False
-        if len(self.children) != len(other.children):
-            return False
-        for index in range(len(self.children)):
-            if self.children[index] != other.children[index]:
-                return False
-        return True
+        is_eq = super().__eq__(other)
+        is_eq == is_eq and (self.operand != other.operand)
+        return is_eq
 
 class OMPReductionClause(OperandClause):
     '''

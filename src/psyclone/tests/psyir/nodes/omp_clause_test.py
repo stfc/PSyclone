@@ -37,9 +37,11 @@
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
 
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,
+    OMPDependClause
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 def test_nowait_clause():
@@ -75,3 +77,37 @@ def test_nogroup_clause():
     nowait = OMPNogroupClause()
     assert nowait.clause_string == "nogroup"
     assert OMPNogroupClause._validate_child(0, nowait) is False
+
+def test_shared_clause():
+    ''' Test the OMPSharedClause functionality. '''
+    shared = OMPSharedClause()
+    assert shared.clause_string == ""
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    shared.addchild(ref1)
+    assert shared.clause_string == "shared"
+
+def test_depend_clause():
+    ''' Test the OMPDependClause functionality. '''
+    depend1 = OMPDependClause()
+
+    with pytest.raises(TypeError) as excinfo:
+        OMPDependClause(depend_type="badstring")
+    assert ("OMPDependClause expected 'depend_type' argument of type "
+            "OMPDependClause.DependClauseTypes but found 'str'" in
+            str(excinfo.value))
+
+    depend2 = OMPDependClause()
+    assert depend1 == depend2
+    dependin = OMPDependClause(depend_type=
+                               OMPDependClause.DependClauseTypes.IN)
+    dependin2 = OMPDependClause(depend_type=
+                                OMPDependClause.DependClauseTypes.IN)
+    dependout = OMPDependClause(depend_type=
+                                OMPDependClause.DependClauseTypes.OUT)
+    assert dependin != dependout
+    
+    # Check operand
+    assert dependin.operand == "in"
+    assert dependout.operand == "out"
+    assert depend1.operand == "inout"

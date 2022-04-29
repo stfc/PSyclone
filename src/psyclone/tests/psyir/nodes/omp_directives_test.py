@@ -1480,5 +1480,4 @@ def test_omp_task_directive_12(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
