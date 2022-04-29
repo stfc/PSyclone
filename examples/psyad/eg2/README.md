@@ -65,6 +65,10 @@ ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=transpose_matrix_vector_kernel 
 ACTIVE_VAR_LIST="lhs x lhs_e x_e" TL_KERNEL_NAME=dg_matrix_vector_kernel make run
 ```
 
+```sh
+ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad" TL_KERNEL_NAME=tl_vorticity_advection_kernel make run
+```
+
 ## Licence
 
 -----------------------------------------------------------------------------
