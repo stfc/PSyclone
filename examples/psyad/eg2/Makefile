@@ -36,6 +36,9 @@
 PSYROOT=../../..
 include ${PSYROOT}/examples/common.mk
 
+NAN_TEST_DIR = $(PSYROOT)/lib/nan_test/lfric
+LIB_NAME = lib_nan_test.a
+
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 GENERATED_FILES += *_mod_adj.[fF]90 test_harness.exe \
                    *.x90 alg.f90 psy.f90 *.mod *.o
@@ -44,7 +47,7 @@ LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
 
-F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none
+F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none -I$(NAN_TEST_DIR)
 
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 TL_KERNEL_NAME ?= tl_hydrostatic_kernel
@@ -60,7 +63,7 @@ ADJ_KERNEL_TYPE = ${TL_KERNEL_TYPE}_adj
 transform: psy.f90
 
 psy.f90 alg.f90: main_alg.x90 ${ADJ_KERNEL_F90_FILE}
-	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 main_alg.x90
+	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 -s ./test_nan_transform.py main_alg.x90
 
 # Create the adjoint kernel and the corresponding test
 # harness in separate files. Note, one of the variables provided in the
@@ -86,10 +89,19 @@ compile: ${ADJ_KERNEL_F90_FILE} alg.f90 psy.f90 ${LFRIC_LIB} test_harness.exe
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
 
-test_harness.exe: $(subst .F90,.o,${TL_KERNEL_FILE}) $(subst .f90,.o,${ADJ_KERNEL_F90_FILE}) psy.o alg.o ${LFRIC_LIB}
+# The nan-test library
+$(NAN_TEST_DIR)/$(LIB_NAME):
+	@echo "Making LFRic nan-test wrapper library"
+	@echo "=========================================="
+	$(MAKE) -C $(NAN_TEST_DIR) F90=$(F90)
+	@echo "Finished making LFRic nan-test wrapper library"
+	@echo "==================================================="
+	@echo
+
+test_harness.exe: $(subst .F90,.o,${TL_KERNEL_FILE}) $(subst .f90,.o,${ADJ_KERNEL_F90_FILE}) psy.o alg.o $(NAN_TEST_DIR)/$(LIB_NAME) ${LFRIC_LIB}
 	$(F90) $(F90FLAGS) -o test_harness.exe $^
 
-psy.o: ${LFRIC_LIB}
+psy.o: ${LFRIC_LIB} $(NAN_TEST_DIR)/$(LIB_NAME)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
@@ -101,4 +113,4 @@ run: compile
 
 allclean: clean
 	${MAKE} -C ${LFRIC_DIR} allclean
-
+	${MAKE} -C ${NAN_TEST_DIR} allclean
