@@ -37,7 +37,7 @@
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
 
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
     OMPDependClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
