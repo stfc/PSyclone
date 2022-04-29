@@ -337,7 +337,7 @@ class OMPDependClause(OperandClause):
         4. Their children are equal.
         '''
         is_eq = super().__eq__(other)
-        is_eq == is_eq and (self.operand != other.operand)
+        is_eq = is_eq and (self.operand == other.operand)
         return is_eq
 
 class OMPReductionClause(OperandClause):
