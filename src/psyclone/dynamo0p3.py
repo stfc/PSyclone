@@ -5886,13 +5886,14 @@ def _create_depth_list(halo_info_list, sym_table):
                 match = True
                 break
         if not match:
-            # no matches were found with existing entries so
-            # create a new one
-            depth_info = HaloDepth(sym_table)
-            depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                    literal_depth=literal_depth,
-                                    annexed_only=False, max_depth_m1=False)
-            depth_info_list.append(depth_info)
+            # no matches were found with existing entries so create a
+            # new one (unless no var depth and literal_depth is 0).
+            if var_depth or literal_depth>0:
+                depth_info = HaloDepth(sym_table)
+                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                        literal_depth=literal_depth,
+                                        annexed_only=False, max_depth_m1=False)
+                depth_info_list.append(depth_info)
     return depth_info_list
 
 
@@ -6617,9 +6618,11 @@ class HaloDepth(object):
             if self.var_depth:
                 depth_str += self.var_depth
                 if self.literal_depth:
-                    depth_str += "+"
-            if self.literal_depth:
-                depth_str += str(self.literal_depth)
+                    # Ignores depth == 0
+                    depth_str += f"+{self.literal_depth}"
+            elif self.literal_depth is not None:
+                # Returns depth if depth has any value, including 0
+                depth_str = str(self.literal_depth)
         return depth_str
 
 
