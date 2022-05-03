@@ -39,7 +39,7 @@
 import pytest
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
-    OMPDependClause
+    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -87,6 +87,24 @@ def test_shared_clause():
     ref1 = Reference(tmp)
     shared.addchild(ref1)
     assert shared.clause_string == "shared"
+
+def test_private_clause():
+    ''' Test the OMPPrivateClause functionality. '''
+    private = OMPPrivateClause()
+    assert private.clause_string == ""
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    private.addchild(ref1)
+    assert private.clause_string == "private"
+
+def test_firstprivate_clause():
+    ''' Test the OMPFirstprivateClause functionality. '''
+    fp = OMPFirstprivateClause()
+    assert fp.clause_string == ""
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    fp.addchild(ref1)
+    assert fp.clause_string == "firstprivate"
 
 def test_depend_clause():
     ''' Test the OMPDependClause functionality. '''
