@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab.
-# Modified by: A. R. Porter, STFC Daresbury Lab.
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified by: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''Module containing a class that provides functionality to transform
 a PSyIR MIN or MAX operator to PSyIR code. This could be useful if the

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified: A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Contains the PSyData transformation.
 '''

@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office.
-#          A. R. Porter, STFC Daresbury Laboratory.
+# Authors: I. Kavcic, Met Office
+#          A. R. Porter and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region

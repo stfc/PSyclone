@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
 # Modified by: J. Henrichs, Bureau of Meteorology
-#              A. R. Porter and R. W. Ford, STFC Daresbury Lab
+#              A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 #              A. B. G. Chalk, STFC Daresbury Lab
 
 

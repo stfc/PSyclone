@@ -32,6 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''
 Python driver script to run PSyclone on (pre-processed) NEMO source files, i.e.

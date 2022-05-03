@@ -31,7 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Modifications: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the PSyIR Fortran front-end.'''

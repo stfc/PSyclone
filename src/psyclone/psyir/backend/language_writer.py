@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: N. Nobre, STFC Daresbury Lab
 
 
 '''PSyIR visitor layer that provides convenient functions that can be reused

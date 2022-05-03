@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module provides the TransformationError class.
 '''
