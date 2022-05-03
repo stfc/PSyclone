@@ -35,7 +35,7 @@
 ''' This module provides the OMPTaskTrans transformation.'''
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError, GenerationError
-from psyclone.psyGen import Transformation
+from psyclone.transformations import ParallelLoopTrans
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -45,10 +45,20 @@ from psyclone.psyir.nodes import Loop, Schedule, \
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
-class OMPTaskTrans(Transformation):
+class OMPTaskTrans(ParallelLoopTrans):
     ''' TODO: Documentation'''
+
+    @property
     def __str__(self):
         return "Adds an 'OMP TASK' directive to a statement"
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
+        return "OMPTaskTrans"
 
     def validate(self, node, options=None):
         '''
@@ -60,13 +70,13 @@ class OMPTaskTrans(Transformation):
         :type options: dict of string:values or None
         '''
         # Disallow CodeBlocks inside the region
-        if node.walk(CodeBlock) != []:
+        if len(node.walk(CodeBlock)) > 0: 
             raise GenerationError(
                 "OMPTaskDirective cannot be applied to a region containing "
                 "a code block")
-        super(Transformation).validate(node, options)
+        super().validate(node, options)
 
-    def _directive(self, children):
+    def _directive(self, children, collapse=None):
         '''
         Creates the type of directive needed for this sub-class of
         transformation.
@@ -74,11 +84,20 @@ class OMPTaskTrans(Transformation):
         :param children: list of Nodes that will be the children of \
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param collapse: A required parameter from parent class. Must
+                         never be set for TaskTrans (is None).
+        :type collapse: None.
+
+        :raises TransformationError: if the collapse attribute is set.
 
         :returns: The directive created for the OpenMP Task Directive
         :rtype: :py:class:`psyclone.psyGen.OMPTaskDirective`
 
         '''
+        if collapse is not None:
+            raise TransformationError("Collapse attribute should not be set "
+                                      "for OMPTaskTrans")
+
         _directive = OMPTaskDirective(children=children)
         return _directive
 
