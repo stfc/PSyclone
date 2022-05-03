@@ -63,8 +63,10 @@ from psyclone.psyir.nodes import Loop, Assignment, \
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.tools import DependencyTools
-from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.pysir.transformations.parallel_loop_trans import \
+    ParalleLoopTrans
+from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -160,164 +162,164 @@ class KernelTrans(Transformation):
                     f" kernel.") from err
 
 
-class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
-    '''
-    Adds an abstract directive (it needs to be specified by sub-classing this
-    transformation) to a loop indicating that it should be parallelised. It
-    performs some data dependency checks to guarantee that the loop can be
-    parallelised without changing the semantics of it.
-
-    '''
-    # The types of node that must be excluded from the section of PSyIR
-    # being transformed.
-    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
-
-    @abc.abstractmethod
-    def __str__(self):
-        return  # pragma: no cover
-
-    @abc.abstractmethod
-    def _directive(self, children, collapse=None):
-        '''
-        Returns the directive object to insert into the Schedule.
-        Must be implemented by sub-class.
-
-        :param children: list of nodes that will be children of this Directive.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: the number of tightly-nested loops to which \
-                             this directive applies or None.
-
-        :returns: the new Directive node.
-        :rtype: sub-class of :py:class:`psyclone.psyir.nodes.Directive`.
-        '''
-
-    def validate(self, node, options=None):
-        '''
-        Perform validation checks before applying the transformation
-
-        :param node: the node we are checking.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.\
-                        This transform supports "collapse", which is the\
-                        number of nested loops to collapse.
-        :type options: dictionary of string:values or None
-        :param int options["collapse"]: number of nested loops to collapse \
-                                        or None.
-
-        :raises TransformationError: if the \
-                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
-                colours.
-        :raises TransformationError: if 'collapse' is supplied with an \
-                invalid number of loops.
-        :raises TransformationError: if there is a data dependency that \
-                prevents the parallelisation of the loop.
-
-        '''
-        # Check that the supplied node is a Loop and does not contain any
-        # unsupported nodes.
-        super().validate(node, options=options)
-
-        # Check we are not a sequential loop
-        # TODO add a list of loop types that are sequential
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The target loop is over colours and "
-                                      "must be computed serially.")
-
-        if not options:
-            options = {}
-        collapse = options.get("collapse", None)
-
-        # If 'collapse' is specified, check that it is an int and that the
-        # loop nest has at least that number of loops in it
-        if collapse:
-            if not isinstance(collapse, int):
-                raise TransformationError(
-                    f"The 'collapse' argument must be an integer but got an "
-                    f"object of type {type(collapse)}")
-            if collapse < 2:
-                raise TransformationError(
-                    f"It only makes sense to collapse 2 or more loops "
-                    f"but got a value of {collapse}")
-            # Count the number of loops in the loop nest
-            loop_count = 0
-            cnode = node
-            while isinstance(cnode, Loop):
-                loop_count += 1
-                # Loops must be tightly nested (no intervening statements)
-                cnode = cnode.loop_body[0]
-            if collapse > loop_count:
-                raise TransformationError(
-                    f"Cannot apply COLLAPSE({collapse}) clause to a loop nest "
-                    f"containing only {loop_count} loops")
-
-        # Check that there are no loop-carried dependencies
-        dep_tools = DependencyTools()
-
-        try:
-            if not dep_tools.can_loop_be_parallelised(node,
-                                                      only_nested_loops=False):
-
-                # The DependencyTools also returns False for things that are
-                # not an issue, so we ignore specific messages.
-                for message in dep_tools.get_all_messages():
-                    if "is only written once." in message:
-                        continue
-                    messages = "\n".join(dep_tools.get_all_messages())
-                    raise TransformationError(
-                        f"Dependency analysis failed with the following "
-                        f"messages:\n{messages}")
-        except (KeyError, InternalError):
-            # LFRic still has symbols that don't exist in the symbol_table
-            # until the gen_code() step, so the dependency analysis raises
-            # KeyErrors in some cases. We ignore this for now.
-            pass
-
-    def apply(self, node, options=None):
-        '''
-        Apply the Loop transformation to the specified node in a
-        Schedule. This node must be a Loop since this transformation
-        corresponds to wrapping the generated code with directives,
-        e.g. for OpenMP:
-
-        .. code-block:: fortran
-
-          !$OMP DO
-          do ...
-             ...
-          end do
-          !$OMP END DO
-
-        At code-generation time (when gen_code()` is called), this node must be
-        within (i.e. a child of) a PARALLEL region.
-
-        :param node: the supplied node to which we will apply the \
-                     Loop transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations. \
-        :type options: dictionary of string:values or None
-        :param int options["collapse"]: the number of loops to collapse into \
-                single iteration space or None.
-
-        '''
-        if not options:
-            options = {}
-        self.validate(node, options=options)
-
-        collapse = options.get("collapse", None)
-
-        # keep a reference to the node's original parent and its index as these
-        # are required and will change when we change the node's location
-        node_parent = node.parent
-        node_position = node.position
-
-        # Add our orphan loop directive setting its parent to the node's
-        # parent and its children to the node. This calls down to the sub-class
-        # to get the type of directive we require.
-        directive = self._directive([node.detach()], collapse)
-
-        # Add the loop directive as a child of the node's parent
-        node_parent.addchild(directive, index=node_position)
+#class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
+#    '''
+#    Adds an abstract directive (it needs to be specified by sub-classing this
+#    transformation) to a loop indicating that it should be parallelised. It
+#    performs some data dependency checks to guarantee that the loop can be
+#    parallelised without changing the semantics of it.
+#
+#    '''
+#    # The types of node that must be excluded from the section of PSyIR
+#    # being transformed.
+#    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
+#
+#    @abc.abstractmethod
+#    def __str__(self):
+#        return  # pragma: no cover
+#
+#    @abc.abstractmethod
+#    def _directive(self, children, collapse=None):
+#        '''
+#        Returns the directive object to insert into the Schedule.
+#        Must be implemented by sub-class.
+#
+#        :param children: list of nodes that will be children of this Directive.
+#        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+#        :param int collapse: the number of tightly-nested loops to which \
+#                             this directive applies or None.
+#
+#        :returns: the new Directive node.
+#        :rtype: sub-class of :py:class:`psyclone.psyir.nodes.Directive`.
+#        '''
+#
+#    def validate(self, node, options=None):
+#        '''
+#        Perform validation checks before applying the transformation
+#
+#        :param node: the node we are checking.
+#        :type node: :py:class:`psyclone.psyir.nodes.Node`
+#        :param options: a dictionary with options for transformations.\
+#                        This transform supports "collapse", which is the\
+#                        number of nested loops to collapse.
+#        :type options: dictionary of string:values or None
+#        :param int options["collapse"]: number of nested loops to collapse \
+#                                        or None.
+#
+#        :raises TransformationError: if the \
+#                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
+#                colours.
+#        :raises TransformationError: if 'collapse' is supplied with an \
+#                invalid number of loops.
+#        :raises TransformationError: if there is a data dependency that \
+#                prevents the parallelisation of the loop.
+#
+#        '''
+#        # Check that the supplied node is a Loop and does not contain any
+#        # unsupported nodes.
+#        super().validate(node, options=options)
+#
+#        # Check we are not a sequential loop
+#        # TODO add a list of loop types that are sequential
+#        if node.loop_type == 'colours':
+#            raise TransformationError("Error in "+self.name+" transformation. "
+#                                      "The target loop is over colours and "
+#                                      "must be computed serially.")
+#
+#        if not options:
+#            options = {}
+#        collapse = options.get("collapse", None)
+#
+#        # If 'collapse' is specified, check that it is an int and that the
+#        # loop nest has at least that number of loops in it
+#        if collapse:
+#            if not isinstance(collapse, int):
+#                raise TransformationError(
+#                    f"The 'collapse' argument must be an integer but got an "
+#                    f"object of type {type(collapse)}")
+#            if collapse < 2:
+#                raise TransformationError(
+#                    f"It only makes sense to collapse 2 or more loops "
+#                    f"but got a value of {collapse}")
+#            # Count the number of loops in the loop nest
+#            loop_count = 0
+#            cnode = node
+#            while isinstance(cnode, Loop):
+#                loop_count += 1
+#                # Loops must be tightly nested (no intervening statements)
+#                cnode = cnode.loop_body[0]
+#            if collapse > loop_count:
+#                raise TransformationError(
+#                    f"Cannot apply COLLAPSE({collapse}) clause to a loop nest "
+#                    f"containing only {loop_count} loops")
+#
+#        # Check that there are no loop-carried dependencies
+#        dep_tools = DependencyTools()
+#
+#        try:
+#            if not dep_tools.can_loop_be_parallelised(node,
+#                                                      only_nested_loops=False):
+#
+#                # The DependencyTools also returns False for things that are
+#                # not an issue, so we ignore specific messages.
+#                for message in dep_tools.get_all_messages():
+#                    if "is only written once." in message:
+#                        continue
+#                    messages = "\n".join(dep_tools.get_all_messages())
+#                    raise TransformationError(
+#                        f"Dependency analysis failed with the following "
+#                        f"messages:\n{messages}")
+#        except (KeyError, InternalError):
+#            # LFRic still has symbols that don't exist in the symbol_table
+#            # until the gen_code() step, so the dependency analysis raises
+#            # KeyErrors in some cases. We ignore this for now.
+#            pass
+#
+#    def apply(self, node, options=None):
+#        '''
+#        Apply the Loop transformation to the specified node in a
+#        Schedule. This node must be a Loop since this transformation
+#        corresponds to wrapping the generated code with directives,
+#        e.g. for OpenMP:
+#
+#        .. code-block:: fortran
+#
+#          !$OMP DO
+#          do ...
+#             ...
+#          end do
+#          !$OMP END DO
+#
+#        At code-generation time (when gen_code()` is called), this node must be
+#        within (i.e. a child of) a PARALLEL region.
+#
+#        :param node: the supplied node to which we will apply the \
+#                     Loop transformation.
+#        :type node: :py:class:`psyclone.psyir.nodes.Node`
+#        :param options: a dictionary with options for transformations. \
+#        :type options: dictionary of string:values or None
+#        :param int options["collapse"]: the number of loops to collapse into \
+#                single iteration space or None.
+#
+#        '''
+#        if not options:
+#            options = {}
+#        self.validate(node, options=options)
+#
+#        collapse = options.get("collapse", None)
+#
+#        # keep a reference to the node's original parent and its index as these
+#        # are required and will change when we change the node's location
+#        node_parent = node.parent
+#        node_position = node.position
+#
+#        # Add our orphan loop directive setting its parent to the node's
+#        # parent and its children to the node. This calls down to the sub-class
+#        # to get the type of directive we require.
+#        directive = self._directive([node.detach()], collapse)
+#
+#        # Add the loop directive as a child of the node's parent
+#        node_parent.addchild(directive, index=node_position)
 
 
 class OMPTaskloopTrans(ParallelLoopTrans):
@@ -3301,7 +3303,6 @@ class KernelImportsToArguments(Transformation):
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ["KernelTrans",
-           "ParallelLoopTrans",
            "OMPLoopTrans",
            "ACCLoopTrans",
            "OMPParallelLoopTrans",

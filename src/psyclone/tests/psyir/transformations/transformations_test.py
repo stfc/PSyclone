@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
-    TransformationError
+    TransformationError, ParallelLoopTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \

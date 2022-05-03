@@ -48,6 +48,8 @@ from psyclone.psyir.transformations.hoist_local_arrays_trans import (
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
+from psyclone.psyir.transformations.parallel_loop_trans import \
+    ParallelLoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -101,4 +103,5 @@ __all__ = ['ChunkLoopTrans',
            'HoistTrans',
            'OMPTaskwaitTrans',
            'LoopTiling2DTrans',
+           'ParallelLoopTrans',
            'OMPTaskTrans']
