@@ -181,16 +181,6 @@ class OMPPrivateClause(Clause):
         '''
         return isinstance(child, Reference)
 
-    def __eq__(self, other):
-        if not isinstance(other, OMPPrivateClause):
-            return False
-        if len(self._children) != len(other._children):
-            return False
-        for i in range(len(self._children)):
-            if self._children[i] != other._children[i]:
-                return False
-        return True
-
 
 class OMPFirstprivateClause(Clause):
     '''
