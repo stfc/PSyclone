@@ -1349,9 +1349,17 @@ class SymbolTable():
 
         return header + "\n".join(map(str, self._symbols.values())) + "\n"
 
-    def detach(self):
+    @property
+    def scope(self):
         '''
-        Detach this symbol table from the associated scope and return self.
+        :returns: the scope associated to this symbol table.
+        :rtype: :py:class:`psycloen.psyir.nodes.ScopingNode`
+
+        '''
+        return self._node
+
+    def detach(self):
+        ''' Detach this symbol table from the associated scope and return self.
 
         :returns: this symbol table.
         :rtype: py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -1362,3 +1370,25 @@ class SymbolTable():
             self._node._symbol_table = None
             self._node = None
         return self
+
+    def attach(self, node):
+        ''' Attach this symbol table to the provided scope.
+
+        :param node: the scopped node this symbol table will attach to.
+        :type node: py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import ScopingNode
+        if not isinstance(node, ScopingNode):
+            raise TypeError("")
+
+        if node.symbol_table is not None:
+            raise ValueError("")
+
+        if self._node is not None:
+            raise ValueError("")
+
+        self._node = node
+        # pylint: disable=protected-access
+        node._symbol_table = self
