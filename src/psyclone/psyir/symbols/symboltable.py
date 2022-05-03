@@ -83,15 +83,12 @@ class SymbolTable():
         self._argument_list = []
         # Dict of tags. Some symbols can be identified with a tag.
         self._tags = {}
+
         # Reference to the node to which this symbol table belongs.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Schedule, Container
-        if node and not isinstance(node, (Schedule, Container)):
-            raise TypeError(
-                "Optional node argument to SymbolTable should be a "
-                "Schedule or a Container but found '{0}'."
-                "".format(type(node).__name__))
-        self._node = node
+        self._node = None
+        if node:
+            self.attach(node)
+
         # The default visibility of symbols in this symbol table. The
         # setter does validation of the supplied quantity.
         self._default_visibility = None
@@ -1381,13 +1378,20 @@ class SymbolTable():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import ScopingNode
         if not isinstance(node, ScopingNode):
-            raise TypeError("")
+            raise TypeError(
+                f"A SymbolTable must be attached to a ScopingNode"
+                f" but found '{type(node).__name__}'.")
 
         if node.symbol_table is not None:
-            raise ValueError("")
+            raise ValueError(
+                "The provided scope already has a symbol table attached "
+                "to it. You may need to detach that one first.")
 
         if self._node is not None:
-            raise ValueError("")
+            raise ValueError(
+                f"The symbol table is already bound to another "
+                f"scope ({self.node.node_str(False)}). Consider "
+                f"detaching or deepcopying the symbol table first.")
 
         self._node = node
         # pylint: disable=protected-access

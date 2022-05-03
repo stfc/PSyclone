@@ -61,10 +61,9 @@ def test_scoping_node_symbol_table():
 
     with pytest.raises(ValueError) as err:
         container = Container("test", symbol_table=symtab)
-    assert ("Error constructing Container, the provided symbol table is "
-            "already bound to another scope (Container[test]). Consider "
-            "detaching or deepcopying the symbol table first."
-            in str(err.value))
+    assert ("The symbol table is already bound to another scope "
+            "(Container[test]). Consider detaching or deepcopying "
+            "the symbol table first." in str(err.value))
 
 
 def test_scoping_node_copy():

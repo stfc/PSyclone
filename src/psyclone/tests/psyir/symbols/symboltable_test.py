@@ -90,10 +90,10 @@ def test_instance():
 
     with pytest.raises(TypeError) as info:
         _ = SymbolTable(node="hello")
-    assert ("Optional node argument to SymbolTable should be a Schedule "
-            "or a Container but found 'str'." in str(info.value))
+    # Error checked in the attribute setter test
 
     schedule = Schedule()
+    schedule.symbol_table.detach()
     sym_table = SymbolTable(node=schedule)
     assert isinstance(sym_table._symbols, OrderedDict)
     assert not sym_table._symbols
@@ -1267,9 +1267,8 @@ def test_shallow_copy():
     but keeps the same objects in the symbol table'''
 
     # Create an initial SymbolTable
-    dummy = Schedule()
-    symtab = SymbolTable(node=dummy,
-                         default_visibility=Symbol.Visibility.PRIVATE)
+    symtab = SymbolTable(default_visibility=Symbol.Visibility.PRIVATE)
+    dummy = Schedule(symbol_table=symtab)
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
@@ -1283,7 +1282,7 @@ def test_shallow_copy():
     assert "symbol1" in symtab2
     assert symtab2.lookup("symbol1") == sym1
     assert symtab2.lookup_with_tag("tag1") == sym2
-    assert symtab2._node == dummy
+    assert symtab2.scope is dummy
     assert sym1 in symtab2.argument_list
     assert symtab2.default_visibility == Symbol.Visibility.PRIVATE
 
@@ -1302,9 +1301,8 @@ def test_deep_copy():
     new identical copies of the symbols in the original symbol table'''
 
     # Create an initial SymbolTable
-    dummy = Schedule()
-    symtab = SymbolTable(node=dummy,
-                         default_visibility=Symbol.Visibility.PRIVATE)
+    symtab = SymbolTable(default_visibility=Symbol.Visibility.PRIVATE)
+    dummy = Schedule(symbol_table=symtab)
     mod = ContainerSymbol("my_mod")
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
@@ -2066,15 +2064,57 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
 
 
+def test_scope():
+    '''
+    Test that the scope property returns the SymbolTable associated node.
+    '''
+    symtab = SymbolTable()
+    assert symtab.scope is None
+
+    schedule = Schedule()
+    assert schedule.symbol_table.scope is schedule
+
+
 def test_detach():
     ''' Test that the detach method of a symbol table detaches itself from its
     current scope and returns itself. '''
 
     # Create a symbol_table associated a a scope
-    scope = Schedule()
-    sym_table = SymbolTable(scope)
+    sym_table = SymbolTable()
+    scope = Schedule(symbol_table=sym_table)
+
     assert sym_table._node is scope
 
     # Detach the symbol table
     assert sym_table.detach() is sym_table
     assert sym_table._node is not scope
+
+
+def test_attach():
+    ''' Test that the attach method bounds a symboltable and a ScopignNode
+    together. It checks that any side has an already existing association.
+    '''
+    symtab = SymbolTable()
+    not_a_scope = Literal("1", INTEGER_TYPE)
+
+    with pytest.raises(TypeError) as err:
+        symtab.attach(not_a_scope)
+    assert ("A SymbolTable must be attached to a ScopingNode but found "
+            "'Literal'." in str(err.value))
+
+    scope = Schedule()
+    with pytest.raises(ValueError) as err:
+        symtab.attach(scope)
+    assert ("The provided scope already has a symbol table attached to it. "
+            "You may need to detach that one first." in str(err.value))
+
+    scope.symbol_table.detach()
+    symtab.attach(scope)
+
+    scope2 = Schedule()
+    scope2.symbol_table.detach()
+    with pytest.raises(ValueError) as err:
+        symtab.attach(scope2)
+    assert ("The symbol table is already bound to another scope (Schedule[]). "
+            "Consider detaching or deepcopying the symbol table first."
+            in str(err.value))

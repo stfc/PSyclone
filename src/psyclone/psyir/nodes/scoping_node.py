@@ -61,16 +61,11 @@ class ScopingNode(Node):
     def __init__(self, children=None, parent=None, symbol_table=None):
         super(ScopingNode, self).__init__(self, children=children,
                                           parent=parent)
+        self._symbol_table = None
+
         if symbol_table is not None:
-            if symbol_table._node is not None:
-                raise ValueError(
-                    f"Error constructing {self.__class__.__name__}, the "
-                    f"provided symbol table is already bound to another "
-                    f"scope ({symbol_table.node.node_str(False)}). Consider "
-                    f"detaching or deepcopying the symbol table first.")
-            # Attach the symbol table to this scope
-            self._symbol_table = symbol_table
-            self._symbol_table._node = self
+            # Attach the provided symbol table to this scope
+            symbol_table.attach(self)
         else:
             # Create a new symbol table attached to this scope
             self._symbol_table = self._symbol_table_class(self)
