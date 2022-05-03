@@ -39,7 +39,8 @@
 import pytest
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
-    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause
+    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,\
+    OMPDefaultClause, OMPScheduleClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -78,6 +79,30 @@ def test_nogroup_clause():
     nowait = OMPNogroupClause()
     assert nowait.clause_string == "nogroup"
     assert OMPNogroupClause._validate_child(0, nowait) is False
+
+def test_schedule_clause():
+    ''' Test the OMPScheduleClause functionality. '''
+    sched = OMPScheduleClause()
+    assert sched._clause_string == "schedule(static)"
+    sched.set_schedule("test")
+    assert sched._clause_string == "schedule(test)"
+
+def test_default_clause():
+    ''' Test the OMPDefaultClause functionality. '''
+    default = OMPDefaultClause()
+    assert default._clause_string == "default(shared)"
+    default = OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
+    assert default._clause_string == "default(none)"
+    default = OMPDefaultClause(
+            clause_type=OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE)
+    assert default._clause_string == "default(firstprivate)"
+
+    with pytest.raises(TypeError) as excinfo:
+        OMPDefaultClause(clause_type="String")
+    assert ("OMPDefaultClause expected 'clause_type' argument of type "
+            "OMPDefaultClause.DefaultClauseTypes but found 'str'" in 
+            str(excinfo.value))
 
 def test_shared_clause():
     ''' Test the OMPSharedClause functionality. '''
