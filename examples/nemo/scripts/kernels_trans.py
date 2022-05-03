@@ -59,20 +59,13 @@ the process of attempting to create the largest possible Kernel region.
 
 from __future__ import print_function
 import logging
-from fparser.two.utils import walk
-from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
-from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
-
-# Which version of the NVIDIA (PGI) compiler we are targetting (different
-# versions have different bugs that we have to workaround).
-PGI_VERSION = 2230  # i.e. 22.3
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
@@ -80,9 +73,9 @@ ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 PROFILE_TRANS = ProfileTrans()
 
-# Whether or not to automatically add profiling calls around
-# un-accelerated regions
-_AUTO_PROFILE = True
+# Whether or not to add profiling calls around unaccelerated regions
+PROFILE_NONACC = True
+
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "ice_thd_pnd", "macho", "mpp_", "nemo_gcm",
@@ -110,55 +103,34 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq",
-                  "cp_air",
-                  "eos_pt_from_ct",
-                  "gamma_moist",
-                  "ice_var_sshdyn", "l_vap",
-                  "sbc_dcy", "solfrac", "One_on_L",
-                  "psi_h", "psi_m", "psi_m_coare",
-                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
-                  "q_sat", "rho_air",
-                  "visc_air", "sbc_dcy", "glob_sum",
-                  "glob_sum_full", "ptr_sj", "ptr_sjk",
-                  "interp1", "interp2", "interp3", "integ_spline"]
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
+                  "eos_pt_from_ct", "gamma_moist", "ice_var_sshdyn", "l_vap",
+                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
+                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
+                  "interp3", "integ_spline"]
 
 
 class ExcludeSettings(object):
     '''
-    Class to hold settings on what to exclude from OpenACC KERNELS
-    regions.
+    Class to hold settings on what to exclude from OpenACC KERNELS regions.
 
-    :param dict settings: map of settings to override or None.
+    :param dict settings: map of settings to override or {}.
 
     '''
-    def __init__(self, settings=None):
-        # Default settings
+    def __init__(self, settings={}):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
-        self.ifs_scalars = True
+        self.ifs_scalars = settings.get("ifs_scalars", True)
         # Whether we exclude IFs that test for equality with a REAL scalar
-        self.ifs_real_scalars = True
+        self.ifs_real_scalars = settings.get("ifs_real_scalars", True)
         # Whether we allow IFs where the logical expression involves 1D
         # arrays (since these are often static in NEMO and thus not
-        # handled by PGI's managed-memory option)
-        self.ifs_1d_arrays = True
+        # handled by CUDA Unified Memory)
+        self.ifs_1d_arrays = settings.get("ifs_1d_arrays", True)
         # Whether we perform checks on the PSyIR within identified Kernels
-        self.inside_kernels = True
-        # Whether or not to force the compiler to parallelise all loops
-        self.force_parallel = False
-        # Override default settings if necessary
-        if settings:
-            if "ifs_scalars" in settings:
-                self.ifs_scalars = settings["ifs_scalars"]
-            if "ifs_1d_arrays" in settings:
-                self.ifs_1d_arrays = settings["ifs_1d_arrays"]
-            if "inside_kernels" in settings:
-                self.inside_kernels = settings["inside_kernels"]
-            if "ifs_real_scalars" in settings:
-                self.ifs_real_scalars = settings["ifs_real_scalars"]
-            if "force_parallel" in settings:
-                self.force_parallel = settings["force_parallel"]
+        self.inside_kernels = settings.get("inside_kernels", True)
 
 
 # Routines which we know contain structures that, by default, we would normally
@@ -171,15 +143,8 @@ EXCLUDING = {"default": ExcludeSettings(),
              "ice_alb": ExcludeSettings({"ifs_scalars": False,
                                          "ifs_real_scalars": False}),
              "sbc_isf_div": ExcludeSettings(),
-             "tab_3d_2d": ExcludeSettings({"force_parallel": True}),
-             "tab_2d_3d": ExcludeSettings({"force_parallel": True}),
-             "tab_2d_1d": ExcludeSettings({"force_parallel": True}),
-             "tab_1d_2d": ExcludeSettings({"force_parallel": True}),
-             "ultimate_x": ExcludeSettings({"force_parallel": True}),
-             "ultimate_y": ExcludeSettings({"force_parallel": True}),
              "ice_dyn_rhg_evp": ExcludeSettings({"ifs_scalars": False,
-                                                 "ifs_real_scalars": False,
-                                                 "force_parallel": True}),
+                                                 "ifs_real_scalars": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
              "itd_shiftice": ExcludeSettings({"ifs_scalars": False}),
@@ -226,8 +191,7 @@ def valid_acc_kernel(node):
 
     '''
     # The Fortran routine which our parent Invoke represents
-    sched = node.ancestor(NemoInvokeSchedule)
-    routine_name = sched.invoke.name
+    routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
 
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
@@ -249,8 +213,7 @@ def valid_acc_kernel(node):
     for enode in excluded_nodes:
         if isinstance(enode, (CodeBlock, Return, Call)):
             log_msg(routine_name,
-                    f"region contains {type(enode).__name__}",
-                    enode)
+                    f"region contains {type(enode).__name__}", enode)
             return False
 
         if isinstance(enode, IfBlock):
@@ -259,24 +222,10 @@ def valid_acc_kernel(node):
             if "was_where" in enode.annotations:
                 continue
 
-            # Exclude things of the form IF(var == 0.0) because that causes
-            # deadlock in the code generated by the PGI compiler (<=19.4).
-            if PGI_VERSION <= 1940:
-                opn = enode.children[0]
-                if (excluding.ifs_real_scalars and
-                        isinstance(opn, BinaryOperation) and
-                        opn.operator == BinaryOperation.Operator.EQ and
-                        isinstance(opn.children[1], Literal) and
-                        opn.children[1].datatype.intrinsic ==
-                        ScalarType.Intrinsic.REAL):
-                    log_msg(routine_name,
-                            "IF performs comparison with REAL scalar", enode)
-                    return False
-
             # We also permit single-statement IF blocks that contain a Loop
             if "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
-            # When using CUDA managed memory, only allocated arrays are
+            # When using CUDA Unified Memory, only allocated arrays are
             # automatically put onto the GPU (although
             # this includes those that are created by compiler-generated allocs
             # e.g. for automatic arrays). We assume that all arrays of rank 2
@@ -294,28 +243,6 @@ def valid_acc_kernel(node):
                any([len(array.children) == 1 for array in arrays]):
                 log_msg(routine_name,
                         "IF references 1D arrays that may be static", enode)
-                return False
-
-        elif (isinstance(enode, Assignment) and enode.is_array_range):
-            intrinsics = walk(enode.ast,
-                              Fortran2003.Intrinsic_Function_Reference)
-            if PGI_VERSION < 1940:
-                # Need to check for SUM inside implicit loop, e.g.:
-                #     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
-                if contains_unsupported_sum(intrinsics):
-                    log_msg(routine_name,
-                            "Implicit loop contains unsupported SUM",
-                            enode)
-                    return False
-            # Check for MINLOC inside implicit loop
-            if contains_minloc(intrinsics):
-                log_msg(routine_name,
-                        "Implicit loop contains MINLOC call", enode)
-                return False
-            # Need to check for RESHAPE inside implicit loop
-            if contains_reshape(intrinsics):
-                log_msg(routine_name,
-                        "Implicit loop contains RESHAPE call", enode)
                 return False
 
         elif isinstance(enode, NemoLoop):
@@ -364,93 +291,16 @@ def valid_acc_kernel(node):
     kernels = node.walk(NemoKern)
     for kern in kernels:
         sched = kern.get_kernel_schedule()
-        refs += sched.walk((ArrayReference, NemoLoop))
+        refs += sched.walk(ArrayReference)
     for ref in refs:
-        if (isinstance(ref, ArrayReference) and ref.name.lower() in
-                NEMO_FUNCTIONS):
-            # This reference has the name of a known function. Is it on
-            # the LHS or RHS of an assignment?
-            ref_parent = ref.parent
-            if isinstance(ref_parent, Assignment) and ref is ref_parent.lhs:
-                # We're writing to it so it's not a function call.
-                continue
+        # Check if this reference has the name of a known function and if that
+        # reference appears outside said known function.
+        if ref.name.lower() in NEMO_FUNCTIONS and \
+           ref.name.lower() != routine_name.lower():
             log_msg(routine_name,
                     f"Loop contains function call: {ref.name}", ref)
             return False
     return True
-
-
-def contains_unsupported_sum(intrinsics):
-    '''
-    Examines the supplied list of intrinsic nodes in the fparser2 parse tree
-    and returns True if it contains a use of the SUM intrinsic with a 'dim'
-    argument. (If such a construct is included in a KERNELS region then the
-    code produced by v. 18.10 of the PGI compiler seg. faults.)
-
-    :param intrinsics: list of intrinsic function calls in fparser2 parse tree.
-    :type intrinsics: list of \
-                     :py:class:`Fortran2003.Intrinsic_Function_Reference`
-
-    :returns: True if SUM(array(:,:), dim=blah) is found, False otherwise.
-    :rtype: bool
-
-    '''
-    for intrinsic in intrinsics:
-        if str(intrinsic.items[0]).lower() == "sum":
-            # If there's only one argument then we'll just have a Name
-            # and not an Actual_Arg_Spec_List (in which case we don't need to
-            # check for the 'dim' argument).
-            if isinstance(intrinsic.items[1],
-                          Fortran2003.Actual_Arg_Spec_List):
-                # items[1] contains the Actual_Arg_Spec_List
-                actual_args = walk(intrinsic.items[1].items,
-                                   Fortran2003.Actual_Arg_Spec)
-                for arg in actual_args:
-                    if str(arg.items[0]).lower() == "dim":
-                        return True
-    return False
-
-
-def contains_reshape(intrinsics):
-    '''
-    Checks the supplied fparser2 parse tree for calls to the RESHAPE intrinsic.
-    The PGI compiler v.19.4 refuses to compile code that has such calls within
-    a KERNELS region. We have to check the parse tree to allow for the use
-    of RESHAPE within implicit loops which are not yet fully represented in
-    the PSyIR.
-
-    :param intrinsics: list of intrinsic functions in fparser2 parse tree.
-    :type intrinsics: list of \
-        :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
-
-    :returns: True if the code fragment contains a RESHAPE call.
-    :rtype: bool
-
-    '''
-    for intrinsic in intrinsics:
-        if str(intrinsic.items[0]).lower() == "reshape":
-            return True
-    return False
-
-
-def contains_minloc(intrinsics):
-    '''
-    Checks the supplied list of intrinsics for calls to the MINLOC intrinsic.
-    The PGI compiler v.19.10 refuses to compile code that has such calls
-    within a KERNELS region.
-
-    :param intrinsics: list of intrinsic functions in fparser2 parse tree.
-    :type intrinsics: list of \
-        :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
-
-    :returns: True if the code fragment contains a MINLOC call.
-    :rtype: bool
-
-    '''
-    for intrinsic in intrinsics:
-        if str(intrinsic.items[0]).lower() == "minloc":
-            return True
-    return False
 
 
 def add_kernels(children):
@@ -491,7 +341,7 @@ def add_kernels(children):
                 success = add_kernels(child.children)
             added_kernels |= success
         else:
-            # We can - add this node to our list for the current region
+            # We can add this node to our list for the current region
             node_list.append(child)
     success = try_kernels_trans(node_list)
     added_kernels |= success
@@ -522,18 +372,15 @@ def add_profiling(children):
             # A node that is not included in a profiling region marks the
             # end of the current candidate region so reset the list.
             node_list = []
-            # Now we go down a level and try again
+            # Now we go down a level and try again without attempting to put
+            # profiling below OpenACC directives or within Assignments
             if isinstance(child, IfBlock):
                 add_profiling(child.if_body)
                 add_profiling(child.else_body)
-            elif isinstance(child, (Assignment, ACCDirective)):
-                # We don't attempt to put profiling in below OpenACC
-                # directives or within Assignments
-                pass
-            else:
+            elif not isinstance(child, (Assignment, ACCDirective)):
                 add_profiling(child.children)
         else:
-            # We can - add this node to our list for the current region
+            # We can add this node to our list for the current region
             node_list.append(child)
     add_profile_region(node_list)
 
@@ -546,7 +393,7 @@ def add_profile_region(nodes):
     :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    if nodes and _AUTO_PROFILE:
+    if nodes:
         # Check whether we should be adding profiling inside this routine
         routine_name = \
             nodes[0].ancestor(NemoInvokeSchedule).invoke.name.lower()
@@ -597,37 +444,26 @@ def try_kernels_trans(nodes):
     if not have_loop:
         return False
 
-    invokesched = nodes[0].ancestor(NemoInvokeSchedule)
-    routine_name = invokesched.invoke.name.lower()
-    excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
-
     try:
         ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
-        # Force the compiler to parallelise the loops within this kernels
-        # region if required. We also put COLLAPSE on any tightly-nested
-        # loops over latitude and longitude.
+        # Put COLLAPSE on any tightly-nested loops over latitude and longitude.
         for node in nodes:
             loops = node.walk(Loop)
             for loop in loops:
                 if loop.ancestor(ACCLoopDirective):
                     # We've already transformed a parent Loop so skip this one.
                     continue
-                loop_options = {}
-                if excluding.force_parallel:
-                    loop_options["independent"] = True
-                # We put a COLLAPSE(2) clause on any perfectly-nested lon-lat
+                # We put a COLLAPSE(2) clause on any perfectly-nested lat-lon
                 # loops that have a Literal value for their step. The latter
-                # condition is necessary to avoid compiler errors with 20.7.
+                # condition is necessary to avoid compiler errors.
                 if loop.loop_type == "lat" and \
                    isinstance(loop.step_expr, Literal) and \
                    isinstance(loop.loop_body[0], Loop) and \
                    loop.loop_body[0].loop_type == "lon" and \
                    isinstance(loop.loop_body[0].step_expr, Literal) and \
                    len(loop.loop_body.children) == 1:
-                    loop_options["collapse"] = 2
-                if loop_options:
-                    ACC_LOOP_TRANS.apply(loop, loop_options)
+                    ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
 
         return True
     except (TransformationError, InternalError) as err:
@@ -637,9 +473,9 @@ def try_kernels_trans(nodes):
 
 
 def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' directives to NEMO code. (Data movement is
-    assumed to be handled through CUDA's managed-memory functionality.)
+    '''A PSyclone-script compliant transformation function. Applies OpenACC
+    'kernels' directives to NEMO code. Data movement is handled automatically
+    by CUDA Unified Memory.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -660,24 +496,21 @@ def trans(psy):
 
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or a Call with the OpenACC Routine Directive
-        if psy.name == "psy_lib_fortran_psy":
-            if not sched.walk((Loop, Call)):
-                print(f"Transforming {invoke.name} with acc routine")
-                ACC_ROUTINE_TRANS.apply(sched)
-                continue
+        if psy.name == "psy_lib_fortran_psy" and not sched.walk((Loop, Call)):
+            print(f"Transforming {invoke.name} with acc routine")
+            ACC_ROUTINE_TRANS.apply(sched)
+            continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if invoke.name.lower() not in ACC_IGNORE:
-            print(f"Transforming invoke {invoke.name}:")
+            print(f"Transforming {invoke.name} with acc kernels")
             add_kernels(sched.children)
         else:
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
 
         # Add profiling instrumentation
-        print(f"Adding profiling of non-OpenACC regions to routine "
-              f"{invoke.name}")
-        add_profiling(sched.children)
-
-        print(sched.view())
+        if PROFILE_NONACC:
+            print(f"Adding profiling to non-OpenACC regions in {invoke.name}")
+            add_profiling(sched.children)
 
     return psy
