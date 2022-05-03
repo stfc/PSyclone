@@ -35,9 +35,15 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+
 ''' This module provides the ParallelLoopTrans transformation.'''
+
+import abc
+
+from psyclone import psyGen
 from psyclone.errors import InternalError
 from psyclone.psyir import nodes
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
