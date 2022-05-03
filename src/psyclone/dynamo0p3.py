@@ -5888,7 +5888,7 @@ def _create_depth_list(halo_info_list, sym_table):
         if not match:
             # no matches were found with existing entries so create a
             # new one (unless no var depth and literal_depth is 0).
-            if var_depth or literal_depth>0:
+            if var_depth or literal_depth > 0:
                 depth_info = HaloDepth(sym_table)
                 depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                         literal_depth=literal_depth,

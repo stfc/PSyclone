@@ -36,20 +36,20 @@
 '''This module tests the LFRic API-specific halo exchange
    implementation. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 
+from psyclone.configuration import Config
+from psyclone.core.access_info import AccessType
+from psyclone.dynamo0p3 import (
+    DynLoop, DynHaloExchange, HaloDepth, _create_depth_list)
+from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans
-from psyclone.configuration import Config
-from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
-
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.transformations import (
+    Dynamo0p3RedundantComputationTrans, Dynamo0p3AsyncHaloExchangeTrans)
+
 
 # constants
 API = "dynamo0.3"
@@ -587,5 +587,53 @@ def test_gh_readinc(tmpdir):
     check_dirty = not known
     assert not check_dirty
     assert f1_hex._compute_halo_depth() == '1'
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_stencil_then_w3_read(tmpdir):
+    '''Test that a stencil access to a discontinuous field followed by a
+    read (or readwrite) in a subsequent kernel to the same field
+    results in the expected halo exchange extents. There used to be an
+    error resulting in incorrect code being produced here. Now we
+    expect the value of depth to be "extent", as the subsequent read
+    is to owned dofs so does not access the halo (a halo depth of 0).
+
+    '''
+    # Check that an instance of the HaloDepth class returns the
+    # expected results for this case.
+    halo_depth = HaloDepth(None)
+    assert str(halo_depth) == "0"
+    halo_depth2 = HaloDepth(None)
+    halo_depth2._var_depth = "extent"
+    assert str(halo_depth2) == "extent"
+    # Quick check when we have both depth and literal depth>0
+    halo_depth2.literal_depth = 1
+    assert str(halo_depth2) == "extent+1"
+    # Go back to original 0 depth case
+    halo_depth2.literal_depth = 0
+
+    # Check that _create_depth_list removes depths that are 0 from its
+    # return list. It takes two entries as input and returns one.
+    result = _create_depth_list([halo_depth, halo_depth2], None)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert isinstance(result[0], HaloDepth)
+    assert str(result[0]) == "extent"
+
+    # Check it all works in practice (functional test)
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.16_disc_stencil_then_read.f90"),
+                    api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    f4_hex = schedule.children[1]
+    assert isinstance(f4_hex, DynHaloExchange)
+    assert f4_hex.field.name == "f4"
+
+    result = str(psy.gen)
+    assert ("      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
+            "        CALL f4_proxy%halo_exchange(depth=extent)\n"
+            "      END IF" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
