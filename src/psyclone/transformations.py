@@ -63,7 +63,9 @@ from psyclone.psyir.nodes import Loop, Assignment, \
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.tools import DependencyTools
-from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
+from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
