@@ -64,7 +64,7 @@ from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
-from psyclone.pysir.transformations.parallel_loop_trans import \
+from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import \
