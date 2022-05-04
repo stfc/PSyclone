@@ -6866,10 +6866,8 @@ class HaloReadAccess(HaloDepth):
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
         elif loop.upper_bound_name == "ncolour":
-            if loop.upper_bound_halo_depth:
-                self._literal_depth = loop.upper_bound_halo_depth
-            else:
-                self._literal_depth = 0
+            # Loop is coloured but does not access the halo.
+            pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
             if field.descriptor.stencil:
                 # no need to worry about annexed dofs (if they exist)
