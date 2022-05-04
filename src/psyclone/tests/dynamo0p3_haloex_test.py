@@ -429,7 +429,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
 
 
 def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
-    ''' Check that the correct halo-exchange call is added before a
+    ''' Check that no halo-exchange call is added before a
     kernel that has a field on any space with a 'gh_write' access. '''
     config = Config.get()
     dyn_config = config.api_conf(API)
