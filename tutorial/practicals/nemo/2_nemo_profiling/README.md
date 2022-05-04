@@ -34,16 +34,19 @@ you have time at the end of this session.)
 1. Use the supplied Makefile to generate a version of the mini-app with
    profiling automatically inserted around each routine:
 
-       $ make
+       $ make transform
 
-   When examining the generated Fortran code (in `psy.f90`), you
+   When examining the generated Fortran code (in `psy_1.f90`), you
    should see that PSyclone has added `USE profile_psy_data_mod, ONLY:
    profile_PSyDataType` as well as calls to
    `profile_psy_data0%PreStart` and `profile_psy_data0%PostEnd`.
    Since the code now depends upon the PSyData API, the location of a
    suitable wrapper library must be provided when compiling the
    mini-app.  The supplied Makefile will build the 'simple_timing'
-   implementation of this library and link our mini-app against it.
+   implementation of this library and link our mini-app against it:
+
+       $ make allclean
+       $ make compile
 
    At this point, the compiled application can be run (ensure you have
    the necessary environment variables set first - see
