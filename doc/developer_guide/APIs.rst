@@ -542,21 +542,24 @@ has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
 them clean.
 
-There are 4 cases to consider:
+There are five cases to consider:
 
 1) the field is read in a loop that iterates over dofs,
 2) the field is read in a loop that iterates over owned cells and
    level-1 halo cells,
 3) the field is incremented in a loop that iterates over owned cells and
-   level-1 halo cells, and
-4) the field is read in a loop that iterates over owned cells
+   level-1 halo cells,
+4) the field is read in a loop that iterates over owned cells, and
+5) the field is written in a loop that iterates over owned cells.
 
 In case 1) the annexed dofs will not be read as the loop only iterates
 over owned dofs so a halo exchange is not required. In case 2) the
 full level-1 halo will be read (including annexed dofs) so a halo
 exchange is required. In case 3) the annexed dofs will be updated so a
 halo exchange is required. In case 4) the annexed dofs will be read so
-a halo exchange will be required.
+a halo exchange will be required. In case 5) the annexed dofs will be
+written with correct values (a condition of a kernel with ``GH_WRITE``
+for a continuous field) so no halo exchange is required.
 
 If we now take the case where annexed dofs are computed for loops that
 iterate over dofs (``COMPUTE_ANNEXED_DOFS`` is ``true``) then a field's

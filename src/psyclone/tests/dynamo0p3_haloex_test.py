@@ -428,18 +428,20 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     check(haloex, "max_halo_depth_mesh")
 
 
-def test_write_cont_dirty(tmpdir):
+def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
     ''' Check that the correct halo-exchange call is added before a
     kernel that has a field on any space with a 'gh_write' access. '''
+    config = Config.get()
+    dyn_config = config.api_conf(API)
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.1.1_halo_cont_write.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # We should have no halo exchange since this kernel is a special case
-    # and does not need to read from annexed dofs.
+    # and does not read from annexed dofs.
     hexchs = schedule.walk(DynHaloExchange)
     assert len(hexchs) == 0
-    #assert hexchs[0].field.name == "f2"
     # The field that is written to should be marked as dirty.
     code = str(psy.gen)
     assert "CALL f1_proxy%set_dirty()\n" in code
