@@ -34,9 +34,8 @@
 # Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code.  In order to use
-it you must first install PSyclone. See README.md in the top-level
-psyclone directory.
+directives to NEMO style code. In order to use it you must first install
+PSyclone. See README.md in the top-level directory.
 
 Once you have psyclone installed, this may be used by doing:
 
@@ -49,7 +48,7 @@ have already been preprocessed (if required).
 The transformation script attempts to insert Kernels directives at the
 highest possible location(s) in the schedule tree (i.e. to enclose as
 much code as possible in each Kernels region). However, due to
-limitations in the PGI compiler, we must take care to exclude certain
+limitations in the Nvidia compiler, we must take care to exclude certain
 nodes (such as If blocks) from within Kernel regions. If a proposed
 region is found to contain such a node (by the ``valid_acc_kernel``
 routine) then the script moves a level down the tree and then repeats
@@ -86,7 +85,7 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "sum", "sign_"]
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
-# the PGI compiler or because it just isn't worth it)
+# the Nvidia compiler or because it just isn't worth it)
 ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
               "day_mth",  # Just calendar operations
               "obs_surf_alloc",
@@ -123,8 +122,6 @@ class ExcludeSettings(object):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
         self.ifs_scalars = settings.get("ifs_scalars", True)
-        # Whether we exclude IFs that test for equality with a REAL scalar
-        self.ifs_real_scalars = settings.get("ifs_real_scalars", True)
         # Whether we allow IFs where the logical expression involves 1D
         # arrays (since these are often static in NEMO and thus not
         # handled by CUDA Unified Memory)
@@ -140,11 +137,9 @@ EXCLUDING = {"default": ExcludeSettings(),
                                          "ifs_1d_arrays": False,
                                          "inside_kernels": False}),
              "zps_hde": ExcludeSettings({"ifs_scalars": False}),
-             "ice_alb": ExcludeSettings({"ifs_scalars": False,
-                                         "ifs_real_scalars": False}),
+             "ice_alb": ExcludeSettings({"ifs_scalars": False}),
              "sbc_isf_div": ExcludeSettings(),
-             "ice_dyn_rhg_evp": ExcludeSettings({"ifs_scalars": False,
-                                                 "ifs_real_scalars": False}),
+             "ice_dyn_rhg_evp": ExcludeSettings({"ifs_scalars": False}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
              "itd_shiftice": ExcludeSettings({"ifs_scalars": False}),
@@ -195,7 +190,7 @@ def valid_acc_kernel(node):
 
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
-    # in another (with the PGI compiler).
+    # in another (with the Nvidia compiler).
     excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
 
     # Rather than walk the tree multiple times, look for both excluded node
@@ -217,25 +212,23 @@ def valid_acc_kernel(node):
             return False
 
         if isinstance(enode, IfBlock):
-            # We permit IF blocks that originate from WHERE constructs inside
-            # KERNELS regions
-            if "was_where" in enode.annotations:
+            # We permit IF blocks originating from WHERE constructs and
+            # single-statement IF blocks containing a Loop in KERNELS regions
+            if "was_where" in enode.annotations or \
+               "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
 
-            # We also permit single-statement IF blocks that contain a Loop
-            if "was_single_stmt" in enode.annotations and enode.walk(Loop):
-                continue
             # When using CUDA Unified Memory, only allocated arrays are
             # automatically put onto the GPU (although
             # this includes those that are created by compiler-generated allocs
             # e.g. for automatic arrays). We assume that all arrays of rank 2
             # or greater are dynamically allocated.
-            arrays = enode.children[0].walk(ArrayReference)
+            arrays = enode.condition.walk(ArrayReference)
             # We also exclude if statements where the condition expression does
             # not refer to arrays at all as this seems to cause issues for
             # 19.4 of the compiler (get "Missing branch target block").
             if not arrays and \
-               (excluding.ifs_scalars and not isinstance(enode.children[0],
+               (excluding.ifs_scalars and not isinstance(enode.condition,
                                                          BinaryOperation)):
                 log_msg(routine_name, "IF references scalars", enode)
                 return False
