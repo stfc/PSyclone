@@ -70,6 +70,101 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
+def test_ompparallel_changes_begin_string(fortran_reader, fortran_writer):
+    ''' Check that when the code inside an OMP Parallel region changes, the
+    parallel clause changes appropriately. '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 320
+            A(i) = i
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    tdir = OMPDoDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    ptrans.apply(loops[0].parent.parent)
+    assert type(tree.children[0].children[0]) is OMPParallelDirective
+    pdir = tree.children[0].children[0]
+    assert pdir.begin_string() == "omp parallel"
+    assert len(pdir.children) == 3
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+
+    # Make acopy of the loop
+    new_loop = pdir.children[0].children[0].children[0].children[0].copy()
+    # Change the loop variable to j
+    jvar = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    new_loop.variable = jvar
+    # Add loop
+    pdir.children[0].addchild(new_loop)
+
+    pdir.begin_string()
+    assert pdir.children[2] != priv_clause
+    pdir.children[2].detach()
+
+    reduc = OMPReductionClause()
+    pdir.addchild(reduc)
+    # Check we correctly place the private clause again
+    pdir.begin_string()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+
+def test_ompparallel_changes_gen_code():
+    ''' Check that when the code inside an OMP Parallel region changes, the
+    parallel clause changes appropriately. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    tree = psy.invokes.invoke_list[0].schedule
+    ptrans = OMPParallelTrans()
+    tdir = OMPDoDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    ptrans.apply(loops[0].parent.parent)
+
+    assert type(tree.children[0]) is OMPParallelDirective
+    pdir = tree.children[0]
+    psy.gen
+    assert len(pdir.children) == 3
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    priv_clause = pdir.children[2]
+
+    # Make acopy of the loop
+    new_loop = pdir.children[0].children[0].children[0].children[0].copy()
+    routine = pdir.ancestor(Routine)
+    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    # Change the loop variable to j
+    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    new_loop.variable = jvar
+    tdir2 = OMPDoDirective()
+    tdir2.children[0].addchild(new_loop)
+    # Add loop
+    pdir.children[0].addchild(tdir2)
+
+    psy.gen
+    assert pdir.children[2] != priv_clause
+    pdir.children[2].detach()
+
+    reduc = OMPReductionClause()
+    pdir.addchild(reduc)
+    # Check we correctly place the private clause again
+    psy.gen
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+
+
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''

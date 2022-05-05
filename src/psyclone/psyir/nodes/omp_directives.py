@@ -490,17 +490,14 @@ class OMPParallelDirective(OMPRegionDirective):
             # declare the variable
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[thread_idx]))
-        if len(self._children) >= 3 and private_clause != self._children[2]:
-            if isinstance(self._children[2], OMPPrivateClause):
-                self._children[2] = private_clause
-            else:
-                self.addchild(private_clause, index=2)
+        if len(self._children) >= 3:
+            if private_clause != self._children[2]:
+                if isinstance(self._children[2], OMPPrivateClause):
+                    self._children[2] = private_clause
+                else:
+                    self.addchild(private_clause, index=2)
         else:
-            if len(self._children) > 2 and isinstance(self._children[2],
-                                                      OMPPrivateClause):
-                self._children[2] = private_clause
-            else:
-                self.addchild(private_clause, index=2)
+            self.addchild(private_clause, index=2)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -578,11 +575,12 @@ class OMPParallelDirective(OMPRegionDirective):
         # if not self._reprod:
         #     result += self._reduction_string()
         private_clause = self._get_private_clause()
-        if len(self._children) >= 3 and private_clause != self._children[2]:
-            if isinstance(self._children[2], OMPPrivateClause):
-                self._children[2] = private_clause
-            else:
-                self.addchild(private_clause, index=2)
+        if len(self._children) >= 3:
+            if private_clause != self._children[2]:
+                if isinstance(self._children[2], OMPPrivateClause):
+                    self._children[2] = private_clause
+                else:
+                    self.addchild(private_clause, index=2)
         else:
             self.addchild(private_clause, index=2)
 
