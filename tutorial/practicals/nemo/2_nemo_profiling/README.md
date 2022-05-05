@@ -46,7 +46,7 @@ you have time at the end of this session.)
    implementation of this library and link our mini-app against it:
 
        $ make allclean
-       $ make compile
+       $ make tra_adv.exe
 
    At this point, the compiled application can be run (ensure you have
    the necessary environment variables set first - see
@@ -71,7 +71,7 @@ you have time at the end of this session.)
    fine without it but this way the manual modifications are made to
    a separate file.)
 
-   Rebuild the application (`make`) and run it. You should now
+   Rebuild the application (`make tra_adv.exe`) and run it. You should now
    see timing information printed to the terminal, e.g.:
 
        ===========================================
@@ -84,20 +84,25 @@ you have time at the end of this session.)
 
    If you examine the Makefile, you will see that PSyclone has been run with
    the `--profile invokes` option and it is this that causes the subroutine
-   to be instrumented for profiling.
+   to be instrumented for profiling:
+
+       $(PSYCLONE) --profile invokes -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
 
 3. Edit the Makefile so that the line invoking PSyclone uses the
    `--profile kernels` option instead. Rebuild (you'll need to do a
    `make clean` to ensure that a new `psy.f90` is generated) and run
-   the mini-app. You should now see timing for four regions that have
+   the mini-app. You should now see timing for thirteen regions that have
    been identified as kernels by PSyclone:
    
        ===========================================
        module::region   count	sum		min		average         max
-       tra_adv::r0        1    3.12500000E-02   3.12500000E-02 	3.12500000E-02 	3.12500000E-02
-       tra_adv::r1        1    0.00000000       0.00000000     	0.00000000     	0.00000000
-       tra_adv::r2        1    0.00000000       0.00000000     	0.00000000     	0.00000000    
-       tra_adv::r3        1    0.343750000      0.343750000     0.343750000     0.343750000
+       tra_adv::r0        1    3.12500000E-02	3.12500000E-02 	3.12500000E-02 	3.12500000E-02
+       tra_adv::r1        1    0.00000000	0.00000000     	0.00000000     	0.00000000
+       tra_adv::r2        1    0.00000000	0.00000000     	0.00000000     	0.00000000
+       tra_adv::r3       10    3.69873047E-02	2.92968750E-03 	3.69873038E-03 	7.93457031E-03
+       tra_adv::r4       10    4.19921875E-02	2.92968750E-03  4.19921894E-03 	7.08007812E-03
+       ...
        ===========================================
 
 ## 2. User-specified Profiling ##
@@ -128,8 +133,10 @@ in this tutorial.
     NemoInvokeSchedule[invoke='tra_adv']
         0: Profile[]
             Schedule[]
-                0: CodeBlock[[<class 'fparser.two....]]
-                1: If[annotations='was_single_stmt']
+                0: Call[name='get_environment_variable']
+                    Literal[value:'JPI', Scalar<CHARACTER, UNDEFINED>]
+                    Reference[name:'env']
+                1: CodeBlock[[<class 'fparser.two.Fortran2003.Read_Stmt'>]]
                 ...
    ```
 
