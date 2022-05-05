@@ -46,8 +46,8 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import (OMPParallelLoopTrans, TransformationError
-                                      OMPParallelTrans, OMPLoopTrans)
+from psyclone.transformations import (OMPParallelLoopTrans, OMPLoopTrans,
+                                      TransformationError, OMPParallelTrans)
 
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
