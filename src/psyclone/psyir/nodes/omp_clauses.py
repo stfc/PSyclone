@@ -231,14 +231,7 @@ class OMPDefaultClause(Clause):
 
     @property
     def _clause_string(self):
-        clause_string = "default("
-        if self._clause_type == OMPDefaultClause.DefaultClauseTypes.SHARED:
-            clause_string = clause_string + "shared)"
-        elif self._clause_type == OMPDefaultClause.DefaultClauseTypes.NONE:
-            clause_string = clause_string + "none)"
-        elif (self._clause_type == 
-                OMPDefaultClause.DefaultClauseTypes.FIRSTPRIVATE):
-            clause_string = clause_string + "firstprivate)"
+        clause_string = "default(" + str(self._clause_type.name).lower() + ")"
         return clause_string
 
 
@@ -298,7 +291,7 @@ class OMPDependClause(OperandClause):
     def _validate_child(position, child):
         '''
          Decides whether a given child and position are valid for this node.
-         One child allowed, of type Literal.
+         Any number of children allowed, but must be Reference.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -312,12 +305,7 @@ class OMPDependClause(OperandClause):
 
     @property
     def operand(self):
-        if self._operand == OMPDependClause.DependClauseTypes.IN:
-            return "in"
-        if self._operand == OMPDependClause.DependClauseTypes.OUT:
-            return "out"
-        if self._operand == OMPDependClause.DependClauseTypes.INOUT:
-            return "inout"
+        return str(self._operand.name).lower()
 
     def __eq__(self, other):
         '''Two OMPDependClause are equal if:

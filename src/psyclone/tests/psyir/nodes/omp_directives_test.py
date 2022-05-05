@@ -193,7 +193,7 @@ def test_directive_get_private(monkeypatch):
     # pylint: disable=pointless-statement
     psy.gen
     # Now check that _get_private_list returns what we expect
-    pvars = directive._get_private_list()
+    pvars = directive._get_private_clause()
     #assert pvars == ['cell']
     assert isinstance(pvars, OMPPrivateClause)
     assert len(pvars.children) == 1
@@ -1608,6 +1608,7 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
             do j = 1, 32
                 A(i, j) = k
                 A(i, j) = B(1+i, j) + k
+                A(i, j) = B(33+i, j) + k
             end do
         end do
     end subroutine
@@ -1634,10 +1635,11 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
   !$omp parallel default(shared) private(i,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(32 + i,:),b(i,:)) depend(out: a(i,:))
+    !$omp task private(j) firstprivate(i) shared(a,b) depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)) depend(out: a(i,:))
     do j = 1, 32, 1
       a(i,j) = k
       a(i,j) = b(1 + i,j) + k
+      a(i,j) = b(33 + i,j) + k
     enddo
     !$omp end task
   enddo
@@ -1645,6 +1647,7 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
+    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 

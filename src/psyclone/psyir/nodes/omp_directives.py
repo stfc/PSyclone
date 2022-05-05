@@ -478,7 +478,7 @@ class OMPParallelDirective(OMPRegionDirective):
         code'''
         from psyclone.psyGen import zero_reduction_variables
 
-        private_clause = self._get_private_list()
+        private_clause = self._get_private_clause()
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -577,7 +577,7 @@ class OMPParallelDirective(OMPRegionDirective):
         # TODO #514: not yet working with NEMO, so commented out for now
         # if not self._reprod:
         #     result += self._reduction_string()
-        private_clause = self._get_private_list()
+        private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
             if isinstance(self._children[2], OMPPrivateClause):
                 self._children[2] = private_clause
@@ -600,7 +600,7 @@ class OMPParallelDirective(OMPRegionDirective):
         # pylint: disable=no-self-use
         return "omp end parallel"
 
-    def _get_private_list(self):
+    def _get_private_clause(self):
         '''
         Returns the variable names used for any loops within a directive
         and any variables that have been declared private by a Kernel
@@ -803,7 +803,7 @@ class OMPTaskDirective(OMPRegionDirective):
 
         # Store the parent parallel directive node
         self._parent_parallel = anc
-        self._parallel_private = anc._get_private_list().children
+        self._parallel_private = anc._get_private_clause().children
 
     def _evaluate_readonly_baseref(self, ref, private_list, firstprivate_list,
                                    shared_list, in_list, out_list):
@@ -980,10 +980,10 @@ class OMPTaskDirective(OMPRegionDirective):
                     one = Literal(str(dim+1), INTEGER_TYPE)
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
-                            ref.copy(), one.copy())
+                            Reference(ref.symbol), one.copy())
                     ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
-                            ref.copy(), one.copy())
+                            Reference(ref.symbol), one.copy())
                     full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
                 else:
@@ -996,10 +996,10 @@ class OMPTaskDirective(OMPRegionDirective):
                     one = Literal(str(dim+1), INTEGER_TYPE)
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
-                            ref.copy(), one.copy())
+                            Reference(ref.symbol), one.copy())
                     ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
-                            ref.copy(), one.copy())
+                            Reference(ref.symbol), one.copy())
                     full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
             elif ref in firstprivate_list:
@@ -1135,10 +1135,10 @@ class OMPTaskDirective(OMPRegionDirective):
                         one = Literal(str(dim+1), INTEGER_TYPE)
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
-                                ref.copy(), one.copy())
+                                Reference(ref.symbol), one.copy())
                         ubound = BinaryOperation.create(
                                 BinaryOperation.Operator.UBOUND,
-                                ref.copy(), one.copy())
+                                Reference(ref.symbol), one.copy())
                         full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
@@ -1196,6 +1196,19 @@ class OMPTaskDirective(OMPRegionDirective):
             dclause = ArrayReference.create(ref.symbol,
                                             list(final_list))
             # Add dclause into the in_list if required
+            #for x in in_list:
+            #    if dclause.children and len(dclause.children) > 0 and x.children and len(x.children) > 0 and len(dclause.children) == len(x.children) and type(dclause.children[0]) is BinaryOperation:
+            #        print("----START----")
+            #        print("clause: ", dclause)
+            #        print("clause_children: ", dclause.children)
+            #        print("x_children: ", x.children)
+            #        print("x: ", x)
+            #        print("\n")
+            #        print("child: ", dclause.children[0])
+            #        print("\n")
+            #        print("x child: ", x.children[0])
+            #        print(x == dclause)
+            #        print("-----END-----")
             if dclause not in in_list:
                 in_list.append(dclause)
         # Add to shared_list (for explicity)
@@ -1265,10 +1278,10 @@ class OMPTaskDirective(OMPRegionDirective):
                         one = Literal(str(dim+1), INTEGER_TYPE)
                         lbound = BinaryOperation.create(
                                 BinaryOperation.Operator.LBOUND,
-                                ref.copy(), one.copy())
+                                Reference(ref.symbol), one.copy())
                         ubound = BinaryOperation.create(
                                 BinaryOperation.Operator.UBOUND,
-                                ref.copy(), one.copy())
+                                Reference(ref.symbol), one.copy())
                         full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
@@ -2063,7 +2076,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_clause = self._get_private_list()
+        private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
             if isinstance(self._children[2], OMPPrivateClause):
                 self._children[2] = private_clause
@@ -2099,7 +2112,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :rtype: str
 
         '''
-        private_clause = self._get_private_list()
+        private_clause = self._get_private_clause()
         if len(self._children) >= 3 and private_clause != self._children[2]:
             if isinstance(self._children[2], OMPPrivateClause):
                 self._children[2] = private_clause
