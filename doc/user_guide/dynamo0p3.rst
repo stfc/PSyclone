@@ -395,7 +395,7 @@ developer must declare scalars, fields and operators in the algorithm
 layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
-the code can be set in a configuration file. For example, INTEGER data
+the code can be set in a configuration file. For example, ``INTEGER`` data
 could be set to be 32-bit precision. As REAL data has more than one
 supported precision, different parts of the code can be configured to
 have different precision.
@@ -405,33 +405,33 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+------------------------+----------+
-| Data Type                | Kernel Metadata        |Precision |
-+==========================+========================+==========+
-| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF    |
-+--------------------------+------------------------+----------+
-| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER |
-+--------------------------+------------------------+----------+
-| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN   |
-+--------------------------+------------------------+----------+
-| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF    |
-+--------------------------+------------------------+----------+
-| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF    |
-+--------------------------+------------------------+----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF    |
-+--------------------------+------------------------+----------+
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER |
-+--------------------------+------------------------+----------+
-| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN   |
-+--------------------------+------------------------+----------+
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF    |
-+--------------------------+------------------------+----------+
-| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF    |
-+--------------------------+------------------------+----------+
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER |
-+--------------------------+------------------------+----------+
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER |
-+--------------------------+------------------------+----------+
++--------------------------+------------------------+-----------+
+| Data Type                | Kernel Metadata        | Precision |
++==========================+========================+===========+
+| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF     |
++--------------------------+------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER  |
++--------------------------+------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN    |
++--------------------------+------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF     |
++--------------------------+------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF     |
++--------------------------+------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF     |
++--------------------------+------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER  |
++--------------------------+------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN    |
++--------------------------+------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF     |
++--------------------------+------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF     |
++--------------------------+------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER  |
++--------------------------+------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER  |
++--------------------------+------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
@@ -452,8 +452,8 @@ generic kernel twice with potentially different precision. The
 implementation of the generic kernel such that it supports both 32-
 and 64-bit precision is also shown. The use of LFRic names for
 precision in the algorithm code allows precision to be controlled in a
-simple way. For example r_solver could be set to be 32-bits in one
-configuration and 64-bits in another:
+simple way. For example, ``r_solver`` could be set to be 32-bits in
+one configuration and 64-bits in another:
 
 .. code-block:: fortran
 
@@ -517,9 +517,9 @@ configuration and 64-bits in another:
 
 In order to support mixed precision, PSyclone needs to know the
 precision (as specified in the algorithm layer) of any kernel
-arguments that are of a type that supports different precisions (e.g
-GH_FIELD). The reason for this is that PSyclone needs to be able to
-declare data with the correct precision information within the
+arguments that are of a type that supports different precisions (e.g.
+``GH_FIELD``). The reason for this is that PSyclone needs to be able
+to declare data with the correct precision information within the
 PSy-layer to ensure that the correct flavour of kernels are called.
 
 PSyclone must therefore determine this information from the algorithm
@@ -3024,6 +3024,11 @@ or of a ``real``-valued field with itself and return the result as a
 .. note:: When used with distributed memory these Built-ins will
           trigger the addition of a global sum which may affect the
           performance and/or scalability of the code.
+          Also, whilst the fields in these Built-ins can be of any
+          supported ``real`` :ref:`precision <lfric-mixed-precision>`,
+          the only currently supported precision for the global
+          reductions in the LFRic infrastructure is ``r_def``, hence
+          the result will be converted accordingly.
 
 X_innerproduct_Y
 ^^^^^^^^^^^^^^^^
@@ -3057,6 +3062,11 @@ the result as a ``real`` scalar is denoted with the keyword **sum**.
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
+          Also, whilst the fields in these Built-ins can be of any
+          supported ``real`` :ref:`precision <lfric-mixed-precision>`,
+          the only currently supported precision for the global
+          reductions in the LFRic infrastructure is ``r_def``, hence
+          the result will be converted accordingly.
 
 sum_X
 ^^^^^
