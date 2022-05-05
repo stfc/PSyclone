@@ -166,7 +166,7 @@ def test_omp_do_children_err():
 
 
 def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_list() method of OMPParallelDirective.
+    ''' Tests for the _get_private_clause() method of OMPParallelDirective.
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
 
@@ -192,7 +192,7 @@ def test_directive_get_private(monkeypatch):
     # replaced by a `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    # Now check that _get_private_list returns what we expect
+    # Now check that _get_private_clause returns what we expect
     pvars = directive._get_private_clause()
     #assert pvars == ['cell']
     assert isinstance(pvars, OMPPrivateClause)
@@ -202,7 +202,7 @@ def test_directive_get_private(monkeypatch):
     call = directive.dir_body[0].dir_body[0].loop_body[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
-        _ = directive._get_private_list()
+        _ = directive._get_private_clause()
     assert ("call 'testkern_w3_code' has a local variable but its name is "
             "not set" in str(err.value))
 
