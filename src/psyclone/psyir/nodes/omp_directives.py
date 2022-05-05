@@ -1576,48 +1576,6 @@ class OMPTaskDirective(OMPRegionDirective):
         return (private_clause, firstprivate_clause, shared_clause, in_clause,
                 out_clause)
         
-    def gen_code(self, parent):
-        '''
-        Generate the f2pygen AST entries in the Schedule for this OpenMP
-        taskloop directive.
-
-        :param parent: the parent Node in the Schedule to which to add our \
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        self.validate_global_constraints()
-        private_clause, firstprivate_clause, shared_clause, in_clause, out_clause = \
-                self._compute_clauses()
-
-        if len(self.children) < 2 or private_clause != self.children[1]:
-            self.children[1] = private_clause
-        if len(self.children) < 3 or firstprivate_clause != self.children[2]:
-            self.children[2] = firstprivate_clause
-        if len(self.children) < 4 or shared_clause != self.children[3]:
-            self.children[3] = shared_clause
-        if len(self.children) < 5 or in_clause != self.children[4]:
-            self.children[4] = in_clause
-        if len(self.children) < 6 or out_clause != self.children[5]:
-            self.children[5] = out_clause
-
-        directive = DirectiveGen(parent, "omp", "begin", "task",
-                                "")
-        parent.add(directive)
-        # Clauses don't support gen_code natively, so we have to use
-        # PSyIRGen to handle them
-        for clause in self.clauses:
-            directive.add(PSyIRGen(directive, clause))
-
-
-        for child in self.dir_body:
-            child.gen_code(parent)
-
-        # make sure the directive occurs straight after the loop body
-        position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, "omp", "end", "task", ""),
-                   position=["after", position])
-
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp task ...". The visitor is responsible for adding the

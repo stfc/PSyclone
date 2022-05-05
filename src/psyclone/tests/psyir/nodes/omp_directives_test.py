@@ -1493,6 +1493,7 @@ def test_omp_task_directive_11(fortran_reader, fortran_writer):
                 do ii=i, i+32
                     do jj = j,j+32
                         A(ii+1,jj+33) = B(ii,jj) * k
+                        A(ii+1,jj+65) = B(ii,jj) * k
                     end do
                 end do
             end do
@@ -1524,10 +1525,11 @@ def test_omp_task_directive_11(fortran_reader, fortran_writer):
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i,j),k) depend(out: a(i + 32,j + 2 * 32),a(i + 32,j + 32),a(i,j + 2 * 32),a(i,j + 32))
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) depend(in: b(i,j),k) depend(out: a(i + 32,j + 2 * 32),a(i + 32,j + 32),a(i,j + 2 * 32),a(i,j + 32),a(i + 32,j + 3 * 32),a(i,j + 3 * 32))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           a(ii + 1,jj + 33) = b(ii,jj) * k
+          a(ii + 1,jj + 65) = b(ii,jj) * k
         enddo
       enddo
       !$omp end task
@@ -1704,6 +1706,7 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
                 A(i, j) = k
                 A(i, j) = B(1+i, j) + k
                 A(i, j) = B(33+i, j) + k
+                A(i, j) = B(32+i, j) + k
             end do
         end do
     end subroutine
