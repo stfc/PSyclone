@@ -1738,6 +1738,7 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
       a(i,j) = k
       a(i,j) = b(1 + i,j) + k
       a(i,j) = b(33 + i,j) + k
+      a(i,j) = b(32 + i,j) + k
     enddo
     !$omp end task
   enddo
@@ -1745,7 +1746,6 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer):
   !$omp end parallel
 
 end subroutine my_subroutine\n'''
-    print(fortran_writer(tree))
     assert fortran_writer(tree) == correct
 
 
@@ -2024,3 +2024,529 @@ def test_omp_task_directive_16(fortran_reader, fortran_writer):
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
+
+def test_omp_task_directive_17(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct clauses
+    when an output variable is just a shared vairable '''
+    code = '''
+    subroutine my_subroutine()
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        k = k + ii
+                        k = k * jj
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(k) depend(in: k) depend(out: k)
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          k = k + ii
+          k = k * jj
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+def test_omp_task_directive_18(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct code if
+    stepval is not yet declared firstprivate '''
+    code = '''
+    subroutine my_subroutine()
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k, kk
+        kk = 2
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32, kk
+                    do jj = j,j+32
+                        k = k + ii
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+  integer :: kk
+
+  kk = 2
+  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,kk,j) shared(k) depend(in: k) depend(out: k)
+      do ii = i, i + 32, kk
+        do jj = j, j + 32, 1
+          k = k + ii
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_19(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct code if
+    stepval is not yet declared firstprivate '''
+    code = '''
+    subroutine my_subroutine()
+      type :: x
+        integer :: jp
+      end type
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        type(x) :: ty
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                do ii=i, i+32
+                    do jj = j,j+32
+                        k = ty%jp + ii
+                        ty%jp = ty%jp - (1 - ty%jp)
+                    end do
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[1].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  type :: x
+    integer, public :: jp
+  end type x
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+  type(x) :: ty
+
+  !$omp parallel default(shared) private(i,ii,j,jj)
+  !$omp single
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      !$omp task private(ii,jj) firstprivate(i,j) shared(k,ty) depend(in: ty) depend(out: k,ty)
+      do ii = i, i + 32, 1
+        do jj = j, j + 32, 1
+          k = ty%jp + ii
+          ty%jp = ty%jp - (1 - ty%jp)
+        enddo
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_20(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct
+    code for a literal read-only array index.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, j) = B(1, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,10) :: a
+  integer, dimension(32,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+
+  !$omp parallel default(shared) private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(1,:)) depend(out: a(i,:))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii,j) = b(1,j) + 1
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_21(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct
+    code for a literal written to array index.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, 1) = B(ii, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    correct = '''subroutine my_subroutine()
+  integer, dimension(321,10) :: a
+  integer, dimension(32,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+
+  !$omp parallel default(shared) private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j) firstprivate(i) shared(a,b) depend(in: b(i,:)) depend(out: a(i,1))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii,1) = b(ii,j) + 1
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_shared_index(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if a shared variable
+    is used as an array index.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer :: k
+
+        do i = 1, 320, 32
+            k = 1
+            do ii=i, i+32
+                do j = 1, 32
+                    k = k + 1
+                    A(ii, k) = B(ii, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[1]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("Shared variable access used as an index inside an "
+            "OMPTaskDirective which is not supported. Variable name is "
+            "Reference[name:'k']" in str(excinfo.value))
+
+
+def test_omp_task_directive_non_loop(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if an
+    OMPTaskDirective's child is a non Loop node.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer :: k
+
+        do i = 1, 320, 32
+            k = 1
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("OMPTaskDirective must have exactly one Loop child. Found <class "
+            "'psyclone.psyir.nodes.assignment.Assignment'>" in str(excinfo.value))
+
+def test_omp_task_directive_multichild(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if it an
+    OMPTaskDirective has multiple children.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer :: k
+
+        do i = 1, 320, 32
+            k = 1
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, 1) = B(ii, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    assign = loops[0].children[3].children[0]
+    assign.detach()
+    tdir.children[0].addchild(assign)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("OMPTaskDirective must have exactly one Loop child. Found 2 "
+            "children." in str(excinfo.value))
+
+
+def test_omp_task_directive_loop_start_array(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if it a
+    Loop inside an OMPTaskDirective has an array start value.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = B(3,2), 32
+                    A(ii, 1) = B(ii, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("ArrayReference not supported in the start variable of a Loop "
+            "in a OMPTaskDirective node." in str(excinfo.value))
+
+
+def test_omp_task_directive_loop_stop_array(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if it a
+    Loop inside an OMPTaskDirective has an array stop value.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, B(i,2)
+                    A(ii, 1) = B(ii, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("ArrayReference not supported in the stop variable of a Loop "
+            "in a OMPTaskDirective node." in str(excinfo.value))
+
+
+def test_omp_task_directive_loop_step_array(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly throws an error if it a
+    Loop inside an OMPTaskDirective has an array step value.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 22, B(i,2)
+                    A(ii, 1) = B(ii, j) + 1
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        fortran_writer(tree)
+    assert ("ArrayReference not supported in the step variable of a Loop "
+            "in a OMPTaskDirective node." in str(excinfo.value))

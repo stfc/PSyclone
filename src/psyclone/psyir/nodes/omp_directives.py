@@ -1164,6 +1164,9 @@ class OMPTaskDirective(OMPRegionDirective):
                 self._handle_index_binop(index, index_list,
                                                   firstprivate_list,
                                                   private_list)
+            elif type(index) is Literal:
+                # Just place literal directly into the dependency clause.
+                index_list.append(index.copy())
             else:
                 # Not allowed type appears
                 raise GenerationError(
@@ -1444,8 +1447,8 @@ class OMPTaskDirective(OMPRegionDirective):
         # are already declared as something else
         for ref in start_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not yet supported in the start "
-                                      "variable of the primary Loop in a "
+                raise GenerationError("{0} not supported in the start "
+                                      "variable of a Loop in a "
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
             if (ref not in firstprivate_list and ref not in private_list and
@@ -1455,8 +1458,8 @@ class OMPTaskDirective(OMPRegionDirective):
         stop_val_refs = stop_val.walk(Reference)
         for ref in stop_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not yet supported in the stop "
-                                      "variable of the primary Loop in a "
+                raise GenerationError("{0} not supported in the stop "
+                                      "variable of a Loop in a "
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
             if (ref not in firstprivate_list and ref not in private_list and
@@ -1467,8 +1470,8 @@ class OMPTaskDirective(OMPRegionDirective):
         step_val_refs = step_val.walk(Reference)
         for ref in step_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-                raise GenerationError("{0} not yet supported in the step "
-                                      "variable of the primary Loop in a "
+                raise GenerationError("{0} not supported in the step "
+                                      "variable of a Loop in a "
                                       "OMPTaskDirective node.".format(
                     type(ref).__name__))
             if (ref not in firstprivate_list and ref not in private_list and
@@ -1546,9 +1549,12 @@ class OMPTaskDirective(OMPRegionDirective):
         # Find the child loop node, and check our schedule contains a single
         # loop for now.
         if len(self.children[0].children) != 1:
-            assert False
+            raise GenerationError("OMPTaskDirective must have exactly one Loop"
+                    f" child. Found {len(self.children[0].children)} "
+                    "children.")
         if not isinstance(self.children[0].children[0], Loop):
-            assert False
+            raise GenerationError("OMPTaskDirective must have exactly one Loop"
+                    f" child. Found {type(self.children[0].children[0])}")
         self._evaluate_node(self.children[0].children[0], private_list,
                             firstprivate_list, shared_list, in_list,
                             out_list)
