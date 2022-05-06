@@ -2675,3 +2675,62 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer):
 
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_24(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when we have access to a non-proxy parent loop variable in an array index
+    binary operation.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer, dimension(321, 10) :: B
+        integer :: i,ii
+        integer :: j
+        integer :: k
+        do j = 1, 320, 32
+          do i = 1, 320, 32
+            do ii = i, i + 32
+                    A(i, j+65) = k
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree =  fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = OMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer, dimension(321,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared) private(i,ii,j)
+  !$omp single
+  do j = 1, 320, 32
+    do i = 1, 320, 32
+      !$omp task private(ii) firstprivate(i,j) shared(a) depend(in: k) depend(out: a(i,j + 3 * 32),a(i,j + 2 * 32))
+      do ii = i, i + 32, 1
+        a(i,j + 65) = k
+      enddo
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    print(fortran_writer(tree))
+    assert fortran_writer(tree) == correct

@@ -1003,8 +1003,9 @@ class OMPTaskDirective(OMPRegionDirective):
                             Reference(arrayref.symbol), one.copy())
                     full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
-            elif ref in firstprivate_list:
-                # FIXME HAVE TO DO SOMETHING FOR PARENT LOOP VARIABLES
+            else:
+                if ref not in firstprivate_list:
+                    firstprivate_list.append(ref.copy())
                 if ref.symbol in self._parent_loop_vars:
                     # Non-proxy access to a parent loop variable.
                     # In this case we have to do similar to when accessing a
@@ -1078,11 +1079,6 @@ class OMPTaskDirective(OMPRegionDirective):
                     # we can just use the reference to for now. Not 100% on
                     # this as the value is modifiable.
                     index_list.append(ref.copy())
-            else:
-                # Not yet been written to/read from so has to be firstprivate
-                firstprivate_list.append(ref.copy())
-                # Has to be a constant to, so we're safe to use this reference.
-                index_list.append(ref.copy())
         else:
             # Have a shared variable, which we're not currently supporting
             raise GenerationError(
