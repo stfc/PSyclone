@@ -976,12 +976,14 @@ class OMPTaskDirective(OMPRegionDirective):
                     # Return a full range (:)
                     dim = len(index_list)
                     one = Literal(str(dim+1), INTEGER_TYPE)
+                    # Find the arrayref
+                    arrayref = ref.parent.parent
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
-                            Reference(ref.symbol), one.copy())
+                            Reference(arrayref.symbol), one.copy())
                     ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
-                            Reference(ref.symbol), one.copy())
+                            Reference(arrayref.symbol), one.copy())
                     full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
                 else:
@@ -992,12 +994,13 @@ class OMPTaskDirective(OMPRegionDirective):
                     # Return a full range (:)
                     dim = len(index_list)
                     one = Literal(str(dim+1), INTEGER_TYPE)
+                    arrayref = ref.parent.parent
                     lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
-                            Reference(ref.symbol), one.copy())
+                            Reference(arrayref.symbol), one.copy())
                     ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
-                            Reference(ref.symbol), one.copy())
+                            Reference(arrayref.symbol), one.copy())
                     full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
             elif ref in firstprivate_list:
