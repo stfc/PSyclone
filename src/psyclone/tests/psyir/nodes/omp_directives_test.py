@@ -2628,10 +2628,11 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer):
         integer :: k
         do i = 1, 320, 32
             do ii = i, i + 32
+                k = 3
                 do j = 1, 32
                     A(i, j+1) = k
                 end do
-                A(i,j + 2) = 3
+                A(i,k + 2) = 3
             end do
         end do
     end subroutine
@@ -2656,15 +2657,16 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared) private(i,ii,j)
+  !$omp parallel default(shared) private(i,ii,j,k)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,j) firstprivate(i) shared(a) depend(in: k) depend(out: a(i,:))
+    !$omp task private(ii,k,j) firstprivate(i) shared(a) depend(out: a(i,:))
     do ii = i, i + 32, 1
+      k = 3
       do j = 1, 32, 1
         a(i,j + 1) = k
       enddo
-      a(i,j + 2) = 3
+      a(i,k + 2) = 3
     enddo
     !$omp end task
   enddo

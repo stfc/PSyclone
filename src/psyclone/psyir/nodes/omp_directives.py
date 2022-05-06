@@ -1348,7 +1348,10 @@ class OMPTaskDirective(OMPRegionDirective):
         '''
         # Check if its a private variable
         is_private = ref in self._parallel_private
-        # If its private we don't need to do anything
+        # If its private should add it to private list if not already present
+        if is_private and ref not in private_list:
+            private_list.append(ref.copy())
+        # Otherwise its shared
         if not is_private:
             if ref not in shared_list:
                 shared_list.append(ref.copy())
