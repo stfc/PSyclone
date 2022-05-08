@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
+
 
 '''This module tests the DynamoPSy class, currently located within the
 dynamo0.3.py file.'''
@@ -144,7 +146,7 @@ def test_dynamopsy_gen_no_invoke():
     assert str(result) == expected_result
 
 
-def test_dynamopsy_gen():
+def test_dynamopsy_gen(monkeypatch):
     '''Check that the gen() method of DynamoPSy behaves as expected when
     generating a psy-layer from an algorithm layer containing invoke
     calls. Simply check that the PSy-layer code for the invoke call is
@@ -152,6 +154,11 @@ def test_dynamopsy_gen():
     DynamoPSy() gen() method in the previous test.
 
     '''
+    # Since we're testing the DynamoPSy constructor directly, we have to
+    # monkeypatch the Config object in order to guarantee that distributed
+    # memory is enabled.
+    monkeypatch.setattr(Config.get(), "_distributed_mem", True)
+
     _, invoke_info = parse(
         os.path.join(
             BASE_PATH, "15.14.4_builtin_and_normal_kernel_invoke.f90"),
