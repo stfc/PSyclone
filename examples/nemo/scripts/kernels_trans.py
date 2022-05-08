@@ -92,7 +92,7 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
               "oce_alloc",
               "trc_bc_ini",  # Str manipulation and is only an init routine
               "trc_ini_age",  # Triggers "missing branch target block"
-              "turb_ncar",   # Resulting code seg. faults with PGI 19.4
+              "turb_ncar",   # Hurts performance
               "ice_dyn_adv",  # No significant compute
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
               "p2z_ini",  # Str manipulation in init routine
@@ -218,15 +218,14 @@ def valid_acc_kernel(node):
                "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
 
-            # When using CUDA Unified Memory, only allocated arrays are
-            # automatically put onto the GPU (although
-            # this includes those that are created by compiler-generated allocs
-            # e.g. for automatic arrays). We assume that all arrays of rank 2
-            # or greater are dynamically allocated.
+            # When using CUDA Unified Memory, only allocated arrays reside in
+            # shared memory (although this includes those that are created by
+            # compiler-generated allocs e.g. for automatic arrays). We assume
+            # that all arrays of rank 2 or greater are dynamically allocated.
             arrays = enode.condition.walk(ArrayReference)
             # We also exclude if statements where the condition expression does
-            # not refer to arrays at all as this seems to cause issues for
-            # 19.4 of the compiler (get "Missing branch target block").
+            # not refer to arrays at all as this used to cause compiler issues
+            # (get "Missing branch target block") and now produces faster code.
             if not arrays and \
                (excluding.ifs_scalars and not isinstance(enode.condition,
                                                          BinaryOperation)):
@@ -456,11 +455,15 @@ def try_kernels_trans(nodes):
                    loop.loop_body[0].loop_type == "lon" and \
                    isinstance(loop.loop_body[0].step_expr, Literal) and \
                    len(loop.loop_body.children) == 1:
-                    ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
+                    try:
+                        ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
+                    except (TransformationError) as err:
+                        print(f"Failed to collapse lat-lon loop: {loop}")
+                        print(f"Error was: {err}")
 
         return True
     except (TransformationError, InternalError) as err:
-        print(f"Failed to transform nodes: {nodes}")
+        print(f"Failed to insert acc kernels around nodes: {nodes}")
         print(f"Error was: {err}")
         return False
 
