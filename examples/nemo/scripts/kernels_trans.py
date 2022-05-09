@@ -62,7 +62,7 @@ from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
-    ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
+    ArrayReference, Assignment, BinaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 
@@ -86,17 +86,11 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
-ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
-              "day_mth",  # Just calendar operations
-              "obs_surf_alloc",
-              "oce_alloc",
-              "trc_bc_ini",  # Str manipulation and is only an init routine
-              "trc_ini_age",  # Triggers "missing branch target block"
-              "turb_ncar",   # Hurts performance
-              "ice_dyn_adv",  # No significant compute
+ACC_IGNORE = ["day_mth", # Just calendar operations
+              "obs_surf_alloc", "oce_alloc",
+              "turb_ncar", # Hurts performance
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
-              "p2z_ini",  # Str manipulation in init routine
-              "p4z_ini"]  # Str manipulation in init routine
+              "trc_bc_ini", "p2z_ini", "p4z_ini"] # Str handling, init routine
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -121,33 +115,22 @@ class ExcludeSettings(object):
     def __init__(self, settings={}):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
-        self.ifs_scalars = settings.get("ifs_scalars", True)
+        self.ifs_scalars = settings.get("ifs_scalars", False)
         # Whether we allow IFs where the logical expression involves 1D
         # arrays (since these are often static in NEMO and thus not
         # handled by CUDA Unified Memory)
         self.ifs_1d_arrays = settings.get("ifs_1d_arrays", True)
-        # Whether we perform checks on the PSyIR within identified Kernels
-        self.inside_kernels = settings.get("inside_kernels", True)
 
 
-# Routines which we know contain structures that, by default, we would normally
-# exclude from OpenACC Kernels regions but are OK in these specific cases.
+# Routines which contain structures that, by default, we would normally (not)
+# exclude from OpenACC Kernels regions but are (slower) OK in these cases.
 EXCLUDING = {"default": ExcludeSettings(),
-             "hpg_sco": ExcludeSettings({"ifs_scalars": False,
-                                         "ifs_1d_arrays": False,
-                                         "inside_kernels": False}),
-             "zps_hde": ExcludeSettings({"ifs_scalars": False}),
-             "ice_alb": ExcludeSettings({"ifs_scalars": False}),
-             "sbc_isf_div": ExcludeSettings(),
-             "ice_dyn_rhg_evp": ExcludeSettings({"ifs_scalars": False}),
+             "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
+             "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
-             "itd_shiftice": ExcludeSettings({"ifs_scalars": False}),
-             "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False,
-                                              "ifs_scalars": False}),
-             "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
-             "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False,
-                                             "inside_kernels": False})}
+             "hpg_sco": ExcludeSettings({"ifs_1d_arrays": False}),
+             "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False})}
 
 
 def log_msg(name, msg, node):
@@ -195,15 +178,8 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation,
-                           NemoLoop, NemoKern, Loop, Return, Assignment, Call)
+    excluded_node_types = (CodeBlock, Return, Call, IfBlock, NemoLoop)
     excluded_nodes = node.walk(excluded_node_types)
-    # Ensure we check inside Kernels too (but only for IfBlocks)
-    if excluding.inside_kernels:
-        for kernel in [enode for enode in excluded_nodes
-                       if isinstance(enode, NemoKern)]:
-            ksched = kernel.get_kernel_schedule()
-            excluded_nodes += ksched.walk(IfBlock)
 
     for enode in excluded_nodes:
         if isinstance(enode, (CodeBlock, Return, Call)):
