@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Literal, CodeBlock, Schedule, Call, \
 from psyclone.errors import GenerationError
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("parser")
 def test_call_noargs():
     '''Test that fparser2reader transforms a Fortran subroutine call with
     no arguments into the equivalent PSyIR Call node. Also test that a
@@ -81,7 +81,7 @@ def test_call_noargs():
     assert call_node.ast == ast
 
 
-def test_call_declared_routine(f2008_parser):
+def test_call_declared_routine(parser):
     '''Test that fparser2reader transforms a Fortran subroutine call into
      the equivalent PSyIR Call node when the call name has already
      been declared. The example includes the call twice as the first
@@ -96,7 +96,7 @@ def test_call_declared_routine(f2008_parser):
         "  call kernel()\n"
         "end subroutine")
     reader = FortranStringReader(test_code)
-    ptree = f2008_parser(reader)
+    ptree = parser(reader)
     processor = Fparser2Reader()
     sched = processor.generate_schedule("test", ptree)
     for call_node in [sched.children[0], sched.children[1]]:
@@ -108,7 +108,7 @@ def test_call_declared_routine(f2008_parser):
         assert isinstance(routine_symbol.datatype, NoType)
 
 
-def test_call_incorrect_type(f2008_parser):
+def test_call_incorrect_type(parser):
     '''Test that fparser2reader raises the expected exception if the name
     of the call is already declared as an incompatible symbol
     type. Note, fparser2 should really pick this up but currently its
@@ -121,7 +121,7 @@ def test_call_incorrect_type(f2008_parser):
         "  call kernel()\n"
         "end subroutine")
     reader = FortranStringReader(test_code)
-    ptree = f2008_parser(reader)
+    ptree = parser(reader)
     processor = Fparser2Reader()
     with pytest.raises(GenerationError) as info:
         _ = processor.generate_schedule("test", ptree)
@@ -132,7 +132,7 @@ def test_call_incorrect_type(f2008_parser):
 @pytest.mark.parametrize("args,arg_names", [
     ("1.0, a, (a+b)*2.0", [None, None, None]),
     ("1.0, arg2=a, arg3=(a+b)*2.0", [None, "arg2", "arg3"])])
-def test_call_args(f2008_parser, args, arg_names):
+def test_call_args(parser, args, arg_names):
     '''Test that fparser2reader transforms a Fortran subroutine call with
     arguments into the equivalent PSyIR Call node. Test with and
     without named arguments.
@@ -145,7 +145,7 @@ def test_call_args(f2008_parser, args, arg_names):
         f"  call kernel({args})\n"
         f"end subroutine")
     reader = FortranStringReader(test_code)
-    ptree = f2008_parser(reader)
+    ptree = parser(reader)
     processor = Fparser2Reader()
     sched = processor.generate_schedule("test", ptree)
 
@@ -171,7 +171,7 @@ def test_call_args(f2008_parser, args, arg_names):
     assert (str(call_node)) == "Call[name='kernel']"
 
 
-@pytest.mark.usefixtures("f2008_parser")
+@pytest.mark.usefixtures("parser")
 def test_labelled_call():
     '''Test that fparser2reader transforms a labelled Fortran subroutine call
     into a CodeBlock.

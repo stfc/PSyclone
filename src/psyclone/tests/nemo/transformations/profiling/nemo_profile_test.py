@@ -43,6 +43,7 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, ProfileNode
@@ -81,6 +82,7 @@ def get_nemo_schedule(parser, code):
              :py:class:`psyclone.nemo.NemoInvokeSchedule`)
 
     '''
+    SYMBOL_TABLES.clear()
     reader = FortranStringReader(code)
     ptree = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(ptree)
