@@ -287,7 +287,7 @@ evaluation.
    region.
    ```sh
    cd eg14/
-   psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+   psyclone -s ./acc_kernels.py -nodm main.x90
    ```
 
 2. Adding OpenACC enter data, parallel and loop directives. -nodm is
@@ -295,7 +295,7 @@ evaluation.
    an OpenACC parallel region.
    ```sh
    cd eg14/
-   psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+   psyclone -s ./acc_parallel.py -nodm main.x90
    ```
 
 3. Adding OpenACC enter data, parallel and loop directives in the
@@ -304,7 +304,7 @@ evaluation.
    #450.
    ```sh
    cd eg14/
-   psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+   psyclone -s ./acc_parallel_dm.py main.x90
    ```
 
 ## Example 15: Optimise matvec Kernel for CPU
