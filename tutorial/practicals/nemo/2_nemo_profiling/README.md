@@ -86,14 +86,17 @@ you have time at the end of this session.)
    the `--profile invokes` option and it is this that causes the subroutine
    to be instrumented for profiling:
 
-       $(PSYCLONE) --profile invokes -api nemo \
+   ```make
+   psy.f90: tra_adv_mod.F90
+   	$(PSYCLONE) --profile invokes -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
+   ```
 
-3. Edit the Makefile so that the line invoking PSyclone uses the
-   `--profile kernels` option instead. Rebuild (you'll need to do a
-   `make clean` to ensure that a new `psy.f90` is generated) and run
-   the mini-app. You should now see timing for thirteen regions that have
-   been identified as kernels by PSyclone:
+3. Edit the Makefile so that the line (56) invoking PSyclone to create
+   `psy.f90` uses the `--profile kernels` option instead. Rebuild (you'll
+   need to do a `make clean` to ensure that a new `psy.f90` is generated)
+   and run the mini-app. You should now see timing for thirteen regions that
+   have been identified as kernels by PSyclone:
    
        ===========================================
        module::region   count	sum		min		average         max
@@ -111,9 +114,9 @@ Profiling is a good way to get used to using PSyclone transformation scripts
 so we will now use a script to achieve the same result as the first step
 in this tutorial.
 
-1. Alter the Makefile so that the `psyclone` command uses the provided
-   `profile_trans.py` script instead of the `--profile` option (or
-   run psyclone separately on the command line). If you look at the
+1. Alter the Makefile so that the `psyclone` command that creates `psy.f90`
+   uses the provided `profile_trans.py` script instead of the `--profile`
+   option (or run psyclone separately on the command line). If you look at the
    script, you will see that it encloses all child nodes of the
    Schedule within a single profiling region.
 
