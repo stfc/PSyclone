@@ -1350,7 +1350,7 @@ class SymbolTable():
     def scope(self):
         '''
         :returns: the scope associated to this symbol table.
-        :rtype: :py:class:`psycloen.psyir.nodes.ScopingNode`
+        :rtype: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         '''
         return self._node
@@ -1371,7 +1371,7 @@ class SymbolTable():
     def attach(self, node):
         ''' Attach this symbol table to the provided scope.
 
-        :param node: the scopped node this symbol table will attach to.
+        :param node: the scoped node this symbol table will attach to.
         :type node: py:class:`psyclone.psyir.nodes.ScopingNode`
 
         '''

@@ -44,15 +44,18 @@ from psyclone.psyir.symbols import SymbolTable
 class ScopingNode(Node):
     ''' Abstract node that has an associated Symbol Table to keep track of
     symbols declared in its scope (symbols that can be accessed by this node
-    and any of its descendants).
+    and any of its descendants). If a pre-existing symbol table is provided,
+    it will be attached to the node (raising an error if the symbol table
+    is already attached to another scope), otherwise a new empty Symbol Table
+    will be created.
 
     :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent node of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    :param symbol_table: initialise the node with a given symbol table.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
-            NoneType
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+    :param symbol_table: attach the given symbol table to the new node.
+    :type symbol_table: \
+            Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
     # Polymorphic parameter to initialize the Symbol Table of the ScopingNode

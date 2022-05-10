@@ -2065,9 +2065,8 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
 
 
 def test_scope():
-    '''
-    Test that the scope property returns the SymbolTable associated node.
-    '''
+    ''' Test that the scope property returns the SymbolTable associated with
+    the node. '''
     symtab = SymbolTable()
     assert symtab.scope is None
 
@@ -2079,7 +2078,7 @@ def test_detach():
     ''' Test that the detach method of a symbol table detaches itself from its
     current scope and returns itself. '''
 
-    # Create a symbol_table associated a a scope
+    # Create a symbol_table associated with a scope
     sym_table = SymbolTable()
     scope = Schedule(symbol_table=sym_table)
 
@@ -2091,8 +2090,9 @@ def test_detach():
 
 
 def test_attach():
-    ''' Test that the attach method bounds a symboltable and a ScopignNode
-    together. It checks that any side has an already existing association.
+    ''' Test that the attach method binds a symboltable and a ScopingNode
+    together. It checks that an appropriate error is raised if either object
+    has an existing association.
     '''
     symtab = SymbolTable()
     not_a_scope = Literal("1", INTEGER_TYPE)
