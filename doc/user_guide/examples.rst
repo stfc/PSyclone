@@ -608,6 +608,8 @@ able to remove a halo exchange, or at least reduce its depth by one,
 in certain circumstances, whereas a ``GH_READINC`` is not able to take
 advantage of this optimisation.
 
+.. _lfric_alg_gen_example:
+
 Example 20: Algorithm Generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

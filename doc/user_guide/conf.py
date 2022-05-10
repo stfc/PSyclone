@@ -379,4 +379,5 @@ linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
 # of a CI run or not.
 intersphinx_mapping = {
     'http://docs.python.org/': None,
-    'dev_guide': (dev_guide_base, None)}
+    'dev_guide': (dev_guide_base, None),
+    'psyad': ('https://psyclone-adjoint.readthedocs.io/en/latest', None)}
