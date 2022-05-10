@@ -46,7 +46,7 @@ def dynkern_fixture(parser):
     :returns: a DynKern object created from example metadata.
     :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
     '''
-    field_code = '''
+    mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
      type(arg_type), meta_args(7) =                               &
@@ -72,7 +72,7 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-    kernel_metadata = get_kernel_parse_tree(field_code)
+    kernel_metadata = get_kernel_parse_tree(mdata_code)
     ktype = KernelTypeFactory(api="dynamo0.3").create(
         kernel_metadata, name="testkern_field_type")
     kern = DynKern()
