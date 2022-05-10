@@ -43,8 +43,8 @@ from __future__ import absolute_import
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
                                   Reference)
 from psyclone.psyir.symbols import ScalarType, SymbolTable
@@ -154,10 +154,10 @@ class SymPyWriter(FortranWriter):
         :returns: a 2-tuple consisting of the the converted PSyIR \
             expressions, followed by a dictionary mapping the symbol names \
             to SymPy Symbols.
-        :rtype: 2-tuple (list of SymPy expressions, \
-            dict of string:Sympy-data-type)
+        :rtype: Tuple[List[:py:class:`sympy.core.basic.Basic`], \
+            Dict[str, :py:class:`sympy.core.symbol.Symbol`]]
 
-        :raises ParseError: if an invalid SymPy expression is found.
+        :raises VisitorError: if an invalid SymPy expression is found.
 
         '''
         # Create the type_map that will include all symbols used in both
@@ -184,7 +184,7 @@ class SymPyWriter(FortranWriter):
                      for expr in expression_str_list],
                     type_map)
         except SyntaxError as err:
-            raise ParseError("Invalid SymPy expression") from err
+            raise VisitorError("Invalid SymPy expression") from err
 
     @staticmethod
     def convert_to_sympy_expressions(list_of_expressions):

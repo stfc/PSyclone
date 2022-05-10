@@ -41,8 +41,8 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.parse.utils import ParseError
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
 
@@ -314,7 +314,7 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
 
 def test_sym_writer_parse_errors(fortran_reader):
     '''Tests that unsupported syntax (e.g. array ranges) raise the
-    expected ParseError
+    expected VisitorError
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -327,7 +327,7 @@ def test_sym_writer_parse_errors(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     exp1 = psyir.children[0].children[0].rhs
 
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(VisitorError) as err:
         _ = SymPyWriter.convert_to_sympy_expressions([exp1])
 
     assert "Parse Error: Invalid SymPy expression" in str(err.value)

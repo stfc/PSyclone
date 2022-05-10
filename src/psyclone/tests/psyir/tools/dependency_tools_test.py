@@ -439,6 +439,11 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
                           ("a1(2*i)", "a1(2*i+1)", None),
                           ("a1(i*i)", "a1(-1)", None),
                           ("a1(i-i+2)", "a1(2)", None),
+                          # Array expression raises exception
+                          # TODO: 1655 - if this is fixed we might
+                          # need a different example that is valid
+                          # Fortran but causes the sympy writer to fail
+                          ("a1(:)", "a1(:)+1", None),
                           ])
 def test_array_access_pairs_1_var(lhs, rhs, distance, parser):
     '''Tests the array checks of can_loop_be_parallelised.

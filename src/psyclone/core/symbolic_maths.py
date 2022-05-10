@@ -41,8 +41,6 @@ functions.'''
 
 from sympy import Complexes, core, EmptySet, expand, simplify, solveset
 
-from psyclone.parse.utils import ParseError
-
 
 class SymbolicMaths:
     '''A wrapper around the symbolic maths package 'sympy'. It
@@ -85,14 +83,12 @@ class SymbolicMaths:
     # -------------------------------------------------------------------------
     @staticmethod
     def equal(exp1, exp2):
-        '''Test if the two PSyIR operations are identical. This is
-        done by converting the operations to the equivalent Fortran
-        representation, which can be fed into sympy for evaluation.
+        '''Test if the two PSyIR expressions are symbolically equivalent.
 
         :param exp1: the first expression to be compared.
-        :type exp1: py:class:`psyclone.psyir.nodes.Node` or None
+        :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Node` or None
+        :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -103,14 +99,15 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        return SymbolicMaths.subtract(exp1, exp2) == 0
+        return SymbolicMaths._subtract(exp1, exp2) == 0
 
     # -------------------------------------------------------------------------
     @staticmethod
     def never_equal(exp1, exp2):
-        '''Returns if the given SymPy expressions are always different,
-        without assuming any values for variables. E.g. `n-1` and `n` are
-        always different, but `5` and `n` are not always different.
+        '''Returns if the given SymPy expressions are guaranteed to be
+        different regardless of the values of symbolic variables. E.g.
+        `n-1` and `n` are always different, but `5` and `n` are not always
+        different.
 
         :param exp1: the first expression to be compared.
         :type exp1: py:class:`psyclone.psyir.nodes.Node`
@@ -121,9 +118,13 @@ class SymbolicMaths:
         :rtype: bool
 
         '''
+        # Circular dependency:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.visitor import VisitorError
+
         try:
-            result = SymbolicMaths.subtract(exp1, exp2)
-        except ParseError:
+            result = SymbolicMaths._subtract(exp1, exp2)
+        except VisitorError:
             return False
 
         # If the result is 0, they are always the same:
@@ -141,22 +142,20 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def subtract(exp1, exp2):
-        '''Subtracts two PSyIR operations. This is done by converting the
-        operations to the equivalent Fortran representation, which can be fed
-        into sympy for evaluation.
+    def _subtract(exp1, exp2):
+        '''Subtracts two PSyIR expressions and returns the simplified result
+        of this operation.
 
         :param exp1: the first expression to be compared.
-        :type exp1: py:class:`psyclone.psyir.nodes.Node` or None
+        :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Node` or None
+        :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the sympy expression resulting from subtracting exp2 \
             from exp1.
-        :rtype: a SymPy object
+        :rtype: :py:class:`sympy.core.basic.Basic`
 
         '''
-
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -179,18 +178,18 @@ class SymbolicMaths:
         does not depend on the specified symbol. This is done to avoid that
         the SymPy instance representing an infinite set is used elsewhere
         in PSyclone (i.e. creating a dependency in other modules to SymPy).
-        The FiniteSet returned otherwise is compatible witha Python set
+        The FiniteSet returned otherwise is compatible with a Python set
         and so does not introduce any dependencies.
 
         :param exp1: the first expression.
-        :type exp1: a SymPy expressio.
+        :type exp1: :py:class:`sympy.core.basic.Basic`
         :param exp2: the second expression.
-        :type exp2: a SymPy expressio.
+        :type exp2: :py:class:`sympy.core.basic.Basic`
         :param symbol: the symbol for which to solve.
-        :type exp2: a SymPy Symbol
+        :type symbol: :py:class:`sympy.core.symbol.Symbol`
 
-        :returns: a set of solutions, or "independent".
-        :rtype: a SymPy.FiniteSet of solutions, or "str"
+        :returns: a set of solutions, or the string "independent".
+        :rtype: Union[set, str]
 
         '''
         # We could restrict the domain to Integers, but in case of
@@ -211,7 +210,7 @@ class SymbolicMaths:
         if solution is EmptySet:
             return set()
 
-        return solution
+        return set(solution)
 
     # -------------------------------------------------------------------------
     @staticmethod

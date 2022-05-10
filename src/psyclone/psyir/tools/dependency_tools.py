@@ -52,6 +52,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.backend.visitor import VisitorError
 
 
 class DACode(IntEnum):
@@ -87,7 +88,7 @@ class Message:
     :param str message: the message.
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
-    :type var_names: list of str
+    :type var_names: List[str]
 
     '''
     def __init__(self, message, code, var_names=None):
@@ -122,7 +123,7 @@ class Message:
 
 
 # ============================================================================
-class DependencyTools(object):
+class DependencyTools():
     '''This class provides some useful dependency tools, allowing a user to
     overwrite/modify functions depending on the application. It includes
     a messaging system where functions can store messages that might be
@@ -134,12 +135,12 @@ class DependencyTools(object):
         parallelised. The actually supported list of loop types is\
         specified in the PSyclone config file. This can be used to\
         exclude for example 1-dimensional loops.
-    :type loop_types_to_parallelise: list of str
+    :type loop_types_to_parallelise: Optional[List[str]]
     :param language_writer: a backend visitor to convert PSyIR expressions \
         to a representation in the selected language. This is used for \
         creating error and warning messages.
-    :type language_writer: None (default is Fortran), or an instance \
-        of :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
+    :type language_writer: \
+        Optional[:py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`]
 
     :raises TypeError: if an invalid loop type is specified.
 
@@ -178,7 +179,7 @@ class DependencyTools(object):
         :param str message: the message for the user.
         :param int code: error or warning code.
         :param var_names: list of variable names (defaults to []).
-        :type var_names: list of str
+        :type var_names: List[str]
 
         '''
         if DACode.INFO_MIN <= code <= DACode.INFO_MAX:
@@ -199,7 +200,7 @@ class DependencyTools(object):
         last function the user has called.
 
         :return: a list of all messages.
-        :rtype: list of str
+        :rtype: List[str]
         '''
         return self._messages
 
@@ -239,22 +240,24 @@ class DependencyTools(object):
     # -------------------------------------------------------------------------
     @staticmethod
     def get_flat_indices(component_indices, set_of_loop_vars):
-        '''This function takes an array reference, and returns a flat
-        list of which variable from the given set of variables is used in each
-        subscript. For example, `a(i1+i2)%b(j*j+j,k)%c(l,5)` would return
-        `[(i1,i2),(j,k),(l),()]`. This result is used in partitioning
-        subscripts in the dependency analysis.
+        '''This function takes a component_indices object, which stores the
+        subscripts used in an array reference, and returns a flat list of
+        which variable from the given set of variables is used in each
+        subscript. For example, the access `a(i+i2)%b(j*j+k,k)%c(l,5)` would
+        have the component_indices `[[i+i2], [j*j+k,k], [l,5]]`. If the set
+        of loop variables is `(i,j,k)`, then `get_flat_indices` would return
+        `[{i},{j,k},{k},{l},{}]`.
 
         :param component_indices: the component indices used in an array \
             access.
         :type component_indices:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param set_of_loop_vars: set with name of all loop variables.
-        :type set_of_loop_vars: set of str
+        :type set_of_loop_vars: Set[str]
 
         :return: a list of sets with all variables used in the corresponding \
             array subscripts as strings.
-        :rtype: list of sets of str
+        :rtype: List[Set[str]]
 
         '''
         indices = []
@@ -269,13 +272,15 @@ class DependencyTools(object):
     # -------------------------------------------------------------------------
     @staticmethod
     def partition(comp_ind1, comp_ind2, loop_vars):
-        '''This function partitions the subscripts to the component indices
-        into disjunct sets. For example:
+        '''This method partitions the subscripts of the component indices
+        into sets of minimal coupled groups. For example:
         `a(i)` and `a(i+3)` results in one partition with the variable `i`,
         `a(i)` and `a(j)` results in one partition with the variable `i`, `j`,
         `a(i,j,k)` and `a(i,k,j)` results in two partitions,
             one for subscript 0 (variable `i`),
-            one for subscripts 1 and 2n (variables `j` and `k`)
+            one for subscripts 1 and 2 (variables `j` and `k`)
+        It returns a list of 2-tuples, each 2-tuple contains the set of
+        variables used, and the list of subscript indices.
 
         :param comp_ind1: component_indices of the first array access.
         :type comp_ind1:  \
@@ -283,9 +288,11 @@ class DependencyTools(object):
         :param comp_ind2: component_indices of the first array access.
         :type comp_ind2:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :param set_of_loop_vars: set with name of all loop variables.
+        :type set_of_loop_vars: Set[str]
 
         :return: partition information.
-        :rtype: list of 2-tuple of set-of-str and list of integer
+        :rtype: List[Tuple[Set[str], List[int]]]
 
         '''
         # Get the (string) name of all variables used in each subscript
@@ -393,12 +400,17 @@ class DependencyTools(object):
 
         :returns: the dependency distance in loop iterations if it is a
             independent integer value, and None otherwise.
-        :rtype: int or None.
+        :rtype: Union[int, None]
 
         '''
+        # pylint: disable=too-many-return-statements
         sym_maths = SymbolicMaths.get()
-        sympy_expressions, symbol_map = SymPyWriter.\
-            get_sympy_expressions_and_symbol_map([index_read, index_written])
+        try:
+            sympy_expressions, symbol_map = SymPyWriter.\
+                get_sympy_expressions_and_symbol_map([index_read,
+                                                     index_written])
+        except VisitorError:
+            return None
         # If the subscripts do not even depend on the specified variable,
         # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
         if var_name not in symbol_map:
@@ -478,6 +490,7 @@ class DependencyTools(object):
         :param other_access: access information the other (read or write) \
             access.
         :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :param subscripts:
 
         :returns: whether the two accesses can be parallelised or not.
         :type: bool
@@ -672,6 +685,7 @@ class DependencyTools(object):
         :type var_info: :py:class:`psyclone.core.var_info.VariableInfo`
         :return: True if the scalar variable is not a reduction, i.e. it \
             can be parallelised.
+        :rtype: bool
         '''
 
         # Read only scalar variables can be parallelised
@@ -820,14 +834,14 @@ class DependencyTools(object):
         read (before potentially being written).
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
 
         :returns: a list of all variable signatures that are read.
-        :rtype: list of :py:class:`psyclone.core.Signature`
+        :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
         # Collect the information about all variables used:
@@ -854,14 +868,14 @@ class DependencyTools(object):
         written.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
-            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
+        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
 
         :returns: a list of all variable signatures that are written.
-        :rtype: list of :py:class:`psyclone.core.Signature`
+        :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
         # Collect the information about all variables used:
@@ -879,11 +893,12 @@ class DependencyTools(object):
         but avoids the repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: a 2-tuple of two lists, the first one containing \
-            the input parameters, the second the output paramters.
-        :rtype: 2-tuple of list of :py:class:`psyclone.core.Signature`
+            the input parameters, the second the output parameters.
+        :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
+                      List[:py:class:`psyclone.core.Signature`])
 
         '''
         variables_info = VariablesAccessInfo(node_list)

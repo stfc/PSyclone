@@ -119,7 +119,6 @@ def test_variable_access_info():
     assert vai.is_written() is False
     assert vai.is_read() is False
 
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert vai.all_accesses == []
     assert vai.all_read_accesses == []
     assert vai.all_write_accesses == []

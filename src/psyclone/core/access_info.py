@@ -47,7 +47,7 @@ from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
 
 
-class AccessInfo(object):
+class AccessInfo():
     '''This class stores information about a single access
     pattern of one variable (e.g. variable is read at a certain location).
     A location is a number which can be used to compare different accesses
@@ -170,7 +170,7 @@ class AccessInfo(object):
 
 
 # =============================================================================
-class SingleVariableAccessInfo(object):
+class SingleVariableAccessInfo():
     '''This class stores a list with all accesses to one variable.
 
     :param signature: signature of the variable.
@@ -255,15 +255,15 @@ class SingleVariableAccessInfo(object):
     @property
     def all_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`
+        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
         '''
         return self._accesses
 
     @property
     def all_read_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable
-        that involve reading this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`
+            that involve reading this variable.
+        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
         '''
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_read_accesses()]
@@ -271,8 +271,8 @@ class SingleVariableAccessInfo(object):
     @property
     def all_write_accesses(self):
         ''':returns: a list with all AccessInfo data for this variable
-        that involve writing this variable.
-        :rtype: List of :py:class:`psyclone.core.access_info.AccessInfo`
+            that involve writing this variable.
+        :rtype: List[:py:class:`psyclone.core.access_info.AccessInfo`]
         '''
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_write_accesses()]
@@ -439,8 +439,8 @@ class VariablesAccessInfo(dict):
 
     :param nodes: optional, a single PSyIR node or list of nodes from \
                   which to initialise this object.
-    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or a list of \
-                 :py:class:`psyclone.psyir.nodes.Node`
+    :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or\
+                 List[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     def __init__(self, nodes=None):
@@ -545,8 +545,8 @@ class VariablesAccessInfo(dict):
         :type component_indices: \
             :py:class:`psyclone.core.component_indices.ComponentIndices`, or \
             any other type that can be used to construct a ComponentIndices \
-            instance (None, list or lists of \
-            :py:class:`psyclone.psyir.nodes.Node`)
+            instance (None, List[:py:class:`psyclone.psyir.nodes.Node`] \
+             or List[List[:py:class:`psyclone.psyir.nodes.Node`]])
 
         '''
         if not isinstance(signature, Signature):
@@ -594,7 +594,7 @@ class VariablesAccessInfo(dict):
     def all_signatures(self):
         ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: list of :py:class:`psyclone.core.signature`
+        :rtype: List[:py:class:`psyclone.core.signature`]
         '''
         list_of_vars = list(self.keys())
         list_of_vars.sort()
