@@ -836,7 +836,8 @@ class FortranWriter(LanguageWriter):
                     wildcard_imports_checked = True
                 if not has_wildcard_import:
                     if "%" in sym.name:
-                        # TODO need support for type-bound procedures
+                        # TODO #1495 - calls to type-bound procedures are not
+                        # yet supported in the PSyIR.
                         continue
                     raise VisitorError(
                         f"Routine symbol '{sym.name}' does not have an "
