@@ -166,20 +166,26 @@ def test_initialise_field(prog, fortran_writer):
     ftype = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                              datatype=DeferredType(),
                              interface=ImportInterface(fmod))
+    # Add symbols for the necessary function spaces but for simplicity
+    # make them of integer type.
+    table.new_symbol("vector_space_w3_ptr", symbol_type=DataSymbol,
+                     datatype=INTEGER_TYPE)
+    table.new_symbol("vector_space_w2_ptr", symbol_type=DataSymbol,
+                     datatype=INTEGER_TYPE)
     # First - a single field argument.
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     alg_gen.initialise_field(prog, sym, "w3")
     gen = fortran_writer(prog)
-    assert ("call field1 % initialise(vector_space = vector_space_w3_ptr, "
-            "name = 'field1')" in gen)
+    assert ("call field1 % initialise(vector_space=vector_space_w3_ptr, "
+            "name='field1')" in gen)
     # Second - a field vector.
     dtype = ArrayType(ftype, [3])
     sym = table.new_symbol("fieldv2", symbol_type=DataSymbol, datatype=dtype)
     alg_gen.initialise_field(prog, sym, "w2")
     gen = fortran_writer(prog)
     for idx in range(1, 4):
-        assert (f"call fieldv2({idx}) % initialise(vector_space = "
-                f"vector_space_w2_ptr, name = 'fieldv2')" in gen)
+        assert (f"call fieldv2({idx}) % initialise(vector_space="
+                f"vector_space_w2_ptr, name='fieldv2')" in gen)
     # Third - invalid type.
     sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     with pytest.raises(InternalError) as err:
@@ -319,16 +325,16 @@ def test_generate_with_vector():
   type(field_type) :: field_3
 ''' in code
 
-    assert ("  call field_1 % initialise(vector_space = vector_space_w0_ptr, "
-            "name = 'field_1')\n"
-            "  call field_2(1) % initialise(vector_space = "
-            "vector_space_w0_ptr, name = 'field_2')\n"
-            "  call field_2(2) % initialise(vector_space = "
-            "vector_space_w0_ptr, name = 'field_2')\n"
-            "  call field_2(3) % initialise(vector_space = "
-            "vector_space_w0_ptr, name = 'field_2')\n"
-            "  call field_3 % initialise(vector_space = vector_space_w0_ptr, "
-            "name = 'field_3')\n"
+    assert ("  call field_1 % initialise(vector_space=vector_space_w0_ptr, "
+            "name='field_1')\n"
+            "  call field_2(1) % initialise(vector_space="
+            "vector_space_w0_ptr, name='field_2')\n"
+            "  call field_2(2) % initialise(vector_space="
+            "vector_space_w0_ptr, name='field_2')\n"
+            "  call field_2(3) % initialise(vector_space="
+            "vector_space_w0_ptr, name='field_2')\n"
+            "  call field_3 % initialise(vector_space=vector_space_w0_ptr, "
+            "name='field_3')\n"
             "  call invoke(setval_c(field_1, 1.0_r_def), "
             "setval_c(field_2, 1.0_r_def), "
             "setval_c(field_3, 1.0_r_def), "
