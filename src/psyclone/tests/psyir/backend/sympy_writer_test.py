@@ -330,4 +330,4 @@ def test_sym_writer_parse_errors(fortran_reader):
     with pytest.raises(VisitorError) as err:
         _ = SymPyWriter.convert_to_sympy_expressions([exp1])
 
-    assert "Parse Error: Invalid SymPy expression" in str(err.value)
+    assert "Visitor Error: Invalid SymPy expression" in str(err.value)
