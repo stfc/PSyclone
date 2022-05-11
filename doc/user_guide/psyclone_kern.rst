@@ -218,6 +218,8 @@ A simple, single field example of a kernel that can be used as input for the
 stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
 is shown below:
 
+.. _simple_metadata:
+
  .. code-block:: fortran
 
   module simple_mod
@@ -521,6 +523,20 @@ is useful for a number of reasons:
 Currently algorithm generation is only supported for the LFRic (Dynamo
 0.3) API but it could be extended to the GOcean API if desired.
 
+Mapping of Function Spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every field or operator argument to an LFRic kernel must have its
+function space(s) specified in the metadata of the kernel. This information
+is used by the algorithm generation to ensure that each kernel argument
+is correctly constructed. However, the metadata permits the use of certain
+'generic' function-space specifiers (see :ref:`Supported Function Spaces
+<lfric-function-space>`). If an argument is specified as being on one of
+these spaces then the algorithm generator chooses an appropriate, specific
+function space for that argument. e.g. an argument that is specified as
+being on ``ANY_SPACE_<n>`` will be constructed on ``W0`` while one on
+``ANY_DISCONTINUOUS_SPACE_<n>`` will be constructed on ``W3``.
+
 Example
 +++++++
 
@@ -574,8 +590,11 @@ gives the following algorithm layer code:
 
 The bulk of this code is purely to do with setting-up the LFRic
 infrastructure and ensuring that the various data structures are
-correctly initialised. Once that's done, the interesting part is
-the `invoke` call:
+correctly initialised. Since the :ref:`metadata <simple_metadata>` for
+the `simple_type` kernel
+specifies that the field argument is on `W1`, this code must ensure that
+the appropriate function space is set up and used to initialise the field.
+Once that's done, the interesting part is the `invoke` call:
 
  .. code-block:: fortran
 
@@ -594,9 +613,13 @@ See :ref:`lfric_alg_gen_example` for a full example of doing this.
 Limitations
 +++++++++++
 
-TBD
+ * Algorithm generation is only currently supported for the LFRic
+   (dynamo 0.3) API.
+ * All fields are currently set to unity. Obviously the generated algorithm
+   code may be edited to change this.
+ * The generator does not currently recognise 'special' fields that hold
+   geometry information (such as Chi or the face IDs) and these too will
+   all be initialised to unity. This is the subject of Issue #1708.
+ * Kernels with operator arguments are not yet supported.
+ * Kernels with stencil accesses are not yet supported.
 
-Fields only set to 1.0.
-Chi and face_id also set to 1.0.
-Operators supported?
-Stencils not yet supported.
