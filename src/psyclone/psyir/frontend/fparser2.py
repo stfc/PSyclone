@@ -2815,6 +2815,7 @@ class Fparser2Reader(object):
                 raise NotImplementedError(
                     "Currently (#717) all assignments inside a WHERE must "
                     "use array notation on the LHS.")
+            # Check that all array ranges are for the full extent.
             _ = assign.lhs.rank_of_subsection()
 
         # TODO #717 if the supplied code accidentally omits array
