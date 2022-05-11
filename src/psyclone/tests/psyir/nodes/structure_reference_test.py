@@ -211,64 +211,25 @@ def test_reference_accesses():
     assert str(var_access_info) == "grid%data: READ"
 
 
-def test_array_notation_rank():
-    '''Test the _array_notation_rank method.
+def test_rank_of_subsection(fortran_reader):
+    '''Test the rank_of_subsection method.
 
     '''
+    table = symbols.SymbolTable()
     # Structure reference containing no array access
     symbol = symbols.DataSymbol("field", symbols.DeferredType())
+    table.add(symbol)
     assert nodes.StructureReference.create(
         symbol, ["first", "second"]).rank_of_subsection() == 0
 
-    # Structure reference with ranges in more than one part reference.
-    int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
-    lbound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.StructureReference.create(symbol, ["first"]), int_one.copy())
-    ubound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.StructureReference.create(symbol, ["first"]), int_one.copy())
-    my_range = nodes.Range.create(lbound, ubound)
-    sref = nodes.StructureReference.create(symbol, [("first", [my_range]),
-                                                    "second"])
-    lbound2 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        sref, int_one.copy())
-    ubound2 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        sref.copy(), int_one.copy())
-    range2 = nodes.Range.create(lbound2, ubound2)
-    # TODO decide whether we want rank_of_subsection() to check that only
-    # one member of a structure reference contains array notation.
-    # The create() method will prevent us creating a StructureReference with
-    # a Range in more than one component so we have to monkeypatch.
-    #sref = nodes.StructureReference.create(
-    #    symbol, [("first", [my_range.copy()]), "second"])
-    #from psyclone.psyir.nodes import ArrayMember
-    #sref.member.children[0] = ArrayMember.create("second", [range2])
-
-    #with pytest.raises(InternalError) as err:
-    #    sref.rank_of_subsection()
-    #assert ("Found a structure reference containing two or more part "
-    #        "references that have ranges: 'field%first(:)%second(:)'. This "
-    #        "is not valid PSyIR." in str(err.value))
-    # Repeat but this time for an ArrayOfStructuresReference.
-    #lbound3 = nodes.BinaryOperation.create(
-    #    nodes.BinaryOperation.Operator.LBOUND,
-    #    nodes.Reference(symbol), int_one.copy())
-    #ubound3 = nodes.BinaryOperation.create(
-    #    nodes.BinaryOperation.Operator.UBOUND,
-    #    nodes.Reference(symbol), int_one.copy())
-    #range3 = nodes.Range.create(lbound3, ubound3)
-    #with pytest.raises(InternalError) as err:
-    #    nodes.ArrayOfStructuresReference.create(
-    #        symbol, [range3],
-    #        ["first", ("second", [range2.copy()])]).rank_of_subsection()
-    #assert ("Found a structure reference containing two or more part "
-    #        "references that have ranges: 'field(LBOUND(field%first, 1):"
-    #        "UBOUND(field%first, 1))%first%second("
-    #        "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
-    #        "valid PSyIR." in str(err.value))
+    # Structure reference with range in first part.
+    sref = fortran_reader.psyir_from_expression("field%first(:)%second",
+                                                table)
+    assert sref.rank_of_subsection() == 1
+    # With range in a second part.
+    sref = fortran_reader.psyir_from_expression("field%grid(1)%data(:,:)",
+                                                table)
+    assert sref.rank_of_subsection() == 2
 
 
 def test_struc_ref_semantic_nav():

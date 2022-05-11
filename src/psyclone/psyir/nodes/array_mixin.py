@@ -294,15 +294,14 @@ class ArrayMixin(object):
         return False
 
     def rank_of_subsection(self, lang_writer=None):
-        '''Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section
-        of the array that uses array notation. e.g. for a reference
+        '''If this array reference uses supported array-notation syntax then
+        return the rank of the sub-section of the array. e.g. for a reference
         "a(:, 2, :)" the rank of the sub-section is 2.
 
-        :param node: the reference to check.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
-            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
-            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :param lang_writer: optional PSyIR backend to use when creating error \
+                            message. Defaults to Fortran.
+        :type lang_writer: \
+            Optional[:py:class:`psyclone.psyir.backend.PSyIRVisitor`]
 
         :returns: rank of the sub-section of the array.
         :rtype: int

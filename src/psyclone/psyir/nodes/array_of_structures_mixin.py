@@ -119,6 +119,9 @@ class ArrayOfStructuresMixin(ArrayMixin):
 
     def rank_of_subsection(self):
         '''
+        :returns: the rank of the array subsection (if any) represented by \
+                  this node or its children.
+        :rtype: int
         '''
         rank = ArrayMixin.rank_of_subsection(self)
         rank += self.member.rank_of_subsection()

@@ -246,49 +246,17 @@ class StructureReference(Reference):
         return self.children[0]
 
     def rank_of_subsection(self):
-        '''Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section
-        of the array that uses array notation. e.g. for a reference
-        "a(:, 2, :)" the rank of the sub-section is 2.
-
-        :param node: the reference to check.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
-            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
-            :py:class:`psyclone.psyir.nodes.StructureReference`
+        '''Return the rank of the sub-section of the array that uses array
+        notation. e.g. for a reference "b%a(:, 2, :)" the rank of the
+        sub-section is 2. If there is no array reference then zero is returned.
 
         :returns: rank of the sub-section of the array.
         :rtype: int
 
-        :raises InternalError: if no ArrayMixin node with at least one \
-                               Range in its indices is found.
-        :raises InternalError: if two or more part references in a \
-                               structure reference contain ranges.
-        :raises NotImplementedError: if the supplied node is not of a \
-                                     supported type.
-        :raises NotImplementedError: if any ranges are encountered that are \
-                                     not for the full extent of the dimension.
         '''
-        from psyclone.errors import InternalError
-        #ranks = 0
-        #if isinstance(self.member, ArrayMixin):
-        #    ranks += self.member.rank_of_subsection()
+        # We know that this reference is not an array so immediately go
+        # on down to the Member that it contains.
         return self.member.rank_of_subsection()
-
-        #non_zero_ranks = [rank for rank in ranks if rank > 0]
-
-        if False: #len(non_zero_ranks) > 1:
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            lang_writer = FortranWriter()
-            raise InternalError(
-                f"Found a structure reference containing two or more part "
-                f"references that have ranges: '{lang_writer(self)}'. "
-                f"This is not valid PSyIR.")
-
-        if False: #not non_zero_ranks:
-            raise InternalError(
-                "No array access found in node '{0}'".format(self.name))
-        return ranks #[0]
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \

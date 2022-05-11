@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,6 @@
 
 ''' This module contains the implementation of the ArrayOfStructuresReference
 node. '''
-
-from __future__ import absolute_import
 
 # Circular import if only '...nodes' is used:
 from psyclone.psyir.nodes.structure_reference import StructureReference

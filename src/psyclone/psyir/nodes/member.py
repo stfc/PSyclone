@@ -140,8 +140,12 @@ class Member(Node):
 
     def rank_of_subsection(self):
         '''
-        Since a Member is not an array access it has a rank of zero
-        so that's what this method returns.
+        Since a Member is not an array access it cannot have a subsection so
+        this method returns zero.
+
+        (We could have chosen not to implement this method but that then
+        required more complex type checking in the corresponding methods of
+        other Node types.)
 
         :returns: 0 as a Member is not an array access.
         :rtype: int
