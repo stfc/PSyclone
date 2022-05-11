@@ -83,15 +83,12 @@ class SymbolTable():
         self._argument_list = []
         # Dict of tags. Some symbols can be identified with a tag.
         self._tags = {}
+
         # Reference to the node to which this symbol table belongs.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Schedule, Container
-        if node and not isinstance(node, (Schedule, Container)):
-            raise TypeError(
-                "Optional node argument to SymbolTable should be a "
-                "Schedule or a Container but found '{0}'."
-                "".format(type(node).__name__))
-        self._node = node
+        self._node = None
+        if node:
+            self.attach(node)
+
         # The default visibility of symbols in this symbol table. The
         # setter does validation of the supplied quantity.
         self._default_visibility = None
@@ -260,12 +257,15 @@ class SymbolTable():
         will not affect the equivalent named symbol in the original symbol
         table.
 
+        The only attribute not copied is the _node reference to the scope,
+        since that scope can only have one symbol table associated to it.
+
         :returns: a deep copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
-        new_st = type(self)(self.node)
+        new_st = type(self)()
 
         # Make a copy of each symbol in the symbol table
         for symbol in self.symbols:
@@ -1345,3 +1345,54 @@ class SymbolTable():
         header += "\n" + "-" * len(header) + "\n"
 
         return header + "\n".join(map(str, self._symbols.values())) + "\n"
+
+    @property
+    def scope(self):
+        '''
+        :returns: the scope associated to this symbol table.
+        :rtype: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
+        return self._node
+
+    def detach(self):
+        ''' Detach this symbol table from the associated scope and return self.
+
+        :returns: this symbol table.
+        :rtype: py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if self._node:
+            # pylint: disable=protected-access
+            self._node._symbol_table = None
+            self._node = None
+        return self
+
+    def attach(self, node):
+        ''' Attach this symbol table to the provided scope.
+
+        :param node: the scoped node this symbol table will attach to.
+        :type node: py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import ScopingNode
+        if not isinstance(node, ScopingNode):
+            raise TypeError(
+                f"A SymbolTable must be attached to a ScopingNode"
+                f" but found '{type(node).__name__}'.")
+
+        if node.symbol_table is not None:
+            raise ValueError(
+                "The provided scope already has a symbol table attached "
+                "to it. You may need to detach that one first.")
+
+        if self._node is not None:
+            raise ValueError(
+                f"The symbol table is already bound to another "
+                f"scope ({self.node.node_str(False)}). Consider "
+                f"detaching or deepcopying the symbol table first.")
+
+        self._node = node
+        # pylint: disable=protected-access
+        node._symbol_table = self

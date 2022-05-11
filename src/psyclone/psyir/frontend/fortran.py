@@ -162,7 +162,7 @@ class FortranReader(object):
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
-        fake_parent = Schedule(symbol_table=symbol_table)
+        fake_parent = Schedule(symbol_table=symbol_table.deep_copy())
 
         try:
             # Process the statement, giving the Schedule we've just

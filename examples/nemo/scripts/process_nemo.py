@@ -83,6 +83,8 @@ EXCLUDED_FILES = [
     "obs_fbm.f90",
     # Re-defines idim intrinsic
     "obs_utils.f90",
+    # Unsupported module SAVE attribute
+    "obs_profiles.f90",
     # Array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
     # mpif.h include is lost

@@ -34,6 +34,30 @@
 	11) PR #1682 for #1632. Extend the LFRic API to support transport
 	field type. Required for mixed-precision support.
 
+	12) PR #1678 for #1667. Work towards getting the LFRic OpenACC
+	example (eg14) to compile.
+
+	13) PR #1676 for #1644 Extend matmul2code transformation to
+	support matrix matrix multiplication. Previously it was limited to
+	matrix vector.
+
+	14) PR #1697 for #1695. Small update to LFRic stub infrastructure to
+	fix compilation failure when building tutorial code.
+
+	15) PR #1699. Fix failing dynamopsy test by specifying dm=true
+	explicitly
+
+	16) PR #1684 for #1683. Adds support for MIN and MAX LFRic Built-ins.
+
+	17) PR #1702 for #1695. Correction to LFRic infrastructure ('emdi') to
+	bring up-to-date with current LFRic usage.
+
+	18) PR #1705. Corrections for the NEMO tutorial. 
+
+	19) PR #1692 for #1688. Prevents scoping regions from sharing symbol
+	tables. Adds attach() and detach() methods to SymbolTable for
+	managing this connection.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
