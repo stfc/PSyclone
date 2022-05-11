@@ -405,7 +405,7 @@ class LFRicConstants():
         '''
         Maps from a valid kernel metadata function-space name to one
         that exists within the LFRic infrastructure. This is necessary
-        because meta-data can contain 'wildcard' names such as 'any_w2' but,
+        because meta-data can contain 'generic' names such as 'any_w2' but,
         when generating code, we need the name of a specific function space
         that is recognised by the LFRic infrastructure.
 
@@ -425,6 +425,8 @@ class LFRicConstants():
                 f"'{space}' is not a recognised LFRic function space (one of "
                 f"{LFRicConstants.VALID_FUNCTION_SPACE_NAMES}).")
 
+        # TODO #1709 - make this mapping configurable rather than
+        # hardwiring it here.
         if not space.startswith("any_"):
             return space
         elif space == "any_w2":
