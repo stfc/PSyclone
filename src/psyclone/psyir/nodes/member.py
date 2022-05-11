@@ -138,24 +138,6 @@ class Member(Node):
         '''
         return (Signature(self.name), [[]])
 
-    def rank_of_subsection(self):
-        '''Compute the rank of any array subsection represented by this
-        component of a structure type plust that of any child component
-        accesses. e.g. for a reference "a(:, 2, :)" the rank of the
-        sub-section is 2.
-
-        :returns: rank of the sub-section of the array.
-        :rtype: int
-
-        '''
-        from psyclone.psyir.nodes.array_mixin import ArrayMixin
-        ranks = 0
-        if isinstance(self, ArrayMixin):
-            ranks += ArrayMixin.rank_of_subsection(self)
-        if hasattr(self, "member"):
-            ranks += self.member.rank_of_subsection()
-        return ranks
-
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['Member']

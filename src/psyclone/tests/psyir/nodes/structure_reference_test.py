@@ -138,6 +138,29 @@ def test_struc_ref_create_errors():
             "either 'str' or 2-tuple entries but found 'int' while "
             "attempting to create reference to symbol 'grid'" in
             str(err.value))
+    # Structure reference with ranges in more than one part reference.
+    int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    symbol = symbols.DataSymbol("field", symbols.DeferredType())
+
+    sref1 = nodes.StructureReference.create(symbol, ["first"])
+    lbound1 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND, sref1, int_one.copy())
+    ubound1 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND, sref1.copy(), int_one.copy())
+    range1 = nodes.Range.create(lbound1, ubound1)
+    sref = nodes.StructureReference.create(symbol, [("first", [range1]),
+                                                    "second"])
+    lbound2 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND, sref, int_one.copy())
+    ubound2 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND, sref.copy(), int_one.copy())
+    range2 = nodes.Range.create(lbound2, ubound2)
+    with pytest.raises(ValueError) as err:
+        nodes.StructureReference.create(
+            symbol, [("first", [range1.copy()]),
+                     ("second", [range2])]).rank_of_subsection()
+    assert ("create() may contain a Range but both 'first' and 'second' have "
+            "Ranges." in str(err.value))
 
 
 def test_struc_ref_validate_child():

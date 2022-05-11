@@ -117,6 +117,14 @@ class ArrayOfStructuresMixin(ArrayMixin):
         sig = Signature(self.name)
         return (Signature(sig, sub_sig), [self.indices]+indices)
 
+    def rank_of_subsection(self):
+        '''
+        '''
+        rank = ArrayMixin.rank_of_subsection(self)
+        if isinstance(self.member, ArrayMixin):
+            rank += self.member.rank_of_subsection()
+        return rank
+
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayOfStructuresMixin']

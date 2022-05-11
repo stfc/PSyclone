@@ -153,43 +153,6 @@ def test_rank_of_subsection():
     assert nodes.StructureReference.create(
             symbol, ["first", "second"]).rank_of_subsection() == 0
 
-    # Structure reference with ranges in more than one part reference.
-    sref1 = nodes.StructureReference.create(symbol, ["first"])
-    lbound1 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND, sref1, int_one.copy())
-    ubound1 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND, sref1.copy(), int_one.copy())
-    range1 = nodes.Range.create(lbound1, ubound1)
-    sref = nodes.StructureReference.create(symbol, [("first", [range1]),
-                                                    "second"])
-    lbound2 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND, sref, int_one.copy())
-    ubound2 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND, sref.copy(), int_one.copy())
-    range2 = nodes.Range.create(lbound2, ubound2)
-    with pytest.raises(ValueError) as err:
-        nodes.StructureReference.create(
-            symbol, [("first", [range1.copy()]),
-                     ("second", [range2])]).rank_of_subsection()
-    assert ("create() may contain a Range but both 'first' and 'second' have "
-            "Ranges." in str(err.value))
-    # Repeat but this time for an ArrayOfStructuresReference.
-    lbound3 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(symbol), int_one.copy())
-    ubound3 = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(symbol), int_one.copy())
-    range3 = nodes.Range.create(lbound3, ubound3)
-    asref = nodes.ArrayOfStructuresReference.create(
-            symbol, [range3.copy()],
-            ["first", ("second", [range2.copy()])])
-    with pytest.raises(NotImplementedError) as err:
-        asref.rank_of_subsection()
-    assert ("Only subsections that involve the full extent of a given array "
-            "dimension are supported but index 0 of 'second' contains a "
-            "Range that is not for the full extent: second" in str(err.value))
-
     # An array with no subsection has rank of zero
     array_type = symbols.ArrayType(symbols.REAL_TYPE, [10])
     symbol = symbols.DataSymbol("a", array_type)

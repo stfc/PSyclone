@@ -273,7 +273,8 @@ class StructureReference(Reference):
         ranks = 0
         if isinstance(self, ArrayMixin):
             ranks += ArrayMixin.rank_of_subsection(self)
-        ranks += self.member.rank_of_subsection()
+        if isinstance(self.member, ArrayMixin):
+            ranks += self.member.rank_of_subsection()
 
         #non_zero_ranks = [rank for rank in ranks if rank > 0]
 
