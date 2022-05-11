@@ -45,7 +45,6 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -270,11 +269,10 @@ class StructureReference(Reference):
                                      not for the full extent of the dimension.
         '''
         from psyclone.errors import InternalError
-        ranks = 0
-        if isinstance(self, ArrayMixin):
-            ranks += ArrayMixin.rank_of_subsection(self)
-        if isinstance(self.member, ArrayMixin):
-            ranks += self.member.rank_of_subsection()
+        #ranks = 0
+        #if isinstance(self.member, ArrayMixin):
+        #    ranks += self.member.rank_of_subsection()
+        return self.member.rank_of_subsection()
 
         #non_zero_ranks = [rank for rank in ranks if rank > 0]
 

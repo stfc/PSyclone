@@ -129,17 +129,6 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             ref.addchild(child)
         return ref
 
-    def rank_of_subsection(self):
-        '''Return the rank of the sub-section of this array that uses array
-        notation. e.g. for a reference a(:, 2, :)" the rank of the
-        sub-section is 2.
-
-        :returns: rank of the sub-section of the array.
-        :rtype: int
-
-        '''
-        return StructureReference.rank_of_subsection(self)
-
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayOfStructuresReference']

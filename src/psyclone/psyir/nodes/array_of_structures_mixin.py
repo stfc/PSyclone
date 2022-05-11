@@ -46,8 +46,8 @@ import six
 
 from psyclone.core import Signature
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.errors import InternalError
 
@@ -121,8 +121,7 @@ class ArrayOfStructuresMixin(ArrayMixin):
         '''
         '''
         rank = ArrayMixin.rank_of_subsection(self)
-        if isinstance(self.member, ArrayMixin):
-            rank += self.member.rank_of_subsection()
+        rank += self.member.rank_of_subsection()
         return rank
 
 

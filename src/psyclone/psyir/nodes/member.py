@@ -138,6 +138,17 @@ class Member(Node):
         '''
         return (Signature(self.name), [[]])
 
+    def rank_of_subsection(self):
+        '''
+        Since a Member is not an array access it has a rank of zero
+        so that's what this method returns.
+
+        :returns: 0 as a Member is not an array access.
+        :rtype: int
+
+        '''
+        return 0
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['Member']

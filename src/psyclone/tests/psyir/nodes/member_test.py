@@ -97,3 +97,8 @@ def test_member_equality():
 
     assert mem == mem2
     assert mem != mem3
+
+
+def test_rank_of_subsection():
+    ''' The rank of a Member should be zero as it is not an array. '''
+    assert nodes.Member("m1").rank_of_subsection() == 0
