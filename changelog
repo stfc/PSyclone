@@ -50,7 +50,9 @@
 	16) PR #1684 for #1683. Adds support for MIN and MAX LFRic Built-ins.
 
 	17) PR #1702 for #1695. Correction to LFRic infrastructure ('emdi') to
-        bring up-to-date with current LFRic usage.
+	bring up-to-date with current LFRic usage.
+
+	18) PR #1705. Corrections for the NEMO tutorial. 
 
 release 2.2.0 17th March 2022
 
