@@ -68,7 +68,7 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     PSyDataNode, Reference, Return, Routine, Schedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
-from psyclone.psyir.tools import DACode, DependencyTools
+from psyclone.psyir.tools import DTCode, DependencyTools
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 
@@ -267,7 +267,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 # The DependencyTools also returns False for things that are
                 # not an issue, so we ignore specific messages.
                 for message in dep_tools.get_all_messages():
-                    if message.code == DACode.WARN_SCALAR_WRITTEN_ONCE:
+                    if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                         continue
                     all_msg_str = [str(message) for message in
                                    dep_tools.get_all_messages()]

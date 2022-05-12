@@ -46,7 +46,7 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.tools.dependency_tools import DependencyTools, DACode
+from psyclone.psyir.tools.dependency_tools import DependencyTools, DTCode
 from psyclone.tests.utilities import get_invoke
 
 
@@ -63,24 +63,24 @@ def test_messages():
     dep_tools = DependencyTools()
     # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
-    dep_tools._add_message("info-test", DACode.INFO_NOT_NESTED_LOOP,
+    dep_tools._add_message("info-test", DTCode.INFO_NOT_NESTED_LOOP,
                            ["a", "b"])
     msg = dep_tools.get_all_messages()[0]
     assert str(msg) == "Info: info-test"
-    assert msg.code == DACode.INFO_NOT_NESTED_LOOP
+    assert msg.code == DTCode.INFO_NOT_NESTED_LOOP
     assert msg.var_names == ["a", "b"]
 
-    dep_tools._add_message("warning-test", DACode.WARN_SCALAR_REDUCTION,
+    dep_tools._add_message("warning-test", DTCode.WARN_SCALAR_REDUCTION,
                            ["a"])
     msg = dep_tools.get_all_messages()[1]
     assert str(msg) == "Warning: warning-test"
-    assert msg.code == DACode.WARN_SCALAR_REDUCTION
+    assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
 
-    dep_tools._add_message("error-test", DACode.ERROR_DEPENDENCY, [])
+    dep_tools._add_message("error-test", DTCode.ERROR_DEPENDENCY, [])
     msg = dep_tools.get_all_messages()[2]
     assert str(msg) == "Error: error-test"
-    assert msg.code == DACode.ERROR_DEPENDENCY
+    assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == []
 
     with pytest.raises(InternalError) as err:
@@ -153,7 +153,7 @@ def test_nested_loop_detection(parser):
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
     assert "Not a nested loop" in str(msg)
-    assert msg.code == DACode.INFO_NOT_NESTED_LOOP
+    assert msg.code == DTCode.INFO_NOT_NESTED_LOOP
     assert msg.var_names == []
 
     # Now disable the test for nested loops:
@@ -186,7 +186,7 @@ def test_loop_type(parser):
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
     assert "wrong loop type 'lon'" in str(msg)
-    assert msg.code == DACode.INFO_WRONG_LOOP_TYPE
+    assert msg.code == DTCode.INFO_WRONG_LOOP_TYPE
     assert msg.var_names == []
 
 
@@ -231,7 +231,7 @@ def test_arrays_parallelise(parser):
     msg = dep_tools.get_all_messages()[0]
     assert ("The write access to 'mask(jk,jk)' causes a write-write race "
             "condition" in str(msg))
-    assert msg.code == DACode.ERROR_WRITE_WRITE_RACE
+    assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
     jj_symbol = loops.scope.symbol_table.lookup("jj")
@@ -252,7 +252,7 @@ def test_arrays_parallelise(parser):
     assert ("The write access to 'mask(ji,jj)' and to 'mask(ji,jj + 1)' are "
             "dependent and cannot be parallelised."
             in str(msg))
-    assert msg.code == DACode.ERROR_DEPENDENCY
+    assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask(ji,jj)", "mask(ji,jj + 1)"]
 
 
@@ -639,7 +639,7 @@ def test_scalar_parallelise(declaration, variable, parser):
     msg = dep_tools.get_all_messages()[0]
     assert (f"Scalar variable '{variable}' is only written once"
             in str(msg))
-    assert msg.code == DACode.WARN_SCALAR_WRITTEN_ONCE
+    assert msg.code == DTCode.WARN_SCALAR_WRITTEN_ONCE
     assert msg.var_names == [f"{variable}"]
 
     # Write to scalar variable happens first
@@ -652,7 +652,7 @@ def test_scalar_parallelise(declaration, variable, parser):
     assert parallel is False
     assert (f"Variable '{variable}' is read first, which indicates a "
             f"reduction." in str(msg))
-    assert msg.code == DACode.WARN_SCALAR_REDUCTION
+    assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == [f"{variable}"]
 
 
@@ -692,7 +692,7 @@ def test_derived_type(parser):
     msg = dep_tools.get_all_messages()[0]
     assert ("The write access to 'a%b(ji,jj)' and to 'a%b(ji,jj - 1)' are "
             "dependent and cannot be parallelised." in str(msg))
-    assert msg.code == DACode.ERROR_DEPENDENCY
+    assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["a%b(ji,jj)", "a%b(ji,jj - 1)"]
 
     parallel = dep_tools.can_loop_be_parallelised(loops[1],
@@ -707,7 +707,7 @@ def test_derived_type(parser):
     msg = dep_tools.get_all_messages()[1]
     assert ("The write access to 'b%b(ji,jj)' and to 'b%b(ji,jj - 1)' are "
             "dependent and cannot be parallelised." in str(msg))
-    assert msg.code == DACode.ERROR_DEPENDENCY
+    assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
 
     # Test that variables are ignored as expected.
@@ -719,7 +719,7 @@ def test_derived_type(parser):
     msg = dep_tools.get_all_messages()[0]
     assert ("he write access to 'b%b(ji,jj)' and to 'b%b(ji,jj - 1)' are "
             "dependent and cannot be parallelised" in str(msg))
-    assert msg.code == DACode.ERROR_DEPENDENCY
+    assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
 
     # If both derived types are ignored, the loop should be marked

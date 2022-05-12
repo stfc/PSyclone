@@ -36,10 +36,10 @@
 '''Tool module, containing all generic (API independent) tools.
 '''
 
-from psyclone.psyir.tools.dependency_tools import DACode, DependencyTools
+from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.tools import DependencyTools
 
-__all__ = ['DACode', 'DependencyTools']
+__all__ = ['DTCode', 'DependencyTools']

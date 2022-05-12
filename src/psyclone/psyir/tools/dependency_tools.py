@@ -55,7 +55,7 @@ from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 
 
-class DACode(IntEnum):
+class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
     codes used in the dependency analysis. It is based in IntEnum
     so the codes can be compared with the *_MIN and _MAX values.
@@ -182,11 +182,11 @@ class DependencyTools():
         :type var_names: List[str]
 
         '''
-        if DACode.INFO_MIN <= code <= DACode.INFO_MAX:
+        if DTCode.INFO_MIN <= code <= DTCode.INFO_MAX:
             message_type = "Info"
-        elif DACode.WARN_MIN <= code <= DACode.WARN_MAX:
+        elif DTCode.WARN_MIN <= code <= DTCode.WARN_MAX:
             message_type = "Warning"
-        elif DACode.ERROR_MIN <= code <= DACode.ERROR_MAX:
+        elif DTCode.ERROR_MIN <= code <= DTCode.ERROR_MAX:
             message_type = "Error"
         else:
             raise InternalError(f"Unknown message code {code}.")
@@ -226,14 +226,14 @@ class DependencyTools():
             all_loops = loop.walk(Loop)
             if len(all_loops) == 1:
                 self._add_message("Not a nested loop.",
-                                  DACode.INFO_NOT_NESTED_LOOP)
+                                  DTCode.INFO_NOT_NESTED_LOOP)
                 return False
 
         if self._loop_types_to_parallelise:
             if loop.loop_type not in self._loop_types_to_parallelise:
                 self._add_message(f"Loop has wrong loop type '"
                                   f"{loop.loop_type}'.",
-                                  DACode.INFO_WRONG_LOOP_TYPE)
+                                  DTCode.INFO_WRONG_LOOP_TYPE)
                 return False
         return True
 
@@ -661,7 +661,7 @@ class DependencyTools():
                         self._add_message(f"The write access to "
                                           f"'{str_access}' causes a "
                                           f"write-write race condition.",
-                                          DACode.ERROR_WRITE_WRITE_RACE,
+                                          DTCode.ERROR_WRITE_WRITE_RACE,
                                           [str_access])
                     else:
                         str_write = self._language_writer(write_access.node)
@@ -670,7 +670,7 @@ class DependencyTools():
                                           f"and to '{str_other}' are "
                                           f"dependent and cannot be "
                                           f"parallelised.",
-                                          DACode.ERROR_DEPENDENCY,
+                                          DTCode.ERROR_DEPENDENCY,
                                           [str_write, str_other])
 
                     return False
@@ -702,7 +702,7 @@ class DependencyTools():
             # We could potentially use lastprivate here?
             self._add_message(f"Scalar variable '{var_info.var_name}' is "
                               f"only written once.",
-                              DACode.WARN_SCALAR_WRITTEN_ONCE,
+                              DTCode.WARN_SCALAR_WRITTEN_ONCE,
                               [f"{var_info.var_name}"])
             return False
 
@@ -720,7 +720,7 @@ class DependencyTools():
         # is a reduction, which is not supported atm.
         self._add_message(f"Variable '{var_info.var_name}' is read first, "
                           f"which indicates a reduction.",
-                          DACode.WARN_SCALAR_REDUCTION,
+                          DTCode.WARN_SCALAR_REDUCTION,
                           [var_info.var_name])
         return False
 
