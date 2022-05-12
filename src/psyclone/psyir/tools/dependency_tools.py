@@ -239,38 +239,6 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def get_flat_indices(component_indices, set_of_loop_vars):
-        '''This function takes a component_indices object, which stores the
-        subscripts used in an array reference, and returns a flat list of
-        which variable from the given set of variables is used in each
-        subscript. For example, the access `a(i+i2)%b(j*j+k,k)%c(l,5)` would
-        have the component_indices `[[i+i2], [j*j+k,k], [l,5]]`. If the set
-        of loop variables is `(i,j,k)`, then `get_flat_indices` would return
-        `[{i},{j,k},{k},{l},{}]`.
-
-        :param component_indices: the component indices used in an array \
-            access.
-        :type component_indices:  \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
-        :param set_of_loop_vars: set with name of all loop variables.
-        :type set_of_loop_vars: Set[str]
-
-        :return: a list of sets with all variables used in the corresponding \
-            array subscripts as strings.
-        :rtype: List[Set[str]]
-
-        '''
-        indices = []
-        for i in component_indices.iterate():
-            indx = component_indices[i]
-            index_vars = VariablesAccessInfo(indx)
-            unique_vars = set(str(sig) for sig in index_vars.keys())
-            unique_vars = unique_vars.intersection(set_of_loop_vars)
-            indices.append(unique_vars)
-        return indices
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def partition(comp_ind1, comp_ind2, loop_vars):
         '''This method partitions the subscripts of the component indices
         into sets of minimal coupled groups. For example:
@@ -298,10 +266,8 @@ class DependencyTools():
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
         set_of_loop_vars = set(loop_vars)
-        indices_1 = DependencyTools.get_flat_indices(comp_ind1,
-                                                     set_of_loop_vars)
-        indices_2 = DependencyTools.get_flat_indices(comp_ind2,
-                                                     set_of_loop_vars)
+        indices_1 = comp_ind1.get_flat_indices(set_of_loop_vars)
+        indices_2 = comp_ind2.get_flat_indices(set_of_loop_vars)
         # This list stores the partition information, which
         # is a pair consisting of:
         # - a set of all loop variables used in the subscript of

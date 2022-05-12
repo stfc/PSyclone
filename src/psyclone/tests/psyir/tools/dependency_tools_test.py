@@ -257,51 +257,6 @@ def test_arrays_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.parametrize("expression, correct",
-                         [("a1(i+i+j)", [set(("i", "j"))]),
-                          ("a1(1)", [set()]),
-                          ("a2(i+j,2*j+k+1)", [set(("i", "j")),
-                                               set(("j", "k"))]),
-                          ("a3(i,j,i)", [set("i"), set("j"), set("i")]),
-                          ("dv(i)%a(j)%b(k)", [set("i"), set("j"),
-                                               set("k")])])
-def test_get_indices(expression, correct, parser):
-    '''Tests that getting the indices of an array expressions
-    works as expected.
-    '''
-    reader = FortranStringReader(f'''program test
-                                 use my_mod, only: my_type
-                                 type(my_type) :: dv(10)
-                                 integer i, j, k
-                                 integer, parameter :: n=10
-                                 real, dimension(n) :: a1
-                                 real, dimension(n,n) :: a2
-                                 real, dimension(n,n,n) :: a3
-                                 {expression} = 1
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    assign = psy.invokes.get("test").schedule
-
-    # Get all access info for the expression
-    access_info = VariablesAccessInfo(assign)
-
-    # Find the access that is not to i,j, or k --> this must be
-    # the 'main' array variable we need to check for:
-    sig = None
-    loop_vars = set(["i", "j", "k"])
-    for sig in access_info:
-        if str(sig) not in loop_vars:
-            break
-    # Get all accesses to the array variable. It has only one
-    # access
-    access = access_info[sig][0]
-    result = DependencyTools.get_flat_indices(access.component_indices,
-                                              loop_vars)
-    assert result == correct
-
-
-# -----------------------------------------------------------------------------
 # This list contains the test cases and expected partition information.
 # The first two entries of each 3-tuple are the LHS and RHS. The third
 # element is the partition information, which is a list of partitions. Each
