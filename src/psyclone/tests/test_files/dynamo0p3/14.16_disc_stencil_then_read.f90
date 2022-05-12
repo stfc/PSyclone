@@ -35,11 +35,12 @@
 
 program stencil_then_read
 
-  ! Test that a discontinuous stencil read (which happens to be
-  ! any_discontinuous but does not matter) followed by a discontinuous
-  ! read (which happens to be readwrite but does not matter) results
-  ! in correct halo exchange declarations. The example is field
-  ! f4. There was a bug here before this test and fix was added.
+  ! Test that a discontinuous stencil 'read' (which happens to be
+  ! 'any_discontinuous_space' but does not matter) followed by a
+  ! discontinuous read (which happens to be 'readwrite' but does not
+  ! matter) results in correct halo exchange declarations. The example
+  ! is field f4. There was a bug here before this test and fix was
+  ! added.
 
   use constants_mod, only: r_def
   use field_mod,     only: field_type

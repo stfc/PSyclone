@@ -593,10 +593,10 @@ def test_gh_readinc(tmpdir):
 
 def test_stencil_then_w3_read(tmpdir):
     '''Test that a stencil access to a discontinuous field followed by a
-    read (or readwrite) in a subsequent kernel to the same field
+    'read' (or 'readwrite)' in a subsequent kernel to the same field
     results in the expected halo exchange extents. There used to be an
     error resulting in incorrect code being produced here. Now we
-    expect the value of depth to be "extent", as the subsequent read
+    expect the value of depth to be 'extent', as the subsequent 'read'
     is to owned dofs so does not access the halo (a halo depth of 0).
 
     '''
@@ -607,21 +607,21 @@ def test_stencil_then_w3_read(tmpdir):
     halo_depth2 = HaloDepth(None)
     halo_depth2._var_depth = "extent"
     assert str(halo_depth2) == "extent"
-    # Quick check when we have both depth and literal depth>0
+    # Quick check when we have both depth and literal depth > 0.
     halo_depth2.literal_depth = 1
     assert str(halo_depth2) == "extent+1"
-    # Go back to original 0 depth case
+    # Go back to original 0 depth case.
     halo_depth2.literal_depth = 0
 
-    # Check that _create_depth_list removes depths that are 0 from its
-    # return list. It takes two entries as input and returns one.
+    # Check that '_create_depth_list' removes depths that are 0 from
+    # its return list. It takes two entries as input and returns one.
     result = _create_depth_list([halo_depth, halo_depth2], None)
     assert isinstance(result, list)
     assert len(result) == 1
     assert isinstance(result[0], HaloDepth)
     assert str(result[0]) == "extent"
 
-    # Check it all works in practice (functional test)
+    # Check that it all works in practice (functional test).
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.16_disc_stencil_then_read.f90"),
                     api=API)
