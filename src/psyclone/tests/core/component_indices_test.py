@@ -169,5 +169,5 @@ def test_get_indices(expression, correct, parser):
     # Get all accesses to the array variable. It has only one
     # access
     access = access_info[sig][0]
-    result = access.component_indices.get_flat_indices(loop_vars)
+    result = access.component_indices.get_all_subscripts_variables(loop_vars)
     assert result == correct

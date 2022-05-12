@@ -158,12 +158,12 @@ class ComponentIndices():
         return any(grp for grp in self._component_indices)
 
     # ------------------------------------------------------------------------
-    def get_flat_indices(self, set_of_loop_vars):
+    def get_all_subscripts_variables(self, set_of_loop_vars):
         '''This function returns a flat list of which variable from the
         given set of variables is used in each subscript. For example, the
         access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
         `[[i+i2], [j*j+k,k], [l,5]]`. If the set of loop variables is
-        `(i,j,k)`, then `get_flat_indices` would return
+        `(i,j,k)`, then `get_all_subscripts_variables` would return
         `[{i},{j,k},{k},{l},{}]`.
 
         :param set_of_loop_vars: set with name of all loop variables.

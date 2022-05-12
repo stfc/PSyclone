@@ -266,8 +266,8 @@ class DependencyTools():
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
         set_of_loop_vars = set(loop_vars)
-        indices_1 = comp_ind1.get_flat_indices(set_of_loop_vars)
-        indices_2 = comp_ind2.get_flat_indices(set_of_loop_vars)
+        indices_1 = comp_ind1.get_all_subscripts_variables(set_of_loop_vars)
+        indices_2 = comp_ind2.get_all_subscripts_variables(set_of_loop_vars)
         # This list stores the partition information, which
         # is a pair consisting of:
         # - a set of all loop variables used in the subscript of
