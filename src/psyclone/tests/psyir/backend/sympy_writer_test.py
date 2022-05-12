@@ -134,6 +134,7 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
 @pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)"),
                                          ("MIN(1,2)", "Min(1, 2)"),
                                          ("MOD(1,2)", "Mod(1, 2)"),
+                                         ("EXP(1)", "exp(1)"),
                                          ("LBOUND(1,2)", "LBOUND(1, 2)")
                                          ])
 def test_sym_writer_functions(fortran_reader, expressions):

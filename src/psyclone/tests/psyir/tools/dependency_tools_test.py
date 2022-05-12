@@ -428,6 +428,7 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
                           # This expression does not depend on the variable
                           # 'i' at all:
                           ("a1(j)", "a1(j)", None),
+                          ("a1(indx(i))", "a1(indx(i))", None),
                           ("a1(i)", "a1(2)", None),
                           ("a1(i+1)", "a1(i)", 1),
                           ("a1(i)", "a1(i+1)", -1),
@@ -439,7 +440,7 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
                           ("a1(2*i)", "a1(2*i+1)", None),
                           ("a1(i*i)", "a1(-1)", None),
                           ("a1(i-i+2)", "a1(2)", None),
-                          # Array expression raises exception
+                          # An array range raises an exception
                           # TODO: 1655 - if this is fixed we might
                           # need a different example that is valid
                           # Fortran but causes the sympy writer to fail

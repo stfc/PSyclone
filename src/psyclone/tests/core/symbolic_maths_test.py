@@ -269,6 +269,19 @@ def test_symbolic_math_never_equal_error(fortran_reader):
                                                 # integer) are returned as
                                                 # string "independent"
                                                 ("i", "i", "independent"),
+                                                # Indirect addressing cannot be
+                                                # resolved, sympy returns a
+                                                # ConditionSet, which must be
+                                                # returned as 'independent'
+                                                ("ind(i)", "ind(i+1)",
+                                                 "independent"),
+                                                # This returns a SymPy Image
+                                                # object:
+                                                ("EXP(i)", "1",
+                                                 "independent"),
+                                                # This returns a SymPy Union
+                                                ("i*(exp(i)-i)", "0",
+                                                 "independent"),
                                                 ("i*i", "2*i-1", set([1])),
                                                 ("i*i", "4", set([2, -2])),
                                                 ("2*i", "2*i+1", set()),
@@ -282,7 +295,7 @@ def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
                 use some_mod
-                integer :: i, j, k, x
+                integer :: i, j, k, x, ind(10)
                 type(my_mod_type) :: a, b
                 x = {exp1}
                 x = {exp2}

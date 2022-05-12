@@ -46,7 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
-                                  Reference)
+                                  Reference, UnaryOperation)
 from psyclone.psyir.symbols import ScalarType, SymbolTable
 
 
@@ -100,6 +100,10 @@ class SymPyWriter(FortranWriter):
                                  (NaryOperation.Operator.MIN, "Min"),
                                  (BinaryOperation.Operator.MIN, "Min"),
                                  (BinaryOperation.Operator.REM, "Mod"),
+                                 # exp is needed for a test case only, in
+                                 # general the maths functions can just be
+                                 # handled as unknown sympy functions.
+                                 (UnaryOperation.Operator.EXP, "exp"),
                                  ]:
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str

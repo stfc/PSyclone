@@ -39,7 +39,8 @@
 functions.'''
 
 
-from sympy import Complexes, core, EmptySet, expand, simplify, solveset
+from sympy import (Complexes, ConditionSet, core, EmptySet, expand, FiniteSet,
+                   ImageSet, simplify, solveset, Union)
 
 
 class SymbolicMaths:
@@ -205,10 +206,39 @@ class SymbolicMaths:
             # SymPy to other files).
             return "independent"
 
+        if isinstance(solution, ConditionSet):
+            # A ConditionSet indicates likely an equation that cannot be
+            # solved, e.g. `indx(i)`=`indx(i+di)`. The index array `indx`
+            # is treated as an unknown function by SymPy, so sympy will return
+            # a ConditionSet. We return 'independent' here, indicating
+            # that the solution is independent of the loop variable, which
+            # means it will be triggering a dependence between loop iterations.
+            return "independent"
+
+        if isinstance(solution, ImageSet):
+            # Similar to ConditionSet, this is returned if it's a mapping of
+            # a set using a mathematical function, e.g. exp(i)==1. And
+            # similarly we return independent, since it likely indicates a
+            # dependency between the expressions.
+            return "independent"
+
+        if isinstance(solution, Union):
+            # A SymPy union will only be returned if at least one of the
+            # members has more than one (and likely infinite) solution, e.g.:
+            # `i*(exp(i)-i)==0` (which returns the union of `i=0` and
+            # `exp(i)==i`). Again, we don't handle this for now.
+            return "independent"
+
         # If there is no solution, return a standard Python empty
         # set (to avoid using SymPy-specific types in PSyclone)
         if solution is EmptySet:
             return set()
+
+        # There are other potential data types that could be returned by SymPy
+        # (Interval, Intersection), but they seem not to be returned by
+        # tests for `==0`, so we cannot test for them. So I add an `assert`
+        # here, since a raise could not be covered by tests.
+        assert isinstance(solution, FiniteSet)
 
         return set(solution)
 
