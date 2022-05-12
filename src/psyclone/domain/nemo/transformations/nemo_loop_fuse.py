@@ -66,7 +66,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # pylint: disable=too-many-locals
         # First check constraints on the nodes inherited from the parent
         # LoopFuseTrans:
-        super(NemoLoopFuseTrans, self).validate(node1, node2, options)
+        super().validate(node1, node2, options)
 
         sym_maths = SymbolicMaths.get()
 
@@ -172,6 +172,8 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             inconsistent indices, e.g. a(i,j) and a(j,i).
 
         '''
+        # TODO #1075: Loop fusion should be verified using a method in
+        # DependencyTools.
         # pylint: disable=too-many-locals
         dep_tools = DependencyTools()
         all_accesses = var_info1.all_accesses + var_info2.all_accesses

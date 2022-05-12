@@ -115,8 +115,8 @@ class Message:
     # ------------------------------------------------------------------------
     @property
     def var_names(self):
-        ''':returns: the numerical code of this message.
-        :rtype: str
+        ''':returns: the list of variable names to which the message applies.
+        :rtype: List[str]
 
         '''
         return self._var_names
@@ -456,7 +456,10 @@ class DependencyTools():
         :param other_access: access information the other (read or write) \
             access.
         :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
-        :param subscripts:
+        :param subscripts: the subscript indices (as a tuple, see \
+            ComponentIndices class) which are all handled together because \
+            of shared loop variables.
+        :type subscripts: List[Tuple(int,int)]
 
         :returns: whether the two accesses can be parallelised or not.
         :type: bool
@@ -466,7 +469,6 @@ class DependencyTools():
         # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
         # the first subscript is i, means that each different iteration
         # will access a different column, even if index(i) is 5.
-
         for ind in subscripts:
             index_written = write_access.component_indices[ind]
             index_other = other_access.component_indices[ind]
@@ -593,7 +595,8 @@ class DependencyTools():
         that is guaranteed to be independent, which is all that is needed
         for parallelisation.
 
-        :param str loop_variables: all loop variables involved.
+        :param loop_variables: all loop variables involved.
+        :type loop_variable: List[str]
         :param var_info: access information for this variable.
         :type var_info: \
             :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
