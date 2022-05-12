@@ -1760,25 +1760,22 @@ class Fparser2Reader(object):
             if initialisation:
                 if has_constant_value:
                     # If it is a parameter parse its initialization into
-                    # a dummy Assignment inside a Schedule which temporally
-                    # hijacks the parent's node symbol table
-                    tmp_sch = Schedule(symbol_table=symbol_table)
-                    dummynode = Assignment(parent=tmp_sch)
-                    tmp_sch.addchild(dummynode)
+                    # a dummy Assignment (but connected to the parent scope
+                    # since symbols must be resolved)
+                    dummynode = Assignment(parent=parent)
                     expr = initialisation.items[1]
                     self.process_nodes(parent=dummynode, nodes=[expr])
-                    ct_expr = dummynode.children[0]
+                    ct_expr = dummynode.children[0].detach()
                 else:
                     raise NotImplementedError(
-                        "Could not process {0}. Initialisations on the"
-                        " declaration statements are only supported for "
-                        "parameter declarations.".format(decl.items))
+                        f"Could not process {decl.items}. Initialisations on "
+                        f"the declaration statements are only supported for "
+                        f"parameter declarations.")
 
             if char_len is not None:
                 raise NotImplementedError(
-                    "Could not process {0}. Character length "
-                    "specifications are not supported."
-                    "".format(decl.items))
+                    f"Could not process {decl.items}. Character length "
+                    f"specifications are not supported.")
 
             sym_name = str(name).lower()
 
@@ -3902,6 +3899,7 @@ class Fparser2Reader(object):
 
             # Ensure that we have an explicit declaration for the symbol
             # returned by the function.
+            keep_tag = None
             if return_name in routine.symbol_table:
                 symbol = routine.symbol_table.lookup(return_name)
                 # If the symbol table still contains a RoutineSymbol
@@ -3918,6 +3916,7 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
                     routine.symbol_table.remove(symbol)
+                    keep_tag = "own_routine_symbol"
 
             if return_name not in routine.symbol_table:
                 # There is no existing declaration for the symbol returned by
@@ -3927,6 +3926,7 @@ class Fparser2Reader(object):
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
                 routine.symbol_table.new_symbol(return_name,
+                                                tag=keep_tag,
                                                 symbol_type=DataSymbol,
                                                 datatype=base_type,
                                                 shadowing=True)

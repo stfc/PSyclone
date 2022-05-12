@@ -1825,7 +1825,7 @@ def test_handling_part_ref():
     assert len(new_node.children) == 3  # Array dimensions
 
 
-@pytest.fixture(scope="module", name="symbol_table")
+@pytest.fixture(scope="function", name="symbol_table")
 def make_symbol_table():
     '''
     pytest fixture to create and populate a symbol table for the
