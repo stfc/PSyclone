@@ -40,7 +40,7 @@ functions.'''
 
 
 from sympy import (Complexes, ConditionSet, core, EmptySet, expand, FiniteSet,
-                   ImageSet, simplify, solveset, Union)
+                   ImageSet, simplify, solvers, Union)
 
 
 class SymbolicMaths:
@@ -195,10 +195,13 @@ class SymbolicMaths:
         '''
         # We could restrict the domain to Integers, but in case of
         # general solutions (x=i+1 or so), we get an intersection as
-        # as result, which is then difficult to handle. It's actually
+        # as result, which is then difficult to handle (conversion to a
+        # python set results in iteration over all Integers). It's actually
         # easier to not restrict the domain, and detect and interpret
         # a non-integer solution later.
-        solution = solveset(exp1-exp2, symbol)
+        # We use solvers.solveset to allow testing to monkeypatch solveset
+
+        solution = solvers.solveset(exp1-exp2, symbol)
         if solution == Complexes:
             # The solution is actually independent of the symbol
             # Return a string (instead of the SymPy specific set
@@ -236,10 +239,13 @@ class SymbolicMaths:
 
         # There are other potential data types that could be returned by SymPy
         # (Interval, Intersection), but they seem not to be returned by
-        # tests for `==0`, so we cannot test for them. So I add an `assert`
-        # here, since a raise could not be covered by tests.
-        assert isinstance(solution, FiniteSet)
+        # tests for `==0`. Testing will monkeypatch solveset to trigger this
+        # line:
+        if not isinstance(solution, FiniteSet):
+            raise ValueError(f"Unexpected solution '{solution}'' of type "
+                             f"'{type(solution)}'")
 
+        # Convert the FiniteSet to a normal Python set:
         return set(solution)
 
     # -------------------------------------------------------------------------

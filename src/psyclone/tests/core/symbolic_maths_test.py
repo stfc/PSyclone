@@ -40,6 +40,7 @@
 from __future__ import print_function, absolute_import
 
 import pytest
+from sympy import solvers, Symbol
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -313,6 +314,18 @@ def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     solution = sym_maths.solve_equal_for(sympy_expressions[0],
                                          sympy_expressions[1], i)
     assert solution == result
+
+
+def test_solve_equal_for_error(monkeypatch):
+    '''Test that an unexpected SymPy result type raises the expected error. '''
+
+    sym_maths = SymbolicMaths.get()
+    # Monkeypatch SymPy's solveset to return a plain Python integer:
+    monkeypatch.setattr(solvers, "solveset", lambda _x, _y: 1)
+    x_sym = Symbol("X")
+    with pytest.raises(ValueError) as err:
+        sym_maths.solve_equal_for(x_sym, x_sym, x_sym)
+    assert "Unexpected solution '1'' of type '<class 'int'>'" in str(err.value)
 
 
 @pytest.mark.parametrize("expressions", [("max(3, 2, 1)", "max(1, 2, 3)"),
