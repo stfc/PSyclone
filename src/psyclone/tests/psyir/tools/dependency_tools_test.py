@@ -191,38 +191,38 @@ def test_loop_type(parser):
 
 
 # -----------------------------------------------------------------------------
-def test_arrays_parallelise(parser):
+def test_arrays_parallelise(fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
-    reader = FortranStringReader('''program test
-                                 integer ji, jj, jk
-                                 integer, parameter :: jpi=5, jpj=10
-                                 real, dimension(jpi,jpi) :: mask, umask
-                                 do jj = 1, jpj   ! loop 0
-                                    do ji = 1, jpi
-                                       mask(jk, jk) = -1.0d0
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 1
-                                    do ji = 1, jpi
-                                       mask(ji, jj) = umask(jk, jk)
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 2
-                                    do ji = 1, jpi
-                                       mask(jj, jj) = umask(ji, jj)
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 3
-                                    do ji = 1, jpi
-                                       mask(ji, jj) = mask(ji, jj+1)
-                                     end do
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"])
+    source = '''program test
+                integer ji, jj, jk
+                integer, parameter :: jpi=5, jpj=10
+                real, dimension(jpi,jpi) :: mask, umask
+                do jj = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      mask(jk, jk) = -1.0d0
+                    end do
+                end do
+                do jj = 1, jpj   ! loop 1
+                   do ji = 1, jpi
+                      mask(ji, jj) = umask(jk, jk)
+                    end do
+                end do
+                do jj = 1, jpj   ! loop 2
+                   do ji = 1, jpi
+                      mask(jj, jj) = umask(ji, jj)
+                    end do
+                end do
+                do jj = 1, jpj   ! loop 3
+                   do ji = 1, jpi
+                      mask(ji, jj) = mask(ji, jj+1)
+                    end do
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children[0:4]
+    dep_tools = DependencyTools()
 
     # Write to array that does not depend on parallel loop variable
     # Test that right default variable name (outer loop jj) is used.
@@ -234,7 +234,7 @@ def test_arrays_parallelise(parser):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    jj_symbol = loops.scope.symbol_table.lookup("jj")
+    jj_symbol = loops[0].scope.symbol_table.lookup("jj")
     # Write to array that does not depend on parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
     assert parallel is True
@@ -292,23 +292,22 @@ def test_arrays_parallelise(parser):
                                                           ({"k", "l"},
                                                            {(0, 2), (0, 3)})])
                           ])
-def test_partition(lhs, rhs, partition, parser):
+def test_partition(lhs, rhs, partition, fortran_reader):
     '''Tests that partitioning accesses to array variables works.
     '''
-    reader = FortranStringReader(f'''program test
-                                 use my_mod, only: my_type
-                                 type(my_type) :: dv(10)
-                                 integer i, j, k, l
-                                 integer, parameter :: n=10
-                                 real, dimension(n) :: a1
-                                 real, dimension(n,n) :: a2
-                                 real, dimension(n,n,n) :: a3
-                                 real, dimension(n, n,n,n) :: a4
-                                 {lhs} = {rhs}
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    assign = psy.invokes.get("test").schedule[0]
+    source = f'''program test
+                 use my_mod, only: my_type
+                 type(my_type) :: dv(10)
+                 integer i, j, k, l
+                 integer, parameter :: n=10
+                 real, dimension(n) :: a1
+                 real, dimension(n,n) :: a2
+                 real, dimension(n,n,n) :: a3
+                 real, dimension(n, n,n,n) :: a4
+                 {lhs} = {rhs}
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assign = psyir.children[0].children[0]
 
     # Get all access info for the expression
     access_info_lhs = VariablesAccessInfo(assign.lhs)
@@ -356,18 +355,18 @@ def test_partition(lhs, rhs, partition, parser):
                           ("a1(n)", "a1(5)", False),
                           ("a1(n)", "a1(m)", False),
                           ])
-def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
+def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
     '''Tests that array indices that do not use a loop variable are
     handled correctly.
     '''
-    reader = FortranStringReader(f'''program test
-                                 integer, parameter :: n=10, m=11
-                                 real, dimension(n) :: a1
-                                 {lhs} = {rhs}
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    assign = psy.invokes.get("test").schedule[0]
+    source = f'''program test
+                 integer, parameter :: n=10, m=11
+                 real, dimension(n) :: a1
+                 {lhs} = {rhs}
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assign = psyir.children[0].children[0]
+
     sig = Signature("a1")
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
@@ -404,21 +403,21 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, parser):
                           # Fortran but causes the sympy writer to fail
                           ("a1(:)", "a1(:)+1", None),
                           ])
-def test_array_access_pairs_1_var(lhs, rhs, distance, parser):
+def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
-    reader = FortranStringReader(f'''program test
-                                 integer i, j, k, d_i
-                                 integer, parameter :: n=10, m=10
-                                 integer, dimension(10, 10) :: indx
-                                 real, dimension(n) :: a1
-                                 real, dimension(n, m) :: a2
-                                 real, dimension(n, m, n) :: a3
-                                 {lhs} = {rhs}
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    assign = psy.invokes.get("test").schedule[0]
+    source = f'''program test
+                 integer i, j, k, d_i
+                 integer, parameter :: n=10, m=10
+                 integer, dimension(10, 10) :: indx
+                 real, dimension(n) :: a1
+                 real, dimension(n, m) :: a2
+                 real, dimension(n, m, n) :: a3
+                 {lhs} = {rhs}
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assign = psyir.children[0].children[0]
+
     sig = Signature("a1")
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
@@ -439,21 +438,20 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, parser):
                           ("a2(i, j)", "a2(j, i)", False),
                           ("a3(i, j, indx(i,j))", "a3(i, i, indx(i,j))", True),
                           ])
-def test_array_access_pairs_multi_var(lhs, rhs, independent, parser):
+def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
-    reader = FortranStringReader(f'''program test
-                                 integer i, j, k, d_i
-                                 integer, parameter :: n=10, m=10
-                                 integer, dimension(10, 10) :: indx
-                                 real, dimension(n) :: a1
-                                 real, dimension(n, m) :: a2
-                                 real, dimension(n, m, n) :: a3
-                                 {lhs} = {rhs}
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    assign = psy.invokes.get("test").schedule[0]
+    source = f'''program test
+                 integer i, j, k, d_i
+                 integer, parameter :: n=10, m=10
+                 integer, dimension(10, 10) :: indx
+                 real, dimension(n) :: a1
+                 real, dimension(n, m) :: a2
+                 real, dimension(n, m, n) :: a3
+                 {lhs} = {rhs}
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assign = psyir.children[0].children[0]
 
     access_info_lhs = VariablesAccessInfo(assign.lhs)
     access_info_rhs = VariablesAccessInfo(assign.rhs)
@@ -504,27 +502,27 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, parser):
                           ("a2(k+n, n)", "a2(k+n, n-1)", True),
                           ("a1(n)", "a1(m)", False),
                           ])
-def test_improved_dependency_analysis(lhs, rhs, is_parallelisable, parser):
+def test_improved_dependency_analysis(lhs, rhs, is_parallelisable,
+                                      fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
-    reader = FortranStringReader(f'''program test
-                                 integer j, k, d_k
-                                 integer, parameter :: n=10, m=10
-                                 integer, dimension(10, 10) :: indx
-                                 real, dimension(n) :: a1
-                                 real, dimension(n, m) :: a2
-                                 real, dimension(n, m, n) :: a3
-                                 do k = 1, n
-                                    do j = 1, m
-                                       {lhs} = {rhs}
-                                    end do
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["unknown"])
-    result = dep_tools.can_loop_be_parallelised(loops[0])
+    source = f'''program test
+                 integer j, k, d_k
+                 integer, parameter :: n=10, m=10
+                 integer, dimension(10, 10) :: indx
+                 real, dimension(n) :: a1
+                 real, dimension(n, m) :: a2
+                 real, dimension(n, m, n) :: a3
+                 do k = 1, n
+                    do j = 1, m
+                       {lhs} = {rhs}
+                    end do
+                 end do
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+    dep_tools = DependencyTools()
+    result = dep_tools.can_loop_be_parallelised(loop)
     assert result is is_parallelisable
 
 
@@ -533,7 +531,7 @@ def test_improved_dependency_analysis(lhs, rhs, is_parallelisable, parser):
                          [("integer :: a", "a"),
                           ("type(my_type) :: a", "a%scalar"),
                           ("type(my_type) :: a", "a%sub%scalar")])
-def test_scalar_parallelise(declaration, variable, parser):
+def test_scalar_parallelise(declaration, variable, fortran_reader):
     '''Tests that scalar variables are correctly handled. It tests for
     'normal' scalar variables ('b') as well as scalar variables in derived
     types ('b%b').
@@ -543,49 +541,46 @@ def test_scalar_parallelise(declaration, variable, parser):
     :param str variable: the variable (e.g. 'b', or 'b%b')
 
     '''
-    reader = FortranStringReader(f'''program test
-                                 implicit none
-                                 type :: my_sub_type
-                                    integer :: scalar
-                                 end type my_sub_type
-                                 type :: my_type
-                                    integer :: scalar
-                                    type(my_sub_type) :: sub
-                                 end type my_type
+    source = f'''program test
+                 implicit none
+                 type :: my_sub_type
+                    integer :: scalar
+                 end type my_sub_type
+                 type :: my_type
+                    integer :: scalar
+                    type(my_sub_type) :: sub
+                 end type my_type
+                 {declaration}  ! Declaration of variable here
+                 integer :: ji, jj
+                 integer, parameter :: jpi=7, jpj=9
+                 integer, dimension(jpi,jpj) :: b, c
+                 do jj = 1, jpj   ! loop 0
+                    do ji = 1, jpi
+                       b(ji, jj) = {variable}
+                     end do
+                 end do
+                 do jj = 1, jpj   ! loop 1
+                    do ji = 1, jpi
+                       {variable} = b(ji, jj)
+                     end do
+                 end do
+                 do jj = 1, jpj   ! loop 2
+                    do ji = 1, jpi
+                       {variable} = b(ji, jj)
+                       c(ji, jj) = {variable}*{variable}
+                     end do
+                 end do
+                 do jj = 1, jpj   ! loop 3
+                    do ji = 1, jpi
+                       {variable} = {variable} + b(ji, jj)
+                     end do
+                 end do
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children
+    dep_tools = DependencyTools(language_writer=FortranWriter())
 
-                                 {declaration}  ! Declaration of variable here
-                                 integer :: ji, jj
-                                 integer, parameter :: jpi=7, jpj=9
-                                 integer, dimension(jpi,jpj) :: b, c
-                                 do jj = 1, jpj   ! loop 0
-                                    do ji = 1, jpi
-                                       b(ji, jj) = {variable}
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 1
-                                    do ji = 1, jpi
-                                       {variable} = b(ji, jj)
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 2
-                                    do ji = 1, jpi
-                                       {variable} = b(ji, jj)
-                                       c(ji, jj) = {variable}*{variable}
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 3
-                                    do ji = 1, jpi
-                                       {variable} = {variable} + b(ji, jj)
-                                     end do
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"],
-                                language_writer=FortranWriter())
-
-    jj_symbol = loops.scope.symbol_table.lookup("jj")
+    jj_symbol = psyir.children[0].scope.symbol_table.lookup("jj")
 
     # Read only scalar variable: a(ji, jj) = b
     parallel = dep_tools.can_loop_be_parallelised(loops[0], jj_symbol)
@@ -615,28 +610,28 @@ def test_scalar_parallelise(declaration, variable, parser):
 
 
 # -----------------------------------------------------------------------------
-def test_derived_type(parser):
+def test_derived_type(fortran_reader):
     ''' Tests assignment to derived type variables. '''
-    reader = FortranStringReader('''program test
-                                 use my_mod, only: my_type
-                                 type(my_type) :: a, b
-                                 integer :: ji, jj, jpi, jpj
-                                 do jj = 1, jpj   ! loop 0
-                                    do ji = 1, jpi
-                                       a%b(ji, jj) = a%b(ji, jj-1)+1
-                                     end do
-                                 end do
-                                 do jj = 1, jpj   ! loop 0
-                                    do ji = 1, jpi
-                                       a%b(ji, jj) = a%b(ji, jj-1)+1
-                                       b%b(ji, jj) = b%b(ji, jj-1)+1
-                                     end do
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"])
+    source = '''program test
+                use my_mod, only: my_type
+                type(my_type) :: a, b
+                integer :: ji, jj, jpi, jpj
+                do jj = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      a%b(ji, jj) = a%b(ji, jj-1)+1
+                    end do
+                end do
+                do jj = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      a%b(ji, jj) = a%b(ji, jj-1)+1
+                      b%b(ji, jj) = b%b(ji, jj-1)+1
+                    end do
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children
+
+    dep_tools = DependencyTools()
 
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
@@ -692,21 +687,20 @@ def test_derived_type(parser):
 
 
 # -----------------------------------------------------------------------------
-def test_inout_parameters_nemo(parser):
+def test_inout_parameters_nemo(fortran_reader):
     '''Test detection of input and output parameters in NEMO.
     '''
-    reader = FortranStringReader('''program test
-                         integer :: ji, jj, jpi, jpj
-                         real :: a(5,5), c(5,5), b
-                         do jj = 1, jpj   ! loop 0
-                            do ji = 1, jpi
-                               a(ji, jj) = b+c(ji, jj)
-                             end do
-                         end do
-                         end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
+    source = '''program test
+                integer :: ji, jj, jpi, jpj
+                real :: a(5,5), c(5,5), b
+                do jj = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      a(ji, jj) = b+c(ji, jj)
+                    end do
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children
 
     dep_tools = DependencyTools()
     input_list = dep_tools.get_input_parameters(loops)
