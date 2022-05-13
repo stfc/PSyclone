@@ -187,8 +187,12 @@ class NemoLoopFuseTrans(LoopFuseTrans):
         # the loop variable (which would indicate a kind of reduction):
         for other_access in all_accesses:
             comp_other = other_access.component_indices
-            partitions = dep_tools.partition(comp_1, comp_other,
-                                             [loop_var_name])
+            # TODO #1075: when this functionality is moved into the
+            # DependencyTools, the access to partition is not an
+            # access to a protected member anymore.
+            # pylint: disable=protected-access
+            partitions = dep_tools._partition(comp_1, comp_other,
+                                              [loop_var_name])
             var_found = False
             for (set_of_vars, index) in partitions:
                 # Find the partition that contains the loop variable:
