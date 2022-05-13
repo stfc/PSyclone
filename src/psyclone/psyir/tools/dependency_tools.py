@@ -487,8 +487,8 @@ class DependencyTools():
         return False
 
     # -------------------------------------------------------------------------
-    def is_array_access_parallelisable(self, loop_variables, write_access,
-                                       other_access):
+    def is_loop_carried_dependency(self, loop_variables, write_access,
+                                   other_access):
         '''Checks if there is any write access that is dependent with
         another (read or write) access in a different iteration. If there
         is a dependency, then the access to this array cannot be parallelised,
@@ -505,7 +505,8 @@ class DependencyTools():
             access (for the same variable).
         :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
 
-        :returns: whether the pair of accesses can be parallelised or not.
+        :returns: whether there is a loop carried dependency between the \
+            pair of accesses, which prevents parallelisation.
         :rtype: bool
 
         '''
@@ -619,9 +620,9 @@ class DependencyTools():
             # including itself (to detect write-write race conditions:
             # a((i-2)**2) = b(i): i=1 and i=3 would write to a(1))
             for other_access in var_info:
-                if not self.is_array_access_parallelisable(loop_variables,
-                                                           write_access,
-                                                           other_access):
+                if not self.is_loop_carried_dependency(loop_variables,
+                                                       write_access,
+                                                       other_access):
                     # There is a dependency. Try to give precise error
                     # messages:
                     if write_access is other_access:
