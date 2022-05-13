@@ -241,7 +241,7 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def partition(comp_ind1, comp_ind2, loop_vars):
+    def _partition(comp_ind1, comp_ind2, loop_vars):
         '''This method partitions the subscripts of the component indices
         into sets of minimal coupled groups. For example:
         `a(i)` and `a(i+3)` results in one partition with the variable `i`,
@@ -312,7 +312,7 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def independent_0_var(index_exp1, index_exp2):
+    def _independent_0_var(index_exp1, index_exp2):
         '''Checks if the two index expressions, that are not dependent on any
         loop variable, are independent or not. E.g. `a(3)` and `a(5)`
         are independent of each other, `a(n)` and `a(n)` are not.
@@ -339,7 +339,7 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def get_dependency_distance(var_name, index_read, index_written):
+    def _get_dependency_distance(var_name, index_read, index_written):
         '''Computes the dependency distance between two accesses to the
         same variable. The distance specifies in how many loop iterations
         the same memory location would be accessed. E.g. `a(i)=a(i-1)`
@@ -440,8 +440,8 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def independent_multi_subscript(var_name, write_access, other_access,
-                                    subscripts):
+    def _independent_multi_subscript(var_name, write_access, other_access,
+                                     subscripts):
         '''Test multiple subscripts that share variables. This includes cases
         like `a(i,i) = a(i,i+1)` or `a(i, indx(i)) = a(i,5)` etc.
         At this stage only a minimal test is done: if there is one subscript
@@ -474,9 +474,9 @@ class DependencyTools():
         for ind in subscripts:
             index_written = write_access.component_indices[ind]
             index_other = other_access.component_indices[ind]
-            distance = DependencyTools.get_dependency_distance(var_name,
-                                                               index_written,
-                                                               index_other)
+            distance = DependencyTools._get_dependency_distance(var_name,
+                                                                index_written,
+                                                                index_other)
             if distance == 0:
                 # Notice that distance 0 will only be returned if the
                 # subscript actually depends on the loop variable.
@@ -487,8 +487,8 @@ class DependencyTools():
         return False
 
     # -------------------------------------------------------------------------
-    def is_loop_carried_dependency(self, loop_variables, write_access,
-                                   other_access):
+    def _is_loop_carried_dependency(self, loop_variables, write_access,
+                                    other_access):
         '''Checks if there is any write access that is dependent with
         another (read or write) access in a different iteration. If there
         is a dependency, then the access to this array cannot be parallelised,
@@ -517,9 +517,9 @@ class DependencyTools():
         # 1) subscript 0: only variable i is used.
         # 2) subscript 1+2: uses the variables j and k
         # 3) subscript 3: only uses l
-        partitions = self.partition(write_access.component_indices,
-                                    other_access.component_indices,
-                                    loop_variables)
+        partitions = self._partition(write_access.component_indices,
+                                     other_access.component_indices,
+                                     loop_variables)
         # Get the name of the loop variable that is to be parallelised:
         loop_var = loop_variables[0]
 
@@ -540,7 +540,7 @@ class DependencyTools():
                     # No loop variable used, constant access (which might
                     # still be using unknown non-loop variables).
                     # E.g. `a(5) = a(n)`
-                    indep = self.independent_0_var(index_write, index_other)
+                    indep = self._independent_0_var(index_write, index_other)
                     # If we can show that there is at least one subscript
                     # that is independent (`a(5, i)` and `a(3, i)`), we know
                     # that the accesses are independent.
@@ -549,9 +549,9 @@ class DependencyTools():
                 elif len(set_of_vars) == 1:
                     # One loop variable used in both accesses.
                     # E.g. `a(2*i+3) = a(i*i)`
-                    distance = self.get_dependency_distance(loop_var,
-                                                            index_write,
-                                                            index_other)
+                    distance = self._get_dependency_distance(loop_var,
+                                                             index_write,
+                                                             index_other)
                     # If the dependency distance is 0, it means that in each
                     # iteration a different index is accessed, so the loop
                     # can be parallelised.
@@ -565,17 +565,17 @@ class DependencyTools():
             else:
                 # This is reached only if there is more than one subscript in
                 # which one or several variables are used
-                indep = self.independent_multi_subscript(loop_var,
-                                                         write_access,
-                                                         other_access,
-                                                         subscripts)
+                indep = self._independent_multi_subscript(loop_var,
+                                                          write_access,
+                                                          other_access,
+                                                          subscripts)
                 if indep:
                     return True
 
         return False
 
     # -------------------------------------------------------------------------
-    def array_access_parallelisable(self, loop_variables, var_info):
+    def _array_access_parallelisable(self, loop_variables, var_info):
         '''Tries to determine if the access pattern for an array
         given in `var_info` allows parallelisation along the variable
         `loop_variable`. This implementation follows:
@@ -620,9 +620,9 @@ class DependencyTools():
             # including itself (to detect write-write race conditions:
             # a((i-2)**2) = b(i): i=1 and i=3 would write to a(1))
             for other_access in var_info:
-                if not self.is_loop_carried_dependency(loop_variables,
-                                                       write_access,
-                                                       other_access):
+                if not self._is_loop_carried_dependency(loop_variables,
+                                                        write_access,
+                                                        other_access):
                     # There is a dependency. Try to give precise error
                     # messages:
                     if write_access is other_access:
@@ -661,7 +661,7 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def is_scalar_parallelisable(self, var_info):
+    def _is_scalar_parallelisable(self, var_info):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
@@ -796,11 +796,11 @@ class DependencyTools():
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
                 # Handle arrays
-                par_able = self.array_access_parallelisable(loop_vars,
-                                                            var_info)
+                par_able = self._array_access_parallelisable(loop_vars,
+                                                             var_info)
             else:
                 # Handle scalar variable
-                par_able = self.is_scalar_parallelisable(var_info)
+                par_able = self._is_scalar_parallelisable(var_info)
             if not par_able:
                 if not test_all_variables:
                     return False

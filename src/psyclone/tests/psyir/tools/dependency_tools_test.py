@@ -325,9 +325,9 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     access_lhs = access_info_lhs[sig][0]
     access_rhs = access_info_rhs[sig][0]
     partition_infos = \
-        DependencyTools.partition(access_lhs.component_indices,
-                                  access_rhs.component_indices,
-                                  ["i", "j", "k", "l"])
+        DependencyTools._partition(access_lhs.component_indices,
+                                   access_rhs.component_indices,
+                                   ["i", "j", "k", "l"])
     # The order of the results could be different if the code is changed,
     # so keep this test as flexible as possible:
     # First check that we have the same number of elements
@@ -375,7 +375,7 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
     lhs_index0 = access_info_lhs.component_indices[index]
     rhs_index0 = access_info_rhs.component_indices[index]
 
-    result = DependencyTools.independent_0_var(lhs_index0, rhs_index0)
+    result = DependencyTools._independent_0_var(lhs_index0, rhs_index0)
     assert result is is_dependent
 
 
@@ -425,8 +425,8 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     subscript_lhs = access_info_lhs.component_indices[(0, 0)]
     subscript_rhs = access_info_rhs.component_indices[(0, 0)]
 
-    result = DependencyTools.get_dependency_distance("i", subscript_lhs,
-                                                     subscript_rhs)
+    result = DependencyTools._get_dependency_distance("i", subscript_lhs,
+                                                      subscript_rhs)
     assert result == distance
 
 
@@ -468,9 +468,9 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     access_lhs = access_info_lhs[sig][0]
     access_rhs = access_info_rhs[sig][0]
     partition = \
-        DependencyTools.partition(access_lhs.component_indices,
-                                  access_rhs.component_indices,
-                                  ["i", "j", "k", "l"])
+        DependencyTools._partition(access_lhs.component_indices,
+                                   access_rhs.component_indices,
+                                   ["i", "j", "k", "l"])
 
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
@@ -480,8 +480,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     # So partition[0][1] takes the subscript indices ([1]) of the first
     # partition ([0])
     result = DependencyTools.\
-        independent_multi_subscript("i", access_info_lhs, access_info_rhs,
-                                    partition[0][1])
+        _independent_multi_subscript("i", access_info_lhs, access_info_rhs,
+                                     partition[0][1])
     assert result == independent
 
 
