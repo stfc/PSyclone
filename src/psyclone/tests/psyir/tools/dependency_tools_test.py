@@ -123,7 +123,7 @@ def test_loop_parallelise_errors():
     with pytest.raises(TypeError) as err:
         # The loop object must be a Loop, not e.g. an int:
         loop = 1
-        dep_tools.can_loop_be_parallelised(loop, "i")
+        dep_tools.can_loop_be_parallelised(loop)
     assert "node must be an instance of class Loop but got" in str(err.value)
 
 
@@ -145,11 +145,10 @@ def test_nested_loop_detection(parser):
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test").schedule
-    jk_symbol = loops.scope.symbol_table.lookup("jk")
     dep_tools = DependencyTools(["levels", "lat"])
 
     # Not a nested loop
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol)
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
     assert "Not a nested loop" in str(msg)
@@ -157,7 +156,8 @@ def test_nested_loop_detection(parser):
     assert msg.var_names == []
 
     # Now disable the test for nested loops:
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], jk_symbol, False)
+    parallel = dep_tools.can_loop_be_parallelised(loops[0],
+                                                  only_nested_loops=False)
     assert parallel is True
     # Make sure can_loop_be_parallelised clears old messages automatically
     # pylint: disable=use-implicit-booleaness-not-comparison
@@ -182,7 +182,8 @@ def test_loop_type(parser):
     dep_tools = DependencyTools(["levels", "lat"])
 
     # Check a loop that has the wrong loop type
-    parallel = dep_tools.can_loop_be_parallelised(loop, "ji", False)
+    parallel = dep_tools.can_loop_be_parallelised(loop,
+                                                  only_nested_loops=False)
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
     assert "wrong loop type 'lon'" in str(msg)
@@ -234,19 +235,18 @@ def test_arrays_parallelise(fortran_reader):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    jj_symbol = loops[0].scope.symbol_table.lookup("jj")
     # Write to array that does not depend on parallel loop variable
-    parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
     # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
     # Use parallel loop variable in more than one dimension
-    parallel = dep_tools.can_loop_be_parallelised(loops[2], jj_symbol)
+    parallel = dep_tools.can_loop_be_parallelised(loops[2])
     assert parallel is True
 
     # Use a stencil access (with write), which prevents parallelisation
-    parallel = dep_tools.can_loop_be_parallelised(loops[3], jj_symbol)
+    parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
     assert ("The write access to 'mask(ji,jj)' and to 'mask(ji,jj + 1)' are "
@@ -583,11 +583,11 @@ def test_scalar_parallelise(declaration, variable, fortran_reader):
     jj_symbol = psyir.children[0].scope.symbol_table.lookup("jj")
 
     # Read only scalar variable: a(ji, jj) = b
-    parallel = dep_tools.can_loop_be_parallelised(loops[0], jj_symbol)
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is True
 
     # Write only scalar variable: a(ji, jj) = b
-    parallel = dep_tools.can_loop_be_parallelised(loops[1], jj_symbol)
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
     assert (f"Scalar variable '{variable}' is only written once"

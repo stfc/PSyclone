@@ -709,7 +709,7 @@ class DependencyTools():
         return False
 
     # -------------------------------------------------------------------------
-    def can_loop_be_parallelised(self, loop, loop_variable=None,
+    def can_loop_be_parallelised(self, loop,
                                  only_nested_loops=True,
                                  test_all_variables=False,
                                  signatures_to_ignore=None,
@@ -721,10 +721,6 @@ class DependencyTools():
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param loop_variable: Optional symbol of the variable that is \
-            parallelised. If not specified, the loop variable of the loop \
-            is used.
-        :type loop_variable: :py:class:`psyclone.psyir.symbol.DataSymbol`
         :param bool only_nested_loops: if True, a loop must have an inner\
                                        loop in order to be considered\
                                        parallelisable (default: True).
@@ -753,8 +749,6 @@ class DependencyTools():
             raise TypeError(f"can_loop_be_parallelised: node must be an "
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
-        if not loop_variable:
-            loop_variable = loop.variable
 
         # Check if the loop type should be parallelised, e.g. to avoid
         # parallelising inner loops which might not have enough work. This
@@ -765,8 +759,7 @@ class DependencyTools():
             return False
 
         if not var_accesses:
-            var_accesses = VariablesAccessInfo()
-            loop.reference_accesses(var_accesses)
+            var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:
             signatures_to_ignore = []
 
