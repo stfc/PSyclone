@@ -5816,8 +5816,8 @@ def _create_depth_list(halo_info_list, sym_table):
     '''
     # pylint: disable=too-many-branches
     depth_info_list = []
-    # first look to see if all field dependencies are
-    # annexed_only. If so we only care about annexed dofs
+    # First look to see if all field dependencies are
+    # annexed_only. If so we only care about annexed dofs.
     annexed_only = True
     for halo_info in halo_info_list:
         if not (halo_info.annexed_only or
@@ -5826,7 +5826,7 @@ def _create_depth_list(halo_info_list, sym_table):
             # There are two cases when we only care about accesses to
             # annexed dofs. 1) when annexed_only is set and 2) when
             # the halo depth is 1 but we only depend on annexed dofs
-            # being up-to-date (needs_clean_outer is False)
+            # being up-to-date (needs_clean_outer is False).
             annexed_only = False
             break
     if annexed_only:
@@ -5835,25 +5835,25 @@ def _create_depth_list(halo_info_list, sym_table):
                                 literal_depth=1, annexed_only=True,
                                 max_depth_m1=False)
         return [depth_info]
-    # next look to see if one of the field dependencies specifies
+    # Next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
     # so we do not need to be concerned with other accesses.
     max_depth_m1 = False
     for halo_info in halo_info_list:
         if halo_info.max_depth:
             if halo_info.needs_clean_outer:
-                # found a max_depth access so we only need one
-                # HaloDepth entry
+                # Found a max_depth access so we only need one
+                # HaloDepth entry.
                 depth_info = HaloDepth(sym_table)
                 depth_info.set_by_value(max_depth=True, var_depth="",
                                         literal_depth=0, annexed_only=False,
                                         max_depth_m1=False)
                 return [depth_info]
-            # remember that we found a max_depth-1 access
+            # Remember that we found a max_depth-1 access.
             max_depth_m1 = True
 
     if max_depth_m1:
-        # we have at least one max_depth-1 access.
+        # We have at least one max_depth-1 access.
         depth_info = HaloDepth(sym_table)
         depth_info.set_by_value(max_depth=False, var_depth="",
                                 literal_depth=0, annexed_only=False,
@@ -5861,38 +5861,39 @@ def _create_depth_list(halo_info_list, sym_table):
         depth_info_list.append(depth_info)
 
     for halo_info in halo_info_list:
-        # go through the halo information associated with each
-        # read dependency, skipping any max_depth-1 accesses
+        # Go through the halo information associated with each
+        # read dependency, skipping any max_depth-1 accesses.
         if halo_info.max_depth and not halo_info.needs_clean_outer:
             continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
         if literal_depth and not halo_info.needs_clean_outer:
-            # decrease depth by 1 if we don't care about the outermost
-            # access
+            # Decrease depth by 1 if we don't care about the outermost
+            # access.
             literal_depth -= 1
         match = False
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
             if depth_info.var_depth == var_depth and not match:
-                # this dependence uses the same variable to
+                # This dependence uses the same variable to
                 # specify its depth as an existing one, or both do
                 # not have a variable so we only have a
                 # literal. Therefore we only need to update the
                 # literal value with the maximum of the two
-                # (e.g. var_name,1 and var_name,2 => var_name,2)
+                # (e.g. var_name,1 and var_name,2 => var_name,2).
                 depth_info.literal_depth = max(
                     depth_info.literal_depth, literal_depth)
                 match = True
                 break
         if not match:
-            # no matches were found with existing entries so
-            # create a new one
-            depth_info = HaloDepth(sym_table)
-            depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                    literal_depth=literal_depth,
-                                    annexed_only=False, max_depth_m1=False)
-            depth_info_list.append(depth_info)
+            # No matches were found with existing entries so create a
+            # new one (unless no 'var_depth' and 'literal_depth' is 0).
+            if var_depth or literal_depth > 0:
+                depth_info = HaloDepth(sym_table)
+                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                        literal_depth=literal_depth,
+                                        annexed_only=False, max_depth_m1=False)
+                depth_info_list.append(depth_info)
     return depth_info_list
 
 
@@ -6617,9 +6618,11 @@ class HaloDepth(object):
             if self.var_depth:
                 depth_str += self.var_depth
                 if self.literal_depth:
-                    depth_str += "+"
-            if self.literal_depth:
-                depth_str += str(self.literal_depth)
+                    # Ignores depth == 0
+                    depth_str += f"+{self.literal_depth}"
+            elif self.literal_depth is not None:
+                # Returns depth if depth has any value, including 0
+                depth_str = str(self.literal_depth)
         return depth_str
 
 
