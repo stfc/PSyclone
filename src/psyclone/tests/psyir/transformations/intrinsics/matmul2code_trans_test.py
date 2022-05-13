@@ -734,7 +734,7 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
         "    do i = 1, 5, 1\n"
         "      result(i,j) = 0.0\n"
         "      do ii = 1, 3, 1\n"
-        "        result(i,j) = result(i,j) + jac(ii,i) * jac_inv(j,ii)\n"
+        "        result(i,j) = result(i,j) + jac(i,ii) * jac_inv(ii,j)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n"
@@ -773,7 +773,7 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
         "      result(i,j,2) = 0.0\n"
         "      do ii = 1, 3, 1\n"
         "        result(i,j,2) = result(i,j,2) + "
-        "jac(ii,i,1) * jac_inv(j,ii,2)\n"
+        "jac(i,ii,1) * jac_inv(ii,j,2)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in out)
@@ -811,7 +811,7 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
         "      result(i_1,j_1,2) = 0.0\n"
         "      do ii_1 = 1, 3, 1\n"
         "        result(i_1,j_1,2) = result(i_1,j_1,2) + "
-        "jac(ii_1,i_1,1) * jac_inv(j_1,ii_1,2)\n"
+        "jac(i_1,ii_1,1) * jac_inv(ii_1,j_1,2)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in out)
