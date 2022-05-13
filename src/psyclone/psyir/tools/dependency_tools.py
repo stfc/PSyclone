@@ -48,7 +48,7 @@ from sympy import Symbol, Integer
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -119,7 +119,9 @@ class Message:
         :rtype: List[str]
 
         '''
-        return self._var_names
+        # We convert each expression into a string to support LazyStrings
+        # inside of 'var_names'
+        return [str(i) for i in self._var_names]
 
 
 # ============================================================================
@@ -626,21 +628,33 @@ class DependencyTools():
                         # The write access has a dependency on itself, e.g.
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
-                        str_access = self._language_writer(write_access.node)
-                        self._add_message(f"The write access to "
-                                          f"'{str_access}' causes a "
-                                          f"write-write race condition.",
-                                          DTCode.ERROR_WRITE_WRITE_RACE,
-                                          [str_access])
+                        node = write_access.node
+                        # We need to use default parameters, since otherwise
+                        # the value of a variable might be different when
+                        # the message is actually evaluated.
+                        self._add_message(LazyString(
+                            lambda node=write_access.node:
+                                (f"The write access to '"
+                                 f"{self._language_writer(node)}' causes "
+                                 f"a write-write race condition.")),
+                            DTCode.ERROR_WRITE_WRITE_RACE,
+                            [LazyString(lambda node=node:
+                                        f"{self._language_writer(node)}")])
                     else:
-                        str_write = self._language_writer(write_access.node)
-                        str_other = self._language_writer(other_access.node)
-                        self._add_message(f"The write access to '{str_write}' "
-                                          f"and to '{str_other}' are "
-                                          f"dependent and cannot be "
-                                          f"parallelised.",
-                                          DTCode.ERROR_DEPENDENCY,
-                                          [str_write, str_other])
+                        self._add_message(LazyString(
+                            lambda wnode=write_access.node,
+                            onode=other_access.node:
+                                (f"The write access to "
+                                 f"'{self._language_writer(wnode)}' "
+                                 f"and to '{self._language_writer(onode)}"
+                                 f"' are dependent and cannot be "
+                                 f"parallelised.")),
+                            DTCode.ERROR_DEPENDENCY,
+                            [LazyString(lambda wnode=write_access.node:
+                                        f"{self._language_writer(wnode)}"
+                                        ),
+                             LazyString(lambda onode=other_access.node:
+                                        f"{self._language_writer(onode)}")])
 
                     return False
         return True
