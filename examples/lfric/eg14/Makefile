@@ -36,9 +36,10 @@
 
 # The compiler to use may be specified via the F90 and F90FLAGS
 # environment variables. To use the NVIDIA compiler and enable
-# openacc compilation, use:
+# openacc compilation with managed memory, use:
+#
 # export F90=nvfortran
-# export F90FLAGS="-acc"
+# export F90FLAGS="-acc=gpu -Minfo=all -gpu=managed"
 
 PSYROOT=../../..
 
@@ -85,17 +86,13 @@ transform_parallel_dm:
 	${PSYCLONE} -dm -s ./acc_parallel_dm.py \
 	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
 
-
 %_psy.f90: %.x90
 	${PSYCLONE} -s ./acc_parallel_dm.py \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
-#TODO #1669 - the code currently does not compile
-#             set_dirty calls inside openacc region
-#TODO #1694 - the code currently does not compile
-#             incorrect variable names and constants
-#             when using builtin
-compile: transform_parallel_dm $(EXEC)
+testkern_w0_kernel_0_mod.f90: main_psy.f90
+
+compile: $(EXEC)
 
 run: compile
 	./$(EXEC)
@@ -108,8 +105,7 @@ $(LFRIC_LIB):
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_0_mod.o
-main_alg.o:	main_psy.o testkern_w0_kernel_mod.o
-testkern_w0_kernel_0_mod.f90: transform_kernels
+main_alg.o:	main_psy.o testkern_w0_kernel_0_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -121,10 +117,6 @@ testkern_w0_kernel_0_mod.f90: transform_kernels
 .precious: main_psy.f90 main_alg.f90
 
 main_alg.f90: main_psy.f90
-
-%_psy.f90:	%.x90
-	${PSYCLONE} -s ./acc_parallel_dm.py \
-	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_DIR) allclean
