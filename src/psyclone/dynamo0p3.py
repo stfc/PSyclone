@@ -7684,9 +7684,6 @@ class DynLoop(Loop):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        if not Config.get().distributed_memory:
-            return
-
         # Set halo clean/dirty for all fields that are modified
         fields = self.unique_modified_args("gh_field")
 
