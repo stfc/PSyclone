@@ -720,7 +720,8 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with Return in the middle.
     kschedule = KernelSchedule.create(
-        "work1", symbol_table, [assign1.copy(), Return(), assign2.copy()])
+        "work1", symbol_table.deep_copy(),
+        [assign1.copy(), Return(), assign2.copy()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
@@ -730,8 +731,8 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with a Return at the end as well as in the middle.
     kschedule = KernelSchedule.create(
-        "work1", symbol_table, [assign1.copy(), Return(), assign2.copy(),
-                                Return()])
+        "work1", symbol_table.deep_copy(),
+        [assign1.copy(), Return(), assign2.copy(), Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)

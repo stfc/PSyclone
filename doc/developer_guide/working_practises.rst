@@ -137,8 +137,9 @@ Fixture name   	 Description
 annexed        	 Supplies a test with the various possible values of the LFRic
                  `annexed_dofs` option.
 dist_mem       	 Supplies a test with the various possible values of the
-                 `distributed-memory` option (only applicable to the LFRic API
-                 currently).
+                 `distributed-memory` option (only applicable to the LFRic and
+		 GOcean APIs currently). Also monkeypatches the global
+		 configuration object with the corresponding setting.
 fortran_reader   Provides a Fortran PSyIR front-end object to convert Fortran
                  code snippets into PSyIR.
 fortran_writer   Provides a Fortran PSyIR back-end object to convert PSyIR

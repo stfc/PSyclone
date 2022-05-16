@@ -6,4 +6,7 @@ compute_unew_compute_unew_0.cl
 compute_vnew_compute_vnew_0.cl
 compute_z_compute_z_0.cl
 infrastructure_field_copy_0.cl
+ompt_alg.f90
+ompt_psy.f90
+opencl_kernels_?.cl
 
