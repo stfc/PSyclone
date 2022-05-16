@@ -38,10 +38,11 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
+OBJ =  base_mesh_config_mod.o \
+                global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
 		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
-                driver_water_constants_mod.o \
+                feign_config_mod.o  driver_water_constants_mod.o \
 		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
 		log_mod.o linked_list_mod.o reference_element_mod.o function_space_mod.o \
 		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o \
@@ -56,7 +57,9 @@ OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
                 quadrature_edge_mod.o quadrature_face_mod.o quadrature_mod.o \
                 quadrature_rule_mod.o quadrature_xoyoz_mod.o \
                 quadrature_xyoz_mod.o quadrature_xyz_mod.o \
-                quadrature_rule_gaussian_mod.o coordinate_jacobian_mod.o
+                quadrature_rule_gaussian_mod.o coordinate_jacobian_mod.o \
+                chi_transform_mod.o
+#driver_fem_mod.o
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o \
@@ -83,6 +86,7 @@ liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
 
 # Dependencies
 # ------------
+chi_transform_mod.o: planet_config_mod.o coord_transform_mod.o
 coordinate_jacobian_mod.o: constants_mod.o finite_element_config_mod.o \
                            coord_transform_mod.o planet_config_mod.o
 coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
@@ -90,7 +94,9 @@ count_mod.o: log_mod.o mpi_mod.o
 cross_product_mod.o: constants_mod.o
 domain_size_config_mod.o: mpi_mod.o
 driver_water_constants_mod.o: constants_mod.o
+#driver_fem_mod.o: constants_mod.o chi_transform_mod.o base_mesh_config_mod.o field_mod.o fs_continuity_mod.o 
 extrusion_mod.o: global_mesh_base_mod.o
+feign_config_mod.o: constants_mod.o log_mod.o mpi_mod.o base_mesh_config_mod.o finite_element_config_mod.o planet_config_mod.o
 field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
 field_parent_mod.o: pure_abstract_field_mod.o function_space_mod.o
 file_mod.o: constants_mod.o linked_list_data_mod.o

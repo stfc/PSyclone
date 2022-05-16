@@ -37,14 +37,23 @@ program main
     use mesh_mod,               only: mesh_type, PLANE
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod,          only: uniform_extrusion_type
+    use finite_element_config_mod, only: cellshape_quadrilateral, &
+                                          coord_system_alphabetaz, &
+                                          coord_system_lonlatz,   &
+                                          coord_system_xyz
     use function_space_mod,     only: function_space_type
-    use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H
+    use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H, WChi, W3
     use field_mod,              only: field_type
     use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
     use constants_mod,          only: r_def, i_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
-
+  use chi_transform_mod,              only: init_chi_transforms, &
+                                            final_chi_transforms
+    use feign_config_mod,          only : feign_finite_element_config, &
+                                          feign_planet_config
     implicit none
+  real(r_def), parameter :: planet_radius = 14_r_def
+  real(r_def), parameter :: scaling       = 1.0_r_def
 
     type(global_mesh_base_type), target        :: global_mesh
     class(global_mesh_base_type), pointer      :: global_mesh_ptr
@@ -56,9 +65,21 @@ program main
     type(function_space_type), pointer         :: vector_space_ptr
     procedure (partitioner_interface), pointer :: partitioner_ptr
     type(field_type)                           :: field1, field2
+    type(field_type)                           :: chi(3)
+    type(field_type)                           :: panel_id
     integer(kind=i_def)                        :: lfric_fs = W0   ! W0
     integer(kind=i_def)                        :: element_order = 1
     integer(kind=i_def)                        :: ndata_sz
+  TYPE(function_space_type), TARGET :: vector_space_wchi
+  TYPE(function_space_type), POINTER :: vector_space_wchi_ptr
+  TYPE(function_space_type), TARGET :: vector_space_w2
+  TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+  TYPE(function_space_type), TARGET :: vector_space_w3
+  TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+  TYPE(function_space_type), TARGET :: vector_space_w1
+  TYPE(function_space_type), POINTER :: vector_space_w1_ptr
+  integer :: coord
+      integer :: coord_system
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_base_type()
@@ -86,6 +107,39 @@ program main
                                         lfric_fs,      &
                                         ndata_sz)
     vector_space_ptr => vector_space
+
+    vector_space_w3 = function_space_type(mesh,element_order,w3,ndata_sz)
+    vector_space_w3_ptr => vector_space_w3
+    vector_space_wchi = function_space_type(mesh,element_order,wchi,ndata_sz)
+    vector_space_wchi_ptr => vector_space_wchi
+    
+    !select case ( this%source_coord_system )
+    !case ( XYZ )
+      coord_system = coord_system_xyz
+    !case ( LLH )
+    !  coord_system = coord_system_lonlatz
+    !case ( ABH )
+    !  coord_system = coord_system_alphabetaz
+    !end select
+
+        call feign_finite_element_config(       &
+             cellshape=cellshape_quadrilateral, &
+             element_order=0_i_def,             &
+             rehabilitate=.true.,               &
+             coord_order=0_i_def,               &
+             coord_system=coord_system )
+
+    call feign_planet_config( radius=planet_radius, scaling_factor=scaling )
+
+    call init_chi_transforms()
+
+    call panel_id%initialise(vector_space = vector_space_w3_ptr )
+    do coord = 1, size(chi)
+      call chi(coord)%initialise(vector_space = vector_space_wchi_ptr )
+    end do
+
+    call assign_coordinate_field(chi, panel_id, mesh)
+
     call field1%initialise( vector_space = vector_space_ptr, name="field1" )
     call field2%initialise( vector_space = vector_space_ptr, name="field2" )
     call invoke( name = 'Initialise fields',        &
