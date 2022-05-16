@@ -122,11 +122,14 @@ class ExcludeSettings(object):
         self.ifs_1d_arrays = settings.get("ifs_1d_arrays", True)
 
 
-# Routines which contain structures that, by default, we would normally (not)
-# exclude from OpenACC Kernels regions but are (slower) OK in these cases.
+# Routines which are exceptions to the OpenACC Kernels regions exclusion rules.
 EXCLUDING = {"default": ExcludeSettings(),
+             # Exclude for better GPU performance (requires further analysis).
              "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
              "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
+             # Exclude due to compiler bug preventing CPU multicore executions.
+             "dom_vvl_init": ExcludeSettings({"ifs_scalars": True}),
+             # Do not exclude since OK in these cases.
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
              "hpg_sco": ExcludeSettings({"ifs_1d_arrays": False}),
