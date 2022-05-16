@@ -6353,11 +6353,10 @@ def test_accenterdata_builtin(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("!$acc enter data copyin(0.0_r_def,f1_proxy,f1_proxy%data,"
-            "f2_proxy,f2_proxy%data,ginger,m1_proxy,m1_proxy%data,m2_proxy,"
-            "m2_proxy%data,map_aspc1_f1,map_w1,map_w2,map_w3,ndf_aspc1_f1,"
-            "ndf_w1,ndf_w2,ndf_w3,nlayers,undf_aspc1_f1,undf_w1,undf_w2,"
-            "undf_w3)" in output)
+    assert ("!$acc enter data copyin(f1_proxy,f1_proxy%data,"
+            "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+            "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+            "nlayers,undf_w1,undf_w2,undf_w3)" in output)
     assert "loop1_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
             "      do df=loop1_start,loop1_stop\n"
@@ -6442,7 +6441,7 @@ def test_accparalleltrans(tmpdir):
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
         "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"
@@ -6517,7 +6516,7 @@ def test_acclooptrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
         "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"

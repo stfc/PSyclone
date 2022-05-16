@@ -135,7 +135,7 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
         "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
@@ -166,7 +166,7 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,f3_proxy,f3_proxy%data,m1_proxy,m1_proxy%data,"
         "m2_proxy,m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
         "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
