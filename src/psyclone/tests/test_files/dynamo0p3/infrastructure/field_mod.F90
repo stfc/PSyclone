@@ -680,6 +680,8 @@ contains
     ! do any further work here.
     if ( log_level < application_log_level() ) return
 
+    !$acc update host(self%data)
+
     undf = self%vspace%get_last_dof_owned()
     fmin = scalar_type( minval( self%data(1:undf) ) )
     fmax = scalar_type( maxval( self%data(1:undf) ) )
