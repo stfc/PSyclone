@@ -87,7 +87,7 @@ transform_parallel_dm:
 	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
 
 %_psy.f90: %.x90
-	${PSYCLONE} -s ./acc_kernels.py \
+	${PSYCLONE} -s ./acc_parallel_dm.py \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90
