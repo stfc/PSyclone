@@ -61,7 +61,7 @@ def trans(psy):
                 node_list.append(node)
             else:
                 if node_list:
-                    kernels_trans.apply(node_list)
+                    kernels_trans.apply(node_list, {"default_present": False})
                 node_list = []
                 continue
         if node_list:

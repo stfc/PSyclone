@@ -39,9 +39,9 @@ generically in the presence of halo exchanges. The psyclone script can
 apply this transformation script via its -s option.
 
 '''
-from __future__ import print_function
+from psyclone.psyGen import CodedKern
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCLoopTrans
+    ACCLoopTrans, ACCRoutineTrans
 
 
 def trans(psy):
@@ -52,6 +52,8 @@ def trans(psy):
     loop_trans = ACCLoopTrans()
     parallel_trans = ACCParallelTrans()
     enter_data_trans = ACCEnterDataTrans()
+    rtrans = ACCRoutineTrans()
+
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -63,5 +65,8 @@ def trans(psy):
             # The loop is now the child of the Directive's Schedule
             parallel_trans.apply(loop.parent.parent)
         enter_data_trans.apply(schedule)
+
+        for kernel in schedule.walk(CodedKern):
+            rtrans.apply(kernel)
 
     return psy
