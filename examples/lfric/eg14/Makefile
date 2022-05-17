@@ -45,7 +45,7 @@ PSYROOT=../../..
 
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 testkern_w0_kernel_[0-9]_mod.f90
+GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 testkern_w0_kernel_[0-9]_mod.f90
 
 kernels_redundant:
 	${PSYCLONE} -s ./acc_kernels_redundant.py \
@@ -70,19 +70,9 @@ LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_DIR)
 
-.PHONY: transformtransform_kernels transform_parallel transform_parallel_dm
+.PHONY: transform compile run
 
-transform: transform_kernels transform_parallel transform_parallel_dm
-
-transform_kernels:
-	${PSYCLONE} -nodm -s ./acc_kernels.py \
-	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
-
-transform_parallel:
-	${PSYCLONE} -nodm -s ./acc_parallel.py \
-	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
-
-transform_parallel_dm:
+transform:
 	${PSYCLONE} -dm -s ./acc_parallel_dm.py \
 	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
 
