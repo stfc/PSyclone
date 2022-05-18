@@ -1021,6 +1021,11 @@ class Fparser2Reader(object):
                 "the supplied fparser2 tree to be a Program, but found '{0}'"
                 "".format(type(parse_tree).__name__))
         node = Container("dummy")
+        
+        # Support empty programs
+        if len(parse_tree.children) == 1 and parse_tree.children[0] == None:
+            return node.detach()
+
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
         return result.detach()
