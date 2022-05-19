@@ -278,34 +278,19 @@ psyclone -s ./kernel_constants.py \
 ## Example 14: OpenACC
 
 This example shows how OpenACC directives can be added to the LFRic
-PSy-layer. This is work in progress so the resultant code is not
-expected to run correctly but it gives a starting point for
-evaluation.
+PSy-layer. It adds OpenACC enter data, parallel and loop directives in the
+presence of halo exchanges. It also transforms the (one) user-supplied
+kernel with the addition of an `ACC routine` directive.
 
-1. Adding OpenACC kernels directives. -nodm is used as an exception is
-   raised if Halo Exchange nodes are found within an OpenACC kernels
-   region.
-   ```sh
-   cd eg14/
-   psyclone -s ./acc_kernels.py -nodm main.x90
-   ```
+```sh
+cd eg14/
+psyclone -s ./acc_parallel_dm.py main.x90
+```
 
-2. Adding OpenACC enter data, parallel and loop directives. -nodm is
-   used as an exception is raised if Halo Exchange nodes are found within
-   an OpenACC parallel region.
-   ```sh
-   cd eg14/
-   psyclone -s ./acc_parallel.py -nodm main.x90
-   ```
-
-3. Adding OpenACC enter data, parallel and loop directives in the
-   presence of halo exchanges. This does not currently produce compilable code
-   because calls to set_clean()/dirty() end up within parallel regions - TODO
-   #450.
-   ```sh
-   cd eg14/
-   psyclone -s ./acc_parallel_dm.py main.x90
-   ```
+The supplied Makefile defines a `compile` target that will build the
+transformed code. Currently the compilation will fail because the
+generated PSy-layer code does not contain the correct name for the
+transformed kernel module (issue #1724).
 
 ## Example 15: Optimise matvec Kernel for CPU
 
