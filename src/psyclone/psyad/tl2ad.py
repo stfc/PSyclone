@@ -66,22 +66,28 @@ ADJOINT_NAME_SUFFIX = "_adj"
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
+def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False,
+                         chi_arg_idx=None, panel_id_arg_idx=None):
     '''Takes an LFRic tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
     :param str tl_fortran_str: Fortran implementation of an LFRic \
         tangent-linear kernel.
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
     :param bool create_test: whether or not to create test code for the \
         adjoint kernel.
+    :param Optional[int] chi_arg_idx: the position of the kernel argument \
+        that represents the Chi field (as a zero-based index into the list of \
+        meta_args in the kernel metadata).
+    :param Optional[int] panel_id_arg_idx: the position of the kernel \
+        argument that represents the field holding the panel IDs (as a zero- \
+        based index into the list of meta_args in the kernel metadata).
 
-    :returns: a 2-tuple consisting of a string containing the Fortran \
-        implementation of the supplied tangent-linear kernel and (if \
-        requested) a string containing the Fortran implementation of a test \
-        harness for the adjoint kernel.
-    :rtype: 2-tuple of str
+    :returns: a 2-tuple consisting of the Fortran implementation of the \
+        supplied tangent-linear kernel and (if requested) the Fortran \
+        implementation of a test harness for the adjoint kernel.
+    :rtype: Tuple[str,str]
 
     '''
     logger = logging.getLogger(__name__)
@@ -269,7 +275,9 @@ def generate_adjoint(tl_psyir, active_variables):
 
 
 def generate_adjoint_test(tl_psyir, ad_psyir,
-                          active_variables):
+                          active_variables,
+                          chi_arg_idx=None,
+                          panel_id_arg_idx=None):
     '''
     Creates the PSyIR of a test harness for the supplied TL and adjoint
     kernels.
@@ -278,7 +286,11 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     :type tl_psyir: :py:class:`psyclone.psyir.Container`
     :param ad_psyir: PSyIR of the adjoint kernel code.
     :type ad_psyir: :py:class:`psyclone.psyir.Container`
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
+    :param Optional[int] chi_arg_idx: index of the TL kernel argument that \
+        represents the Chi field.
+    :param Optional[int] panel_id_arg_idx: index of the TL kernel argument \
+        that represents the field holding the panel IDs.
 
     :returns: the PSyIR of the test harness.
     :rtype: :py:class:`psyclone.psyir.Routine`

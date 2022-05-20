@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -84,6 +84,16 @@ def main(args):
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
+    parser.add_argument('-chi', type=int, default=None,
+                        help=('(zero-based) index of the kernel meta_arg that '
+                              'represents the Chi field. Only used for '
+                              'unit-test generation.'),
+                        dest='chi_arg_idx')
+    parser.add_argument('-pid', '--panel_id', type=int, default=None,
+                        help=('(zero-based) index of the kernel meta_arg that '
+                              'represents the field holding the panel IDs. '
+                              'Only used for unit-test generation.'),
+                        dest='panel_id_arg_idx')
     parser.add_argument('-oad', help='filename for the transformed code')
     parser.add_argument('filename', help='LFRic tangent-linear kernel source')
 
@@ -110,7 +120,9 @@ def main(args):
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
-            tl_fortran_str, args.active, create_test=generate_test)
+            tl_fortran_str, args.active, create_test=generate_test,
+            chi_arg_idx=args.chi_arg_idx,
+            panel_id_arg_idx=args.panel_id_arg_idx)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
