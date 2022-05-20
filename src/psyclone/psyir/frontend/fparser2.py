@@ -30,16 +30,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
+#          I. Kavcic, Met Office
+#          M. Schrieber, Université Grenoble Alpes
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
     Visitor Pattern to traverse relevant fparser2 nodes and contains the logic
     to transform each node into the equivalent PSyIR representation.'''
 
-from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
