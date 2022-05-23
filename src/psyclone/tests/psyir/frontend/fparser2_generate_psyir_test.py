@@ -87,12 +87,14 @@ PROGRAM_OUT = (
     "  real :: a\n\n"
     "  a = 0.0\n\n"
     "end program main\n")
-EMPTY_PROGRAM_IN = (
+EMPTY_PROGRAM1_IN = (
     "program main\n"
     "end program main\n")
-EMPTY_PROGRAM_OUT = (
+EMPTY_PROGRAM1_OUT = (
     "program main\n\n\n"
     "end program main\n")
+EMPTY_PROGRAM2_IN = ""
+EMPTY_PROGRAM2_OUT = ""
 FUNCTION_IN = (
     "integer function tmp(a)\n"
     "real :: a\n"
@@ -112,7 +114,8 @@ FUNCTION_OUT = (
                          [(MODULE_IN, MODULE_OUT, Container),
                           (SUB_IN, SUB_OUT, Routine),
                           (PROGRAM_IN, PROGRAM_OUT, Routine),
-                          (EMPTY_PROGRAM_IN, EMPTY_PROGRAM_OUT, Routine),
+                          (EMPTY_PROGRAM1_IN, EMPTY_PROGRAM1_OUT, Routine),
+                          (EMPTY_PROGRAM2_IN, EMPTY_PROGRAM2_OUT, None),
                           (FUNCTION_IN, FUNCTION_OUT, Routine)])
 def test_generate_psyir(parser, code, expected, node_class):
     '''Test that generate_psyir generates PSyIR from an fparser2 parse
@@ -125,7 +128,8 @@ def test_generate_psyir(parser, code, expected, node_class):
     psyir = processor.generate_psyir(parse_tree)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, FileContainer)
-    assert isinstance(psyir.children[0], node_class)
+    if node_class:
+        assert isinstance(psyir.children[0], node_class)
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected
