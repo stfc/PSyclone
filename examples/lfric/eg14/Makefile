@@ -47,16 +47,6 @@ include $(PSYROOT)/examples/common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 testkern_w0_kernel_[0-9]_mod.f90
 
-kernels_redundant:
-	${PSYCLONE} -s ./acc_kernels_redundant.py \
-  ../code/helmholtz_solver_alg_mod.x90 \
-  -oalg /dev/null
-
-parallel_no_dm:
-	${PSYCLONE} -s ./acc_parallel.py -nodm \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null
-
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
@@ -82,6 +72,8 @@ transform:
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90
 
+# TODO #1724 - compilation currently fails because module name in use
+# statement needs correcting following ACCRoutineTrans of Kernel.
 compile: $(EXEC)
 
 run: compile
