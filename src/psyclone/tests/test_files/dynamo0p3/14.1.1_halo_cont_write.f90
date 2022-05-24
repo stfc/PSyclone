@@ -39,7 +39,7 @@ program halo_writers
 
   ! Description: single function specified in an invoke call checking that
   ! "halo_dirty" call is generated for a field on a continuous function
-  ! space with 'gh_write' access.
+  ! space with 'GH_WRITE' access.
   use field_mod,              only: field_type
   use testkern_write_any_mod, only: testkern_write_any_type
 

@@ -430,7 +430,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
 
 def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
     ''' Check that no halo-exchange call is added before a
-    kernel that has a field on any space with a 'gh_write' access. '''
+    kernel that has a field on any space with a 'GH_WRITE' access. '''
     config = Config.get()
     dyn_config = config.api_conf(API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
@@ -445,6 +445,7 @@ def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
     # The field that is written to should be marked as dirty.
     code = str(psy.gen)
     assert "CALL f1_proxy%set_dirty()\n" in code
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

@@ -84,9 +84,9 @@ def setup():
 
 def test_colour_trans_create_colours_loop(dist_mem):
     '''
-    Test the _create_colours_loop() method of Dynamo0p3ColourTrans.
+    Test the '_create_colours_loop()' method of Dynamo0p3ColourTrans.
     We test with and without distributed memory and for the case where
-    the kernel has a GH_WRITE access to a continuous field. (The latter
+    the kernel has a 'GH_WRITE' access to a continuous field. (The latter
     is a special case as it does not require a halo access.)
 
     '''
@@ -393,7 +393,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
     '''Test the colouring transformation for a loop containing a kernel that
-    has a GH_WRITE access for a field on a continuous space.
+    has a 'GH_WRITE' access for a field on a continuous space.
 
     '''
     psy, invoke = get_invoke("14.1.2_stencil_w2_write.f90", TEST_API,
@@ -404,7 +404,7 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
         ctrans.apply(loop)
     gen = str(psy.gen)
 
-    # The loop should not access the halo, irrespective of whether dm is
+    # The loop should not access the halo, irrespective of whether DM is
     # enabled.
     assert ("last_edge_cell_all_colours = "
             "mesh%get_last_edge_cell_all_colours()" in gen)

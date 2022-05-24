@@ -1506,12 +1506,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     Colouring in the LFRic (Dynamo 0.3) API is subject to the following rules:
 
-    * Only kernels which operate on CELL_COLUMNs and which increment a
-      continuous field require colouring. Kernels that update a discontinuous
-      field will cause this transformation to raise an exception. Kernels that
-      only write a continuous field also do not require colouring but are
+    * Only kernels which operate on 'CELL_COLUMN's and which increment a
+      field on a continuous function space require colouring. Kernels that
+      update a field on a discontinuous function space will cause this
+      transformation to raise an exception. Kernels that only write to a field
+      on a continuous function space also do not require colouring but are
       permitted.
-    * A kernel may have at most one field with 'INC' access.
+    * A kernel may have at most one field with 'GH_INC' access.
     * A separate colour map will be required for each field that is coloured
       (if an invoke contains >1 kernel call).
 

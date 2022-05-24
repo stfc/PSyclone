@@ -51,7 +51,7 @@ def test_colour_trans_str():
 
 def test_colour_trans_create_loop():
     '''
-    Test that the _create_colours_loop() method raises an
+    Test that the '_create_colours_loop()' method raises an
     InternalError.
 
     '''

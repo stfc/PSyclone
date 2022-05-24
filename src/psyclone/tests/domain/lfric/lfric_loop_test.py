@@ -121,7 +121,7 @@ def test_set_upper_bound_functions():
 
 
 def test_lower_bound_fortran_1():
-    '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    ''' Tests we raise an exception in the DynLoop:_lower_bound_fortran()
     method - first GenerationError.
 
     '''
@@ -160,7 +160,7 @@ def test_lower_bound_fortran_2(monkeypatch):
                           ("cell_halo", 1, "ncells_cell()"),
                           ("cell_halo", 10, "cell_halo_cell(9)")])
 def test_lower_bound_fortran_3(monkeypatch, name, index, output):
-    ''' Test _lower_bound_fortran() with multiple valid iteration spaces.
+    ''' Test '_lower_bound_fortran()' with multiple valid iteration spaces.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -175,7 +175,7 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
 
 
 def test_mesh_name():
-    ''' Tests for the _mesh_name property of DynLoop.
+    ''' Tests for the '_mesh_name' property of DynLoop.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -189,7 +189,7 @@ def test_mesh_name():
 
 
 def test_mesh_name_intergrid():
-    ''' Tests for the _mesh_name property of DynLoop.
+    ''' Tests for the '_mesh_name' property of DynLoop for an intergrid kernel.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -204,7 +204,7 @@ def test_mesh_name_intergrid():
 
 
 def test_upper_bound_fortran_1():
-    '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
+    ''' Tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used.
 
     '''
@@ -217,13 +217,12 @@ def test_upper_bound_fortran_1():
         with pytest.raises(GenerationError) as excinfo:
             _ = my_loop._upper_bound_fortran()
             assert (
-                "'{0}' is not a valid loop upper bound for sequential/"
-                "shared-memory code".format(option) in
-                str(excinfo.value))
+                f"'{option}' is not a valid loop upper bound for sequential/"
+                f"shared-memory code" in str(excinfo.value))
 
 
 def test_upper_bound_fortran_2(monkeypatch):
-    '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
+    ''' Tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method if an invalid value is provided.
 
     '''
@@ -247,7 +246,7 @@ def test_upper_bound_fortran_2(monkeypatch):
 
 def test_upper_bound_inner(monkeypatch):
     ''' Check that we get the correct Fortran generated if a loop's upper
-    bound is "inner".
+    bound is 'inner'.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -323,7 +322,7 @@ def test_upper_bound_ncolour_intergrid(dist_mem):
 
 
 def test_loop_start_expr(dist_mem):
-    ''' Test that the start_expr property returns the expected reference
+    ''' Test that the 'start_expr' property returns the expected reference
     to a symbol.
 
     '''
@@ -341,7 +340,7 @@ def test_loop_start_expr(dist_mem):
 
 
 def test_loop_stop_expr(dist_mem):
-    ''' Test the stop_expr property of a loop with and without colouring.
+    ''' Test the 'stop_expr' property of a loop with and without colouring.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -379,7 +378,7 @@ def test_loop_stop_expr(dist_mem):
 
 
 def test_loop_stop_expr_intergrid(dist_mem):
-    ''' Test the stop_expr property for a loop containing an
+    ''' Test the 'stop_expr' property for a loop containing an
     inter-grid kernel.
 
     '''
@@ -419,8 +418,8 @@ def test_loop_stop_expr_intergrid(dist_mem):
 
 
 def test_lfricloop_gen_code_err():
-    ''' Test that the gen_code method raises the expected exception if the loop
-    type is 'colours' and is within an OpenMP parallel region.
+    ''' Test that the 'gen_code' method raises the expected exception if the
+    loop type is 'colours' and is within an OpenMP parallel region.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -483,9 +482,9 @@ def test_dynloop_load_unexpected_func_space():
 
 
 def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
-    ''' Test that the load() method sets the loop bounds correctly when
+    ''' Test that the 'load()' method sets the loop bounds correctly when
     supplied with a Built-in kernel. We test with both possible settings of
-    api_config.compute_annexed_dofs.
+    'api_config.compute_annexed_dofs'.
 
     '''
     api_config = Config.get().api_conf(TEST_API)
@@ -508,7 +507,7 @@ def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
 
 
 def test_loop_load_bound_names_continuous(dist_mem):
-    ''' Test that the load() method sets the loop bounds names as
+    ''' Test that the 'load()' method sets the loop bounds names as
     expected when given a user-supplied kernel that updates fields on
     continuous function spaces.
 
@@ -549,7 +548,7 @@ def test_loop_load_bound_names_continuous(dist_mem):
 
 
 def test_loop_load_bound_names_anyspace(dist_mem):
-    ''' Test that the load() method sets the loop bounds names as
+    ''' Test that the 'load()' method sets the loop bounds names as
     expected when given a user-supplied kernel that updates fields on
     unknown ('any_space') function spaces.
 
@@ -876,7 +875,7 @@ def test_dynloop_halo_read_access_error2(monkeypatch):
 
 def test_null_loop():
     ''' Check that we can create a 'null'-type loop and that the validation
-    check in the load() method behaves as expected.
+    check in the 'load()' method behaves as expected.
 
     '''
     loop = DynLoop(loop_type="null")

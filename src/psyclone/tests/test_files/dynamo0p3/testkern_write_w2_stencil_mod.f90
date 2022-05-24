@@ -77,7 +77,7 @@ subroutine testkern_write_w2_stencil_code(nlayers,                              
   integer(kind=i_def), intent(in) :: map_w2_size, map_dx_stencil_size
   integer(kind=i_def), dimension(ndf_w2,map_w2_size), intent(in)  :: map_w2
   integer(kind=i_def), dimension(ndf_w2,map_dx_stencil_size), intent(in)  :: map_dx_stencil
-  integer(kind=i_def), dimension(ndf_w2),             intent(in)  :: cell_map_w2
+  integer(kind=i_def), dimension(ndf_w2),                     intent(in)  :: cell_map_w2
 
   real(kind=r_def), dimension(undf_w2),  intent(inout) :: u_inc
   real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n, dx_at_w2

@@ -4055,7 +4055,7 @@ class DynMeshes(object):
         for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
-            # invoke have been coloured and if so, whether the associated loop
+            # invoke have been coloured and, if so, whether the associated loop
             # goes into the halo.
             if (call.parent.parent.upper_bound_name in
                     const.HALO_ACCESS_LOOP_BOUNDS):
@@ -7094,7 +7094,7 @@ class DynLoop(Loop):
                       const.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
                     # unless the only arguments that are updated all have
-                    # GH_WRITE access. The only time such an access is
+                    # 'GH_WRITE' access. The only time such an access is
                     # permitted for a field on a continuous space is when the
                     # kernel is implemented such that any writes to a given
                     # shared dof are guaranteed to write the same value. There
@@ -7109,7 +7109,7 @@ class DynLoop(Loop):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is. Again, if the only arguments that are updated have
-                    # GH_WRITE access then we can relax this condition.
+                    # 'GH_WRITE' access then we can relax this condition.
                     if not kern.all_updates_are_writes:
                         self.set_upper_bound("cell_halo", index=1)
                     else:
@@ -8250,8 +8250,8 @@ class DynKern(CodedKern):
     @property
     def all_updates_are_writes(self):
         '''
-        :returns: true if all of the arguments updated by this kernel have \
-                  GH_WRITE access, false otherwise.
+        :returns: True if all of the arguments updated by this kernel have \
+                  'GH_WRITE' access, False otherwise.
         :rtype: bool
 
         '''
@@ -8261,9 +8261,7 @@ class DynKern(CodedKern):
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
-        if not accesses.intersection(set(all_writes)):
-            return True
-        return False
+        return (not accesses.intersection(set(all_writes)))
 
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one

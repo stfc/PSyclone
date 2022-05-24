@@ -338,7 +338,8 @@ the LFRic code. For more details please refer to the relevant
 ## Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading.
 
 This example shows the use of kernel with a ``GH_READINC`` access and
-a kernel with a ``GH_WRITE`` access, both for continuous fields. ``GH_READINC``
+a kernel with a ``GH_WRITE`` access, both for fields on continuous
+function spaces. ``GH_READINC``
 access indicates that a field is first read within a kernel and then
 subsequently incremented. The field must, therefore, be on a
 continuous function space. The only difference from a PSyclone code
