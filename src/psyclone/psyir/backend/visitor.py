@@ -42,7 +42,6 @@ back ends.
 '''
 
 import inspect
-import six
 
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node
@@ -178,11 +177,11 @@ class PSyIRVisitor(object):
         # pylint: disable=broad-except
         try:
             node_copy.lower_to_language_level()
-        except Exception as error:
-            six.raise_from(VisitorError(
+        except Exception as err:
+            raise VisitorError(
                 f"Failed to lower '{node}'. Note that some nodes need to be "
                 f"lowered from an ancestor in order to properly apply their "
-                f"in-tree modifications."), error)
+                f"in-tree modifications.") from err
 
         # Find again the equivalent node in the lowered tree in case that it
         # has been replaced
@@ -274,7 +273,7 @@ class PSyIRVisitor(object):
                 else:
                     # The method does exist but it has raised an
                     # attribute error so re-raise it here.
-                    six.raise_from(AttributeError(excinfo), excinfo)
+                    raise AttributeError(excinfo) from excinfo
 
         if self._skip_nodes:
             # We haven't found a handler for this node but '_skip_nodes' is

@@ -698,9 +698,9 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             # No symbol table found. This should never happen in
             # normal usage but could occur if a test constructs a
             # PSyIR without a Schedule.
-            six.raise_from(InternalError(
+            raise InternalError(
                 f"Failed to find a symbol table to which to add the kind "
-                f"symbol '{precision_name}'."), err)
+                f"symbol '{precision_name}'.") from err
         return _kind_find_or_create(precision_name, symbol_table)
 
 
@@ -752,8 +752,8 @@ def _process_access_spec(attr):
     try:
         return VISIBILITY_MAP_FROM_FORTRAN[attr.string.lower()]
     except KeyError as err:
-        six.raise_from(InternalError(f"Unexpected Access Spec attribute "
-                                     f"'{attr}'."), err)
+        raise InternalError(f"Unexpected Access Spec attribute "
+                            f"'{attr}'.") from err
 
 
 def _create_struct_reference(parent, base_ref, base_symbol, members,
@@ -1069,9 +1069,9 @@ class Fparser2Reader(object):
                     self.process_declarations(new_container, child.children,
                                               [], visibility_map)
                 except SymbolError as err:
-                    six.raise_from(SymbolError(
+                    raise SymbolError(
                         f"Error when generating Container for module "
-                        f"'{mod_name}': {err.args[0]}"), err)
+                        f"'{mod_name}': {err.args[0]}") from err
                 break
 
         return new_container
@@ -1269,10 +1269,10 @@ class Fparser2Reader(object):
                         # Lower bound defaults to 1 in Fortran
                         shape.append((one.copy(), upper))
                 except NotImplementedError as err:
-                    six.raise_from(NotImplementedError(
+                    raise NotImplementedError(
                         f"Could not process {dimensions}. Only scalar integer "
                         f"literals or symbols are supported for explicit-shape"
-                        f" array declarations."), err)
+                        f" array declarations.") from err
 
             elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
@@ -1691,7 +1691,7 @@ class Fparser2Reader(object):
                         message = (
                             f"Could not process {decl.items}. Unexpected "
                             f"intent attribute '{attr}'.")
-                        six.raise_from(InternalError(message), info)
+                        raise InternalError(message) from info
                 elif isinstance(attr,
                                 (Fortran2003.Dimension_Attr_Spec,
                                  Fortran2003.Dimension_Component_Attr_Spec)):
@@ -1701,9 +1701,9 @@ class Fparser2Reader(object):
                     try:
                         decln_access_spec = _process_access_spec(attr)
                     except InternalError as err:
-                        six.raise_from(InternalError(
-                            f"Could not process '{decl.items}': {err.value}"), 
-                            err)
+                        raise InternalError(
+                            f"Could not process '{decl.items}': "
+                            f"{err.value}") from err
                 else:
                     raise NotImplementedError(
                         f"Could not process declaration '{decl}'. Unrecognised"
@@ -2086,11 +2086,11 @@ class Fparser2Reader(object):
                                                         visibility=vis)
                     except SymbolError as err:
                         # Improve the error message with context-specific info
-                        six.raise_from(SymbolError(
+                        raise SymbolError(
                             f"'{name}' is listed in an accessibility "
                             f"statement as being '{vis}' but failed to find a "
                             f"declaration or possible import (use) of this "
-                            f"symbol."), err)
+                            f"symbol.") from err
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.

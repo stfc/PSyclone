@@ -37,8 +37,6 @@
 '''Contains the PSyData transformation.
 '''
 
-import six
-
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
@@ -257,10 +255,10 @@ class PSyDataTrans(RegionTrans):
                 # for any clashes with existing symbols.
                 try:
                     _ = table.lookup(name)
-                    raise six.raise_from(TransformationError(
+                    raise TransformationError(
                         f"Cannot add PSyData calls because there is already a "
                         f"symbol named '{name}' which clashes with one of "
-                        f"those used by the PSyclone PSyData API. "), err)
+                        f"those used by the PSyclone PSyData API. ") from err
                 except KeyError:
                     pass
 

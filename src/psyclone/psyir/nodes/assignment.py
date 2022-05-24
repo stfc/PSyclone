@@ -38,8 +38,6 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-import six
-
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
@@ -155,10 +153,9 @@ class Assignment(Statement):
             # An internal error typically indicates that the same variable
             # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
             # supported in PSyclone.
-            six.raise_from(
-                NotImplementedError(f"The variable '{self.lhs.name}' appears "
-                                    f"more than once on the left-hand side of "
-                                    f"an assignment."), err)
+            raise NotImplementedError(f"The variable '{self.lhs.name}' appears"
+                                      f" more than once on the left-hand side "
+                                      f"of an assignment.") from err
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the

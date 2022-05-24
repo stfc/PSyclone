@@ -161,11 +161,12 @@ class OMPTaskwaitTrans(Transformation):
                     valid = not ancestor.nowait
                 # If not valid, then we're in a Master Directive or a
                 # Single Directive with nowait. In this case we can't
-                # safely guarantee our forward dependency so throw an
-                # error
+                # safely guarantee our forward dependency so throw an error
                 if not valid:
                     fwr = FortranWriter()
                     # pylint: disable=cell-var-from-loop
+                    # Since "Backslashes may not appear inside the expression 
+                    # portions of f-strings" via PEP 498, use chr(10) for '\n'
                     raise TransformationError(LazyString(
                                 lambda: f"Couldn't satisfy the dependencies "
                                         f"due to taskloop dependencies across "
@@ -173,8 +174,7 @@ class OMPTaskwaitTrans(Transformation):
                                         f"Dependency is from\n"
                                         f"{fwr(taskloop).rstrip(chr(10))}"
                                         f"\nto\n"
-                                        f"{fwr(forward_dep).rstrip(chr(10))}")
-                                        )
+                                        f"{fwr(forward_dep).rstrip(chr(10))}"))
 
     @staticmethod
     def get_forward_dependence(taskloop, root):
@@ -250,6 +250,8 @@ class OMPTaskwaitTrans(Transformation):
         # Raise an error if there is no parent_parallel region
         if parent_parallel is None:
             fwriter = FortranWriter()
+            # Since "Backslashes may not appear inside the expression 
+            # portions of f-strings" via PEP 498, use chr(10) for '\n'
             raise InternalError(
                     LazyString(lambda: f"No parent parallel directive was "
                                        f"found for the taskloop region: "

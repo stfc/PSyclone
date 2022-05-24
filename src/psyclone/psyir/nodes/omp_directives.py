@@ -887,8 +887,8 @@ class OMPDoDirective(OMPRegionDirective):
         for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
-                reduction_str += f", reduction("\
-                         f"{OMP_OPERATOR_MAPPING[reduction_type]}:{reduction})"
+                reduction_str += (f", reduction("
+                        f"{OMP_OPERATOR_MAPPING[reduction_type]}:{reduction})")
         return reduction_str
 
     @property
@@ -969,7 +969,7 @@ class OMPDoDirective(OMPRegionDirective):
         # As we're a loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        options = f"schedule({self._omp_schedule})" + local_reduction_string
+        options = f"schedule({self._omp_schedule}){local_reduction_string}"
         parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
@@ -1242,7 +1242,7 @@ class OMPLoopDirective(OMPRegionDirective):
                     raise GenerationError(
                         f"OMPLoopDirective must have as many immediately "
                         f"nested loops as the collapse clause specifies but "
-                        f"'{self}' has a collpase={self._collapse} and the "
+                        f"'{self}' has a collapse={self._collapse} and the "
                         f"nested statement at depth {depth} is a "
                         f"{type(cursor).__name__} rather than a Loop.")
                 cursor = cursor.loop_body.children[0]

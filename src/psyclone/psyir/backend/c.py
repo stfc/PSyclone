@@ -42,8 +42,6 @@ Currently limited to just a few PSyIR nodes to support the OpenCL generation,
 it needs to be extended for generating pure C code.
 
 '''
-import six
-
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
@@ -141,10 +139,9 @@ class CWriter(LanguageWriter):
             intrinsic = symbol.datatype.intrinsic
             code = code + TYPE_MAP_TO_C[intrinsic] + " "
         except (AttributeError, KeyError) as err:
-            raise six.raise_from(NotImplementedError(
-                f"Could not generate the C definition for the variable "
-                f"'{symbol.name}', type '{symbol.datatype}' is currently not "
-                f"supported."), err)
+            raise NotImplementedError(
+                f"Could not generate C definition for variable '{symbol.name}'"
+                f", type '{symbol.datatype}' is not yet supported.") from err
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -319,9 +316,9 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
-            raise six.raise_from(NotImplementedError(
+            raise NotImplementedError(
                 f"The C backend does not support the '{node.operator}' "
-                f"operator."), err)
+                f"operator.") from err
 
         return formatter(opstring, self._visit(node.children[0]))
 
@@ -393,9 +390,9 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
-            raise six.raise_from(VisitorError(
+            raise VisitorError(
                 f"The C backend does not support the '{node.operator}' "
-                f"operator."), err)
+                f"operator.") from err
 
         return formatter(opstring,
                          self._visit(node.children[0]),

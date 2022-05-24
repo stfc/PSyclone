@@ -322,9 +322,9 @@ class Symbol(object):
         try:
             is_subclass = issubclass(subclass, self.__class__)
         except TypeError as info:
-            message = (f"The specialise method in '{self.name}' expects the "
-                       f"subclass argument to be a class.")
-            six.raise_from(TypeError(message), info)
+            raise TypeError(
+                f"The specialise method in '{self.name}' expects the "
+                f"subclass argument to be a class.") from info
         # pylint: disable = unidiomatic-typecheck
         if not is_subclass or type(self) is subclass:
             raise TypeError(
@@ -358,15 +358,15 @@ class Symbol(object):
             return module.container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
-            six.raise_from(SymbolError(
+            raise SymbolError(
                 f"Error trying to resolve the properties of symbol "
                 f"'{self.name}'. The interface points to module "
                 f"'{module.name}' but could not find the definition of "
-                f"'{self.name}' in that module."), kerr)
+                f"'{self.name}' in that module.") from kerr
         except SymbolError as err:
-            six.raise_from(SymbolError(
-                f"Error trying to resolve the properties of symbol "
-                f"'{self.name}' in module '{module.name}': {err.value}"), err)
+            raise SymbolError(
+              f"Error trying to resolve the properties of symbol "
+              f"'{self.name}' in module '{module.name}': {err.value}") from err
 
     def resolve_deferred(self):
         '''

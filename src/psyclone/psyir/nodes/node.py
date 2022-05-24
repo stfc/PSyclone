@@ -42,7 +42,6 @@ This module contains the abstract Node implementation.
 
 '''
 import copy
-import six
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
@@ -123,12 +122,12 @@ class ChildrenList(list):
             children for this list.
         '''
         if not self._validation_function(index, item):
-            errmsg = f"Item '{item.__class__.__name__}' can't be child "\
-                     f"{index} of "\
-                     f"'{self._node_reference.coloured_name(False)}'."
+            errmsg = (f"Item '{item.__class__.__name__}' can't be child "
+                      f"{index} of "
+                      f"'{self._node_reference.coloured_name(False)}'.")
             if self._validation_text == "<LeafNode>":
-                errmsg += f" {self._node_reference.coloured_name(False)} is "\
-                          f"a LeafNode and doesn't accept children."
+                errmsg += (f" {self._node_reference.coloured_name(False)} is "
+                           f"a LeafNode and doesn't accept children.")
             else:
                 errmsg += f" The valid format is: '{self._validation_text}'."
 
@@ -432,11 +431,10 @@ class Node(object):
             try:
                 return colored(name_string, self._colour)
             except KeyError as info:
-                message = (
+                raise InternalError(
                     f"The _colour attribute in class '{type(self).__name__}' "
                     f"has been set to a colour ('{self._colour}') that is not "
-                    f"supported by the termcolor package.")
-                six.raise_from(InternalError(message), info)
+                    f"supported by the termcolor package.") from info
         return name_string
 
     def node_str(self, colour=True):

@@ -36,7 +36,6 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
@@ -99,9 +98,9 @@ class FortranReader(object):
         try:
             parse_tree = Fortran2003.Expr(source_code)
         except NoMatchError as err:
-            six.raise_from(
-                ValueError(f"Supplied source does not represent a Fortran "
-                           f"expression: '{source_code}'"), err)
+            raise ValueError(
+                f"Supplied source does not represent a Fortran "
+                f"expression: '{source_code}'") from err
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -118,11 +117,10 @@ class FortranReader(object):
             # created as the parent.
             self._processor.process_nodes(fake_parent[0], [parse_tree])
         except SymbolError as err:
-            six.raise_from(
-                SymbolError(f"Expression '{source_code}' contains symbols "
-                            f"which are not present in any symbol table and "
-                            f"there are no wildcard imports which might be "
-                            f"bringing them into scope."), err)
+            raise SymbolError(f"Expression '{source_code}' contains symbols "
+                              f"which are not present in any symbol table and "
+                              f"there are no wildcard imports which might be "
+                              f"bringing them into scope.") from err
         return fake_parent[0].children[0].detach()
 
     def psyir_from_statement(self, source_code, symbol_table):

@@ -41,8 +41,6 @@ gen() method to generate Fortran.
 '''
 from __future__ import absolute_import
 
-import six
-
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
@@ -339,9 +337,9 @@ class SIRWriter(PSyIRVisitor):
         try:
             oper = binary_operators[node.operator]
         except KeyError as err:
-            six.raise_from(VisitorError(
+            raise VisitorError(
                 f"Method binaryoperation_node in class SIRWriter, unsupported "
-                f"operator '{node.operator}' found."), err)
+                f"operator '{node.operator}' found.") from err
         rhs = self._visit(node.children[1])
         self._depth -= 1
         result = f"{self._nindent}make_binary_operator(\n{lhs}"
@@ -413,9 +411,9 @@ class SIRWriter(PSyIRVisitor):
         try:
             datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
         except KeyError as err:
-            six.raise_from(VisitorError(
+            raise VisitorError(
                 f"PSyIR type '{node.datatype}' has no representation in the "
-                f"SIR backend."), err)
+                f"SIR backend.") from err
 
         return f"{self._nindent}make_literal_access_expr(\"{result}\", "\
                f"{datatype})"
@@ -441,9 +439,9 @@ class SIRWriter(PSyIRVisitor):
         try:
             oper = unary_operators[node.operator]
         except KeyError as err:
-            six.raise_from(VisitorError(
+            raise VisitorError(
                 f"Method unaryoperation_node in class SIRWriter, unsupported "
-                f"operator '{node.operator}' found."), err)
+                f"operator '{node.operator}' found.") from err
         if isinstance(node.children[0], Literal):
             # The unary minus operator is being applied to a
             # literal. This is a special case as the literal value can
