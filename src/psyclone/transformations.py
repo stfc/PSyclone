@@ -1400,6 +1400,7 @@ class ColourTrans(LoopTrans):
         :raises NotImplementedError: this method must be overridden in an \
                                      API-specific sub-class.
         '''
+        # pylint: disable=no-self-use
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
 

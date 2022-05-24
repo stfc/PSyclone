@@ -441,7 +441,7 @@ dofs are not correctly computed and therefore the outermost halo of
 the modified field is dirty after redundant computation. Since shared
 dofs for a field with ``GH_WRITE`` access are guaranteed to have the
 same, correct value written to them, independent of whether or not
-the current cell 'owns' them, there is no need to perform redundant
+the current cell "owns" them, there is no need to perform redundant
 computation in this case.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby

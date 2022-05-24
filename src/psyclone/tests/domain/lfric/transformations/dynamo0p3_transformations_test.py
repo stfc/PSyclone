@@ -90,9 +90,8 @@ def test_colour_trans_create_colours_loop(dist_mem):
     is a special case as it does not require a halo access.)
 
     '''
-    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                             name="invoke_0_testkern_type",
-                             dist_mem=dist_mem)
+    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                           name="invoke_0_testkern_type", dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
     loop = schedule.walk(Loop)[0]
@@ -393,8 +392,8 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
-    '''Test the colouring transformation for a loop containing a kernel that has
-    a GH_WRITE access for a field on a continuous space.
+    '''Test the colouring transformation for a loop containing a kernel that
+    has a GH_WRITE access for a field on a continuous space.
 
     '''
     psy, invoke = get_invoke("14.1.2_stencil_w2_write.f90", TEST_API,

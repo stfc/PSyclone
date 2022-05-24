@@ -262,7 +262,7 @@ def test_extract_node_position():
     assert extract_node[0].depth == dpth
 
 
-def test_extract_node_representation(capsys):
+def test_extract_node_representation():
     ''' Test that representation properties and methods of the ExtractNode
     class: view  and __str__ produce the correct results. '''
 

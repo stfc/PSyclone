@@ -8265,14 +8265,6 @@ class DynKern(CodedKern):
             return True
         return False
 
-    @property
-    def accesses_annexed_dofs(self):
-        '''
-        :returns: true if this kernel accesses annexed dofs, false otherwise.
-        :rtype: bool
-        '''
-        #TODO
-
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
