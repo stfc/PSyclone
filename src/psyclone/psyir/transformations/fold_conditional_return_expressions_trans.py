@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the FoldConditionalReturnExpressionsTrans. '''
 
@@ -98,9 +98,9 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         '''
         if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in {0} transformation. This transformation can only be "
-                "applied to 'Routine' nodes, but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. This transformation "
+                f"can only be applied to 'Routine' nodes, but found "
+                f"'{type(node).__name__}'.")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.

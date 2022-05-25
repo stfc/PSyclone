@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -75,9 +75,8 @@ class IfBlock(Statement):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "IfBlock with unrecognized annotation '{0}', valid "
-                        "annotations are: {1}.".format(
-                            annotation, IfBlock.valid_annotations))
+                        f"IfBlock with unknown annotation '{annotation}', "
+                        f"valid annotations are: {IfBlock.valid_annotations}.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -105,8 +104,8 @@ class IfBlock(Statement):
         '''
         if len(self.children) < 2:
             raise InternalError(
-                "IfBlock malformed or incomplete. It should have at least 2 "
-                "children, but found {0}.".format(len(self.children)))
+                f"IfBlock malformed or incomplete. It should have at least 2 "
+                f"children, but found {len(self.children)}.")
         return self._children[0]
 
     @property
@@ -120,8 +119,8 @@ class IfBlock(Statement):
         '''
         if len(self.children) < 2:
             raise InternalError(
-                "IfBlock malformed or incomplete. It should have at least 2 "
-                "children, but found {0}.".format(len(self.children)))
+                f"IfBlock malformed or incomplete. It should have at least 2 "
+                f"children, but found {len(self.children)}.")
 
         return self._children[1]
 

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -86,14 +86,14 @@ class Literal(DataNode):
         # Checks for the datatype
         if not isinstance(datatype, (ScalarType, ArrayType)):
             raise TypeError(
-                "The datatype of a Literal must be an instance of "
-                "psyir.symbols.ScalarType or psyir.symbols.ArrayType "
-                "but found '{0}'".format(type(datatype).__name__))
+                f"The datatype of a Literal must be an instance of "
+                f"psyir.symbols.ScalarType or psyir.symbols.ArrayType "
+                f"but found '{type(datatype).__name__}'")
 
         if not isinstance(value, six.string_types):
             raise TypeError(
-                "Literals must be supplied with a value encoded as a string "
-                "but found '{0}'".format(type(value).__name__))
+                f"Literals must be supplied with a value encoded as a string "
+                f"but found '{type(value).__name__}'")
 
         if not value and datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
             raise ValueError("A non-character literal value cannot be empty.")
@@ -102,15 +102,15 @@ class Literal(DataNode):
                 datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
                 value not in ("true", "false")):
             raise ValueError(
-                "A scalar boolean literal can only be: 'true' or "
-                "'false' but found '{0}'.".format(value))
+                f"A scalar boolean literal can only be: 'true' or "
+                f"'false' but found '{value}'.")
 
         if datatype.intrinsic == ScalarType.Intrinsic.REAL:
             if not re.match(Literal._real_value, value):
                 raise ValueError(
-                    "A scalar real literal value must conform to the "
-                    "supported format ('{0}') but found '{1}'."
-                    "".format(Literal._real_value, value))
+                    f"A scalar real literal value must conform to the "
+                    f"supported format ('{Literal._real_value}') but found "
+                    f"'{value}'.")
             # Ensure we always store any exponent with a lowercase 'e'
             self._value = value.replace("E", "e", 1)
         else:
@@ -158,6 +158,5 @@ class Literal(DataNode):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return "{0}[value:'{1}', {2}]".format(
-            self.coloured_name(colour),
-            self._value, str(self.datatype))
+        return f"{self.coloured_name(colour)}"\
+               f"[value:'{self._value}', {self.datatype}]"

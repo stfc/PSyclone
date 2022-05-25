@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 '''
 API-agnostic tests for OpenMP task transformation classes.
 '''
@@ -363,7 +363,7 @@ def test_omptaskwait_getforwarddep_invalid_type():
     loop = Loop()
     with pytest.raises(TransformationError) as excinfo:
         OMPTaskwaitTrans.get_forward_dependence(None, loop)
-    assert ("Expected the root of the tree in which to search for a forward "
+    assert ("Expected the root of the tree in which to look for a forward "
             "dependence to be an instance of OMPParallelDirective,"
             " but was supplied an instance of 'Loop'") in str(excinfo.value)
 
