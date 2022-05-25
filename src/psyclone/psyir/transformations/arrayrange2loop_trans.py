@@ -138,8 +138,8 @@ class ArrayRange2LoopTrans(Transformation):
                 f"'{len(array2.children)}' in the associated array 'array2'.")
         if not isinstance(array1.children[idx1], Range):
             raise TypeError(
-                f"The child of the first array argument at the specified index "
-                f"({idx1}) should be a Range node, but found "
+                f"The child of the first array argument at the specified index"
+                f" ({idx1}) should be a Range node, but found "
                 f"'{type(array1.children[idx1]).__name__}'.")
         if not isinstance(array2.children[idx2], Range):
             raise TypeError(
@@ -286,8 +286,8 @@ class ArrayRange2LoopTrans(Transformation):
 
         if not [dim for dim in node.lhs.children if isinstance(dim, Range)]:
             raise TransformationError(
-                f"Error in {self.name} transformation. The lhs of the supplied "
-                f"Assignment node should be a PSyIR ArrayReference with at "
+                f"Error in {self.name} transformation. The lhs of the supplied"
+                f" Assignment node should be a PSyIR ArrayReference with at "
                 f"least one of its dimensions being a Range, but found None "
                 f"in '{node.lhs}'.")
 

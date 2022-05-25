@@ -1890,8 +1890,8 @@ class Fparser2Reader(object):
                     f"Error processing definition of derived type '{name}'. "
                     f"The symbol table already contains a DataTypeSymbol with "
                     f"this name but it is of type "
-                    f"'{type(tsymbol.datatype).__name__}' when it should be of "
-                    f"'DeferredType'")
+                    f"'{type(tsymbol.datatype).__name__}' when it should be "
+                    f"of 'DeferredType'")
         else:
             # We don't already have an entry for this type so create one
             tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)

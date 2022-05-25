@@ -101,8 +101,8 @@ class ArrayOfStructuresMixin(ArrayMixin):
             if not self._validate_child(idx, child):
                 raise InternalError(
                     f"{type(self).__name__} malformed or incomplete: child "
-                    f"{idx} must represent an array-index expression but found "
-                    f"'{type(child).__name__}' instead of "
+                    f"{idx} must represent an array-index expression but "
+                    f"found '{type(child).__name__}' instead of "
                     f"psyir.nodes.DataNode or Range")
         return self._children[1:]
 

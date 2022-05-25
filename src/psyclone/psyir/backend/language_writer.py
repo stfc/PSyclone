@@ -232,8 +232,8 @@ class LanguageWriter(PSyIRVisitor):
         '''
         if len(node.children) < 2:
             raise VisitorError(
-                f"An ArrayOfStructuresReference must have at least two children"
-                f" but found {len(node.children)}")
+                f"An ArrayOfStructuresReference must have at least two "
+                f"children but found {len(node.children)}")
 
         if not isinstance(node.children[0], Member):
             raise VisitorError(

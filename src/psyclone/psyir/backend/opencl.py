@@ -223,9 +223,9 @@ class OpenCLWriter(CWriter):
                 ["'" + sym + "'" for sym in unresolved_datasymbols])
             raise VisitorError(
                 f"Cannot generate OpenCL because the symbol table contains "
-                f"unresolved data entries (i.e. that have no defined Interface)"
-                f" which are not used purely to define the precision of other "
-                f"symbols: {symbols_txt}")
+                f"unresolved data entries (i.e. that have no defined "
+                f"Interface) which are not used purely to define the "
+                f"precision of other symbols: {symbols_txt}")
 
         # Start OpenCL kernel definition
         code = self._nindent

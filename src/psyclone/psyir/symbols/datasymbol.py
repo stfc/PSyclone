@@ -229,7 +229,7 @@ class DataSymbol(TypedSymbol):
 
         '''
         if not isinstance(symbol_in, DataSymbol):
-            raise TypeError(f"Argument should be of type 'DataSymbol' but found"
-                            f" '{type(symbol_in).__name__}'.")
+            raise TypeError(f"Argument should be of type 'DataSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         super(DataSymbol, self).copy_properties(symbol_in)
         self._constant_value = symbol_in.constant_value

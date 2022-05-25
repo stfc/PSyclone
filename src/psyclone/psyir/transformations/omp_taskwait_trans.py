@@ -165,7 +165,7 @@ class OMPTaskwaitTrans(Transformation):
                 if not valid:
                     fwr = FortranWriter()
                     # pylint: disable=cell-var-from-loop
-                    # Since "Backslashes may not appear inside the expression 
+                    # Since "Backslashes may not appear inside the expression
                     # portions of f-strings" via PEP 498, use chr(10) for '\n'
                     raise TransformationError(LazyString(
                                 lambda: f"Couldn't satisfy the dependencies "
@@ -250,7 +250,7 @@ class OMPTaskwaitTrans(Transformation):
         # Raise an error if there is no parent_parallel region
         if parent_parallel is None:
             fwriter = FortranWriter()
-            # Since "Backslashes may not appear inside the expression 
+            # Since "Backslashes may not appear inside the expression
             # portions of f-strings" via PEP 498, use chr(10) for '\n'
             raise InternalError(
                     LazyString(lambda: f"No parent parallel directive was "

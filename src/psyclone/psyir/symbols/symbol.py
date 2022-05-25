@@ -187,8 +187,8 @@ class ArgumentInterface(SymbolInterface):
         '''
         if not isinstance(value, ArgumentInterface.Access):
             raise TypeError(
-                f"SymbolInterface.access must be an 'ArgumentInterface.Access' "
-                f"but got '{type(value).__name__}'.")
+                f"SymbolInterface.access must be an 'ArgumentInterface.Access'"
+                f" but got '{type(value).__name__}'.")
         self._access = value
 
     def __str__(self):
