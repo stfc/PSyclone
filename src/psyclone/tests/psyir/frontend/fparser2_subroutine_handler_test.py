@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, STFC Daresbury Lab
 #          A. R. Porter, STFC Daresbury Lab
+#          S. Siso, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -150,26 +151,26 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
 
     '''
     code = (
-        "module a\n"
-        "contains\n"
-        "  {0} function my_fUnc()\n"
-        "    my_Func = {1}\n"
-        "  end function my_func\n"
-        "end module\n".format(basic_type, rhs_val))
+        f"module a\n"
+        f"contains\n"
+        f"  {basic_type} function my_fUnc()\n"
+        f"    my_Func = {rhs_val}\n"
+        f"  end function my_func\n"
+        f"end module\n")
     expected = (
-        "module a\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  public :: my_func\n\n"
-        "  contains\n"
-        "  function my_fUnc()\n"
-        "    {0} :: my_fUnc\n"
-        "\n"
-        "    my_fUnc = {1}\n"
-        "\n"
-        "  end function my_fUnc\n"
-        "\n"
-        "end module a\n".format(basic_type, rhs_val))
+        f"module a\n"
+        f"  implicit none\n"
+        f"  public\n\n"
+        f"  public :: my_func\n\n"
+        f"  contains\n"
+        f"  function my_fUnc()\n"
+        f"    {basic_type} :: my_fUnc\n"
+        f"\n"
+        f"    my_fUnc = {rhs_val}\n"
+        f"\n"
+        f"  end function my_fUnc\n"
+        f"\n"
+        f"end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir, FileContainer)
     module = psyir.children[0]
@@ -181,6 +182,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
+    # Also check that the "own_routine_symbol" tag is maintained
+    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
+        is return_sym
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
