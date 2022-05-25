@@ -258,12 +258,12 @@ class SIRWriter(PSyIRVisitor):
         result += f"{exec_statements}\n"
         # The file name is hard coded at the moment.
         result += (self._nindent + "hir = make_sir(stencil_name+\".cpp\", "
-                  "AST.GridType.Value(\"Cartesian\"), [\n"
-                 + self._nindent + self._indent + "make_stencil(\n"
-                 + self._nindent + self._indent * 2 + "stencil_name,\n"
-                 + self._nindent + self._indent * 2
-                 + "make_ast(vertical_region_fns),\n"
-                 + self._nindent + self._indent * 2 + "[")
+                   "AST.GridType.Value(\"Cartesian\"), [\n"
+                   + self._nindent + self._indent + "make_stencil(\n"
+                   + self._nindent + self._indent * 2 + "stencil_name,\n"
+                   + self._nindent + self._indent * 2
+                   + "make_ast(vertical_region_fns),\n"
+                   + self._nindent + self._indent * 2 + "[")
         functions = []
         for name in self._field_names:
             functions.append(

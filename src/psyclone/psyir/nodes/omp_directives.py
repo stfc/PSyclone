@@ -741,9 +741,8 @@ class OMPTaskloopDirective(OMPRegionDirective):
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). A taskloop
-        # directive, we must have an OMPSerialDirective as an
-        # ancestor back up the tree.
+        # can apply transformations to the code). A taskloop directive, we must
+        # have an OMPSerialDirective as an ancestor back up the tree.
         if not self.ancestor(OMPSerialDirective):
             raise GenerationError(
                 "OMPTaskloopDirective must be inside an OMP Serial region "
@@ -888,7 +887,8 @@ class OMPDoDirective(OMPRegionDirective):
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
                 reduction_str += (f", reduction("
-                        f"{OMP_OPERATOR_MAPPING[reduction_type]}:{reduction})")
+                                  f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
+                                  f"{reduction})")
         return reduction_str
 
     @property
