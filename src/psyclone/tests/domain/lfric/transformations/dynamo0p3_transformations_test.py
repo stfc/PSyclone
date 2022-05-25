@@ -392,7 +392,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
-    '''Test the colouring transformation for a loop containing a kernel that
+    ''' Test the colouring transformation for a loop containing a kernel that
     has a 'GH_WRITE' access for a field on a continuous space.
 
     '''
