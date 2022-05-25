@@ -42,10 +42,10 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
 from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
-                                    SymbolTable, ContainerSymbol,
+                                    SymbolTable, ContainerSymbol, ScalarType,
                                     DeferredType, StructureType, RoutineSymbol,
                                     ImportInterface, UnresolvedInterface,
-                                    ArgumentInterface, INTEGER_TYPE)
+                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
 
 
 def test_gen_decls(fortran_writer):
@@ -146,6 +146,30 @@ def test_gen_decls_imported_dep(fortran_reader, fortran_writer):
     result = fortran_writer.gen_decls(table)
     assert result == ("integer, parameter :: fbdp = wp\n"
                       "integer, parameter :: obdp = rdef\n")
+
+
+def test_gen_decls_kind_dep(fortran_writer):
+    ''' Check that symbols defining precision are accounted for when
+    allowing for dependencies between declarations. '''
+    table = SymbolTable()
+    rdef_sym = DataSymbol("r_def", INTEGER_TYPE,
+                          constant_value=Literal("4", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE,
+                        constant_value=Reference(rdef_sym))
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
+    var_sym = DataSymbol("var", rdef_type,
+                         constant_value=Literal("1.0", rdef_type))
+    var2_sym = DataSymbol("var2", REAL_TYPE,
+                          constant_value=Literal("1.0", rdef_type))
+    table.add(var2_sym)
+    table.add(var_sym)
+    table.add(wp_sym)
+    table.add(rdef_sym)
+    result = fortran_writer.gen_decls(table)
+    assert result == ("integer, parameter :: r_def = 4\n"
+                      "integer, parameter :: wp = r_def\n"
+                      "real, parameter :: var2 = 1.0_wp\n"
+                      "real(kind=wp), parameter :: var = 1.0_wp\n")
 
 
 def test_gen_decls_nested_scope(fortran_writer):
