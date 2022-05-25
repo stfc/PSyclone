@@ -61,6 +61,9 @@
 	20) PR #1703 for #1689. Fix stencil depth bug in LFRic halo exchange
 	when a discontinuous writer follows a discontinuous stencil reader.
 
+	21) PR #1608 towards #1542. Allow GH_WRITE access for fields on
+	continuous function spaces in LFRic API.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
