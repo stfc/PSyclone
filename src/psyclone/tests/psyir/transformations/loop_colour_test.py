@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,20 +30,42 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+# ----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-include ../../common.mk
+''' pytest tests for the ColourTrans transformation. '''
 
-.PHONY: vanilla compile run
+import pytest
 
-transform: vanilla
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Loop, Literal
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.transformations import ColourTrans
 
-vanilla:
-	${PSYCLONE} -d ./ -d ../code advection_alg_mod.x90
 
-compile: transform
-	@echo "No compilation supported for lfric/eg18"
+def test_colour_trans_str():
+    ''' Test the __str__ property of the class. '''
+    ctrans = ColourTrans()
+    assert str(ctrans) == "Split a loop into colours"
 
-run: compile
-	@echo "No run targets for lfric/eg18"
+
+def test_colour_trans_create_loop():
+    '''
+    Test that the '_create_colours_loop()' method raises an
+    InternalError.
+
+    '''
+    ctrans = ColourTrans()
+    with pytest.raises(InternalError) as err:
+        ctrans._create_colours_loop(None)
+    assert ("_create_colours_loop() must be overridden in an API-specific "
+            "sub-class" in str(err.value))
+    # Check that apply() also calls _create_colours_loop().
+    with pytest.raises(InternalError) as err:
+        ctrans.apply(Loop.create(DataSymbol("ji", INTEGER_TYPE),
+                                 Literal("1", INTEGER_TYPE),
+                                 Literal("10", INTEGER_TYPE),
+                                 Literal("1", INTEGER_TYPE),
+                                 []))
+    assert ("_create_colours_loop() must be overridden in an API-specific "
+            "sub-class" in str(err.value))
