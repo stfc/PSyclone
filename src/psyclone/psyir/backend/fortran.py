@@ -867,7 +867,54 @@ class FortranWriter(LanguageWriter):
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.
 
-        # 1: Argument variable declarations
+        # 1: Local constants.
+        from psyclone.psyir.tools import DependencyTools
+        from psyclone.core import Signature
+        dtools = DependencyTools()
+        local_constants = [sym for sym in symbol_table.local_datasymbols if
+                           sym.is_constant]
+        # There may be dependencies between these constants so setup a dict
+        # listing the required inputs for each one.
+        decln_inputs = {}
+        for symbol in local_constants:
+            decln_inputs[symbol.name] = set()
+            input_sigs = dtools.get_input_parameters(symbol.constant_value)
+            # Remove any 'inputs' that are not local since these do not affect
+            # the ordering of local declarations.
+            for sig in input_sigs:
+                if sig.is_structure:
+                    raise VisitorError(
+                        f"Found a parameter declaration ('{sig}') with a "
+                        f"derived type on the RHS. This is not supported.")
+                try:
+                    sym = symbol_table.lookup(sig.var_name)
+                    if sym in local_constants:
+                        decln_inputs[symbol.name].add(sig)
+                except KeyError:
+                    # Symbol is not in symbol table so must be imported and
+                    # therefore doesn't affect declaration ordering.
+                    continue
+        # We now iterate over the declarations, declaring those that have their
+        # inputs satisfied.
+        assigned = set()
+        while local_constants:
+            for symbol in local_constants[:]:
+                inputs = decln_inputs[symbol.name]
+                if not inputs or inputs.issubset(assigned):
+                    # All inputs are satisfied so this declaration can be added
+                    assigned.add(Signature(symbol.name))
+                    declarations += self.gen_vardecl(
+                        symbol, include_visibility=is_module_scope)
+                    local_constants.remove(symbol)
+                    break
+            else:
+                # We looped through all of the variables remaining to be
+                # declared and none had their dependencies satisfied.
+                raise VisitorError(
+                    f"Unable to satisfy dependencies for the declarations of "
+                    f"{[sym.name for sym in local_constants]}")
+
+        # 2: Argument variable declarations
         if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
@@ -875,13 +922,6 @@ class FortranWriter(LanguageWriter):
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
         for symbol in symbol_table.argument_datasymbols:
-            declarations += self.gen_vardecl(
-                symbol, include_visibility=is_module_scope)
-
-        # 2: Local constants.
-        local_constants = [sym for sym in symbol_table.local_datasymbols if
-                           sym.is_constant]
-        for symbol in local_constants:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 
