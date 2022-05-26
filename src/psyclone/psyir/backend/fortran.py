@@ -369,7 +369,9 @@ class FortranWriter(LanguageWriter):
                           Fparser2Reader.nary_operators)
 
         # Create and store a DependencyTools instance for use when ordering
-        # parameter declarations.
+        # parameter declarations. Have to import it here as DependencyTools
+        # also uses this Fortran backend.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
         self._dep_tools = DependencyTools(language_writer=self)
 
@@ -837,13 +839,8 @@ class FortranWriter(LanguageWriter):
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations.
             for sig in input_sigs:
-                try:
-                    if symbol_table.lookup(sig.var_name) in local_constants:
-                        decln_inputs[symbol.name].add(sig)
-                except KeyError:
-                    # Symbol is not in symbol table so must be imported and
-                    # therefore doesn't affect declaration ordering.
-                    continue
+                if symbol_table.lookup(sig.var_name) in local_constants:
+                    decln_inputs[symbol.name].add(sig)
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes
         # that symbol as a dependence from any outstanding declarations.
@@ -851,7 +848,7 @@ class FortranWriter(LanguageWriter):
         while local_constants:
             for symbol in local_constants[:]:
                 inputs = decln_inputs[symbol.name]
-                if not inputs or inputs.issubset(declared):
+                if inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
                     declared.add(Signature(symbol.name))
                     local_constants.remove(symbol)

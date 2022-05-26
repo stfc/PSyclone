@@ -48,6 +48,76 @@ from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
                                     ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
 
 
+def test_gen_param_decls_dependencies(fortran_writer):
+    ''' Test that dependencies between parameter declarations are handled. '''
+    symbol_table = SymbolTable()
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
+                         constant_value=Literal("8", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE,
+                        constant_value=Reference(rlg_sym))
+    var_sym = DataSymbol("var", INTEGER_TYPE,
+                         constant_value=BinaryOperation.create(
+                             BinaryOperation.Operator.ADD,
+                             Reference(rlg_sym), Reference(wp_sym)))
+    symbol_table.add(var_sym)
+    symbol_table.add(wp_sym)
+    symbol_table.add(rlg_sym)
+    result = fortran_writer._gen_parameter_decls(symbol_table)
+    assert (result == "integer, parameter :: rlg = 8\n"
+                      "integer, parameter :: wp = rlg\n"
+                      "integer, parameter :: var = rlg + wp\n")
+    # Check that an (invalid, obviously) circular dependency is handled.
+    # Replace "rlg" with a new one that depends on "wp".
+    del symbol_table._symbols[rlg_sym.name]
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
+                         constant_value=Reference(wp_sym))
+    symbol_table.add(rlg_sym)
+    with pytest.raises(VisitorError) as err:
+        fortran_writer._gen_parameter_decls(symbol_table)
+    assert ("Unable to satisfy dependencies for the declarations of ['var', "
+            "'wp', 'rlg']" in str(err.value))
+
+
+def test_gen_param_decls_imported_dep(fortran_reader, fortran_writer):
+    ''' Check that the dependency handling doesn't generate a false positive
+    for a dependence on an imported symbol. '''
+    code = ("program my_prog\n"
+            "  use my_kinds_mod\n"
+            "  use other_kinds_mod, only: rdef\n"
+            "  integer, parameter :: fbdp = wp\n"
+            "  integer, parameter :: obdp = rdef\n"
+            "end program my_prog\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    table = psyir.walk(Routine)[0].symbol_table
+    result = fortran_writer._gen_parameter_decls(table)
+    assert result == ("integer, parameter :: fbdp = wp\n"
+                      "integer, parameter :: obdp = rdef\n")
+
+
+def test_gen_param_decls_kind_dep(fortran_writer):
+    ''' Check that symbols defining precision are accounted for when
+    allowing for dependencies between parameter declarations. '''
+    table = SymbolTable()
+    rdef_sym = DataSymbol("r_def", INTEGER_TYPE,
+                          constant_value=Literal("4", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE,
+                        constant_value=Reference(rdef_sym))
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
+    var_sym = DataSymbol("var", rdef_type,
+                         constant_value=Literal("1.0", rdef_type))
+    var2_sym = DataSymbol("var2", REAL_TYPE,
+                          constant_value=Literal("1.0", rdef_type))
+    table.add(var2_sym)
+    table.add(var_sym)
+    table.add(wp_sym)
+    table.add(rdef_sym)
+    result = fortran_writer._gen_parameter_decls(table)
+    assert result == ("integer, parameter :: r_def = 4\n"
+                      "integer, parameter :: wp = r_def\n"
+                      "real, parameter :: var2 = 1.0_wp\n"
+                      "real(kind=wp), parameter :: var = 1.0_wp\n")
+
+
 def test_gen_decls(fortran_writer):
     '''Check the FortranWriter class gen_decls method produces the
     expected declarations. Also check that an exception is raised if
@@ -100,76 +170,6 @@ def test_gen_decls(fortran_writer):
             "from a module and there are no wildcard "
             "imports which could be bringing them into scope: "
             "'unknown'" in str(excinfo.value))
-
-
-def test_gen_decls_dependencies(fortran_writer):
-    ''' Test that dependencies between declarations are handled. '''
-    symbol_table = SymbolTable()
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Literal("8", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rlg_sym))
-    var_sym = DataSymbol("var", INTEGER_TYPE,
-                         constant_value=BinaryOperation.create(
-                             BinaryOperation.Operator.ADD,
-                             Reference(rlg_sym), Reference(wp_sym)))
-    symbol_table.add(var_sym)
-    symbol_table.add(wp_sym)
-    symbol_table.add(rlg_sym)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer, parameter :: rlg = 8\n"
-                      "integer, parameter :: wp = rlg\n"
-                      "integer, parameter :: var = rlg + wp\n")
-    # Check that an (invalid, obviously) circular dependency is handled.
-    # Replace "rlg" with a new one that depends on "wp".
-    del symbol_table._symbols[rlg_sym.name]
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Reference(wp_sym))
-    symbol_table.add(rlg_sym)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_decls(symbol_table)
-    assert ("Unable to satisfy dependencies for the declarations of ['var', "
-            "'wp', 'rlg']" in str(err.value))
-
-
-def test_gen_decls_imported_dep(fortran_reader, fortran_writer):
-    ''' Check that the dependency handling doesn't generate a false positive
-    for a dependence on an imported symbol. '''
-    code = ("program my_prog\n"
-            "use my_kinds_mod\n"
-            "use other_kinds_mod, only: rdef\n"
-            "INTEGER, PARAMETER :: fbdp = wp\n"
-            "INTEGER, PARAMETER :: obdp = rdef\n"
-            "end program my_prog\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    table = psyir.walk(Routine)[0].symbol_table
-    result = fortran_writer.gen_decls(table)
-    assert result == ("integer, parameter :: fbdp = wp\n"
-                      "integer, parameter :: obdp = rdef\n")
-
-
-def test_gen_decls_kind_dep(fortran_writer):
-    ''' Check that symbols defining precision are accounted for when
-    allowing for dependencies between declarations. '''
-    table = SymbolTable()
-    rdef_sym = DataSymbol("r_def", INTEGER_TYPE,
-                          constant_value=Literal("4", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rdef_sym))
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
-    var_sym = DataSymbol("var", rdef_type,
-                         constant_value=Literal("1.0", rdef_type))
-    var2_sym = DataSymbol("var2", REAL_TYPE,
-                          constant_value=Literal("1.0", rdef_type))
-    table.add(var2_sym)
-    table.add(var_sym)
-    table.add(wp_sym)
-    table.add(rdef_sym)
-    result = fortran_writer.gen_decls(table)
-    assert result == ("integer, parameter :: r_def = 4\n"
-                      "integer, parameter :: wp = r_def\n"
-                      "real, parameter :: var2 = 1.0_wp\n"
-                      "real(kind=wp), parameter :: var = 1.0_wp\n")
 
 
 def test_gen_decls_nested_scope(fortran_writer):
