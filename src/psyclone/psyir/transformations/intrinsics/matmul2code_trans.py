@@ -138,11 +138,11 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         do i=1,N
             R(i) = 0.0
-                do j=1,M
-                    R(i) = R(i) + A(i,j) * B(j)
+            do j=1,M
+                R(i) = R(i) + A(i,j) * B(j)
 
     For a matrix-matrix multiplication, if the dimensions of ``R``, ``A``,
-    and ``B`` are ``R(P,M)``, ``A(N,M)``, ``B(P,N)``, the MATMUL is replaced
+    and ``B`` are ``R(P,M)``, ``A(P,N)``, ``B(N,M)``, the MATMUL is replaced
     with the following code:
 
     .. code-block:: fortran
