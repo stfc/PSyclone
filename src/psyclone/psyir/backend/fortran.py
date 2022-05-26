@@ -808,8 +808,8 @@ class FortranWriter(LanguageWriter):
         :returns: Fortran code declaring all parameters.
         :rtype: str
 
-        :raises VisitorError: if a parameter declaration involving a derived \
-            type is encountered.
+        :raises VisitorError: if there is no way of resolving \
+                              interdependencies between parameter declarations.
 
         '''
         declarations = ""
@@ -837,30 +837,26 @@ class FortranWriter(LanguageWriter):
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations.
             for sig in input_sigs:
-                if sig.is_structure:
-                    raise VisitorError(
-                        f"Found a parameter declaration ('{sig}') with a "
-                        f"derived type on the RHS. This is not supported.")
                 try:
-                    sym = symbol_table.lookup(sig.var_name)
-                    if sym in local_constants:
+                    if symbol_table.lookup(sig.var_name) in local_constants:
                         decln_inputs[symbol.name].add(sig)
                 except KeyError:
                     # Symbol is not in symbol table so must be imported and
                     # therefore doesn't affect declaration ordering.
                     continue
         # We now iterate over the declarations, declaring those that have their
-        # inputs satisfied.
-        assigned = set()
+        # inputs satisfied. Creating a declaration for a given symbol removes
+        # that symbol as a dependence from any outstanding declarations.
+        declared = set()
         while local_constants:
             for symbol in local_constants[:]:
                 inputs = decln_inputs[symbol.name]
-                if not inputs or inputs.issubset(assigned):
+                if not inputs or inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
-                    assigned.add(Signature(symbol.name))
+                    declared.add(Signature(symbol.name))
+                    local_constants.remove(symbol)
                     declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)
-                    local_constants.remove(symbol)
                     break
             else:
                 # We looped through all of the variables remaining to be
