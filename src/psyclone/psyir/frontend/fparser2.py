@@ -30,16 +30,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
+#          I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
     Visitor Pattern to traverse relevant fparser2 nodes and contains the logic
     to transform each node into the equivalent PSyIR representation.'''
 
-from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
@@ -1017,6 +1016,7 @@ class Fparser2Reader(object):
                 f"The Fparser2Reader generate_psyir method expects the root "
                 f"of the supplied fparser2 tree to be a Program, but found "
                 f"'{type(parse_tree).__name__}'")
+
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
@@ -2281,9 +2281,10 @@ class Fparser2Reader(object):
         # We don't support statements with labels.
         if isinstance(child, BlockBase):
             # An instance of BlockBase describes a block of code (no surprise
-            # there), so we have to examine the first statement within it.
-            if (child.content and child.content[0].item and
-                    child.content[0].item.label):
+            # there), so we have to examine the first statement within it. We
+            # must allow for the case where the block is empty though.
+            if (child.content and child.content[0] and
+                    child.content[0].item and child.content[0].item.label):
                 raise NotImplementedError()
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
@@ -4031,6 +4032,9 @@ class Fparser2Reader(object):
         # one) so this can't be provided as the name of the
         # FileContainer.
         file_container = FileContainer("None", parent=parent)
+        if len(node.children) == 1 and node.children[0] is None:
+            # We have an empty file
+            return file_container
         self.process_nodes(file_container, node.children)
         return file_container
 
