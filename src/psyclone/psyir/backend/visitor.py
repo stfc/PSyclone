@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
 # Modified: J. Henrichs, Bureau of Meteorology
-#           A. R. Porter, STFC Daresbury Lab
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 
 '''Generic PSyIR visitor code that can be specialised by different
@@ -42,7 +42,6 @@ back ends.
 '''
 
 import inspect
-import six
 
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node
@@ -87,24 +86,24 @@ class PSyIRVisitor(object):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
-                "skip_nodes should be a boolean but found '{0}'."
-                "".format(type(skip_nodes).__name__))
+                f"skip_nodes should be a boolean but found "
+                f"'{type(skip_nodes).__name__}'.")
         if not isinstance(indent_string, str):
             raise TypeError(
-                "indent_string should be a str but found '{0}'."
-                "".format(type(indent_string).__name__))
+                f"indent_string should be a str but found "
+                f"'{type(indent_string).__name__}'.")
         if not isinstance(initial_indent_depth, int):
             raise TypeError(
-                "initial_indent_depth should be an integer but found '{0}'."
-                "".format(type(initial_indent_depth).__name__))
+                f"initial_indent_depth should be an integer but found "
+                f"'{type(initial_indent_depth).__name__}'.")
         if initial_indent_depth < 0:
             raise TypeError(
-                "initial_indent_depth should not be negative, but found '{0}'."
-                "".format(initial_indent_depth))
+                f"initial_indent_depth should not be negative, but found "
+                f"'{initial_indent_depth}'.")
         if not isinstance(check_global_constraints, bool):
-            raise TypeError("check_global_constraints should be a boolean but "
-                            "found '{0}'.".format(
-                                type(check_global_constraints).__name__))
+            raise TypeError(f"check_global_constraints should be a boolean "
+                            f"but found "
+                            f"'{type(check_global_constraints).__name__}'.")
 
         self._skip_nodes = skip_nodes
         self._indent = indent_string
@@ -129,8 +128,7 @@ class PSyIRVisitor(object):
         '''
         if node.children:
             raise VisitorError(
-                "Expecting a Reference with no children but found: {0}"
-                "".format(str(node)))
+                f"Expecting a Reference with no children but found: {node}")
         return node.name
 
     @property
@@ -161,8 +159,8 @@ class PSyIRVisitor(object):
         '''
         if not isinstance(node, Node):
             raise TypeError(
-                "The PSyIR visitor functor method only accepts a PSyIR Node "
-                "as argument, but found '{0}'.".format(type(node).__name__))
+                f"The PSyIR visitor functor method only accepts a PSyIR Node "
+                f"as argument, but found '{type(node).__name__}'.")
 
         # The visitor must not alter the provided node but if there are any
         # DSL concepts then these will need to be lowered in-place and this
@@ -179,11 +177,11 @@ class PSyIRVisitor(object):
         # pylint: disable=broad-except
         try:
             node_copy.lower_to_language_level()
-        except Exception as error:
-            six.raise_from(VisitorError(
-                "Failed to lower '{0}'. Note that some nodes need to be "
-                "lowered from an ancestor in order to properly apply their "
-                "in-tree modifications.".format(node)), error)
+        except Exception as err:
+            raise VisitorError(
+                f"Failed to lower '{node}'. Note that some nodes need to be "
+                f"lowered from an ancestor in order to properly apply their "
+                f"in-tree modifications.") from err
 
         # Find again the equivalent node in the lowered tree in case that it
         # has been replaced
@@ -216,8 +214,8 @@ class PSyIRVisitor(object):
         # pylint: disable=too-many-branches
         if not isinstance(node, Node):
             raise VisitorError(
-                "Expected argument to be of type 'Node' but found '{0}'."
-                "".format(type(node).__name__))
+                f"Expected argument to be of type 'Node' but found "
+                f"'{type(node).__name__}'.")
 
         # Check global constraints for this node (if validation enabled).
         if self._validate_nodes:
@@ -235,7 +233,7 @@ class PSyIRVisitor(object):
         for method_name in possible_method_names:
             try:
                 # pylint: disable=eval-used
-                node_result = eval("self.{0}(node)".format(method_name))
+                node_result = eval(f"self.{method_name}(node)")
 
                 # We can only proceed to add comments if the Visitor
                 # returned a string, otherwise we just return
@@ -257,11 +255,10 @@ class PSyIRVisitor(object):
                     if node.inline_comment and self._COMMENT_PREFIX:
                         if result[-1] != "\n":
                             raise VisitorError(
-                                "An inline_comment can only be added to a "
-                                "construct that finishes with a '\\n', "
-                                "indicating that the line has ended, but"
-                                " node '{0}' results in '{1}'."
-                                "".format(node, result))
+                                f"An inline_comment can only be added to a "
+                                f"construct that finishes with a '\\n', "
+                                f"indicating that the line has ended, but"
+                                f" node '{node}' results in '{result}'.")
                         # Add the comment before the last line break
                         result = (result[:-1] + "  " + self._COMMENT_PREFIX +
                                   node.inline_comment + "\n")
@@ -269,14 +266,14 @@ class PSyIRVisitor(object):
                 return result
 
             except AttributeError as excinfo:
-                if "attribute '{0}'".format(method_name) in str(excinfo):
+                if f"attribute '{method_name}'" in str(excinfo):
                     # This attribute error is because the method that
                     # was tried does not exist.
                     pass
                 else:
                     # The method does exist but it has raised an
                     # attribute error so re-raise it here.
-                    six.raise_from(AttributeError(excinfo), excinfo)
+                    raise AttributeError(excinfo) from excinfo
 
         if self._skip_nodes:
             # We haven't found a handler for this node but '_skip_nodes' is
@@ -287,8 +284,8 @@ class PSyIRVisitor(object):
             return "".join(results)
 
         raise VisitorError(
-            "Unsupported node '{0}' found: method names attempted were "
-            "{1}.".format(type(node).__name__, str(possible_method_names)))
+            f"Unsupported node '{type(node).__name__}' found: method names "
+            f"attempted were {possible_method_names}.")
 
 
 # For AutoAPI documentation generation

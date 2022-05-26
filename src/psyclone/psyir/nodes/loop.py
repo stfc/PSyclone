@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
@@ -95,9 +95,9 @@ class Loop(Statement):
             if 'was_single_stmt' in annotations and \
                'was_where' not in annotations:
                 raise InternalError(
-                    "A Loop with the 'was_single_stmt' annotation "
-                    "must also have the 'was_where' annotation but"
-                    " got: {0}".format(annotations))
+                    f"A Loop with the 'was_single_stmt' annotation "
+                    f"must also have the 'was_where' annotation but"
+                    f" got: {annotations}")
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -161,16 +161,16 @@ class Loop(Statement):
         '''
         if not isinstance(variable, DataSymbol):
             raise GenerationError(
-                "variable property in Loop class should be a DataSymbol but "
-                "found '{0}'.".format(type(variable).__name__))
+                f"variable property in Loop class should be a DataSymbol but "
+                f"found '{type(variable).__name__}'.")
         if not isinstance(variable.datatype, ScalarType):
             raise GenerationError(
-                "variable property in Loop class should be a ScalarType but "
-                "found '{0}'.".format(type(variable.datatype).__name__))
+                f"variable property in Loop class should be a ScalarType but "
+                f"found '{type(variable.datatype).__name__}'.")
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
             raise GenerationError(
-                "variable property in Loop class should be a scalar integer "
-                "but found '{0}'.".format(variable.datatype.intrinsic.name))
+                f"variable property in Loop class should be a scalar integer "
+                f"but found '{variable.datatype.intrinsic.name}'.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -219,9 +219,8 @@ class Loop(Statement):
 
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of Loop class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of Loop class "
+                f"should be a list but found '{type(children).__name__}'.")
 
         loop = Loop(variable=variable)
         schedule = Schedule(parent=loop, children=children)
@@ -239,9 +238,9 @@ class Loop(Statement):
         # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
-                "Loop is incomplete. It should have exactly 4 "
-                "children, but found loop with '{0}'.".format(
-                    ", ".join([str(child) for child in self.children])))
+                f"Loop is incomplete. It should have exactly 4 "
+                f"children, but found loop with "
+                f"'{', '.join([str(child) for child in self.children])}'.")
 
     @property
     def start_expr(self):
@@ -327,7 +326,7 @@ class Loop(Statement):
         _, position = self._find_position(self.ancestor(Routine))
 
         if self.loop_type:
-            name = "loop_[{0}]_{1}".format(self.loop_type, str(position))
+            name = f"loop_[{self.loop_type}]_{position}"
         else:
             name = "loop_" + str(position)
         return name
@@ -359,8 +358,8 @@ class Loop(Statement):
         '''
         if value not in self._valid_loop_types:
             raise GenerationError(
-                "Error, loop_type value ({0}) is invalid. Must be one of "
-                "{1}.".format(value, self._valid_loop_types))
+                f"Error, loop_type value ({value}) is invalid. Must be one of "
+                f"{self._valid_loop_types}.")
         self._loop_type = value
 
     def node_str(self, colour=True):
