@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, N. M. Nobre, S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
 directives to NEMO style code.  In order to use

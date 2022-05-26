@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -152,15 +152,14 @@ class DataSymbol(TypedSymbol):
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(
-                    "Error setting constant value for symbol '{0}'. A "
-                    "DataSymbol with an ArgumentInterface can not have a "
-                    "constant value.".format(self.name))
+                    f"Error setting constant value for symbol '{self.name}'. "
+                    f"A DataSymbol with an ArgumentInterface can not have a "
+                    f"constant value.")
             if not isinstance(self.datatype, (ScalarType, ArrayType)):
                 raise ValueError(
-                    "Error setting constant value for symbol '{0}'. A "
-                    "DataSymbol with a constant value must be a scalar or an "
-                    "array but found '{1}'.".format(
-                        self.name, type(self.datatype).__name__))
+                    f"Error setting constant value for symbol '{self.name}'. "
+                    f"A DataSymbol with a constant value must be a scalar or "
+                    f"an array but found '{type(self.datatype).__name__}'.")
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
@@ -180,11 +179,10 @@ class DataSymbol(TypedSymbol):
                 lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
-                        "Error setting constant value for symbol '{0}'. This "
-                        "DataSymbol instance datatype is '{1}' which means the"
-                        " constant value is expected to be '{2}' but found "
-                        "'{3}'.".format(self.name, self.datatype, lookup,
-                                        type(new_value)))
+                        f"Error setting constant value for symbol "
+                        f"'{self.name}'. This DataSymbol instance datatype is "
+                        f"'{self.datatype}' meaning the constant value should "
+                        f"be '{lookup}' but found '{type(new_value)}'.")
                 if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
@@ -204,7 +202,7 @@ class DataSymbol(TypedSymbol):
         ret = self.name + ": DataSymbol<" + str(self.datatype)
         ret += ", " + str(self._interface)
         if self.is_constant:
-            ret += ", constant_value={0}".format(self.constant_value)
+            ret += f", constant_value={self.constant_value}"
         return ret + ">"
 
     def copy(self):
@@ -231,7 +229,7 @@ class DataSymbol(TypedSymbol):
 
         '''
         if not isinstance(symbol_in, DataSymbol):
-            raise TypeError("Argument should be of type 'DataSymbol' but found"
-                            " '{0}'.".format(type(symbol_in).__name__))
+            raise TypeError(f"Argument should be of type 'DataSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         super(DataSymbol, self).copy_properties(symbol_in)
         self._constant_value = symbol_in.constant_value

@@ -41,6 +41,8 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
+
+
 def trans(psy):
     '''Output a textual view of the PSyIR representing the PSy-layer for
     the first invoke found in the algorithm layer code.

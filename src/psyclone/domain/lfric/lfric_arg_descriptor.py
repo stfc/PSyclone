@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -306,7 +306,8 @@ class LFRicArgDescriptor(Descriptor):
                             [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a continuous function space \
                             passed to a kernel that operates on cell-columns \
-                            does not have a valid access (one of [READ, INC]).
+                            does not have a valid access (one of [READ, WRITE,\
+                            INC, READINC]).
         :raises ParseError: if the kernel operates on the domain and is \
                             passed a field on a continuous space.
         :raises InternalError: if an invalid value for operates_on is \
@@ -391,8 +392,11 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
-        field_cont_accesses = [AccessType.READ, AccessType.INC,
-                               AccessType.READINC]
+        # Note that although WRITE is permitted for fields on continuous
+        # function spaces, kernels that specify this must guarantee to write
+        # the same value to any given shared entity, independent of iteration.
+        field_cont_accesses = [AccessType.READ, AccessType.WRITE,
+                               AccessType.INC, AccessType.READINC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()

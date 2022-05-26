@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the RoutineSymbol.'''
@@ -81,8 +81,7 @@ class RoutineSymbol(TypedSymbol):
     def __str__(self):
         # This implementation could be moved to TypedSymbol but it is kept
         # here to enable us to keep TypedSymbol abstract.
-        return "{0}: {1}<{2}>".format(self.name, type(self).__name__,
-                                      str(self.datatype))
+        return f"{self.name}: {type(self).__name__}<{self.datatype}>"
 
 
 # For Sphinx AutoAPI documentation generation

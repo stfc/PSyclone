@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -81,19 +81,19 @@ class LoopFuseTrans(LoopTrans):
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
             raise TransformationError(
-                "Error in {0} transformation. Loops do not have "
-                "the same parent.".format(self.name))
+                f"Error in {self.name} transformation. Loops do not have "
+                f"the same parent.")
 
         # Check node1 and node2 are next to each other
         if abs(node1.position-node2.position) != 1:
             raise TransformationError(
-                "Error in {0} transformation. Nodes are not siblings "
-                "who are next to each other.".format(self.name))
+                f"Error in {self.name} transformation. Nodes are not siblings "
+                f"who are next to each other.")
         # Check that the iteration space is the same
         if node1.iteration_space != node2.iteration_space:
             raise TransformationError(
-                "Error in {0} transformation. Loops do not have the "
-                "same iteration space.".format(self.name))
+                f"Error in {self.name} transformation. Loops do not have the "
+                f"same iteration space.")
 
     def apply(self, node1, node2, options=None):
         # pylint: disable=arguments-differ

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -114,9 +114,9 @@ class StructureMember(Member):
         '''
         if not isinstance(self.children[0], Member):
             raise InternalError(
-                "{0} malformed or incomplete. The first child "
-                "must be an instance of Member, but found '{1}'".format(
-                    type(self).__name__, type(self.children[0]).__name__))
+                f"{type(self).__name__} malformed or incomplete. The first "
+                f"child must be an instance of Member, but found "
+                f"'{type(self.children[0]).__name__}'")
         return self.children[0]
 
     def get_signature_and_indices(self):
