@@ -47,7 +47,8 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
     Operator2CodeTrans
 

@@ -40,8 +40,6 @@
 transformations and base classes.
 '''
 
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
@@ -63,11 +61,11 @@ from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
-from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
+from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
@@ -75,13 +73,14 @@ from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['TransformationError',
-           'ArrayRange2LoopTrans',
+__all__ = ['ArrayRange2LoopTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
@@ -93,13 +92,14 @@ __all__ = ['TransformationError',
            'Max2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
-           'LoopTrans',
            'LoopFuseTrans',
            'LoopSwapTrans',
            'LoopTiling2DTrans',
+           'LoopTrans',
            'NanTestTrans',
            'OMPTaskwaitTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
-           'RegionTrans']
+           'RegionTrans',
+           'TransformationError']
