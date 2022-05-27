@@ -698,9 +698,11 @@ class FortranWriter(LanguageWriter):
 
         self._depth += 1
         for member in symbol.datatype.components.values():
-            # We always want to specify the visibility of components within
-            # a derived type.
-            result += self.gen_vardecl(member, include_visibility=True)
+            # We can only specify the visibility of components within
+            # a derived type if the declaration is within the specification
+            # part of a module.
+            result += self.gen_vardecl(member,
+                                       include_visibility=include_visibility)
         self._depth -= 1
 
         result += f"{self._nindent}end type {symbol.name}\n"
