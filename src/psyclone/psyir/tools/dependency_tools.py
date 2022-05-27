@@ -43,7 +43,7 @@
 from __future__ import absolute_import, print_function
 from enum import IntEnum
 
-from sympy import Symbol, Integer
+import sympy
 
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
@@ -58,7 +58,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
     codes used in the dependency analysis. It is based in IntEnum
-    so the codes can be compared with the *_MIN and _MAX values.
+    so the codes can be compared with the ..._MIN and ..._MAX values.
 
     '''
     INFO_MIN = 1
@@ -258,8 +258,8 @@ class DependencyTools():
         :param comp_ind2: component_indices of the first array access.
         :type comp_ind2:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
-        :param set_of_loop_vars: set with name of all loop variables.
-        :type set_of_loop_vars: Set[str]
+        :param loop_vars: list with name of all loop variables.
+        :type loop_vars: List[str]
 
         :return: partition information.
         :rtype: List[Tuple[Set[str], List[int]]]
@@ -268,8 +268,8 @@ class DependencyTools():
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
         set_of_loop_vars = set(loop_vars)
-        indices_1 = comp_ind1.get_all_subscripts_variables(set_of_loop_vars)
-        indices_2 = comp_ind2.get_all_subscripts_variables(set_of_loop_vars)
+        indices_1 = comp_ind1.get_subscripts_of(set_of_loop_vars)
+        indices_2 = comp_ind2.get_subscripts_of(set_of_loop_vars)
         # This list stores the partition information, which
         # is a pair consisting of:
         # - a set of all loop variables used in the subscript of
@@ -392,7 +392,7 @@ class DependencyTools():
             d_var_name = f"d{idx}_{var_name}"
 
         # Create a sympy symbol for this new variable
-        d_var = Symbol(d_var_name)
+        d_var = sympy.Symbol(d_var_name)
 
         # Replace 'var' with 'var+d_var' in the read expression in order
         # to determine distance between the two accesses:
@@ -422,7 +422,7 @@ class DependencyTools():
                 # iteration that means no dependencies.
                 return None
 
-            if not isinstance(sol, Integer):
+            if not isinstance(sol, sympy.Integer):
                 # This likely indicates several (or an infinite) number of
                 # iterations.
                 return None
@@ -498,7 +498,7 @@ class DependencyTools():
             be parallelised. The first one must be the loop to be \
             parallelised (a possible outer loop does not matter, the value of \
             the loop variable is a constant within the loop to be parallelised.
-        :type loop_variable: list of str
+        :type loop_variables: List[str]
         :param write_access: access information of a single array write access.
         :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
         :param other_access: access information of the second single array \
@@ -510,7 +510,6 @@ class DependencyTools():
         :rtype: bool
 
         '''
-
         # Partition all subscripts to create sets of subscripts that can
         # be analysed independently of others. For example, `a(i,j+k,k,l)`
         # and `a(i,j,k,l)` would create three partitions:
@@ -599,7 +598,7 @@ class DependencyTools():
         for parallelisation.
 
         :param loop_variables: all loop variables involved.
-        :type loop_variable: List[str]
+        :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info: \
             :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`

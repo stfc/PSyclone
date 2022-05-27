@@ -158,16 +158,16 @@ class ComponentIndices():
         return any(grp for grp in self._component_indices)
 
     # ------------------------------------------------------------------------
-    def get_all_subscripts_variables(self, set_of_loop_vars):
+    def get_subscripts_of(self, set_of_vars):
         '''This function returns a flat list of which variable from the
         given set of variables is used in each subscript. For example, the
         access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
-        `[[i+i2], [j*j+k,k], [l,5]]`. If the set of loop variables is
+        `[[i+i2], [j*j+k,k], [l,5]]`. If the set of variables is
         `(i,j,k)`, then `get_all_subscripts_variables` would return
         `[{i},{j,k},{k},{l},{}]`.
 
-        :param set_of_loop_vars: set with name of all loop variables.
-        :type set_of_loop_vars: Set[str]
+        :param set_of_vars: set with name of all variables.
+        :type set_of_vars: Set[str]
 
         :return: a list of sets with all variables used in the corresponding \
             array subscripts as strings.
@@ -183,7 +183,7 @@ class ComponentIndices():
             indx = self[i]
             index_vars = VariablesAccessInfo(indx)
             unique_vars = set(str(sig) for sig in index_vars.keys())
-            unique_vars = unique_vars.intersection(set_of_loop_vars)
+            unique_vars = unique_vars.intersection(set_of_vars)
             indices.append(unique_vars)
         return indices
 

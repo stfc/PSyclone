@@ -179,8 +179,7 @@ class SymbolicMaths:
         does not depend on the specified symbol. This is done to avoid that
         the SymPy instance representing an infinite set is used elsewhere
         in PSyclone (i.e. creating a dependency in other modules to SymPy).
-        The FiniteSet returned otherwise is compatible with a Python set
-        and so does not introduce any dependencies.
+        Otherwise a standard Python set is returned that stores the solutions.
 
         :param exp1: the first expression.
         :type exp1: :py:class:`sympy.core.basic.Basic`
