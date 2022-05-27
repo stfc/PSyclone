@@ -131,9 +131,6 @@ def test_gen_decls(fortran_writer):
                                interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
-    argument_variable = DataSymbol("arg", INTEGER_TYPE,
-                                   interface=ArgumentInterface())
-    symbol_table.add(argument_variable)
     local_variable = DataSymbol("local", INTEGER_TYPE)
     symbol_table.add(local_variable)
     dtype = StructureType.create([
@@ -149,13 +146,36 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(DataSymbol("rlg", INTEGER_TYPE,
                                 constant_value=Literal("8", INTEGER_TYPE)))
     result = fortran_writer.gen_decls(symbol_table)
+    # If derived type declaration is not inside a module then its components
+    # cannot have accessibility attributes.
     assert (result == "integer, parameter :: rlg = 8\n"
-                      "integer :: arg\n"
                       "type :: field\n"
-                      "  integer, public :: flag\n"
+                      "  integer :: flag\n"
                       "end type field\n"
                       "integer :: local\n"
                       "type(grid_type) :: grid\n")
+    # Repeat but specify that these declarations are within a module.
+    result = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
+    assert (result == "integer, parameter, public :: rlg = 8\n"
+                      "type, public :: field\n"
+                      "  integer, public :: flag\n"
+                      "end type field\n"
+                      "integer, public :: local\n"
+                      "type(grid_type), public :: grid\n")
+    # Add a Symbol with an argument interface.
+    argument_variable = DataSymbol("arg", INTEGER_TYPE,
+                                   interface=ArgumentInterface())
+    symbol_table.add(argument_variable)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert (result == "integer, parameter :: rlg = 8\n"
+                      "integer :: arg\n"
+                      "type :: field\n"
+                      "  integer :: flag\n"
+                      "end type field\n"
+                      "integer :: local\n"
+                      "type(grid_type) :: grid\n")
+    result = fortran_writer.gen_decls(symbol_table)
+    # We can't have an argument if these declarations are in a module.
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
     assert ("Arguments are not allowed in this context but this symbol table "
