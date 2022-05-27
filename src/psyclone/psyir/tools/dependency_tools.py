@@ -239,7 +239,7 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _partition(comp_ind1, comp_ind2, loop_vars):
+    def _partition(comp_ind1, comp_ind2, loop_variables):
         '''This method partitions the subscripts of the component indices
         into sets of minimal coupled groups. For example:
         `a(i)` and `a(i+3)` results in one partition with the variable `i`,
@@ -256,8 +256,8 @@ class DependencyTools():
         :param comp_ind2: component_indices of the first array access.
         :type comp_ind2:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
-        :param loop_vars: list with name of all loop variables.
-        :type loop_vars: List[str]
+        :param loop_variables: list with name of all loop variables.
+        :type loop_variables: List[str]
 
         :return: partition information.
         :rtype: List[Tuple[Set[str], List[int]]]
@@ -265,7 +265,7 @@ class DependencyTools():
         '''
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
-        set_of_loop_vars = set(loop_vars)
+        set_of_loop_vars = set(loop_variables)
         indices_1 = comp_ind1.get_subscripts_of(set_of_loop_vars)
         indices_2 = comp_ind2.get_subscripts_of(set_of_loop_vars)
         # This list stores the partition information, which
@@ -281,7 +281,7 @@ class DependencyTools():
             partition_infos.append((indices_1[i].union(indices_2[i]), [indx]))
 
         # Check each loop variable to find subscripts in which they are used:
-        for loop_var in loop_vars:
+        for loop_var in loop_variables:
             first_use = None
             # The partition_infos list will get modified inside the loop.
             # So we use a while loop to accommodate this.
@@ -574,8 +574,9 @@ class DependencyTools():
     # -------------------------------------------------------------------------
     def _array_access_parallelisable(self, loop_variables, var_info):
         '''Tries to determine if the access pattern for an array
-        given in `var_info` allows parallelisation along the variable
-        `loop_variable`. This implementation follows:
+        given in `var_info` allows parallelisation along the first variable
+        in `loop_variables`. The other elements of `loop_variables` specify
+        the loop variables of any inner loops. This implementation follows:
 
         "Optimizing compilers for modern architectures -
         a dependence-based approach
@@ -595,7 +596,10 @@ class DependencyTools():
         that is guaranteed to be independent, which is all that is needed
         for parallelisation.
 
-        :param loop_variables: all loop variables involved.
+        :param loop_variables: the list of all loop variables in the code to \
+            be parallelised. The first one must be the loop to be \
+            parallelised (a possible outer loop does not matter, the value of \
+            the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info: \
