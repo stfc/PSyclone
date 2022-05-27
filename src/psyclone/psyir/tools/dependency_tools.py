@@ -634,6 +634,10 @@ class DependencyTools():
                         # We need to use default parameters, since otherwise
                         # the value of a variable might be different when
                         # the message is actually evaluated.
+                        # Some pylint version complain here (because of the
+                        # above). The code is correct, so disable this
+                        # message:
+                        # pylint: disable=cell-var-from-loop
                         self._add_message(LazyString(
                             lambda node=write_access.node:
                                 (f"The write access to '"
