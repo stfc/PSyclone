@@ -711,10 +711,8 @@ class DependencyTools():
     def can_loop_be_parallelised(self, loop,
                                  only_nested_loops=True,
                                  test_all_variables=False,
-                                 signatures_to_ignore=None,
-                                 var_accesses=None):
-        # pylint: disable=too-many-arguments, too-many-branches
-        # pylint: disable=too-many-locals
+                                 signatures_to_ignore=None):
+        # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised over the specified variable.
 
@@ -731,10 +729,6 @@ class DependencyTools():
         :param signatures_to_ignore: list of signatures for which to skip \
                                      the access checks.
         :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
-        :param var_accesses: optional argument containing the variable access\
-                             pattern of the loop (default: None).
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         :returns: True if the loop can be parallelised.
         :rtype: bool
@@ -757,8 +751,7 @@ class DependencyTools():
             # Appropriate messages will have been added already, so just exit
             return False
 
-        if not var_accesses:
-            var_accesses = VariablesAccessInfo(loop)
+        var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:
             signatures_to_ignore = []
 
