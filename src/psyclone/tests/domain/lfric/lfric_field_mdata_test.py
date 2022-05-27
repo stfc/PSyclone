@@ -154,8 +154,8 @@ def test_field_gh_sum_invalid():
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API, allowed accesses for fields on continuous "
             "function spaces that are arguments to kernels that operate on "
-            "cell-columns are ['gh_read', 'gh_inc', 'gh_readinc'], but "
-            "found 'gh_sum' for 'w2'" in str(excinfo.value))
+            "cell-columns are ['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'],"
+            " but found 'gh_sum' for 'w2'" in str(excinfo.value))
 
 
 def test_ad_fld_type_too_few_args():
@@ -310,50 +310,50 @@ def test_fs_discontinuous_inc_error():
                 "for '{0}'".format(fspace) in str(excinfo.value))
 
 
-def test_fs_continuous_cells_write_or_readwrite_error():
+def test_fs_continuous_cells_readwrite_error():
     ''' Test that an error is raised if a field on a continuous
-    function space is specified as having an access of 'gh_write'
-    or 'gh_readwrite' in kernel metadata.
+    function space is specified as having an access of 'gh_readwrite'
+    in kernel metadata.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     const = LFRicConstants()
     for fspace in const.CONTINUOUS_FUNCTION_SPACES:
-        for acc in ["gh_write", "gh_readwrite"]:
-            code = FIELD_CODE.replace(
-                "arg_type(gh_field,  gh_real,    gh_read,    w2)",
-                "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
-            ast = fpapi.parse(code, ignore_comments=False)
-            with pytest.raises(ParseError) as excinfo:
-                _ = DynKernMetadata(ast, name="testkern_field_type")
-            assert ("In the LFRic API, allowed accesses for fields on "
-                    "continuous function spaces that are arguments to "
-                    "kernels that operate on cell-columns are ['gh_read', "
-                    "'gh_inc', 'gh_readinc'], but found '{0}' for '{1}'".
-                    format(acc, fspace) in str(excinfo.value))
+        acc = "gh_readwrite"
+        code = FIELD_CODE.replace(
+            "arg_type(gh_field,  gh_real,    gh_read,    w2)",
+            f"arg_type(gh_field, gh_real, {acc}, {fspace})", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_field_type")
+        assert (f"In the LFRic API, allowed accesses for fields on "
+                f"continuous function spaces that are arguments to "
+                f"kernels that operate on cell-columns are ['gh_read', "
+                f"'gh_write', 'gh_inc', 'gh_readinc'], but found '{acc}' "
+                f"for '{fspace}'" in str(excinfo.value))
 
 
-def test_fs_anyspace_cells_write_or_readwrite_error():
+def test_fs_anyspace_cells_readwrite_error():
     ''' Test that an error is raised if a field that is on 'any_space' "
-    "(and therefore may be continuous) is specified as having 'gh_write' "
-    "or 'gh_readwrite' access in the metadata.
+    "(and therefore may be continuous) is specified as having "
+    "'gh_readwrite' access in the metadata.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     const = LFRicConstants()
     for fspace in const.VALID_ANY_SPACE_NAMES:
-        for acc in ["gh_write", "gh_readwrite"]:
-            code = FIELD_CODE.replace(
-                "arg_type(gh_field,  gh_real,    gh_read,    w2)",
-                "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
-            ast = fpapi.parse(code, ignore_comments=False)
-            with pytest.raises(ParseError) as excinfo:
-                _ = DynKernMetadata(ast, name="testkern_field_type")
-            assert ("In the LFRic API, allowed accesses for fields on "
-                    "continuous function spaces that are arguments to "
-                    "kernels that operate on cell-columns are ['gh_read', "
-                    "'gh_inc', 'gh_readinc'], but found '{0}' for '{1}'".
-                    format(acc, fspace) in str(excinfo.value))
+        acc = "gh_readwrite"
+        code = FIELD_CODE.replace(
+            "arg_type(gh_field,  gh_real,    gh_read,    w2)",
+            f"arg_type(gh_field, gh_real, {acc}, {fspace})", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_field_type")
+        assert (f"In the LFRic API, allowed accesses for fields on "
+                f"continuous function spaces that are arguments to "
+                f"kernels that operate on cell-columns are ['gh_read', "
+                f"'gh_write', 'gh_inc', 'gh_readinc'], but found '{acc}' "
+                f"for '{fspace}'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("access", ["gh_inc", "gh_readinc"])

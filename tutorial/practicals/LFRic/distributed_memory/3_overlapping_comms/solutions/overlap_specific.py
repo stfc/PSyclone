@@ -54,6 +54,7 @@ PSyclone, it is not designed to be run directly from python.
 '''
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, MoveTrans
 
+
 def trans(psy):
     '''Transforms a specific synchronous halo exchange into an
     asynchronous halo exchange and moves the halo exchange start part

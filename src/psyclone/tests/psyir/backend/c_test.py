@@ -90,8 +90,8 @@ def test_cw_gen_declaration():
     symbol._datatype = "invalid"
     with pytest.raises(NotImplementedError) as error:
         _ = cwriter.gen_declaration(symbol)
-    assert "Could not generate the C definition for the variable 'dummy2', " \
-        "type 'invalid' is currently not supported." in str(error.value)
+    assert "Could not generate C definition for variable 'dummy2', " \
+        "type 'invalid' is not yet supported." in str(error.value)
 
 
 def test_cw_gen_local_variable(monkeypatch):

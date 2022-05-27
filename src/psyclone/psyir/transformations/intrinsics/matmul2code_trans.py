@@ -138,11 +138,11 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         do i=1,N
             R(i) = 0.0
-                do j=1,M
-                    R(i) = R(i) + A(i,j) * B(j)
+            do j=1,M
+                R(i) = R(i) + A(i,j) * B(j)
 
     For a matrix-matrix multiplication, if the dimensions of ``R``, ``A``,
-    and ``B`` are ``R(P,M)``, ``A(N,M)``, ``B(P,N)``, the MATMUL is replaced
+    and ``B`` are ``R(P,M)``, ``A(P,N)``, ``B(N,M)``, the MATMUL is replaced
     with the following code:
 
     .. code-block:: fortran
@@ -151,7 +151,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             do i=1,P
                 R(i,j) = 0.0
                 do ii=1,N
-                    R(i,j) = R(i,j) + A(ii,i) * B(j,ii)
+                    R(i,j) = R(i,j) + A(i,ii) * B(ii,j)
 
     Note that this transformation does *not* support the case where ``A`` is
     a rank-1 array.
@@ -427,22 +427,22 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         result_ref = _create_matrix_ref(result.symbol,
                                         [i_loop_sym, j_loop_sym],
                                         result.children[2:])
-        # Create "matrix2(j,ii)"
+        # Create "matrix2(ii,j)"
         m2_array_reference = _create_matrix_ref(matrix2.symbol,
-                                                [j_loop_sym, ii_loop_sym],
+                                                [ii_loop_sym, j_loop_sym],
                                                 matrix2.children[2:])
-        # Create "matrix1(ii,i)"
+        # Create "matrix1(i,ii)"
         m1_array_reference = _create_matrix_ref(matrix1.symbol,
-                                                [ii_loop_sym, i_loop_sym],
+                                                [i_loop_sym, ii_loop_sym],
                                                 matrix1.children[2:])
-        # Create "matrix1(ii,i) * matrix2(j,ii)"
+        # Create "matrix1(i,ii) * matrix2(ii,j)"
         multiply = BinaryOperation.create(
             BinaryOperation.Operator.MUL, m1_array_reference,
             m2_array_reference)
-        # Create "result(i,j) + matrix1(ii,i) * matrix2(j,ii)"
+        # Create "result(i,j) + matrix1(i,ii) * matrix2(ii,j)"
         rhs = BinaryOperation.create(
             BinaryOperation.Operator.ADD, result_ref, multiply)
-        # Create "result(i,j) = result(i,j) + matrix1(ii,i) * matrix2(j,ii)"
+        # Create "result(i,j) = result(i,j) + matrix1(i,ii) * matrix2(ii,j)"
         assign = Assignment.create(result_ref.copy(), rhs)
         # Create ii loop and add the above code as a child
         # Work out the bounds

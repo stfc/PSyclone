@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
@@ -42,7 +42,6 @@ This module contains the abstract Node implementation.
 
 '''
 import copy
-import six
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
@@ -123,16 +122,14 @@ class ChildrenList(list):
             children for this list.
         '''
         if not self._validation_function(index, item):
-            errmsg = "Item '{0}' can't be child {1} of '{2}'.".format(
-                item.__class__.__name__, index,
-                self._node_reference.coloured_name(False))
+            errmsg = (f"Item '{item.__class__.__name__}' can't be child "
+                      f"{index} of "
+                      f"'{self._node_reference.coloured_name(False)}'.")
             if self._validation_text == "<LeafNode>":
-                errmsg = errmsg + " {0} is a LeafNode and doesn't accept " \
-                    "children.".format(
-                        self._node_reference.coloured_name(False))
+                errmsg += (f" {self._node_reference.coloured_name(False)} is "
+                           f"a LeafNode and doesn't accept children.")
             else:
-                errmsg = errmsg + " The valid format is: '{0}'.".format(
-                    self._validation_text)
+                errmsg += f" The valid format is: '{self._validation_text}'."
 
             raise GenerationError(errmsg)
 
@@ -153,20 +150,17 @@ class ChildrenList(list):
         '''
         if item.parent and not item.has_constructor_parent:
             raise GenerationError(
-                "Item '{0}' can't be added as child of '{1}' because it is not"
-                " an orphan. It already has a '{2}' as a parent.".format(
-                    item.coloured_name(False),
-                    self._node_reference.coloured_name(False),
-                    item.parent.coloured_name(False)))
+                f"Item '{item.coloured_name(False)}' can't be added as child "
+                f"of '{self._node_reference.coloured_name(False)}' because it "
+                f"is not an orphan. It already has a "
+                f"'{item.parent.coloured_name(False)}' as a parent.")
         if item.parent and item.has_constructor_parent:
             if item.parent is not self._node_reference:
                 raise GenerationError(
-                    "'{0}' cannot be set as parent of '{1}' because its "
-                    "constructor predefined the parent reference to a "
-                    "different '{2}' node."
-                    .format(self._node_reference.coloured_name(False),
-                            item.coloured_name(False),
-                            item.parent.coloured_name(False)))
+                    f"'{self._node_reference.coloured_name(False)}' cannot be "
+                    f"set as parent of '{item.coloured_name(False)}' because "
+                    f"its constructor predefined the parent reference to a "
+                    f"different '{item.parent.coloured_name(False)}' node.")
 
     def _set_parent_link(self, node):
         '''
@@ -366,10 +360,9 @@ class Node(object):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "{0} with unrecognised annotation '{1}', valid "
-                        "annotations are: {2}.".format(
-                            self.__class__.__name__, annotation,
-                            self.valid_annotations))
+                        f"{self.__class__.__name__} with unrecognised "
+                        f"annotation '{annotation}', valid annotations are: "
+                        f"{self.valid_annotations}.")
 
     def __eq__(self, other):
         '''
@@ -432,17 +425,16 @@ class Node(object):
         if colour:
             if self._colour is None:
                 raise NotImplementedError(
-                    "The _colour attribute is abstract so needs to be given "
-                    "a string value in the concrete class '{0}'."
-                    "".format(type(self).__name__))
+                    f"The _colour attribute is abstract so needs to be given "
+                    f"a string value in the concrete class "
+                    f"'{type(self).__name__}'.")
             try:
                 return colored(name_string, self._colour)
             except KeyError as info:
-                message = (
-                    "The _colour attribute in class '{0}' has been set to a "
-                    "colour ('{1}') that is not supported by the termcolor "
-                    "package.".format(type(self).__name__, self._colour))
-                six.raise_from(InternalError(message), info)
+                raise InternalError(
+                    f"The _colour attribute in class '{type(self).__name__}' "
+                    f"has been set to a colour ('{self._colour}') that is not "
+                    f"supported by the termcolor package.") from info
         return name_string
 
     def node_str(self, colour=True):
@@ -530,8 +522,7 @@ class Node(object):
             graph = digraph(format=file_format)
         except ValueError:
             raise GenerationError(
-                "unsupported graphviz file format '{0}' provided".
-                format(file_format))
+                f"unsupported graphviz file format '{file_format}' provided")
         self.dag_gen(graph)
         graph.render(filename=file_name)
         return graph
@@ -747,17 +738,17 @@ class Node(object):
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
             raise GenerationError(
-                "In the psyir.nodes.Node.is_valid_location() method the "
-                "supplied argument is not a Node, it is a '{0}'.".
-                format(type(new_node).__name__))
+                f"In the psyir.nodes.Node.is_valid_location() method the "
+                f"supplied argument is not a Node, it is a "
+                f"'{type(new_node).__name__}'.")
 
         # 2: check position has a valid value
         valid_positions = ["before", "after"]
         if position not in valid_positions:
             raise GenerationError(
-                "The position argument in the psyGenNode.is_valid_location() "
-                "method must be one of {0} but found '{1}'".format(
-                    valid_positions, position))
+                f"The position argument in the psyGenNode.is_valid_location() "
+                f"method must be one of {valid_positions} but found "
+                f"'{position}'")
 
         # 3: check self and new_node have the same parent
         if not self.sameParent(new_node):
@@ -971,8 +962,8 @@ class Node(object):
             position = self.START_POSITION
         elif position < self.START_POSITION:
             raise InternalError(
-                "Search for Node position started from {0} "
-                "instead of {1}.".format(position, self.START_POSITION))
+                f"Search for Node position started from {position} "
+                f"instead of {self.START_POSITION}.")
         for child in children:
             position += 1
             if child is self:
@@ -1080,9 +1071,8 @@ class Node(object):
                 excludes = excluding
             else:
                 raise TypeError(
-                    "The 'excluding' argument to ancestor() must be a type or "
-                    "a tuple of types but got: '{0}'".format(
-                        type(excluding).__name__))
+                    f"The 'excluding' argument to ancestor() must be a type or"
+                    f" a tuple of types but got: '{type(excluding).__name__}'")
 
         while myparent is not None:
             if isinstance(myparent, my_type):
@@ -1268,8 +1258,8 @@ class Node(object):
         if node:
             return node
         raise SymbolError(
-            "Unable to find the scope of node '{0}' as none of its ancestors "
-            "are Container or Schedule nodes.".format(self))
+            f"Unable to find the scope of node '{self}' as none of its "
+            f"ancestors are Container or Schedule nodes.")
 
     def replace_with(self, node):
         '''Removes self, and its descendants, from the PSyIR tree to which it
@@ -1287,18 +1277,17 @@ class Node(object):
         '''
         if not isinstance(node, Node):
             raise TypeError(
-                "The argument node in method replace_with in the Node class "
-                "should be a Node but found '{0}'."
-                "".format(type(node).__name__))
+                f"The argument node in method replace_with in the Node class "
+                f"should be a Node but found '{type(node).__name__}'.")
         if not self.parent:
             raise GenerationError(
                 "This node should have a parent if its replace_with method "
                 "is called.")
         if node.parent is not None:
             raise GenerationError(
-                "The parent of argument node in method replace_with in the "
-                "Node class should be None but found '{0}'."
-                "".format(type(node.parent).__name__))
+                f"The parent of argument node in method replace_with in the "
+                f"Node class should be None but found "
+                f"'{type(node.parent).__name__}'.")
 
         self.parent.children[self.position] = node
 
