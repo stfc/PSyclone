@@ -520,6 +520,37 @@ def test_subroutine_schedule_access(fortran_reader):
     assert d_hat.interface.access == ArgumentInterface.Access.WRITE
 
 
+# AdjointVisitor.codeblock_node()
+
+def test_codeblock_node(tmpdir, fortran_reader, fortran_writer):
+    ''' '''
+    tl_fortran = (
+        "subroutine kern()\n"
+        "  real a, b, c\n"
+        "  real, allocatable, dimension(:) :: y\n"
+        "  allocate(y(10))\n"
+        "  y(2) = 2\n"
+        "  a = a + y(2)*b\n"
+        "  y(2) = 3\n"
+        "  b = b + y(2)*c\n"
+        "end subroutine kern\n")
+    active_variables = ["a", "b", "c"]
+    ad_fortran = (
+        "  real :: a\n  real :: b\n"
+        "  real :: c\n  real, allocatable :: y(:)\n\n"
+        "  allocate(y(10))\n"
+        "  y(2) = 3\n"
+        "  c = c + y(2) * b\n"
+        "  y(2) = 2\n"
+        "  b = b + y(2) * a\n\n")
+    tl_psyir = fortran_reader.psyir_from_source(tl_fortran)
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    ad_psyir = adj_visitor(tl_psyir.children[0])
+    print(ad_psyir.view())
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
+                  fortran_writer)
+
+
 # AdjointVisitor.assignment_node()
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
