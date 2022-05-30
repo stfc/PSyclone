@@ -42,8 +42,8 @@
 
 include ../../common.mk
 
-GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 *.o *.mod $(EXEC)
-# test_alg_mod.[fx]90
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 *.o *.mod $(EXEC) \
+                  test_alg_mod.[fx]90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
@@ -91,7 +91,7 @@ testkern_mod.o: $(LFRIC_LIB)
 test_alg_mod.x90: testkern_mod.F90
 	${KERNEL_ALG_GEN} -api dynamo0.3 -o test_alg_mod.x90 ../code/testkern_mod.F90
 
-transform: main_psy.f90
+transform: test_alg_mod_psy.f90
 
 # Process the generated algorithm layer with PSyclone to generate a compilable
 # algorithm file and a suitable PSy-layer subroutine.
