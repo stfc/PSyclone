@@ -46,11 +46,12 @@ from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
+from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
+                                  Container)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
     ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType,
-    LocalInterface)
+    LocalInterface, ArgumentInterface)
 
 
 # The order of the finite-element scheme that will be used by any generated
@@ -60,6 +61,69 @@ ELEMENT_ORDER = "1"
 # only supports a value of 1. Extending to multi-data fields is the
 # subject of #868.
 NDATA_SIZE = "1"
+
+
+def _create_alg_mod(name):
+    '''
+    Creates a standalone LFRic algorithm subroutine.
+
+    :param str name: the name to give the created routine.
+
+    :returns: a container.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+    :raises TypeError: if the supplied argument is of the wrong type.
+
+    '''
+    if not isinstance(name, str):
+        raise TypeError(f"Supplied module name must be a str but got "
+                        f"'{type(name).__name__}'")
+    cont = Container(name+"_mod")
+
+    alg_sub = Routine(name)
+
+    table = alg_sub.symbol_table
+
+    # Create ContainerSymbols for each of the modules that we will need.
+    for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
+                "constants_mod", "mesh_mod", "operator_mod"]:
+        table.new_symbol(mod, symbol_type=ContainerSymbol)
+
+    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                     datatype=DeferredType(),
+                     interface=ImportInterface(
+                         table.lookup("field_mod")))
+
+    table.new_symbol("function_space_type",
+                     symbol_type=DataTypeSymbol,
+                     datatype=DeferredType(),
+                     interface=ImportInterface(
+                         table.lookup("function_space_mod")))
+
+    table.new_symbol("r_def", symbol_type=DataSymbol,
+                     datatype=INTEGER_TYPE,
+                     interface=ImportInterface(
+                         table.lookup("constants_mod")))
+
+    table.new_symbol("i_def", symbol_type=DataSymbol,
+                     datatype=INTEGER_TYPE,
+                     interface=ImportInterface(
+                         table.lookup("constants_mod")))
+
+    mesh_ptr_type = UnknownFortranType(
+        "type(mesh_type), pointer, intent(in) :: mesh")
+    mesh_ptr = DataSymbol("mesh", mesh_ptr_type, interface=ArgumentInterface())
+    alg_sub.symbol_table.add(mesh_ptr)
+
+    chi_type = UnknownFortranType(
+        "type( field_type ), dimension(3), intent( in ), optional :: chi")
+    chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
+    alg_sub.symbol_table.add(chi)
+    alg_sub.symbol_table.specify_argument_list([mesh_ptr, chi])
+
+    cont.addchild(alg_sub)
+
+    return cont
 
 
 def _create_alg_driver(name, nlayers):
@@ -358,9 +422,10 @@ def generate(kernel_path):
         ending in '_mod'.
 
     '''
-    # Create PSyIR for a skeleton driver routine.
-    prog = _create_alg_driver("lfric_alg", 20)
-    table = prog.symbol_table
+    # Create PSyIR for an algorithm routine.
+    cont = _create_alg_mod("test_alg_mod")
+    sub = cont.walk(Routine)[0]
+    table = sub.symbol_table
 
     # Parse the kernel metadata. Currently this uses fparser1 as that's what
     # the existing meta-data handling is based upon. Ultimately, this will
@@ -399,15 +464,15 @@ def generate(kernel_path):
     # Declare and initialise the data structures required by the kernel
     # arguments. Appropriate symbols are added to the symbol table associated
     # with the routine we are constructing.
-    kern_args = construct_kernel_args(prog, kern)
+    kern_args = construct_kernel_args(sub, kern)
 
     # Initialise argument values to unity. Since we are using this somewhat
     # arbitrary value, we use an *integer* literal for this, irrespective of
     # the actual type of the scalar argument. The compiler/run-time will take
     # care of appropriate type casting.
     for sym in kern_args.scalars:
-        prog.addchild(Assignment.create(Reference(sym),
-                                        Literal("1", INTEGER_TYPE)))
+        sub.addchild(Assignment.create(Reference(sym),
+                                       Literal("1", INTEGER_TYPE)))
 
     # We use the setval_c builtin to initialise all fields to unity.
     # Currently we have to create a symbol for this builtin in order to
@@ -440,9 +505,9 @@ def generate(kernel_path):
 
     # Create the 'call invoke(...)' for the list of kernels.
     invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
-    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
+    sub.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
 
-    return FortranWriter()(prog)
+    return FortranWriter()(cont)
 
 
 # For automatic API documentation.

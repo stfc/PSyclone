@@ -42,12 +42,13 @@
 
 include ../../common.mk
 
-GENERATED_FILES = main_psy.f90 main_alg.[fx]90 testkern_mod.F90 *.o *.mod $(EXEC)
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 *.o *.mod $(EXEC)
+# test_alg_mod.[fx]90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o testkern_mod.o
+OBJ = driver.o test_alg_mod_psy.o test_alg_mod.o testkern_mod.o
 
 EXEC = example
 LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -68,7 +69,9 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-main_psy.o:	testkern_mod.o
+driver.o: test_alg_mod.o
+test_alg_mod.o: test_alg_mod_psy.o
+test_alg_mod_psy.o: test_alg_mod_psy.f90 testkern_mod.o
 testkern_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
@@ -81,19 +84,19 @@ testkern_mod.o: $(LFRIC_LIB)
 	ln -s ../code/$@ .
 
 # Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
+.precious: test_alg_mod_psy.f90 test_alg_mod.f90
 
 # Use the psyclone-kern tool to create an algorithm layer that will
 # 'invoke' our kernel
-main_alg.x90: testkern_mod.F90
-	${KERNEL_ALG_GEN} -api dynamo0.3 -o main_alg.x90 ../code/testkern_mod.F90
+test_alg_mod.x90: testkern_mod.F90
+	${KERNEL_ALG_GEN} -api dynamo0.3 -o test_alg_mod.x90 ../code/testkern_mod.F90
 
 transform: main_psy.f90
 
 # Process the generated algorithm layer with PSyclone to generate a compilable
 # algorithm file and a suitable PSy-layer subroutine.
-main_psy.f90:	main_alg.x90
-	${PSYCLONE} -d ../code -opsy main_psy.f90 -oalg main_alg.f90 $<
+test_alg_mod_psy.f90:	test_alg_mod.x90
+	${PSYCLONE} -d ../code -opsy test_alg_mod_psy.f90 -oalg test_alg_mod.f90 $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
