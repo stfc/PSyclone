@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -55,7 +55,7 @@ def test_ifblock_invalid_annotation():
 
     with pytest.raises(InternalError) as err:
         _ = IfBlock(annotations=["invalid"])
-    assert ("IfBlock with unrecognized annotation 'invalid', valid "
+    assert ("IfBlock with unknown annotation 'invalid', valid "
             "annotations are:") in str(err.value)
 
 

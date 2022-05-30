@@ -31,10 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: R. W. Ford, STFC Daresbury Lab
-#                A. R. Porter, STFC Daresbury Lab
-#                S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -138,7 +136,7 @@ def test_class_definitions(fortran_writer):
 
     with pytest.raises(TransformationError) as err:
         data_trans.apply(schedule, {"prefix": "invalid-prefix"})
-    assert "Error in 'prefix' parameter: found 'invalid-prefix', expected " \
+    assert "Error in 'prefix' parameter: found 'invalid-prefix', while " \
         "one of " in str(err.value)
     assert "as defined in /" in str(err.value)
 

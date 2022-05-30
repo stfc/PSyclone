@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -103,12 +103,11 @@ class RegionTrans(Transformation):
             return [nodes]
 
         arg_type = str(type(nodes))
-        raise TransformationError("Error in {0}: "
-                                  "Argument must be a single Node in a "
-                                  "Schedule, a Schedule or a list of Nodes "
-                                  "in a Schedule but have been passed an "
-                                  "object of type: {1}".
-                                  format(self.name, arg_type))
+        raise TransformationError(f"Error in {self.name}: "
+                                  f"Argument must be a single Node in a "
+                                  f"Schedule, a Schedule or a list of Nodes "
+                                  f"in a Schedule but have been passed an "
+                                  f"object of type: {arg_type}")
 
     def validate(self, nodes, options=None):
         '''Checks that the nodes in node_list are valid for a region
@@ -147,22 +146,20 @@ class RegionTrans(Transformation):
             options = {}
         if not isinstance(options, dict):
             raise TransformationError(
-                "Transformation apply method options argument must be a "
-                "dictionary but found '{0}'.".format(type(options).__name__))
+                f"Transformation apply method options argument must be a "
+                f"dictionary but found '{type(options).__name__}'.")
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError(
-                    "Error in {0} transformation: supplied nodes "
-                    "are not children of the same parent."
-                    .format(self.name))
+                    f"Error in {self.name} transformation: supplied nodes "
+                    f"are not children of the same parent.")
             if prev_position >= 0 and prev_position+1 != child.position:
                 raise TransformationError(
-                    "Children are not consecutive children of one parent: "
-                    "child '{0}' has position {1}, but previous child had "
-                    "position {2}."
-                    .format(str(child), child.position, prev_position))
+                    f"Children are not consecutive children of one parent: "
+                    f"child '{child}' has position {child.position}, but "
+                    f"previous child had position {prev_position}.")
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
@@ -175,9 +172,8 @@ class RegionTrans(Transformation):
                 for item in flat_list:
                     if isinstance(item, self.excluded_node_types):
                         raise TransformationError(
-                            "Nodes of type '{0}' cannot be enclosed by a {1} "
-                            "transformation".format(type(item).__name__,
-                                                    self.name))
+                            f"Nodes of type '{type(item).__name__}' cannot be "
+                            f"enclosed by a {self.name} transformation")
 
         # If we've been passed a list that contains one or more Schedules
         # then something is wrong. e.g. two Schedules that are both children

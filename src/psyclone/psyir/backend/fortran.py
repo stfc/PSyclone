@@ -1055,10 +1055,18 @@ class FortranWriter(LanguageWriter):
         # variables at the routine level scope. For this reason, at this
         # point we have to unify all declarations and resolve possible name
         # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable(node)
+        whole_routine_scope = SymbolTable()
 
+        own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
         for schedule in node.walk(Schedule):
             for symbol in schedule.symbol_table.symbols[:]:
+
+                # We don't need to add the Symbol representing this Routine to
+                # the top level symbol table because in Fortran it is already
+                # implicitly declared by the subroutine statement.
+                if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
+                    continue
+
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError:
@@ -1066,6 +1074,10 @@ class FortranWriter(LanguageWriter):
                         symbol.name, other_table=schedule.symbol_table)
                     schedule.symbol_table.rename_symbol(symbol, new_name)
                     whole_routine_scope.add(symbol)
+
+        # Replace the symbol table
+        node.symbol_table.detach()
+        whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
