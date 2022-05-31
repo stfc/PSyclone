@@ -61,7 +61,6 @@ def test_messages():
     '''Tests the messaging system of the dependency tools.'''
 
     dep_tools = DependencyTools()
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
     dep_tools._add_message("info-test", DTCode.INFO_NOT_NESTED_LOOP,
                            ["a", "b"])
@@ -88,7 +87,6 @@ def test_messages():
     assert "Unknown message code -999." in str(err.value)
 
     dep_tools._clear_messages()
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
 
@@ -160,7 +158,6 @@ def test_nested_loop_detection(parser):
                                                   only_nested_loops=False)
     assert parallel is True
     # Make sure can_loop_be_parallelised clears old messages automatically
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
 
@@ -238,7 +235,6 @@ def test_arrays_parallelise(fortran_reader):
     # Write to array that does not depend on parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
 
     # Use parallel loop variable in more than one dimension
@@ -681,7 +677,6 @@ def test_derived_type(fortran_reader):
         can_loop_be_parallelised(loops[1],
                                  signatures_to_ignore=[Signature(("a", "b")),
                                                        Signature(("b", "b"))])
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert dep_tools.get_all_messages() == []
     assert parallel is True
 

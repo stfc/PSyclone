@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,8 @@ def test_component_indices_getitem_exceptions():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("expression, correct",
-                         [("a1(i+i+j)", [set(("i", "j"))]),
+                         # We look for i, j and k; l will be ignored
+                         [("a1(i+i+j+l)", [set(("i", "j"))]),
                           ("a1(1)", [set()]),
                           ("a2(i+j,2*j+k+1)", [set(("i", "j")),
                                                set(("j", "k"))]),
@@ -143,7 +144,7 @@ def test_get_subscripts_of(expression, correct, fortran_reader):
     source = f'''program test
                  use my_mod, only: my_type
                  type(my_type) :: dv(10)
-                 integer i, j, k
+                 integer i, j, k, l
                  integer, parameter :: n=10
                  real, dimension(n) :: a1
                  real, dimension(n,n) :: a2

@@ -626,18 +626,18 @@ class DependencyTools():
                                                         other_access):
                     # There is a dependency. Try to give precise error
                     # messages:
+                    # We need to use default parameters, since otherwise
+                    # the value of a variable might be different when
+                    # the message is actually evaluated.
+                    # Some pylint version complain here (because of the
+                    # above). The code is correct, so disable this
+                    # message:
+                    # pylint: disable=cell-var-from-loop
                     if write_access is other_access:
                         # The write access has a dependency on itself, e.g.
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
                         node = write_access.node
-                        # We need to use default parameters, since otherwise
-                        # the value of a variable might be different when
-                        # the message is actually evaluated.
-                        # Some pylint version complain here (because of the
-                        # above). The code is correct, so disable this
-                        # message:
-                        # pylint: disable=cell-var-from-loop
                         self._add_message(LazyString(
                             lambda node=write_access.node:
                                 (f"The write access to '"

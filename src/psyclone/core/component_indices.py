@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -163,7 +163,7 @@ class ComponentIndices():
         given set of variables is used in each subscript. For example, the
         access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
         `[[i+i2], [j*j+k,k], [l,5]]`. If the set of variables is
-        `(i,j,k)`, then `get_all_subscripts_variables` would return
+        `(i,j,k)`, then `get_subscripts_of` would return
         `[{i},{j,k},{k},{l},{}]`.
 
         :param set_of_vars: set with name of all variables.
