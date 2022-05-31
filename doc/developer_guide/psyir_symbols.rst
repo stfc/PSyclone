@@ -42,8 +42,8 @@
         BOOLEAN_TYPE
     from psyclone.psyir.nodes import Reference
 
-PSyIR Types, Symbols and Data dependencies
-##########################################
+PSyIR Types and Symbols
+#######################
 
 DataTypes
 =========
