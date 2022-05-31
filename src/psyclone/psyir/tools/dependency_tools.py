@@ -146,7 +146,7 @@ class DependencyTools():
 
     '''
     def __init__(self, loop_types_to_parallelise=None,
-                 language_writer=FortranWriter()):
+                 language_writer=None):
         if loop_types_to_parallelise:
             # Verify that all loop types specified are valid:
             config = Config.get()
@@ -162,8 +162,10 @@ class DependencyTools():
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
-
-        self._language_writer = language_writer
+        if not language_writer:
+            self._language_writer = FortranWriter()
+        else:
+            self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
