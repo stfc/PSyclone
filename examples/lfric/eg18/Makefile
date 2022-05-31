@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 include ../../common.mk
 
@@ -40,7 +40,7 @@ include ../../common.mk
 transform: vanilla
 
 vanilla:
-	${PSYCLONE} advection_alg_mod.x90
+	${PSYCLONE} -d ./ -d ../code advection_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg18"

@@ -30,16 +30,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
+#          I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
     Visitor Pattern to traverse relevant fparser2 nodes and contains the logic
     to transform each node into the equivalent PSyIR representation.'''
 
-from __future__ import absolute_import
 from collections import OrderedDict
 import six
 from fparser.two import Fortran2003
@@ -150,16 +149,15 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
     '''
     if not isinstance(location, Node):
         raise TypeError(
-            "The location argument '{0}' provided to _find_or_create_imported"
-            "_symbol() is not of type `Node`.".format(str(location)))
+            f"The location argument '{location}' provided to "
+            f"_find_or_create_imported_symbol() is not of type `Node`.")
 
     if scope_limit is not None:
         # Validate the supplied scope_limit
         if not isinstance(scope_limit, Node):
             raise TypeError(
-                "The scope_limit argument '{0}' provided to _find_or_"
-                "create_imported_symbol() is not of type `Node`."
-                "".format(str(scope_limit)))
+                f"The scope_limit argument '{scope_limit}' provided to "
+                f"_find_or_create_imported_symbol() is not of type `Node`.")
 
         # Check that the scope_limit Node is an ancestor of this
         # Reference Node and raise an exception if not.
@@ -174,9 +172,9 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
             # The scope_limit node is not an ancestor of the
             # supplied node so raise an exception.
             raise ValueError(
-                "The scope_limit node '{0}' provided to _find_or_create"
-                "_imported_symbol() is not an ancestor of this "
-                "node '{1}'.".format(str(scope_limit), str(location)))
+                f"The scope_limit node '{scope_limit}' provided to "
+                f"_find_or_create_imported_symbol() is not an ancestor of this"
+                f" node '{location}'.")
 
     # Keep a reference to the most local SymbolTable with a wildcard
     # import in case we need to create a Symbol.
@@ -231,8 +229,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
 
     # All requested Nodes have been checked but there has been no
     # match and there are no wildcard imports so raise an exception.
-    raise SymbolError(
-        "No Symbol found for name '{0}'.".format(name))
+    raise SymbolError(f"No Symbol found for name '{name}'.")
 
 
 def _check_args(array, dim):
@@ -262,17 +259,17 @@ def _check_args(array, dim):
 
     if not isinstance(dim, int):
         raise TypeError(
-            "method _check_args 'dim' argument should be an "
-            "int type but found '{0}'.".format(type(dim).__name__))
+            f"method _check_args 'dim' argument should be an "
+            f"int type but found '{type(dim).__name__}'.")
     if dim < 1:
         raise ValueError(
-            "method _check_args 'dim' argument should be at "
-            "least 1 but found {0}.".format(dim))
+            f"method _check_args 'dim' argument should be at "
+            f"least 1 but found {dim}.")
     if dim > len(array.children):
         raise ValueError(
-            "method _check_args 'dim' argument should be at "
-            "most the number of dimensions of the array ({0}) but found "
-            "{1}.".format(len(array.children), dim))
+            f"method _check_args 'dim' argument should be at most the number "
+            f"of dimensions of the array ({len(array.children)}) but found "
+            f"{dim}.")
 
     # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
@@ -324,8 +321,8 @@ def _is_bound_full_extent(array, dim, operator):
         index = 1
     else:
         raise TypeError(
-            "'operator' argument  expected to be LBOUND or UBOUND but "
-            "found '{0}'.".format(type(operator).__name__))
+            f"'operator' argument  expected to be LBOUND or UBOUND but "
+            f"found '{type(operator).__name__}'.")
 
     # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
@@ -384,18 +381,18 @@ def _is_array_range_literal(array, dim, index, value):
 
     if not isinstance(index, int):
         raise TypeError(
-            "method _check_array_range_literal 'index' argument should be an "
-            "int type but found '{0}'.".format(type(index).__name__))
+            f"method _check_array_range_literal 'index' argument should be an "
+            f"int type but found '{type(index).__name__}'.")
 
     if index < 0 or index > 2:
         raise ValueError(
-            "method _check_array_range_literal 'index' argument should be "
-            "0, 1 or 2 but found {0}.".format(index))
+            f"method _check_array_range_literal 'index' argument should be "
+            f"0, 1 or 2 but found {index}.")
 
     if not isinstance(value, int):
         raise TypeError(
-            "method _check_array_range_literal 'value' argument should be an "
-            "int type but found '{0}'.".format(type(value).__name__))
+            f"method _check_array_range_literal 'value' argument should be an "
+            f"int type but found '{type(value).__name__}'.")
 
     # The first child of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
@@ -498,8 +495,8 @@ def _copy_full_base_reference(node):
         return arg
 
     raise InternalError(
-        "The supplied node must be an instance of either Reference "
-        "or Member but got '{0}'.".format(type(node).__name__))
+        f"The supplied node must be an instance of either Reference "
+        f"or Member but got '{type(node).__name__}'.")
 
 
 def _kind_find_or_create(name, symbol_table):
@@ -558,10 +555,9 @@ def _kind_find_or_create(name, symbol_table):
                      kind_symbol.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
-                    "SymbolTable already contains a DataSymbol for "
-                    "variable '{0}' used as a kind parameter but it is not"
-                    "a 'deferred', 'unknown' or 'scalar integer' type.".
-                    format(lower_name))
+                    f"SymbolTable already contains a DataSymbol for variable "
+                    f"'{lower_name}' used as a kind parameter but it is not a "
+                    f"'deferred', 'unknown' or 'scalar integer' type.")
             # A KIND parameter must be of type integer so set it here if it
             # was previously 'deferred'. We don't know what precision this is
             # so set it to the default.
@@ -569,10 +565,10 @@ def _kind_find_or_create(name, symbol_table):
                 kind_symbol.datatype = default_integer_type()
         else:
             raise TypeError(
-                "A symbol representing a kind parameter must be an "
-                "instance of either a Symbol or a DataSymbol. However, "
-                "found an entry of type '{0}' for variable '{1}'.".format(
-                    type(kind_symbol).__name__, lower_name))
+                f"A symbol representing a kind parameter must be an instance "
+                f"of either a Symbol or a DataSymbol. However, found an entry "
+                f"of type '{type(kind_symbol).__name__}' for variable "
+                f"'{lower_name}'.")
     except KeyError:
         # The SymbolTable does not contain an entry for this kind parameter
         # so create one. We specify an UnresolvedInterface as we don't
@@ -662,13 +658,13 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
                        Fortran2003.Char_Literal_Constant,
                        Fortran2003.Int_Literal_Constant)):
         raise InternalError(
-            "Unsupported literal type '{0}' found in get_literal_precision."
-            "".format(type(fparser2_node).__name__))
+            f"Unsupported literal type '{type(fparser2_node).__name__}' found "
+            f"in get_literal_precision.")
     if not isinstance(psyir_literal_parent, Node):
         raise InternalError(
-            "Expecting argument psyir_literal_parent to be a PSyIR Node but "
-            "found '{0}' in get_literal_precision."
-            "".format(type(psyir_literal_parent).__name__))
+            f"Expecting argument psyir_literal_parent to be a PSyIR Node but "
+            f"found '{type(psyir_literal_parent).__name__}' in "
+            f"get_literal_precision.")
     precision_name = fparser2_node.items[1]
     if not precision_name:
         # Precision may still be specified by the exponent in a real literal
@@ -683,9 +679,9 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             data_name = CONSTANT_TYPE_MAP[type(fparser2_node)]
         except KeyError:
             raise NotImplementedError(
-                "Could not process {0}. Only 'real', 'integer', "
-                "'logical' and 'character' intrinsic types are "
-                "supported.".format(type(fparser2_node).__name__))
+                f"Could not process {type(fparser2_node).__name__}. Only "
+                f"'real', 'integer', 'logical' and 'character' intrinsic "
+                f"types are supported.")
         return default_precision(data_name)
     try:
         # Precision is specified as an integer
@@ -701,9 +697,9 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             # No symbol table found. This should never happen in
             # normal usage but could occur if a test constructs a
             # PSyIR without a Schedule.
-            six.raise_from(InternalError(
-                "Failed to find a symbol table to which to add the kind "
-                "symbol '{0}'.".format(precision_name)), err)
+            raise InternalError(
+                f"Failed to find a symbol table to which to add the kind "
+                f"symbol '{precision_name}'.") from err
         return _kind_find_or_create(precision_name, symbol_table)
 
 
@@ -755,8 +751,8 @@ def _process_access_spec(attr):
     try:
         return VISIBILITY_MAP_FROM_FORTRAN[attr.string.lower()]
     except KeyError as err:
-        six.raise_from(InternalError("Unexpected Access Spec attribute '{0}'.".
-                                     format(str(attr))), err)
+        raise InternalError(f"Unexpected Access Spec attribute "
+                            f"'{attr}'.") from err
 
 
 def _create_struct_reference(parent, base_ref, base_symbol, members,
@@ -798,13 +794,13 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
             new_members.append((member[0], [kid.copy() for kid in member[1]]))
         else:
             raise InternalError(
-                "List of members must contain only strings or tuples "
-                "but found entry of type '{0}'".format(type(member).__name__))
+                f"List of members must contain only strings or tuples "
+                f"but found entry of type '{type(member).__name__}'")
     if base_ref is StructureReference:
         if indices:
             raise InternalError(
-                "Creating a StructureReference but array indices have been "
-                "supplied ({0}) which makes no sense.".format(indices))
+                f"Creating a StructureReference but array indices have been "
+                f"supplied ({indices}) which makes no sense.")
         return base_ref.create(base_symbol, new_members, parent=parent)
     if base_ref is ArrayOfStructuresReference:
         if not indices:
@@ -815,8 +811,8 @@ def _create_struct_reference(parent, base_ref, base_symbol, members,
                                new_members, parent=parent)
 
     raise NotImplementedError(
-        "Cannot create structure reference for type '{0}' - expected either "
-        "StructureReference or ArrayOfStructuresReference.".format(base_ref))
+        f"Cannot create structure reference for type '{base_ref}' - expected "
+        f"either StructureReference or ArrayOfStructuresReference.")
 
 
 def _get_arg_names(node_list):
@@ -1017,9 +1013,10 @@ class Fparser2Reader(object):
         '''
         if not isinstance(parse_tree, Fortran2003.Program):
             raise GenerationError(
-                "The Fparser2Reader generate_psyir method expects the root of "
-                "the supplied fparser2 tree to be a Program, but found '{0}'"
-                "".format(type(parse_tree).__name__))
+                f"The Fparser2Reader generate_psyir method expects the root "
+                f"of the supplied fparser2 tree to be a Program, but found "
+                f"'{type(parse_tree).__name__}'")
+
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
@@ -1043,8 +1040,8 @@ class Fparser2Reader(object):
         modules = walk(module_ast, Fortran2003.Module_Stmt)
         if len(modules) > 1:
             raise GenerationError(
-                "Could not process {0}. Just one module definition per file "
-                "supported.".format(str(module_ast)))
+                f"Could not process {module_ast}. Just one module definition "
+                f"per file supported.")
         if not modules:
             return None
 
@@ -1072,9 +1069,9 @@ class Fparser2Reader(object):
                     self.process_declarations(new_container, child.children,
                                               [], visibility_map)
                 except SymbolError as err:
-                    six.raise_from(SymbolError(
-                        "Error when generating Container for module '{0}': "
-                        "{1}".format(mod_name, err.args[0])), err)
+                    raise SymbolError(
+                        f"Error when generating Container for module "
+                        f"'{mod_name}': {err.args[0]}") from err
                 break
 
         return new_container
@@ -1119,8 +1116,8 @@ class Fparser2Reader(object):
                 subroutine = routine
                 break
         else:
-            raise GenerationError("Unexpected kernel AST. Could not find "
-                                  "subroutine: {0}".format(name))
+            raise GenerationError(f"Unexpected kernel AST. Could not find "
+                                  f"subroutine: {name}")
 
         # Check whether or not we need to create a Container for this schedule
         # TODO #737 this routine should just be creating a Subroutine, not
@@ -1272,20 +1269,20 @@ class Fparser2Reader(object):
                         # Lower bound defaults to 1 in Fortran
                         shape.append((one.copy(), upper))
                 except NotImplementedError as err:
-                    six.raise_from(NotImplementedError(
-                        "Could not process {0}. Only scalar integer literals"
-                        " or symbols are supported for explicit-shape array "
-                        "declarations.".format(dimensions)), err)
+                    raise NotImplementedError(
+                        f"Could not process {dimensions}. Only scalar integer "
+                        f"literals or symbols are supported for explicit-shape"
+                        f" array declarations.") from err
 
             elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
-                    "Could not process {0}. Assumed-size arrays"
-                    " are not supported.".format(dimensions))
+                    f"Could not process {dimensions}. Assumed-size arrays"
+                    f" are not supported.")
 
             else:
                 raise InternalError(
-                    "Reached end of loop body and array-shape specification "
-                    "{0} has not been handled.".format(type(dim)))
+                    f"Reached end of loop body and array-shape specification "
+                    f"{type(dim)} has not been handled.")
 
         return shape
 
@@ -1332,9 +1329,9 @@ class Fparser2Reader(object):
                 public_stmt = False
             else:
                 raise InternalError(
-                    "Failed to process '{0}'. Found an accessibility "
-                    "attribute of '{1}' but expected either 'public' or "
-                    "'private'.".format(str(stmt), stmt.children[0]))
+                    f"Failed to process '{stmt}'. Found an accessibility "
+                    f"attribute of '{stmt.children[0]}' but expected either "
+                    f"'public' or 'private'.")
             if not stmt.children[1]:
                 if default_visibility:
                     # We've already seen an access statement without an
@@ -1346,9 +1343,9 @@ class Fparser2Reader(object):
                             mod_name = str(
                                 current_node.children[0].children[1])
                             raise GenerationError(
-                                "Module '{0}' contains more than one access "
-                                "statement with an omitted access-id-list. "
-                                "This is invalid Fortran.".format(mod_name))
+                                f"Module '{mod_name}' contains more than one "
+                                f"access statement with an omitted "
+                                f"access-id-list. This is invalid Fortran.")
                         current_node = current_node.parent
                     # Failed to find an enclosing Module. This is also invalid
                     # Fortran since an access statement is only permitted
@@ -1373,9 +1370,9 @@ class Fparser2Reader(object):
         invalid_symbols = explicit_public.intersection(explicit_private)
         if invalid_symbols:
             raise GenerationError(
-                "Symbols {0} appear in access statements with both PUBLIC "
-                "and PRIVATE access-ids. This is invalid Fortran.".format(
-                    list(invalid_symbols)))
+                f"Symbols {list(invalid_symbols)} appear in access statements "
+                f"with both PUBLIC and PRIVATE access-ids. This is invalid "
+                f"Fortran.")
 
         # Symbols are public by default in Fortran
         if default_visibility is None:
@@ -1428,9 +1425,8 @@ class Fparser2Reader(object):
                     if item:
                         text += str(item)
                 raise GenerationError(
-                    "Expected the parse tree for a USE statement to contain "
-                    "5 items but found {0} for '{1}'".format(len(decl.items),
-                                                             text))
+                    f"Expected the parse tree for a USE statement to contain "
+                    f"5 items but found {len(decl.items)} for '{text}'")
 
             mod_name = str(decl.items[2])
             mod_visibility = visibility_map.get(
@@ -1449,10 +1445,9 @@ class Fparser2Reader(object):
                 container = parent.symbol_table.lookup(mod_name)
                 if not isinstance(container, ContainerSymbol):
                     raise SymbolError(
-                        "Found a USE of module '{0}' but the symbol table "
-                        "already has a non-container entry with that name "
-                        "({1}). This is invalid Fortran.".format(
-                            mod_name, str(container)))
+                        f"Found a USE of module '{mod_name}' but the symbol "
+                        f"table already has a non-container entry with that "
+                        f"name ({container}). This is invalid Fortran.")
 
             # Create a generic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
@@ -1480,11 +1475,10 @@ class Fparser2Reader(object):
                             sym_name)
                         if not existing_symbol.is_import:
                             raise SymbolError(
-                                "Symbol '{0}' is imported from module '{1}' "
-                                "but is already present in the symbol table as"
-                                " either an argument or a local ({2}).".
-                                format(sym_name, mod_name,
-                                       str(existing_symbol)))
+                                f"Symbol '{sym_name}' is imported from module "
+                                f"'{mod_name}' but is already present in the "
+                                f"symbol table as either an argument or a "
+                                f"local ({existing_symbol}).")
                         # TODO #11 Log the fact that we've already got an
                         # import of this symbol and that will take precendence.
             elif not decl.items[3]:
@@ -1510,8 +1504,8 @@ class Fparser2Reader(object):
                     # the module.
                     pass
             else:
-                raise NotImplementedError("Found unsupported USE statement: "
-                                          "'{0}'".format(str(decl)))
+                raise NotImplementedError(f"Found unsupported USE statement: "
+                                          f"'{decl}'")
 
     def _process_type_spec(self, parent, type_spec):
         '''
@@ -1547,10 +1541,9 @@ class Fparser2Reader(object):
                 data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
             except KeyError as err:
                 raise NotImplementedError(
-                    "Could not process {0}. Only 'real', 'double "
-                    "precision', 'integer', 'logical' and 'character' "
-                    "intrinsic types are supported."
-                    "".format(str(type_spec))) from err
+                    f"Could not process {type_spec}. Only 'real', 'double "
+                    f"precision', 'integer', 'logical' and 'character' "
+                    f"intrinsic types are supported.") from err
             if fort_type == "double precision":
                 # Fortran double precision is equivalent to a REAL
                 # intrinsic with precision DOUBLE in the PSyIR.
@@ -1563,8 +1556,8 @@ class Fparser2Reader(object):
             # We don't support len or kind specifiers for character variables
             if fort_type == "character" and type_spec.children[1]:
                 raise NotImplementedError(
-                    "Length or kind attributes not supported on a character "
-                    "variable: '{0}'".format(str(type_spec)))
+                    f"Length or kind attributes not supported on a character "
+                    f"variable: '{type_spec}'")
             base_type = ScalarType(data_name, precision)
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
@@ -1589,9 +1582,9 @@ class Fparser2Reader(object):
                 type_symbol = new_symbol
             elif not isinstance(type_symbol, DataTypeSymbol):
                 raise SymbolError(
-                    "Search for a DataTypeSymbol named '{0}' (required by "
-                    "specification '{1}') found a '{2}' instead.".format(
-                        type_name, str(type_spec), type(type_symbol).__name__))
+                    f"Search for a DataTypeSymbol named '{type_name}' "
+                    f"(required by specification '{type_spec}') found a "
+                    f"'{type(type_symbol).__name__}' instead.")
             base_type = type_symbol
 
         else:
@@ -1673,11 +1666,10 @@ class Fparser2Reader(object):
                                            (Fortran2003.Module,
                                             Fortran2003.Main_Program))):
                             raise NotImplementedError(
-                                "Could not process {0}. The 'SAVE' "
-                                "attribute is not yet supported when it is"
-                                " not part of a module, submodule or main_"
-                                "program specification part.".
-                                format(decl.items))
+                                f"Could not process {decl.items}. The 'SAVE' "
+                                f"attribute is not yet supported when it is"
+                                f" not part of a module, submodule or main_"
+                                f"program specification part.")
 
                     elif normalized_string == "parameter":
                         # Flag the existence of a constant value in the RHS
@@ -1686,9 +1678,8 @@ class Fparser2Reader(object):
                         allocatable = True
                     else:
                         raise NotImplementedError(
-                            "Could not process {0}. Unrecognised "
-                            "attribute '{1}'.".format(decl.items,
-                                                      str(attr)))
+                            f"Could not process {decl.items}. Unrecognised "
+                            f"attribute '{attr}'.")
                 elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
                     (_, intent) = attr.items
                     normalized_string = \
@@ -1698,10 +1689,9 @@ class Fparser2Reader(object):
                             INTENT_MAPPING[normalized_string])
                     except KeyError as info:
                         message = (
-                            "Could not process {0}. Unexpected intent "
-                            "attribute '{1}'.".format(decl.items,
-                                                      str(attr)))
-                        six.raise_from(InternalError(message), info)
+                            f"Could not process {decl.items}. Unexpected "
+                            f"intent attribute '{attr}'.")
+                        raise InternalError(message) from info
                 elif isinstance(attr,
                                 (Fortran2003.Dimension_Attr_Spec,
                                  Fortran2003.Dimension_Component_Attr_Spec)):
@@ -1711,14 +1701,13 @@ class Fparser2Reader(object):
                     try:
                         decln_access_spec = _process_access_spec(attr)
                     except InternalError as err:
-                        six.raise_from(InternalError(
-                            "Could not process '{0}': {1}".format(
-                                decl.items, str(err.value))), err)
+                        raise InternalError(
+                            f"Could not process '{decl.items}': "
+                            f"{err.value}") from err
                 else:
                     raise NotImplementedError(
-                        "Could not process declaration: '{0}'. "
-                        "Unrecognised attribute type '{1}'.".format(
-                            str(decl), str(type(attr).__name__)))
+                        f"Could not process declaration '{decl}'. Unrecognised"
+                        f" attribute type '{type(attr).__name__}'.")
 
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.
@@ -1738,9 +1727,8 @@ class Fparser2Reader(object):
                 # We have an allocatable attribute on something that we
                 # don't recognise as an array - this is not supported.
                 raise NotImplementedError(
-                    "Could not process {0}. The 'allocatable' attribute is"
-                    " only supported on array declarations.".format(
-                        str(decl)))
+                    f"Could not process {decl}. The 'allocatable' attribute is"
+                    f" only supported on array declarations.")
 
             for idx, extent in enumerate(entity_shape):
                 if extent is None:
@@ -1753,9 +1741,8 @@ class Fparser2Reader(object):
                     # We have an allocatable array with a defined extent.
                     # This is invalid Fortran.
                     raise InternalError(
-                        "Invalid Fortran: '{0}'. An array with defined "
-                        "extent cannot have the ALLOCATABLE attribute.".
-                        format(str(decl)))
+                        f"Invalid Fortran: '{decl}'. An array with defined "
+                        f"extent cannot have the ALLOCATABLE attribute.")
 
             if initialisation:
                 if has_constant_value:
@@ -1891,20 +1878,20 @@ class Fparser2Reader(object):
             tsymbol = parent.symbol_table.lookup(name)
             if not isinstance(tsymbol, DataTypeSymbol):
                 raise SymbolError(
-                    "Error processing definition of derived type '{0}'. The "
-                    "symbol table already contains an entry with this name but"
-                    " it is a '{1}' when it should be a 'DataTypeSymbol' (for "
-                    "the derived-type definition '{2}')".format(
-                        name, type(tsymbol).__name__, str(decl)))
+                    f"Error processing definition of derived type '{name}'. "
+                    f"The symbol table already contains an entry with this "
+                    f"name but it is a '{type(tsymbol).__name__}' when it "
+                    f"should be a 'DataTypeSymbol' (for the derived-type "
+                    f"definition '{decl}')")
             # Since we are processing the definition of this symbol, the only
             # permitted type for an existing symbol of this name is 'deferred'.
             if not isinstance(tsymbol.datatype, DeferredType):
                 raise SymbolError(
-                    "Error processing definition of derived type '{0}'. The "
-                    "symbol table already contains a DataTypeSymbol with this "
-                    "name but it is of type '{1}' when it should be of "
-                    "'DeferredType'".format(
-                        name, type(tsymbol.datatype).__name__))
+                    f"Error processing definition of derived type '{name}'. "
+                    f"The symbol table already contains a DataTypeSymbol with "
+                    f"this name but it is of type "
+                    f"'{type(tsymbol.datatype).__name__}' when it should be "
+                    f"of 'DeferredType'")
         else:
             # We don't already have an entry for this type so create one
             tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
@@ -2082,8 +2069,8 @@ class Fparser2Reader(object):
 
             else:
                 raise NotImplementedError(
-                    "Error processing declarations: fparser2 node of type "
-                    "'{0}' not supported".format(type(node).__name__))
+                    f"Error processing declarations: fparser2 node of type "
+                    f"'{type(node).__name__}' not supported")
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2099,11 +2086,11 @@ class Fparser2Reader(object):
                                                         visibility=vis)
                     except SymbolError as err:
                         # Improve the error message with context-specific info
-                        six.raise_from(SymbolError(
-                            "'{0}' is listed in an accessibility statement as "
-                            "being '{1}' but failed to find a declaration or "
-                            "possible import (use) of this symbol.".format(
-                                name, vis)), err)
+                        raise SymbolError(
+                            f"'{name}' is listed in an accessibility "
+                            f"statement as being '{vis}' but failed to find a "
+                            f"declaration or possible import (use) of this "
+                            f"symbol.") from err
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
@@ -2125,10 +2112,9 @@ class Fparser2Reader(object):
             # argument list
             parent.symbol_table.specify_argument_list(arg_symbols)
         except KeyError:
-            raise InternalError("The kernel argument "
-                                "list '{0}' does not match the variable "
-                                "declarations for fparser nodes {1}."
-                                "".format(str(arg_list), nodes))
+            raise InternalError(f"The kernel argument list '{arg_list}' does "
+                                f"not match the variable declarations for "
+                                f"fparser nodes {nodes}.")
 
         # fparser2 does not always handle Statement Functions correctly, this
         # loop checks for Stmt_Functions that should be an array statement
@@ -2159,14 +2145,14 @@ class Fparser2Reader(object):
                                        nodes=[assignment_rhs])
                 else:
                     raise InternalError(
-                        "Could not process '{0}'. Symbol '{1}' is in the"
-                        " SymbolTable but it is not an array as expected, so"
-                        " it can not be recovered as an array assignment."
-                        "".format(str(stmtfn), symbol.name))
+                        f"Could not process '{stmtfn}'. Symbol "
+                        f"'{symbol.name}' is in the SymbolTable but it is not "
+                        f"an array as expected, so it can not be recovered as "
+                        f"an array assignment.")
             except KeyError:
                 raise NotImplementedError(
-                    "Could not process '{0}'. Statement Function declarations "
-                    "are not supported.".format(str(stmtfn)))
+                    f"Could not process '{stmtfn}'. Statement Function "
+                    f"declarations are not supported.")
 
     @staticmethod
     def _process_precision(type_spec, psyir_parent):
@@ -2225,16 +2211,16 @@ class Fparser2Reader(object):
                 return get_literal_precision(kind_arg, psyir_parent)
 
             raise NotImplementedError(
-                "Only real and integer literals are supported "
-                "as arguments to the KIND intrinsic but found '{0}' in: "
-                "{1}".format(type(kind_arg).__name__, str(kind_selector)))
+                f"Only real and integer literals are supported as arguments "
+                f"to the KIND intrinsic but found "
+                f"'{type(kind_arg).__name__}' in: {kind_selector}")
 
         # We have kind=kind-param
         kind_names = walk(kind_selector.items, Fortran2003.Name)
         if not kind_names:
             raise NotImplementedError(
-                "Failed to find valid Name in Fortran Kind "
-                "Selector: '{0}'".format(str(kind_selector)))
+                f"Failed to find valid Name in Fortran Kind Selector: "
+                f"{kind_selector}'")
 
         return _kind_find_or_create(str(kind_names[0]), symbol_table)
 
@@ -2295,9 +2281,10 @@ class Fparser2Reader(object):
         # We don't support statements with labels.
         if isinstance(child, BlockBase):
             # An instance of BlockBase describes a block of code (no surprise
-            # there), so we have to examine the first statement within it.
-            if (child.content and child.content[0].item and
-                    child.content[0].item.label):
+            # there), so we have to examine the first statement within it. We
+            # must allow for the case where the block is empty though.
+            if (child.content and child.content[0] and
+                    child.content[0].item and child.content[0].item.label):
                 raise NotImplementedError()
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
@@ -2399,9 +2386,9 @@ class Fparser2Reader(object):
                 datatype=DeferredType())
         except SymbolError:
             raise InternalError(
-                "Loop-variable name '{0}' is not declared and there are no "
-                "unqualified use statements. This is currently unsupported."
-                "".format(variable_name))
+                f"Loop-variable name '{variable_name}' is not declared and "
+                f"there are no unqualified use statements. This is currently "
+                f"unsupported.")
         # The loop node is created with the _create_loop factory method as some
         # APIs require a specialised loop node type.
         loop = self._create_loop(parent, data_symbol)
@@ -2456,12 +2443,10 @@ class Fparser2Reader(object):
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
             raise InternalError(
-                "Failed to find opening if then statement in: "
-                "{0}".format(str(node)))
+                f"Failed to find opening if then statement in: {node}")
         if not isinstance(node.content[-1], Fortran2003.End_If_Stmt):
             raise InternalError(
-                "Failed to find closing end if statement in: "
-                "{0}".format(str(node)))
+                f"Failed to find closing end if statement in: {node}")
 
         # Search for all the conditional clauses in the If_Construct
         clause_indices = []
@@ -2519,8 +2504,8 @@ class Fparser2Reader(object):
             elif isinstance(clause, Fortran2003.Else_Stmt):
                 if not idx == num_clauses - 1:
                     raise InternalError(
-                        "Else clause should only be found next to last "
-                        "clause, but found {0}".format(node.content))
+                        f"Else clause should only be found next to last "
+                        f"clause, but found {node.content}")
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
                 elsebody.ast = node.content[start_idx]
@@ -2529,8 +2514,8 @@ class Fparser2Reader(object):
                                    nodes=node.content[start_idx + 1:end_idx])
             else:
                 raise InternalError(
-                    "Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt "
-                    "are expected, but found {0}.".format(clause))
+                    f"Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt "
+                    f"are expected, but found {clause}.")
 
         return ifblock
 
@@ -2574,12 +2559,10 @@ class Fparser2Reader(object):
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
             raise InternalError(
-                "Failed to find opening case statement in: "
-                "{0}".format(str(node)))
+                f"Failed to find opening case statement in: {node}")
         if not isinstance(node.content[-1], Fortran2003.End_Select_Stmt):
             raise InternalError(
-                "Failed to find closing case statement in: "
-                "{0}".format(str(node)))
+                f"Failed to find closing case statement in: {node}")
 
         # Search for all the CASE clauses in the Case_Construct. We do this
         # because the fp2 parse tree has a flat structure at this point with
@@ -2596,9 +2579,9 @@ class Fparser2Reader(object):
             if isinstance(child, Fortran2003.Case_Stmt):
                 if not isinstance(child.items[0], Fortran2003.Case_Selector):
                     raise InternalError(
-                        "Unexpected parse tree structure. Expected child of "
-                        "Case_Stmt to be a Case_Selector but got: '{0}'".
-                        format(type(child.items[0]).__name__))
+                        f"Unexpected parse tree structure. Expected child of "
+                        f"Case_Stmt to be a Case_Selector but got: "
+                        f"'{type(child.items[0]).__name__}'")
                 case_expression = child.items[0].items[0]
                 if case_expression is None:
                     # This is a 'case default' clause - store its position.
@@ -2906,9 +2889,9 @@ class Fparser2Reader(object):
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
-                        "Found array sections of differing ranks within a "
-                        "WHERE construct: array section of {0} has rank {1}".
-                        format(array.name, rank))
+                        f"Found array sections of differing ranks within a "
+                        f"WHERE construct: array section of {array.name} has "
+                        f"rank {rank}")
             else:
                 first_rank = rank
 
@@ -2958,14 +2941,14 @@ class Fparser2Reader(object):
             # expected structure.
             if not len(node.items) == 2:
                 raise InternalError(
-                    "Expected a Fortran2003.Where_Stmt to have exactly two "
-                    "entries in 'items' but found {0}: {1}".format(
-                        len(node.items), str(node.items)))
+                    f"Expected a Fortran2003.Where_Stmt to have exactly two "
+                    f"entries in 'items' but found {len(node.items)}: "
+                    f"{node.items}")
             if not isinstance(node.items[1], Fortran2003.Assignment_Stmt):
                 raise InternalError(
-                    "Expected the second entry of a Fortran2003.Where_Stmt "
-                    "items tuple to be an Assignment_Stmt but found: {0}".
-                    format(type(node.items[1]).__name__))
+                    f"Expected the second entry of a Fortran2003.Where_Stmt "
+                    f"items tuple to be an Assignment_Stmt but found: "
+                    f"{type(node.items[1]).__name__}")
             was_single_stmt = True
             annotations = ["was_where", "was_single_stmt"]
             logical_expr = [node.items[0]]
@@ -2974,11 +2957,11 @@ class Fparser2Reader(object):
             # children are what we expect.
             if not isinstance(node.content[0],
                               Fortran2003.Where_Construct_Stmt):
-                raise InternalError("Failed to find opening where construct "
-                                    "statement in: {0}".format(str(node)))
+                raise InternalError(f"Failed to find opening where construct "
+                                    f"statement in: {node}")
             if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
-                raise InternalError("Failed to find closing end where "
-                                    "statement in: {0}".format(str(node)))
+                raise InternalError(f"Failed to find closing end where "
+                                    f"statement in: {node}")
             was_single_stmt = False
             annotations = ["was_where"]
             logical_expr = node.content[0].items
@@ -3033,8 +3016,7 @@ class Fparser2Reader(object):
         for idx in range(rank, 0, -1):
 
             data_symbol = symbol_table.new_symbol(
-                "widx{0}".format(idx), symbol_type=DataSymbol,
-                datatype=integer_type)
+                f"widx{idx}", symbol_type=DataSymbol, datatype=integer_type)
             loop_vars[idx-1] = data_symbol.name
 
             loop = Loop(parent=new_parent, variable=data_symbol,
@@ -3160,9 +3142,8 @@ class Fparser2Reader(object):
                     elif isinstance(clause, Fortran2003.Elsewhere_Stmt):
                         if idx != num_clauses - 1:
                             raise InternalError(
-                                "Elsewhere_Stmt should only be found next to "
-                                "last clause, but found {0}".format(
-                                    node.content))
+                                f"Elsewhere_Stmt should only be found next to "
+                                f"last clause, but found {node.content}")
                         elsebody = Schedule(parent=current_parent)
                         current_parent.addchild(elsebody)
                         elsebody.ast = node.content[start_idx]
@@ -3173,9 +3154,9 @@ class Fparser2Reader(object):
 
                     else:
                         raise InternalError(
-                            "Expected either Fortran2003.Masked_Elsewhere_Stmt"
-                            " or Fortran2003.Elsewhere_Stmt but found '{0}'".
-                            format(type(clause).__name__))
+                            f"Expected either Fortran2003.Masked_Elsewhere"
+                            f"_Stmt or Fortran2003.Elsewhere_Stmt but found "
+                            f"'{type(clause).__name__}'")
             else:
                 # No elsewhere clauses were found so put the whole body into
                 # the single if block.
@@ -3349,8 +3330,8 @@ class Fparser2Reader(object):
                 # We have more than one argument and therefore this is not a
                 # unary operation!
                 raise InternalError(
-                    "Operation '{0}' has more than one argument and is "
-                    "therefore not unary!".format(str(node)))
+                    f"Operation '{node}' has more than one argument and is "
+                    f"therefore not unary!")
             node_list = node.items[1].items
         else:
             node_list = [node.items[1]]
@@ -3394,15 +3375,14 @@ class Fparser2Reader(object):
             # Arguments are held in an Actual_Arg_Spec_List
             if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
                 raise InternalError(
-                    "Unexpected fparser parse tree for binary intrinsic "
-                    "operation '{0}'. Expected second child to be "
-                    "Actual_Arg_Spec_List but got '{1}'.".format(
-                        str(node), type(node.items[1])))
+                    f"Unexpected fparser parse tree for binary intrinsic "
+                    f"operation '{node}'. Expected second child to be "
+                    f"Actual_Arg_Spec_List but got '{type(node.items[1])}'.")
             arg_nodes = node.items[1].items
             if len(arg_nodes) != 2:
                 raise InternalError(
-                    "Binary operator should have exactly two arguments but "
-                    "found {0} for '{1}'.".format(len(arg_nodes), str(node)))
+                    f"Binary operator should have exactly two arguments but "
+                    f"found {len(arg_nodes)} for '{node}'.")
         else:
             operator_str = node.items[1].lower()
             arg_nodes = [node.items[0], node.items[2]]
@@ -3461,14 +3441,13 @@ class Fparser2Reader(object):
 
         if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
             raise InternalError(
-                "Expected second 'item' of N-ary intrinsic '{0}' in fparser "
-                "parse tree to be an Actual_Arg_Spec_List but found '{1}'.".
-                format(str(node), type(node.items[1])))
+                f"Expected second 'item' of N-ary intrinsic '{node}' in "
+                f"fparser parse tree to be an Actual_Arg_Spec_List but found "
+                f"'{type(node.items[1])}'.")
         if len(node.items[1].items) < 3:
             raise InternalError(
-                "An N-ary operation must have more than two arguments but "
-                "found {0} for '{1}'.".format(len(node.items[1].items),
-                                              str(node)))
+                f"An N-ary operation must have more than two arguments but "
+                f"found {len(node.items[1].items)} for '{node}'.")
 
         # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
         # to process the `items` of that...
@@ -3620,9 +3599,9 @@ class Fparser2Reader(object):
                                  not isinstance(kid, Member)]) + 1)
         else:
             raise InternalError(
-                "Expected parent PSyIR node to be either a Reference or a "
-                "Member but got '{0}' when processing '{1}'".format(
-                    type(parent).__name__, str(node)))
+                f"Expected parent PSyIR node to be either a Reference or a "
+                f"Member but got '{type(parent).__name__}' when processing "
+                f"'{node}'")
 
         integer_type = default_integer_type()
         my_range = Range(parent=parent)
@@ -3728,8 +3707,8 @@ class Fparser2Reader(object):
         if not ((char_value.startswith("'") and char_value.endswith("'")) or
                 (char_value.startswith('"') and char_value.endswith('"'))):
             raise InternalError(
-                "Char literal handler expects a quoted value but got: "
-                ">>{0}<<".format(char_value))
+                f"Char literal handler expects a quoted value but got: "
+                f">>{char_value}<<")
         # In Fortran "x""x" or 'x''x' represents a string containing x"x
         # or x'x, respectively. (See Note 4.12 in the Fortran 2003 standard.)
         # However, checking whether we have e.g. 'that''s a cat''s mat' is
@@ -3762,8 +3741,8 @@ class Fparser2Reader(object):
         if value == ".false.":
             return Literal("false", boolean_type)
         raise GenerationError(
-            "Expected to find '.true.' or '.false.' as fparser2 logical "
-            "literal, but found '{0}' instead.".format(value))
+            f"Expected to find '.true.' or '.false.' as fparser2 logical "
+            f"literal, but found '{value}' instead.")
 
     def _call_handler(self, node, parent):
         '''Transforms an fparser2 CALL statement into a PSyIR Call node.
@@ -3795,9 +3774,9 @@ class Fparser2Reader(object):
                 pass
             else:
                 raise GenerationError(
-                    "Expecting the symbol '{0}', to be of type 'Symbol' or "
-                    "'RoutineSymbol', but found '{1}'.".format(
-                        call_name, type(routine_symbol).__name__))
+                    f"Expecting the symbol '{call_name}', to be of type "
+                    f"'Symbol' or 'RoutineSymbol', but found "
+                    f"'{type(routine_symbol).__name__}'.")
         except KeyError:
             # A call must be to a subroutine which has no type in Fortran.
             routine_symbol = RoutineSymbol(
@@ -4053,6 +4032,9 @@ class Fparser2Reader(object):
         # one) so this can't be provided as the name of the
         # FileContainer.
         file_container = FileContainer("None", parent=parent)
+        if len(node.children) == 1 and node.children[0] is None:
+            # We have an empty file
+            return file_container
         self.process_nodes(file_container, node.children)
         return file_container
 

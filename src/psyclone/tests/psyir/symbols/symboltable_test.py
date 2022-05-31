@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -474,7 +474,7 @@ def test_remove_containersymbols():
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
         sym_table.remove(my_mod)
-    assert ("Cannot remove ContainerSymbol 'my_mod' because symbols "
+    assert ("Cannot remove ContainerSymbol 'my_mod' since symbols "
             "['var1'] are imported from it" in str(err.value))
     # Change the interface on var1
     var1.interface = LocalInterface()
