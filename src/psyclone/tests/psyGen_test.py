@@ -43,7 +43,6 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -52,7 +51,7 @@ from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
     DynKernelArguments, DynGlobalSum
@@ -187,9 +186,9 @@ def test_transformation_init_name():
     assert trans.name == "TestTrans"
     assert isinstance(trans._writer, FortranWriter)
     with pytest.raises(TypeError) as info:
-        _ = TestTrans(writer=None)
+        _ = TestTrans(writer="wrong")
     assert ("The writer argument to a transformation should be a "
-            "PSyIRVisitor, but found 'NoneType'." in str(info.value))
+            "PSyIRVisitor, but found 'str'." in str(info.value))
     trans = TestTrans(writer=CWriter())
     assert isinstance(trans._writer, CWriter)
 

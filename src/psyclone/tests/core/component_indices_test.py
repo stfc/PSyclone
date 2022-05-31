@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.core import ComponentIndices
+from psyclone.core import ComponentIndices, VariablesAccessInfo
 from psyclone.errors import InternalError
 
 
@@ -125,3 +125,47 @@ def test_component_indices_getitem_exceptions():
     with pytest.raises(IndexError) as err:
         _ = component_indices[(1, -1)]
     assert "Second index (-1) of (1, -1) is out of range." in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("expression, correct",
+                         # We look for i, j and k; l will be ignored
+                         [("a1(i+i+j+l)", [set(("i", "j"))]),
+                          ("a1(1)", [set()]),
+                          ("a2(i+j,2*j+k+1)", [set(("i", "j")),
+                                               set(("j", "k"))]),
+                          ("a3(i,j,i)", [set("i"), set("j"), set("i")]),
+                          ("dv(i)%a(j)%b(k)", [set("i"), set("j"),
+                                               set("k")])])
+def test_get_subscripts_of(expression, correct, fortran_reader):
+    '''Tests that getting the indices of an array expressions
+    works as expected.
+    '''
+    source = f'''program test
+                 use my_mod, only: my_type
+                 type(my_type) :: dv(10)
+                 integer i, j, k, l
+                 integer, parameter :: n=10
+                 real, dimension(n) :: a1
+                 real, dimension(n,n) :: a2
+                 real, dimension(n,n,n) :: a3
+                 {expression} = 1
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assign = psyir.children[0].children[0]
+
+    # Get all access info for the expression
+    access_info = VariablesAccessInfo(assign)
+
+    # Find the access that is not to i,j, or k --> this must be
+    # the 'main' array variable we need to check for:
+    sig = None
+    loop_vars = set(["i", "j", "k"])
+    for sig in access_info:
+        if str(sig) not in loop_vars:
+            break
+    # Get all accesses to the array variable. It has only one
+    # access
+    access = access_info[sig][0]
+    result = access.component_indices.get_subscripts_of(loop_vars)
+    assert result == correct
