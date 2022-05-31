@@ -65,34 +65,34 @@ NDATA_SIZE = "1"
 
 def _create_alg_mod(name):
     '''
-    Creates a standalone LFRic algorithm subroutine.
+    Creates a standalone LFRic algorithm subroutine within a module.
 
-    :param str name: the name to give the created routine.
+    :param str name: the name to give the created routine. The associated \
+                     container will have "_mod" appended to this name.
 
     :returns: a container.
     :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-    :raises TypeError: if the supplied argument is of the wrong type.
+    :raises TypeError: if the 'name' argument is of the wrong type.
 
     '''
     if not isinstance(name, str):
-        raise TypeError(f"Supplied module name must be a str but got "
+        raise TypeError(f"Supplied routine name must be a str but got "
                         f"'{type(name).__name__}'")
-    cont = Container(name+"_mod")
 
+    cont = Container(name+"_mod")
     alg_sub = Routine(name)
 
     table = alg_sub.symbol_table
 
     # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "constants_mod", "mesh_mod", "operator_mod"]:
+                "constants_mod", "mesh_mod"]:
         table.new_symbol(mod, symbol_type=ContainerSymbol)
 
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("field_mod")))
+                     interface=ImportInterface(table.lookup("field_mod")))
 
     table.new_symbol("function_space_type",
                      symbol_type=DataTypeSymbol,
@@ -100,124 +100,40 @@ def _create_alg_mod(name):
                      interface=ImportInterface(
                          table.lookup("function_space_mod")))
 
+    table.new_symbol("mesh_type", symbol_type=DataTypeSymbol,
+                     datatype=DeferredType(),
+                     interface=ImportInterface(table.lookup("mesh_mod")))
+
     table.new_symbol("r_def", symbol_type=DataSymbol,
                      datatype=INTEGER_TYPE,
-                     interface=ImportInterface(
-                         table.lookup("constants_mod")))
+                     interface=ImportInterface(table.lookup("constants_mod")))
 
     table.new_symbol("i_def", symbol_type=DataSymbol,
                      datatype=INTEGER_TYPE,
-                     interface=ImportInterface(
-                         table.lookup("constants_mod")))
+                     interface=ImportInterface(table.lookup("constants_mod")))
 
+    # Declare the three arguments to the subroutine. All of them have to be
+    # of UnknownFortranType - the mesh because it is a pointer and chi and
+    # panel_id because they are optional.
     mesh_ptr_type = UnknownFortranType(
         "type(mesh_type), pointer, intent(in) :: mesh")
     mesh_ptr = DataSymbol("mesh", mesh_ptr_type, interface=ArgumentInterface())
-    alg_sub.symbol_table.add(mesh_ptr)
+    table.add(mesh_ptr)
 
     chi_type = UnknownFortranType(
-        "type( field_type ), dimension(3), intent( in ), optional :: chi")
+        "type(field_type), dimension(3), intent(in), optional :: chi")
     chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
-    alg_sub.symbol_table.add(chi)
-    alg_sub.symbol_table.specify_argument_list([mesh_ptr, chi])
+    table.add(chi)
+
+    pid_type = UnknownFortranType(
+        "type(field_type), intent(in), optional :: panel_id")
+    pid = DataSymbol("panel_id", pid_type, interface=ArgumentInterface())
+    table.add(pid)
+    table.specify_argument_list([mesh_ptr, chi, pid])
 
     cont.addchild(alg_sub)
 
     return cont
-
-
-def _create_alg_driver(name, nlayers):
-    '''
-    Creates a standalone LFRic program with the necessary infrastructure
-    set-up calls contained in a CodeBlock.
-
-    :param str name: the name to give the created program.
-    :param int nlayers: the number of vertical levels to give the model.
-
-    :returns: an LFRic program.
-    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
-
-    :raises TypeError: if either of the supplied arguments are of the wrong \
-                       type.
-    '''
-    if not isinstance(name, str):
-        raise TypeError(f"Supplied program name must be a str but got "
-                        f"'{type(name).__name__}'")
-    if not isinstance(nlayers, int):
-        raise TypeError(f"Supplied number of vertical levels must be an int "
-                        f"but got '{type(nlayers).__name__}'")
-
-    # For simplicity we use a template algorithm layer.
-    alg_code = f'''\
-PROGRAM {name}
-  use some_mod
-  use mesh_mod, only: mesh_type, PLANE
-  use partition_mod, only: partition_type, partitioner_planar, \
-partitioner_interface
-  use global_mesh_base_mod, only: global_mesh_base_type
-  use extrusion_mod, only: uniform_extrusion_type
-  IMPLICIT NONE
-  type(partition_type) :: partition
-  type(mesh_type), target :: mesh
-  type(global_mesh_base_type), target :: global_mesh
-  class(global_mesh_base_type), pointer :: global_mesh_ptr
-  type(uniform_extrusion_type), target :: extrusion
-  type(uniform_extrusion_type), pointer :: extrusion_ptr
-
-  global_mesh = global_mesh_base_type()
-  global_mesh_ptr => global_mesh
-  partitioner_ptr => partitioner_planar
-  partition = partition_type(global_mesh_ptr, partitioner_ptr, 1, 1, 0, 0, 1)
-  extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, {nlayers})
-  extrusion_ptr => extrusion
-  mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
-  write(*, *) "Mesh has", mesh % get_nlayers(), "layers."
-END PROGRAM {name}
-'''
-    # Create the PSyIR of this code.
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(alg_code)
-
-    prog = psyir.walk(Routine)[0].detach()
-    table = prog.symbol_table
-    # Remove the fake container symbol (needed to prevent FortranReader from
-    # complaining about undefined symbols).
-    table.remove(table.lookup("some_mod"))
-
-    # Create ContainerSymbols for each of the modules that we will need.
-    for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "constants_mod"]:
-        table.new_symbol(mod, symbol_type=ContainerSymbol)
-
-    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("field_mod")))
-
-    table.new_symbol("function_space_type",
-                     symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("function_space_mod")))
-
-    # If we put this declaration in the template code above then we just
-    # end up with a CodeBlock (Issue #1687) so we have to massage it here.
-    part_ptr = table.lookup("partitioner_ptr")
-    part_ptr.specialise(DataSymbol, interface=LocalInterface(),
-                        datatype=UnknownFortranType(
-                            "PROCEDURE(partitioner_interface), "
-                            "POINTER :: partitioner_ptr"))
-
-    table.new_symbol("r_def", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE,
-                     interface=ImportInterface(
-                         table.lookup("constants_mod")))
-    table.new_symbol("i_def", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE,
-                     interface=ImportInterface(
-                         table.lookup("constants_mod")))
-
-    return prog
 
 
 def _create_function_spaces(prog, fspaces):
@@ -423,7 +339,7 @@ def generate(kernel_path):
 
     '''
     # Create PSyIR for an algorithm routine.
-    cont = _create_alg_mod("test_alg_mod")
+    cont = _create_alg_mod("test_alg")
     sub = cont.walk(Routine)[0]
     table = sub.symbol_table
 

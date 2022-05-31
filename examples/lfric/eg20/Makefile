@@ -95,7 +95,7 @@ transform: test_alg_mod_psy.f90
 
 # Process the generated algorithm layer with PSyclone to generate a compilable
 # algorithm file and a suitable PSy-layer subroutine.
-test_alg_mod_psy.f90:	test_alg_mod.x90
+test_alg_mod_psy.f90 test_alg_mod.f90: test_alg_mod.x90
 	${PSYCLONE} -d ../code -opsy test_alg_mod_psy.f90 -oalg test_alg_mod.f90 $<
 
 allclean: clean
