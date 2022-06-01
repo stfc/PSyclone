@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -436,16 +436,16 @@ def test_profiling_symbol_clash(parser):
     for sym in ["PSyDataType", "psy_data_mod"]:
         _, schedule = get_nemo_schedule(
             parser,
-            "program my_test\n"
-            "  real :: my_array(3,3)\n"
-            "  integer :: {0}\n"
-            "  my_array(:,:) = 0.0\n"
-            "end program my_test\n".format("profile_"+sym))
+            f"program my_test\n"
+            f"  real :: my_array(3,3)\n"
+            f"  integer :: profile_{sym}\n"
+            f"  my_array(:,:) = 0.0\n"
+            f"end program my_test\n")
         with pytest.raises(TransformationError) as err:
             PTRANS.apply(schedule.children[0])
-        assert ("Cannot add PSyData calls because there is already "
-                "a symbol named '{0}' which clashes with one of those used "
-                "by the PSyclone PSyData API.".format("profile_"+sym)
+        assert (f"Cannot add PSyData calls because there is already a symbol "
+                f"named 'profile_{sym}' which clashes with one of those used "
+                f"by the PSyclone PSyData API."
                 in str(err.value))
 
 

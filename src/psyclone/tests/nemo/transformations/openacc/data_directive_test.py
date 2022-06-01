@@ -306,7 +306,7 @@ def test_kind_parameter(parser):
     assert "copyin(wp)" not in gen_code.lower()
 
 
-def test_no_copyin_intrinsics(parser, fortran_reader, fortran_writer):
+def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
     ''' Check that we don't generate a copyin/out for Fortran instrinsic
     functions (i.e. we don't mistake them for array accesses). '''
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
@@ -325,7 +325,7 @@ def test_no_copyin_intrinsics(parser, fortran_reader, fortran_writer):
         acc_trans.apply(schedule.children[0:1])
         gen_code = fortran_writer(psy)
         idx = intrinsic.index("(")
-        assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
+        assert f"copyin({intrinsic[0:idx]})" not in gen_code.lower()
 
 
 def test_no_code_blocks(parser):

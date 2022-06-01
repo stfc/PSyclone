@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,14 @@
 # Authors: S. Siso and A. R. Porter, STFC Daresbury Lab
 
 
-''' Common pytest fixtures for the frontend directory '''
+''' Common pytest fixtures for the frontend directory. '''
 
 import pytest
 from fparser.two.symbol_table import SYMBOL_TABLES
 
 
 # This is similar to the top-level pytest 'parse' fixture but that one has
-# a deprecation notice (#1188). However it is appropriate to use it inside the
+# a deprecation notice (#1188). However, it is appropriate to use it inside the
 # Fortran frontend tests because the fparser dependency should be encapsulated
 # inside this module and the fixture won't go away.
 @pytest.fixture(scope="function", name="f2008_parser")

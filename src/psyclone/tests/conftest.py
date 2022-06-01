@@ -149,7 +149,7 @@ def _session_parser():
     do this once per test session (scope="session" above). This fixture is
     only intended to be used in the 'public' fixture `parser` below.
 
-    # TODO #1188 - move this to tests/psyir/frontend/conftest.py
+    TODO #1188 - move this to tests/psyir/frontend/conftest.py.
 
     '''
     return ParserFactory().create(std="f2008")
@@ -161,8 +161,8 @@ def parser(_session_parser):
     Returns the session fparser object but clears any existing symbol tables
     before doing so.
 
-    TODO #1188 as part of isolating fparser usage to the PSyIR frontend, this
-    fixture will be removed and replaced by the one in
+    TODO #1188 - as part of isolating fparser usage to the PSyIR frontend,
+    this fixture will be removed and replaced by the one in
     tests/psyir/frontend/conftest.py.
 
     Note: If this fixture is not used to get the fparser parse tree but is
