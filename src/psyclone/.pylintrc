@@ -7,11 +7,6 @@ max-line-length=79
 # find them.
 generated-members=Fortran2003.*_List
 
-[MESSAGES CONTROL]
-
-# These can be re-enabled when we drop support for python2
-disable=super-with-arguments,useless-object-inheritance
-
 [DESIGN]
 # Maximum number of parents for a class (see R0901)
 max-parents=9
