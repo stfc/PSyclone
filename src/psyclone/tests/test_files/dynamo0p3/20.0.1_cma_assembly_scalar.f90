@@ -47,7 +47,7 @@ program single_invoke_cma
 
   type(operator_type)            :: lma_op1
   type(columnwise_operator_type) :: cma_op1
-  real(r_def)                    :: my_scalar = 1.0
+  real(kind=r_def)               :: my_scalar = 1.0_r_def
 
   call invoke( &
           ! Perversely name the scalar argument so as to deliberately clash
