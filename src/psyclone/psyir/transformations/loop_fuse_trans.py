@@ -39,7 +39,7 @@
 class for all API-specific loop fusion transformations.
 '''
 
-from psyclone.psyir.transformations import LoopTrans
+from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
