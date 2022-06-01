@@ -87,7 +87,7 @@ def _create_alg_mod(name):
 
     # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "constants_mod", "mesh_mod"]:
+                "function_space_collection_mod", "constants_mod", "mesh_mod"]:
         table.new_symbol(mod, symbol_type=ContainerSymbol)
 
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -99,6 +99,12 @@ def _create_alg_mod(name):
                      datatype=DeferredType(),
                      interface=ImportInterface(
                          table.lookup("function_space_mod")))
+
+    table.new_symbol("function_space_collection",
+                     symbol_type=DataTypeSymbol,
+                     datatype=DeferredType(),
+                     interface=ImportInterface(
+                         table.lookup("function_space_collection_mod")))
 
     table.new_symbol("mesh_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType(),
@@ -182,22 +188,18 @@ def _create_function_spaces(prog, fspaces):
                          datatype=DeferredType(),
                          interface=ImportInterface(
                              table.lookup("fs_continuity_mod")))
-        vsym = table.new_symbol(f"vector_space_{space}",
-                                symbol_type=DataSymbol,
-                                datatype=UnknownFortranType(
-                                    f"TYPE(function_space_type), TARGET :: "
-                                    f"vector_space_{space}"))
+
         vsym_ptr = table.new_symbol(
             f"vector_space_{space}_ptr", symbol_type=DataSymbol,
             datatype=UnknownFortranType(
                 f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr"))
-        cblock = reader.psyir_from_expression(
-            f"function_space_type(mesh, {order.name}, {space}, "
-            f"{ndata_sz.name})", table)
-        prog.addchild(Assignment.create(Reference(vsym), cblock))
-        prog.addchild(reader.psyir_from_statement(
-            f"{vsym_ptr.name} => {vsym.name}\n", table))
+
+        cblock = reader.psyir_from_statement(
+            f"{vsym_ptr.name} => function_space_collection%get_fs( mesh, "
+            f"{order.name}, {space})", table)
+
+        prog.addchild(cblock)
 
 
 def initialise_field(prog, sym, space):
