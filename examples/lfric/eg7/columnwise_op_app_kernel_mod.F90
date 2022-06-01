@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 ! Modified by I. Kavcic, Met Office
 !
 !> @brief Kernel which (incrementally) applies a columnwise assembled operator
-!>        to a field
+!!        to a field.
 module columnwise_op_app_kernel_mod
 
 use kernel_mod,              only : kernel_type
@@ -49,7 +49,7 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -78,8 +78,8 @@ public columnwise_op_app_kernel_code
 
 contains
 
-  !> @brief The subroutine which is called directly from the PSY layer and
-  !> applies the operator as lhs += A.x
+  !> @brief The subroutine which is called directly from the PSy layer and
+  !!        applies the operator as lhs += A.x.
   !>
   !> @param [in] cell Horizontal cell index
   !> @param [in] ncell_2d Number of cells in 2d grid
@@ -126,7 +126,7 @@ contains
     integer(kind=i_def), intent(in) :: undf2, ndf2
     real(kind=r_def), dimension(undf1), intent(inout) :: lhs
     real(kind=r_def), dimension(undf2), intent(in) :: x
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
+    real(kind=r_solver), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
     integer(kind=i_def), dimension(ndf1), intent(in) :: map1
     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
 
@@ -136,19 +136,19 @@ contains
 
     ! Internal parameters
     ! Row and column index index
-    integer(kind=i_def) :: i,j, mu_i,mu_j
+    integer(kind=i_def) :: i,j, mu_i, mu_j
     ! Smallest/largest index in a particular row
     integer(kind=i_def) :: j_minus, j_plus
 
-    do i=1, nrow
+    do i = 1, nrow
        ! Assumes that the first entry in the dofmaps is the smallest
        mu_i = map1(1) + indirection_dofmap_to(i) - 1
-       j_minus = ceiling((alpha*i-gamma_p)/(1.0_r_def*beta),i_def)
-       j_plus = floor((alpha*i+gamma_m)/(1.0_r_def*beta),i_def)
-       do j=MAX(1,j_minus), MIN(ncol,j_plus)
+       j_minus = ceiling((alpha*i-gamma_p)/(1.0_r_def*beta), i_def)
+       j_plus = floor((alpha*i+gamma_m)/(1.0_r_def*beta), i_def)
+       do j = MAX(1,j_minus), MIN(ncol,j_plus)
           mu_j = map2(1) + indirection_dofmap_from(j) - 1
           lhs(mu_i) = lhs(mu_i) &
-                    + columnwise_matrix(j-j_minus+1,i,cell) * x(mu_j)
+                    + real(columnwise_matrix(j-j_minus+1,i,cell), r_def) * x(mu_j)
        end do
     end do
 
