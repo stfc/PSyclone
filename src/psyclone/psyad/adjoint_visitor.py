@@ -48,7 +48,7 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
-                                  Container)
+                                  IfBlock)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -277,6 +277,12 @@ class AdjointVisitor(PSyIRVisitor):
             of this node and its descendants.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
+        :raises VisitorError: if the loop node is visited before a \
+            schedule.
+        :raises VisitorError: if the loop bounds contain any active \
+             variables.
+        :raises VisitorError: if a passive loop is found.
+
         '''
         if self._active_variables is None:
             raise VisitorError(
@@ -360,6 +366,56 @@ class AdjointVisitor(PSyIRVisitor):
         # Determine the adjoint of the loop body
         new_node.children[3] = self._visit(node.children[3])
         return new_node
+
+    def ifblock_node(self, node):
+        '''This method is called if the visitor finds an ifblock node. The
+        ifblock and its condition are returned unchanged. The contents
+        of the "then" and "else" parts of the ifblock are returned
+        after being processed by PSyAD.
+
+        :param node: an IfBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its descendants.
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
+
+        :raises: VisitorError if the condition of the ifblock contains \
+            any active variables.
+        :raises VisitorError: if the ifblock node is visited before a \
+            schedule.
+        :raises VisitorError: if a passive ifblock node is found.
+
+        '''
+        if self._active_variables is None:
+            raise VisitorError(
+                "An ifblock node should not be visited before a schedule, "
+                "as the latter sets up the active variables.")
+
+        if node_is_active(node.condition, self._active_variables):
+            raise VisitorError(
+                f"The if condition '{self._writer(node.condition)}' of an "
+                f"ifblock node should not contain an active variable.")
+
+        if node_is_passive(node, self._active_variables):
+            raise VisitorError(
+                "A passive ifblock node should not be processed by the "
+                "ifblock_node() method within the AdjointVisitor() class, as "
+                "it should have been dealt with by the schedule_node() "
+                "method.")
+
+        self._logger.debug("Transforming active ifblock")
+
+        new_condition = node.condition.copy()
+        new_if_schedule = self._visit(node.if_body)
+        new_if_block_children = [new_condition, new_if_schedule]
+        if node.else_body:
+            new_else_schedule = self._visit(node.else_body)
+            new_if_block_children.append(new_else_schedule)
+
+        new_if_block = IfBlock()
+        new_if_block.children = new_if_block_children
+        return new_if_block
 
     def _copy_and_process(self, node):
         '''Utility function to return a copy the current node containing the
