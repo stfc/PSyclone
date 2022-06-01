@@ -32,6 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''
 Python driver script to run PSyclone on (pre-processed) NEMO source files, i.e.
@@ -123,7 +124,7 @@ if __name__ == "__main__":
     for ffile in ARGS.input_files:
 
         if not os.path.isfile(ffile):
-            print("Cannot find file '{0}' - skipping".format(ffile))
+            print(f"Cannot find file '{ffile}' - skipping")
             continue
 
         file_name = os.path.basename(ffile)
@@ -134,15 +135,15 @@ if __name__ == "__main__":
 
         args = [PSYCLONE_CMD, "--limit", "output", "-api", "nemo"]
         if file_name in EXCLUDED_FILES:
-            print("Skipping {0} entirely.".format(ffile))
+            print(f"Skipping {ffile} entirely.")
             continue
         if file_name in PROFILE_ONLY:
-            print("Instrumenting {0} for profiling...".format(file_name))
+            print(f"Instrumenting {file_name} for profiling...")
             extra_args = ["-p", "invokes",
                           "-oalg", "/dev/null",
                           "-opsy", out_file, ffile]
         else:
-            print("Processing {0}...".format(file_name))
+            print(f"Processing {file_name}...")
             extra_args = []
             if ARGS.script_file:
                 extra_args = ["-s", ARGS.script_file]
@@ -156,15 +157,15 @@ if __name__ == "__main__":
         tstop = perf_counter()
 
         if rtype != 0:
-            print("Running PSyclone on {0} failed\n".format(ffile))
+            print(f"Running PSyclone on {ffile} failed\n")
             if ARGS.exit_on_error:
                 sys.exit(1)
             FAILED_FILES.append(ffile)
         else:
-            print("Time taken for {0}: {1:8.2f} (s)".format(file_name,
-                                                            tstop - tstart))
+            print(f"Time taken for {file_name}: {tstop - tstart:.2f}s")
+
+        print("--------------------\n--------------------\n")
 
     print("All done.")
     if FAILED_FILES:
-        print("PSyclone failed for the following source files: {0}".
-              format(FAILED_FILES))
+        print(f"PSyclone failed on the following source files: {FAILED_FILES}")

@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the ArrayOfStructuresReference
@@ -120,7 +120,7 @@ def test_asr_create_errors(component_symbol):
     here. '''
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(1, [], [])
-    assert ("'symbol' argument to ArrayOfStructuresReference.create() should "
+    assert ("'symbol' argument to ArrayOfStructuresReference.create() must "
             "be a DataSymbol but found 'int'" in str(err.value))
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:

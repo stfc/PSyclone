@@ -32,9 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter, R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -81,10 +79,10 @@ class DependencyTools(object):
             for loop_type in loop_types_to_parallelise:
                 if loop_type not in constants.VALID_LOOP_TYPES:
                     out_list = constants.VALID_LOOP_TYPES
-                    raise TypeError("Invalid loop type '{0}' specified "
-                                    "in DependencyTools. Valid values for "
-                                    "API '{1}' are {2}."
-                                    .format(loop_type, config.api, out_list))
+                    raise TypeError(f"Invalid loop type '{loop_type}' "
+                                    f"specified in DependencyTools. Valid "
+                                    f"values for API '{config.api}' are "
+                                    f"{out_list}.")
 
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
@@ -181,11 +179,10 @@ class DependencyTools(object):
                          if vi.signature != signature]
             if different:
                 diff_string = [str(sig) for sig in different]
-                raise InternalError("Inconsistent signature provided in "
-                                    "'array_accesses_consistent'. Expected "
-                                    "all accesses to be for '{0}', but also "
-                                    "got '{1}'."
-                                    .format(signature, ",".join(diff_string)))
+                raise InternalError(f"Inconsistent signature provided in "
+                                    f"'array_accesses_consistent'. Expected "
+                                    f"all accesses to be for '{signature}', "
+                                    f"but also got '{','.join(diff_string)}'.")
             all_accesses = []
             for var_info in var_infos:
                 all_accesses = all_accesses + var_info.all_accesses
@@ -238,13 +235,11 @@ class DependencyTools(object):
                     # then add an error message:
                     consistent = False
                     self._add_error(
-                        "Variable '{0}' is written to and the loop variable "
-                        "'{1}' is used in different index locations: "
-                        "{2} and {3}."
-                        .format(signature.var_name,
-                                loop_variable.name,
-                                signature.to_language(first_component_indices),
-                                signature.to_language(component_indices)))
+                        f"Variable '{signature.var_name}' is written to and "
+                        f"the loop variable '{loop_variable.name}' is used "
+                        f"in different index locations: "
+                        f"{signature.to_language(first_component_indices)} "
+                        f"and {signature.to_language(component_indices)}.")
                 if all_indices is not None:
                     # If requested, collect all indices that are actually
                     # used as a convenience additional result for the user
@@ -343,11 +338,9 @@ class DependencyTools(object):
             #  enddo
             # In this case it is not clear if the loop can be parallelised.
             # So in any case we add the information for the user to decide.
-            self._add_warning("Variable '{0}' is written to, and "
-                              "does not depend on the loop "
-                              "variable '{1}'."
-                              .format(var_info.var_name,
-                                      loop_variable.name))
+            self._add_warning(f"Variable '{var_info.var_name}' is written to, "
+                              f"and does not depend on the loop "
+                              f"variable '{loop_variable.name}'.")
             return False
 
         # Now we have confirmed that all parallel accesses to the variable
@@ -362,12 +355,11 @@ class DependencyTools(object):
         first_index = all_indices[0]
         for index in all_indices[1:]:
             if not sym_maths.equal(first_index, index):
-                self._add_warning("Variable '{0}' is written and is accessed "
-                                  "using indices '{1}' and '{2}' and can "
-                                  "therefore not be parallelised."
-                                  .format(var_info.var_name,
-                                          self._language_writer(first_index),
-                                          self._language_writer(index)))
+                self._add_warning(f"Variable '{var_info.var_name}' is written "
+                                  f"and is accessed using indices "
+                                  f"'{self._language_writer(first_index)}' "
+                                  f"and '{self._language_writer(index)}' and "
+                                  f"can therefore not be parallelised.")
                 return False
         return True
 
@@ -394,8 +386,8 @@ class DependencyTools(object):
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
             # We could potentially use lastprivate here?
-            self._add_warning("Scalar variable '{0}' is only written once."
-                              .format(var_info.var_name))
+            self._add_warning(f"Scalar variable '{var_info.var_name}' is only "
+                              f"written once.")
             return False
 
         # Now we have at least two accesses. If the first access is a WRITE,
@@ -410,9 +402,8 @@ class DependencyTools(object):
 
         # Otherwise there is a read first, which would indicate that this loop
         # is a reduction, which is not supported atm.
-        self._add_warning("Variable '{0}' is read first, which indicates a"
-                          " reduction."
-                          .format(var_info.var_name))
+        self._add_warning(f"Variable '{var_info.var_name}' is read first, "
+                          f"which indicates a reduction.")
         return False
 
     # -------------------------------------------------------------------------
@@ -457,9 +448,9 @@ class DependencyTools(object):
         self._clear_messages()
 
         if not isinstance(loop, Loop):
-            raise TypeError("can_loop_be_parallelised: node must be an "
-                            "instance of class Loop but got '{0}'".
-                            format(type(loop).__name__))
+            raise TypeError(f"can_loop_be_parallelised: node must be an "
+                            f"instance of class Loop but got "
+                            f"'{type(loop).__name__}'")
         if not loop_variable:
             loop_variable = loop.variable
 

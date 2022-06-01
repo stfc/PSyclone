@@ -595,19 +595,26 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
-Example 18: Incrementing a Continuous Field After Reading It
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Example of a ``GH_READINC`` access. A kernel with ``GH_READINC``
-access first reads the field data and then increments the field
-data. This contrasts with a ``GH_INC`` access which simply increments
-the field data. As an increment is effectively a read followed by
-a write, it may not be clear why we need to distinguish between these
-cases. The reason for distinguishing is that the ``GH_INC`` access is
-able to remove a halo exchange, or at least reduce its depth by one,
-in certain circumstances, whereas a ``GH_READINC`` is not able to take
-advantage of this optimisation.
+Example containing one kernel with a ``GH_READINC`` access and one
+with a ``GH_WRITE`` access, both for continuous fields. A kernel with
+``GH_READINC`` access first reads the field data and then increments
+the field data. This contrasts with a ``GH_INC`` access which simply
+increments the field data. As an increment is effectively a read
+followed by a write, it may not be clear why we need to distinguish
+between these cases. The reason for distinguishing is that the
+``GH_INC`` access is able to remove a halo exchange (or at least
+reduce its depth by one) in certain circumstances, whereas a
+``GH_READINC`` is not able to take advantage of this optimisation.
 
+A kernel with a ``GH_WRITE`` access for a continuous field must guarantee to
+write the same value to a given shared DoF, independent of which cell
+is being updated. As :ref:`described <dev_guide:iterators_continuous>`
+in the Developer Guide, this means that annexed DoFs are computed
+correctly without the need to iterate into the L1 halo and thus can
+remove the need for halo exchanges on those fields that are read.
 
 NEMO
 ----

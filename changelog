@@ -61,6 +61,15 @@
 	20) PR #1703 for #1689. Fix stencil depth bug in LFRic halo exchange
 	when a discontinuous writer follows a discontinuous stencil reader.
 
+	21) PR #1608 towards #1542. Allow GH_WRITE access for fields on
+	continuous function spaces in LFRic API.
+
+	22) PR #1722. Changes all PSyIR code over to using f-strings.
+
+	23) PR #1725. Allows parsing an empty Fortran file.
+
+	24) PR #1716 for #1713. Fix bug in matmul transformation. 
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-

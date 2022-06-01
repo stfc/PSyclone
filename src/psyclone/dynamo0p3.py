@@ -2041,15 +2041,22 @@ class LFRicMeshProperties(DynCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
+        const = LFRicConstants()
         # Since colouring is applied via transformations, we have to check for
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
+        need_colour_halo_limits = False
         for call in self._calls:
             if call.is_coloured() and not call.is_intergrid:
-                need_colour_limits = True
-                break
+                loop = call.parent.parent
+                # Record whether or not this coloured loop accesses the halo.
+                if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+                    need_colour_halo_limits = True
+                else:
+                    need_colour_limits = True
 
-        if not self._properties and not need_colour_limits:
+        if not self._properties and not (need_colour_limits or
+                                         need_colour_halo_limits):
             # If no mesh properties are required and there's no colouring
             # (which requires a mesh object to lookup loop bounds) then we
             # need do nothing.
@@ -2080,18 +2087,19 @@ class LFRicMeshProperties(DynCollection):
                                      rhs=mesh+"%get_ncells_2d()"))
             else:
                 raise InternalError(
-                    "Found unsupported mesh property '{0}' when generating "
-                    "initialisation code. Only members of the "
-                    "MeshProperty Enum are permitted "
-                    "({1})".format(str(prop), list(MeshProperty)))
+                    f"Found unsupported mesh property '{str(prop)}' when "
+                    f"generating initialisation code. Only members of the "
+                    f"MeshProperty Enum are permitted ({list(MeshProperty)})")
 
+        if need_colour_halo_limits:
+            lhs = self._symbol_table.find_or_create_tag(
+                "last_halo_cell_all_colours").name
+            rhs = f"{mesh}%get_last_halo_cell_all_colours()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
         if need_colour_limits:
             lhs = self._symbol_table.find_or_create_tag(
-                "last_cell_all_colours").name
-            if Config.get().distributed_memory:
-                rhs = mesh + "%get_last_halo_cell_all_colours()"
-            else:
-                rhs = mesh + "%get_last_edge_cell_all_colours()"
+                "last_edge_cell_all_colours").name
+            rhs = f"{mesh}%get_last_edge_cell_all_colours()"
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
@@ -3910,6 +3918,7 @@ class DynMeshes(object):
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
+        self._needs_colourmap_halo = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
@@ -4036,6 +4045,7 @@ class DynMeshes(object):
         and happens after the Schedule has already been constructed.
 
         '''
+        const = LFRicConstants()
         have_non_intergrid = False
 
         array_type_1d = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
@@ -4045,8 +4055,13 @@ class DynMeshes(object):
         for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
-            # invoke have been coloured
-            self._needs_colourmap = True
+            # invoke have been coloured and, if so, whether the associated loop
+            # goes into the halo.
+            if (call.parent.parent.upper_bound_name in
+                    const.HALO_ACCESS_LOOP_BOUNDS):
+                self._needs_colourmap_halo = True
+            else:
+                self._needs_colourmap = True
 
             if not call.is_intergrid:
                 have_non_intergrid = True
@@ -4069,12 +4084,13 @@ class DynMeshes(object):
                 datatype=INTEGER_TYPE).name
             # Array holding the last halo or edge cell of a given colour
             # and halo depth.
-            base_name = "last_cell_all_colours_" + carg_name
             if Config.get().distributed_memory:
+                base_name = "last_halo_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_tag(
                     base_name, symbol_type=DataSymbol,
                     datatype=array_type_2d).name
             else:
+                base_name = "last_edge_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_tag(
                     base_name, symbol_type=DataSymbol,
                     datatype=array_type_1d).name
@@ -4084,7 +4100,8 @@ class DynMeshes(object):
             self._ig_kernels[id(call)].ncolours_var = ncolours
             self._ig_kernels[id(call)].last_cell_var = last_cell
 
-        if have_non_intergrid and self._needs_colourmap:
+        if have_non_intergrid and (self._needs_colourmap or
+                                   self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
@@ -4094,13 +4111,16 @@ class DynMeshes(object):
             # TODO #1258 this variable should have precision 'i_def'.
             ncolours = self._schedule.symbol_table.find_or_create_tag(
                 "ncolour", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-            if Config.get().distributed_memory:
+            if self._needs_colourmap_halo:
                 dtype = array_type_2d
-            else:
+                self._symbol_table.find_or_create_tag(
+                    "last_halo_cell_all_colours", symbol_type=DataSymbol,
+                    datatype=dtype)
+            if self._needs_colourmap:
                 dtype = array_type_1d
-            self._symbol_table.find_or_create_tag("last_cell_all_colours",
-                                                  symbol_type=DataSymbol,
-                                                  datatype=dtype)
+                self._symbol_table.find_or_create_tag(
+                    "last_edge_cell_all_colours", symbol_type=DataSymbol,
+                    datatype=dtype)
 
     def declarations(self, parent):
         '''
@@ -4182,7 +4202,8 @@ class DynMeshes(object):
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
 
-        if not self._ig_kernels and self._needs_colourmap:
+        if not self._ig_kernels and (self._needs_colourmap or
+                                     self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -4200,14 +4221,16 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ncolours]))
-            last_cell = self._symbol_table.find_or_create_tag(
-                "last_cell_all_colours")
-            if Config.get().distributed_memory:
+            if self._needs_colourmap_halo:
+                last_cell = self._symbol_table.find_or_create_tag(
+                    "last_halo_cell_all_colours")
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
                                    entity_decls=[last_cell.name+"(:,:)"]))
-            else:
+            if self._needs_colourmap:
+                last_cell = self._symbol_table.find_or_create_tag(
+                    "last_edge_cell_all_colours")
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
@@ -4246,7 +4269,7 @@ class DynMeshes(object):
                     f"max_halo_depth_{self._mesh_tag_names[0]}").name
                 parent.add(AssignGen(parent, lhs=depth_name,
                                      rhs=f"{mesh_name}%get_halo_depth()"))
-            if self._needs_colourmap:
+            if self._needs_colourmap or self._needs_colourmap_halo:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
@@ -6295,7 +6318,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         if self.vector_index:
-            ref = "(" + str(self.vector_index) + ")"
+            ref = f"({self.vector_index})"
         else:
             ref = ""
         _, known = self.required()
@@ -6572,8 +6595,7 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :parameter value: Set the known fixed (literal) halo access depth.
-        :type value: int
+        :param int value: Set the known fixed (literal) halo access depth.
 
         '''
         self._literal_depth = value
@@ -6847,9 +6869,8 @@ class HaloReadAccess(HaloDepth):
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
         elif loop.upper_bound_name == "ncolour":
-            # currenty coloured loops are always transformed from
-            # cell_halo depth 1 loops
-            self._literal_depth = 1
+            # Loop is coloured but does not access the halo.
+            pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
             if field.descriptor.stencil:
                 # no need to worry about annexed dofs (if they exist)
@@ -6858,8 +6879,11 @@ class HaloReadAccess(HaloDepth):
                 # halos)
                 pass
             else:  # there is no stencil
-                if field.discontinuous:
-                    # There are only local accesses
+                if (field.discontinuous or call.iterates_over == "dof" or
+                        call.all_updates_are_writes):
+                    # There are only local accesses or the kernel is of the
+                    # special form where any iteration is guaranteed to write
+                    # the same value to a given shared entity.
                     pass
                 else:
                     # This is a continuous field which therefore
@@ -7072,13 +7096,27 @@ class DynLoop(Loop):
                 elif (self.field_space.orig_name in
                       const.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
-                    self.set_upper_bound("cell_halo", index=1)
+                    # unless the only arguments that are updated all have
+                    # 'GH_WRITE' access. The only time such an access is
+                    # permitted for a field on a continuous space is when the
+                    # kernel is implemented such that any writes to a given
+                    # shared dof are guaranteed to write the same value. There
+                    # is therefore no need to iterate into the L1 halo in order
+                    # to get correct values for annexed dofs.
+                    if not kern.all_updates_are_writes:
+                        self.set_upper_bound("cell_halo", index=1)
+                    else:
+                        self.set_upper_bound("ncells")
                 elif (self.field_space.orig_name in
                       const.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
-                    # it is.
-                    self.set_upper_bound("cell_halo", index=1)
+                    # it is. Again, if the only arguments that are updated have
+                    # 'GH_WRITE' access then we can relax this condition.
+                    if not kern.all_updates_are_writes:
+                        self.set_upper_bound("cell_halo", index=1)
+                    else:
+                        self.set_upper_bound("ncells")
                 else:
                     raise GenerationError(
                         "Unexpected function space found. Expecting one of "
@@ -7260,7 +7298,7 @@ class DynLoop(Loop):
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
             # when running without MPI.
-            root_name = "last_cell_all_colours"
+            root_name = "last_edge_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = self.ancestor(
@@ -7279,7 +7317,7 @@ class DynLoop(Loop):
                 depth = self.ancestor(InvokeSchedule).symbol_table.\
                     find_or_create_tag(
                         f"max_halo_depth_{self._mesh_name}").name
-            root_name = "last_cell_all_colours"
+            root_name = "last_halo_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = self.ancestor(
@@ -7376,6 +7414,14 @@ class DynLoop(Loop):
                     # An upper bound that is part of the halo means
                     # that the halo might be accessed.
                     return True
+                if (not arg.discontinuous and
+                        self.kernel.iterates_over == "cell_column" and
+                        self.kernel.all_updates_are_writes and
+                        self._upper_bound_name == "ncells"):
+                    # This is the special case of a kernel that guarantees to
+                    # write the same value to any given dof, irrespective of
+                    # cell column.
+                    return False
                 if not arg.discontinuous and \
                    self._upper_bound_name in ["ncells", "nannexed"]:
                     # Annexed dofs may be accessed. Return False if we
@@ -7590,8 +7636,9 @@ class DynLoop(Loop):
             colour_var = parent_loop.variable
 
             asym = sym_table.lookup(self.kernel.last_cell_all_colours)
+            const = LFRicConstants()
 
-            if Config.get().distributed_memory:
+            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
                     # DynInvokeSchedule constructor has been extended to
@@ -8115,8 +8162,15 @@ class DynKern(CodedKern):
                     "been initialised".format(self.name))
             return invoke.meshes.intergrid_kernels[id(self)].last_cell_var
 
-        return self.scope.symbol_table.lookup_with_tag(
-            "last_cell_all_colours").name
+        const = LFRicConstants()
+
+        if (self.ancestor(Loop).upper_bound_name in
+                const.HALO_ACCESS_LOOP_BOUNDS):
+            return self.scope.symbol_table.lookup_with_tag(
+                "last_halo_cell_all_colours").name
+        else:
+            return self.scope.symbol_table.lookup_with_tag(
+                "last_edge_cell_all_colours").name
 
     @property
     def ncolours_var(self):
@@ -8195,6 +8249,22 @@ class DynKern(CodedKern):
         :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
         '''
         return self._mesh_properties
+
+    @property
+    def all_updates_are_writes(self):
+        '''
+        :returns: True if all of the arguments updated by this kernel have \
+                  'GH_WRITE' access, False otherwise.
+        :rtype: bool
+
+        '''
+        if self.is_intergrid:
+            # This is not a special kernel
+            return False
+        accesses = set(arg.access for arg in self.args)
+        all_writes = AccessType.all_write_accesses()
+        all_writes.remove(AccessType.WRITE)
+        return (not accesses.intersection(set(all_writes)))
 
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one

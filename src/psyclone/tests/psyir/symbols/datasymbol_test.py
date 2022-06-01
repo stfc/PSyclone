@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -137,7 +137,7 @@ def test_datasymbol_specialise_and_process_arguments():
         sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         constant_value=3.14)
     assert("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
-           "which means the constant value is expected to be"
+           "meaning the constant value should be"
            in str(error.value))
 
 
@@ -236,24 +236,24 @@ def test_datasymbol_constant_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=9.81)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<INTEGER, SINGLE>' which "
-            "means the constant value is expected to be") in str(error.value)
+            "instance datatype is 'Scalar<INTEGER, SINGLE>' meaning "
+            "the constant value should be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', CHARACTER_TYPE, constant_value=42)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' which "
-            "means the constant value is expected to be") in str(error.value)
+            "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' meaning "
+            "the constant value should be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, constant_value="hello")
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' which "
-            "means the constant value is expected to be") in str(error.value)
+            "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' meaning "
+            "the constant value should be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
 
