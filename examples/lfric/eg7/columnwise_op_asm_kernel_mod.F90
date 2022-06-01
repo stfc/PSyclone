@@ -146,7 +146,7 @@ contains
        ik = (cell-1)*nlayers + k ! Cell index in 3D
        do df1 = 1, ndf_to
           i = column_banded_dofmap_to( df1, k )
-          j_minus = ceiling((alpha*i-gamma_p)/(1.0_r_def*beta), i_def)
+          j_minus = ceiling((alpha*i-gamma_p)/(1.0_r_solver*beta), i_def)
           do df2 = 1, ndf_from
              j = column_banded_dofmap_from( df2, k )
              columnwise_matrix( j-j_minus+1, i, cell )        &

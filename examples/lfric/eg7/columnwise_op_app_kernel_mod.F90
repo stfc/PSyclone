@@ -143,8 +143,8 @@ contains
     do i = 1, nrow
        ! Assumes that the first entry in the dofmaps is the smallest
        mu_i = map1(1) + indirection_dofmap_to(i) - 1
-       j_minus = ceiling((alpha*i-gamma_p)/(1.0_r_def*beta), i_def)
-       j_plus = floor((alpha*i+gamma_m)/(1.0_r_def*beta), i_def)
+       j_minus = ceiling((alpha*i-gamma_p)/(1.0_r_solver*beta), i_def)
+       j_plus = floor((alpha*i+gamma_m)/(1.0_r_solver*beta), i_def)
        do j = MAX(1,j_minus), MIN(ncol,j_plus)
           mu_j = map2(1) + indirection_dofmap_from(j) - 1
           lhs(mu_i) = lhs(mu_i) &

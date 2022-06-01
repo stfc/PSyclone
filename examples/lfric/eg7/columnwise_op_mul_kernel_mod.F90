@@ -49,7 +49,7 @@ use argument_mod,            only : arg_type,                               &
                                     ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,  &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, r_solver, i_def
+use constants_mod,           only : r_solver, i_def
 
 implicit none
 
@@ -155,15 +155,15 @@ contains
     real(kind=r_solver) :: matrixentry
 
     do i = 1, nrow_C
-       j_minus_A = ceiling((alpha_A*i-gamma_p_A)/(1.0_r_def*beta_A), i_def)
-       j_plus_A = floor((alpha_A*i+gamma_m_A)/(1.0_r_def*beta_A), i_def)
-       j_minus_C = ceiling((alpha_C*i-gamma_p_C)/(1.0_r_def*beta_C), i_def)
-       j_plus_C = floor((alpha_C*i+gamma_m_C)/(1.0_r_def*beta_C), i_def)
+       j_minus_A = ceiling((alpha_A*i-gamma_p_A)/(1.0_r_solver*beta_A), i_def)
+       j_plus_A = floor((alpha_A*i+gamma_m_A)/(1.0_r_solver*beta_A), i_def)
+       j_minus_C = ceiling((alpha_C*i-gamma_p_C)/(1.0_r_solver*beta_C), i_def)
+       j_plus_C = floor((alpha_C*i+gamma_m_C)/(1.0_r_solver*beta_C), i_def)
        do j = MAX(1,j_minus_C), MIN(ncol_C,j_plus_C)
           matrixentry = 0.0_r_solver
           do ell = MAX(1,j_minus_A), MIN(ncol_A,j_plus_A)
-             j_minus_B = ceiling((alpha_B*ell-gamma_p_B)/(1.0_r_def*beta_B), i_def)
-             j_plus_B = floor((alpha_B*ell+gamma_m_B)/(1.0_r_def*beta_B), i_def)
+             j_minus_B = ceiling((alpha_B*ell-gamma_p_B)/(1.0_r_solver*beta_B), i_def)
+             j_plus_B = floor((alpha_B*ell+gamma_m_B)/(1.0_r_solver*beta_B), i_def)
              if ( (j_minus_B <= j) .and. (j <= j_plus_B) ) then
                 matrixentry = matrixentry                                 &
                             + columnwise_matrix_A(ell-j_minus_A+1,i,cell) &
