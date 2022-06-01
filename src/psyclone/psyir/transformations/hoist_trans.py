@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''This module contains the HoistTrans transformation. HoistTrans
 moves an assignment out of a parent loop if it is safe to do so. Hoist
@@ -134,15 +134,15 @@ class HoistTrans(Transformation):
         # The node should be an assignment
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "The target of the HoistTrans transformation should be an "
-                "assignment, but found '{0}'.".format(type(node).__name__))
+                f"The target of the HoistTrans transformation should be an "
+                f"assignment, but found '{type(node).__name__}'.")
 
         # The assignment should be within a loop.
         parent_loop = node.ancestor(Loop)
         if not parent_loop:
             raise TransformationError(
-                "The supplied assignment node '{0}' should be within a loop, "
-                "but no loop was found.".format(self._writer(node)))
+                f"The supplied assignment node '{self._writer(node)}' should "
+                f"be within a loop, but no loop was found.")
 
         # The assignment should be directly within a loop i.e. no other
         # control logic in between.
@@ -150,9 +150,9 @@ class HoistTrans(Transformation):
         while current is not parent_loop:
             if not isinstance(current, Schedule):
                 raise TransformationError(
-                    "The supplied assignment node '{0}' should be directly "
-                    "within a loop but found '{1}'."
-                    "".format(self._writer(node), self._writer(current)))
+                    f"The supplied assignment node '{self._writer(node)}' "
+                    f"should be directly within a loop but found "
+                    f"'{self._writer(current)}'.")
             current = current.parent
 
         # Check dependency issues that might prevent hoisting:
@@ -206,10 +206,10 @@ class HoistTrans(Transformation):
             # If this written variable is also read in the statement to be
             # hoisted, we can't hoist (likely a # reduction statement: a=a+1)
             if accesses_in_statement.is_read():
-                raise TransformationError("The statement can't be hoisted as "
-                                          "it contains a variable ('{0}') "
-                                          "that is both read and written."
-                                          .format(str(written_sig)))
+                raise TransformationError(f"The statement can't be hoisted as "
+                                          f"it contains a variable "
+                                          f"('{written_sig}') that is both "
+                                          f"read and written.")
 
             # Check if the variable is written or read before the first
             # access in the statement to be hoisted:
@@ -219,10 +219,10 @@ class HoistTrans(Transformation):
             accesses_in_loop = all_loop_vars[written_sig]
             if accesses_in_loop.is_accessed_before(written_node):
                 code = self._writer(statement).strip()
-                raise TransformationError("The statement '{0}' can't be "
-                                          "hoisted as variable '{1}' is "
-                                          "accessed earlier within the loop."
-                                          .format(code, str(written_sig)))
+                raise TransformationError(f"The statement '{code}' can't be "
+                                          f"hoisted as variable "
+                                          f"'{written_sig}' is accessed "
+                                          f"earlier within the loop.")
 
             # Make sure that there is no additional write statement to a
             # written variable in the loop outside of the statement to be
@@ -236,11 +236,10 @@ class HoistTrans(Transformation):
             writes_in_statement = sum(access.access_type == AccessType.WRITE
                                       for access in accesses_in_statement)
             if writes_in_loop > writes_in_statement:
-                raise TransformationError("There is at least one additional "
-                                          "write to the variable '{0}' in "
-                                          "the loop, outside of the supplied "
-                                          "statement."
-                                          .format(str(written_sig)))
+                raise TransformationError(f"There is at least one additional "
+                                          f"write to the variable "
+                                          f"'{written_sig}' in the loop, "
+                                          f"outside the supplied statement.")
 
         # Now check if any variable read in the statement to be hoisted is
         # being written to somewhere in the loop. This especially includes
@@ -253,11 +252,10 @@ class HoistTrans(Transformation):
             accesses_in_loop = all_loop_vars[read_sig]
             if accesses_in_loop.is_written():
                 code = self._writer(statement).strip()
-                raise TransformationError("The statement '{0}' can't be "
-                                          "hoisted as it reads variable "
-                                          "'{1}' which is written somewhere "
-                                          "else in the loop."
-                                          .format(code, str(read_sig)))
+                raise TransformationError(f"The statement '{code}' can't be "
+                                          f"hoisted as it reads variable "
+                                          f"'{read_sig}' which is written "
+                                          f"somewhere else in the loop.")
 
     def __str__(self):
         return "Hoist an assignment outside of its parent loop"

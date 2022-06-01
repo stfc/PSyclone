@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
@@ -437,11 +437,10 @@ class Node(object):
             try:
                 return colored(name_string, self._colour)
             except KeyError as info:
-                message = (
+                raise InternalError(
                     f"The _colour attribute in class '{type(self).__name__}' "
                     f"has been set to a colour ('{self._colour}') that is not "
-                    f"supported by the termcolor package.")
-                raise InternalError(message) from info
+                    f"supported by the termcolor package.") from info
         return name_string
 
     def node_str(self, colour=True):
@@ -984,8 +983,8 @@ class Node(object):
             position = self.START_POSITION
         elif position < self.START_POSITION:
             raise InternalError(
-                f"Search for Node position started from {position} instead of "
-                f"{self.START_POSITION}.")
+                f"Search for Node position started from {position} "
+                f"instead of {self.START_POSITION}.")
         for child in children:
             position += 1
             if child is self:
@@ -1096,9 +1095,8 @@ class Node(object):
                 excludes = excluding
             else:
                 raise TypeError(
-                    f"The 'excluding' argument to ancestor() must be a type "
-                    f"or a tuple of types but got: "
-                    f"'{type(excluding).__name__}'")
+                    f"The 'excluding' argument to ancestor() must be a type or"
+                    f" a tuple of types but got: '{type(excluding).__name__}'")
 
         if limit and not isinstance(limit, Node):
             raise TypeError(

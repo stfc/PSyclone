@@ -260,8 +260,18 @@ ScopingNode
 A `ScopingNode` is an abstract class node that defines a scoping region,
 this node and all its descendants have access to a shared set of symbols.
 These symbols are described in the `SymbolTable`
-(`psyclone.psyir.symbols.SymbolTable`) attached to this node and accessible
-through the ``symbol_table`` property.
+(`psyclone.psyir.symbols.SymbolTable`) attached to this node.
+
+There is a double-link between the `ScopingNode` (through the ``symbol_table``
+property) and the `SymbolTable` (through the ``scope`` property) objects. To
+maintain a consistent connection between both objects the only public methods
+to update the connections are the ``attach`` and ``detach`` methods of
+``SymbolTable`` (which takes care of both sides of the connection).
+
+Also note that the constructor will not accept as a parameter a symbol table
+that already belongs to another scope. The symbol table will need to be
+detached or deep copied before it can be assigned to the new ScopingNode.
+
 See the full API in the
 :ref_guide:`ScopingNode reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.ScopingNode`.
 

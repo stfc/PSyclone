@@ -215,6 +215,7 @@ module constants_mod
   character(str_short), parameter :: CMDI  = 'unset'          !< Value for characters
   character(str_short), parameter :: UNSET_KEY  = CMDI        !< Chararater value for namelist enumerations
   integer  (i_native),  parameter :: EMDI  = -1_i_native      !< Integer value for namelist enumerations
+
   !> @}
 
 end module constants_mod

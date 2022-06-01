@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 
 
 ''' Module which performs pytest set-up so that we can specify
-    command-line options '''
+    command-line options. Also creates certain test fixtures. '''
 
 from __future__ import absolute_import
 
@@ -59,11 +59,16 @@ def annexed(request):
     return request.param
 
 
-@pytest.fixture(scope="module", params=[False, True])
-def dist_mem(request):
-    ''' Fixture for testing with and without distributed memory.
-        Returns the content of params in turn. '''
-    return request.param
+@pytest.fixture(scope="function", params=[False, True])
+def dist_mem(request, monkeypatch):
+    ''' Fixture for testing with and without distributed memory. Monkeypatches
+    the Config object with the appropriate setting for distributed memory,
+    returns that setting and then finally undoes the monkeypatching.
+
+    '''
+    monkeypatch.setattr(Config.get(), "_distributed_mem", request.param)
+    yield request.param
+    monkeypatch.undo()
 
 
 def pytest_addoption(parser):

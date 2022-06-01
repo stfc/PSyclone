@@ -1308,10 +1308,13 @@ def test_following_preceding():
 def test_equality():
     '''Test the equality function of the Node class'''
     # Use same symbol table to avoid pollution from the ScopingNode
-    # equality check.
+    # equality check. Providing it just as a constructor parameter would
+    # create a copy and not use the same instance.
     symboltable = SymbolTable()
-    parent1 = Schedule(symbol_table=symboltable)
-    parent2 = Schedule(symbol_table=symboltable)
+    parent1 = Schedule()
+    parent1._symbol_table = symboltable
+    parent2 = Schedule()
+    parent2._symbol_table = symboltable
     zero = Statement()
     one = Statement()
 

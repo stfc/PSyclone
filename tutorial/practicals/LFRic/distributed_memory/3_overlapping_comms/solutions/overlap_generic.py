@@ -51,6 +51,7 @@ from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
 
+
 def trans(psy):
     '''Transforms all synchronous halo exchanges into asynchronous halo
     exchanges and moves the halo exchange start part of each

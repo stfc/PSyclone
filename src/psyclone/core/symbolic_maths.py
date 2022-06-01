@@ -38,7 +38,9 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-from sympy import simplify, expand, true
+
+from sympy import (Complexes, ConditionSet, core, EmptySet, expand, FiniteSet,
+                   ImageSet, simplify, solvers, Union)
 
 
 class SymbolicMaths:
@@ -82,14 +84,12 @@ class SymbolicMaths:
     # -------------------------------------------------------------------------
     @staticmethod
     def equal(exp1, exp2):
-        '''Test if the two PSyIR operations are identical. This is
-        done by converting the operations to the equivalent Fortran
-        representation, which can be fed into sympy for evaluation.
+        '''Test if the two PSyIR expressions are symbolically equivalent.
 
         :param exp1: the first expression to be compared.
-        :type exp1: py:class:`psyclone.psyir.nodes.Node` or None
+        :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Node` or None
+        :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -100,6 +100,63 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
+        return SymbolicMaths._subtract(exp1, exp2) == 0
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def never_equal(exp1, exp2):
+        '''Returns if the given SymPy expressions are guaranteed to be
+        different regardless of the values of symbolic variables. E.g.
+        `n-1` and `n` are always different, but `5` and `n` are not always
+        different.
+
+        :param exp1: the first expression to be compared.
+        :type exp1: py:class:`psyclone.psyir.nodes.Node`
+        :param exp2: the first expression to be compared.
+        :type exp2: py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether or not the expressions are never equal.
+        :rtype: bool
+
+        '''
+        # Circular dependency:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.visitor import VisitorError
+
+        try:
+            result = SymbolicMaths._subtract(exp1, exp2)
+        except VisitorError:
+            return False
+
+        # If the result is 0, they are always the same:
+        if isinstance(result, core.numbers.Zero):
+            return False
+
+        # If the result is an integer value, the result is independent
+        # of any variable, and never equal
+        if isinstance(result, core.numbers.Integer):
+            return result != 0
+
+        # Otherwise the result depends on one or more variables (e.g.
+        # n-5), so it might be zero.
+        return False
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _subtract(exp1, exp2):
+        '''Subtracts two PSyIR expressions and returns the simplified result
+        of this operation.
+
+        :param exp1: the first expression to be compared.
+        :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param exp2: the first expression to be compared.
+        :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :returns: the sympy expression resulting from subtracting exp2 \
+            from exp1.
+        :rtype: :py:class:`sympy.core.basic.Basic`
+
+        '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -108,13 +165,87 @@ class SymbolicMaths:
         # SymPy expressions:
         sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
                                                                       exp2])
-
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
-        result = simplify(sympy_expressions[0] == sympy_expressions[1])
+        return simplify(sympy_expressions[0] - sympy_expressions[1])
 
-        # Convert SymPy boolean to python boolean.
-        return result is true
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def solve_equal_for(exp1, exp2, symbol):
+        '''Returns all solutions of exp1==exp2, solved for
+        the specified symbol. It restricts the solution domain to integer
+        values. If there is an infinite number of solutions, it returns
+        the string 'independent', indicating that the solution of exp1==exp2
+        does not depend on the specified symbol. This is done to avoid that
+        the SymPy instance representing an infinite set is used elsewhere
+        in PSyclone (i.e. creating a dependency in other modules to SymPy).
+        Otherwise a standard Python set is returned that stores the solutions.
+
+        :param exp1: the first expression.
+        :type exp1: :py:class:`sympy.core.basic.Basic`
+        :param exp2: the second expression.
+        :type exp2: :py:class:`sympy.core.basic.Basic`
+        :param symbol: the symbol for which to solve.
+        :type symbol: :py:class:`sympy.core.symbol.Symbol`
+
+        :returns: a set of solutions, or the string "independent".
+        :rtype: Union[set, str]
+
+        '''
+        # We could restrict the domain to Integers, but in case of
+        # general solutions (x=i+1 or so), we get an intersection as
+        # as result, which is then difficult to handle (conversion to a
+        # python set results in iteration over all Integers). It's actually
+        # easier to not restrict the domain, and detect and interpret
+        # a non-integer solution later.
+        # We use solvers.solveset to allow testing to monkeypatch solveset
+
+        solution = solvers.solveset(exp1-exp2, symbol)
+        if solution == Complexes:
+            # The solution is actually independent of the symbol
+            # Return a string (instead of the SymPy specific set
+            # instance, which would introduce dependencies on
+            # SymPy to other files).
+            return "independent"
+
+        if isinstance(solution, ConditionSet):
+            # A ConditionSet indicates likely an equation that cannot be
+            # solved, e.g. `indx(i)`=`indx(i+di)`. The index array `indx`
+            # is treated as an unknown function by SymPy, so sympy will return
+            # a ConditionSet. We return 'independent' here, indicating
+            # that the solution is independent of the loop variable, which
+            # means it will be triggering a dependence between loop iterations.
+            return "independent"
+
+        if isinstance(solution, ImageSet):
+            # Similar to ConditionSet, this is returned if it's a mapping of
+            # a set using a mathematical function, e.g. exp(i)==1. And
+            # similarly we return independent, since it likely indicates a
+            # dependency between the expressions.
+            return "independent"
+
+        if isinstance(solution, Union):
+            # A SymPy union will only be returned if at least one of the
+            # members has more than one (and likely infinite) solution, e.g.:
+            # `i*(exp(i)-i)==0` (which returns the union of `i=0` and
+            # `exp(i)==i`). Again, we don't handle this for now.
+            return "independent"
+
+        # If there is no solution, return a standard Python empty
+        # set (to avoid using SymPy-specific types in PSyclone)
+        if solution is EmptySet:
+            return set()
+
+        # There are other potential data types that could be returned by SymPy
+        # (Interval, Intersection), but they seem not to be returned by
+        # tests for `==0`. Testing will monkeypatch solveset to trigger this
+        # line:
+        if not isinstance(solution, FiniteSet):
+            raise ValueError(f"Unexpected solution '{solution}'' of type "
+                             f"'{type(solution)}'")
+
+        # Convert the FiniteSet to a normal Python set:
+        return set(solution)
 
     # -------------------------------------------------------------------------
     @staticmethod
