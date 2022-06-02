@@ -368,10 +368,13 @@ class AdjointVisitor(PSyIRVisitor):
         return new_node
 
     def ifblock_node(self, node):
-        '''This method is called if the visitor finds an ifblock node. The
-        ifblock and its condition are returned unchanged. The contents
-        of the "then" and "else" parts of the ifblock are returned
-        after being processed by PSyAD.
+        '''This method is called if the visitor finds an ifblock node. An
+        exception is raised if the condition of the ifblock node
+        contains an active variable as this is not valid
+        tangent-linear code. Otherwise, the ifblock and its condition
+        are returned unchanged and the contents of the "then" and
+        "else" parts of the ifblock are returned after being processed
+        by PSyAD.
 
         :param node: an IfBlock PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.IfBlock`

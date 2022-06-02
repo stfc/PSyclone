@@ -46,7 +46,8 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import FileContainer, Schedule, Assignment, Loop
+from psyclone.psyir.nodes import (FileContainer, Schedule, Assignment, Loop,
+                                  IfBlock)
 from psyclone.psyir.symbols import Symbol, ArgumentInterface
 from psyclone.tests.utilities import Compile
 
@@ -78,7 +79,18 @@ TL_LOOP_CODE = (
     "  d = d - e\n"
     "end subroutine test\n"
 )
-
+TL_IF_CODE = (
+    "subroutine test(a,b,c,d,e,f,g)\n"
+    "  real, intent(in) :: a, b, c\n"
+    "  real, intent(out) :: d, e, f, g\n"
+    "  f=0.0\n"
+    "  if (a+b<c) then\n"
+    "    d=e\n"
+    "  else\n"
+    "    g=0.0\n"
+    "  endif\n"
+    "end subroutine test\n"
+)
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
                   tmpdir, fortran_writer):
@@ -779,6 +791,129 @@ def test_loop_logger(fortran_reader, caplog):
         _ = adj_visitor.loop_node(tl_loop)
     assert ("Returning a copy of the original loop and its descendants as it "
             "contains no active variables" in caplog.text)
+
+
+# AdjointVisitor.ifblock_node()
+
+def test_ifblock_node_active_error(fortran_reader):
+    '''Test that the ifblock_node method raises the expected exception
+    if no active variables are specified.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+    ifblock = tl_psyir.walk(IfBlock)[0]
+    adj_visitor = AdjointVisitor(["a", "b", "c"])
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.ifblock_node(IfBlock)
+    assert ("An ifblock node should not be visited before a schedule, as "
+            "the latter sets up the active variables." in str(info.value))
+
+
+@pytest.mark.parametrize("active_variables", [["a"], ["b"], ["c"], ["a", "b", "c"]])
+def test_ifblock_node_active_condition_error(fortran_reader, active_variables):
+    '''Test that the ifblock_node method raises the expected exception if
+    an active variable is found in the condition of an ifblock node.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+    adj_visitor = AdjointVisitor(active_variables)
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor._visit(tl_psyir)
+    assert ("The if condition 'a + b < c' of an ifblock node should "
+            "not contain an active variable." in str(info.value))
+
+
+def test_ifblock_node_passive(fortran_reader):
+    '''Test that the ifblock_node method raises an exception if there are no
+    active variables within the supplied ifblock node. This is because
+    the schedule node should have already dealt with this case.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+    tl_ifblock = tl_psyir.walk(IfBlock)[0]
+    adj_visitor = AdjointVisitor(["f"])
+    _ = adj_visitor._visit(tl_psyir)
+
+    with pytest.raises(VisitorError) as info:
+        _ = adj_visitor.ifblock_node(tl_ifblock)
+    assert ("A passive ifblock node should not be processed by the "
+            "ifblock_node() method within the AdjointVisitor() class, as it "
+            "should have been dealt with by the schedule_node() method."
+            in str(info.value))
+
+@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
+                   "github actions.", strict=False)
+def test_ifblock_logger(fortran_reader, caplog):
+    '''Test that the logger writes the expected output if it transforms
+    the ifblock.
+
+    '''
+    tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
+
+    adj_visitor = AdjointVisitor(["d", "e"])
+    with caplog.at_level(logging.INFO):
+        _ = adj_visitor._visit(tl_psyir)
+    assert "Transforming active ifblock" not in caplog.text
+    with caplog.at_level(logging.DEBUG):
+        _ = adj_visitor._visit(tl_psyir)
+    assert "Transforming active ifblock" in caplog.text
+
+
+def test_ifblock_active(tmpdir, fortran_writer):
+    '''Test the visitor ifblock_node method works when there is an active then part.'''
+    tl_fortran = (
+        "  real :: a, b, c, d, e, f, g, h\n"
+        "  f=0.0\n"
+        "  if (a+b<c) then\n"
+        "    d=e\n"
+        "  else\n"
+        "    g=h\n"
+        "  endif\n")
+    # active then
+    ad_fortran = (
+        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n  real :: e\n"
+        "  real :: f\n  real :: g\n  real :: h\n\n"
+        "  d = 0.0\n"
+        "  e = 0.0\n"
+        "  f = 0.0\n"
+        "  if (a + b < c) then\n"
+        "    e = e + d\n"
+        "    d = 0.0\n"
+        "  else\n"
+        "    g = h\n"
+        "  end if\n\n")
+    check_adjoint(tl_fortran, ["d", "e"], ad_fortran, tmpdir, fortran_writer)
+    # active else
+    ad_fortran = (
+        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n  real :: e\n"
+        "  real :: f\n  real :: g\n  real :: h\n\n"
+        "  g = 0.0\n"
+        "  h = 0.0\n"
+        "  f = 0.0\n"
+        "  if (a + b < c) then\n"
+        "    d = e\n"
+        "  else\n"
+        "    h = h + g\n"
+        "    g = 0.0\n"
+        "  end if\n\n")
+    check_adjoint(tl_fortran, ["g", "h"], ad_fortran, tmpdir, fortran_writer)
+    # active then/else
+    ad_fortran = (
+        "  real :: a\n  real :: b\n  real :: c\n  real :: d\n  real :: e\n"
+        "  real :: f\n  real :: g\n  real :: h\n\n"
+        "  d = 0.0\n"
+        "  e = 0.0\n"
+        "  g = 0.0\n"
+        "  h = 0.0\n"
+        "  f = 0.0\n"
+        "  if (a + b < c) then\n"
+        "    e = e + d\n"
+        "    d = 0.0\n"
+        "  else\n"
+        "    h = h + g\n"
+        "    g = 0.0\n"
+        "  end if\n\n")
+    check_adjoint(tl_fortran, ["d", "e", "g", "h"], ad_fortran, tmpdir, fortran_writer)
 
 
 # AdjointVisitor._copy_and_process()
