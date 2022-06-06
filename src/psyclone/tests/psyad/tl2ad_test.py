@@ -698,11 +698,13 @@ def test_generate_harness_kind_import(fortran_reader, fortran_writer):
     '''
     tl_code = (
         "module my_mod\n"
-        "  use kinds_mod, only: r_def\n"
+        "  use kinds_mod, only: r_def, i_def\n"
+        "  use precision_mod, only: i32\n"
         "  contains\n"
-        "  subroutine kern(field, npts)\n"
-        "    integer, intent(in) :: npts\n"
+        "  subroutine kern(field, npts, iflag)\n"
+        "    integer(kind=i_def), intent(in) :: npts\n"
         "    real(kind=r_def), intent(inout) :: field(npts)\n"
+        "    integer(kind=i32), intent(in) :: iflag\n"
         "    field = 0.0\n"
         "  end subroutine kern\n"
         "end module my_mod\n"
@@ -714,7 +716,8 @@ def test_generate_harness_kind_import(fortran_reader, fortran_writer):
     assert ("  real(kind=r_def), dimension(npts) :: field\n"
             "  real(kind=r_def), dimension(npts) :: field_input" in harness)
     assert "real(kind=r_def) :: inner1\n" in harness
-    assert "use kinds_mod, only : r_def" in harness
+    assert "use kinds_mod, only : i_def, r_def" in harness
+    assert "use precision_mod, only : i32" in harness
     assert ("real(kind=r_def), parameter :: overall_tolerance = "
             "1500.0_r_def" in harness)
 
@@ -767,7 +770,7 @@ def test_generate_harness_unknown_kind_error(fortran_reader):
     ad_psyir = generate_adjoint(tl_psyir, ["field"])
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
-    assert ("active variables ['field'] have a precision specified by "
+    assert ("One or more variables have a precision specified by "
             "symbol 'r_def' which is not local or explicitly imported" in
             str(err.value))
 

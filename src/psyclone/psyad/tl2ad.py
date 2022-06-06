@@ -268,6 +268,44 @@ def generate_adjoint(tl_psyir, active_variables):
     return ad_psyir
 
 
+def _add_precision_symbol(symbol, table):
+    '''
+    Adds (a copy of) the supplied precision symbol to the supplied symbol
+    table unless there is already an entry with the same name. Also takes
+    care of any ContainerSymbol from which the symbol is imported.
+
+    :param symbol: the precision symbol to copy into the table.
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param table: the symbol table to which to add the precision symbol.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :raises NotImplementedError: if the supplied symbol is not local or \
+                                 explicitly imported.
+
+    '''
+    if symbol.name in table:
+        return
+
+    if symbol.is_local:
+        table.add(symbol.copy())
+    elif symbol.is_import:
+        cntr = symbol.interface.container_symbol
+        try:
+            kind_contr = table.lookup(cntr.name)
+        except KeyError:
+            # The table does not already have a symbol for this container.
+            kind_contr = symbol.interface.container_symbol.copy()
+            table.add(kind_contr)
+        kind_symbol = symbol.copy()
+        kind_symbol.interface = ImportInterface(kind_contr)
+        table.add(kind_symbol)
+    else:
+        raise NotImplementedError(
+            f"One or more variables have a precision specified by symbol "
+            f"'{symbol.name}' which is not local or explicitly imported. This "
+            f"is not supported.")
+
+
 def generate_adjoint_test(tl_psyir, ad_psyir,
                           active_variables):
     '''
@@ -278,7 +316,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     :type tl_psyir: :py:class:`psyclone.psyir.Container`
     :param ad_psyir: PSyIR of the adjoint kernel code.
     :type ad_psyir: :py:class:`psyclone.psyir.Container`
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: names of active variables.
 
     :returns: the PSyIR of the test harness.
     :rtype: :py:class:`psyclone.psyir.Routine`
@@ -358,20 +396,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # If the precision of the active variables is specified by another symbol
     # then we must ensure that it is declared in the harness too.
     if isinstance(datatype.precision, Symbol):
-        if datatype.precision.is_local:
-            symbol_table.add(datatype.precision.copy())
-        elif datatype.precision.is_import:
-            kind_contr = datatype.precision.interface.container_symbol.copy()
-            symbol_table.add(kind_contr)
-            kind_symbol = datatype.precision.copy()
-            kind_symbol.interface = ImportInterface(kind_contr)
-            symbol_table.add(kind_symbol)
-        else:
-            raise NotImplementedError(
-                "The active variables {0} have a precision specified by "
-                "symbol '{1}' which is not local or explicitly imported. This "
-                "is not supported.".format(active_variables,
-                                           datatype.precision.name))
+        _add_precision_symbol(datatype.precision, symbol_table)
 
     # Create a symbol to hold the extent of any test arrays. This is done here
     # to avoid any clashes with any of the container and kernel names.
@@ -414,6 +439,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # kernel arguments to the new symbols in the test harness.
     new_dim_args_map = {}
     for arg in dimensioning_args:
+        if isinstance(arg.datatype.precision, DataSymbol):
+            # The precision of this symbol is defined by another symbol so
+            # we must ensure that the latter is also in the symbol table.
+            _add_precision_symbol(arg.datatype.precision, symbol_table)
         new_dim_args_map[arg] = symbol_table.new_symbol(
             arg.name, symbol_type=DataSymbol,
             datatype=arg.datatype,
@@ -475,6 +504,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
                         "its shape definition but expected an ArrayType."
                         "Extent or ArrayType.ArrayBounds".format(
                             arg.name, tl_kernel.name, type(dim).__name__))
+            if isinstance(arg.datatype.precision, DataSymbol):
+                # The precision of this symbol is defined by another symbol so
+                # we must ensure that the latter is also in the symbol table.
+                _add_precision_symbol(arg.datatype.precision, symbol_table)
             new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
                                               datatype=ArrayType(arg.datatype,
                                                                  new_shape))
