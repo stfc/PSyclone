@@ -612,6 +612,15 @@ def test_node_ancestor():
     # Check that the include_self argument behaves as expected
     anode = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
     assert anode is kern
+    # If 'limit' is supplied then it must be an instance of Node.
+    with pytest.raises(TypeError) as err:
+        kern.ancestor(Kern, limit=3)
+    assert "must be an instance of Node but got 'int'" in str(err.value)
+    # Set the limit to the kernel's parent so that no Loop is found.
+    assert kern.ancestor(Loop, limit=kern.parent) is None
+    # Setting the limit to a node above the one we are searching for should
+    # have no effect.
+    assert kern.ancestor(Loop, limit=sched) is kern.parent.parent
 
 
 def test_dag_names():
@@ -857,11 +866,17 @@ def test_children_validation():
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
-    # Try adding a invalid child (e.g. a return_stmt into an assignment)
+    # Try adding an invalid child (e.g. a return_stmt into an assignment)
     with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
         " is: 'DataNode, DataNode'." in str(error.value)
+
+    # Try adding a child to a leaf node.
+    with pytest.raises(GenerationError) as error:
+        return_stmt.addchild(reference)
+    assert ("Return is a LeafNode and doesn't accept children" in
+            str(error.value))
 
     # The same behaviour occurs when list insertion operations are used.
     with pytest.raises(GenerationError):
@@ -882,7 +897,7 @@ def test_children_validation():
     # Valid nodes are accepted
     assignment.addchild(reference)
 
-    # Check displaced items are also be checked when needed
+    # Check displaced items are also checked when needed
     start = Literal("0", INTEGER_TYPE)
     stop = Literal("1", INTEGER_TYPE)
     step = Literal("2", INTEGER_TYPE)
@@ -903,9 +918,12 @@ def test_children_validation():
         loop.children.pop(2)
 
     with pytest.raises(GenerationError):
+        loop.children.pop(1)
+
+    with pytest.raises(GenerationError):
         loop.children.reverse()
 
-    # But the in the right circumstances they work fine
+    # But in the right circumstances they work fine
     assert isinstance(loop.children.pop(), Schedule)
     loop.children.reverse()
     assert loop.children[0].value == "2"
@@ -1285,26 +1303,6 @@ def test_following_preceding():
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(routine=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
-
-
-def test_node_same_root():
-    '''Test the sameRoot function of the Node class'''
-    parent = Schedule()
-    zero = Statement()
-    one = Statement()
-    parent.addchild(zero)
-    parent.addchild(one)
-
-    assert zero.sameRoot(one)
-
-    parent2 = Schedule()
-    two = Statement()
-    parent2.addchild(two)
-
-    assert zero.sameRoot(two) is False
-
-    two.detach()
-    assert zero.sameRoot(two) is False
 
 
 def test_equality():
