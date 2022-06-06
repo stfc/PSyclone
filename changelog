@@ -78,6 +78,9 @@
 	27) PR #1729. Minor fixes for MarkDown link checker and path to
 	test file.
 
+	28) PR #1733 for #1707. Update PSyclone master to the latest version of
+	fparser to enable running of PSyclone tests.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
