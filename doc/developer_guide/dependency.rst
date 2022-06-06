@@ -587,7 +587,7 @@ until we find accesses that would prevent parallelisation:
           code.
 
 Dependency Tools
-----------------
+================
 
 PSyclone contains a class that builds upon the data-dependency functionality
 to provide useful tools for dependency analaysis. It especially provides

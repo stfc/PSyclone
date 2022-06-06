@@ -42,6 +42,7 @@ from a PSyIR tree. '''
 # pylint: disable=too-many-lines
 from fparser.two import Fortran2003
 
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -53,6 +54,7 @@ from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
     ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType, \
     UnresolvedInterface
+
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -366,6 +368,13 @@ class FortranWriter(LanguageWriter):
                           Fparser2Reader.binary_operators)
         self._reverse_map(self._operator_2_str,
                           Fparser2Reader.nary_operators)
+
+        # Create and store a DependencyTools instance for use when ordering
+        # parameter declarations. Have to import it here as DependencyTools
+        # also uses this Fortran backend.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools
+        self._dep_tools = DependencyTools(language_writer=self)
 
     @staticmethod
     def _reverse_map(reverse_dict, op_map):
@@ -698,9 +707,11 @@ class FortranWriter(LanguageWriter):
         self._depth += 1
 
         for member in symbol.datatype.components.values():
-            # We always want to specify the visibility of components within
-            # a derived type.
-            result += self.gen_vardecl(member, include_visibility=True)
+            # We can only specify the visibility of components within
+            # a derived type if the declaration is within the specification
+            # part of a module.
+            result += self.gen_vardecl(member,
+                                       include_visibility=include_visibility)
         self._depth -= 1
 
         result += f"{self._nindent}end type {symbol.name}\n"
@@ -797,6 +808,72 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
+    def _gen_parameter_decls(self, symbol_table, is_module_scope=False):
+        ''' Create the declarations of all parameters present in the supplied
+        symbol table. Declarations are ordered so as to satisfy any inter-
+        dependencies between them.
+
+        :param symbol_table: the SymbolTable instance.
+        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param bool is_module_scope: whether or not the declarations are in \
+                                     a module scoping unit. Default is False.
+
+        :returns: Fortran code declaring all parameters.
+        :rtype: str
+
+        :raises VisitorError: if there is no way of resolving \
+                              interdependencies between parameter declarations.
+
+        '''
+        declarations = ""
+        local_constants = [sym for sym in symbol_table.local_datasymbols if
+                           sym.is_constant]
+        if not local_constants:
+            return declarations
+
+        # There may be dependencies between these constants so setup a dict
+        # listing the required inputs for each one.
+        decln_inputs = {}
+        for symbol in local_constants:
+            decln_inputs[symbol.name] = set()
+            input_sigs = self._dep_tools.get_input_parameters(
+                symbol.constant_value)
+            # The dependence analysis tools do not include symbols used to
+            # define precision so check for those here.
+            for lit in symbol.constant_value.walk(Literal):
+                if isinstance(lit.datatype.precision, DataSymbol):
+                    input_sigs.append(Signature(lit.datatype.precision.name))
+            # If the precision of the Symbol being declared is itself defined
+            # by a Symbol then include that as an 'input'.
+            if isinstance(symbol.datatype.precision, DataSymbol):
+                input_sigs.append(Signature(symbol.datatype.precision.name))
+            # Remove any 'inputs' that are not local since these do not affect
+            # the ordering of local declarations.
+            for sig in input_sigs:
+                if symbol_table.lookup(sig.var_name) in local_constants:
+                    decln_inputs[symbol.name].add(sig)
+        # We now iterate over the declarations, declaring those that have their
+        # inputs satisfied. Creating a declaration for a given symbol removes
+        # that symbol as a dependence from any outstanding declarations.
+        declared = set()
+        while local_constants:
+            for symbol in local_constants[:]:
+                inputs = decln_inputs[symbol.name]
+                if inputs.issubset(declared):
+                    # All inputs are satisfied so this declaration can be added
+                    declared.add(Signature(symbol.name))
+                    local_constants.remove(symbol)
+                    declarations += self.gen_vardecl(
+                        symbol, include_visibility=is_module_scope)
+                    break
+            else:
+                # We looped through all of the variables remaining to be
+                # declared and none had their dependencies satisfied.
+                raise VisitorError(
+                    f"Unable to satisfy dependencies for the declarations of "
+                    f"{[sym.name for sym in local_constants]}")
+        return declarations
+
     def gen_decls(self, symbol_table, is_module_scope=False):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
@@ -880,7 +957,11 @@ class FortranWriter(LanguageWriter):
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.
 
-        # 1: Argument variable declarations
+        # 1: Local constants.
+        declarations += self._gen_parameter_decls(symbol_table,
+                                                  is_module_scope)
+
+        # 2: Argument variable declarations
         if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
@@ -888,13 +969,6 @@ class FortranWriter(LanguageWriter):
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
         for symbol in symbol_table.argument_datasymbols:
-            declarations += self.gen_vardecl(
-                symbol, include_visibility=is_module_scope)
-
-        # 2: Local constants.
-        local_constants = [sym for sym in symbol_table.local_datasymbols if
-                           sym.is_constant]
-        for symbol in local_constants:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,10 +78,6 @@ PROFILE_ONLY = ["bdyini.f90", "bdydta.f90", "bdyvol.f90",
 
 # Files that we won't touch at all
 EXCLUDED_FILES = [
-    # Only defines parameters and we get the order wrong (#1347)
-    "par_kind.f90",
-    # Kind parameters messed up
-    "obs_fbm.f90",
     # Re-defines idim intrinsic
     "obs_utils.f90",
     # Unsupported module SAVE attribute

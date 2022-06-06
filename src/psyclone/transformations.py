@@ -41,28 +41,34 @@
     classes in this module where the latter typically apply API-specific
     checks before calling the base class for the actual transformation. '''
 
+# pylint: disable=too-many-lines
+
 from __future__ import absolute_import, print_function
 
 import abc
 
+
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import KernCallArgList, LFRicConstants
+from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
+    DynInvokeSchedule, DynKern
 from psyclone.errors import InternalError, GenerationError
-from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
     BuiltIn
-from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Assignment, \
-    Directive, ACCLoopDirective, OMPDoDirective, OMPParallelDoDirective, \
-    ACCDataDirective, ACCEnterDataDirective, OMPDirective, \
-    ACCKernelsDirective, Routine, OMPTaskloopDirective, OMPLoopDirective, \
-    OMPTargetDirective, OMPDeclareTargetDirective, ACCRoutineDirective
-from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
-    INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
+    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
+    ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
+    Directive, KernelSchedule, Loop, Node, OMPDeclareTargetDirective, \
+    OMPDirective, OMPDoDirective, OMPLoopDirective, OMPMasterDirective, \
+    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
+    OMPSingleDirective, OMPTargetDirective, OMPTaskloopDirective, \
+    PSyDataNode, Reference, Return, Routine, Schedule
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
+    DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
+from psyclone.psyir.tools import DTCode, DependencyTools
 from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 
@@ -88,7 +94,6 @@ def check_intergrid(node):
     '''
     if not node.children:
         return
-    from psyclone.dynamo0p3 import DynKern
     child_kernels = node.walk(DynKern)
     for kern in child_kernels:
         if kern.is_intergrid:
@@ -99,12 +104,14 @@ def check_intergrid(node):
 
 
 class KernelTrans(Transformation):
+    # pylint: disable=abstract-method
     '''
     Base class for all Kernel transformations.
 
     '''
     @staticmethod
     def validate(kern, options=None):
+        # pylint: disable=arguments-renamed
         '''
         Checks that the supplied node is a Kernel and that it is possible to
         construct the PSyIR of its contents.
@@ -146,10 +153,10 @@ class KernelTrans(Transformation):
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
-        for var in kernel_schedule.walk(nodes.Reference):
+        for var in kernel_schedule.walk(Reference):
             try:
                 var.scope.symbol_table.lookup(
-                    var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
+                    var.name, scope_limit=var.ancestor(KernelSchedule))
             except KeyError as err:
                 raise TransformationError(
                     f"Kernel '{kern.name}' contains accesses to data (variable"
@@ -168,10 +175,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
+    excluded_node_types = (Return, psyGen.HaloExchange, CodeBlock)
 
     @abc.abstractmethod
     def __str__(self):
+        # pylint: disable=invalid-str-returned
         return  # pragma: no cover
 
     @abc.abstractmethod
@@ -259,9 +267,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 # The DependencyTools also returns False for things that are
                 # not an issue, so we ignore specific messages.
                 for message in dep_tools.get_all_messages():
-                    if "is only written once." in message:
+                    if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                         continue
-                    messages = "\n".join(dep_tools.get_all_messages())
+                    all_msg_str = [str(message) for message in
+                                   dep_tools.get_all_messages()]
+                    messages = "\n".join(all_msg_str)
                     raise TransformationError(
                         f"Dependency analysis failed with the following "
                         f"messages:\n{messages}")
@@ -713,8 +723,8 @@ class OMPDeclareTargetTrans(Transformation):
 
         # Check that the kernel does not access any data or routines via a
         # module 'use' statement or that are not captured by the SymbolTable
-        for candidate in node.walk((nodes.Reference, nodes.CodeBlock)):
-            if isinstance(candidate, nodes.CodeBlock):
+        for candidate in node.walk((Reference, CodeBlock)):
+            if isinstance(candidate, CodeBlock):
                 names = candidate.get_symbol_names()
             else:
                 names = [candidate.name]
@@ -1027,7 +1037,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.PSyDataNode)
+    excluded_node_types = (PSyDataNode)
 
     def __init__(self):
         # Whether to add the "independent" clause
@@ -1618,7 +1628,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.HaloExchange)
+    excluded_node_types = (CodeBlock, Return, psyGen.HaloExchange)
 
     def __init__(self):
         # Holds the class instance for the type of parallel region
@@ -1630,11 +1640,13 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def __str__(self):
         pass  # pragma: no cover
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def name(self):
         ''' Returns the name of this transformation as a string.'''
 
     def validate(self, node_list, options=None):
+        # pylint: disable=arguments-renamed
         '''
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
@@ -1668,6 +1680,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         super().validate(node_list, options)
 
     def apply(self, target_nodes, options=None):
+        # pylint: disable=arguments-renamed
         '''
         Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Loops in the
@@ -1699,6 +1712,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Create the parallel directive as a child of the
         # parent of the nodes being enclosed and with those nodes
         # as its children.
+        # pylint: disable=not-callable
         directive = self._pdirective(
             children=[node.detach() for node in node_list])
 
@@ -1745,9 +1759,9 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     '''
     # The types of node that this transformation cannot enclose
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
-                           psyGen.HaloExchange, nodes.OMPSerialDirective,
-                           nodes.OMPParallelDirective)
+    excluded_node_types = (CodeBlock, Return, ACCDirective,
+                           psyGen.HaloExchange, OMPSerialDirective,
+                           OMPParallelDirective)
 
     def __init__(self, nowait=False):
         super().__init__()
@@ -1805,11 +1819,12 @@ class OMPSingleTrans(ParallelRegionTrans):
         :rtype: :py:class:`psyclone.psyGen.OMPSingleDirective`
 
         '''
-        _directive = nodes.OMPSingleDirective(children=children,
-                                              nowait=self.omp_nowait)
+        _directive = OMPSingleDirective(children=children,
+                                        nowait=self.omp_nowait)
         return _directive
 
     def apply(self, node_list, options=None):
+        # pylint: disable=arguments-renamed
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
 
@@ -1876,14 +1891,14 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     '''
     # The types of node that this transformation cannot enclose
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
-                           psyGen.HaloExchange, nodes.OMPSerialDirective,
-                           nodes.OMPParallelDirective)
+    excluded_node_types = (CodeBlock, Return, ACCDirective,
+                           psyGen.HaloExchange, OMPSerialDirective,
+                           OMPParallelDirective)
 
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = nodes.OMPMasterDirective
+        self._pdirective = OMPMasterDirective
 
     def __str__(self):
         return "Insert an OpenMP Master region"
@@ -1932,13 +1947,13 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     '''
     # The types of node that this transformation cannot enclose
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
+    excluded_node_types = (CodeBlock, Return, ACCDirective,
                            psyGen.HaloExchange)
 
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = nodes.OMPParallelDirective
+        self._pdirective = OMPParallelDirective
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"
@@ -2004,13 +2019,13 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> # print(schedule.view())
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
-                           nodes.ACCDataDirective, nodes.ACCEnterDataDirective)
+    excluded_node_types = (CodeBlock, Return, PSyDataNode,
+                           ACCDataDirective, ACCEnterDataDirective)
 
     def __init__(self):
         super().__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = nodes.ACCParallelDirective
+        self._pdirective = ACCParallelDirective
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"
@@ -2056,7 +2071,7 @@ class MoveTrans(Transformation):
         return "Move"
 
     def validate(self, node, location, options=None):
-        # pylint: disable=no-self-use
+        # pylint: disable=no-self-use, arguments-differ
         ''' validity checks for input arguments.
 
         :param node: the node to be moved.
@@ -2074,7 +2089,6 @@ class MoveTrans(Transformation):
         '''
 
         # Check that the first argument is a Node
-        from psyclone.psyir.nodes import Node
         if not isinstance(node, Node):
             raise TransformationError(
                 "In the Move transformation apply method the first argument "
@@ -2203,6 +2217,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             but the loop has already been set to the maximum halo depth.
 
         '''
+        # pylint: disable=too-many-branches
         # check node is a loop
         super().validate(node, options=options)
 
@@ -2214,7 +2229,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        dir_node = node.ancestor(nodes.Directive)
+        dir_node = node.ancestor(Directive)
         if dir_node:
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation apply "
@@ -2222,12 +2237,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"type {type(dir_node)}. Redundant computation must be applied"
                 f" before directives are added.")
         if not (isinstance(node.parent, DynInvokeSchedule) or
-                isinstance(node.parent.parent, nodes.Loop)):
+                isinstance(node.parent.parent, Loop)):
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
                 f"DynInvokeSchedule, or a Loop, but found {type(node.parent)}")
-        if isinstance(node.parent.parent, nodes.Loop):
+        if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
@@ -2310,7 +2325,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                         "halo depth so can't be set to a fixed value")
 
     def apply(self, loop, options=None):
-        # pylint:disable=arguments-differ
+        # pylint:disable=arguments-renamed
         '''Apply the redundant computation transformation to the loop
         :py:obj:`loop`. This transformation can be applied to loops iterating
         over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
@@ -2394,10 +2409,10 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         '''
         self.validate(node, options)
 
-        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
         # add asynchronous start and end halo exchanges and initialise
         # them using information from the existing synchronous halo
         # exchange
+        # pylint: disable=protected-access
         node.parent.addchild(
             DynHaloExchangeStart(
                 node.field, check_dirty=node._check_dirty,
@@ -2413,6 +2428,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         node.detach()
 
     def validate(self, node, options):
+        # pylint: disable=signature-differs
         '''Internal method to check whether the node is valid for this
         transformation.
 
@@ -2425,8 +2441,6 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                          HaloExchange (or subclass thereof)
 
         '''
-        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
-
         if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
             raise TransformationError(
@@ -2498,7 +2512,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         return "Dynamo0p3KernelConstTrans"
 
     def apply(self, node, options=None):
-        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-statements, too-many-locals
         '''Transforms a kernel so that the values for the number of degrees of
         freedom (if a valid value for the element_order arg is
         provided), the number of quadrature points (if the quadrature
@@ -2611,7 +2625,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
         element_order = options.get("element_order", None)
         kernel = node
 
-        from psyclone.domain.lfric import KernCallArgList
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
@@ -2696,7 +2709,6 @@ class Dynamo0p3KernelConstTrans(Transformation):
             provided (as the former needs the latter).
 
         '''
-        from psyclone.dynamo0p3 import DynKern
         if not isinstance(node, DynKern):
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
@@ -2792,6 +2804,7 @@ class ACCEnterDataTrans(Transformation):
         return "ACCEnterDataTrans"
 
     def apply(self, sched, options=None):
+        # pylint: disable=arguments-renamed
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
@@ -2806,6 +2819,7 @@ class ACCEnterDataTrans(Transformation):
         # Ensure that the proposed transformation is valid
         self.validate(sched, options)
 
+        # pylint: disable=import-outside-toplevel
         if isinstance(sched, DynInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
@@ -2823,7 +2837,7 @@ class ACCEnterDataTrans(Transformation):
         sched.addchild(data_dir, index=0)
 
     def validate(self, sched, options=None):
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-differ, arguments-renamed
         '''
         Check that we can safely apply the OpenACC enter-data transformation
         to the supplied Schedule.
@@ -2836,10 +2850,11 @@ class ACCEnterDataTrans(Transformation):
         :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
+
         '''
         super().validate(sched, options)
 
-        if not isinstance(sched, nodes.Schedule):
+        if not isinstance(sched, Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
@@ -3001,7 +3016,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> ktrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
+    excluded_node_types = (CodeBlock, Return, PSyDataNode)
 
     @property
     def name(self):
@@ -3047,6 +3062,7 @@ class ACCKernelsTrans(RegionTrans):
         parent.children.insert(start_index, directive)
 
     def validate(self, nodes, options):
+        # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
         within OpenACC kernels ... end kernels directives.
@@ -3113,7 +3129,7 @@ class ACCDataTrans(RegionTrans):
     >>> dtrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
+    excluded_node_types = (CodeBlock, Return, PSyDataNode)
 
     @property
     def name(self):
@@ -3150,6 +3166,7 @@ class ACCDataTrans(RegionTrans):
         parent.children.insert(start_index, directive)
 
     def validate(self, nodes, options):
+        # pylint: disable=signature-differs
         '''
         Check that we can safely add a data region around the supplied list
         of nodes.
@@ -3259,7 +3276,6 @@ class KernelImportsToArguments(Transformation):
         :type options: dictionary of string:values or None
 
         '''
-        from psyclone.psyir.symbols import ArgumentInterface
 
         self.validate(node, options)
 

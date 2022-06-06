@@ -37,7 +37,6 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
 
-from __future__ import absolute_import
 
 from collections import OrderedDict
 import pytest
@@ -750,130 +749,6 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
                       "end type var\n")
-
-
-def test_gen_decls(fortran_writer):
-    '''Check the FortranWriter class gen_decls method produces the
-    expected declarations. Also check that an exception is raised if
-    an 'argument' symbol exists in the supplied symbol table and the
-    optional argument 'is_module_scope' is set to True.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol_table.add(ContainerSymbol("my_module"))
-    use_statement = DataSymbol("my_use", DeferredType(),
-                               interface=ImportInterface(
-                                   symbol_table.lookup("my_module")))
-    symbol_table.add(use_statement)
-    argument_variable = DataSymbol("arg", INTEGER_TYPE,
-                                   interface=ArgumentInterface())
-    symbol_table.add(argument_variable)
-    local_variable = DataSymbol("local", INTEGER_TYPE)
-    symbol_table.add(local_variable)
-    dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    dtype_variable = DataTypeSymbol("field", dtype)
-    symbol_table.add(dtype_variable)
-    grid_type = DataTypeSymbol("grid_type", DeferredType(),
-                               interface=ImportInterface(
-                                   symbol_table.lookup("my_module")))
-    symbol_table.add(grid_type)
-    grid_variable = DataSymbol("grid", grid_type)
-    symbol_table.add(grid_variable)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer :: arg\n"
-                      "type :: field\n"
-                      "  integer, public :: flag\n"
-                      "end type field\n"
-                      "integer :: local\n"
-                      "type(grid_type) :: grid\n")
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
-    assert ("Arguments are not allowed in this context but this symbol table "
-            "contains argument(s): '['arg']'." in str(excinfo.value))
-
-    # Add a symbol with a deferred (unknown) interface
-    symbol_table.add(DataSymbol("unknown", INTEGER_TYPE,
-                                interface=UnresolvedInterface()))
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert ("The following symbols are not explicitly declared or imported "
-            "from a module and there are no wildcard "
-            "imports which could be bringing them into scope: "
-            "'unknown'" in str(excinfo.value))
-
-
-def test_gen_decls_nested_scope(fortran_writer):
-    ''' Test that gen_decls() correctly checks for potential wildcard imports
-    of an unresolved symbol in an outer scope.
-
-    '''
-    inner_table = SymbolTable()
-    inner_table.add(DataSymbol("unknown1", INTEGER_TYPE,
-                               interface=UnresolvedInterface()))
-    routine = Routine.create("my_func", inner_table, [Return()])
-    cont_table = SymbolTable()
-    _ = Container.create("my_mod", cont_table, [routine])
-
-    cont_table.add(ContainerSymbol("my_module"))
-    # Innermost symbol table contains "unknown1" and there's no way it can
-    # be brought into scope
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_decls(inner_table)
-    assert ("symbols are not explicitly declared or imported from a module "
-            "and there are no wildcard imports which "
-            "could be bringing them into scope: 'unknown1'" in str(err.value))
-    # Add a ContainerSymbol with a wildcard import in the outermost scope
-    csym = ContainerSymbol("other_mod")
-    csym.wildcard_import = True
-    cont_table.add(csym)
-    # The inner symbol table contains a symbol with an unresolved interface
-    # but nothing that requires an actual declaration
-    result = fortran_writer.gen_decls(inner_table)
-    assert result == ""
-    # Move the wildcard import into the innermost table
-    cont_table.remove(csym)
-    inner_table.add(csym)
-    result = fortran_writer.gen_decls(inner_table)
-    assert result == ""
-
-
-def test_gen_decls_routine(fortran_writer):
-    '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not an ImportInterface, unless there's a wildcard
-    import from a Container.
-
-    '''
-    symbol_table = SymbolTable()
-    # Check that a RoutineSymbol representing an intrinsic is OK
-    symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
-    result = fortran_writer.gen_decls(symbol_table)
-    assert result == ""
-    # Now add a user-defined routine symbol but with an (unsupported)
-    # ArgumentInterface
-    rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
-    symbol_table.add(rsym)
-    with pytest.raises(VisitorError) as info:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
-            "ArgumentInterface). This is not supported by the Fortran "
-            "back-end." in str(info.value))
-    # Replace that symbol with one that has a deferred interface
-    symbol_table.remove(rsym)
-    symbol_table.add(RoutineSymbol("sub2", interface=UnresolvedInterface()))
-    with pytest.raises(VisitorError) as info:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert (
-        "Routine symbol 'sub2' does not have an ImportInterface or "
-        "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
-        "import which could bring it into scope. This is not supported by the "
-        "Fortran back-end." in str(info.value))
-    # Now add a wildcard import from a ContainerSymbol
-    csym = ContainerSymbol("some_mod")
-    csym.wildcard_import = True
-    symbol_table.add(csym)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert result == ""
 
 
 def test_gen_access_stmt(fortran_writer):
