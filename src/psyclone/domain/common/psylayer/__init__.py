@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors S. Siso, STFC Daresbury Lab
 
-'''A package module for domain/common.'''
+'''A package module for psyclone.domain.common.psylayer'''
 
 from psyclone.domain.common.psylayer.psyloop import PSyLoop
 

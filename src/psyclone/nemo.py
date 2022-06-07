@@ -250,19 +250,15 @@ class NemoKern(InlinedKern):
 
 class NemoLoop(PSyLoop):
     '''
-    Class representing a Loop in NEMO.
+    Class representing a PSyLoop in NEMO.
 
-    :param parent: parent of this NemoLoop in the PSyclone AST.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param str variable_name: optional name of the loop iterator \
-        variable. Defaults to an empty string.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, parent=None, variable=None):
+    def __init__(self, **kwargs):
         const = NemoConstants()
-        super().__init__(parent=parent,
-                         variable=variable,
-                         valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
 
     @staticmethod
     def create(variable, start, stop, step, children):

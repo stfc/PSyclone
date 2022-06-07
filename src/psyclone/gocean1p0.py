@@ -333,7 +333,7 @@ class GOInvokeSchedule(InvokeSchedule):
 
 # pylint: disable=too-many-instance-attributes
 class GOLoop(PSyLoop):
-    ''' The GOcean specific Loop class. This passes the GOcean specific
+    ''' The GOcean specific PSyLoop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso  A. B. G. Chalk and N. Nobre,
+#           STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the PSyLoop node implementation.'''
@@ -46,19 +46,16 @@ from psyclone.psyir.nodes import Routine, Loop
 
 class PSyLoop(Loop):
     # pylint: disable=too-many-instance-attributes
-    '''Node representing a loop within the PSyIR. It has 4 mandatory children:
-    the first one represents the loop lower bound, the second one represents
-    the loop upper bound, the third one represents the step value and the
-    fourth one is always a PSyIR Schedule node containing the statements inside
-    the loop body.
-
-    (Note: currently this loop only represents the equivalent to Fortran do
-    loops. This means the loop is bounded by start/stop/step expressions
-    evaluated before the loop starts.)
+    '''Node representing a psylayer loop within the PSyIR. It extends the PSyIR
+    loop construct with information about the domain-specific iteration space
+    that the loop is traversing and utility methods to interact with other
+    psylayer nodes.
 
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
@@ -67,9 +64,6 @@ class PSyLoop(Loop):
 
     def __init__(self, valid_loop_types=None, **kwargs):
         super().__init__(**kwargs)
-
-        # we need to determine whether this is a built-in or kernel
-        # call so our schedule can do the right thing.
 
         if valid_loop_types is None:
             self._valid_loop_types = []
@@ -87,9 +81,9 @@ class PSyLoop(Loop):
 
     def __eq__(self, other):
         '''
-        Checks whether two nodes are equal. Two Loop nodes are equal
+        Checks whether two nodes are equal. Two PSyLoop nodes are equal
         if they have equal loop_type, field, field_name, field_space
-        iteraction_space, kernel and variable.
+        iteraction_space and kernel.
 
         :param object other: the object to check equality to.
 
@@ -110,10 +104,10 @@ class PSyLoop(Loop):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node
+        ''' Return the name to use in a dag for this node.
 
-        :returns: Return the dag name for this loop
-        :rtype: string
+        :returns: Return the dag name for this loop.
+        :rtype: str
 
         '''
         if self.loop_type:
@@ -200,7 +194,7 @@ class PSyLoop(Loop):
     @property
     def kernel(self):
         '''
-        :returns: the kernel object associated with this Loop (if any).
+        :returns: the kernel object associated with this PSyLoop (if any).
         :rtype: :py:class:`psyclone.psyGen.Kern`
         '''
         return self._kern
@@ -208,7 +202,7 @@ class PSyLoop(Loop):
     @kernel.setter
     def kernel(self, kern):
         '''
-        Setter for kernel object associated with this loop.
+        Setter for kernel object associated with this PSyLoop.
 
         :param kern: a kernel object.
         :type kern: :py:class:`psyclone.psyGen.Kern`
