@@ -183,17 +183,6 @@ def test_zero(tmpdir):
         "  real, dimension(n) :: a\n\n"
         "  a(2:n - 2) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
-
-
-@pytest.mark.xfail(reason="issue #1347, type declaration is being written in "
-                   "the wrong order causing compilation failure.")
-def test_zero_fail(tmpdir):
-    '''This test is split from the previous one as it is currently failing
-    when the compile option is set to True due to the typedef being
-    written in the wrong order. Once this problem is fixed this test
-    should be merged back with the previous test_zero() test.
-
-    '''
     # Structure
     tl_fortran = (
         "  type :: field_type\n"
@@ -204,11 +193,11 @@ def test_zero_fail(tmpdir):
         "  a%data(n) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
+        "  integer, parameter :: n = 10\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
-        "  end type field_type\n\n"
-        "  type(field_type) :: a\n"
-        "  integer, parameter :: n = 10\n"
+        "  end type field_type\n"
+        "  type(field_type) :: a\n\n"
         "  a%data(n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -289,8 +278,6 @@ def test_single_assign(tmpdir):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
-@pytest.mark.xfail(reason="issue #1347, type declaration is being written in "
-                   "the wrong order causing compilation failure.")
 def test_single_assign_fail(tmpdir):
     '''This test is split from the previous one as it is currently failing
     when the compile option is set to True due to the typedef being
@@ -309,13 +296,13 @@ def test_single_assign_fail(tmpdir):
         "  a%data(2*i) = b%data(n+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
+        "  integer, parameter :: n = 2\n"
+        "  integer, parameter :: i = 2\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
         "  type(field_type) :: a\n"
-        "  type(field_type) :: b\n"
-        "  integer, parameter :: n = 2\n"
-        "  integer, parameter :: i = 2\n\n"
+        "  type(field_type) :: b\n\n"
         "  b%data(n + 1) = b%data(n + 1) + a%data(2 * i)\n"
         "  a%data(2 * i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)

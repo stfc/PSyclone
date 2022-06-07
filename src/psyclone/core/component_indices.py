@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ from __future__ import print_function, absolute_import
 from psyclone.errors import InternalError
 
 
-class ComponentIndices(object):
+class ComponentIndices():
     '''This class stores index information for variable accesses. It stores
     one index list for each component of a variable, e.g. for `a(i)%b(j)`
     it would store `[ [i], [j] ]`. Even for scalar accesses an empty list
@@ -77,13 +77,13 @@ class ComponentIndices(object):
             elif all(not isinstance(indx, list) for indx in indices):
                 self._component_indices = [indices]
             else:
-                raise InternalError("ComponentIndices: Invalid "
-                                    "list parameter '{0}' - some elements"
-                                    " but not all are lists".format(indices))
+                raise InternalError(f"ComponentIndices: Invalid "
+                                    f"list parameter '{indices}' - some "
+                                    f"elements but not all are lists")
         else:
-            raise InternalError("Index object in ComponentIndices "
-                                "constructor must be None, a list or "
-                                "list of lists, got '{0}'".format(indices))
+            raise InternalError(f"Index object in ComponentIndices "
+                                f"constructor must be None, a list or "
+                                f"list of lists, got '{indices}'")
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -123,11 +123,11 @@ class ComponentIndices(object):
         '''
         if isinstance(indx, tuple):
             if indx[0] < 0 or indx[0] >= len(self._component_indices):
-                raise IndexError("First index ({0}) of {1} is out of range."
-                                 .format(indx[0], indx))
+                raise IndexError(f"First index ({indx[0]}) of {indx} is out "
+                                 f"of range.")
             if indx[1] < 0 or indx[1] >= len(self._component_indices[indx[0]]):
-                raise IndexError("Second index ({0}) of {1} is out of range."
-                                 .format(indx[1], indx))
+                raise IndexError(f"Second index ({indx[1]}) of {indx} is out "
+                                 f"of range.")
             return self._component_indices[indx[0]][indx[1]]
         return self._component_indices[indx]
 
@@ -156,6 +156,36 @@ class ComponentIndices(object):
         :rtype: bool
         '''
         return any(grp for grp in self._component_indices)
+
+    # ------------------------------------------------------------------------
+    def get_subscripts_of(self, set_of_vars):
+        '''This function returns a flat list of which variable from the
+        given set of variables is used in each subscript. For example, the
+        access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
+        `[[i+i2], [j*j+k,k], [l,5]]`. If the set of variables is
+        `(i,j,k)`, then `get_subscripts_of` would return
+        `[{i},{j,k},{k},{l},{}]`.
+
+        :param set_of_vars: set with name of all variables.
+        :type set_of_vars: Set[str]
+
+        :return: a list of sets with all variables used in the corresponding \
+            array subscripts as strings.
+        :rtype: List[Set[str]]
+
+        '''
+        # Circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import VariablesAccessInfo
+
+        indices = []
+        for i in self.iterate():
+            indx = self[i]
+            index_vars = VariablesAccessInfo(indx)
+            unique_vars = set(str(sig) for sig in index_vars.keys())
+            unique_vars = unique_vars.intersection(set_of_vars)
+            indices.append(unique_vars)
+        return indices
 
 
 # ---------- Documentation utils -------------------------------------------- #
