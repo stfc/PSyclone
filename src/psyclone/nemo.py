@@ -44,11 +44,12 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.nemo import NemoConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Loop, Schedule, Routine
+from psyclone.psyir.nodes import Schedule, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -247,7 +248,7 @@ class NemoKern(InlinedKern):
                             "have been called.")
 
 
-class NemoLoop(Loop):
+class NemoLoop(PSyLoop):
     '''
     Class representing a Loop in NEMO.
 
@@ -259,9 +260,9 @@ class NemoLoop(Loop):
     '''
     def __init__(self, parent=None, variable=None):
         const = NemoConstants()
-        Loop.__init__(self, parent=parent,
-                      variable=variable,
-                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(parent=parent,
+                         variable=variable,
+                         valid_loop_types=const.VALID_LOOP_TYPES)
 
     @staticmethod
     def create(variable, start, stop, step, children):
@@ -292,7 +293,7 @@ class NemoLoop(Loop):
             are not of the expected type.
 
         '''
-        Loop._check_variable(variable)
+        NemoLoop._check_variable(variable)
 
         if not isinstance(children, list):
             raise GenerationError(

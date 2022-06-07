@@ -39,6 +39,7 @@
 class for all API-specific loop fusion transformations.
 '''
 
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -90,10 +91,23 @@ class LoopFuseTrans(LoopTrans):
                 f"Error in {self.name} transformation. Nodes are not siblings "
                 f"who are next to each other.")
         # Check that the iteration space is the same
-        if node1.iteration_space != node2.iteration_space:
-            raise TransformationError(
-                f"Error in {self.name} transformation. Loops do not have the "
-                f"same iteration space.")
+        if isinstance(node1, PSyLoop) and isinstance(node2, PSyLoop):
+            # TODO 1731: For some PSyLoops the iteration space is encoded just
+            # in the attributes and not reflected in the loop bounds.
+            if node1.iteration_space != node2.iteration_space:
+                raise TransformationError(
+                    f"Error in {self.name} transformation. Loops do not have "
+                    f"the same iteration space.")
+        else:
+            return  # FIXME
+            if node1.start_expr != node2.start_expr or \
+                    node1.stop_expr != node2.stop_expr or \
+                    node1.step_expr != node2.step_expr:
+                raise TransformationError(
+                    f"Error in {self.name} transformation. Loops do not have "
+                    f"the same iteration space:\n"
+                    f"{node1.view()}\n"
+                    f"{node2.view()}")
 
     def apply(self, node1, node2, options=None):
         # pylint: disable=arguments-differ

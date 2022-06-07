@@ -116,13 +116,6 @@ class LoopTrans(Transformation):
                         f"Nodes of type '{type(item).__name__}' cannot be "
                         f"enclosed by a {self.name} transformation")
 
-        # A 'null' loop is one which exists in the PSyIR hierarchy (mainly for
-        # halo-exchange logic) but does *not* correspond to an actual loop
-        # in the code that is generated for the PSy layer.
-        if node.loop_type == 'null':
-            raise TransformationError(
-                f"Cannot apply a {self.name} transformation to a 'null' loop.")
-
     @property
     def name(self):
         '''
