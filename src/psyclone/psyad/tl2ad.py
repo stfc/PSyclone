@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     CodeBlock, FileContainer, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE
+    INTEGER_TYPE, DeferredType, UnknownType
 
 
 #: The tolerance applied to the comparison of the inner product values in
@@ -279,10 +279,20 @@ def _add_precision_symbol(symbol, table):
     :param table: the symbol table to which to add the precision symbol.
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
+    :raises TypeError: if the supplied symbol is not of the correct type \
     :raises NotImplementedError: if the supplied symbol is not local or \
                                  explicitly imported.
 
     '''
+    # A precision symbol must be of integer or unknown type.
+    if not (isinstance(symbol.datatype, (DeferredType, UnknownType)) or
+            isinstance(symbol.datatype, ScalarType) and
+            symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
+        raise TypeError(
+            f"For a symbol to represent a precision it must be of deferred, "
+            f"unknown or scalar, integer type but '{symbol.name}' has type "
+            f"'{symbol.datatype}'")
+
     if symbol.name in table:
         return
 
@@ -351,16 +361,16 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
 
     if len(routines) != 1:
         raise NotImplementedError(
-            "The supplied Fortran must contain one and only one subroutine "
-            "but found: {0}".format([sub.name for sub in routines]))
+            f"The supplied Fortran must contain one and only one subroutine "
+            f"but found: {[sub.name for sub in routines]}")
 
     tl_kernel = routines[0]
 
     if tl_kernel.is_program:
         raise NotImplementedError(
-            "Generation of a test harness for a kernel defined as a Program "
-            "(as opposed to a Subroutine) is not currently supported. (Found "
-            "'{0}' which is a Program.)".format(tl_kernel.name))
+            f"Generation of a test harness for a kernel defined as a Program "
+            f"(as opposed to a Subroutine) is not currently supported. (Found "
+            f"'{tl_kernel.name}' which is a Program.)")
 
     # First Container is a FileContainer and that's not what we want
     container = tl_psyir.walk(Container)[1]
@@ -491,26 +501,26 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
                             new_bounds.append(bound.copy())
                         else:
                             raise NotImplementedError(
-                                "Found argument '{0}' to kernel '{1}' which "
-                                "has an array bound specified by a '{2}' node."
-                                " Only Literals or References are supported.".
-                                format(arg.name, tl_kernel.name,
-                                       type(bound).__name__))
+                                f"Found argument '{arg.name}' to kernel "
+                                f"'{tl_kernel.name}' which has an array bound "
+                                f"specified by a '{type(bound).__name__}' "
+                                f"node. Only Literals or References are "
+                                f"supported.")
                     new_shape.append(ArrayType.ArrayBounds(new_bounds[0],
                                                            new_bounds[1]))
                 else:
                     raise InternalError(
-                        "Argument '{0}' to kernel '{1}' contains a '{2}' in "
-                        "its shape definition but expected an ArrayType."
-                        "Extent or ArrayType.ArrayBounds".format(
-                            arg.name, tl_kernel.name, type(dim).__name__))
-            if isinstance(arg.datatype.precision, DataSymbol):
-                # The precision of this symbol is defined by another symbol so
-                # we must ensure that the latter is also in the symbol table.
-                _add_precision_symbol(arg.datatype.precision, symbol_table)
+                        f"Argument '{arg.name}' to kernel '{tl_kernel.name}' "
+                        f"contains a '{type(dim).__name__}' in its shape "
+                        f"definition but expected an ArrayType."
+                        f"Extent or ArrayType.ArrayBounds")
             new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
                                               datatype=ArrayType(arg.datatype,
                                                                  new_shape))
+        if isinstance(arg.datatype.precision, DataSymbol):
+            # The precision of this symbol is defined by another symbol so
+            # we must ensure that the latter is also in the symbol table.
+            _add_precision_symbol(arg.datatype.precision, symbol_table)
         new_arg_list.append(new_sym)
         # Create variables to hold a copy of the inputs
         input_sym = symbol_table.new_symbol(new_sym.name+"_input",

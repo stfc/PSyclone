@@ -37,7 +37,6 @@
 within the psyad directory.
 
 '''
-from __future__ import print_function, absolute_import
 import logging
 import pytest
 
@@ -45,14 +44,15 @@ from psyclone.errors import InternalError
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
 from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product, _get_active_variables_datatype
+    _create_array_inner_product, _get_active_variables_datatype, \
+    _add_precision_symbol
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation, Reference, Literal
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
     INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface, \
-    ScalarType
+    ScalarType, ContainerSymbol, ArgumentInterface
 
 
 # 1: generate_adjoint_str function
@@ -527,6 +527,37 @@ def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
     # but, since it depends on the TL and adjoint kernels, we can't
     # currently do that (see #284).
     # assert Compile(tmpdir).string_compiles(harness)
+
+
+def test_add_precision_symbol():
+    ''' Tests for the _add_precision_symbol() utility function. '''
+    table = SymbolTable()
+    sym = DataSymbol("i_def", INTEGER_TYPE)
+    _add_precision_symbol(sym, table)
+    # A local symbol should just be copied into the table.
+    new_sym = table.lookup("i_def")
+    assert new_sym is not sym
+    # Calling _add_precision a second time should do nothing.
+    _add_precision_symbol(sym, table)
+    assert table.lookup("i_def") is new_sym
+    # An imported symbol should have its originating Container copied
+    # over too.
+    csym = ContainerSymbol("some_mod")
+    rdef = DataSymbol("r_def", INTEGER_TYPE, interface=ImportInterface(csym))
+    _add_precision_symbol(rdef, table)
+    csym_copy = table.lookup("some_mod")
+    assert isinstance(csym_copy, ContainerSymbol)
+    assert csym_copy is not csym
+    rdef_copy = table.lookup("r_def")
+    assert rdef_copy.interface.container_symbol is csym_copy
+    # A precision symbol must be either local or imported
+    arg_sym = DataSymbol("wrong", INTEGER_TYPE, interface=ArgumentInterface())
+    table.specify_argument_list([arg_sym])
+    with pytest.raises(NotImplementedError) as err:
+        _add_precision_symbol(arg_sym, table)
+    assert ("One or more variables have a precision specified by symbol "
+            "'wrong' which is not local or explicitly imported" in
+            str(err.value))
 
 
 def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):
