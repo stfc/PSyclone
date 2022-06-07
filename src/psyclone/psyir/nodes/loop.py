@@ -306,7 +306,7 @@ class Loop(Statement):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[]"
+        return f"{self.coloured_name(colour)}[variable='{self.variable.name}']"
 
     @property
     def variable(self):
