@@ -39,6 +39,7 @@
 class for all API-specific loop fusion transformations.
 '''
 
+from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -99,10 +100,9 @@ class LoopFuseTrans(LoopTrans):
                     f"Error in {self.name} transformation. Loops do not have "
                     f"the same iteration space.")
         else:
-            return  # FIXME
-            if node1.start_expr != node2.start_expr or \
-                    node1.stop_expr != node2.stop_expr or \
-                    node1.step_expr != node2.step_expr:
+            if not (SymbolicMaths.equal(node1.start_expr, node2.start_expr) and
+                    SymbolicMaths.equal(node1.stop_expr, node2.stop_expr) and
+                    SymbolicMaths.equal(node1.step_expr, node2.step_expr)):
                 raise TransformationError(
                     f"Error in {self.name} transformation. Loops do not have "
                     f"the same iteration space:\n"
