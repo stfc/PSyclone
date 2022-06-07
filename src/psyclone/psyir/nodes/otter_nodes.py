@@ -33,8 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
-''' This module contains the implementation of the various Otter Directive
-nodes.'''
+''' This module contains the implementation of the various Otter nodes.'''
 
 from __future__ import absolute_import
 import abc
@@ -101,7 +100,7 @@ class OtterNode(Statement, metaclass=abc.ABCMeta):
         routine_name = routine_schedule.name
 
 
-        if self._start_subroutine_call is not "":
+        if self._start_subroutine_call != "":
             file_symbol = DataSymbol("__FILE__", CHARACTER_TYPE)
             routine = RoutineSymbol(self._start_subroutine_call)
             line_symbol = DataSymbol("__LINE__", INTEGER_TYPE)
@@ -118,7 +117,7 @@ class OtterNode(Statement, metaclass=abc.ABCMeta):
         for child in self.children[0].pop_all_children():
             self.parent.children.insert(self.position, child)
 
-        if self._end_subroutine_call is not "":
+        if self._end_subroutine_call != "":
             routine = RoutineSymbol(self._end_subroutine_call)
             argument_list = []
             end_call = Call.create(routine, argument_list)
@@ -265,7 +264,7 @@ class OtterTraceNode(OtterNode):
         routine_name = routine_schedule.name
 
 
-        if self._start_subroutine_call is not "":
+        if self._start_subroutine_call != "":
             routine = RoutineSymbol(self._start_subroutine_call)
             argument_list = []
             start_call = Call.create(routine, argument_list)
@@ -277,7 +276,7 @@ class OtterTraceNode(OtterNode):
         for child in self.children[0].pop_all_children():
             self.parent.children.insert(self.position, child)
 
-        if self._end_subroutine_call is not "":
+        if self._end_subroutine_call != "":
             routine = RoutineSymbol(self._end_subroutine_call)
             argument_list = []
             end_call = Call.create(routine, argument_list)
