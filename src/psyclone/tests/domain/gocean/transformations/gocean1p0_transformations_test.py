@@ -72,21 +72,6 @@ def setup():
     Config._instance = None
 
 
-def test_loop_fuse_different_iterates_over():
-    ''' Test that an appropriate error is raised when we attempt to
-    fuse two loops that have differing values of ITERATES_OVER '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    lftrans = LoopFuseTrans()
-
-    # Attempt to fuse two loops that are iterating over different
-    # things
-    with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err.value)
-
-
 def test_loop_fuse_error():
     ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
