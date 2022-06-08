@@ -68,6 +68,10 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.otter_trans import OtterTraceSetupTrans, \
+        OtterParallelTrans, OtterTaskloopTrans, OtterTaskSingleTrans, \
+        OtterLoopTrans, OtterSynchroniseChildrenTrans, \
+        OtterSynchroniseDescendantsTrans, OtterTraceStartEndTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -98,6 +102,14 @@ __all__ = ['ArrayRange2LoopTrans',
            'LoopTrans',
            'NanTestTrans',
            'OMPTaskwaitTrans',
+           'OtterTraceSetupTrans'
+           'OtterParallelTrans',
+           'OtterTaskloopTrans',
+           'OtterTaskSingleTrans',
+           'OtterLoopTrans',
+           'OtterSynchroniseChildrenTrans',
+           'OtterSynchroniseDescendantsTrans',
+           'OtterTraceStartEndTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',

@@ -87,6 +87,10 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause
+from psyclone.psyir.nodes.otter_nodes import OtterTraceSetupNode, \
+        OtterParallelNode, OtterTaskNode, OtterTaskSingleNode, \
+        OtterLoopNode, OtterLoopIterationNode, OtterSynchroniseChildrenNode, \
+        OtterSynchroniseDescendantTasksNode, OtterTraceNode, OtterNode
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -162,5 +166,16 @@ __all__ = [
         'OMPGrainsizeClause',
         'OMPNogroupClause',
         'OMPNowaitClause',
-        'OMPNumTasksClause'
+        'OMPNumTasksClause',
+        # Otter Nodes
+        'OtterNode',
+        'OtterTraceSetupNode',
+        'OtterParallelNode',
+        'OtterTaskNode',
+        'OtterTaskSingleNode',
+        'OtterLoopNode',
+        'OtterLoopIterationNode',
+        'OtterSynchroniseChildrenNode',
+        'OtterSynchroniseDescendantTasksNode',
+        'OtterTraceNode'
         ]
