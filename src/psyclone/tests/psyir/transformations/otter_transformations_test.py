@@ -48,7 +48,12 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
 
-def test_ottertrace_trans_apply():
+def test_ottersetuptrace_trans_str():
+    tracetrans = OtterTraceSetupTrans()
+    assert (str(tracetrans) == "Adds a Otter Trace setup node to a region of "
+            "code to enable Otter instrumentation of PSyclone")
+
+def test_ottersetuptrace_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
@@ -61,6 +66,10 @@ def test_ottertrace_trans_apply():
             ", __LINE__)" in code)
     assert "CALL fortran_otterTraceFinalise" in code
 
+def test_otterparallel_trans_str():
+    paralleltrans = OtterParallelTrans()
+    assert (str(paralleltrans) == "Adds a Otter Parallel node to a region of "
+            "code")
 
 def test_otterparallel_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
@@ -74,6 +83,11 @@ def test_otterparallel_trans_apply():
     assert ("CALL fortran_otterParallelBegin_i(__FILE__, 'invoke_0_compute_cu'"
             ", __LINE__)" in code)
     assert "CALL fortran_otterParallelEnd" in code
+
+def test_ottertaskloop_trans_str():
+    tlooptrans = OtterTaskloopTrans()
+    assert (str(tlooptrans) == "Adds a set of Otter Tasking nodes to a Loop "
+            "by chunking.")
 
 def test_ottertaskloop_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
@@ -98,6 +112,10 @@ def test_ottertaskloop_trans_apply():
       END DO'''
     assert correct in code
 
+def test_ottertasksingle_trans_str():
+    strans = OtterTaskSingleTrans()
+    assert (str(strans) == "Adds a Otter TaskSingle node to a region of code")
+
 def test_ottertasksingle_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -111,6 +129,10 @@ def test_ottertasksingle_trans_apply():
             ", __LINE__)" in code)
     assert "CALL fortran_otterTaskSingleEnd" in code
 
+
+def test_otterloop_trans_str():
+    looptrans = OtterLoopTrans()
+    assert (str(looptrans) == "Adds an Otter Loop node to a Loop")
 
 def test_otterloop_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
@@ -135,6 +157,13 @@ def test_otterloop_trans_apply():
       CALL fortran_otterLoopEnd'''
     assert correct in code
 
+
+def test_ottersyncchild_trans_str():
+    synctrans = OtterSynchroniseChildrenTrans()
+    assert (str(synctrans) == "Adds an Otter Synchronise Children "
+            "Transformation after the supplied node.")
+
+
 def test_ottersyncchild_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -147,6 +176,12 @@ def test_ottersyncchild_trans_apply():
     correct = '''END DO
       CALL fortran_otterSynchroniseChildTasks_i(__FILE__, 'invoke_0_compute_cu', __LINE__)'''
     assert correct in code
+
+
+def test_ottersyncdec_trans_str():
+    synctrans = OtterSynchroniseDescendantsTrans()
+    assert (str(synctrans) == "Adds an Otter Synchronise Descendents node "
+            "around the supplied nodes.")
 
 
 def test_ottersyncdec_trans_apply():
@@ -168,6 +203,12 @@ def test_ottersyncdec_trans_apply():
             '''END DO
       CALL fortran_otterSynchroniseDescendantTasksEnd'''
     assert correct in code
+
+
+def test_ottertracestratend_trans_str():
+    tracetrans = OtterTraceStartEndTrans()
+    assert (str(tracetrans) == "Adds an Otter Trace Start and End node around "
+            "the supplied nodes.")
 
 def test_ottertracestartend_trans_apply():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),

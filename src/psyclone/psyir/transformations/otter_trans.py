@@ -51,7 +51,7 @@ class OtterTraceSetupTrans(RegionTrans):
     TODO
     '''
     def __str__(self):
-        rval = ("Adds a Otter Trace setup node to a region of code"
+        rval = ("Adds a Otter Trace setup node to a region of code "
                 "to enable Otter instrumentation of PSyclone")
         return rval
 
@@ -103,7 +103,7 @@ class OtterTaskloopTrans(LoopTrans):
     TODO
     '''
     def __str__(self):
-        rval = "Adds a set of Otter Tasking nodes to a Loop"
+        rval = "Adds a set of Otter Tasking nodes to a Loop by chunking."
         return rval
 
     def apply(self, node, options=None):
@@ -153,6 +153,7 @@ class OtterLoopTrans(LoopTrans):
     '''
     def __str__(self):
         rval = "Adds an Otter Loop node to a Loop"
+        return rval
 
     def apply(self, node, options=None):
         '''
@@ -199,7 +200,7 @@ class OtterSynchroniseDescendantsTrans(RegionTrans):
     '''
     TODO
     '''
-    def ___str__(self):
+    def __str__(self):
         rval = ("Adds an Otter Synchronise Descendents node around the"
                 " supplied nodes.")
         return rval
@@ -223,7 +224,7 @@ class OtterTraceStartEndTrans(RegionTrans):
     '''
     TODO
     '''
-    def __str(self):
+    def __str__(self):
         rval = ("Adds an Otter Trace Start and End node around the supplied "
                 "nodes.")
         return rval
