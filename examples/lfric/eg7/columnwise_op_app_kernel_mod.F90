@@ -82,7 +82,7 @@ contains
   !!        applies the operator as lhs += A.x.
   !>
   !> @param [in] cell Horizontal cell index
-  !> @param [in] ncell_2d Number of cells in 2d grid
+  !> @param [in] ncell_2d Number of cells in 2D grid
   !> @param [in,out] lhs Resulting field lhs += A.x
   !> @param [in] x Input field
   !> @param [in] columnwise_matrix Banded matrix to assemble into

@@ -78,14 +78,14 @@ public columnwise_op_asm_kernel_code
 contains
 
   !> @brief The subroutine which is called directly from the PSy layer and
-  !!        assembles the LMA into a CMA.
+  !!        assembles the LMA into a CMA operator.
   !> @details Given an LMA representation of the operator mapping between
   !!          two horizontally discontinuous spaces, assemble the columnwise
   !!          matrix representation of the operator.
   !>
   !> @param [in] cell Horizontal cell index
   !> @param [in] nlayers Number of vertical layers
-  !> @param [in] ncell_2d Number of cells in 2d grid
+  !> @param [in] ncell_2d Number of cells in 2D grid
   !> @param [in] ncell_3d Total number of cells
   !> @param [in] local_stencil Locally assembled matrix
   !> @param [in,out] columnwise_matrix Banded matrix to assemble into

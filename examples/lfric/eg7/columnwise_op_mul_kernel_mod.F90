@@ -82,7 +82,7 @@ contains
   !!        calculates op_C = op_C + op_A * op_B.
   !>
   !> @param [in] cell Horizontal cell index
-  !> @param [in] ncell_2d Total number of cells in 2d grid
+  !> @param [in] ncell_2d Total number of cells in 2D grid
   !> @param [in] columnwise_matrix_A Banded matrix op_A
   !> @param [in] nrow_A Number of rows in the banded matrix A
   !> @param [in] ncol_A Number of columns in the banded matrix A

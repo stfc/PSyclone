@@ -38,7 +38,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 
 !> @brief Kernel which assembles a locally assembled matrix (LMA) into a
