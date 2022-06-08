@@ -50,6 +50,7 @@ from psyclone.psyir.symbols import SymbolError
 # coloured, textual representations of Invoke schedules. If it's not
 # available then we don't use colour.
 try:
+    # pylint disable=import-outside-toplevel
     from termcolor import colored
 except ImportError:
     # We don't have the termcolor package available so provide
@@ -79,6 +80,7 @@ def _graphviz_digraph_class():
 
     '''
     try:
+        # pylint: disable=import-outside-toplevel
         import graphviz as gv
         return gv.Digraph
     except ImportError:
@@ -125,11 +127,14 @@ class ChildrenList(list):
             errmsg = (f"Item '{item.__class__.__name__}' can't be child "
                       f"{index} of "
                       f"'{self._node_reference.coloured_name(False)}'.")
+
             if self._validation_text == "<LeafNode>":
-                errmsg += (f" {self._node_reference.coloured_name(False)} is "
-                           f"a LeafNode and doesn't accept children.")
+                errmsg = (f"{errmsg} "
+                          f"{self._node_reference.coloured_name(False)} is a "
+                          f"LeafNode and doesn't accept children.")
             else:
-                errmsg += f" The valid format is: '{self._validation_text}'."
+                errmsg = (f"{errmsg} The valid format is: "
+                          f"'{self._validation_text}'.")
 
             raise GenerationError(errmsg)
 
@@ -151,9 +156,10 @@ class ChildrenList(list):
         if item.parent and not item.has_constructor_parent:
             raise GenerationError(
                 f"Item '{item.coloured_name(False)}' can't be added as child "
-                f"of '{self._node_reference.coloured_name(False)}' because it "
-                f"is not an orphan. It already has a "
+                f"of '{self._node_reference.coloured_name(False)}' because "
+                f"it is not an orphan. It already has a "
                 f"'{item.parent.coloured_name(False)}' as a parent.")
+
         if item.parent and item.has_constructor_parent:
             if item.parent is not self._node_reference:
                 raise GenerationError(
@@ -361,8 +367,8 @@ class Node(object):
                 else:
                     raise InternalError(
                         f"{self.__class__.__name__} with unrecognised "
-                        f"annotation '{annotation}', valid annotations are: "
-                        f"{self.valid_annotations}.")
+                        f"annotation '{annotation}', valid "
+                        f"annotations are: {self.valid_annotations}.")
 
     def __eq__(self, other):
         '''
@@ -520,9 +526,9 @@ class Node(object):
             return None
         try:
             graph = digraph(format=file_format)
-        except ValueError:
-            raise GenerationError(
-                f"unsupported graphviz file format '{file_format}' provided")
+        except ValueError as err:
+            raise GenerationError(f"unsupported graphviz file format "
+                                  f"'{file_format}' provided") from err
         self.dag_gen(graph)
         graph.render(filename=file_name)
         return graph
@@ -860,6 +866,17 @@ class Node(object):
         return result
 
     def addchild(self, child, index=None):
+        '''
+        Adds the supplied node as a child of this node (at position index if
+        supplied). The supplied node must not have an existing parent.
+
+        :param child: the node to add as a child of this one.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :param index: optional position at which to insert new child. Default \
+                      is to append new child to the list of existing children.
+        :type index: Optional[int]
+
+        '''
         if index is not None:
             self._children.insert(index, child)
         else:
@@ -867,6 +884,10 @@ class Node(object):
 
     @property
     def children(self):
+        '''
+        :returns: the immediate children of this Node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         return self._children
 
     @children.setter
@@ -991,17 +1012,15 @@ class Node(object):
             node = node.parent
         return node
 
-    def sameRoot(self, node_2):
-        if self.root is node_2.root:
-            return True
-        return False
-
     def sameParent(self, node_2):
+        '''
+        :returns: True if `node_2` has the same parent as this node, False \
+                  otherwise.
+        :rtype: bool
+        '''
         if self.parent is None or node_2.parent is None:
             return False
-        if self.parent is node_2.parent:
-            return True
-        return False
+        return self.parent is node_2.parent
 
     def walk(self, my_type, stop_type=None):
         ''' Recurse through the PSyIR tree and return all objects that are
@@ -1014,16 +1033,14 @@ class Node(object):
         reduce the number of recursive calls.
 
         :param my_type: the class(es) for which the instances are collected.
-        :type my_type: either a single :py:class:`psyclone.Node` class \
-            or a tuple of such classes
+        :type my_type: type | Tuple[type, ...]
         :param stop_type: class(es) at which recursion is halted (optional).
-
-        :type stop_type: None or a single :py:class:`psyclone.Node` \
-            class or a tuple of such classes
+        :type stop_type: Optional[type | Tuple[type, ...]]
 
         :returns: list with all nodes that are instances of my_type \
-            starting at and including this node.
-        :rtype: list of :py:class:`psyclone.Node` instances.
+                  starting at and including this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
         '''
         local_list = []
         if isinstance(self, my_type):
@@ -1037,27 +1054,34 @@ class Node(object):
             local_list += child.walk(my_type, stop_type)
         return local_list
 
-    def ancestor(self, my_type, excluding=None, include_self=False):
+    def ancestor(self, my_type, excluding=None, include_self=False,
+                 limit=None):
         '''
-        Search back up tree and check whether we have an ancestor that is
-        an instance of the supplied type. If we do then we return
+        Search back up the tree and check whether this node has an ancestor
+        that is an instance of the supplied type. If it does then we return
         it otherwise we return None. An individual (or tuple of) (sub-)
         class(es) to ignore may be provided via the `excluding` argument. If
-        include_self is True then the current node is included in the search.
+        `include_self` is True then the current node is included in the search.
+        If `limit` is provided then the search ceases if/when the supplied
+        node is encountered.
 
         :param my_type: class(es) to search for.
-        :type my_type: type or tuple of types
-        :param tuple excluding: individual (or tuple of) (sub-)class(es) to \
-                                ignore or None.
+        :type my_type: type | Tuple[type, ...]
+        :param excluding: (sub-)class(es) to ignore or None.
+        :type excluding: Optional[type | Tuple[type, ...]]
         :param bool include_self: whether or not to include this node in the \
                                   search.
+        :param limit: an optional node at which to stop the search.
+        :type limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: First ancestor Node that is an instance of any of the \
                   requested classes or None if not found.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises TypeError: if `excluding` is provided but is not a type or \
                            tuple of types.
+        :raises TypeError: if `limit` is provided but is not an instance \
+                           of Node.
         '''
         if include_self:
             myparent = self
@@ -1074,7 +1098,12 @@ class Node(object):
                     f"The 'excluding' argument to ancestor() must be a type or"
                     f" a tuple of types but got: '{type(excluding).__name__}'")
 
-        while myparent is not None:
+        if limit and not isinstance(limit, Node):
+            raise TypeError(
+                f"The 'limit' argument to ancestor() must be an instance of "
+                f"Node but got '{type(limit).__name__}'")
+
+        while myparent not in [None, limit]:
             if isinstance(myparent, my_type):
                 if not (excluding and isinstance(myparent, excludes)):
                     # This parent node is not an instance of an excluded
@@ -1086,8 +1115,9 @@ class Node(object):
     def kernels(self):
         '''
         :returns: all kernels that are descendants of this node in the PSyIR.
-        :rtype: list of :py:class:`psyclone.psyGen.Kern` sub-classes.
+        :rtype: List[:py:class:`psyclone.psyGen.Kern`]
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
@@ -1172,22 +1202,40 @@ class Node(object):
         builtins) that are beneath this node in the PSyIR.
 
         :returns: all user-supplied kernel calls below this node.
-        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        :rtype: List[:py:class:`psyclone.psyGen.CodedKern`]
+
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import CodedKern
         return self.walk(CodedKern)
 
     def loops(self):
-        '''Return all loops currently in this schedule.'''
+        '''
+        :returns: all loops currently in this schedule.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Loop`]
+        '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Loop
         return self.walk(Loop)
 
     def reductions(self, reprod=None):
-        '''Return all calls that have reductions and are decendents of this
+        '''
+        Return all kernels that have reductions and are decendents of this
         node. If reprod is not provided, all reductions are
         returned. If reprod is False, all builtin reductions that are
         not set to reproducible are returned. If reprod is True, all
-        builtins that are set to reproducible are returned.'''
+        builtins that are set to reproducible are returned.
+
+        :param reprod: if provided, filter reductions by whether or not they \
+                       are set to be reproducible.
+        :type param: Optional[bool]
+
+        :returns: all kernels involving reductions that are descendants of \
+                  this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Kern`]
+
+        '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern
 
         call_reduction_list = []
@@ -1204,9 +1252,13 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        ''':returns: True if this Node is within an OpenMP parallel region.
+        '''
+        :returns: True if this Node is within an OpenMP parallel region, \
+                  False otherwise.
+        :rtype: bool
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import OMPParallelDirective
         omp_dir = self.ancestor(OMPParallelDirective)
         if omp_dir:
