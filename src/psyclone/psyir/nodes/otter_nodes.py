@@ -113,7 +113,10 @@ class OtterNode(Statement, metaclass=abc.ABCMeta):
             file_symbol = DataSymbol("__FILE__", CHARACTER_TYPE)
             routine = RoutineSymbol(self._start_subroutine_call,
                                     interface=ImportInterface(csymbol))
-            symtab.add(routine)
+            try:
+                symtab.lookup(self._start_subroutine_call)
+            except KeyError:
+                symtab.add(routine)
             line_symbol = DataSymbol("__LINE__", INTEGER_TYPE)
             argument_list = []
             argument_list.append(Reference(file_symbol))
@@ -131,7 +134,10 @@ class OtterNode(Statement, metaclass=abc.ABCMeta):
         if self._end_subroutine_call != "":
             routine = RoutineSymbol(self._end_subroutine_call,
                                     interface=ImportInterface(csymbol))
-            symtab.add(routine)
+            try:
+                symtab.lookup(self._end_subroutine_call)
+            except KeyError:
+                symtab.add(routine)
             argument_list = []
             end_call = Call.create(routine, argument_list)
 
@@ -287,7 +293,10 @@ class OtterTraceNode(OtterNode):
         if self._start_subroutine_call != "":
             routine = RoutineSymbol(self._start_subroutine_call,
                                     interface=ImportInterface(csymbol))
-            symtab.add(routine)
+            try:
+                symtab.lookup(self._start_subroutine_call)
+            except KeyError:
+                symtab.add(routine)
             argument_list = []
             start_call = Call.create(routine, argument_list)
 
@@ -301,7 +310,10 @@ class OtterTraceNode(OtterNode):
         if self._end_subroutine_call != "":
             routine = RoutineSymbol(self._end_subroutine_call,
                                     interface=ImportInterface(csymbol))
-            symtab.add(routine)
+            try:
+                symtab.lookup(self._end_subroutine_call)
+            except KeyError:
+                symtab.add(routine)
             argument_list = []
             end_call = Call.create(routine, argument_list)
 
