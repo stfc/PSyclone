@@ -106,7 +106,9 @@ class LFRicBuild(Compile):
                               "quadrature_xoyoz_mod",
                               "quadrature_edge_mod",
                               "quadrature_face_mod",
+                              "operator_parent_mod",
                               "operator_mod",
+                              "columnwise_operator_mod",
                               "flux_direction_mod"
                               ]
 

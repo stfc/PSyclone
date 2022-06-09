@@ -1,3 +1,5 @@
+release 2.3.0 9th June 2022
+
 	1) PR #1672. Fixes BOZ literal standard incompatibility in the
 	nvidia profiling wrapper code.
 
@@ -83,6 +85,13 @@
 
 	29) PR #1679. Add a limit parameter to the PSyIR node ancestor method.
 
+	30) PR #1749 for #1748. Updates version of fparser specified in setup.py
+	to 0.0.15.
+
+	31) PR #1740 for #1738. Update the operator implementation in the 
+	cut-down LFRic infrastructure and change the USE statements generated
+	for CMA operators.
+ 
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
