@@ -70,28 +70,30 @@ def create_prog_fixture():
     prog.symbol_table.new_symbol("function_space_type", symbol_type=DataSymbol,
                                  datatype=DeferredType(),
                                  interface=ImportInterface(fs_mod))
+    fsc_mod = prog.symbol_table.new_symbol("function_space_collection_mod",
+                                           symbol_type=ContainerSymbol)
+    prog.symbol_table.new_symbol("function_space_collection",
+                                 symbol_type=DataTypeSymbol,
+                                 datatype=DeferredType(),
+                                 interface=ImportInterface(fsc_mod))
     prog.symbol_table.new_symbol("fs_continuity_mod",
                                  symbol_type=ContainerSymbol)
     return prog
 
 
-def test_create_alg_driver_wrong_arg_type():
+def test_create_alg_mod_wrong_arg_type():
     '''
-    Test that _create_alg_driver() rejects arguments of the wrong type.
+    Test that _create_alg_mod() rejects arguments of the wrong type.
     '''
     with pytest.raises(TypeError) as err:
-        alg_gen._create_alg_driver(5, None)
-    assert ("Supplied program name must be a str but got 'int'" in
+        alg_gen._create_alg_mod(5, None)
+    assert ("Supplied routine name must be a str but got 'int'" in
             str(err.value))
-    with pytest.raises(TypeError) as err:
-        alg_gen._create_alg_driver("my_test", "5")
-    assert ("Supplied number of vertical levels must be an int but got "
-            "'str'" in str(err.value))
 
 
-def test_create_alg_driver(fortran_writer):
-    ''' Test the correct operation of _create_alg_driver(). '''
-    psyir = alg_gen._create_alg_driver("my_prog", 8)
+def test_create_alg_mod(fortran_writer):
+    ''' Test the correct operation of _create_alg_mod(). '''
+    psyir = alg_gen._create_alg_driver("my_test_alg")
     assert isinstance(psyir, Routine)
     assert psyir.symbol_table.lookup("r_def")
     # TODO #284 ideally we'd test that the generated code compiles but that
@@ -149,13 +151,10 @@ def test_create_function_spaces(prog, fortran_writer):
     for space in ["w1", "w3"]:
         sym = prog.symbol_table.lookup(space)
         assert sym.interface.container_symbol is fs_mod_sym
-        assert (f"TYPE(function_space_type), TARGET :: vector_space_{space}"
-                in gen)
         assert (f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr" in gen)
-        assert (f"vector_space_{space} = function_space_type(mesh,"
-                f"element_order,{space},ndata_sz)" in gen)
-        assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
+        assert (f"vector_space_{space}_ptr => function_space_collection % "
+                f"get_fs(mesh, element_order, {space})" in gen)
 
 
 def test_initialise_field(prog, fortran_writer):
@@ -260,10 +259,10 @@ def test_construct_kernel_args(prog, dynkern, fortran_writer):
     gen = fortran_writer(prog)
     spaces = ["w0", "w1", "w2", "w3", "wtheta"]
     assert f"use fs_continuity_mod, only : {', '.join(spaces)}" in gen
+
     for space in spaces:
-        assert (f"vector_space_{space} = function_space_type(mesh,"
-                f"element_order,{space},ndata_sz)" in gen)
-        assert f"vector_space_{space}_ptr => vector_space_{space}" in gen
+        assert (f"vector_space_{space}_ptr => function_space_collection % "
+                f"get_fs(mesh, element_order, {space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
     assert ("qr_xyoz = quadrature_xyoz_type(element_order + 3,"
@@ -305,8 +304,8 @@ def test_generate_with_scalar():
     code = alg_gen.generate(os.path.join(BASE_PATH,
                                          "testkern_mod.F90"))
     assert "real(kind=r_def) :: rscalar_1" in code
-    assert ("  rscalar_1 = 1\n"
-            "  call invoke(setval_c(field_2, 1.0_r_def), "
+    assert ("    rscalar_1 = 1\n"
+            "    call invoke(setval_c(field_2, 1.0_r_def), "
             "setval_c(field_3, 1.0_r_def), "
             "setval_c(field_4, 1.0_r_def), "
             "setval_c(field_5, 1.0_r_def), "
@@ -320,22 +319,22 @@ def test_generate_with_vector():
     code = alg_gen.generate(os.path.join(BASE_PATH,
                                          "testkern_coord_w0_mod.f90"))
     assert '''\
-  type(field_type) :: field_1
-  type(field_type), dimension(3) :: field_2
-  type(field_type) :: field_3
+    type(field_type) :: field_1
+    type(field_type), dimension(3) :: field_2
+    type(field_type) :: field_3
 ''' in code
 
-    assert ("  call field_1 % initialise(vector_space=vector_space_w0_ptr, "
+    assert ("    call field_1 % initialise(vector_space=vector_space_w0_ptr, "
             "name='field_1')\n"
-            "  call field_2(1) % initialise(vector_space="
+            "    call field_2(1) % initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "  call field_2(2) % initialise(vector_space="
+            "    call field_2(2) % initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "  call field_2(3) % initialise(vector_space="
+            "    call field_2(3) % initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "  call field_3 % initialise(vector_space=vector_space_w0_ptr, "
+            "    call field_3 % initialise(vector_space=vector_space_w0_ptr, "
             "name='field_3')\n"
-            "  call invoke(setval_c(field_1, 1.0_r_def), "
+            "    call invoke(setval_c(field_1, 1.0_r_def), "
             "setval_c(field_2, 1.0_r_def), "
             "setval_c(field_3, 1.0_r_def), "
             "testkern_coord_w0_type(field_1, field_2, field_3))\n"

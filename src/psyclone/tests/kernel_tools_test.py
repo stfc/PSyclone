@@ -123,7 +123,7 @@ def test_run_alg_gen(capsys):
     kernel_tools.run(["-gen", "alg", str(kern_file)])
     out, err = capsys.readouterr()
     assert not err
-    assert "Algorithm code:\n program lfric_alg\n" in out
+    assert "Algorithm code:\n module test_alg_mod\n" in out
 
 
 def test_run_alg_gen_unsupported_api(capsys):

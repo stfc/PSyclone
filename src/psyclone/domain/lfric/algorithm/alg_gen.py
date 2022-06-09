@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
     ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType,
-    LocalInterface, ArgumentInterface)
+    ArgumentInterface)
 
 
 # The order of the finite-element scheme that will be used by any generated
