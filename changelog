@@ -83,6 +83,9 @@
 
 	29) PR #1679. Add a limit parameter to the PSyIR node ancestor method.
 
+	30) PR #1749 for #1748. Updates version of fparser specified in setup.py
+	to 0.0.15.
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
