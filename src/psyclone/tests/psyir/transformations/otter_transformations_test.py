@@ -62,6 +62,8 @@ def test_ottersetuptrace_trans_apply():
     tracetrans = OtterTraceSetupTrans()
     tracetrans.apply(schedule.children[:])
     code = str(psy.gen)
+    assert ("USE otter_serial, ONLY: fortran_otterTraceFinalise, "
+            "fortran_otterTraceInitialise_i" in code)
     assert ("CALL fortran_otterTraceInitialise_i(__FILE__, 'invoke_0_compute_cu'"
             ", __LINE__)" in code)
     assert "CALL fortran_otterTraceFinalise" in code
@@ -80,6 +82,8 @@ def test_otterparallel_trans_apply():
     paralleltrans = OtterParallelTrans()
     paralleltrans.apply(schedule.children[:])
     code = str(psy.gen)
+    assert ("USE otter_serial, ONLY: fortran_otterParallelBegin_i, "
+            "fortran_otterParallelEnd" in code)
     assert ("CALL fortran_otterParallelBegin_i(__FILE__, 'invoke_0_compute_cu'"
             ", __LINE__)" in code)
     assert "CALL fortran_otterParallelEnd" in code
@@ -98,6 +102,8 @@ def test_ottertaskloop_trans_apply():
     chunktrans = OtterTaskloopTrans()
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
+    assert ("USE otter_serial, ONLY: fortran_otterTaskBegin_i, "
+            "fortran_otterTaskEnd" in code)
     correct = \
         '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
         j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
@@ -125,6 +131,8 @@ def test_ottertasksingle_trans_apply():
     paralleltrans = OtterTaskSingleTrans()
     paralleltrans.apply(schedule.children[:])
     code = str(psy.gen)
+    assert ("USE otter_serial, ONLY: fortran_otterTaskSingleBegin_i, "
+            "fortran_otterTaskSingleEnd" in code)
     assert ("CALL fortran_otterTaskSingleBegin_i(__FILE__, 'invoke_0_compute_cu'"
             ", __LINE__)" in code)
     assert "CALL fortran_otterTaskSingleEnd" in code
@@ -143,6 +151,9 @@ def test_otterloop_trans_apply():
     looptrans = OtterLoopTrans()
     looptrans.apply(schedule.children[0])
     code = str(psy.gen)
+    assert ("USE otter_serial, ONLY: fortran_otterLoopBegin_i, "
+            "fortran_otterLoopEnd, fortran_otterLoopIterationBegin_i, "
+            "fortran_otterLoopIterationEnd" in code)
     correct = \
         '''CALL fortran_otterLoopBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
@@ -175,6 +186,8 @@ def test_ottersyncchild_trans_apply():
     code = str(psy.gen)
     correct = '''END DO
       CALL fortran_otterSynchroniseChildTasks_i(__FILE__, 'invoke_0_compute_cu', __LINE__)'''
+    assert ("USE otter_serial, ONLY: fortran_otterSynchroniseChildTasks_i"
+             in code)
     assert correct in code
 
 
@@ -193,6 +206,9 @@ def test_ottersyncdec_trans_apply():
     synctrans = OtterSynchroniseDescendantsTrans()
     synctrans.apply(schedule.children[0])
     code = str(psy.gen)
+    assert ("USE otter_serial, ONLY: "
+            "fortran_otterSynchroniseDescendantTasksBegin_i, "
+            "fortran_otterSynchroniseDescendantTasksEnd" in code)
     correct = \
         '''CALL fortran_otterSynchroniseDescendantTasksBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
@@ -219,6 +235,9 @@ def test_ottertracestartend_trans_apply():
     tracetrans = OtterTraceStartEndTrans()
     tracetrans.apply(schedule.children[0])
     code = str(psy.gen)
+    print(code)
+    assert ("USE otter_serial, ONLY: fortran_otterTraceStart, "
+            "fortran_otterTraceStop" in code)
     correct = \
         '''CALL fortran_otterTraceStart
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1

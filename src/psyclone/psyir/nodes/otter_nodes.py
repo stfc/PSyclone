@@ -54,7 +54,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, CHARACTER_TYPE, \
-    RoutineSymbol
+    RoutineSymbol, ContainerSymbol, ImportInterface
 
 
 class OtterNode(Statement, metaclass=abc.ABCMeta):
@@ -99,10 +99,21 @@ class OtterNode(Statement, metaclass=abc.ABCMeta):
 
         routine_name = routine_schedule.name
 
+        # Add the otter module
+        symtab = routine_schedule.symbol_table
+        csymbol = None
+        try:
+            csymbol = symtab.lookup("otter_serial")
+        except KeyError:
+#            csymbol = ContainerSymbol("otter_serial", wildcard_import=True)
+            csymbol = ContainerSymbol("otter_serial") # TODO Better if this works
+            symtab.add(csymbol)
 
         if self._start_subroutine_call != "":
             file_symbol = DataSymbol("__FILE__", CHARACTER_TYPE)
-            routine = RoutineSymbol(self._start_subroutine_call)
+            routine = RoutineSymbol(self._start_subroutine_call,
+                                    interface=ImportInterface(csymbol))
+            symtab.add(routine)
             line_symbol = DataSymbol("__LINE__", INTEGER_TYPE)
             argument_list = []
             argument_list.append(Reference(file_symbol))
@@ -118,7 +129,9 @@ class OtterNode(Statement, metaclass=abc.ABCMeta):
             self.parent.children.insert(self.position, child)
 
         if self._end_subroutine_call != "":
-            routine = RoutineSymbol(self._end_subroutine_call)
+            routine = RoutineSymbol(self._end_subroutine_call,
+                                    interface=ImportInterface(csymbol))
+            symtab.add(routine)
             argument_list = []
             end_call = Call.create(routine, argument_list)
 
@@ -263,9 +276,18 @@ class OtterTraceNode(OtterNode):
 
         routine_name = routine_schedule.name
 
+        # Add the otter module
+        symtab = routine_schedule.symbol_table
+        try:
+            csymbol = symtab.lookup("otter_serial")
+        except KeyError:
+            csymbol = ContainerSymbol("otter_serial")
+            symtab.add(csymbol)
 
         if self._start_subroutine_call != "":
-            routine = RoutineSymbol(self._start_subroutine_call)
+            routine = RoutineSymbol(self._start_subroutine_call,
+                                    interface=ImportInterface(csymbol))
+            symtab.add(routine)
             argument_list = []
             start_call = Call.create(routine, argument_list)
 
@@ -277,7 +299,9 @@ class OtterTraceNode(OtterNode):
             self.parent.children.insert(self.position, child)
 
         if self._end_subroutine_call != "":
-            routine = RoutineSymbol(self._end_subroutine_call)
+            routine = RoutineSymbol(self._end_subroutine_call,
+                                    interface=ImportInterface(csymbol))
+            symtab.add(routine)
             argument_list = []
             end_call = Call.create(routine, argument_list)
 
