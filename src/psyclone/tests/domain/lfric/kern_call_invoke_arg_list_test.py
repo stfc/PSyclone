@@ -39,8 +39,7 @@ import pytest
 
 from psyclone.domain.lfric.kern_call_invoke_arg_list import (
     KernCallInvokeArgList)
-from psyclone.psyir.symbols import (SymbolTable, INTEGER_TYPE, DataSymbol,
-                                    DataTypeSymbol, DeferredType)
+from psyclone.psyir.symbols import SymbolTable, DataTypeSymbol, DeferredType
 
 
 def test_kcial_construct(dynkern):
@@ -60,8 +59,6 @@ def test_kcial_generate(dynkern):
     # generate() assumes a suitably initialised symbol table so create
     # that here.
     table = SymbolTable()
-    table.new_symbol("r_def", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("i_def", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType())
     kcial = KernCallInvokeArgList(dynkern, table)

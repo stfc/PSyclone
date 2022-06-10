@@ -237,10 +237,6 @@ def test_construct_kernel_args(prog, dynkern, fortran_writer):
     have their own tests, there isn't a lot to test here. '''
     field_mod = prog.symbol_table.new_symbol("field_mod",
                                              symbol_type=ContainerSymbol)
-    prog.symbol_table.new_symbol("r_def", symbol_type=DataSymbol,
-                                 datatype=INTEGER_TYPE)
-    prog.symbol_table.new_symbol("i_def", symbol_type=DataSymbol,
-                                 datatype=INTEGER_TYPE)
     prog.symbol_table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                                  datatype=DeferredType(),
                                  interface=ImportInterface(field_mod))
