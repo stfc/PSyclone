@@ -71,7 +71,8 @@ from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.otter_trans import OtterTraceSetupTrans, \
         OtterParallelTrans, OtterTaskloopTrans, OtterTaskSingleTrans, \
         OtterLoopTrans, OtterSynchroniseChildrenTrans, \
-        OtterSynchroniseDescendantsTrans, OtterTraceStartEndTrans
+        OtterSynchroniseDescendantsTrans, OtterTraceStartEndTrans, \
+        OtterSynchroniseRegionTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -108,6 +109,7 @@ __all__ = ['ArrayRange2LoopTrans',
            'OtterTaskSingleTrans',
            'OtterLoopTrans',
            'OtterSynchroniseChildrenTrans',
+           'OtterSynchroniseRegionTrans',
            'OtterSynchroniseDescendantsTrans',
            'OtterTraceStartEndTrans',
            'ProfileTrans',
