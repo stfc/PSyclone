@@ -57,10 +57,6 @@ from psyclone.psyir.symbols import (
 # The order of the finite-element scheme that will be used by any generated
 # algorithm layer.
 ELEMENT_ORDER = "1"
-# The number of data values held at each dof location. Currently PSyclone
-# only supports a value of 1. Extending to multi-data fields is the
-# subject of #868.
-NDATA_SIZE = "1"
 
 
 def _create_alg_mod(name):
@@ -138,8 +134,7 @@ def _create_function_spaces(prog, fspaces):
     '''
     Adds PSyIR to the supplied Routine that declares and intialises the
     specified function spaces. The order of these spaces is set by the
-    `ELEMENT_ORDER` constant at the top of this module. The number of data
-    values at each dof location is set by the `NDATA_SIZE` module constant.
+    `ELEMENT_ORDER` constant at the top of this module.
 
     :param prog: the routine to which to add declarations and initialisation.
     :type prog: :py:class:`psyclone.psyir.nodes.Routine`
@@ -161,13 +156,6 @@ def _create_function_spaces(prog, fspaces):
                              constant_value=Literal(
                                  ELEMENT_ORDER,
                                  psyir.LfricIntegerScalarDataType()))
-
-    # The number of data values to be held at each dof location.
-    ndata_sz = table.new_symbol("ndata_sz", symbol_type=DataSymbol,
-                                datatype=psyir.LfricIntegerScalarDataType())
-    prog.addchild(Assignment.create(
-        Reference(ndata_sz),
-        Literal(NDATA_SIZE, psyir.LfricIntegerScalarDataType())))
 
     # Initialise the function spaces required by the kernel arguments.
     const = LFRicConstants()

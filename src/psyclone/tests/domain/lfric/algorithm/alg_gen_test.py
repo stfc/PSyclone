@@ -119,9 +119,6 @@ def test_create_function_spaces_no_spaces(prog, fortran_writer):
                                  symbol_type=ContainerSymbol)
     alg_gen._create_function_spaces(prog, [])
     assert prog.symbol_table.lookup("element_order")
-    assert prog.symbol_table.lookup("ndata_sz")
-    gen = fortran_writer(prog)
-    assert f"ndata_sz = {alg_gen.NDATA_SIZE}" in gen
 
 
 def test_create_function_spaces_invalid_space(prog):
