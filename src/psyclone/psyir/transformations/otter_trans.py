@@ -36,15 +36,20 @@
 ''' This module contains the implementation of the various Otter
 transformations.'''
 
+from psyclone.core import VariablesAccessInfo
+from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Schedule, \
     OtterTraceSetupNode, OtterParallelNode, OtterTaskNode, \
     OtterTaskSingleNode, OtterLoopNode, OtterLoopIterationNode, \
     OtterSynchroniseChildrenNode, OtterSynchroniseDescendantTasksNode, \
     OtterTraceNode
+from psyclone.psyir.transformations.transformation_error import \
+        TransformationError
 
 class OtterTraceSetupTrans(RegionTrans):
     '''
@@ -400,7 +405,7 @@ class OtterSynchroniseRegionTrans(RegionTrans):
             dependence_node[i] = forward_dep
         # Forward dependency positions are now computed for this region.
         dependence_position, dependence_node = \
-            OMPTaskwaitTrans._eliminate_unneeded_dependencies(
+            OtterSynchroniseRegionTrans._eliminate_unneeded_dependencies(
                         taskloop_positions, dependence_position,
                         dependence_node)
         # dependence_position now contains only the required dependencies
