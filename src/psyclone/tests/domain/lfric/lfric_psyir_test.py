@@ -40,6 +40,7 @@ correctly'''
 from __future__ import absolute_import
 import pytest
 from psyclone.domain.lfric import psyir as lfric_psyir
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
@@ -450,17 +451,17 @@ def test_add_lfric_precision_symbol():
     ''' Test that the add_lfric_precision_symbol() routine rejects invalid
     precision symbols and otherwise works as expected. '''
     table = SymbolTable()
-    # Precision symbol must be integer.
-    sym = DataSymbol("i_def", REAL_TYPE)
-    with pytest.raises(TypeError) as err:
-        lfric_psyir.add_lfric_precision_symbol(table, sym)
-    assert ("must be of scalar, integer type but 'i_def' has type "
-            "Scalar<REAL" in str(err.value))
+    # Unrecognised name of precision.
+    with pytest.raises(ValueError) as err:
+        lfric_psyir.add_lfric_precision_symbol(table, "r_wrong")
+    # An unsupported precision name. We have to monkeypatch the list of
+    # recognised names to get past the first check.
+    assert ("'r_wrong' is not a recognised LFRic precision" in str(err.value))
     # Symbol already exists but not imported from any container.
     wrong_r_def = DataSymbol("r_def", INTEGER_TYPE)
     table.add(wrong_r_def)
     with pytest.raises(ValueError) as err:
-        lfric_psyir.add_lfric_precision_symbol(table, wrong_r_def)
+        lfric_psyir.add_lfric_precision_symbol(table, "r_def")
     assert ("symbol 'r_def' already exists in the supplied symbol table but "
             "is not imported from the LFRic constants module" in
             str(err.value))
@@ -471,12 +472,14 @@ def test_add_lfric_precision_symbol():
                              interface=ImportInterface(wrong_csym))
     table.add(wrong_l_def)
     with pytest.raises(ValueError) as err:
-        lfric_psyir.add_lfric_precision_symbol(table, wrong_l_def)
+        lfric_psyir.add_lfric_precision_symbol(table, "l_def")
     assert ("symbol 'l_def' already exists in the supplied symbol table but "
             "is not imported from the LFRic constants module" in
             str(err.value))
-    # Finally, a valid symbol.
-    sym = lfric_psyir.I_DEF
-    lfric_psyir.add_lfric_precision_symbol(table, sym)
+    # A valid name that's not already present.
+    lfric_psyir.add_lfric_precision_symbol(table, "i_def")
     idef = table.lookup("i_def")
     assert idef.interface.container_symbol is lfric_psyir.CONSTANTS_MOD
+    # Repeating the call does not change anything.
+    lfric_psyir.add_lfric_precision_symbol(table, "i_def")
+    assert table.lookup("i_def") is idef

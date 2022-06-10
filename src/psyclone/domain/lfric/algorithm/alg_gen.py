@@ -154,7 +154,7 @@ def _create_function_spaces(prog, fspaces):
     reader = FortranReader()
 
     # The order of the finite-element scheme.
-    psyir.add_lfric_precision_symbol(table, psyir.I_DEF)
+    psyir.add_lfric_precision_symbol(table, "i_def")
     order = table.new_symbol("element_order", tag="element_order",
                              symbol_type=DataSymbol,
                              datatype=psyir.LfricIntegerScalarDataType(),
@@ -383,7 +383,7 @@ def generate(kernel_path):
     # arbitrary value, we use an *integer* literal for this, irrespective of
     # the actual type of the scalar argument. The compiler/run-time will take
     # care of appropriate type casting.
-    psyir.add_lfric_precision_symbol(table, psyir.I_DEF)
+    psyir.add_lfric_precision_symbol(table, "i_def")
     for sym in kern_args.scalars:
         sub.addchild(Assignment.create(
             Reference(sym),
@@ -398,10 +398,10 @@ def generate(kernel_path):
 
     # As with the scalar initialisation, we don't worry about precision
     # here since we are just setting the field values to unity. If the
-    # field itself is of a precision other than rdef (or is perhaps
+    # field itself is of a precision other than r_def (or is perhaps
     # integer rather than real) we rely on type casting by the
     # compiler/run-time.
-    psyir.add_lfric_precision_symbol(table, psyir.R_DEF)
+    psyir.add_lfric_precision_symbol(table, "r_def")
     kernel_list = []
     for sym, _ in kern_args.fields:
         kernel_list.append(
