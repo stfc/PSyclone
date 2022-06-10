@@ -37,8 +37,9 @@
 transformations.'''
 
 from psyclone.core import VariablesAccessInfo
-from psyclone.errors import LazyString
+from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
