@@ -394,12 +394,10 @@ def generate(kernel_path):
 
     # We use the setval_c builtin to initialise all fields to unity.
     # Currently we have to create a symbol for this builtin in order to
-    # create the appropriate functor. Although we put this symbol in the
-    # table, the backend will currently fail because it is undefined.
-    # TODO #1645 will address this.
+    # create the appropriate functor.
+    # TODO #1645 - we do *not* put this symbol in the table as otherwise
+    # the backend will currently fail because it is undefined.
     setval_c = DataTypeSymbol("setval_c", DeferredType())
-    # TODO don't add it to the table in order to allow the backend to work.
-    # table.add(setval_c)
 
     # As with the scalar initialisation, we don't worry about precision
     # here since we are just setting the field values to unity. If the

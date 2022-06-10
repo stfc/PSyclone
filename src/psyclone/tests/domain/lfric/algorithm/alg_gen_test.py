@@ -41,7 +41,7 @@ import pytest
 from psyclone.domain.lfric import KernCallInvokeArgList
 from psyclone.domain.lfric.algorithm import alg_gen
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
                                     DataTypeSymbol, ImportInterface, ArrayType,
                                     ScalarType, INTEGER_TYPE)
@@ -86,39 +86,31 @@ def test_create_alg_mod_wrong_arg_type():
     Test that _create_alg_mod() rejects arguments of the wrong type.
     '''
     with pytest.raises(TypeError) as err:
-        alg_gen._create_alg_mod(5, None)
+        alg_gen._create_alg_mod(5)
     assert ("Supplied routine name must be a str but got 'int'" in
             str(err.value))
 
 
 def test_create_alg_mod(fortran_writer):
     ''' Test the correct operation of _create_alg_mod(). '''
-    psyir = alg_gen._create_alg_driver("my_test_alg")
-    assert isinstance(psyir, Routine)
-    assert psyir.symbol_table.lookup("r_def")
+    psyir = alg_gen._create_alg_mod("my_test_alg")
+    assert isinstance(psyir, Container)
+    sub = psyir.walk(Routine)[0]
+    assert sub.symbol_table.lookup("r_def")
     # TODO #284 ideally we'd test that the generated code compiles but that
     # would require a full PSyclone pass and then compilation of the resulting
     # Algorithm and PSy code.
     gen = fortran_writer(psyir).lower()
 
-    assert "program my_prog" in gen
-    assert "use mesh_mod, only : mesh_type, plane" in gen
-    assert ("use partition_mod, only : partition_type, "
-            "partitioner_interface, partitioner_planar" in gen)
-    assert "use global_mesh_base_mod, only : global_mesh_base_type" in gen
-    assert "use extrusion_mod, only : uniform_extrusion_type" in gen
-    assert "type(partition_type) :: partition" in gen
-    assert "type(mesh_type), target :: mesh" in gen
-    assert "type(global_mesh_base_type), target :: global_mesh" in gen
-    assert "class(global_mesh_base_type), pointer :: global_mesh_ptr" in gen
-    assert "type(uniform_extrusion_type), target :: extrusion" in gen
-    assert "type(uniform_extrusion_type), pointer :: extrusion_ptr" in gen
-    assert "global_mesh = global_mesh_base_type()" in gen
-    assert "global_mesh_ptr => global_mesh" in gen
-    assert "partitioner_ptr => partitioner_planar" in gen
-    assert ("extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 8)"
-            in gen)
-    assert "mesh = mesh_type(global_mesh_ptr,partition,extrusion_ptr)" in gen
+    assert "subroutine my_test_alg(mesh, chi, panel_id)" in gen
+    assert "use field_mod, only : field_type" in gen
+    assert "use function_space_mod, only : function_space_type" in gen
+    assert ("use function_space_collection_mod, only : "
+            "function_space_collection" in gen)
+    assert "use mesh_mod, only : mesh_type" in gen
+    assert "type(mesh_type), pointer, intent(in) :: mesh" in gen
+    assert "type(field_type), dimension(3), intent(in), optional :: chi" in gen
+    assert "type(field_type), intent(in), optional :: panel_id" in gen
 
 
 def test_create_function_spaces_no_spaces(prog, fortran_writer):
