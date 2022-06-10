@@ -208,6 +208,7 @@ class OtterSynchroniseRegionTrans(RegionTrans):
     def __str__(self):
         rval =  ("Adds 'Otter Synchronise Children' calls to a region of code "
                 "to satisfy data dependencies between 'Otter Task' calls")
+        return rval
 
     @staticmethod
     def get_forward_dependence(taskloop, root):
