@@ -35,51 +35,17 @@
 # Modifications: A. R. Porter, STFC Daresbury Laboratory,
 #                I. Kavcic, Met Office
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-
 include ../../common.mk
 
-GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 *.o *.mod $(EXEC) \
-                  test_alg_mod.[fx]90
-
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
-
-OBJ = driver.o test_alg_mod_psy.o test_alg_mod.o testkern_mod.o
-
-EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-F90FLAGS += -I$(LFRIC_PATH)
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
 
 run: compile
-	./example
 
-compile: transform $(EXEC)
-
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+compile: transform
+	@echo "Compilation is not supported: the generated code must be "
+	@echo "inserted into an LFRic mini-app."
 
 # Dependencies
-driver.o: test_alg_mod.o
-test_alg_mod.o: test_alg_mod_psy.o
-test_alg_mod_psy.o: test_alg_mod_psy.f90 testkern_mod.o
-testkern_mod.o: $(LFRIC_LIB)
-
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
 %.F90:
 	ln -s ../code/$@ .
 
