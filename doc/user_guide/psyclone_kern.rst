@@ -52,9 +52,9 @@ subroutine has no content.
 
 The algorithm generator also takes a file containing a kernel
 implementation but this time generates an appropriate algorithm layer
-that represents a complete, standalone application. This algorithm layer
-plus the associated kernel metadata may then be processed with PSyclone
-in the usual way to generate code which executes the supplied kernel.
+subroutine. This algorithm layer plus the associated kernel metadata
+may then be processed with PSyclone in the usual way to generate code
+which executes the supplied kernel.
 
 This functionality is provided to the user via the ``psyclone-kern``
 command, described in more detail below.
@@ -549,51 +549,41 @@ gives the following algorithm layer code:
 
  .. code-block:: fortran
 
-    program lfric_alg
-      use mesh_mod, only : mesh_type, plane
-      use partition_mod, only : partition_type, partitioner_interface, partitioner_planar
-      use global_mesh_base_mod, only : global_mesh_base_type
-      use extrusion_mod, only : uniform_extrusion_type
+  module test_alg_mod
+    implicit none
+    public
+
+  contains
+    subroutine test_alg(mesh, chi, panel_id)
       use field_mod, only : field_type
       use function_space_mod, only : function_space_type
       use fs_continuity_mod, only : w1
-      use constants_mod, only : i_def, r_def
+      use function_space_collection_mod, only : function_space_collection
+      use mesh_mod, only : mesh_type
       use simple_mod, only : simple_type
-      integer, parameter :: element_order = 1
-      type(partition_type) :: partition
-      TYPE(mesh_type), TARGET :: mesh
-      TYPE(global_mesh_base_type), TARGET :: global_mesh
-      CLASS(global_mesh_base_type), POINTER :: global_mesh_ptr
-      TYPE(uniform_extrusion_type), TARGET :: extrusion
-      TYPE(uniform_extrusion_type), POINTER :: extrusion_ptr
-      PROCEDURE(partitioner_interface), POINTER :: partitioner_ptr
-      integer :: ndata_sz
-      TYPE(function_space_type), TARGET :: vector_space_w1
+      use constants_mod, only : i_def, r_def
+      integer(kind=i_def), parameter :: element_order = 1_i_def
+      type(mesh_type), pointer, intent(in) :: mesh
+      type(field_type), dimension(3), intent(in), optional :: chi
+      type(field_type), intent(in), optional :: panel_id
       TYPE(function_space_type), POINTER :: vector_space_w1_ptr
       type(field_type) :: field_1
 
-      global_mesh = global_mesh_base_type()
-      global_mesh_ptr => global_mesh
-      partitioner_ptr => partitioner_planar
-      partition = partition_type(global_mesh_ptr,partitioner_ptr,1,1,0,0,1)
-      extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 20)
-      extrusion_ptr => extrusion
-      mesh = mesh_type(global_mesh_ptr,partition,extrusion_ptr)
-      WRITE(*, *) "Mesh has", mesh % get_nlayers(), "layers."
-      ndata_sz = 1
-      vector_space_w1 = function_space_type(mesh,element_order,w1,ndata_sz)
-      vector_space_w1_ptr => vector_space_w1
+      vector_space_w1_ptr => function_space_collection % get_fs(mesh, element_order, w1)
       call field_1 % initialise(vector_space=vector_space_w1_ptr, name='field_1')
       call invoke(setval_c(field_1, 1.0_r_def), simple_type(field_1))
 
-    end program lfric_alg
+    end subroutine test_alg
 
-The bulk of this code is purely to do with setting-up the LFRic
-infrastructure and ensuring that the various data structures are
-correctly initialised. Since the :ref:`metadata <simple_metadata>` for
-the `simple_type` kernel
-specifies that the field argument is on `W1`, this code must ensure that
-the appropriate function space is set up and used to initialise the field.
+  end module test_alg_mod
+
+Note that the generated code implements an Algorithm subroutine that
+is intended to be called from within an LFRic application that has
+already setup data structures for the mesh (and, optionally, the `chi`
+coordinate field and panel ID mapping).  Since the :ref:`metadata
+<simple_metadata>` for the `simple_type` kernel specifies that the
+field argument is on `W1`, the generated code must ensure that the
+appropriate function space is set up and used to initialise the field.
 Once that's done, the interesting part is the `invoke` call:
 
  .. code-block:: fortran
@@ -619,7 +609,9 @@ Limitations
    code may be edited to change this.
  * The generator does not currently recognise 'special' fields that hold
    geometry information (such as Chi or the face IDs) and these too will
-   all be initialised to unity. This is the subject of Issue #1708.
+   all be initialised to unity. This is the subject of Issue #1708 (although
+   note that the generated code already permits the caller to supply Chi and/or
+   face IDs).
  * Kernels with operator arguments are not yet supported.
  * Kernels with stencil accesses are not yet supported.
 
