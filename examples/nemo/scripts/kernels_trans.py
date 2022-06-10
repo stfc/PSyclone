@@ -88,7 +88,10 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 # the Nvidia compiler or because it just isn't worth it)
 ACC_IGNORE = ["day_mth", # Just calendar operations
               "obs_surf_alloc", "oce_alloc",
-              "turb_ncar", # Hurts performance
+              # Compiler fails w/ "Unsupported local variable"
+              # Zero performance impact since outside execution path
+              "copy_obfbdata", "merge_obfbdata",
+              "turb_ncar", # Transforming hurts performance
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
               "trc_bc_ini", "p2z_ini", "p4z_ini"] # Str handling, init routine
 
