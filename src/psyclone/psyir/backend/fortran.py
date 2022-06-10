@@ -883,7 +883,7 @@ class FortranWriter(LanguageWriter):
         :param bool is_module_scope: whether or not the declarations are in \
                                      a module scoping unit. Default is False.
 
-        :returns: the Fortran declarations as a string.
+        :returns: the Fortran declarations for the table.
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \

@@ -40,9 +40,10 @@ correctly'''
 from __future__ import absolute_import
 import pytest
 from psyclone.domain.lfric import psyir as lfric_psyir
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
-    ArrayType, Symbol
+    ArrayType, Symbol, SymbolTable, REAL_TYPE
 from psyclone.psyir.nodes import Reference, Literal
 
 
@@ -443,3 +444,30 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     lfric_symbol = symbol("symbol", dims, *args)
     assert isinstance(lfric_symbol, parent_symbol)
     assert lfric_symbol.name == "symbol"
+
+
+def test_add_lfric_precision_symbol():
+    ''' Test that the add_lfric_precision_symbol() routine works as
+    expected. '''
+    table = SymbolTable()
+    sym = lfric_psyir.I_DEF
+    lfric_psyir.add_lfric_precision_symbol(table, sym)
+    idef = table.lookup("i_def")
+    assert idef.interface.container_symbol is lfric_psyir.CONSTANTS_MOD
+    wrong_r_def = DataSymbol("r_def", REAL_TYPE)
+    table.add(wrong_r_def)
+    with pytest.raises(ValueError) as err:
+        lfric_psyir.add_lfric_precision_symbol(table, wrong_r_def)
+    assert ("symbol 'r_def' already exists in the supplied symbol table but "
+            "is not imported from the LFRic constants module" in
+            str(err.value))
+    wrong_csym = ContainerSymbol("not_constants_mod")
+    table.add(wrong_csym)
+    wrong_l_def = DataSymbol("l_def", REAL_TYPE,
+                             interface=ImportInterface(wrong_csym))
+    table.add(wrong_l_def)
+    with pytest.raises(ValueError) as err:
+        lfric_psyir.add_lfric_precision_symbol(table, wrong_l_def)
+    assert ("symbol 'l_def' already exists in the supplied symbol table but "
+            "is not imported from the LFRic constants module" in
+            str(err.value))

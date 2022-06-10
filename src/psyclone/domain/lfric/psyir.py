@@ -42,7 +42,6 @@ definitions.
 # pylint: disable=exec-used
 from __future__ import absolute_import
 from collections import namedtuple
-from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
                                     ImportInterface, ScalarType, ArrayType)
 from psyclone.psyir.nodes import Literal
@@ -293,26 +292,43 @@ for array_type in FIELD_DATATYPES:
 def add_lfric_precision_symbol(table, sym):
     '''
     If the supplied LFRic precision symbol is not already in the supplied
-    table then add it. Also ensure that the appropriate Container symbol
-    (from which it is imported) is in the table.
+    table then add it and modify it to ensure that it is imported from
+    the appropriate Container. Also ensure that that Container symbol
+    is in the table.
 
     :param table: symbol table to which to add necessary symbols.
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param sym: LFRic precision symbol to add to table.
     :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-    :raises InternalError: if a symbol with the same name is already in the \
+    :raises ValueError: if the name of the supplied symbol is not a \
+        recognised LFRic precision variable.
+    :raises TypeError: if the supplied symbols is not a scalar integer.
+    :raises ValueError: if a symbol with the same name is already in the \
         table but is not imported from the correct container.
     '''
+    precision_names = []
+    for item in LFRicConstants().SCALAR_PRECISION_MAP.items():
+        precision_names.append(item[1])
+    if sym.name not in precision_names:
+        raise ValueError(
+            f"Symbol '{sym.name}' is not a recognised LFRic precision symbol "
+            f"(one of {precision_names}).")
+    if (not isinstance(sym, DataSymbol) or
+            not isinstance(sym.datatype, ScalarType) or
+            sym.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
+        raise TypeError(f"An LFRic precision symbol must be of scalar, integer"
+                        f" type but '{sym.name}' has type {sym.datatype}")
     if sym.name in table:
         # Sanity check that the existing symbol is the right one.
         if (not isinstance(sym.interface, ImportInterface) or
                 sym.interface.container_symbol is not CONSTANTS_MOD):
-            raise InternalError(
+            raise ValueError(
                 f"Precision symbol '{sym.name}' already exists in the supplied"
                 f" symbol table but is not imported from the LFRic constants "
                 f"module ({CONSTANTS_MOD.name}).")
         return
+    sym.interface = ImportInterface(CONSTANTS_MOD)
     if CONSTANTS_MOD.name not in table:
         table.add(CONSTANTS_MOD)
     table.add(sym)
