@@ -42,8 +42,9 @@ definitions.
 # pylint: disable=exec-used
 from __future__ import absolute_import
 from collections import namedtuple
-from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
-    ImportInterface, ScalarType, ArrayType
+from psyclone.errors import InternalError
+from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
+                                    ImportInterface, ScalarType, ArrayType)
 from psyclone.psyir.nodes import Literal
 from psyclone.domain.lfric import LFRicConstants
 
@@ -287,3 +288,34 @@ for array_type in FIELD_DATATYPES:
         "class {0}DataSymbol({1}DataSymbol):\n"
         "    pass\n"
         "".format(VECTOR_NAME, NAME))
+
+
+def add_lfric_precision_symbol(table, sym):
+    '''
+    If the supplied LFRic precision symbol is not already in the supplied
+    table then add it. Also ensure that the appropriate Container symbol
+    (from which it is imported) is in the table.
+
+    :param table: symbol table to which to add necessary symbols.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param sym: LFRic precision symbol to add to table.
+    :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :raises InternalError: if a symbol with the same name is already in the \
+        table but is not imported from the correct container.
+    '''
+    if sym.name in table:
+        # Sanity check that the existing symbol is the right one.
+        if (not isinstance(sym.interface, ImportInterface) or
+                sym.interface.container_symbol is not CONSTANTS_MOD):
+            raise InternalError(
+                f"Precision symbol '{sym.name}' already exists in the supplied"
+                f" symbol table but is not imported from the LFRic constants "
+                f"module ({CONSTANTS_MOD.name}).")
+        return
+    if CONSTANTS_MOD.name not in table:
+        table.add(CONSTANTS_MOD)
+    table.add(sym)
+
+
+__all__ = ["add_lfric_precision_symbol"]

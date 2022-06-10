@@ -95,8 +95,7 @@ def test_create_alg_mod(fortran_writer):
     ''' Test the correct operation of _create_alg_mod(). '''
     psyir = alg_gen._create_alg_mod("my_test_alg")
     assert isinstance(psyir, Container)
-    sub = psyir.walk(Routine)[0]
-    assert sub.symbol_table.lookup("r_def")
+
     # TODO #284 ideally we'd test that the generated code compiles but that
     # would require a full PSyclone pass and then compilation of the resulting
     # Algorithm and PSy code.
@@ -296,7 +295,7 @@ def test_generate_with_scalar():
     code = alg_gen.generate(os.path.join(BASE_PATH,
                                          "testkern_mod.F90"))
     assert "real(kind=r_def) :: rscalar_1" in code
-    assert ("    rscalar_1 = 1\n"
+    assert ("    rscalar_1 = 1_i_def\n"
             "    call invoke(setval_c(field_2, 1.0_r_def), "
             "setval_c(field_3, 1.0_r_def), "
             "setval_c(field_4, 1.0_r_def), "

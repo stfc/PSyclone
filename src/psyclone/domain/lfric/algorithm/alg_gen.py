@@ -38,7 +38,7 @@
 
 '''
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
 from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
                                   Container)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType,
+    ImportInterface, ContainerSymbol, RoutineSymbol, ScalarType,
     ArgumentInterface)
 
 
@@ -87,7 +87,7 @@ def _create_alg_mod(name):
 
     # Create ContainerSymbols for each of the modules that we will need.
     for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "function_space_collection_mod", "constants_mod", "mesh_mod"]:
+                "function_space_collection_mod", "mesh_mod"]:
         table.new_symbol(mod, symbol_type=ContainerSymbol)
 
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -109,14 +109,6 @@ def _create_alg_mod(name):
     table.new_symbol("mesh_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType(),
                      interface=ImportInterface(table.lookup("mesh_mod")))
-
-    table.new_symbol("r_def", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE,
-                     interface=ImportInterface(table.lookup("constants_mod")))
-
-    table.new_symbol("i_def", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE,
-                     interface=ImportInterface(table.lookup("constants_mod")))
 
     # Declare the three arguments to the subroutine. All of them have to be
     # of UnknownFortranType - the mesh because it is a pointer and chi and
@@ -162,17 +154,20 @@ def _create_function_spaces(prog, fspaces):
     reader = FortranReader()
 
     # The order of the finite-element scheme.
+    psyir.add_lfric_precision_symbol(table, psyir.I_DEF)
     order = table.new_symbol("element_order", tag="element_order",
                              symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE,
-                             constant_value=Literal(ELEMENT_ORDER,
-                                                    INTEGER_TYPE))
+                             datatype=psyir.LfricIntegerScalarDataType(),
+                             constant_value=Literal(
+                                 ELEMENT_ORDER,
+                                 psyir.LfricIntegerScalarDataType()))
 
     # The number of data values to be held at each dof location.
     ndata_sz = table.new_symbol("ndata_sz", symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
-    prog.addchild(Assignment.create(Reference(ndata_sz),
-                                    Literal(NDATA_SIZE, INTEGER_TYPE)))
+                                datatype=psyir.LfricIntegerScalarDataType())
+    prog.addchild(Assignment.create(
+        Reference(ndata_sz),
+        Literal(NDATA_SIZE, psyir.LfricIntegerScalarDataType())))
 
     # Initialise the function spaces required by the kernel arguments.
     const = LFRicConstants()
@@ -274,9 +269,9 @@ def initialise_quadrature(prog, qr_sym, shape):
 
     if shape == "gh_quadrature_xyoz":
         order = table.lookup_with_tag("element_order")
-        psyir = reader.psyir_from_expression(
+        expr = reader.psyir_from_expression(
             f"quadrature_xyoz_type({order.name}+3, {qr_rule_sym.name})", table)
-        prog.addchild(Assignment.create(Reference(qr_sym), psyir))
+        prog.addchild(Assignment.create(Reference(qr_sym), expr))
 
     else:
         raise NotImplementedError(f"Initialisation for quadrature of type "
@@ -388,9 +383,11 @@ def generate(kernel_path):
     # arbitrary value, we use an *integer* literal for this, irrespective of
     # the actual type of the scalar argument. The compiler/run-time will take
     # care of appropriate type casting.
+    psyir.add_lfric_precision_symbol(table, psyir.I_DEF)
     for sym in kern_args.scalars:
-        sub.addchild(Assignment.create(Reference(sym),
-                                       Literal("1", INTEGER_TYPE)))
+        sub.addchild(Assignment.create(
+            Reference(sym),
+            Literal("1", psyir.LfricIntegerScalarDataType())))
 
     # We use the setval_c builtin to initialise all fields to unity.
     # Currently we have to create a symbol for this builtin in order to
@@ -404,13 +401,13 @@ def generate(kernel_path):
     # field itself is of a precision other than rdef (or is perhaps
     # integer rather than real) we rely on type casting by the
     # compiler/run-time.
-    rdef = table.lookup("r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    psyir.add_lfric_precision_symbol(table, psyir.R_DEF)
     kernel_list = []
     for sym, _ in kern_args.fields:
         kernel_list.append(
-            LFRicBuiltinFunctor.create(setval_c, [Reference(sym),
-                                                  Literal("1.0", rdef_type)]))
+            LFRicBuiltinFunctor.create(
+                setval_c, [Reference(sym),
+                           Literal("1.0", psyir.LfricRealScalarDataType())]))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
