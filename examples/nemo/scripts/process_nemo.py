@@ -58,17 +58,15 @@ from time import perf_counter
 PROFILE_ONLY = ["bdyini.f90", "bdydta.f90", "bdyvol.f90",
                 "diaobs.f90",
                 "diawri.f90",  # Unused & has Return in profile region
-                "dommsk.f90",
                 "fldread.f90",
                 "icbclv.f90", "icbdyn.f90", "icbrst.f90",
                 "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
                 "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
                 "ice.f90",  # lines are too long
                 "icedyn_adv_pra.f90",  # lines are too long
-                "iceforcing.f90",
                 "iceistate.f90",
-                "icethd_ent.f90", "icethd_zdf.f90",
-                "icethd_dh.f90", "iom.f90", "iom_nf90.f90",
+                "icethd_ent.f90", "icethd_dh.f90",
+                "iom.f90", "iom_nf90.f90",
                 "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
                 "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                 "obs_surf_def.f90", "obs_read_prof.f90", "obs_read_surf.f90",
@@ -85,9 +83,8 @@ EXCLUDED_FILES = [
     # Array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
     # mpif.h include is lost
-    "mppini.f90", "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
-    "timing.f90", "lib_mpp.f90",
-    "nemogcm.f90",
+    "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
+    "timing.f90", "lib_mpp.f90", "nemogcm.f90",
     # Fns defined within fn are lost
     "storng.f90"]
 
