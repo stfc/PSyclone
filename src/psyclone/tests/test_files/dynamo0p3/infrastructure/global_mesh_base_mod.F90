@@ -9,7 +9,7 @@
 
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2022, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -301,8 +301,6 @@ contains
     ! so make the global mesh used in the mesh unit tests consistent
     self%mesh_class = 'sphere'
     self%mesh_name  = 'cubed-sphere:unit-test'
-    self%periodic_x = .False.
-    self%periodic_y = .False.
 
     ! Returns global_mesh_object of size 3x3 quad reference cell.
     ! As per reference cell, direction of numbering is anti-clockwise

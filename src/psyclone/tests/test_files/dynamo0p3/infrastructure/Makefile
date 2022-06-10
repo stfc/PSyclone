@@ -50,15 +50,19 @@ OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		operator_mod.o columnwise_operator_mod.o operator_parent_mod.o \
 		argument_mod.o kernel_mod.o constants_mod.o \
 		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o \
-		timer_mod.o io_utility_mod.o \
-                quadrature_edge_mod.o quadrature_face_mod.o quadrature_mod.o \
-                quadrature_rule_mod.o quadrature_xoyoz_mod.o \
-                quadrature_xyoz_mod.o quadrature_xyz_mod.o \
-                quadrature_rule_gaussian_mod.o
+		timer_mod.o io_utility_mod.o
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o \
 		ugrid_generator_mod.o ncdf_quad_mod.o
+
+# Note that the files
+# quadrature_edge_mod.F90 quadrature_face_mod.F90 quadrature_mod.F90
+# quadrature_rule_mod.F90 quadrature_xoyoz_mod.F90 quadrature_xyoz_mod.F90
+# quadrature_xyz_mod.F90
+# are required for some compilation tests only, they are not required for
+# a stand-alone LFRic example, and as such are not compiled when creating
+# an infrastructure library.
 
 .PHONY: standalone netcdf default
 
@@ -81,19 +85,6 @@ liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
 
 # Dependencies
 # ------------
-quadrature_edge_mod.o: constants_mod.o log_mod.o quadrature_rule_mod.o \
-        quadrature_mod.o function_space_mod.o reference_element_mod.o
-quadrature_face_mod.o: constants_mod.o log_mod.o quadrature_rule_mod.o \
-        quadrature_mod.o function_space_mod.o reference_element_mod.o
-quadrature_mod.o:
-quadrature_rule_mod.o: constants_mod.o
-quadrature_rule_gaussian_mod.o: constants_mod.o quadrature_rule_mod.o
-quadrature_xoyoz_mod.o: constants_mod.o log_mod.o quadrature_rule_mod.o \
-        quadrature_mod.o function_space_mod.o
-quadrature_xyoz_mod.o: constants_mod.o log_mod.o quadrature_rule_mod.o \
-        quadrature_mod.o function_space_mod.o
-quadrature_xyz_mod.o: constants_mod.o log_mod.o quadrature_rule_mod.o \
-        quadrature_mod.o function_space_mod.o
 global_mesh_base_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
 global_mesh_netcdf_mod.o: ugrid_2d_mod.o ncdf_quad_mod.o global_mesh_base_mod.o
 ugrid_2d_mod.o: ugrid_file_mod.o ugrid_generator_mod.o
