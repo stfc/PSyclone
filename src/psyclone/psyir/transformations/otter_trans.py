@@ -43,11 +43,11 @@ from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Schedule, \
+from psyclone.psyir.nodes import Loop, Schedule, Reference, \
     OtterTraceSetupNode, OtterParallelNode, OtterTaskNode, \
     OtterTaskSingleNode, OtterLoopNode, OtterLoopIterationNode, \
     OtterSynchroniseChildrenNode, OtterSynchroniseDescendantTasksNode, \
-    OtterTraceNode
+    OtterTraceNode, Assignment
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
 
@@ -222,8 +222,11 @@ class OtterSynchroniseRegionTrans(RegionTrans):
                                       f", but was supplied an instance of "
                                       f"'{type(root).__name__}'")
         # We only look for specific types
-        node_list = root.walk((Loop, OtterLoopNode,
+        node_list = root.walk((OtterLoopNode,
                                OtterSynchroniseChildrenNode))
+        for loop in root.walk(Loop):
+            if loop.walk(OtterTaskNode):
+                node_list.append(loop)
         # Find the taskloop's variable access info. We need to skip over the
         # Loop variable writes from the Loop, so we skip the Loop children.
         taskloop_vars = VariablesAccessInfo()
@@ -243,15 +246,17 @@ class OtterSynchroniseRegionTrans(RegionTrans):
                     LazyString(lambda: f"No parent otter parallel node was "
                                        f"found for the taskloop region: "
                                        f"{fwriter(taskloop).rstrip(chr(10))}"))
-
+        childrenloops = taskloop.walk(Loop)
         for node in node_list:
             if node.abs_position <= taskloop.abs_position:
                 continue
             # Ignore any children of the taskloop directive
-            anc = node.ancestor(Loop)
-            if anc is taskloop:
+            if node in childrenloops:
                 continue
             node_vars = None
+            loop_ignore_vars = []
+            # This doesn't seem great...we skip the chunk loop var
+            loop_ignore_vars.append(node.loop_body.children[0].children[0].symbol.name)
             if (isinstance(node, OtterSynchroniseChildrenNode)):
                 # If we find a synchronise children node, then it acts as a 
                 # barrier for dependencies as well, so we return it
@@ -266,11 +271,16 @@ class OtterSynchroniseRegionTrans(RegionTrans):
                         refs = VariablesAccessInfo(child)
                         if refs is not None:
                             node_vars.merge(refs)
+                    elif child is not node and isinstance(child, Loop):
+                        loop_ignore_vars.append(str(child.variable.name))
             node_signatures = node_vars.all_signatures
             # Once we have the node's variable accesses, check for collisions
             for sig1 in taskloop_signatures:
                 # If this signature is not in the node signatures then continue
                 if sig1 not in node_signatures:
+                    continue
+                # If we ignoring this loop variable continue
+                if str(sig1) in loop_ignore_vars:
                     continue
                 access1 = taskloop_vars[sig1]
                 access2 = node_vars[sig1]
@@ -389,17 +399,13 @@ class OtterSynchroniseRegionTrans(RegionTrans):
         dependence_node = [None] * len(taskloops)
         for i, taskloop in enumerate(taskloops):
             taskloop_positions[i] = taskloop.abs_position
-            # Only set forward_dep for taskloops with nogroup set
-            forward_dep = None
-            if taskloop.nogroup:
-                forward_dep = \
-                        OtterSynchroniseRegionTrans.get_forward_dependence(
+            forward_dep = OtterSynchroniseRegionTrans.get_forward_dependence(
                         taskloop, node)
                 # If the forward_dependence is one of our parents then we
                 # should ignore it
-                if (forward_dep is not None and
-                        forward_dep.abs_position < taskloop.abs_position):
-                    continue
+            if (forward_dep is not None and
+                    forward_dep.abs_position < taskloop.abs_position):
+                continue
             if forward_dep is None:
                 continue
             dependence_position[i] = forward_dep.abs_position
