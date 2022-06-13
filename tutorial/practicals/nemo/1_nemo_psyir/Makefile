@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@ run: compile
 	@echo "No run targets for example tutorial/1_nemo_psyir"
 
 clean:
-	@# Nothing to clean here
+	rm -f psy.f90 *.o *.mod *~
 
 allclean: clean
+	rm -f *.exe output.dat

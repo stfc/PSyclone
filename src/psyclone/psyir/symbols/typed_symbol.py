@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -82,8 +82,8 @@ class TypedSymbol(Symbol):
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
         elif not hasattr(self, '_datatype'):
-            raise AttributeError("Missing mandatory 'datatype' attribute for "
-                                 "symbol '{0}'.".format(self.name))
+            raise AttributeError(f"Missing mandatory 'datatype' attribute for "
+                                 f"symbol '{self.name}'.")
 
         super(TypedSymbol, self)._process_arguments(**kwargs)
 
@@ -116,9 +116,9 @@ class TypedSymbol(Symbol):
         from psyclone.psyir.symbols.datatypes import DataType
         if not isinstance(value, (DataType, DataTypeSymbol)):
             raise TypeError(
-                "The datatype of a {0} must be specified using either "
-                "a DataType or a DataTypeSymbol but got: '{1}'".format(
-                    type(self).__name__, type(value).__name__))
+                f"The datatype of a {type(self).__name__} must be specified "
+                f"using either a DataType or a DataTypeSymbol but got: "
+                f"'{type(value).__name__}'")
         self._datatype = value
 
     def copy(self):
@@ -147,8 +147,8 @@ class TypedSymbol(Symbol):
 
         '''
         if not isinstance(symbol_in, TypedSymbol):
-            raise TypeError("Argument should be of type 'TypedSymbol' but "
-                            "found '{0}'.".format(type(symbol_in).__name__))
+            raise TypeError(f"Argument should be of type 'TypedSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         super(TypedSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 

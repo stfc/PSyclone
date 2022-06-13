@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, N. M. Nobre, S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
 directives to NEMO style code.  In order to use
@@ -53,8 +53,7 @@ limitations in the PGI compiler, we must take care to exclude certain
 nodes (such as If blocks) from within Kernel regions. If a proposed
 region is found to contain such a node (by the ``valid_acc_kernel``
 routine) then the script moves a level down the tree and then repeats
-the process of attempting to create the largest possible Kernel
-region.
+the process of attempting to create the largest possible Kernel region.
 
 '''
 
@@ -62,18 +61,18 @@ from __future__ import print_function
 import logging
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
+from psyclone.errors import InternalError
+from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
 from psyclone.psyir.symbols import ScalarType
-from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
-from psyclone.errors import InternalError
+from psyclone.psyir.transformations import TransformationError, ProfileTrans
 
 # Which version of the NVIDIA (PGI) compiler we are targetting (different
 # versions have different bugs that we have to workaround).
-PGI_VERSION = 1940  # i.e. 19.4
+PGI_VERSION = 2230  # i.e. 22.3
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
@@ -111,18 +110,18 @@ ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = set(["alpha_charn", "cd_neutral_10m", "cpl_freq",
-                      "cp_air",
-                      "eos_pt_from_ct",
-                      "gamma_moist",
-                      "ice_var_sshdyn", "l_vap",
-                      "sbc_dcy", "solfrac", "One_on_L",
-                      "psi_h", "psi_m", "psi_m_coare",
-                      "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
-                      "q_sat", "rho_air",
-                      "visc_air", "sbc_dcy", "glob_sum",
-                      "glob_sum_full", "ptr_sj", "ptr_sjk",
-                      "interp1", "interp2", "interp3", "integ_spline"])
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq",
+                  "cp_air",
+                  "eos_pt_from_ct",
+                  "gamma_moist",
+                  "ice_var_sshdyn", "l_vap",
+                  "sbc_dcy", "solfrac", "One_on_L",
+                  "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf",
+                  "q_sat", "rho_air",
+                  "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk",
+                  "interp1", "interp2", "interp3", "integ_spline"]
 
 
 class ExcludeSettings(object):
@@ -384,7 +383,7 @@ def valid_acc_kernel(node):
 def contains_unsupported_sum(intrinsics):
     '''
     Examines the supplied list of intrinsic nodes in the fparser2 parse tree
-    and returns True if it contains a use of the SUM intrinisc with a 'dim'
+    and returns True if it contains a use of the SUM intrinsic with a 'dim'
     argument. (If such a construct is included in a KERNELS region then the
     code produced by v. 18.10 of the PGI compiler seg. faults.)
 
@@ -600,10 +599,7 @@ def try_kernels_trans(nodes):
 
     invokesched = nodes[0].ancestor(NemoInvokeSchedule)
     routine_name = invokesched.invoke.name.lower()
-    try:
-        excluding = EXCLUDING[routine_name]
-    except KeyError:
-        excluding = EXCLUDING["default"]
+    excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
 
     try:
         ACC_KERN_TRANS.apply(nodes, {"default_present": False})
@@ -615,8 +611,7 @@ def try_kernels_trans(nodes):
             loops = node.walk(Loop)
             for loop in loops:
                 if loop.ancestor(ACCLoopDirective):
-                    # We've already transformed a parent Loop so skip
-                    # this one.
+                    # We've already transformed a parent Loop so skip this one.
                     continue
                 loop_options = {}
                 if excluding.force_parallel:
@@ -644,7 +639,7 @@ def try_kernels_trans(nodes):
 def trans(psy):
     '''A PSyclone-script compliant transformation function. Applies
     OpenACC 'kernels' directives to NEMO code. (Data movement is
-    assumed to be handled through PGI's managed-memory functionality.)
+    assumed to be handled through CUDA's managed-memory functionality.)
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -671,8 +666,7 @@ def trans(psy):
                 ACC_ROUTINE_TRANS.apply(sched)
                 continue
 
-        # Attempt to add OpenACC directives unless this routine is one
-        # we ignore
+        # Attempt to add OpenACC directives unless we are ignoring this routine
         if invoke.name.lower() not in ACC_IGNORE:
             print(f"Transforming invoke {invoke.name}:")
             add_kernels(sched.children)
@@ -684,6 +678,6 @@ def trans(psy):
               f"{invoke.name}")
         add_profiling(sched.children)
 
-        sched.view()
+        print(sched.view())
 
     return psy

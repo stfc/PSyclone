@@ -50,4 +50,4 @@ def trans(psy):
 def trans_alg(psyir):
     '''Output algorithm layer invoke information.'''
     for invoke in psyir.walk(AlgorithmInvokeCall):
-        invoke.view()
+        print(invoke.view())

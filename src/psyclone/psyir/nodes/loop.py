@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Loop node implementation.'''
@@ -88,16 +89,15 @@ class Loop(Statement):
                  annotations=None):
         super(Loop, self).__init__(self, parent=parent,
                                    annotations=annotations)
-
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
         if annotations:
             if 'was_single_stmt' in annotations and \
                'was_where' not in annotations:
                 raise InternalError(
-                    "A Loop with the 'was_single_stmt' annotation "
-                    "must also have the 'was_where' annotation but"
-                    " got: {0}".format(annotations))
+                    f"A Loop with the 'was_single_stmt' annotation "
+                    f"must also have the 'was_where' annotation but"
+                    f" got: {annotations}")
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
@@ -121,7 +121,31 @@ class Loop(Statement):
             # first created so only check if it is.
             self._check_variable(variable)
         self._variable = variable
-        self._id = ""
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two Loop nodes are equal
+        if they have equal loop_type, field, field_name, field_space
+        iteraction_space, kernel and variable.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.loop_type == other.loop_type
+        is_eq = is_eq and self.field == other.field
+        is_eq = is_eq and self.field_name == other.field_name
+        is_eq = is_eq and self.field_space == other.field_space
+        is_eq = is_eq and self.iteration_space == other.iteration_space
+        is_eq = is_eq and self.kernel == other.kernel
+        # pylint: disable=protected-access
+        is_eq = is_eq and self._iterates_over == other._iterates_over
+
+        is_eq = is_eq and self.variable == other.variable
+
+        return is_eq
 
     @staticmethod
     def _check_variable(variable):
@@ -137,16 +161,16 @@ class Loop(Statement):
         '''
         if not isinstance(variable, DataSymbol):
             raise GenerationError(
-                "variable property in Loop class should be a DataSymbol but "
-                "found '{0}'.".format(type(variable).__name__))
+                f"variable property in Loop class should be a DataSymbol but "
+                f"found '{type(variable).__name__}'.")
         if not isinstance(variable.datatype, ScalarType):
             raise GenerationError(
-                "variable property in Loop class should be a ScalarType but "
-                "found '{0}'.".format(type(variable.datatype).__name__))
+                f"variable property in Loop class should be a ScalarType but "
+                f"found '{type(variable.datatype).__name__}'.")
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
             raise GenerationError(
-                "variable property in Loop class should be a scalar integer "
-                "but found '{0}'.".format(variable.datatype.intrinsic.name))
+                f"variable property in Loop class should be a scalar integer "
+                f"but found '{variable.datatype.intrinsic.name}'.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -195,9 +219,8 @@ class Loop(Statement):
 
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of Loop class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of Loop class "
+                f"should be a list but found '{type(children).__name__}'.")
 
         loop = Loop(variable=variable)
         schedule = Schedule(parent=loop, children=children)
@@ -215,9 +238,9 @@ class Loop(Statement):
         # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
-                "Loop is incomplete. It should have exactly 4 "
-                "children, but found loop with '{0}'.".format(
-                    ", ".join([str(child) for child in self.children])))
+                f"Loop is incomplete. It should have exactly 4 "
+                f"children, but found loop with "
+                f"'{', '.join([str(child) for child in self.children])}'.")
 
     @property
     def start_expr(self):
@@ -303,7 +326,7 @@ class Loop(Statement):
         _, position = self._find_position(self.ancestor(Routine))
 
         if self.loop_type:
-            name = "loop_[{0}]_{1}".format(self.loop_type, str(position))
+            name = f"loop_[{self.loop_type}]_{position}"
         else:
             name = "loop_" + str(position)
         return name
@@ -335,8 +358,8 @@ class Loop(Statement):
         '''
         if value not in self._valid_loop_types:
             raise GenerationError(
-                "Error, loop_type value ({0}) is invalid. Must be one of "
-                "{1}.".format(value, self._valid_loop_types))
+                f"Error, loop_type value ({value}) is invalid. Must be one of "
+                f"{self._valid_loop_types}.")
         self._loop_type = value
 
     def node_str(self, colour=True):
@@ -348,11 +371,11 @@ class Loop(Statement):
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
-        return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
-                format(self.coloured_name(self._colour),
-                       self._loop_type, self._field_space,
-                       self.iteration_space))
+        return (f"{self.coloured_name(colour)}[type='{self._loop_type}', "
+                f"field_space='{self._field_space}', "
+                f"it_space='{self.iteration_space}']")
 
     @property
     def field_space(self):
@@ -425,8 +448,7 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "id:'" + self._id
-        result += "', variable:'" + self.variable.name
+        result += "variable:'" + self.variable.name
         if self.loop_type:
             result += "', loop_type:'" + self._loop_type
         result += "']\n"
@@ -547,7 +569,7 @@ class Loop(Statement):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
+        from psyclone.psyGen import zero_reduction_variables
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.

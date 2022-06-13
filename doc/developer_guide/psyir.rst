@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
 
 The PSyclone Internal Representation (PSyIR)
 ############################################
@@ -138,6 +138,16 @@ to perform the following steps:
    shallow-copied when creating a duplicate of this PSyIR branch, specialise
    the ``_refine_copy`` method to perform the appropriate copy actions.
 
+5. If any of the attributes in this node should be used to compute the equality
+   of two nodes, specialise the ``__eq__`` member to perform the appropriate
+   checks. The default ``__eq__`` behaviour is to check both instance types are
+   exactly the same, and each of their children also pass the equality check.
+   The only restriction on this implementation is that it must call the
+   ``super().__eq__(other)`` as part of its implementation, to ensure any
+   inherited equality checks are correctly checked. The default behaviour
+   ignores annotations and comment attributes, as they should not affect the
+   semantics of the PSyIR tree.
+
 For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a
 child, we would write something like:
@@ -161,7 +171,7 @@ node can be integrated and used in the PSyIR tree:
 
     >>> schedule.addchild(mynode)
 
-    >>> schedule.view()
+    >>> print(schedule.view())
     Schedule[]
         MyNodeName[]
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -250,8 +260,18 @@ ScopingNode
 A `ScopingNode` is an abstract class node that defines a scoping region,
 this node and all its descendants have access to a shared set of symbols.
 These symbols are described in the `SymbolTable`
-(`psyclone.psyir.symbols.SymbolTable`) attached to this node and accessible
-through the ``symbol_table`` property.
+(`psyclone.psyir.symbols.SymbolTable`) attached to this node.
+
+There is a double-link between the `ScopingNode` (through the ``symbol_table``
+property) and the `SymbolTable` (through the ``scope`` property) objects. To
+maintain a consistent connection between both objects the only public methods
+to update the connections are the ``attach`` and ``detach`` methods of
+``SymbolTable`` (which takes care of both sides of the connection).
+
+Also note that the constructor will not accept as a parameter a symbol table
+that already belongs to another scope. The symbol table will need to be
+detached or deep copied before it can be assigned to the new ScopingNode.
+
 See the full API in the
 :ref_guide:`ScopingNode reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.ScopingNode`.
 
@@ -347,15 +367,15 @@ implementation using `IfBlocks`.  Similarly, Fortran also has the
 with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
 new tree structure are annotated with information to enable the
 original language-specific syntax to be recreated if required (see
-below).  See the full IfBlock API in the :ref_guide:`IfBlock reference guide
-psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`.
+below).  See the full IfBlock API in the :ref_guide:`IfBlock reference
+guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
+PSyIR also supports the concept of named arguments for `Call` nodes,
+see the :ref:`named_arguments-label` section for more details.
 
-.. note:: A `Call` is a `Statement` in the PSyIR and does not return
-          any data. Function calls (which would be `DataNode`s) are
-          not yet supported. The Fortran back-end support is also
-          limited to calls whose names (captured in a RoutineSymbol)
-          must have a global interface, i.e. in Fortran a `call x()`
-          must have an associated `use my_mod, only, x`.
+.. note:: A Call node (like the CodeBlock) inherits from both
+          Statement and DataNode because it can be found in Schedules
+          or inside Expressions, however this has some shortcomings,
+          see issue #1437.
 
 Control-Flow Node annotation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -478,6 +498,9 @@ represented by a `psyclone.psyir.nodes.BinaryOperation` but `MAX(var1,
 var2, var3)` would be represented by a
 `psyclone.psyir.nodes.NaryOperation`.
 
+The PSyIR supports the concept of named arguments for operation
+nodes, see the :ref:`named_arguments-label` section for more details.
+
 CodeBlock Node
 --------------
 
@@ -572,6 +595,73 @@ Both ``RegionDirective`` and ``StandaloneDirective`` may also have
 ``Clause`` nodes as children, and can be accessed through the ``clauses``
 member. See the full API in the :ref_guide:`Directive reference guide
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
+
+.. _named_arguments-label:
+
+Named arguments
+---------------
+
+The `Call` node and the three subclasses of the `Operation` node
+(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
+named arguments.
+
+The argument names are provided by the `argument_names` property. This
+property returns a list of names. The first entry in the list refers
+to the first argument, the second entry in the list refers to the
+second argument, etc. An argument name is stored as a string. If an
+argument is not a named argument then the list entry will contain
+`None`. For example, for the following call::
+
+    call example(arg0, name1=arg1, name2=arg2)
+
+the following list would be returned by the `argument_names` property::
+
+    [None, "name1", "name2"]
+
+It was decided to implement it this way, rather than adding a new
+(`NamedArgument`) node, as 1) there is no increase in the number and
+types of PSyIR nodes and 2) iterating over all children (the
+arguments) of these nodes is kept simple.
+
+The following methods support the setting and updating of named
+arguments:  `create()`, `append_named_arg()`, `insert_named_arg()` and
+`replace_named_arg()`.
+
+However, this implementation raises consistency problems as it is
+possible to insert, modify, move or delete children (argument) nodes
+directly. This would make the argument names list inconsistent as the
+names themselves are stored within the node.
+
+To solve this problem, the argument names are stored internally in an
+`_argument_names` list which not only keeps the argument names but
+also keeps a reference (the `id`) to the associated child argument. An
+internal `_reconcile()` method then checks whether the internal
+`_argument_names` list and the actual arguments match and fixes any
+inconsistencies.
+
+The `_reconcile()` method is called before the `argument_names`
+property returns its values, thereby ensuring that any access to
+`argument_names` is always consistent.
+
+The `_reconcile()` method looks through the arguments and tries to
+match them with one of the stored id's. If there is no match it is
+assumed that this is not a named argument. This approach has the
+following behaviour: the argument names are kept if arguments are
+re-ordered; an argument that has replaced a named argument will not be
+a named argument; an inserted argument will not be a named argument,
+and the name of a deleted named argument will be removed.
+
+Making a copy of the `Call` node or one of the three subclasses of
+Operation nodes (`UnaryOperation`, `BinaryOperation` or
+`NaryOperation`) also causes problems with consistency between the
+internal `_argument_names` list and the arguments. The reason for this
+is that the arguments get copied and therefore have a different `id`,
+whereas the `id`s in the internal `_argument_names` list are simply
+copied. To solve this problem, the `copy()` method is specialised to
+update the `id`s. A second issue is that the internal
+`_argument_names` list may already be inconsistent when a copy is
+made. Therefore the `_reconcile()` method is also called in the
+specialisation of the `copy()` method.
 
 
 References to Structures and Structure Members

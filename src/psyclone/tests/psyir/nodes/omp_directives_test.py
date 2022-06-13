@@ -52,7 +52,8 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
     Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -89,6 +90,56 @@ def test_ompdo_constructor():
     child = schedule.children[0].detach()
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
+
+
+def test_ompdo_equality():
+    ''' Test the __eq__ method of OMPDoDirective. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    # Set up the symbols
+    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+
+    # Create two equal loops
+    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    sched1 = Schedule(symbol_table=symboltable)
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched1.addchild(child_node)
+    loop1 = Loop.create(loop_sym,
+                        start, stop, step, [])
+    loop1.children[3].detach()
+    loop1.addchild(sched1, 3)
+    start2 = start.copy()
+    stop2 = stop.copy()
+    step2 = step.copy()
+    sched2 = Schedule()
+    # Make sure it has the same ST instance, providing it as a constructor
+    # parameter would create a copy and not use the same instance.
+    sched2._symbol_table = symboltable
+    child_node2 = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched2.addchild(child_node2)
+    loop2 = Loop.create(loop_sym,
+                        start2, stop2, step2, [])
+    loop2.children[3].detach()
+    loop2.addchild(sched2, 3)
+
+    ompdo1 = OMPDoDirective(children=[loop1])
+    ompdo2 = OMPDoDirective(children=[loop2])
+    ompdo1.children[0]._symbol_table = symboltable
+    ompdo2.children[0]._symbol_table = symboltable
+    assert ompdo1 == ompdo2
+
+    loop2.detach()
+    ompdo2 = OMPDoDirective(children=[loop2], reprod=(not ompdo1.reprod))
+    assert ompdo1 != ompdo2
 
 
 def test_omp_do_children_err():
@@ -653,7 +704,7 @@ def test_omp_loop_directive_validate_global_constraints():
         omploop.validate_global_constraints()
     assert ("OMPLoopDirective must have as many immediately nested loops as "
             "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
-            " has a collpase=2 and the nested statement at depth 1 is a "
+            " has a collapse=2 and the nested statement at depth 1 is a "
             "Assignment rather than a Loop."
             in str(err.value))
 
@@ -661,3 +712,52 @@ def test_omp_loop_directive_validate_global_constraints():
     loop2 = loop.copy()
     loop.loop_body.children[0].replace_with(loop2)
     omploop.validate_global_constraints()  # This is valid
+
+
+def test_omploop_equality():
+    ''' Test the __eq__ method of OMPLoopDirective. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    # Set up the symbols
+    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+
+    # Create two equal loops
+    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    sched1 = Schedule(symbol_table=symboltable)
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched1.addchild(child_node)
+    loop1 = Loop.create(loop_sym,
+                        start, stop, step, [])
+    loop1.children[3].detach()
+    loop1.addchild(sched1, 3)
+    start2 = start.copy()
+    stop2 = stop.copy()
+    step2 = step.copy()
+    sched2 = Schedule()
+    # Make sure it has the same ST instance, providing it as a constructor
+    # parameter would create a copy and not use the same instance.
+    sched2._symbol_table = symboltable
+    child_node2 = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched2.addchild(child_node2)
+    loop2 = Loop.create(loop_sym,
+                        start2, stop2, step2, [])
+    loop2.children[3].detach()
+    loop2.addchild(sched2, 3)
+
+    omploop1 = OMPLoopDirective(children=[loop1])
+    omploop2 = OMPLoopDirective(children=[loop2])
+    omploop1.children[0]._symbol_table = symboltable
+    omploop2.children[0]._symbol_table = symboltable
+    assert omploop1 == omploop2
+
+    omploop1.collapse = 2
+    assert omploop1 != omploop2

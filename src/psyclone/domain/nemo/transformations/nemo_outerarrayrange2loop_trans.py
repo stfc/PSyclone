@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             NemoOuterArrayRange2LoopTrans
     >>> from psyclone.transformations import TransformationError
     >>>
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>> trans = NemoOuterArrayRange2LoopTrans()
     >>> for assignment in schedule.walk(Assignment):
     >>>     while True:
@@ -77,7 +77,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     >>>             trans.apply(assignment)
     >>>         except TransformationError:
     >>>             break
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
     def apply(self, node, options=None):

@@ -76,9 +76,27 @@ class Routine(Schedule, CommentableMixin):
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two Routine nodes are equal
+        if they haev the same name, same return symbol, same is_program and
+        the inherited __eq__ is True.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.name == other.name
+        is_eq = is_eq and self.is_program == other.is_program
+        is_eq = is_eq and self.return_symbol == other.return_symbol
+
+        return is_eq
+
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
-               return_symbol=None):
+               return_symbol_name=None):
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
         so that it is able to act as a Factory for subclasses - e.g. it
@@ -91,10 +109,9 @@ class Routine(Schedule, CommentableMixin):
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param bool is_program: whether this Routine represents the entry \
             point into a program (i.e. Fortran Program or C main()).
-        :param return_symbol: the Symbol that holds the return value of this \
-            routine (if any). Must be present in the supplied symbol_table.
-        :type return_symbol: :py:class:`psyclone.psyir.symbols.DataType` or \
-            NoneType
+        :param str return_symbol_name: name of the symbol that holds the \
+            return value of this routine (if any). Must be present in the \
+            supplied symbol table.
 
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyGen.Routine` or subclass
@@ -125,8 +142,9 @@ class Routine(Schedule, CommentableMixin):
 
         routine = cls(name, is_program=is_program, symbol_table=symbol_table)
         routine.children = children
-        if return_symbol:
-            routine.return_symbol = return_symbol
+        if return_symbol_name:
+            routine.return_symbol = routine.symbol_table.lookup(
+                                       return_symbol_name, scope_limit=routine)
         return routine
 
     def node_str(self, colour=True):
@@ -184,7 +202,7 @@ class Routine(Schedule, CommentableMixin):
             if 'own_routine_symbol' in self.symbol_table.tags_dict:
                 existing_symbol = self.symbol_table.lookup_with_tag(
                         'own_routine_symbol', scope_limit=self)
-                if existing_symbol.name == new_name:
+                if existing_symbol.name.lower() == new_name.lower():
                     self._name = new_name
                     return  # The preexisting symbol already matches
                 # Otherwise raise an exception
@@ -253,6 +271,19 @@ class Routine(Schedule, CommentableMixin):
         # function datatype is provided by the type of the return symbol which
         # may be given after the Routine is created.
         self.symbol_table.lookup(self._name).datatype = value.datatype
+
+    def _refine_copy(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Routine`
+
+        '''
+        super()._refine_copy(other)
+        if other.return_symbol is not None:
+            self.return_symbol = self.symbol_table.lookup(
+                    other.return_symbol.name)
 
 
 # For automatic documentation generation

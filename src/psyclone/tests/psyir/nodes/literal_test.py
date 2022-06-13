@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
@@ -227,3 +228,15 @@ def test_literal_can_be_copied():
     literal1._value = "2"
     assert literal1.value == "2"
     assert literal.value == "1"
+
+
+def test_literal_equality():
+    ''' Test the __eq__ method of the Literal node. '''
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal3 = Literal("10", INTEGER_SINGLE_TYPE)
+    literal4 = Literal("1", REAL_DOUBLE_TYPE)
+
+    assert literal == literal2
+    assert literal != literal3
+    assert literal != literal4

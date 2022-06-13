@@ -33,9 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
-# Modified by S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -179,7 +178,7 @@ def test_script_invalid_content():
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "error.py"))
     assert "attempted to import 'error' but script file " in str(error.value)
-    assert ("PSyclone/src/psyclone/tests/test_files/dynamo0p3/error.py' is "
+    assert ("src/psyclone/tests/test_files/dynamo0p3/error.py' is "
             "not valid python" in str(error.value))
 
 
@@ -222,7 +221,7 @@ def test_script_no_trans():
                 BASE_PATH, "dynamo0p3", "no_trans.py"))
     assert ("attempted to import 'no_trans' but script file "
             in str(error.value))
-    assert ("PSyclone/src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
+    assert ("src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
             "does not contain a 'trans' function" in str(error.value))
 
 

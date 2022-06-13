@@ -70,10 +70,9 @@ class GOOpenCLTrans(Transformation):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> ocl_trans = GOOpenCLTrans()
     >>> ocl_trans.apply(schedule)
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
-
     # Specify which OpenCL command queue to use for management operations like
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1

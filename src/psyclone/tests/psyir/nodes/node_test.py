@@ -38,23 +38,22 @@
 
 ''' Performs py.test tests on the Node PSyIR node. '''
 
-from __future__ import absolute_import
 import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes.node import (ChildrenList, Node,
-                                       _graphviz_digraph_class)
-from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
-    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
-    BinaryOperation, ArrayReference
 
-from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType
-from psyclone.psyGen import PSyFactory, Kern
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
+    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
+    BinaryOperation, ArrayReference, Call, Range
+from psyclone.psyir.nodes.node import ChildrenList, Node, \
+    _graphviz_digraph_class
+from psyclone.psyir.symbols import DataSymbol, SymbolError, \
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
 # pylint: disable=redefined-outer-name
 from psyclone.psyir.nodes.node import colored
@@ -165,6 +164,108 @@ def test_node_depth():
         assert child.depth == 2
     for child in schedule.children[3].children:
         assert child.depth == 3
+
+
+def test_node_view():
+    '''Test that the view() method gives the expected output with
+    different argument values. The node has children to test that
+    information is passed and received from any children as
+    expected. Range is chosen as an example, but it could be any node.
+
+    '''
+    range_node = Range.create(
+        Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE))
+
+    # default argument values
+    result = range_node.view()
+    literal_str_col = colored("Literal", Literal._colour)
+    range_str_col = colored("Range", Range._colour)
+    expected = (
+        f"{range_str_col}[]\n"
+        f"    {literal_str_col}[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        f"    {literal_str_col}[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        f"    {literal_str_col}[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+    # no colour
+    result = range_node.view(colour=False)
+    expected = (
+        "Range[]\n"
+        "    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "    Literal[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        "    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+    # different indent
+    result = range_node.view(colour=False, indent=" ")
+    expected = (
+        "Range[]\n"
+        " Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        " Literal[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        " Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+    # diferent depth
+    result = range_node.view(colour=False, indent="--", depth=1)
+    expected = (
+        "--Range[]\n"
+        "----Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "----Literal[value:'10', Scalar<INTEGER, UNDEFINED>]\n"
+        "----Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
+    assert result == expected
+
+
+def test_node_view_schedule():
+    '''Test that the view() method gives the expected output when the
+    parent of the node is a schedule (they should be indexed). A
+    Routine node and its children is given as an example but it could
+    be any tree containing a schedule.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol_table.add(symbol)
+    assignment1 = Assignment.create(Reference(symbol),
+                                    Literal("0.0", REAL_TYPE))
+    assignment2 = Assignment.create(Reference(symbol),
+                                    Literal("1.0", REAL_TYPE))
+    routine_node = Routine.create(
+        "my_sub", symbol_table, [assignment1, assignment2])
+    result = routine_node.view(colour=False)
+    expected = (
+        "Routine[name:'my_sub']\n"
+        "    0: Assignment[]\n"
+        "        Reference[name:'tmp']\n"
+        "        Literal[value:'0.0', Scalar<REAL, UNDEFINED>]\n"
+        "    1: Assignment[]\n"
+        "        Reference[name:'tmp']\n"
+        "        Literal[value:'1.0', Scalar<REAL, UNDEFINED>]\n")
+    assert result == expected
+
+
+def test_node_view_error():
+    '''Test that the view() method raises the expected exception when
+    an incorrect argument is supplied.
+
+    '''
+    test_node = Literal("1.0", REAL_TYPE)
+
+    with pytest.raises(TypeError) as error:
+        test_node.view(depth=None)
+    assert ("depth argument should be an int but found NoneType."
+            in str(error.value))
+    with pytest.raises(ValueError) as error:
+        test_node.view(depth=-1)
+    assert ("depth argument should be a positive integer but found -1."
+            in str(error.value))
+    with pytest.raises(TypeError) as error:
+        test_node.view(colour=None)
+    assert ("colour argument should be a bool but found NoneType."
+            in str(error.value))
+    with pytest.raises(TypeError) as error:
+        test_node.view(indent=None)
+    assert ("indent argument should be a str but found NoneType."
+            in str(error.value))
 
 
 def test_node_position():
@@ -511,6 +612,15 @@ def test_node_ancestor():
     # Check that the include_self argument behaves as expected
     anode = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
     assert anode is kern
+    # If 'limit' is supplied then it must be an instance of Node.
+    with pytest.raises(TypeError) as err:
+        kern.ancestor(Kern, limit=3)
+    assert "must be an instance of Node but got 'int'" in str(err.value)
+    # Set the limit to the kernel's parent so that no Loop is found.
+    assert kern.ancestor(Loop, limit=kern.parent) is None
+    # Setting the limit to a node above the one we are searching for should
+    # have no effect.
+    assert kern.ancestor(Loop, limit=sched) is kern.parent.parent
 
 
 def test_dag_names():
@@ -756,11 +866,17 @@ def test_children_validation():
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
-    # Try adding a invalid child (e.g. a return_stmt into an assignment)
+    # Try adding an invalid child (e.g. a return_stmt into an assignment)
     with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
         " is: 'DataNode, DataNode'." in str(error.value)
+
+    # Try adding a child to a leaf node.
+    with pytest.raises(GenerationError) as error:
+        return_stmt.addchild(reference)
+    assert ("Return is a LeafNode and doesn't accept children" in
+            str(error.value))
 
     # The same behaviour occurs when list insertion operations are used.
     with pytest.raises(GenerationError):
@@ -781,7 +897,7 @@ def test_children_validation():
     # Valid nodes are accepted
     assignment.addchild(reference)
 
-    # Check displaced items are also be checked when needed
+    # Check displaced items are also checked when needed
     start = Literal("0", INTEGER_TYPE)
     stop = Literal("1", INTEGER_TYPE)
     step = Literal("2", INTEGER_TYPE)
@@ -802,9 +918,12 @@ def test_children_validation():
         loop.children.pop(2)
 
     with pytest.raises(GenerationError):
+        loop.children.pop(1)
+
+    with pytest.raises(GenerationError):
         loop.children.reverse()
 
-    # But the in the right circumstances they work fine
+    # But in the right circumstances they work fine
     assert isinstance(loop.children.pop(), Schedule)
     loop.children.reverse()
     assert loop.children[0].value == "2"
@@ -915,7 +1034,6 @@ def test_lower_to_language_level(monkeypatch):
     # Check all children have been visited
     for child in testnode.children:
         # This member only exists in the monkeypatched version
-        # pylint:disable=no-member
         assert child._visited_flag
 
 
@@ -1027,22 +1145,31 @@ def test_detach():
     ''' Check that the detach method removes a node from its parent node. '''
 
     # Create a PSyIR tree
-    parent = Schedule()
-    node1 = Statement()
-    parent.addchild(node1)
-    node2 = Statement()
-    parent.addchild(node2)
+    routine = RoutineSymbol("test", NoType())
+    e_sym = DataSymbol("e", REAL_TYPE)
+    f_sym = DataSymbol("f", REAL_TYPE)
+    e_ref = Reference(e_sym)
+    lit = Literal("1", REAL_TYPE)
+    e_ref2 = Reference(e_sym)
+    f_ref = Reference(f_sym)
+    node1 = Call(routine)
+    node1.addchild(e_ref)
+    node1.addchild(lit)
+    node1.addchild(e_ref2)
+    node1.addchild(f_ref)
 
-    # Execute the detach method on node 1, it should return itself
-    assert node1.detach() is node1
+    # Execute the detach method on e_ref2, it should return itself
+    assert e_ref2.detach() is e_ref2
 
     # Check that the resulting nodes and connections are correct
-    assert node1.parent is None
-    assert len(parent.children) == 1
-    assert parent.children[0] is node2
+    assert e_ref2.parent is None
+    assert len(node1.children) == 3
+    assert node1.children[0] is e_ref
+    assert node1.children[1] is lit
+    assert node1.children[2] is f_ref
 
     # Executing it again still succeeds
-    assert node1.detach() is node1
+    assert e_ref2.detach() is e_ref2
 
 
 def test_parent_references_coherency():
@@ -1176,3 +1303,40 @@ def test_following_preceding():
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(routine=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
+
+
+def test_equality():
+    '''Test the equality function of the Node class'''
+    # Use same symbol table to avoid pollution from the ScopingNode
+    # equality check. Providing it just as a constructor parameter would
+    # create a copy and not use the same instance.
+    symboltable = SymbolTable()
+    parent1 = Schedule()
+    parent1._symbol_table = symboltable
+    parent2 = Schedule()
+    parent2._symbol_table = symboltable
+    zero = Statement()
+    one = Statement()
+
+    assert parent1 != zero
+    assert parent1 == parent2
+    assert zero == one
+
+    # zero and one are equal for now, so parents are equal if they
+    # contain exactly one of either
+    parent1.addchild(zero)
+    parent2.addchild(one)
+    assert parent1 == parent2
+
+    # Add a second child to parent1
+    two = Statement()
+    parent1.addchild(two)
+    assert parent1 != parent2
+
+    # Same number of children, but children not equal
+    two.detach()
+    one.detach()
+    three = Assignment.create(Reference(DataSymbol("a", INTEGER_TYPE)),
+                              Literal("2", INTEGER_TYPE))
+    parent1.addchild(three)
+    assert parent1 != parent2

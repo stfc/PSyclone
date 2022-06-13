@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: N. Nobre, STFC Daresbury Lab
 
 
 '''This module contains the base class for verifying read-only access in
@@ -104,16 +105,15 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
                and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Application to a Loop without its parent "
-                    "Directive is not allowed.".format(str(self.name)))
+                    f"Error in {self.name}: Application to a Loop without its "
+                    f"parent Directive is not allowed.")
 
             # Check that the ReadOnlyVerifyNode is not inserted within a
             # thread parallel region when optimisations are applied.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Application to Nodes enclosed within "
-                    "a thread-parallel region is not allowed."
-                    .format(str(self.name)))
+                    f"Error in {self.name}: Application to Nodes enclosed "
+                    f"within a thread-parallel region is not allowed.")
 
         # Performs validation checks specific to PSyData-based
         # transformations.

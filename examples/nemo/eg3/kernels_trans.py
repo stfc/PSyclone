@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,10 +94,10 @@ def trans(psy):
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
-        sched.view()
+        print(sched.view())
 
         add_kernels(sched.children)
-        sched.view()
+        print(sched.view())
 
         directives = sched.walk(ACCDirective)
         if not directives:
@@ -111,6 +111,6 @@ def trans(psy):
         for directive in directives:
             ACC_DATA_TRANS.apply([directive])
 
-        sched.view()
+        print(sched.view())
 
         invoke.schedule = sched

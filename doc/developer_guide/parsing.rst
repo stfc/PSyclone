@@ -177,12 +177,11 @@ create the appropriate `Arg` instance. Previously we relied on the
 Mixed Precision
 ===============
 
-Support for mixed precision kernels is being added to PSyclone but is
-still work-in-progress (see #1277). The approach being taken is for
-the user to provide kernels with a generic interface and
-precision-specific implementations. As the PSyclone kernel metadata
-does not specify precision, this does not need to change. The actual
-precision being used will be specified by the scientist in the
+Support for mixed precision kernels has been added to PSyclone. The
+approach being taken is for the user to provide kernels with a generic
+interface and precision-specific implementations. As the PSyclone kernel
+metadata does not specify precision, this does not need to change. The
+actual precision being used will be specified by the scientist in the
 algorithm layer (by declaring variables with appropriate precision).
 
 .. highlight:: fortran

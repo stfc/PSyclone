@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
 
 '''This module tests the hoist transformation.
 '''
@@ -269,7 +269,7 @@ def test_validate_dependencies_multi_write(fortran_reader):
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
     assert ("There is at least one additional write to the variable 'a' in "
-            "the loop, outside of the supplied statement." in str(info.value))
+            "the loop, outside the supplied statement." in str(info.value))
 
 
 @pytest.mark.parametrize("assignment_str", ["a = 2", "b(i) = a"])
@@ -390,7 +390,7 @@ def test_validate_dependencies_if_statement(fortran_reader):
     with pytest.raises(TransformationError) as err:
         hoist_trans._validate_dependencies(ifblock, loop)
     assert ("There is at least one additional write to the variable 'b' in "
-            "the loop, outside of the supplied statement." in str(err.value))
+            "the loop, outside the supplied statement." in str(err.value))
 
 
 # str

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
 '''Specialise generic PSyIR representing an algorithm layer to an
 LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
 from psyclone.domain.common.transformations import AlgTrans
-from psyclone.domain.lfric.transformations import LFRicInvokeCallTrans
+from psyclone.domain.lfric.transformations.lfric_raise_call_2_invoke_trans \
+    import LFRicRaiseCall2InvokeTrans
 
 
 class LFRicAlgTrans(AlgTrans):
@@ -48,13 +49,4 @@ class LFRicAlgTrans(AlgTrans):
     '''
     def __init__(self):
         super(LFRicAlgTrans, self).__init__()
-        self._invoke_trans = LFRicInvokeCallTrans()
-
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
-
-        '''
-        return "LFRicAlgTrans"
+        self._invoke_trans = LFRicRaiseCall2InvokeTrans()

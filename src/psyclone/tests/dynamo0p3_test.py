@@ -1783,8 +1783,8 @@ def test_dynkernelargument_idtp_integer_field():
 def test_dynkernelargument_idtp_vector_field():
     '''Test the _init_data_type_properties method in the DynKernelArgument
     class for a field that is part of a vector_field (a collection of
-    fields used in the solver code) in the algorithm layer and is
-    de-referenced to a field in an invoke argument list.
+    fields) in the algorithm layer and is de-referenced to a field in
+    an invoke argument list.
 
     '''
     _, invoke_info = parse(
@@ -1800,25 +1800,27 @@ def test_dynkernelargument_idtp_vector_field():
         assert field_argument._module_name == "field_mod"
 
 
-def test_dynkernelargument_idtp_r_solver_vector_field():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
-    class for a field that is part of an r_solver_vector_field (a
-    collection of fields used in the solver code) in the algorithm
-    layer and is de-referenced to an r_solver_field in an invoke
-    argument list.
+@pytest.mark.parametrize("filename,kind_name", [
+    ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
+    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran")])
+def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
+    '''Test the '_init_data_type_properties' method in the
+    DynKernelArgument class for a field that is part of a
+    non-default-precision vector_field (a collection of fields) in the
+    algorithm layer and is de-referenced to the expected specific
+    field in an invoke argument list.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "26.6.2_mixed_precision_rsolver_vector.f90"),
-        api=TEST_API)
+    _, invoke_info = parse(os.path.join(BASE_PATH, filename), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     for index in range(1, 3):
         field_argument = psy.invokes.invoke_list[0].schedule.args[index]
         assert field_argument.is_field
-        assert field_argument._precision == "r_solver"
-        assert field_argument._data_type == "r_solver_field_type"
-        assert field_argument._proxy_data_type == "r_solver_field_proxy_type"
-        assert field_argument._module_name == "r_solver_field_mod"
+        assert field_argument._precision == kind_name
+        assert field_argument._data_type == f"{kind_name}_field_type"
+        assert (field_argument._proxy_data_type ==
+                f"{kind_name}_field_proxy_type")
+        assert field_argument._module_name == f"{kind_name}_field_mod"
 
 
 def test_dynkernelargument_idtp_abstract_vector_field():
@@ -1943,7 +1945,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # No algorithm information - use default
     operator_argument._init_data_type_properties(None)
@@ -1951,7 +1953,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # Algorithm information - same as default
     arg = Arg("variable", None, None, ("columnwise_operator_type", None))
@@ -1960,7 +1962,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # Inconsistent datatype
     arg = Arg("variable", None, None, ("operator_type", None))
@@ -1991,6 +1993,9 @@ def test_initdatatypeproperties_unknown_field_type():
 
 # Functional tests
 
+# TODO: Remove this test once issues #1638/#1667 are
+# addressed as the 'test_mixed_precision_args' test covers the same
+# ground as this test but currently does not compile.
 def test_r_solver(tmpdir):
     '''Test that fields and scalars declared as r_solver are given the
     appropriate precision in the PSy-layer and all required constants
@@ -2665,14 +2670,15 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_view(capsys):
-    ''' Test that the halo exchange view method returns what we expect. '''
+def test_halo_exchange_view():
+    '''Test that the halo exchange view method returns what we expect.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
-    schedule.view()
-    result, _ = capsys.readouterr()
+    result = schedule.view()
 
     # Ensure we test for text containing the correct (colour) control codes
     sched = colored("InvokeSchedule", InvokeSchedule._colour)
@@ -4309,30 +4315,37 @@ def test_mixed_precision_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     expected = (
-        "    USE constants_mod, ONLY: r_solver, r_def, i_def\n"
+        "    USE constants_mod, ONLY: r_tran, r_solver, r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE r_solver_field_mod, ONLY: r_solver_field_type, "
         "r_solver_field_proxy_type\n"
+        "    USE r_tran_field_mod, ONLY: r_tran_field_type, "
+        "r_tran_field_proxy_type\n"
         "    USE operator_mod, ONLY: r_solver_operator_type, "
         "r_solver_operator_proxy_type, operator_type, operator_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(scalar_r_def, field_r_def, operator_r_def, "
-        "scalar_r_solver, field_r_solver, operator_r_solver)\n"
+        "scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, "
+        "field_r_tran)\n"
         "      USE mixed_mod, ONLY: mixed_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
         "      REAL(KIND=r_solver), intent(in) :: scalar_r_solver\n"
+        "      REAL(KIND=r_tran), intent(in) :: scalar_r_tran\n"
         "      TYPE(field_type), intent(in) :: field_r_def\n"
         "      TYPE(r_solver_field_type), intent(in) :: field_r_solver\n"
+        "      TYPE(r_tran_field_type), intent(in) :: field_r_tran\n"
         "      TYPE(operator_type), intent(in) :: operator_r_def\n"
         "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
         "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
+        "      TYPE(r_tran_field_proxy_type) field_r_tran_proxy\n"
         "      TYPE(r_solver_field_proxy_type) field_r_solver_proxy\n"
         "      TYPE(field_proxy_type) field_r_def_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
@@ -4344,10 +4357,11 @@ def test_mixed_precision_args(tmpdir):
     if Compile.TEST_COMPILE:
         if not LFRicBuild(tmpdir).code_compiles(psy):
             pytest.xfail(
-                "Issue #1638. This example will not compile as there is no "
-                "support for r_solver operators in the infrastructure.")
+                "Issues #1638/#1667. This example will not compile as there "
+                "is no support for 'r_solver' operators or 'r_trans' fields "
+                "in the infrastructure.")
         else:
             assert False, (
-                "Issue #1638. This example is not expected to compile as "
-                "there is no support for r_solver operators in the "
-                "infrastructure.")
+                "Issues #1638/#1667. This example is not expected to compile "
+                "as there is no support for 'r_solver' operators or "
+                "'r_trans' fields in the infrastructure.")

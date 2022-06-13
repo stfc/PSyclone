@@ -302,6 +302,12 @@ class LFRicConstants(object):
                                "proxy_type": "r_solver_field_proxy_type",
                                "intrinsic": "real",
                                "kind": "r_solver"},
+            # 'real'-valued field with data of kind 'r_tran'
+            "r_tran_field": {"module": "r_tran_field_mod",
+                             "type": "r_tran_field_type",
+                             "proxy_type": "r_tran_field_proxy_type",
+                             "intrinsic": "real",
+                             "kind": "r_tran"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -323,11 +329,18 @@ class LFRicConstants(object):
                 "kind": "r_solver"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
-                "module": "operator_mod",
+                "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"}}
+
+        # Mapping from a vector type used in the algorithm-layer to
+        # the actual type used in the PSy-layer.
+        LFRicConstants.FIELD_VECTOR_TO_FIELD_MAP = {
+            "field_vector_type": "field_type",
+            "r_solver_field_vector_type": "r_solver_field_type",
+            "r_tran_field_vector_type": "r_tran_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

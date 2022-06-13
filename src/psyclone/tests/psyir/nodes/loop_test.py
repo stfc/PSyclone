@@ -47,7 +47,8 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
     Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE
+    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
+    SymbolTable
 from psyclone.tests.utilities import get_invoke, check_links
 
 
@@ -68,7 +69,6 @@ def test_loop_init():
     assert loop._kern is None
     assert loop._iterates_over == "unknown"
     assert loop._variable is None
-    assert loop._id == ""
 
     # valid variable
     loop = Loop(variable=DataSymbol("var", INTEGER_TYPE))
@@ -403,3 +403,86 @@ def test_halo_read_access_is_abstract():
         _ = loop._halo_read_access(None)
     assert ("This method needs to be implemented by the APIs that support "
             "distributed memory.") in str(excinfo.value)
+
+
+def test_loop_equality():
+    '''Test the __eq__ method of Loop'''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    # Set up the symbols
+    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+
+    # Create two equal loops
+    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    sched1 = Schedule(symbol_table=symboltable)
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched1.addchild(child_node)
+    loop1 = Loop.create(loop_sym,
+                        start, stop, step, [])
+    loop1.children[3].detach()
+    loop1.addchild(sched1, 3)
+    start2 = start.copy()
+    stop2 = stop.copy()
+    step2 = step.copy()
+    sched2 = Schedule()
+    # Make sure it has the same ST instance, providing it as a constructor
+    # parameter would create a copy and not use the same instance.
+    sched2._symbol_table = symboltable
+    child_node2 = Assignment.create(
+        Reference(tmp),
+        Reference(i_sym))
+    sched2.addchild(child_node2)
+    loop2 = Loop.create(loop_sym,
+                        start2, stop2, step2, [])
+    loop2.children[3].detach()
+    loop2.addchild(sched2, 3)
+    assert loop1 == loop2
+
+    # Set loop type for loop2
+    loop2._valid_loop_types.append("fake")
+    loop2.loop_type = "fake"
+    assert loop1 != loop2
+
+    # Set different field and reset loop2
+    sched2.detach()
+    step2.detach()
+    stop2.detach()
+    start2.detach()
+    loop2 = Loop.create(loop_sym,
+                        start2, stop2, step2, [])
+    loop2.children[3].detach()
+    loop2.addchild(sched2, 3)
+    loop2._field = "a"
+    assert loop1 != loop2
+
+    # Set different field name
+    loop2._field = None
+    loop2._field_name = "a"
+    assert loop1 != loop2
+
+    # Set different field space
+    loop2._field_name = None
+    loop2.field_space = "v0"
+    assert loop1 != loop2
+
+    # Set different iteration spaces
+    loop2.field_space = loop1.field_space
+    loop2.iteration_space = "z"
+    assert loop1 != loop2
+
+    # Set different kernels
+    loop2.iteration_space = loop1.iteration_space
+    loop2.kernel = "z"
+    assert loop1 != loop2
+
+    # Set different variables
+    loop2.kernel = loop1.kernel
+    loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    assert loop1 != loop2

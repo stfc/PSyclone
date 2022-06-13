@@ -157,9 +157,10 @@ PSyIR of that invoke. This will be a lot of output, beginning with:
     tra_adv
 
     NemoInvokeSchedule[invoke='tra_adv']
-        0: CodeBlock[[<class 'fparser.two.....]]
-        1: Assignment[]
-	    Reference[name:'r']
+        0: Call[name='get_environment_variable']
+            Literal[value:'JPI', Scalar<CHARACTER, UNDEFINED>]
+            Reference[name:'env']
+        1: CodeBlock[[<class 'fparser.two.Fortran2003.Read_Stmt'>]]
         ...
 ```
 
@@ -183,7 +184,7 @@ Node also support semantic navigation. For instance, the Loop node has
 `loop_body`, the If node has `condition`, `if_body` and `else_body`
 and the Directive node has `directive_body`.
 
-The first child node of the `NemoInvokeSchedule` obtained for the
+The second child node of the `NemoInvokeSchedule` obtained for the
 mini-app is a `CodeBlock`. This is an important node type since it
 makes it possible for the PSyIR to represent arbitrary Fortran code
 without requiring that it be fully understood. Since PSyclone uses
@@ -193,12 +194,10 @@ PSyIR. For more information on fparser2 see the associated
 [tutorial](../../../notebooks/fparser2/parsing_fortran.ipynb) or the [User
 Guide](https://fparser.readthedocs.io/en/latest/).
 
-We can see from the fparser2 node types printed in the description of
-the `CodeBlock` that this particular node represents various
-subroutine calls (those querying the values of the environment
-variables), reads, writes and the allocate statements. None of these
-are computationally significant and therefore are not interesting from
-a performance point of view.
+We can see from the fparser2 node type printed in the description of
+the `CodeBlock` that this particular node represents a Fortran read
+statement. This is not computationally significant and therefore is not
+interesting from a performance point of view.
 
 1. Modify the transformation script so that it breaks-out into the Python
    debugger once it has obtained the `Schedule` of the Invoke:
@@ -224,7 +223,7 @@ a performance point of view.
 
    ```python
    (Pdb) sched.children
-   [<psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fee49247790>, ...]
+   [<psyclone.psyir.nodes.call.Call object at 0x7fa00a6a0d90>, <psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fa00a6a0be0>, ...]
    (Pdb) cblocks = sched.walk(CodeBlock)
    (Pdb) cblocks
    [<psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fee49247790>, <psyclone.psyir.nodes.codeblock.CodeBlock ...]
@@ -268,7 +267,7 @@ source code.
    which Fortran loop body this corresponds to, e.g.:
 
    ```python
-   kernels[0].view()
+   print(kernels[0].view())
    ```
 
 ## 4. Conclusion

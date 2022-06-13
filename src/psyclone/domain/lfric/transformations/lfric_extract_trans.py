@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
@@ -63,9 +63,9 @@ class LFRicExtractTrans(ExtractTrans):
     >>>
     >>> # Apply LFRicExtractTrans transformation to selected Nodes
     >>> etrans.apply(schedule.children[0:3])
-    >>> schedule.view()
-    '''
+    >>> print(schedule.view())
 
+    '''
     def validate(self, node_list, options=None):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.

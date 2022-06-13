@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
+
 
 '''This module tests the DynamoPSy class, currently located within the
 dynamo0.3.py file.'''
@@ -39,6 +41,8 @@ dynamo0.3.py file.'''
 from collections import OrderedDict
 import os
 
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynamoPSy, DynamoInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
@@ -69,13 +73,13 @@ def test_dynamopsy():
     assert issubclass(DynamoPSy, PSy)
     assert isinstance(dynamo_psy._invokes, DynamoInvokes)
     infrastructure_modules = dynamo_psy._infrastructure_modules
-    assert len(infrastructure_modules) == 5
     assert isinstance(infrastructure_modules, OrderedDict)
     assert infrastructure_modules["constants_mod"] == ["i_def"]
-    assert infrastructure_modules["field_mod"] == set()
-    assert infrastructure_modules["r_solver_field_mod"] == set()
-    assert infrastructure_modules["integer_field_mod"] == set()
-    assert infrastructure_modules["operator_mod"] == set()
+    const = LFRicConstants()
+    names = set(item["module"] for item in const.DATA_TYPE_MAP.values())
+    assert len(names)+1 == len(infrastructure_modules)
+    for module_name in names:
+        assert infrastructure_modules[module_name] == set()
 
 
 def test_dynamopsy_kind():
@@ -91,13 +95,14 @@ def test_dynamopsy_kind():
     result = str(dynamo_psy.gen)
     assert "USE constants_mod, ONLY: r_def, i_def" in result
     assert "f1_proxy%data(df) = 0.0\n" in result
-    # 2: Literal kind value is declared
-    invoke_info.calls[0].kcalls[0].args[1]._text = "0.0_r_solver"
-    invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", "r_solver")
-    dynamo_psy = DynamoPSy(invoke_info)
-    result = str(dynamo_psy.gen)
-    assert "USE constants_mod, ONLY: r_solver, i_def" in result
-    assert "f1_proxy%data(df) = 0.0_r_solver" in result
+    # 2: Literal kind value is declared (trying with two cases to check)
+    for kind_name in ["r_solver", "r_tran"]:
+        invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
+        invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
+        dynamo_psy = DynamoPSy(invoke_info)
+        result = str(dynamo_psy.gen)
+        assert f"USE constants_mod, ONLY: {kind_name}, i_def" in result
+        assert f"f1_proxy%data(df) = 0.0_{kind_name}" in result
 
 
 def test_dynamopsy_names():
@@ -141,7 +146,7 @@ def test_dynamopsy_gen_no_invoke():
     assert str(result) == expected_result
 
 
-def test_dynamopsy_gen():
+def test_dynamopsy_gen(monkeypatch):
     '''Check that the gen() method of DynamoPSy behaves as expected when
     generating a psy-layer from an algorithm layer containing invoke
     calls. Simply check that the PSy-layer code for the invoke call is
@@ -149,10 +154,20 @@ def test_dynamopsy_gen():
     DynamoPSy() gen() method in the previous test.
 
     '''
+    # Since we're testing the DynamoPSy constructor directly, we have to
+    # monkeypatch the Config object in order to guarantee that distributed
+    # memory is enabled.
+    monkeypatch.setattr(Config.get(), "_distributed_mem", True)
+
     _, invoke_info = parse(
         os.path.join(
             BASE_PATH, "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
+    # Make sure we have distributed memory enabled, otherwise we can
+    # get errors in parallel builds if a previous jobs leave this
+    # to be false.
+    config = Config.get()
+    config.distributed_memory = True
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert (

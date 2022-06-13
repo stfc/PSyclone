@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
 utils.py file within the psyad directory.
 
 '''
+import pytest
+
 from psyclone.psyad.utils import node_is_active, node_is_passive, negate_expr
 from psyclone.psyir.nodes import Literal, UnaryOperation, Reference
 from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
@@ -47,7 +49,8 @@ def test_active_passive(fortran_reader):
     '''Test that the node_is_active function returns True if an active
     variable exists in the node or its descendants and False if
     not. Also test that the node_is_passive function returns the
-    opposite results.
+    opposite results. Test for active/passive variables provided as a
+    list of symbols or as a list of variables names.
 
     '''
     code = (
@@ -63,18 +66,57 @@ def test_active_passive(fortran_reader):
     assignment = tl_psyir.children[0][0]
 
     assert node_is_active(assignment, [symbol_a])
+    assert node_is_active(assignment, ["a"])
     assert not node_is_passive(assignment, [symbol_a])
+    assert not node_is_passive(assignment, ["a"])
     assert node_is_active(assignment, [symbol_b])
+    assert node_is_active(assignment, ["b"])
     assert not node_is_passive(assignment, [symbol_b])
+    assert not node_is_passive(assignment, ["b"])
     assert node_is_active(assignment, [symbol_a, symbol_b])
+    assert node_is_active(assignment, ["a", "b"])
     assert not node_is_passive(assignment, [symbol_a, symbol_b])
+    assert not node_is_passive(assignment, ["a", "b"])
     assert node_is_active(assignment, [symbol_a, symbol_b, symbol_c])
+    assert node_is_active(assignment, ["a", "b", "c"])
     assert not node_is_passive(assignment, [symbol_a, symbol_b, symbol_c])
+    assert not node_is_passive(assignment, ["a", "b", "c"])
 
     assert node_is_passive(assignment, [])
+    assert node_is_passive(assignment, [])
+    assert not node_is_active(assignment, [])
     assert not node_is_active(assignment, [])
     assert node_is_passive(assignment, [symbol_c])
+    assert node_is_passive(assignment, ["c"])
     assert not node_is_active(assignment, [symbol_c])
+    assert not node_is_active(assignment, ["c"])
+
+
+def test_active_error():
+    '''Test that the node_is_active function raises the expected
+    exceptions if the arguments are invalid.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        node_is_active(None, None)
+    assert ("The node argument to the node_is_active() method should be a "
+            "PSyIR Node, but found NoneType" in str(info.value))
+    node = Reference(DataSymbol("a", INTEGER_TYPE))
+    with pytest.raises(TypeError) as info:
+        node_is_active(node, None)
+    assert ("The active_variables argument to the node_is_active() method "
+            "should be a list, but found NoneType." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        node_is_active(node, [None])
+    assert ("Expected the active_variables argument to the node_is_active() "
+            "method to be a list containing either solely PSyIR DataSymbols "
+            "or solely strings, but found ['NoneType']." in str(info.value))
+    with pytest.raises(ValueError) as info:
+        node_is_active(node, [DataSymbol("a", INTEGER_TYPE), "a"])
+    assert ("Expected the active_variables argument to the node_is_active() "
+            "method to be a list containing either solely PSyIR DataSymbols "
+            "or solely strings, but found ['DataSymbol', 'str']."
+            in str(info.value))
 
 
 def test_negate_expr(fortran_writer):

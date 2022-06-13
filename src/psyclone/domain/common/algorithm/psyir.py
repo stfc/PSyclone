@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
+#           A. R. Porter, STFC Daresbury Lab
 
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
@@ -40,12 +41,10 @@
 from __future__ import absolute_import
 import re
 
-from psyclone.core import SymbolicMaths
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Call, Reference, DataNode, Literal, \
-    ArrayReference, Routine, Container, FileContainer
-from psyclone.psyir.symbols import DataTypeSymbol, ContainerSymbol, \
-    ImportInterface, RoutineSymbol
+from psyclone.psyir.nodes import (Call, Reference, DataNode,
+                                  Routine, Container, FileContainer)
+from psyclone.psyir.symbols import DataTypeSymbol
 
 
 class AlgorithmInvokeCall(Call):
@@ -92,8 +91,10 @@ class AlgorithmInvokeCall(Call):
         # Keep the root names as these will also be needed by the
         # PSy-layer to use as tags to pull out the actual names from
         # the algorithm symbol table, once issue #753 is complete.
-        self._psylayer_routine_root_name = None
-        self._psylayer_container_root_name = None
+        # They are public properties because they are needed in
+        # AlgInvoke2PSyCallTrans.
+        self.psylayer_routine_root_name = None
+        self.psylayer_container_root_name = None
         self._name = name
 
     @classmethod
@@ -162,12 +163,12 @@ class AlgorithmInvokeCall(Call):
 
     def _def_routine_root_name(self):
         '''Internal method that returns the proposed language-level routine
-        name given the index of this invoke.
+        name.
 
         :returns: the proposed processed routine name for this invoke.
         :rtype: str
 
-        :raises TypeError: if the name is not valid.
+        :raises TypeError: if the name provided in the invoke call is invalid.
 
         '''
         if self._name:
@@ -211,10 +212,10 @@ class AlgorithmInvokeCall(Call):
             the PSyIR tree containing this node.
 
         '''
-        if not self._psylayer_routine_root_name:
-            self._psylayer_routine_root_name = self._def_routine_root_name()
+        if not self.psylayer_routine_root_name:
+            self.psylayer_routine_root_name = self._def_routine_root_name()
 
-        if not self._psylayer_container_root_name:
+        if not self.psylayer_container_root_name:
             # The PSy-layer module naming logic (in algorithm.py) finds
             # the first program, module, subroutine or function in the
             # parse tree and uses that name for the container name. Here
@@ -223,7 +224,7 @@ class AlgorithmInvokeCall(Call):
             # the closest ancestor routine instead.
             for node in self.root.walk((Routine, Container)):
                 if not isinstance(node, FileContainer):
-                    self._psylayer_container_root_name = \
+                    self.psylayer_container_root_name = \
                         self._def_container_root_name(node)
                     return
             raise InternalError("No Routine or Container node found.")
@@ -235,77 +236,6 @@ class AlgorithmInvokeCall(Call):
         :rtype: str
         '''
         return f"psy_{node.name}"
-
-    def lower_to_language_level(self):
-        '''Transform this node and its children into an appropriate Call
-        node.
-
-        :raises InternalError: if an invoke symbol is not found in any \
-            symbol tables attached to nodes that are ancestors of this \
-            node.
-
-        '''
-        self.create_psylayer_symbol_root_names()
-
-        arguments = []
-        sym_maths = SymbolicMaths.get()
-        for kern in self.children:
-            for arg in kern.children:
-                if isinstance(arg, Literal):
-                    # Literals are not passed by argument.
-                    pass
-                elif isinstance(arg, (Reference, ArrayReference)):
-                    for existing_arg in arguments:
-                        if sym_maths.equal(arg, existing_arg):
-                            break
-                    else:
-                        arguments.append(arg.copy())
-                else:
-                    raise GenerationError(
-                        f"Expected Algorithm-layer kernel arguments to be "
-                        f"a literal, reference or array reference, but "
-                        f"found '{type(arg).__name__}'.")
-
-        symbol_table = self.scope.symbol_table
-
-        # TODO #753. At the moment the container and routine names
-        # produced here will differ from the PSy-layer routine name if
-        # there is a name clash in the algorithm layer.
-        container_tag = self._psylayer_container_root_name
-        try:
-            container_symbol = symbol_table.lookup_with_tag(container_tag)
-        except KeyError:
-            container_symbol = symbol_table.new_symbol(
-                root_name=container_tag, tag=container_tag,
-                symbol_type=ContainerSymbol)
-
-        routine_tag = self._psylayer_routine_root_name
-        interface = ImportInterface(container_symbol)
-        routine_symbol = symbol_table.new_symbol(
-            root_name=routine_tag, tag=routine_tag, symbol_type=RoutineSymbol,
-            interface=interface)
-
-        call = Call.create(routine_symbol, arguments)
-        self.replace_with(call)
-
-        # Remove original 'invoke' symbol if there are no other
-        # references to it. This keeps the symbol table up-to-date and
-        # also avoids an exception being raised in the Fortran Writer
-        # as the invoke symbol has an UnresolvedInterface.
-
-        symbol_table = call.scope.symbol_table
-        while symbol_table:
-            try:
-                invoke_symbol = symbol_table.lookup(
-                    "invoke", scope_limit=symbol_table.node)
-            except KeyError:
-                symbol_table = symbol_table.parent_symbol_table()
-                continue
-            if not symbol_table.node.walk(AlgorithmInvokeCall):
-                symbol_table.remove(invoke_symbol)
-            break
-        else:
-            raise InternalError("No 'invoke' symbol found.")
 
 
 class KernelFunctor(Reference):

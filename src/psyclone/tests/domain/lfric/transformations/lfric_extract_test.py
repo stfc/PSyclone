@@ -262,7 +262,7 @@ def test_extract_node_position():
     assert extract_node[0].depth == dpth
 
 
-def test_extract_node_representation(capsys):
+def test_extract_node_representation():
     ''' Test that representation properties and methods of the ExtractNode
     class: view  and __str__ produce the correct results. '''
 
@@ -274,16 +274,15 @@ def test_extract_node_representation(capsys):
     etrans.apply(children)
 
     # Test view() method
-    schedule.view()
-    output, _ = capsys.readouterr()
+    output = schedule.view()
     expected_output = colored("Extract", ExtractNode._colour)
     assert expected_output in output
 
     # Test __str__ method
 
-    assert "End DynLoop\nExtractStart[var=extract_psy_data]\nDynLoop[id:''" \
+    assert "End DynLoop\nExtractStart[var=extract_psy_data]\nDynLoop[" \
         in str(schedule)
-    assert "End DynLoop\nExtractEnd[var=extract_psy_data]\nDynLoop[id:''" in \
+    assert "End DynLoop\nExtractEnd[var=extract_psy_data]\nDynLoop[" in \
         str(schedule)
     # Count the loops inside and outside the extract to check it is in
     # the right place
@@ -696,8 +695,8 @@ def test_extract_colouring_omp_dynamo0p3():
               """diff_basis_w2_qr)
       CALL extract_psy_data%PreDeclareVariable("e", e)
       CALL extract_psy_data%PreDeclareVariable("istp", istp)
-      CALL extract_psy_data%PreDeclareVariable("last_cell_all_colours", \
-last_cell_all_colours)
+      CALL extract_psy_data%PreDeclareVariable("last_edge_cell_all_colours", \
+last_edge_cell_all_colours)
       CALL extract_psy_data%PreDeclareVariable("loop4_start", loop4_start)
       CALL extract_psy_data%PreDeclareVariable("loop4_stop", loop4_stop)
       CALL extract_psy_data%PreDeclareVariable("loop5_start", loop5_start)
@@ -733,8 +732,8 @@ last_cell_all_colours)
               """diff_basis_w2_qr)
       CALL extract_psy_data%ProvideVariable("e", e)
       CALL extract_psy_data%ProvideVariable("istp", istp)
-      CALL extract_psy_data%ProvideVariable("last_cell_all_colours", \
-last_cell_all_colours)
+      CALL extract_psy_data%ProvideVariable("last_edge_cell_all_colours", \
+last_edge_cell_all_colours)
       CALL extract_psy_data%ProvideVariable("loop4_start", loop4_start)
       CALL extract_psy_data%ProvideVariable("loop4_stop", loop4_stop)
       CALL extract_psy_data%ProvideVariable("loop5_start", loop5_start)
@@ -756,7 +755,7 @@ last_cell_all_colours)
       CALL extract_psy_data%PreEnd
       DO colour=loop4_start,loop4_stop
         !$omp parallel do default(shared), private(cell), schedule(static)
-        DO cell=loop5_start,last_cell_all_colours(colour)
+        DO cell=loop5_start,last_edge_cell_all_colours(colour)
           !
           CALL ru_code(nlayers, b_proxy%data, a_proxy%data, istp, rdt, """
               "c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "

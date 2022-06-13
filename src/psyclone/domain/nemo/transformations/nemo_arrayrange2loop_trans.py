@@ -73,7 +73,7 @@ class NemoArrayRange2LoopTrans(Transformation):
     >>> ast, invoke_info = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>> schedule = psy.invokes.invoke_list[0].schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>>
     >>> from psyclone.psyir.nodes import Range
     >>> from psyclone.domain.nemo.transformations import \
@@ -86,7 +86,7 @@ class NemoArrayRange2LoopTrans(Transformation):
     >>>         trans.apply(my_range)
     >>>     except TransformationError:
     >>>         pass
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     The specified Range node must be the outermost Range (specifying
     an access to an array index) within an Array Reference and the

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''A Python script showing how to create and manipulate symbols of structure
 type within the PSyIR. In order to use it you must first install PSyclone.
@@ -160,7 +161,7 @@ KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
-CONTAINER.view()
+print(CONTAINER.view())
 
 # Write out the code as Fortran.
 WRITER = FortranWriter()

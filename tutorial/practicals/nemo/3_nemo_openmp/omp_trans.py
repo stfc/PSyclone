@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,8 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import (OMPParallelLoopTrans, OMPLoopTrans,
+                                      TransformationError, OMPParallelTrans)
 
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
@@ -72,7 +73,7 @@ def trans(psy):
             OMP_TRANS.apply(child)
 
     # Display the transformed PSyIR
-    sched.view()
+    print(sched.view())
 
     # Return the modified psy object
     return psy

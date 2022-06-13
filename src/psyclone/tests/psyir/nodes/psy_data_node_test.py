@@ -86,6 +86,23 @@ def test_psy_data_node_constructor():
             "expected" in str(err.value))
 
 
+def test_psy_data_node_equality():
+    ''' Check the __eq__ member of the PSyDataNode.'''
+    options1 = {"prefix": "profile", "region_name": ("a_routine", "ref1")}
+    options2 = {"prefix": "extract", "region_name": ("a_routine", "ref1")}
+    options3 = {"prefix": "profile", "region_name": ("a_routine1", "ref1")}
+    options4 = {"prefix": "profile", "region_name": ("a_routine", "ref2")}
+    psy_node1 = PSyDataNode(options=options1)
+    psy_node1_1 = PSyDataNode(options=options1)
+    psy_node2 = PSyDataNode(options=options2)
+    psy_node3 = PSyDataNode(options=options3)
+    psy_node4 = PSyDataNode(options=options4)
+    assert psy_node1 == psy_node1_1
+    assert psy_node1 != psy_node2
+    assert psy_node1 != psy_node3
+    assert psy_node1 != psy_node4
+
+
 # -----------------------------------------------------------------------------
 def test_psy_data_node_basics():
     '''Tests some elementary functions.'''

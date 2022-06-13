@@ -640,7 +640,7 @@ in. For example::
 
     # Get the schedule associated with the required invoke
     > schedule = invoke.schedule
-    > schedule.view()
+    > print(schedule.view())
     InvokeSchedule[invoke='invoke_0', dm=True]
         0: Loop[type='dof', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
             Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
@@ -659,7 +659,7 @@ with the new one. For example::
 
     # Apply it to the loop schedule of the selected invoke
     > ol.apply(schedule.children[0])
-    > schedule.view()
+    > print(schedule.view())
 
     # Generate the Fortran code for the new PSy layer
     > print(psy.gen)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,5 @@ def trans(psy):
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
         kernels_trans.apply(schedule)
-        schedule.view()
 
     return psy

@@ -674,7 +674,7 @@ class InvokeSchedule(Routine):
     >>> invokes.names
     >>> invoke = invokes.get("name")
     >>> schedule = invoke.schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
@@ -2777,7 +2777,7 @@ class TransInfo(object):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class Transformation(object):
+class Transformation():
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
@@ -2787,12 +2787,16 @@ class Transformation(object):
     :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
     '''
-    def __init__(self, writer=FortranWriter()):
-        if not isinstance(writer, PSyIRVisitor):
-            raise TypeError(
-                "The writer argument to a transformation should be a "
-                "PSyIRVisitor, but found '{0}'.".format(type(writer).__name__))
-        self._writer = writer
+    def __init__(self, writer=None):
+
+        if writer:
+            if not isinstance(writer, PSyIRVisitor):
+                raise TypeError(
+                    f"The writer argument to a transformation should be a "
+                    f"PSyIRVisitor, but found '{type(writer).__name__}'.")
+            self._writer = writer
+        else:
+            self._writer = FortranWriter()
 
     @property
     def name(self):
