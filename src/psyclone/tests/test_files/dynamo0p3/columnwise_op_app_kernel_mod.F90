@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,10 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 !> @brief Kernel which (incrementally) applies a columnwise assembled operator
-!>        to a field
+!!        to a field.
 
 module columnwise_op_app_kernel_mod
 
@@ -52,7 +52,7 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -82,7 +82,7 @@ public columnwise_op_app_kernel_code
 contains
 
   !> @brief The subroutine which is called directly from the PSY layer and
-  !> applies the operator as lhs += A.x
+  !!        applies the operator as lhs += A.x.
   !>
   !> @param [in] cell Horizontal cell index
   !> @param [in] ncell_2d Number of cells in 2d grid
@@ -128,7 +128,7 @@ contains
     integer(kind=i_def), intent(in) :: undf2, ndf2
     real(kind=r_def), dimension(undf1), intent(inout) :: lhs
     real(kind=r_def), dimension(undf2), intent(in) :: x
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
+    real(kind=r_solver), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
     integer(kind=i_def), dimension(ndf1), intent(in) :: map1
     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
 
