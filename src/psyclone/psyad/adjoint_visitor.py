@@ -398,7 +398,8 @@ class AdjointVisitor(PSyIRVisitor):
         if node_is_active(node.condition, self._active_variables):
             raise VisitorError(
                 f"The if condition '{self._writer(node.condition)}' of an "
-                f"ifblock node should not contain an active variable.")
+                f"ifblock node should not contain an active variable (one or "
+                f"more of {self._active_variable_names}).")
 
         if node_is_passive(node, self._active_variables):
             raise VisitorError(
@@ -411,14 +412,15 @@ class AdjointVisitor(PSyIRVisitor):
 
         new_condition = node.condition.copy()
         new_if_schedule = self._visit(node.if_body)
-        new_if_block_children = [new_condition, new_if_schedule]
+        new_if_body = [node.copy() for node in new_if_schedule.children]
+
+        new_else_body = None
         if node.else_body:
             new_else_schedule = self._visit(node.else_body)
-            new_if_block_children.append(new_else_schedule)
+            new_else_body = [node.copy() for node in
+                             new_else_schedule.children]
 
-        new_if_block = IfBlock()
-        new_if_block.children = new_if_block_children
-        return new_if_block
+        return IfBlock.create(new_condition, new_if_body, new_else_body)
 
     def _copy_and_process(self, node):
         '''Utility function to return a copy the current node containing the

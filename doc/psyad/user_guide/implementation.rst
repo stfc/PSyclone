@@ -392,20 +392,21 @@ following Fortran snippet:
      ! content2
    end if
 
-1) the logical structure of the if is left unchanged, i.e. the "``if
-   (condition) then``", optional "``else``" and "``end if``".
+1) the logical structure of the if is left unchanged, i.e. the
+   :code:`if (condition) then`, optional :code:`else` and :code:`end
+   if`.
 
-2) the sequence of statements within "``! content1``" in the above
+2) the sequence of statements within :code:`! content1` in the above
    example, are processed as described in the Section
    :ref:`psyir_schedule`.
 
-3) the sequence of statements within "``! content2``" in the above
+3) the sequence of statements within :code:`! content2` in the above
    example, (if it exists, as the else part of an if is optional) are
    processed as described in the Section :ref:`psyir_schedule`.
 
-The "``condition``" of the "``if``" should only contain passive variables
-for this to be a valid tangent-linear code and PSyAD will raise an
-exception if this is not the case.
+The :code:`condition` of the :code:`if` should only contain passive
+variables for this to be a valid tangent-linear code and PSyAD will
+raise an exception if this is not the case.
 
 .. _pre-processing:
   
