@@ -51,7 +51,7 @@ GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o testkern_w0_kernel_*.o
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_0_mod.o
 
 EXEC = example_openacc
 

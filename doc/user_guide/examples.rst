@@ -499,15 +499,16 @@ The generated code has two problems:
     it is just assumed they are - i.e. support for colouring or locking
     is not yet implemented.
  2. Although the user-supplied kernel is transformed so as to have the
-    necessary ``!$acc routine`` directive, the associated ``use`` statement
-    in the PSy layer still uses the name of the original, untransformed
-    kernel (issue #1724).
+    necessary ``!$acc routine`` directive, the associated (but unnecessary)
+    ``use`` statement in the transformed Algorithym layer still uses the
+    name of the original, untransformed kernel (issue #1724).
 
-Since no colouring is required in this case, the generated PSy layer
-may be fixed by hand and the resulting code compiled and run on
-GPU. However, performance will be very poor as, with the limited
-optimisations and directives currently applied, the NVIDIA compiler refuses
-to run the user-supplied kernel in parallel.
+Since no colouring is required in this case, the generated Alg layer
+may be fixed by hand (by simply deleting the offending ``use`` statement)
+and the resulting code compiled and run on GPU. However, performance will
+be very poor as, with the limited optimisations and directives currently
+applied, the NVIDIA compiler refuses to run the user-supplied kernel in
+parallel.
 
 Example 15: CPU Optimisation of Matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
