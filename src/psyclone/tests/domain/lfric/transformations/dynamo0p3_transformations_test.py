@@ -1488,6 +1488,8 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=loop1_start,loop1_stop\n"
@@ -1499,6 +1501,8 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop(s)\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -2026,6 +2030,8 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
     else:  # not distmem. annexed can be True or False
@@ -2117,6 +2123,8 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "above loop(s)\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
@@ -2602,6 +2610,8 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
         if not annexed:
@@ -2685,6 +2695,8 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
@@ -2762,6 +2774,8 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem, annexed is True or False
@@ -2824,6 +2838,8 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "above loop(s)\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !\n"
             "      ! Zero summation variables\n"
@@ -2911,6 +2927,8 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
@@ -2981,6 +2999,8 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "above loop(s)\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
@@ -3233,6 +3253,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
         assert code in result
@@ -3348,6 +3370,8 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
@@ -3439,6 +3463,8 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "above loop(s)\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in result

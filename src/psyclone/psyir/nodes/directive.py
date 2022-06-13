@@ -167,6 +167,10 @@ class RegionDirective(Directive):
 
         if commented:
             parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " End of set dirty/clean section for "
+                                  "above loop(s)"))
+            parent.add(CommentGen(parent, ""))
 
 
 class StandaloneDirective(Directive):
