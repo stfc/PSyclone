@@ -119,10 +119,6 @@ class ExcludeSettings(object):
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
         self.ifs_scalars = settings.get("ifs_scalars", False)
-        # Whether we allow IFs where the logical expression involves 1D
-        # arrays (since these are often static in NEMO and thus not
-        # handled by CUDA Unified Memory)
-        self.ifs_1d_arrays = settings.get("ifs_1d_arrays", True)
 
 
 # Routines which are exceptions to the OpenACC Kernels regions exclusion rules.
@@ -131,9 +127,7 @@ EXCLUDING = {"default": ExcludeSettings(),
              "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
              "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
              # Exclude due to compiler bug preventing CPU multicore executions.
-             "dom_vvl_init": ExcludeSettings({"ifs_scalars": True}),
-             # Do not exclude since OK in these cases.
-             "hpg_sco": ExcludeSettings({"ifs_1d_arrays": False})}
+             "dom_vvl_init": ExcludeSettings({"ifs_scalars": True})}
 
 
 def log_msg(name, msg, node):
@@ -197,20 +191,21 @@ def valid_acc_kernel(node):
                "was_single_stmt" in enode.annotations and enode.walk(Loop):
                 continue
 
-            # When using CUDA Unified Memory, only allocated arrays reside in
-            # shared memory (although this includes those that are created by
-            # compiler-generated allocs e.g. for automatic arrays). We assume
-            # that all arrays of rank 2 or greater are dynamically allocated.
             arrays = enode.condition.walk(ArrayReference)
-            # We also exclude if statements where the condition expression does
+            # We exclude if statements where the condition expression does
             # not refer to arrays at all as this may cause compiler issues
             # (get "Missing branch target block") or produce faster code.
             if not arrays and excluding.ifs_scalars and \
                not isinstance(enode.condition, BinaryOperation):
                 log_msg(routine_name, "IF references scalars", enode)
                 return False
-            if excluding.ifs_1d_arrays and \
-               any([len(array.children) == 1 for array in arrays]):
+            # When using CUDA Unified Memory, only allocated arrays reside in
+            # shared memory (including those that are created by compiler-
+            # -generated allocs, e.g. for automatic arrays). We assume that all
+            # arrays of rank 2 or greater are dynamically allocated, whereas 1D
+            # arrays are often static in NEMO. Hence, we disallow IFs where the
+            # logical expression involves the latter.
+            if any([len(array.children) == 1 for array in arrays]):
                 log_msg(routine_name,
                         "IF references 1D arrays that may be static", enode)
                 return False
