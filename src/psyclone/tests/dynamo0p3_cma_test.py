@@ -143,11 +143,11 @@ def test_cma_mdata_invalid_data_type():
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of {0}), but found "
-            "'gh_unreal' in 'arg_type(gh_columnwise_operator, gh_unreal, "
-            "gh_write, any_space_1, any_space_2)'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' "
+            f"entry should be a valid data type (one of "
+            f"{const.VALID_SCALAR_DATA_TYPES}), but found 'gh_unreal' "
+            f"in 'arg_type(gh_columnwise_operator, gh_unreal, "
+            f"gh_write, any_space_1, any_space_2)'." in str(excinfo.value))
 
 
 def test_cma_mdata_init_wrong_argument_type():
@@ -178,11 +178,10 @@ def test_cma_mdata_init_wrong_data_type():
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the allowed data types for operator arguments "
-            "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
-            "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
-            format(const.VALID_OPERATOR_DATA_TYPES) in
-            str(excinfo.value))
+    assert (f"In the LFRic API the allowed data types for operator arguments "
+            f"are one of {const.VALID_OPERATOR_DATA_TYPES}, but found "
+            f"'gh_integer' in 'arg_type(gh_columnwise_operator, gh_integer, "
+            f"gh_write, any_space_1, any_space_2)'." in str(excinfo.value))
 
 
 def test_cma_mdata_assembly_missing_op():
@@ -405,7 +404,7 @@ def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     kernel = schedule.kernels()[0]
     cma_op_arg = kernel.arguments.args[2]
 
-    assert cma_op_arg.module_name == "operator_mod"
+    assert cma_op_arg.module_name == "columnwise_operator_mod"
     assert cma_op_arg.data_type == "columnwise_operator_type"
     assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
     assert cma_op_arg.intrinsic_type == "real"
@@ -788,9 +787,8 @@ def test_cma_mdata_stencil_invalid():
         _ = DynKernMetadata(ast, name=name)
 
     const = LFRicConstants()
-    assert ("each 'meta_arg' entry must have 5 arguments if its first "
-            "argument is an operator (one of {0})".
-            format(const.VALID_OPERATOR_NAMES)
+    assert (f"each 'meta_arg' entry must have 5 arguments if its first "
+            f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
             in str(excinfo.value))
 
 
@@ -848,9 +846,11 @@ def test_cma_asm(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type") \
-        in code
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
@@ -883,9 +883,11 @@ def test_cma_asm_field(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type"
-            in code)
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
@@ -925,9 +927,11 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type"
-            in code)
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
@@ -965,9 +969,11 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type"
-            in code)
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert ("TYPE(columnwise_operator_type), intent(in) :: cma_op1"
             in code)

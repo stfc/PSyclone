@@ -1945,7 +1945,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # No algorithm information - use default
     operator_argument._init_data_type_properties(None)
@@ -1953,7 +1953,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # Algorithm information - same as default
     arg = Arg("variable", None, None, ("columnwise_operator_type", None))
@@ -1962,7 +1962,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     assert operator_argument._data_type == "columnwise_operator_type"
     assert (operator_argument._proxy_data_type ==
             "columnwise_operator_proxy_type")
-    assert operator_argument._module_name == "operator_mod"
+    assert operator_argument._module_name == "columnwise_operator_mod"
 
     # Inconsistent datatype
     arg = Arg("variable", None, None, ("operator_type", None))
