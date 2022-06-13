@@ -7707,6 +7707,8 @@ class DynLoop(Loop):
             # We cannot include calls to set halos dirty/clean within OpenACC
             # regions. This is handled by the appropriate Directive class
             # instead.
+            # TODO #1755 can this check be made more general (e.g. to include
+            # Extraction regions)?
             return
 
         parent.add(CommentGen(parent, ""))
