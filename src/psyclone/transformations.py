@@ -43,10 +43,7 @@
 
 # pylint: disable=too-many-lines
 
-from __future__ import absolute_import, print_function
-
 import abc
-
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -2019,8 +2016,8 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> # print(schedule.view())
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
-                           nodes.ACCDataDirective, nodes.ACCEnterDataDirective,
+    excluded_node_types = (CodeBlock, Return, PSyDataNode,
+                           ACCDataDirective, ACCEnterDataDirective,
                            psyGen.HaloExchange)
 
     def __init__(self):
@@ -3017,7 +3014,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> ktrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
+    excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            psyGen.HaloExchange)
 
     @property
