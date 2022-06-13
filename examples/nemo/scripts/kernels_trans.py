@@ -132,6 +132,8 @@ EXCLUDING = {"default": ExcludeSettings(),
              "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
              # Exclude due to compiler bug preventing CPU multicore executions.
              "dom_vvl_init": ExcludeSettings({"ifs_scalars": True}),
+             # Exclude due to compiler bug: "Missing branch target block".
+             "ice_strength": ExcludeSettings({"ifs_scalars": True}),
              # Do not exclude since OK in these cases.
              "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
              "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
@@ -206,11 +208,10 @@ def valid_acc_kernel(node):
             # that all arrays of rank 2 or greater are dynamically allocated.
             arrays = enode.condition.walk(ArrayReference)
             # We also exclude if statements where the condition expression does
-            # not refer to arrays at all as this used to cause compiler issues
-            # (get "Missing branch target block") and now produces faster code.
-            if not arrays and \
-               (excluding.ifs_scalars and not isinstance(enode.condition,
-                                                         BinaryOperation)):
+            # not refer to arrays at all as this may cause compiler issues
+            # (get "Missing branch target block") or produce faster code.
+            if not arrays and excluding.ifs_scalars and \
+               not isinstance(enode.condition, BinaryOperation):
                 log_msg(routine_name, "IF references scalars", enode)
                 return False
             if excluding.ifs_1d_arrays and \
