@@ -45,7 +45,8 @@ PSYROOT=../../..
 
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 testkern_w0_kernel_[0-9]_mod.f90
+GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
+                  testkern_w0_kernel_0_mod.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
@@ -62,7 +63,11 @@ F90FLAGS += -I$(LFRIC_DIR)
 
 .PHONY: transform compile run
 
+# This makefile assumes that the transformed kernel will be named
+# 'testkern_w0_kernel_0_mod.f90'. However, if it already exists then PSyclone
+# will create 'testkern_..._1_mod.f90' so remove it first.
 transform:
+	rm -f testkern_w0_kernel_0_mod.f90
 	${PSYCLONE} -dm -s ./acc_parallel_dm.py \
 	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
 
