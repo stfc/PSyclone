@@ -57,7 +57,7 @@ def test_loop_trans_name():
     assert trans2.name == "LoopFuseTrans"
 
 
-def test_loop_trans_validate(monkeypatch):
+def test_loop_trans_validate():
     ''' Test the validation checks on the loop node provided to the
     transformation. '''
     # We have to use sub-class of LoopTrans as it itself is abstract.
@@ -135,5 +135,4 @@ def test_all_loop_trans_base_validate(monkeypatch):
                     else:
                         trans.validate(loop)
                 assert "validate test exception" in str(err.value), \
-                    "{0}.validate() does not call LoopTrans.validate()".format(
-                        name)
+                    f"{name}.validate() does not call LoopTrans.validate()"

@@ -710,11 +710,14 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
-    lftrans = LoopFuseTrans()
+    fuse = LoopFuseTrans()
 
-    # API loops currently only compare the iterates_over attribure
+    # TODO 1731: For PSyLoops it currently only compares the iterates_over
+    # attribute, but this could be just a computed property so comparing the
+    # generic loop bounds would be enough. Otherwise this should be moved
+    # into a PSyLoopFuseTrans specialization.
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
+        fuse.apply(schedule.children[0], schedule.children[1])
     assert "Loops do not have the same iteration space" in str(err.value)
 
     # Generic loops compare the loop bounds
@@ -733,7 +736,6 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
               enddo
               end subroutine sub'''
     psyir = fortran_reader.psyir_from_source(code)
-    fuse = LoopFuseTrans()
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     with pytest.raises(TransformationError) as err:
@@ -757,7 +759,6 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
               enddo
               end subroutine sub'''
     psyir = fortran_reader.psyir_from_source(code)
-    fuse = LoopFuseTrans()
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)

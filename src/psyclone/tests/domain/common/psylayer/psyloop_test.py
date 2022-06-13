@@ -36,9 +36,8 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the Loop PSyIR node. '''
+''' Performs py.test tests on the PSyLoop PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.errors import GenerationError
@@ -91,7 +90,7 @@ def test_psyloop_invalid_type():
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
     assert isinstance(loop, PSyLoop)
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(TypeError) as err:
         loop.loop_type = "not_a_valid_type"
     assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
             "['inner', 'outer']" in str(err.value))
@@ -108,8 +107,8 @@ def test_psyloop_halo_read_access_is_abstract():
 
 def test_psyloop_equality():
     '''Test the __eq__ method of PSyLoop'''
-    # We need to manually set the same SymbolTable instance in both directives
-    # for their equality to be True
+    # We need to manually set the same SymbolTable instance in both loops
+    # objects for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
     tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)

@@ -63,8 +63,7 @@ class Loop(Statement):
 
     :param variable: optional reference to the loop iterator \
         variable. Defaults to None.
-    :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
-        `NoneType`
+    :type variable: Optional[:py:class:`psyclone.psyir.symbols.DataSymbol`]
     :param annotations: One or more labels that provide additional information\
         about the node (primarily relating to the input code that it was \
         created from).

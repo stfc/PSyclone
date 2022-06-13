@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
     SymbolTable
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import check_links
 
 
 def test_loop_init():

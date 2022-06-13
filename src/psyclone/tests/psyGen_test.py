@@ -791,7 +791,7 @@ def test_kern_is_coloured2():
     table = SymbolTable()
     # Create the loop variables
     for idx in range(3):
-        table.new_symbol("cell{0}".format(idx), symbol_type=DataSymbol,
+        table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = DynKern()

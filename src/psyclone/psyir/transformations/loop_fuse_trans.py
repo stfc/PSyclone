@@ -43,7 +43,7 @@ from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
-    TransformationError
+    TransformationError, LazyString
 
 
 class LoopFuseTrans(LoopTrans):
@@ -77,8 +77,8 @@ class LoopFuseTrans(LoopTrans):
                                      iteration space.
         '''
         # Check that the supplied Nodes are Loops
-        super(LoopFuseTrans, self).validate(node1, options=options)
-        super(LoopFuseTrans, self).validate(node2, options=options)
+        super().validate(node1, options=options)
+        super().validate(node2, options=options)
 
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
@@ -103,11 +103,12 @@ class LoopFuseTrans(LoopTrans):
             if not (SymbolicMaths.equal(node1.start_expr, node2.start_expr) and
                     SymbolicMaths.equal(node1.stop_expr, node2.stop_expr) and
                     SymbolicMaths.equal(node1.step_expr, node2.step_expr)):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. Loops do not have "
-                    f"the same iteration space:\n"
-                    f"{node1.view()}\n"
-                    f"{node2.view()}")
+                raise TransformationError(LazyString(
+                    lambda node1=node1, node2=node2:
+                        f"Error in {self.name} transformation. Loops do not "
+                        f"have the same iteration space:\n"
+                        f"{node1.view()}\n"
+                        f"{node2.view()}"))
 
     def apply(self, node1, node2, options=None):
         # pylint: disable=arguments-differ
@@ -124,8 +125,6 @@ class LoopFuseTrans(LoopTrans):
         '''
         # Validity checks for the supplied nodes
         self.validate(node1, node2, options=options)
-
-        schedule = node1.root
 
         # Remove node2 from the parent
         node2.detach()

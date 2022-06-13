@@ -40,7 +40,6 @@
 ''' This module contains the PSyLoop node implementation.'''
 
 from psyclone.core import AccessType
-from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Routine, Loop
 
 
@@ -51,9 +50,8 @@ class PSyLoop(Loop):
     that the loop is traversing and utility methods to interact with other
     psylayer nodes.
 
-    :param valid_loop_types: a list of loop types that are specific \
+    :param List[str] valid_loop_types: a list of loop types that are specific \
         to a particular API.
-    :type valid_loop_types: list of str
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -75,6 +73,8 @@ class PSyLoop(Loop):
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
         self._kern = None             # Kernel associated with this loop
+        # TODO 1731: _kern expects one kernel. What happens when we doo loop
+        # fusion?
 
         # TODO 1731: replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -104,9 +104,8 @@ class PSyLoop(Loop):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node.
-
-        :returns: Return the dag name for this loop.
+        '''
+        :returns: the dag name to use for this loop.
         :rtype: str
 
         '''
@@ -139,11 +138,12 @@ class PSyLoop(Loop):
         Set the type of this Loop.
 
         :param str value: the type of this loop.
-        :raises GenerationError: if the specified value is not a recognised \
-                                 loop type.
+
+        :raises TypeError: if the specified value is not a recognised \
+            loop type.
         '''
         if value not in self._valid_loop_types:
-            raise GenerationError(
+            raise TypeError(
                 f"Error, loop_type value ({value}) is invalid. Must be one of "
                 f"{self._valid_loop_types}.")
         self._loop_type = value
@@ -163,39 +163,72 @@ class PSyLoop(Loop):
                 f"field_space='{self._field_space}', "
                 f"it_space='{self.iteration_space}']")
 
+    # TODO 1731: The properties below should be dynamically computed instead
+    # of storing an attribute that can become inconsistent with the kernel or
+    # loop bounds.
+
     @property
     def field_space(self):
+        '''
+        :returns: the field_space associated this loop.
+        :rtype: str
+        '''
         return self._field_space
 
     @field_space.setter
     def field_space(self, my_field_space):
+        ''' Set a new field_space for this loop.
+
+        :param my_field_space: the new field_space value.
+        :rtype my_field_space: str
+        '''
         self._field_space = my_field_space
 
     @property
     def field_name(self):
+        '''
+        :returns: the field name associated to this loop.
+        :rtype: str
+        '''
         return self._field_name
 
     @property
     def field(self):
+        '''
+        :returns: the field associated to this loop.
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+        '''
         return self._field
 
     @field_name.setter
     def field_name(self, my_field_name):
+        ''' Set a new field_name for the field associated to this loop.
+
+        :param str my_field_name: the new field name.
+        '''
         self._field_name = my_field_name
 
     @property
     def iteration_space(self):
+        '''
+        :returns: the iteration_space of this loop.
+        :rtype: str
+        '''
         return self._iteration_space
 
     @iteration_space.setter
     def iteration_space(self, it_space):
+        ''' Set a new iteration space for this loop.
+
+        :param str it_space: the new iteration_space fore this loop.
+        '''
         self._iteration_space = it_space
 
     @property
     def kernel(self):
         '''
         :returns: the kernel object associated with this PSyLoop (if any).
-        :rtype: :py:class:`psyclone.psyGen.Kern`
+        :rtype: Optional[:py:class:`psyclone.psyGen.Kern`]
         '''
         return self._kern
 
@@ -223,8 +256,11 @@ class PSyLoop(Loop):
         return result
 
     def has_inc_arg(self):
-        ''' Returns True if any of the Kernels called within this
-        loop have an argument with INC access. Returns False otherwise '''
+        '''
+        :returns: True if any of the Kernels called within this loop have an \
+                argument with INC access, False otherwise.
+        :rtype: bool
+        '''
         for kern_call in self.coded_kernels():
             for arg in kern_call.arguments.args:
                 if arg.access == AccessType.INC:
@@ -239,7 +275,7 @@ class PSyLoop(Loop):
                              operator) to search for.
         :returns: all unique arguments of the given type from kernels inside \
             this loop that are modified.
-        :rtype: list of :py:class:`psyclone.psyGen.DynKernelArgument`
+        :rtype: List[:py:class:`psyclone.psyGen.DynKernelArgument`]
         '''
         arg_names = []
         args = []
@@ -253,12 +289,10 @@ class PSyLoop(Loop):
         return args
 
     def unique_fields_with_halo_reads(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly.
-
+        '''
         :returns: fields in this loop that require at least some of their \
             halo to be clean to work correctly.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
+        :rtype: List[:py:class:`psyclone.psyGen.Argument`]
         '''
 
         unique_fields = []
@@ -273,9 +307,12 @@ class PSyLoop(Loop):
         return unique_fields
 
     def args_filter(self, arg_types=None, arg_accesses=None, unique=False):
-        '''Return all arguments of type arg_types and arg_accesses. If these
-        are not set then return all arguments. If unique is set to
-        True then only return uniquely named arguments'''
+        '''
+        :returns: all arguments of type arg_types and arg_accesses. If these \
+            are not set then return all arguments. If unique is set to \
+            True then only return uniquely named arguments.
+        :rtype: List[:py:class:`psyclone.psyGen.Argument`]
+        '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import args_filter
