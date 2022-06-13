@@ -77,7 +77,7 @@ PROFILE_NONACC = True
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "ice_thd_pnd", "macho", "mpp_", "nemo_gcm",
+                    "macho", "mpp_", "nemo_gcm",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
@@ -100,7 +100,7 @@ ACC_IGNORE = ["day_mth", # Just calendar operations
 # We therefore work-around this by keeping a list of known NEMO
 # functions that must be excluded from within KERNELS regions.
 NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
-                  "eos_pt_from_ct", "gamma_moist", "ice_var_sshdyn", "l_vap",
+                  "eos_pt_from_ct", "gamma_moist", "l_vap",
                   "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
                   "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
                   "rho_air", "visc_air", "sbc_dcy", "glob_sum",
@@ -132,13 +132,8 @@ EXCLUDING = {"default": ExcludeSettings(),
              "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
              # Exclude due to compiler bug preventing CPU multicore executions.
              "dom_vvl_init": ExcludeSettings({"ifs_scalars": True}),
-             # Exclude due to compiler bug: "Missing branch target block".
-             "ice_strength": ExcludeSettings({"ifs_scalars": True}),
              # Do not exclude since OK in these cases.
-             "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False}),
-             "ice_itd_rem": ExcludeSettings({"ifs_1d_arrays": False}),
-             "hpg_sco": ExcludeSettings({"ifs_1d_arrays": False}),
-             "rdgrft_shift": ExcludeSettings({"ifs_1d_arrays": False})}
+             "hpg_sco": ExcludeSettings({"ifs_1d_arrays": False})}
 
 
 def log_msg(name, msg, node):
