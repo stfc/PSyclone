@@ -262,7 +262,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         # For each kernel called from the algorithm layer
         kernels = {}
         for invoke in psyir.walk(AlgorithmInvokeCall):
-            kernels[invoke] = {}
+            kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
 
                 # Find the container that includes this kernel symbol
@@ -285,7 +285,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 kern_trans.metadata_name = kern.symbol.name
                 kern_trans.apply(kernel_psyir)
 
-                kernels[invoke][kern] = kernel_psyir
+                kernels[id(invoke)][id(kern)] = kernel_psyir
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
