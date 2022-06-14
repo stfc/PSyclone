@@ -40,7 +40,6 @@
 import abc
 import six
 
-from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -117,9 +116,17 @@ class LoopTrans(Transformation):
                         f"Nodes of type '{type(item).__name__}' cannot be "
                         f"enclosed by a {self.name} transformation")
 
+        # Disable warning to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
+
         # A 'null' loop is one which exists in the PSyIR hierarchy (mainly for
         # halo-exchange logic) but does *not* correspond to an actual loop
         # in the code that is generated for the PSy layer.
+
+        # TODO 1756: PSyLoop is a PSy-layer concept and 'null' is only defined
+        # in LFRic. Maybe a generic transformation validation is not the best
+        # place for this check.
         if isinstance(node, PSyLoop) and node.loop_type == 'null':
             raise TransformationError(
                 f"Cannot apply a {self.name} transformation to a 'null' loop.")
