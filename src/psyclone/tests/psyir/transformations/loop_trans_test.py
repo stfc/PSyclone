@@ -57,7 +57,7 @@ def test_loop_trans_name():
     assert trans2.name == "LoopFuseTrans"
 
 
-def test_loop_trans_validate():
+def test_loop_trans_validate(monkeypatch):
     ''' Test the validation checks on the loop node provided to the
     transformation. '''
     # We have to use sub-class of LoopTrans as it itself is abstract.
@@ -71,6 +71,13 @@ def test_loop_trans_validate():
     # Check that validate is OK with a valid loop
     loop = invoke.schedule.walk(Loop)[0]
     trans.validate(loop)
+    # Pretend that the loop is of 'null' type
+    monkeypatch.setattr(loop, "_loop_type", "null")
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("Cannot apply a OMPParallelLoopTrans transformation to a "
+            "'null' loop" in str(err.value))
+    monkeypatch.undo()
     # Break the contents of the loop
     loop.children = loop.pop_all_children()[0:1]
     with pytest.raises(TransformationError) as err:
