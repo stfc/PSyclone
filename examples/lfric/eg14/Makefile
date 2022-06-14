@@ -79,7 +79,9 @@ testkern_w0_kernel_0_mod.f90: main_psy.f90
 
 # TODO #1724 - compilation currently fails because module name in use
 # statement needs correcting following ACCRoutineTrans of Kernel.
-compile: $(EXEC)
+compile: transform
+	@echo "No compilation supported for lfric/eg14 due to #1724"
+
 
 run: compile
 	./$(EXEC)
