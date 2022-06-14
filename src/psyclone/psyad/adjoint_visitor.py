@@ -412,13 +412,12 @@ class AdjointVisitor(PSyIRVisitor):
 
         new_condition = node.condition.copy()
         new_if_schedule = self._visit(node.if_body)
-        new_if_body = [node.copy() for node in new_if_schedule.children]
+        new_if_body = new_if_schedule.pop_all_children()
 
         new_else_body = None
         if node.else_body:
             new_else_schedule = self._visit(node.else_body)
-            new_else_body = [node.copy() for node in
-                             new_else_schedule.children]
+            new_else_body = new_else_schedule.pop_all_children()
 
         return IfBlock.create(new_condition, new_if_body, new_else_body)
 
