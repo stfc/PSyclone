@@ -136,6 +136,13 @@ class Alg(object):
                 # subroutine_name' to the algorithm layer.
                 adduse(statement, self._psy.name, only=True,
                        funcnames=[psy_invoke_info.name])
+
+                # Remove the USE statements for each of the kernels.
+                kernels = psy_invoke_info.schedule.walk(DynKern)
+                for kern in kernels:
+                    mod_name = kern.module_name
+                    use_stmts = walk(self._ast, Fortran2003.Use_Stmt)
+
                 idx += 1
 
         if idx == 0:
