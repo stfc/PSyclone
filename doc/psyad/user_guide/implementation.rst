@@ -378,6 +378,36 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
+If Statement
+------------
+
+When an if statement is found in the tangent-linear code, such as the
+following Fortran snippet:
+
+.. code-block:: fortran
+   
+   if (condition) then
+     ! content1
+   else
+     ! content2
+   end if
+
+1) the logical structure of the if is left unchanged, i.e. the
+   :code:`if (condition) then`, optional :code:`else` and :code:`end
+   if`.
+
+2) the sequence of statements within :code:`! content1` in the above
+   example, are processed as described in the Section
+   :ref:`psyir_schedule`.
+
+3) the sequence of statements within :code:`! content2` in the above
+   example, (if it exists, as the else part of an if is optional) are
+   processed as described in the Section :ref:`psyir_schedule`.
+
+The :code:`condition` of the :code:`if` should only contain passive
+variables for this to be a valid tangent-linear code and PSyAD will
+raise an exception if this is not the case.
+
 .. _pre-processing:
   
 Pre-processing
