@@ -1200,6 +1200,36 @@ def test_acc_parallel_trans(tmpdir, fortran_writer):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
+def test_acc_parallel_trans_dm():
+    ''' Test that the OpenACC parallel transform works correctly when
+    distributed memory is enabled. '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=True)
+    schedule = invoke.schedule
+    acct = ACCParallelTrans()
+    accdt = ACCEnterDataTrans()
+    # Applying the transformation to the whole schedule should fail because
+    # of the HaloExchange nodes.
+    with pytest.raises(TransformationError) as err:
+        acct.apply(schedule.children)
+    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
+    acct.apply(schedule.children[1:])
+    # Add an enter-data region.
+    accdt.apply(schedule)
+    code = str(psy.gen)
+    # Check that the start of the parallel region is in the right place.
+    assert ("      CALL p_fld%halo_exchange(1)\n"
+            "      !$acc parallel default(present)\n"
+            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            in code)
+    # Check that the end parallel is generated correctly.
+    assert ("        END DO\n"
+            "      END DO\n"
+            "      !$acc end parallel\n\n"
+            "    END SUBROUTINE invoke_0\n" in code)
+
+
 def test_acc_incorrect_parallel_trans():
     '''Test that the acc transform can not be used to change
     the order of operations.'''
