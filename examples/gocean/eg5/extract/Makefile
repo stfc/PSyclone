@@ -57,6 +57,7 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
+READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
@@ -82,7 +83,7 @@ compile: transform $(NAME) $(DRIVER_INIT) $(DRIVER_UPDATE)
 transform: psy.f90
 
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
+F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR) -I$(READ_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 alg.f90 psy.f90: test.x90 extract_transform.py
@@ -95,20 +96,18 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy
 	$(INF_LIB)                                \
 	$$(nf-config --flibs)
 
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o
 	$(F90) $(KERNELS) $(DRIVER_INIT).o \
 	-o $(DRIVER_INIT)            \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
+	$(READ_DIR)/read_kernel_data_mod.o \
 	$(INF_LIB)     \
 	$$(nf-config --flibs)
 
-$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
+$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o
 	$(F90) $(KERNELS) $(DRIVER_UPDATE).o  \
 	-o $(DRIVER_UPDATE)                         \
 	$(INF_LIB)     \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf      \
+	$(READ_DIR)/read_kernel_data_mod.o \
 	$$(nf-config --flibs)
 
 # The dl_esm_inf library
