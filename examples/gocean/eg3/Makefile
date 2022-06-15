@@ -86,7 +86,7 @@ psy_gen_dm.f90 alg_gen_dm.f90: alg.f90
 
 compile-ocl: fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
 	${F90} ${F90FLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} ${FORTCL_LIB} \
-		${}LDFLAGS} -o alg_opencl.exe
+		${LDFLAGS} -o alg_opencl.exe
 	@echo "OpenCL compilation complete!"
 	@echo "Use 'FORTCL_KERNELS_FILE=opencl_kernels_0.cl ./alg_opencl.exe' to run."
 
