@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ run: compile
 	./nan_test 2>&1| grep "PSyData: Variable a_fld has the invalid value"
 
 $(NAME): $(INF_LIB) $(NAN_TEST_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(NAN_TEST_DIR) -l_nan_test $(INF_LIB)
 
 # The nan-test library
