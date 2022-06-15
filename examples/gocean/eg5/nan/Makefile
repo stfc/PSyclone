@@ -36,7 +36,7 @@
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
 #     export F90=mpif90
-#     export FFLAGS="-O3"
+#     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
 # The nan-test wrapper library:
@@ -54,7 +54,7 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 NAN_TEST_DIR = $(PSYROOT)/lib/nan_test/dl_esm_inf
-FFLAGS += -I$(INF_INC) -I $(NAN_TEST_DIR) 
+F90FLAGS += -I$(INF_INC) -I $(NAN_TEST_DIR)
 LIB_NAME = lib_nan_test.a
 
 # The two kernels used in the application.
@@ -107,7 +107,7 @@ alg.o:	psy.o
 psy.o:	$(KERNELS)
 
 %.o: %.f90
-	$(F90) $(FFLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
 	$(MAKE) -C $(NAN_TEST_DIR) allclean
