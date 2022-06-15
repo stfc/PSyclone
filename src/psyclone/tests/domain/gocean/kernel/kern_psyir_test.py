@@ -109,8 +109,8 @@ def test_kernelmetadatasymbol_setup_derivedtype(fortran_reader):
     datatype.declaration = "integer :: compute_cu"
     with pytest.raises(InternalError) as info:
         _ = KernelMetadataSymbol("name", datatype)
-    assert ("Expected kernel metadata to be a derived type, but found "
-            "'integer :: compute_cu'." in str(info.value))
+    assert ("Expected kernel metadata to be a Fortran derived type, but "
+            "found 'integer :: compute_cu'." in str(info.value))
 
 
 def test_kernelmetadatasymbol_setup_iteratesover(fortran_reader):
@@ -352,6 +352,41 @@ def test_kernelmetadatasymbol_writefortranstring(fortran_reader):
         "  CONTAINS\n"
         "  PROCEDURE, NOPASS :: code => compute_cu_code\n"
         "END TYPE name\n")
+
+
+def test_kernelmetadatasymbol_getproperty_error(fortran_reader):
+    '''Test two exceptions in the getproperty utility function. This is
+    called indirectly in this test.
+
+    '''
+    # no declarations
+    program = (
+        "program dummy\n"
+        "  use random ! avoid any missing declaration errors\n"
+        "  type, extends(kernel_type) :: compute_cu\n"
+        "  contains\n"
+        "    procedure, nopass :: code => compute_cu_code\n"
+        "  end type compute_cu\n"
+        "end program dummy\n")
+    kernel_psyir = fortran_reader.psyir_from_source(program)
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "compute_cu").datatype
+    with pytest.raises(ParseError) as info:
+        _ = KernelMetadataSymbol("name", datatype)
+    assert ("No type-bound procedure component-part section was found in "
+            "'TYPE, EXTENDS(kernel_type) :: compute_cu\n  CONTAINS\n  "
+            "PROCEDURE, NOPASS :: code => compute_cu_code\nEND TYPE "
+            "compute_cu'." in str(info.value))
+
+    # property without a value
+    modified_program = PROGRAM.replace(" = GO_ALL_PTS", "")
+    kernel_psyir = fortran_reader.psyir_from_source(modified_program)
+    datatype = kernel_psyir.children[0].symbol_table.lookup(
+        "compute_cu").datatype
+    with pytest.raises(ParseError) as info:
+        _ = KernelMetadataSymbol("name", datatype)
+    assert ("No value for property iterates_over was found in 'TYPE, "
+            "EXTENDS(kernel_type)" in str(info.value))
 
 
 def test_kernelmetadatasymbol_getproperty(fortran_reader):

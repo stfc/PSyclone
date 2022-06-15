@@ -33,14 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''This module contains PSyclone Kernel-layer-specific PSyIR classes.
+'''This module contains PSyclone Kernel-layer-specific PSyIR classes
+for the GOcean API.
 
 '''
 import re
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.utils import walk
+from fparser.two.utils import walk, get_child
 
 from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
@@ -72,6 +73,14 @@ class KernelMetadataSymbol(DataTypeSymbol):
         '''Populate KernelMetadataSymbol properties and check that the symbol
         contains valid metadata.
 
+        :raises InternalError: if the kernel metadata is not stored as \
+            a PSyIR UnknownFortranType.
+        :raises InternalError: if the kernel metadata is not a derived type.
+        :raises ParseError: if meta_args is not a list.
+        :raises ParseError: if a meta_arg entry has invalid content.
+        :raises ParseError: if a meta_arg entry has an invalid number \
+            of arguments.
+
         '''
         if not isinstance(self.datatype, UnknownFortranType):
             raise InternalError(
@@ -87,8 +96,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
         except Fortran2003.NoMatchError:
             # pylint: disable=raise-missing-from
             raise InternalError(
-                f"Expected kernel metadata to be a derived type, but found "
-                f"'{self.datatype.declaration}'.")
+                f"Expected kernel metadata to be a Fortran derived type, but "
+                f"found '{self.datatype.declaration}'.")
 
         const = GOceanConstants()
         # Extract and store the required 'iterates_over',
@@ -163,9 +172,9 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
     @staticmethod
     def _get_property(spec_part, property_name):
-        '''Internal utility that gets the property 'property_name' from the an
+        '''Internal utility that gets the property 'property_name' from an
         fparser2 tree capturing gocean metadata. It is assumed that
-        the "code property is part of a type bound procedure and that
+        the code property is part of a type bound procedure and that
         the other properties are part of the data declarations.
 
         :param spec_part: the fparser2 parse tree containing the metadata.
@@ -173,17 +182,20 @@ class KernelMetadataSymbol(DataTypeSymbol):
         :param str property_name: the name of the property whose value \
             is being extracted from the metadata.
 
+        :returns: the value of the property.
+        :rtype: :py:class:`fparser.two.Fortran2003.Name | \
+            :py:class:`fparser.two.Fortran2003.Array_Constructor`
+
         :raises ParseError: if the property name is not found in the \
             metadata.
 
         '''
-        if property_name == "code":
-            # This should be found in a type bound procedure after the
-            # contains keyword
-            type_bound_procedure = spec_part.children[2]
-            if not isinstance(
-                    type_bound_procedure,
-                    Fortran2003.Type_Bound_Procedure_Part):
+        if property_name.lower() == "code":
+            # The value of 'code' should be found in a type bound
+            # procedure (after the contains keyword)
+            type_bound_procedure = get_child(
+                spec_part, Fortran2003.Type_Bound_Procedure_Part)
+            if not type_bound_procedure:
                 raise ParseError(
                     f"No type-bound procedure 'contains' section was found in "
                     f"'{spec_part}'.")
@@ -210,14 +222,26 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 procedure_name = binding_name
             return procedure_name
 
-        # The should be a variable declaration within the derived type.
-        component_part = spec_part.children[1]
-        for entry in component_part.children:
-            name = entry.children[2].children[0].children[0].string.lower()
-            if name.lower() == property_name:
-                return walk(
-                    entry,
-                    Fortran2003.Component_Initialization)[0].children[1]
+        # The 'property_name' will be declared within Component_Part.
+        component_part = get_child(spec_part, Fortran2003.Component_Part)
+        if not component_part:
+            raise ParseError(
+                f"No type-bound procedure component-part section was found in "
+                f"'{spec_part}'.")
+        # Each name/value pair will be contained within a Component_Decl
+        for component_decl in walk(component_part, Fortran2003.Component_Decl):
+            # Component_Decl(Name('name') ...)
+            name = component_decl.children[0].string
+            if name.lower() == property_name.lower():
+                # The value will be contained in a Component_Initialization
+                comp_init = get_child(
+                    component_decl, Fortran2003.Component_Initialization)
+                if not comp_init:
+                    raise ParseError(
+                        f"No value for property {property_name} was found "
+                        f"in '{spec_part}'.")
+                # Component_Initialization('=', Name('name'))
+                return comp_init.children[1]
         raise ParseError(
             f"'{property_name}' was not found in {str(spec_part)}.")
 
