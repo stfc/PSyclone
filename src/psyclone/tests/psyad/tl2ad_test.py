@@ -50,9 +50,10 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation, Reference, Literal
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
-    INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface, \
-    ScalarType, ContainerSymbol, ArgumentInterface
+from psyclone.psyir.symbols import (
+    DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
+    ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
+    ArgumentInterface, UnknownFortranType, DeferredType)
 
 
 # 1: generate_adjoint_str function
@@ -558,6 +559,23 @@ def test_add_precision_symbol():
     assert ("One or more variables have a precision specified by symbol "
             "'wrong' which is not local or explicitly imported" in
             str(err.value))
+    # A precision symbol must be a scalar integer or of deferred/unknown type
+    isym = DataSymbol("iwrong", REAL_TYPE)
+    with pytest.raises(TypeError) as err:
+        _add_precision_symbol(isym, table)
+    assert "integer type but 'iwrong' has type 'Scalar<REAL" in str(err.value)
+    arr_sym = DataSymbol("iarray", ArrayType(INTEGER_TYPE, [10]))
+    with pytest.raises(TypeError) as err:
+        _add_precision_symbol(arr_sym, table)
+    assert "integer type but 'iarray' has type 'Array" in str(err.value)
+    def_sym = DataSymbol("my_def",
+                         UnknownFortranType("integer, parameter :: my_def"))
+    _add_precision_symbol(def_sym, table)
+    assert table.lookup("my_def")
+    odef_sym = DataSymbol("o_def", DeferredType(),
+                          interface=ImportInterface(csym))
+    _add_precision_symbol(odef_sym, table)
+    assert table.lookup("o_def")
 
 
 def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):

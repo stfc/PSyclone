@@ -190,12 +190,13 @@ def _get_active_variables_datatype(kernel, active_variables):
             if (precision != sym.datatype.precision or
                     intrinsic != sym.datatype.intrinsic):
                 raise NotImplementedError(
-                    "Found active variables of different datatype: '{0}' is "
-                    "of intrinsic type '{1}' and precision '{2}' while '{3}' "
-                    "is of intrinsic type '{4}' and precision '{5}'. This is "
-                    "not currently supported.".format(
-                        active_variables[0], intrinsic, precision, sym.name,
-                        sym.datatype.intrinsic, sym.datatype.precision))
+                    f"Found active variables of different datatype: "
+                    f"'{active_variables[0]}' is of intrinsic type "
+                    f"'{intrinsic}' and precision '{precision}' while "
+                    f"'{sym.name}' is of intrinsic type "
+                    f"'{sym.datatype.intrinsic}' and precision "
+                    f"'{sym.datatype.precision}'. This is not currently "
+                    f"supported.")
     return ScalarType(intrinsic, precision)
 
 
@@ -243,8 +244,8 @@ def generate_adjoint(tl_psyir, active_variables):
 
     if len(routines) != 1:
         raise NotImplementedError(
-            "The supplied Fortran must contain one and only one routine "
-            "but found: {0}".format([sub.name for sub in routines]))
+            f"The supplied Fortran must contain one and only one routine "
+            f"but found: {[sub.name for sub in routines]}")
     routine = routines[0]
 
     # We need to re-name the kernel routine. Have to take care in case we've
@@ -287,7 +288,7 @@ def _add_precision_symbol(symbol, table):
     # A precision symbol must be of integer or unknown type.
     if not (isinstance(symbol.datatype, (DeferredType, UnknownType)) or
             isinstance(symbol.datatype, ScalarType) and
-            symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
+            symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
         raise TypeError(
             f"For a symbol to represent a precision it must be of deferred, "
             f"unknown or scalar, integer type but '{symbol.name}' has type "
@@ -491,12 +492,12 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
                                     Reference(new_dim_args_map[bound.symbol]))
                             else:
                                 raise NotImplementedError(
-                                    "Found argument '{0}' to kernel '{1}' "
-                                    "which has a reference to '{2}' in its "
-                                    "shape. However, '{2}' is not passed as an"
-                                    " argument. This is not supported.".format(
-                                        arg.name, tl_kernel.name,
-                                        bound.symbol.name))
+                                    f"Found argument '{arg.name}' to kernel "
+                                    f"'{tl_kernel.name}' which has a reference"
+                                    f" to '{bound.symbol.name}' in its shape. "
+                                    f"However, '{bound.symbol.name}' is not "
+                                    f"passed as an argument. This is not "
+                                    f"supported.")
                         elif isinstance(bound, Literal):
                             new_bounds.append(bound.copy())
                         else:
@@ -540,8 +541,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
         # all elements of an array passed to it so we don't have to take any
         # special action.
         # TODO #1345 make this code language agnostic.
-        ptree = Fortran2003.Call_Stmt(
-            "call random_number({0})".format(sym.name))
+        ptree = Fortran2003.Call_Stmt(f"call random_number({sym.name})")
         statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
         statements.append(
             Assignment.create(Reference(sym_copy), Reference(sym)))
@@ -615,11 +615,10 @@ def _create_inner_product(result, symbol_pairs):
 
             if sym1.datatype != sym2.datatype:
                 raise TypeError(
-                    "Cannot compute inner product of Symbols '{0}' and '{1}' "
-                    "because they represent different datatypes ({2} and {3}, "
-                    "respectively).".format(
-                        sym1.name, sym2.name, str(sym1.datatype),
-                        str(sym2.datatype)))
+                    f"Cannot compute inner product of Symbols '{sym1.name}' "
+                    f"and '{sym2.name}' because they represent different "
+                    f"datatypes ({sym1.datatype} and {sym2.datatype}, "
+                    f"respectively).")
 
             prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                           Reference(sym1), Reference(sym2))
@@ -652,22 +651,18 @@ def _create_array_inner_product(result, array1, array2):
     '''
     if array1.datatype != array2.datatype:
         raise TypeError(
-            "Cannot compute inner product of Symbols '{0}' and '{1}' "
-            "because they represent different datatypes ({2} and {3}, "
-            "respectively).".format(
-                array1.name, array2.name, str(array1.datatype),
-                str(array2.datatype)))
+            f"Cannot compute inner product of Symbols '{array1.name}' and "
+            f"'{array2.name}' because they represent different datatypes "
+            f"({array1.datatype} and {array2.datatype}, respectively).")
 
     if not isinstance(array1.datatype, ArrayType):
-        raise TypeError(
-            "Supplied Symbols must represent arrays but got '{0}' for '{1}'.".
-            format(array1.datatype, array1.name))
+        raise TypeError(f"Supplied Symbols must represent arrays but got "
+                        f"'{array1.datatype}' for '{array1.name}'.")
 
     if len(array1.datatype.shape) == 1:
         # PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
         # so we create a CodeBlock.
-        ptree = Fortran2003.Expr("DOT_PRODUCT({0}, {1})".format(
-            array1.name, array2.name))
+        ptree = Fortran2003.Expr(f"DOT_PRODUCT({array1.name}, {array2.name})")
         cblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
 
         return Assignment.create(
@@ -741,8 +736,7 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
                                        constant_value=INNER_PRODUCT_TOLERANCE)
     # TODO #1161 - the PSyIR does not support `SPACING`
     ptree = Fortran2003.Assignment_Stmt(
-        "MachineTol = SPACING ( MAX( ABS({0}), ABS({1}) ) )".format(var1.name,
-                                                                    var2.name))
+        f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )")
     statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
     statements[-1].preceding_comment = (
         "Test the inner-product values for equality, allowing for the "
@@ -756,11 +750,11 @@ def _create_real_comparison(sym_table, kernel, var1, var2):
 
     # TODO #1345 make this code language agnostic.
     ptree1 = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' PASSED: ', {1}, {2}, {3}"
-        .format(kernel.name, var1.name, var2.name, rel_diff.name))
+        f"write(*,*) 'Test of adjoint of ''{kernel.name}'' PASSED: ', "
+        f"{var1.name}, {var2.name}, {rel_diff.name}")
     ptree2 = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' FAILED: ', {1}, {2}, {3}"
-        .format(kernel.name, var1.name, var2.name, rel_diff.name))
+        f"write(*,*) 'Test of adjoint of ''{kernel.name}'' FAILED: ', "
+        f"{var1.name}, {var2.name}, {rel_diff.name}")
 
     statements.append(
         IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
