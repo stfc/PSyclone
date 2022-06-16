@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''This module contains the base class LoopTrans. All transformations which
    act on a loop sub-class this one.
@@ -116,10 +116,18 @@ class LoopTrans(Transformation):
                         f"Nodes of type '{type(item).__name__}' cannot be "
                         f"enclosed by a {self.name} transformation")
 
+        # Disable warning to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
+
         # A 'null' loop is one which exists in the PSyIR hierarchy (mainly for
         # halo-exchange logic) but does *not* correspond to an actual loop
         # in the code that is generated for the PSy layer.
-        if node.loop_type == 'null':
+
+        # TODO 1756: PSyLoop is a PSy-layer concept and 'null' is only defined
+        # in LFRic. Maybe a generic transformation validation is not the best
+        # place for this check.
+        if isinstance(node, PSyLoop) and node.loop_type == 'null':
             raise TransformationError(
                 f"Cannot apply a {self.name} transformation to a 'null' loop.")
 

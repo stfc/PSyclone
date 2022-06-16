@@ -410,27 +410,16 @@ Annotation         Node types         Origin
 Loop Node
 ^^^^^^^^^
 
-The `Loop` node is sub-classed in all of the domains supported by
-PSyclone. This then allows the class to be configured with a
-domain-specific list of valid loop 'types'. For instance, the GOcean
-sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-(dynamo0.3) sub-class, `DynLoop`, has "dofs", "colours", "colour", ""
-and "null". The default loop type (iterating over cells) is here
-indicated by the empty string. The concept of a "null" loop type is
-currently required because the dependency analysis that determines the
-placement of halo exchanges is handled within the `Loop` class. As a
-result, every `Kernel` call must be associated with a `Loop` node.
-However, the LFRic domain has support for kernels which operate on the
-'domain' and thus do not require a loop over cells or dofs in the
-generated PSy layer. Supporting a `DynLoop` of "null" type allows us
-to retain the dependence-analysis functionality within the `Loop`
-while not actually producing a loop in the generated code. When
-`#1148 <https://github.com/stfc/PSyclone/issues/1148>`_ is tackled,
-the dependence-analysis functionality will be removed from
-the `Loop` class and this concept of a "null" loop can be dropped.
+The `Loop` node is the cannonical representation of a bounded loop, it
+has the start, stop, step and loop_body of the loop as its children. The
+node has the same semantics than the Fortran do construct: the boundary
+values are inclusive (both are part of the iteration space) and the start,
+stop and step expressions are evaluated just once at the beginning of the
+loop.
 
 For more details on the `Loop` node, see the full API in the
 :ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Loop`.
+
 
 Ranges
 ------
@@ -790,10 +779,52 @@ symbols, transformations, front-ends and back-ends. None of this is
 domain specific.
 
 To obtain domain-specific concepts the language-level PSyIR can be
-specialised or extended. In LFRic there are specialisations for
+specialised or extended. All domains follow the PSyKAl separation of
+concerns with the Algorithm-layer and the PSy-layer having its own
+domain-specific concepts, this can be found in
+``psyclone.domain.common.algorithm`` and ``psyclone.domain.common.psylayer``
+respectively (some concepts are still on ``psyclone.psyGen`` for legacy
+reasons but will be moved to the new locations over time).
+
+PSy-layer concepts
+------------------
+
+* The `PSyLoop` is a `Loop` where the boundaries are given by the domain
+  specific iteration space that the kernels are applied to. In turn it is
+  sub-classed in all of the domains supported by PSyclone. This then allows
+  the class to be configured with a list of valid loop 'types'. For instance,
+  the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
+  (dynamo0.3) sub-class, `DynLoop`, has "dofs", "colours", "colour", ""
+  and "null". The default loop type (iterating over cells) is here
+  indicated by the empty string. The concept of a "null" loop type is
+  currently required because the dependency analysis that determines the
+  placement of halo exchanges is handled within the `Loop` class. As a
+  result, every `Kernel` call must be associated with a `Loop` node.
+  However, the LFRic domain has support for kernels which operate on the
+  'domain' and thus do not require a loop over cells or dofs in the
+  generated PSy layer. Supporting a `DynLoop` of "null" type allows us
+  to retain the dependence-analysis functionality within the `Loop`
+  while not actually producing a loop in the generated code. When
+  `#1148 <https://github.com/stfc/PSyclone/issues/1148>`_ is tackled,
+  the dependence-analysis functionality will be removed from
+  the `Loop` class and this concept of a "null" loop can be dropped.
+* The `Kern`, which can be of type `CodedKern`, `InlinedKern` or `BuiltIn`
+  are the singular units of computation that can be found inside a
+  `PSyLoop`.
+* The `HaloExchange` is a distributed-memory concept in the PSy-layer.
+* The `GlobalSum` is a distributed-memory concept in the PSy-layer.
+
+
+Other specializations
+---------------------
+
+In LFRic there are specialisations for
 kernel-layer datatypes and symbols. For the algorithm layer in both
 GOcean1.0 and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
+
+
+
 
 The LFRic PSyIR
 ===============

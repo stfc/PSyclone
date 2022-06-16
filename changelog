@@ -1,5 +1,8 @@
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
+
 	2) PR #1669 for #450. Remove set_dirty/clean from ACC regions
+
+	3) PR #1745 towards #1731. Split PSyLoop class from Loop node.
 
 release 2.3.0 9th June 2022
 
