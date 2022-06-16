@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
 !
-!> @brief Kernel which calculates the product of two columnwise operators
-!> @details Calculates op_C = op_C + op_A * op_B
+!> @brief Kernel which calculates the product of two columnwise operators,
+!!        op_C = op_C + op_A * op_B.
 module columnwise_op_mul_kernel_mod
 
 use kernel_mod,              only : kernel_type
@@ -49,7 +49,7 @@ use argument_mod,            only : arg_type,                               &
                                     ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,  &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_solver, i_def
 
 implicit none
 
@@ -78,11 +78,11 @@ public columnwise_op_mul_kernel_code
 
 contains
 
-  !> @brief The subroutine which is called directly from the PSY layer and
-  !> calculates op_C = op_C + op_A * op_B
+  !> @brief The subroutine which is called directly from the PSy layer and
+  !!        calculates op_C = op_C + op_A * op_B.
   !>
   !> @param [in] cell Horizontal cell index
-  !> @param [in] ncell_2d Total number of cells in 2d grid
+  !> @param [in] ncell_2d Total number of cells in 2D grid
   !> @param [in] columnwise_matrix_A Banded matrix op_A
   !> @param [in] nrow_A Number of rows in the banded matrix A
   !> @param [in] ncol_A Number of columns in the banded matrix A
@@ -139,33 +139,33 @@ contains
     integer(kind=i_def), intent(in) :: nrow_B, ncol_B
     integer(kind=i_def), intent(in) :: nrow_C, ncol_C
     integer(kind=i_def), intent(in) :: bandwidth_A, bandwidth_B, bandwidth_C
-    real(kind=r_def), dimension(bandwidth_A,nrow_A,ncell_2d), intent(in) :: columnwise_matrix_A
-    real(kind=r_def), dimension(bandwidth_B,nrow_B,ncell_2d), intent(in) :: columnwise_matrix_B
-    real(kind=r_def), dimension(bandwidth_C,nrow_C,ncell_2d), intent(inout) :: columnwise_matrix_C
+    real(kind=r_solver), dimension(bandwidth_A,nrow_A,ncell_2d), intent(in) :: columnwise_matrix_A
+    real(kind=r_solver), dimension(bandwidth_B,nrow_B,ncell_2d), intent(in) :: columnwise_matrix_B
+    real(kind=r_solver), dimension(bandwidth_C,nrow_C,ncell_2d), intent(inout) :: columnwise_matrix_C
 
     integer(kind=i_def), intent(in) :: alpha_A, beta_A, gamma_m_A, gamma_p_A
     integer(kind=i_def), intent(in) :: alpha_B, beta_B, gamma_m_B, gamma_p_B
     integer(kind=i_def), intent(in) :: alpha_C, beta_C, gamma_m_C, gamma_p_C
 
     ! Internal parameters
-    integer(kind=i_def) :: i,j,ell ! Row and column index index
+    integer(kind=i_def) :: i, j, ell ! Row and column index index
     ! Smallest index in a particular row
     integer(kind=i_def) :: j_minus_A, j_minus_B, j_minus_C
     integer(kind=i_def) :: j_plus_A, j_plus_B, j_plus_C
-    real(kind=r_def) :: matrixentry
+    real(kind=r_solver) :: matrixentry
 
-    do i=1, nrow_C
-       j_minus_A = ceiling((alpha_A*i-gamma_p_A)/(1.0_r_def*beta_A),i_def)
-       j_plus_A = floor((alpha_A*i+gamma_m_A)/(1.0_r_def*beta_A),i_def)
-       j_minus_C = ceiling((alpha_C*i-gamma_p_C)/(1.0_r_def*beta_C),i_def)
-       j_plus_C = floor((alpha_C*i+gamma_m_C)/(1.0_r_def*beta_C),i_def)
-       do j=MAX(1,j_minus_C), MIN(ncol_C,j_plus_C)
-          matrixentry = 0.0_r_def
-          do ell=MAX(1,j_minus_A), MIN(ncol_A,j_plus_A)
-             j_minus_B = ceiling((alpha_B*ell-gamma_p_B)/(1.0_r_def*beta_B),i_def)
-             j_plus_B = floor((alpha_B*ell+gamma_m_B)/(1.0_r_def*beta_B),i_def)
+    do i = 1, nrow_C
+       j_minus_A = ceiling((alpha_A*i-gamma_p_A)/(1.0_r_solver*beta_A), i_def)
+       j_plus_A = floor((alpha_A*i+gamma_m_A)/(1.0_r_solver*beta_A), i_def)
+       j_minus_C = ceiling((alpha_C*i-gamma_p_C)/(1.0_r_solver*beta_C), i_def)
+       j_plus_C = floor((alpha_C*i+gamma_m_C)/(1.0_r_solver*beta_C), i_def)
+       do j = MAX(1,j_minus_C), MIN(ncol_C,j_plus_C)
+          matrixentry = 0.0_r_solver
+          do ell = MAX(1,j_minus_A), MIN(ncol_A,j_plus_A)
+             j_minus_B = ceiling((alpha_B*ell-gamma_p_B)/(1.0_r_solver*beta_B), i_def)
+             j_plus_B = floor((alpha_B*ell+gamma_m_B)/(1.0_r_solver*beta_B), i_def)
              if ( (j_minus_B <= j) .and. (j <= j_plus_B) ) then
-                matrixentry = matrixentry                               &
+                matrixentry = matrixentry                                 &
                             + columnwise_matrix_A(ell-j_minus_A+1,i,cell) &
                             * columnwise_matrix_B(j-j_minus_B+1,ell,cell)
              end if

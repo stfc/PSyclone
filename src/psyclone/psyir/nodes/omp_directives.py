@@ -509,6 +509,8 @@ class OMPParallelDirective(OMPRegionDirective):
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
 
+        self.gen_post_region_code(parent)
+
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
@@ -1037,6 +1039,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, *self.end_string().split()),
                    position=["after", position])
+
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
@@ -142,5 +142,4 @@ def test_all_loop_trans_base_validate(monkeypatch):
                     else:
                         trans.validate(loop)
                 assert "validate test exception" in str(err.value), \
-                    "{0}.validate() does not call LoopTrans.validate()".format(
-                        name)
+                    f"{name}.validate() does not call LoopTrans.validate()"

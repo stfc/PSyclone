@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,27 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply OpenACC Loop, Parallel and Enter Data directives
-generically in the presence of halo exchanges. The psyclone script can
-apply this transformation script via its -s option.
+generically in the presence of halo exchanges. Any user-supplied kernels
+are also transformed through the addition of an OpenACC Routine directive.
+The psyclone script can apply this transformation script via its -s option.
 
 '''
-from __future__ import print_function
+from psyclone.psyGen import CodedKern
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCLoopTrans
+    ACCLoopTrans, ACCRoutineTrans
 
 
 def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC loop, parallel and enter data directives generically.
+    '''PSyclone transformation script for the LFRic API to apply OpenACC loop,
+    parallel and enter data directives generically. User-supplied kernels are
+    transformed through the addition of a routine directive.
 
     '''
     loop_trans = ACCLoopTrans()
     parallel_trans = ACCParallelTrans()
     enter_data_trans = ACCEnterDataTrans()
+    rtrans = ACCRoutineTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -63,5 +66,11 @@ def trans(psy):
             # The loop is now the child of the Directive's Schedule
             parallel_trans.apply(loop.parent.parent)
         enter_data_trans.apply(schedule)
+
+        # We transform every user-supplied kernel using ACCRoutineTrans. This
+        # adds '!$acc routine' which ensures the kernel is compiled for the
+        # OpenACC device.
+        for kernel in schedule.walk(CodedKern):
+            rtrans.apply(kernel)
 
     return psy

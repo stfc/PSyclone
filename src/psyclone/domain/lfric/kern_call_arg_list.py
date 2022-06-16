@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import (ArgOrdering, LFRicConstants)
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -127,6 +127,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over not in ["cell_column", "domain"]:
+            return
         nlayers_name = self._symtab.find_or_create_tag("nlayers").name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
@@ -407,6 +409,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over not in ["cell_column", "domain"]:
+            return
         super(KernCallArgList, self).fs_common(function_space, var_accesses)
         self._ndf_positions.append(
             KernCallArgList.NdfInfo(position=self.num_args,

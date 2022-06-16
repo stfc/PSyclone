@@ -68,7 +68,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> print(psyir.view(colour=False))
     FileContainer[]
         NemoInvokeSchedule[invoke='sub']
-            0: Loop[type='None', field_space='None', it_space='None']
+            0: Loop[variable='ji']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
                 Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
