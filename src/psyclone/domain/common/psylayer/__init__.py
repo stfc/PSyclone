@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford, STFC Daresbury Laboratory
+# Authors S. Siso, STFC Daresbury Lab
 
-''' Single location for the current version number of PSyclone. This is
-    used in setup.py and doc/conf.py '''
+'''A package module for psyclone.domain.common.psylayer'''
 
-__MAJOR__ = 2
-__MINOR__ = 3
-__MICRO__ = 1
+from psyclone.domain.common.psylayer.psyloop import PSyLoop
 
-__SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)
-__VERSION__ = "{0:d}.{1:d}.{2:d}".format(__MAJOR__, __MINOR__, __MICRO__)
+__all__ = ["PSyLoop"]
