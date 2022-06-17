@@ -58,6 +58,8 @@ INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
 READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
+READ_KERNEL_DATA = $(READ_DIR)/read_kernel_data_mod.o \
+
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
@@ -96,19 +98,17 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy
 	$(INF_LIB)                                \
 	$$(nf-config --flibs)
 
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o
-	$(F90) $(KERNELS) $(DRIVER_INIT).o \
-	-o $(DRIVER_INIT)            \
-	$(READ_DIR)/read_kernel_data_mod.o \
-	$(INF_LIB)     \
-	$$(nf-config --flibs)
+#TODO #1757: $(INF_LIB) is required because of the meta-data in the
+#            kernel - once this is fixed, $(INF_LIB) can be removed.
+$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o $(READ_KERNEL_DATA)
+	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT)  \
+		$(INF_LIB) $(READ_KERNEL_DATA) $$(nf-config --flibs)
 
-$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o  \
-	-o $(DRIVER_UPDATE)                         \
-	$(INF_LIB)     \
-	$(READ_DIR)/read_kernel_data_mod.o \
-	$$(nf-config --flibs)
+#TODO #1757: $(INF_LIB) is required because of the meta-data in the
+#            kernel - once this is fixed, $(INF_LIB) can be removed.
+$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o $(READ_KERNEL_DATA)
+	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE) \
+		$(INF_LIB) $(READ_KERNEL_DATA) $$(nf-config --flibs)
 
 # The dl_esm_inf library
 $(INF_LIB):
@@ -123,6 +123,8 @@ psy.o:	$(KERNELS)
 # directory will fail.
 $(DRIVER_INIT).f90: psy.f90
 $(DRIVER_UPDATE).f90: psy.f90
+$(DRIVER_INIT).o: $(READ_KERNEL_DATA)
+$(DRIVER_UPDATE).o: $(READ_KERNEL_DATA)
 
 # Dependency to INF_LIB to make sure the mod file are available
 $(KERNELS):  $(INF_LIB)
@@ -135,6 +137,10 @@ $(KERNELS):  $(INF_LIB)
 $(EXTRACT_DIR)/lib_kernel_data_netcdf.a:
 	make -C $(EXTRACT_DIR)
 
+$(READ_KERNEL_DATA):
+		make -C $(READ_DIR)
+
 allclean: clean
 	make -C $(INF_DIR) clean
 	make -C $(EXTRACT_DIR) clean
+	make -C $(READ_DIR) clean
