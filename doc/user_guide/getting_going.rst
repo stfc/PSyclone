@@ -202,7 +202,7 @@ for instance the script directory is usually called ``Scripts`` instead
 of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
 
 Installation in an `Anaconda Python
-<https://www.anaconda.com/products/individual>`_ environment on
+<https://www.anaconda.com/products/distribution>`_ environment on
 Windows also needs to be done using ``pip`` as ``conda install`` for
 PSyclone is currently not supported.
 
@@ -212,7 +212,7 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python 3 to be installed on the
-target machine. PSyclone is regularly tested with Python 3.6 and 3.8
+target machine. PSyclone is regularly tested with Python 3.6, 3.8 and 3.10
 but should work with any version >= 3.6. (The last PSyclone release to
 support Python 2.7 was version 2.1.0.)
 
