@@ -44,7 +44,6 @@
     Argument). '''
 
 # Imports
-from __future__ import print_function, absolute_import
 import abc
 import os
 from enum import Enum
@@ -57,15 +56,15 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DirectiveGen, DoGen,
-                              IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
-                              UseGen)
+                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen)
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -76,7 +75,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
-                                  OMPParallelDoDirective)
+                                  ACCRegionDirective, OMPRegionDirective)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, INTEGER_SINGLE_TYPE, DataSymbol, SymbolTable, ScalarType,
     DeferredType, DataTypeSymbol, ContainerSymbol, ImportInterface, ArrayType)
@@ -6948,25 +6947,24 @@ class HaloReadAccess(HaloDepth):
                 self._var_depth = "2*" + self._var_depth
 
 
-class DynLoop(Loop):
+class DynLoop(PSyLoop):
     '''
-    The LFRic-specific Loop class. This passes the LFRic-specific
+    The LFRic-specific PSyLoop class. This passes the LFRic-specific
     loop information to the base class so it creates the one
     we require.  Creates LFRic-specific loop bounds when the code is
     being generated.
 
-    :param parent: the parent of this Node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str loop_type: the type (iteration space) of this loop.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     :raises InternalError: if an unrecognised loop_type is specified.
 
     '''
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, parent=None, loop_type=""):
+    def __init__(self, loop_type="", **kwargs):
         const = LFRicConstants()
-        super(DynLoop, self).__init__(parent=parent,
-                                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
         self.loop_type = loop_type
 
         # Set our variable at initialisation as it might be required
@@ -7689,7 +7687,7 @@ class DynLoop(Loop):
                                   "OpenMP parallel region.")
 
         if self._loop_type != "null":
-            super(DynLoop, self).gen_code(parent)
+            super().gen_code(parent)
         else:
             # This is a 'null' loop and therefore we do not actually generate
             # a loop - we go on down to the children instead.
@@ -7702,9 +7700,15 @@ class DynLoop(Loop):
             return
 
         # Set halo clean/dirty for all fields that are modified
-        fields = self.unique_modified_args("gh_field")
+        if not self.unique_modified_args("gh_field"):
+            return
 
-        if not fields:
+        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
+            # We cannot include calls to set halos dirty/clean within OpenACC
+            # regions. This is handled by the appropriate Directive class
+            # instead.
+            # TODO #1755 can this check be made more general (e.g. to include
+            # Extraction regions)?
             return
 
         parent.add(CommentGen(parent, ""))
@@ -7715,17 +7719,26 @@ class DynLoop(Loop):
         parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
                               f"modified in the above {prev_node_name}"))
         parent.add(CommentGen(parent, ""))
-        use_omp_master = False
-        if self.is_openmp_parallel():
-            if not self.ancestor(OMPParallelDoDirective):
-                use_omp_master = True
-                # I am within an OpenMP Do directive so protect
-                # set_dirty() and set_clean() with OpenMP Master
-                parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
+
+        self.gen_mark_halos_clean_dirty(parent)
+
+        parent.add(CommentGen(parent, ""))
+
+    def gen_mark_halos_clean_dirty(self, parent):
+        '''
+        Generates the necessary code to mark halo regions for all modified
+        fields as clean or dirty following execution of this loop.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Set halo clean/dirty for all fields that are modified
+        fields = self.unique_modified_args("gh_field")
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
 
-        # first set all of the halo dirty unless we are
+        # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
             # The HaloWriteAccess class provides information about how the
@@ -7742,12 +7755,8 @@ class DynLoop(Loop):
                 else:
                     parent.add(CallGen(parent, name=field.proxy_name +
                                        "%set_dirty()"))
-        # now set appropriate parts of the halo clean where
-        # redundant computation has been performed
-        for field in fields:
-            # The HaloWriteAccess class provides information about how the
-            # supplied field is accessed within its parent loop
-            hwa = HaloWriteAccess(field, sym_table)
+            # Now set appropriate parts of the halo clean where
+            # redundant computation has been performed.
             if hwa.literal_depth:
                 # halo access(es) is/are to a fixed depth
                 halo_depth = hwa.literal_depth
@@ -7787,12 +7796,6 @@ class DynLoop(Loop):
                     call = CallGen(parent, name=f"{field.proxy_name}%"
                                    f"set_clean({halo_depth})")
                     parent.add(call)
-
-        if use_omp_master:
-            # I am within an OpenMP Do directive so protect
-            # set_dirty() and set_clean() with OpenMP Master
-            parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
-        parent.add(CommentGen(parent, ""))
 
 
 class DynKern(CodedKern):

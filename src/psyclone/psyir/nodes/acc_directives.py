@@ -312,6 +312,8 @@ class ACCParallelDirective(ACCRegionDirective):
 
         parent.add(DirectiveGen(parent, *self.end_string().split()))
 
+        self.gen_post_region_code(parent)
+
     def begin_string(self):
         '''
         Returns the beginning statement of this directive, i.e.
@@ -586,7 +588,10 @@ class ACCKernelsDirective(ACCRegionDirective):
                                 *self.begin_string().split()[1:]))
         for child in self.children:
             child.gen_code(parent)
+
         parent.add(DirectiveGen(parent, *self.end_string().split()))
+
+        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
