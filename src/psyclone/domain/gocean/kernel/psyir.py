@@ -851,7 +851,7 @@ stable/gocean1p0.html#argument-metadata-meta-args>` \
                 raise ValueError(
                     f"The second metadata entry for a scalar argument should "
                     f"be a recognised name (one of "
-                    f"{const.VALID_SCALAR_TYPES}, but found '{value}'.")
+                    f"{const.VALID_SCALAR_TYPES}), but found '{value}'.")
 
         @property
         def datatype(self):
@@ -886,7 +886,7 @@ stable/gocean1p0.html#argument-metadata-meta-args>` \
             if value.lower() not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"The third metadata entry for a scalar should "
-                    f"be a recongnised name (one of "
+                    f"be a recognised name (one of "
                     f"{const.VALID_STENCIL_NAMES}), but found '{value}'.")
 
         @property

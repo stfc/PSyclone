@@ -183,7 +183,7 @@ def test_kernelmetadatasymbol_setup_indexoffset(fortran_reader):
     assert metadata.index_offset == "GO_OFFSET_SW"
 
 
-def test_kernelmetadatasymbol_setup_code(fortran_reader):
+def test_kernelmetadatasymbol_setup_procedure(fortran_reader):
     '''Test that the setup method raises an exception if the required type
     bound procedure does not exist or has an invalid value. Also test
     that it works as expected if the value is valid. Also test that it
@@ -244,7 +244,7 @@ def test_kernelmetadatasymbol_setup_code(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     datatype = symbol.datatype
     metadata = KernelMetadataSymbol("name", datatype)
-    assert metadata.code == "compute_cu_code"
+    assert metadata.procedure == "compute_cu_code"
 
     # OK, no procedure name
     modified_program = PROGRAM.replace(
@@ -254,7 +254,7 @@ def test_kernelmetadatasymbol_setup_code(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     datatype = symbol.datatype
     metadata = KernelMetadataSymbol("name", datatype)
-    assert metadata.code == "code"
+    assert metadata.procedure == "code"
 
 
 # metaargs does not exist, len different to nargs, wrong num args,
@@ -323,15 +323,15 @@ def test_kernelmetadatasymbol_setup_metaargs(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     datatype = symbol.datatype
     metadata = KernelMetadataSymbol("name", datatype)
-    assert len(metadata.args) == 4
-    assert isinstance(metadata.args[0], KernelMetadataSymbol.FieldArg)
-    assert isinstance(metadata.args[1], KernelMetadataSymbol.FieldArg)
-    assert isinstance(metadata.args[2], KernelMetadataSymbol.GridArg)
-    assert isinstance(metadata.args[3], KernelMetadataSymbol.ScalarArg)
+    assert len(metadata.meta_args) == 4
+    assert isinstance(metadata.meta_args[0], KernelMetadataSymbol.FieldArg)
+    assert isinstance(metadata.meta_args[1], KernelMetadataSymbol.FieldArg)
+    assert isinstance(metadata.meta_args[2], KernelMetadataSymbol.GridArg)
+    assert isinstance(metadata.meta_args[3], KernelMetadataSymbol.ScalarArg)
 
 
-def test_kernelmetadatasymbol_writefortranstring(fortran_reader):
-    '''Test that the write_fortran_string method writes out the expected
+def test_kernelmetadatasymbol_fortranstring(fortran_reader):
+    '''Test that the fortran_string method creates the expected
     Fortran type information.
 
     '''
@@ -339,7 +339,7 @@ def test_kernelmetadatasymbol_writefortranstring(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     datatype = symbol.datatype
     kernel_metadata_symbol = KernelMetadataSymbol("name", datatype)
-    result = kernel_metadata_symbol.write_fortran_string()
+    result = kernel_metadata_symbol.fortran_string()
     assert result == (
         "TYPE, EXTENDS(kernel_type) :: name\n"
         "TYPE(go_arg), DIMENSION(4) :: meta_args = ("
@@ -459,24 +459,28 @@ def test_kernelmetadatasymbol_args(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    assert len(kernel_metadata.args) == 4
-    assert isinstance(kernel_metadata.args[0], KernelMetadataSymbol.FieldArg)
-    assert isinstance(kernel_metadata.args[1], KernelMetadataSymbol.FieldArg)
-    assert isinstance(kernel_metadata.args[2], KernelMetadataSymbol.GridArg)
-    assert isinstance(kernel_metadata.args[3], KernelMetadataSymbol.ScalarArg)
+    assert len(kernel_metadata.meta_args) == 4
+    assert isinstance(
+        kernel_metadata.meta_args[0], KernelMetadataSymbol.FieldArg)
+    assert isinstance(
+        kernel_metadata.meta_args[1], KernelMetadataSymbol.FieldArg)
+    assert isinstance(
+        kernel_metadata.meta_args[2], KernelMetadataSymbol.GridArg)
+    assert isinstance(
+        kernel_metadata.meta_args[3], KernelMetadataSymbol.ScalarArg)
 
 
-def test_kernelmetadatasymbol_code(fortran_reader):
-    '''Test that get and set work for code metadata.'''
+def test_kernelmetadatasymbol_procedure(fortran_reader):
+    '''Test that get and set work for procedure metadata.'''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    assert kernel_metadata.code == "compute_cu_code"
+    assert kernel_metadata.procedure == "compute_cu_code"
     assert "new_code" not in kernel_metadata.datatype.declaration
     assert "compute_cu_code" in kernel_metadata.datatype.declaration
-    kernel_metadata.code = "new_code"
-    assert kernel_metadata.code == "new_code"
+    kernel_metadata.procedure = "new_code"
+    assert kernel_metadata.procedure == "new_code"
     assert "new_code" in kernel_metadata.datatype.declaration
     assert "compute_cu_code" not in kernel_metadata.datatype.declaration
 
@@ -511,8 +515,8 @@ def test_gridarg_error():
             in str(info.value))
 
 
-def test_gridarg_writefortranstring(fortran_reader):
-    '''Test that the write_fortran_string method in a GridArg instance
+def test_gridarg_fortranstring(fortran_reader):
+    '''Test that the fortran_string method in a GridArg instance
     works as expected.
 
     '''
@@ -520,8 +524,8 @@ def test_gridarg_writefortranstring(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    grid_arg = kernel_metadata.args[2]
-    result = grid_arg.write_fortran_string()
+    grid_arg = kernel_metadata.meta_args[2]
+    result = grid_arg.fortran_string()
     assert result == "go_arg(GO_READ, GO_GRID_AREA_T)"
 
 
@@ -531,7 +535,7 @@ def test_gridarg_access(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    grid_arg = kernel_metadata.args[2]
+    grid_arg = kernel_metadata.meta_args[2]
     assert grid_arg.access == "GO_READ"
     with pytest.raises(ValueError) as info:
         grid_arg.access = "hello"
@@ -539,8 +543,8 @@ def test_gridarg_access(fortran_reader):
     constants = config.api_conf("gocean1.0").get_constants()
     access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a grid property argument should "
-            f"be one of {access_types}, but found 'hello'."
-            in str(info.value))
+            f"be a valid access descriptor (one of {access_types}), but "
+            f"found 'hello'." in str(info.value))
     assert ("GO_WRITE, GO_GRID_AREA_T" not in
             kernel_metadata.datatype.declaration)
     assert "GO_READ, GO_GRID_AREA_T" in kernel_metadata.datatype.declaration
@@ -557,16 +561,16 @@ def test_gridarg_name(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    grid_arg = kernel_metadata.args[2]
+    grid_arg = kernel_metadata.meta_args[2]
     assert grid_arg.name == "GO_GRID_AREA_T"
     with pytest.raises(ValueError) as info:
         grid_arg.name = "hello"
     config = Config.get()
     api_config = config.api_conf("gocean1.0")
     grid_property_names = list(api_config.grid_properties.keys())
-    assert (f"The second meadata entry for a grid property argument should be "
-            f"one of {grid_property_names}, but found 'hello'."
-            in str(info.value))
+    assert (f"The second metadata entry for a grid property argument should "
+            f"have a valid name (one of {grid_property_names}), but found "
+            f"'hello'." in str(info.value))
     assert "GO_GRID_XSTOP" not in kernel_metadata.datatype.declaration
     assert "GO_GRID_AREA_T" in kernel_metadata.datatype.declaration
     grid_arg.name = "GO_GRID_XSTOP"
@@ -606,8 +610,8 @@ def test_fieldarg_error():
             in str(info.value))
 
 
-def test_fieldarg_writefortranstring(fortran_reader):
-    '''Test that the write_fortran_string method in a FieldArg instance
+def test_fieldarg_fortranstring(fortran_reader):
+    '''Test that the fortran_string method in a FieldArg instance
     works as expected. Test when there is and there is not a stencil.
 
     '''
@@ -616,12 +620,12 @@ def test_fieldarg_writefortranstring(fortran_reader):
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
     # no stencil
-    field_arg = kernel_metadata.args[0]
-    result = field_arg.write_fortran_string()
+    field_arg = kernel_metadata.meta_args[0]
+    result = field_arg.fortran_string()
     assert result == "go_arg(GO_WRITE, GO_CU, GO_POINTWISE)"
     # stencil
-    field_arg = kernel_metadata.args[1]
-    result = field_arg.write_fortran_string()
+    field_arg = kernel_metadata.meta_args[1]
+    result = field_arg.fortran_string()
     assert result == "go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000))"
 
 
@@ -631,15 +635,15 @@ def test_fieldarg_access(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    field_arg = kernel_metadata.args[0]
+    field_arg = kernel_metadata.meta_args[0]
     assert field_arg.access == "GO_WRITE"
     with pytest.raises(ValueError) as info:
         field_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
     access_types = constants.VALID_ACCESS_TYPES
-    assert (f"The first metadata entry for a field argument should be one of "
-            f"{access_types}, but found 'hello'."
+    assert (f"The first metadata entry for a field argument should be a "
+            f"recognised name (one of {access_types}), but found 'hello'."
             in str(info.value))
     assert "GO_READ, GO_CU" not in kernel_metadata.datatype.declaration
     assert "GO_WRITE, GO_CU" in kernel_metadata.datatype.declaration
@@ -649,25 +653,27 @@ def test_fieldarg_access(fortran_reader):
     assert "GO_WRITE, GO_CU" not in kernel_metadata.datatype.declaration
 
 
-def test_fieldarg_stagger(fortran_reader):
-    '''Test that get, set and validate work for stagger metadata.'''
+def test_fieldarg_grid_point_type(fortran_reader):
+    '''Test that get, set and validate work for grid_point_type
+    metadata.'''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    field_arg = kernel_metadata.args[0]
-    assert field_arg.stagger == "GO_CU"
+    field_arg = kernel_metadata.meta_args[0]
+    assert field_arg.grid_point_type == "GO_CU"
     with pytest.raises(ValueError) as info:
-        field_arg.stagger = "hello"
+        field_arg.grid_point_type = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
     field_grid_types = constants.VALID_FIELD_GRID_TYPES
-    assert (f"The second metadata entry for a field argument should be one of "
-            f"{field_grid_types}, but found 'hello'." in str(info.value))
+    assert (f"The second metadata entry for a field argument should be a "
+            f"recognised name (one of {field_grid_types}), but found "
+            f"'hello'." in str(info.value))
     assert "GO_CF" not in kernel_metadata.datatype.declaration
     assert "GO_CU" in kernel_metadata.datatype.declaration
-    field_arg.stagger = "GO_CF"
-    assert field_arg.stagger == "GO_CF"
+    field_arg.grid_point_type = "GO_CF"
+    assert field_arg.grid_point_type == "GO_CF"
     assert "GO_CF" in kernel_metadata.datatype.declaration
     assert "GO_CU" not in kernel_metadata.datatype.declaration
 
@@ -678,13 +684,13 @@ def test_fieldarg_form(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    field_arg = kernel_metadata.args[0]
+    field_arg = kernel_metadata.meta_args[0]
     assert field_arg.form == "GO_POINTWISE"
     with pytest.raises(ValueError) as info:
         field_arg.form = "hello"
-    assert ("The third metadata entry for a field should be one of "
-            "['go_pointwise'] or 'go_stencil(...)', but found 'hello'."
-            in str(info.value))
+    assert ("The third metadata entry for a field should be a recognised "
+            "name (one of ['go_pointwise'] or 'go_stencil(...)'), but "
+            "found 'hello'." in str(info.value))
     assert "GO_CU, go_pointwise" not in kernel_metadata.datatype.declaration
     assert "GO_CU, GO_POINTWISE" in kernel_metadata.datatype.declaration
     field_arg.form = "go_pointwise"
@@ -708,7 +714,7 @@ def test_fieldarg_stencil(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    field_arg = kernel_metadata.args[1]
+    field_arg = kernel_metadata.meta_args[1]
     assert field_arg.form == "GO_STENCIL"
     assert len(field_arg.stencil) == 3
     assert field_arg.stencil == ["000", "011", "000"]
@@ -719,17 +725,17 @@ def test_fieldarg_stencil(fortran_reader):
     with pytest.raises(ValueError) as info:
         field_arg.stencil = ["hello"]
     assert ("If the third metadata entry is a stencil, it should contain 3 "
-            "arguments, but found 1." in str(info.value))
+            "arguments, but found 1 in ['hello']." in str(info.value))
     with pytest.raises(TypeError) as info:
         field_arg.stencil = [0, "hello", "hello"]
     assert ("Stencil entries should be strings, but found 'int'."
             in str(info.value))
     with pytest.raises(ValueError) as info:
         field_arg.stencil = ["000", "011", "00"]
-    assert ("Stencil entries should follow the pattern [01]{3:3}, but "
+    assert ("Stencil entries should follow the pattern [01]{3,3}, but "
             "found '00'." in str(info.value))
 
-    field_arg = kernel_metadata.args[0]
+    field_arg = kernel_metadata.meta_args[0]
     assert field_arg.form == "GO_POINTWISE"
     assert field_arg.stencil is None
     assert "GO_CU, GO_POINTWISE" in kernel_metadata.datatype.declaration
@@ -772,8 +778,8 @@ def test_scalararg_error():
             in str(info.value))
 
 
-def test_scalararg_writefortranstring(fortran_reader):
-    '''Test that the write_fortran_string method in a ScalarArg instance
+def test_scalararg_fortranstring(fortran_reader):
+    '''Test that the fortran_string method in a ScalarArg instance
     works as expected.
 
     '''
@@ -781,8 +787,8 @@ def test_scalararg_writefortranstring(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    scalar_arg = kernel_metadata.args[3]
-    result = scalar_arg.write_fortran_string()
+    scalar_arg = kernel_metadata.meta_args[3]
+    result = scalar_arg.fortran_string()
     assert result == "go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)"
 
 
@@ -792,15 +798,16 @@ def test_scalararg_access(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    scalar_arg = kernel_metadata.args[3]
+    scalar_arg = kernel_metadata.meta_args[3]
     assert scalar_arg.access == "GO_READ"
     with pytest.raises(ValueError) as info:
         scalar_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
     access_types = constants.VALID_ACCESS_TYPES
-    assert (f"The first metadata entry for a scalar argument should be one of "
-            f"{access_types}, but found 'hello'." in str(info.value))
+    assert (f"The first metadata entry for a scalar argument should be a "
+            f"recognised name (one of {access_types}), but found 'hello'."
+            in str(info.value))
     assert "GO_WRITE, GO_R_SCALAR" not in kernel_metadata.datatype.declaration
     assert "GO_READ, GO_R_SCALAR" in kernel_metadata.datatype.declaration
     scalar_arg.access = "GO_WRITE"
@@ -815,15 +822,15 @@ def test_scalararg_datatype(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    scalar_arg = kernel_metadata.args[3]
+    scalar_arg = kernel_metadata.meta_args[3]
     assert scalar_arg.datatype == "GO_R_SCALAR"
     with pytest.raises(ValueError) as info:
         scalar_arg.datatype = "hello"
     config = Config.get()
     constants = config.api_conf("gocean1.0").get_constants()
     scalar_types = constants.VALID_SCALAR_TYPES
-    assert (f"The second metadata entry for a scalar argument should be "
-            f"one of {scalar_types}, but found 'hello'."
+    assert (f"The second metadata entry for a scalar argument should be a "
+            f"recognised name (one of {scalar_types}), but found 'hello'."
             in str(info.value))
     assert "GO_I_SCALAR" not in kernel_metadata.datatype.declaration
     assert "GO_R_SCALAR" in kernel_metadata.datatype.declaration
@@ -839,12 +846,13 @@ def test_scalararg_form(fortran_reader):
     datatype = kernel_psyir.children[0]. \
         symbol_table.lookup("compute_cu").datatype
     kernel_metadata = KernelMetadataSymbol("name", datatype)
-    scalar_arg = kernel_metadata.args[3]
+    scalar_arg = kernel_metadata.meta_args[3]
     assert scalar_arg.form == "GO_POINTWISE"
     with pytest.raises(ValueError) as info:
         scalar_arg.form = "hello"
-    assert ("The third metadata entry for a scalar should be one of "
-            "['go_pointwise'], but found 'hello'." in str(info.value))
+    assert ("The third metadata entry for a scalar should be a recognised "
+            "name (one of ['go_pointwise']), but found 'hello'."
+            in str(info.value))
     assert "SCALAR, go_pointwise" not in kernel_metadata.datatype.declaration
     assert "SCALAR, GO_POINTWISE" in kernel_metadata.datatype.declaration
     scalar_arg.form = "go_pointwise"
