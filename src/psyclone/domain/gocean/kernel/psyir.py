@@ -99,18 +99,28 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 f"Expected kernel metadata to be a Fortran derived type, but "
                 f"found '{self.datatype.declaration}'.")
 
+        # We do not use the setters here for setting the values of
+        # iterates_over, index_offset and code as the setters update
+        # the underlying string representation and we don't want/need
+        # to do that as we are actually using the value of the string
+        # representation to set these values.
+
         const = GOceanConstants()
         # Extract and store the required 'iterates_over',
         # 'index_offset' and 'code' properties from the parse tree for
         # ease of access.
+
+        # the value of iterates over (go_all_pts, ...)
         value = self._get_property(spec_part, "iterates_over").string
         self._validate_iterates_over(value)
         self._iterates_over = value
 
+        # the value of index offset (NE, ...)
         value = self._get_property(spec_part, "index_offset").string
         self._validate_index_offset(value)
         self._index_offset = value
 
+        # the name of the procedure that this metadata refers to.
         self._code = self._get_property(spec_part, "code").string
 
         # meta_args contains arguments which have
@@ -148,25 +158,24 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"found {len(meta_arg.children[1].children)} in "
                     f"{str(meta_arg)}.")
 
-    def write_fortran_string(self):
+    def fortran_string(self):
         '''
         :returns: the metadata represented by this instance as a Fortran \
             string.
         :rtype: str
-
         '''
         go_args = []
-        for go_arg in self.args:
-            go_args.append(go_arg.write_fortran_string())
+        for go_arg in self.meta_args:
+            go_args.append(go_arg.fortran_string())
         go_args_str = ", ".join(go_args)
         result = (
             f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
-            f"TYPE(go_arg), DIMENSION({len(self.args)}) :: "
+            f"TYPE(go_arg), DIMENSION({len(self.meta_args)}) :: "
             f"meta_args = (/{go_args_str}/)\n"
             f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
             f"  INTEGER :: index_offset = {self.index_offset}\n"
             f"  CONTAINS\n"
-            f"  PROCEDURE, NOPASS :: code => {self.code}\n"
+            f"  PROCEDURE, NOPASS :: code => {self.procedure}\n"
             f"END TYPE {self.name}\n")
         return result
 
@@ -247,11 +256,12 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
     @staticmethod
     def _validate_iterates_over(value):
-        '''Check that 'value' is a valid 'iterates_over' value.
+        '''Check that 'value' is a valid 'iterates_over' value (go_all_pts,
+        ...).
 
         :param str value: the value to check.
 
-        raises ValueError: if the supplied value is invalid.
+        :raises ValueError: if the supplied value is invalid.
 
         '''
         const = GOceanConstants()
@@ -263,7 +273,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
     @property
     def iterates_over(self):
         '''
-        :returns: the value of iterates_over.
+        :returns: the name of the quantity that this kernel is intended to \
+            iterate over.
         :rtype: str
         '''
         return self._iterates_over
@@ -271,23 +282,22 @@ class KernelMetadataSymbol(DataTypeSymbol):
     @iterates_over.setter
     def iterates_over(self, value):
         '''
-        :param str value: the new value for iterates_over.
-
-        :raises ValueError: if an invalid value is supplied.
-
+        :param str value: set the iterates_over metadata to the \
+            specified value.
         '''
         self._validate_iterates_over(value)
         self._iterates_over = value
         # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self.write_fortran_string()
+        self.datatype.declaration = self.fortran_string()
 
     @staticmethod
     def _validate_index_offset(value):
-        '''Check that 'value' is a valid 'index_offset' value.
+        '''Check that 'value' is a valid 'index_offset' value (go_offset_ne,
+        ...).
 
         :param str value: the value to check.
 
-        raises ValueError: if the supplied value is invalid.
+        :raises ValueError: if the supplied value is invalid.
 
         '''
         const = GOceanConstants()
@@ -299,7 +309,8 @@ class KernelMetadataSymbol(DataTypeSymbol):
     @property
     def index_offset(self):
         '''
-        :returns: the value of index_offset.
+        :returns: the name of the quantity that specifies the index \
+            offset (how different field indices relate to each other).
         :rtype: str
         '''
         return self._index_offset
@@ -307,38 +318,41 @@ class KernelMetadataSymbol(DataTypeSymbol):
     @index_offset.setter
     def index_offset(self, value):
         '''
-        :param str value: the new value for index_offset.
+        :param str value: set the index_offset metadata to the \
+          specified value.
         '''
         self._validate_index_offset(value)
         self._index_offset = value
         # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self.write_fortran_string()
+        self.datatype.declaration = self.fortran_string()
 
     @property
-    def args(self):
+    def meta_args(self):
         '''
-        :returns: a list of arg objects capturing their metadata values.
+        :returns: a list of 'meta_arg' objects which capture the \
+            metadata values of the kernel arguments.
         :rtype: List[:py:class:`psyclone.psyir.common.kernel.\
             KernelMetadataSymbol.KernelMetadataArg`]
         '''
         return self._meta_args
 
     @property
-    def code(self):
+    def procedure(self):
         '''
-        :returns: the kernel code routine name.
+        :returns: the kernel procedure name specified by the metadata.
         :rtype: str
         '''
         return self._code
 
-    @code.setter
-    def code(self, value):
+    @procedure.setter
+    def procedure(self, value):
         '''
-        :param str value: the new value for code.
+        :param str value: set the procedure name specified in the \
+            metadata to the specified value.
         '''
         self._code = value
         # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self.write_fortran_string()
+        self.datatype.declaration = self.fortran_string()
 
     class GridArg():
         '''Internal class to capture Kernel metadata argument information for
@@ -364,14 +378,24 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"There should be 2 kernel metadata arguments for a grid "
                     f"property but found {len(arg_list.children)} in "
                     f"{str(meta_arg)}")
+
+            # We do not use the setters here for setting the values of
+            # access and name as the setters update the underlying
+            # string representation and we don't want/need to do that
+            # as we are actually using the value of the string
+            # representation to set these values.
+
+            # access descriptor (read, write, ...)
             access = arg_list.children[0].string
             self._validate_access(access)
             self._access = access
+
+            # name of the grid property (grid_mask_t, ...)
             name = arg_list.children[1].string
             self._validate_name(name)
             self._name = name
 
-        def write_fortran_string(self):
+        def fortran_string(self):
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
@@ -381,24 +405,26 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
         @staticmethod
         def _validate_access(value):
-            '''Check that 'value' is a valid 'access' value.
+            '''Check that 'value' is a valid 'access' value (go_read, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a grid property argument "
-                    f"should be one of {const.VALID_ACCESS_TYPES}, but "
-                    f"found '{value}'.")
+                    f"should be a valid access descriptor (one of "
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
             '''
-            :returns: the value of access.
+            :returns: the value of the access descriptor. This \
+                specifies how the grid property is accessed (read, write, \
+                readwrite).
             :rtype: str
             '''
             return self._access
@@ -406,21 +432,23 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @access.setter
         def access(self, value):
             '''
-            :param str value: the new value for access.
+            :param str value: set the access descriptor for this grid \
+                property to the specified value.
             '''
             self._validate_access(value)
             self._access = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
         @staticmethod
         def _validate_name(value):
-            '''Check that 'value' is a valid 'name' value.
+            '''Check that 'value' is a valid 'name' value for a GOcean grid
+            property (go_grid_mask_t, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             config = Config.get()
@@ -428,14 +456,14 @@ class KernelMetadataSymbol(DataTypeSymbol):
             grid_property_names = list(api_config.grid_properties.keys())
             if value.lower() not in grid_property_names:
                 raise ValueError(
-                    f"The second meadata entry for a grid property argument "
-                    f"should be one of {grid_property_names}, but found "
-                    f"'{value}'.")
+                    f"The second metadata entry for a grid property argument "
+                    f"should have a valid name (one of "
+                    f"{grid_property_names}), but found '{value}'.")
 
         @property
         def name(self):
             '''
-            :returns: the grid property name.
+            :returns: the grid property name as specified by the metadata.
             :rtype: str
             '''
             return self._name
@@ -443,17 +471,18 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @name.setter
         def name(self, value):
             '''
-            :param str value: the new value for name.
+            :param str value: set the grid property name to the \
+                specified value.
             '''
             self._validate_name(value)
             self._name = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
     class FieldArg():
-        '''Internal class to capture Kernel metadata argument information for
-        a field.
+        '''Internal class to capture Kernel metadata information for
+        a field argument.
 
         :param meta_arg: an fparser2 tree representation of the metadata.
         :type meta_arg: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -477,20 +506,30 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"argument, but found {len(arg_list.children)} in "
                     f"{str(meta_arg)}.")
 
+            # We do not use the setters here for setting the values of
+            # access, grid_point_type, form and stencil as the setters
+            # update the underlying string representation and we don't
+            # want/need to do that as we are actually using the value
+            # of the string representation to set these values.
+
+            # access descriptor (go_read, go_write, ...)
             access = arg_list.children[0].string
             self._validate_access(access)
             self._access = access
 
-            stagger = arg_list.children[1].string
-            self._validate_stagger(stagger)
-            self._stagger = stagger
+            # grid point type (go_ct, ...)
+            grid_point_type = arg_list.children[1].string
+            self._validate_grid_point_type(grid_point_type)
+            self._grid_point_type = grid_point_type
 
             if isinstance(arg_list.children[2], Fortran2003.Name):
+                # form of access (go_pointwise, ...)
                 form = arg_list.children[2].string
                 self._validate_form(form)
                 self._form = form
                 self._stencil = None
-            else:  # Stencil
+            else:  # Stencil form (go_stencil) and stencil value
+                # (e.g. [000, 111, 000])
                 name = arg_list.children[2].children[0].string
                 self._validate_stencil_name(name)
                 self._form = name
@@ -499,37 +538,39 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     self._stencil.append(stencil_dim.children[0])
                 self._validate_stencil(self._stencil)
 
-        def write_fortran_string(self):
+        def fortran_string(self):
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
             :rtype: str
             '''
             if self.stencil:
-                return (f"go_arg({self.access}, {self.stagger}, "
+                return (f"go_arg({self.access}, {self.grid_point_type}, "
                         f"{self.form}({', '.join(self.stencil)}))")
-            return f"go_arg({self.access}, {self.stagger}, {self.form})"
+            return (f"go_arg({self.access}, {self.grid_point_type}, "
+                    f"{self.form})")
 
         @staticmethod
         def _validate_access(value):
-            '''Check that 'value' is a valid 'access' value.
+            '''Check that 'value' is a valid 'access' value (go_read, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a field argument should "
-                    f"be one of {const.VALID_ACCESS_TYPES}, but found "
-                    f"'{value}'.")
+                    f"be a recognised name (one of "
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
             '''
-            :returns: the value of access.
+            :returns: the access descriptor for this field \
+                argument.
             :rtype: str
             '''
             return self._access
@@ -537,69 +578,75 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @access.setter
         def access(self, value):
             '''
-            :param str value: the new value for access.
+            :param str value: set the access descriptor to the \
+                specified value.
             '''
             self._validate_access(value)
             self._access = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
         @staticmethod
-        def _validate_stagger(value):
-            '''Check that 'value' is a valid 'stagger' value.
+        def _validate_grid_point_type(value):
+            '''Check that 'value' is a valid 'grid_point_type' value
+            (go_ct, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_FIELD_GRID_TYPES:
                 raise ValueError(
                     f"The second metadata entry for a field argument should "
-                    f"be one of {const.VALID_FIELD_GRID_TYPES}, but found "
-                    f"'{value}'.")
+                    f"be a recognised name (one of "
+                    f"{const.VALID_FIELD_GRID_TYPES}), but found '{value}'.")
 
         @property
-        def stagger(self):
+        def grid_point_type(self):
             '''
-            :returns: the value of stagger.
+            :returns: the value of the grid point type (go_ct, ...) \
+                for the field argument.
             :rtype: str
             '''
-            return self._stagger
+            return self._grid_point_type
 
-        @stagger.setter
-        def stagger(self, value):
+        @grid_point_type.setter
+        def grid_point_type(self, value):
             '''
-            :param str value: the new value for stagger.
+            :param str value: set the field grid point type (ct, ...) \
+                to the specified value.
             '''
-            self._validate_stagger(value)
-            self._stagger = value
+            self._validate_grid_point_type(value)
+            self._grid_point_type = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
         @staticmethod
         def _validate_form(value):
-            '''Check that 'value' is a valid 'form' value.
+            '''Check that 'value' is a valid 'form' value (go_pointwise, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"The third metadata entry for a field should "
-                    f"be one of {const.VALID_STENCIL_NAMES} or "
-                    f"'go_stencil(...)', but found '{value}'.")
+                    f"be a recognised name (one of "
+                    f"{const.VALID_STENCIL_NAMES} or 'go_stencil(...)'), "
+                    f"but found '{value}'.")
 
         @property
         def form(self):
             '''
-            :returns: the form of access.
+            :returns: the form of access for the field (pointwise, \
+                stencil, ...).
             :rtype: str
             '''
             return self._form
@@ -607,17 +654,18 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @form.setter
         def form(self, value):
             '''
-            :param str value: the new value for form.
+            :param str value: set the form of access for the field to \
+                the specified value.
             '''
             self._validate_form(value)
             self._form = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
         @staticmethod
         def _validate_stencil_name(value):
-            '''Check that value is the expected stencil name.
+            '''Check that value is the expected stencil name (go_stencil).
 
             :raises ValueError: if an invalid stencil name is found.
 
@@ -631,16 +679,16 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
         @staticmethod
         def _validate_stencil(value_list):
-            '''Check that 'value_list' is a valid list of 'stencil' elements.
+            '''Check that 'value_list' is a valid list of 'stencil' elements
+            (e.g. [000, 111, 000]).
 
             :param value_list: the values to check.
             :type value_list: List[str]
 
-            raises TypeError: if the supplied argument is not a list.
-            raises ValueError: if the supplied list is not of size 3.
-            raises TypeError: if any of the list entries are not \
-                strings.
-            raises ValueError: if any of the list entries do not \
+            :raises TypeError: if the supplied argument is not a list.
+            :raises ValueError: if the supplied list is not of size 3.
+            :raises TypeError: if any of the list entries are not strings.
+            :raises ValueError: if any of the list entries do not \
                 conform to the expected format.
 
             '''
@@ -652,7 +700,9 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 raise ValueError(
                     f"If the third metadata entry is a stencil, it should "
                     f"contain 3 arguments, but found "
-                    f"{len(value_list)}.")
+                    f"{len(value_list)} in {value_list}.")
+            # Match 3 integers which can each have the value 0 or 1
+            # (e.g. 000, 010, 111, ...)
             pattern = re.compile("[01]{3,3}")
             for value in value_list:
                 if not isinstance(value, str):
@@ -662,7 +712,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                 if not pattern.match(value):
                     raise ValueError(
                         f"Stencil entries should follow the pattern "
-                        f"[01]{{3:3}}, but found '{value}'.")
+                        f"[01]{{3,3}}, but found '{value}'.")
 
         @property
         def stencil(self):
@@ -675,20 +725,29 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @stencil.setter
         def stencil(self, value_list):
             '''
-            :param value_list: the new value for stencil.
+            :param value_list: set the new stencil value, encoded as \
+                three strings, each of three digits (0 or 1), see the \
+                `psyclone user guide <https://psyclone.readthedocs.io/en/\
+stable/gocean1p0.html#argument-metadata-meta-args>` \
+                for more details.
             :type value_list: List[str]
+
             '''
             self._validate_stencil(value_list)
             self._stencil = value_list
+            # If form was not GO_STENCIL, we need to set it to
+            # GO_STENCIL now that we are providing a stencil value as
+            # the format is GO_STENCIL(stencil) which is _form (
+            # _stencil ).
             if self._form.upper() != "GO_STENCIL":
                 self._form = "GO_STENCIL"
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
     class ScalarArg():
-        '''Internal class to capture Kernel metadata argument information for
-        a scalar.
+        '''Internal class to capture Kernel metadata information for
+        a scalar argument.
 
         :param meta_arg: an fparser2 tree representation of the metadata.
         :type meta_arg: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -712,19 +771,28 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"argument, but found {len(arg_list.children)} in "
                     f"{str(meta_arg)}.")
 
+            # We do not use the setters here for setting the values of
+            # access, datatype and form as the setters update the
+            # underlying string representation and we don't want/need
+            # to do that as we are actually using the value of the
+            # string representation to set these values.
+
+            # access descriptor (read, write, ...)
             access = arg_list.children[0].string
             self._validate_access(access)
             self._access = access
 
+            # datatype (real, integer, ...)
             datatype = arg_list.children[1].string
             self._validate_datatype(datatype)
             self._datatype = datatype
 
+            # form of access (pointwise)
             form = arg_list.children[2].string
             self._validate_form(form)
             self._form = form
 
-        def write_fortran_string(self):
+        def fortran_string(self):
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
@@ -734,24 +802,24 @@ class KernelMetadataSymbol(DataTypeSymbol):
 
         @staticmethod
         def _validate_access(value):
-            '''Check that 'value' is a valid 'access' value.
+            '''Check that 'value' is a valid 'access' value (go_read, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a scalar argument should "
-                    f"be one of {const.VALID_ACCESS_TYPES}, but found "
-                    f"'{value}'.")
+                    f"be a recognised name (one of "
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
             '''
-            :returns: the value of access.
+            :returns: the access descriptor for this scalar argument.
             :rtype: str
             '''
             return self._access
@@ -759,34 +827,36 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @access.setter
         def access(self, value):
             '''
-            :param str value: the new value for access.
+            :param str value: set the access descriptor for this
+                scalar argument to the specified value.
             '''
             self._validate_access(value)
             self._access = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
         @staticmethod
         def _validate_datatype(value):
-            '''Check that 'value' is a valid scalar 'datatype' value.
+            '''Check that 'value' is a valid scalar 'datatype' value
+            (go_r_scalar, ...).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_SCALAR_TYPES:
                 raise ValueError(
                     f"The second metadata entry for a scalar argument should "
-                    f"be one of {const.VALID_SCALAR_TYPES}, but found "
-                    f"'{value}'.")
+                    f"be a recognised name (one of "
+                    f"{const.VALID_SCALAR_TYPES}, but found '{value}'.")
 
         @property
         def datatype(self):
             '''
-            :returns: the value of access.
+            :returns: the datatype of the scalar argument.
             :rtype: str
             '''
             return self._datatype
@@ -794,34 +864,35 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @datatype.setter
         def datatype(self, value):
             '''
-            :param str value: the new value for datatype.
+            :param str value: set the scalar datatype to the specified \
+                value.
             '''
             self._validate_datatype(value)
             self._datatype = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
 
         @staticmethod
         def _validate_form(value):
-            '''Check that 'value' is a valid 'form' value.
+            '''Check that 'value' is a valid 'form' value (go_pointwise).
 
             :param str value: the value to check.
 
-            raises ValueError: if the supplied value is invalid.
+            :raises ValueError: if the supplied value is invalid.
 
             '''
             const = GOceanConstants()
             if value.lower() not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"The third metadata entry for a scalar should "
-                    f"be one of {const.VALID_STENCIL_NAMES}, but "
-                    f"found '{value}'.")
+                    f"be a recongnised name (one of "
+                    f"{const.VALID_STENCIL_NAMES}), but found '{value}'.")
 
         @property
         def form(self):
             '''
-            :returns: the form of access.
+            :returns: the form of access for the scalar (pointwise ...).
             :rtype: str
             '''
             return self._form
@@ -829,10 +900,14 @@ class KernelMetadataSymbol(DataTypeSymbol):
         @form.setter
         def form(self, value):
             '''
-            :param str value: the new value for form.
+            :param str value: set the form of access for the scalar to \
+                the specified value.
             '''
             self._validate_form(value)
             self._form = value
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
-                self._parent.write_fortran_string()
+                self._parent.fortran_string()
+
+
+__all__ = ['KernelMetadataSymbol']
