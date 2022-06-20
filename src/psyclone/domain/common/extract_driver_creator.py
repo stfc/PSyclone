@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -125,20 +125,17 @@ class ExtractDriverCreator:
                 break
         else:
             raise InternalError(
-                "Could not find type for reference '{0}' in the "
-                "config file '{1}'."
-                .format(fortran_expression, Config.get().filename))
+                f"Could not find type for reference '{fortran_expression}' "
+                f"in the config file '{Config.get().filename}'.")
         try:
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
             raise six.raise_from(
-                InternalError("Type '{0}' of the property reference "
-                              "'{1}' as defined in the config file "
-                              "'{2}' is not supported in the GOcean API."
-                              .format(gocean_property.intrinsic_type,
-                                      fortran_expression,
-                                      Config.get().filename)),
-                err)
+                InternalError(f"Type '{gocean_property.intrinsic_type}' of "
+                              f"the property reference '{fortran_expression}' "
+                              f"as defined in the config file "
+                              f"'{Config.get().filename}' is not supported "
+                              f"in the GOcean API."), err)
         # Handle name clashes (e.g. if the user used a variable that is
         # the same as a flattened grid property)
         flattened_name = symbol_table.next_available_name(flattened_name)
@@ -152,12 +149,10 @@ class ExtractDriverCreator:
                                           ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
         else:
-            raise InternalError("The expression '{0}' maps to an unknown "
-                                "GOcean property type '{1}' in the config "
-                                "file '{2}'."
-                                .format(fortran_expression,
-                                        gocean_property.type,
-                                        Config.get().filename))
+            raise InternalError(f"The expression '{fortran_expression}' maps "
+                                f"to an unknown GOcean property type "
+                                f"'{gocean_property.type}' in the config "
+                                f"file '{Config.get().filename}'.")
 
         return new_symbol
 
@@ -267,12 +262,10 @@ class ExtractDriverCreator:
                 # Sort to make sure we get a reproducible order for testing
                 valid.sort()
                 six.raise_from(InternalError(
-                    "Error when constructing driver for '{0}': "
-                    "Unknown intrinsic data type '{1}' in reference '{2}'. "
-                    "Valid types are '{3}'."
-                    .format(sched.name, old_symbol.datatype.intrinsic,
-                            fortran_string, valid)),
-                    err)
+                    f"Error when constructing driver for '{sched.name}': "
+                    f"Unknown intrinsic data type "
+                    f"'{old_symbol.datatype.intrinsic}' in reference "
+                    f"'{fortran_string}'. Valid types are '{valid}'."), err)
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
@@ -295,10 +288,9 @@ class ExtractDriverCreator:
             if old_symbol.datatype.name != "r2d_field":
                 fortran_string = writer(reference)
                 raise InternalError(
-                    "Error when constructing driver for '{0}': "
-                    "Unknown derived type '{1}' in reference '{2}'."
-                    .format(sched.name, old_symbol.datatype.name,
-                            fortran_string))
+                    f"Error when constructing driver for '{sched.name}': "
+                    f"Unknown derived type '{old_symbol.datatype.name}' "
+                    f"in reference '{fortran_string}'.")
             # We have a structure reference to a field, flatten it, and
             # replace the StructureReference with a new Reference to this
             # flattened name (e.g. `fld%data` becomes `fld_data`)
@@ -325,9 +317,9 @@ class ExtractDriverCreator:
             routine_symbol = program.symbol_table.lookup(name)
             if not isinstance(routine_symbol, RoutineSymbol):
                 raise TypeError(
-                    "Error when adding call: Routine '{0}' is "
-                    "a symbol of type '{1}', not a 'RoutineSymbol'."
-                    .format(name, type(routine_symbol).__name__))
+                    f"Error when adding call: Routine '{name}' is "
+                    f"a symbol of type '{type(routine_symbol).__name__}', "
+                    f"not a 'RoutineSymbol'.")
         else:
             routine_symbol = RoutineSymbol(name)
             program.symbol_table.add(routine_symbol)
@@ -383,7 +375,7 @@ class ExtractDriverCreator:
         all_sigs = list(set(input_list).union(set(output_list)))
         all_sigs.sort()
         symbol_table = program.scope.symbol_table
-        read_var = "{0}%ReadVariable".format(psy_data.name)
+        read_var = f"{psy_data.name}%ReadVariable"
 
         # Collect all output symbols to later create the tests for
         # correctness. This list stores 2-tuples: first one the
@@ -435,12 +427,13 @@ class ExtractDriverCreator:
                     # if the mold parameter is supported, we can
                     # use the second allocate statement to create code
                     # that's independent of the number of dimensions.
-                    code = '''
+                    code = (f'''
                         subroutine tmp()
                           integer, allocatable, dimension(:,:) :: b
-                          allocate({0}(size({1},1), size({1},2)))
-                          !allocate({0}, mold={1})
-                        end subroutine tmp'''.format(sig_str, post_name)
+                          allocate({sig_str}(size({post_name},1), '''
+                            f'''size({post_name},2)))
+                          !allocate({sig_str}, mold={post_name})
+                        end subroutine tmp''')
                     fortran_reader = FortranReader()
                     container = fortran_reader.psyir_from_source(code)\
                         .children[0]
@@ -505,27 +498,24 @@ class ExtractDriverCreator:
 
         for (sym_computed, sym_read) in output_symbols:
             if isinstance(sym_computed.datatype, ArrayType):
-                cond = "all({0} - {1} == 0.0)".format(sym_computed.name,
-                                                      sym_read.name)
+                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
             else:
-                cond = "{0} == {1}".format(sym_computed.name,
-                                           sym_read.name)
+                cond = f"{sym_computed.name} == {sym_read.name}"
             # The PSyIR has no support for output functions, so we parse
             # Fortran code to create a code block which stores the output
             # statements.
-            code = '''
+            code = f'''
                 subroutine tmp()
-                  integer :: {0}, {1}
-                  if ({2}) then
-                     print *,"{0} correct"
+                  integer :: {sym_computed.name}, {sym_read.name}
+                  if ({cond}) then
+                     print *,"{sym_computed.name} correct"
                   else
-                     print *,"{0} incorrect. Values are:"
-                     print *,{0}
-                     print *,"{0} values should be:"
-                     print *,{1}
+                     print *,"{sym_computed.name} incorrect. Values are:"
+                     print *,{sym_computed.name}
+                     print *,"{sym_computed.name} values should be:"
+                     print *,{sym_read.name}
                   endif
-                end subroutine tmp'''.format(sym_computed.name,
-                                             sym_read.name, cond)
+                end subroutine tmp'''
 
             fortran_reader = FortranReader()
             container = fortran_reader.psyir_from_source(code)
@@ -575,7 +565,7 @@ class ExtractDriverCreator:
         extract_trans.validate(nodes, options={"prefix": prefix})
 
         module_name, local_name = region_name
-        unit_name = "{0}_{1}".format(module_name, local_name)
+        unit_name = f"{module_name}_{local_name}"
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
@@ -588,9 +578,9 @@ class ExtractDriverCreator:
         if prefix:
             prefix = prefix + "_"
 
-        psy_data_mod = ContainerSymbol(prefix+"psy_data_mod")
+        psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol(prefix+"PsyDataType", DeferredType(),
+        psy_data_type = DataTypeSymbol("ReadKernelDataType", DeferredType(),
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 
@@ -610,7 +600,7 @@ class ExtractDriverCreator:
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, "{0}%OpenRead".format(psy_data.name),
+        self.add_call(program, f"{psy_data.name}%OpenRead",
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,
@@ -705,6 +695,6 @@ class ExtractDriverCreator:
                                          prefix, postfix, region_name,
                                          writer=writer)
         module_name, local_name = region_name
-        with open("driver-{0}-{1}.f90".
-                  format(module_name, local_name), "w") as out:
+        with open(f"driver-{module_name}-{local_name}.f90", "w",
+                  encoding='utf-8') as out:
             out.write(code)
