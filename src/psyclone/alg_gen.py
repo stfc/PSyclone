@@ -42,12 +42,11 @@ create suitable algorithm-layer code which invokes that kernel.
 
 '''
 
-from __future__ import absolute_import
 # fparser contains classes that are generated at run time.
 # pylint: disable=no-name-in-module
-from fparser.two.Fortran2003 import (Main_Program, Module, Use_Stmt,
-                                     Subroutine_Subprogram, Call_Stmt,
-                                     Section_Subscript_List,
+from fparser.two.Fortran2003 import (Main_Program, Module, Use_Stmt, Part_Ref,
+                                     Subroutine_Subprogram, Call_Stmt, Name,
+                                     Section_Subscript_List, Only_List,
                                      Function_Subprogram, Specification_Part)
 # pylint: enable=no-name-in-module
 from fparser.two.utils import Base, walk
@@ -68,7 +67,7 @@ class NoInvokesError(PSycloneError):
 
 
 # pylint: disable=too-few-public-methods
-class Alg(object):
+class Alg:
     '''Generate a modified algorithm code for a single algorithm
     specification. Takes the parse tree of the algorithm specification
     output from the function :func:`psyclone.parse.algorithm.parse`
@@ -107,13 +106,43 @@ class Alg(object):
 
     @property
     def gen(self):
-        '''Return modified algorithm code.
+        '''
+        Modifies and returns the algorithm code. 'invoke()' calls are replaced
+        with calls to the corresponding PSy-layer routines and USE statements
+        for kernel-type symbols are removed.
 
         :returns: the modified algorithm specification as an fparser2 \
                   parse tree.
         :rtype: :py:class:`fparser.two.utils.Base`
 
+        :raises NoInvokesError: if no 'invoke()' calls are found.
+
         '''
+        # Setup the various lookup tables that we'll need later to ensure that
+        # unused USE statements are removed.
+
+        # Map from the module name to the associated Use_Stmt in the
+        # parse tree.
+        use_stmt_map = {}
+        # Map from module name to the list of symbols imported from it.
+        use_only_list = {}
+        # Map from symbol name to the name of the module from which it is
+        # imported.
+        sym_to_mod_map = {}
+
+        for use_stmt in walk(self._ast, Use_Stmt):
+            mod_name = use_stmt.children[2].tostr().lower()
+            use_stmt_map[mod_name] = use_stmt
+            use_only_list[mod_name] = None
+            only = walk(use_stmt, Only_List)
+            if only:
+                use_only_list[mod_name] = []
+                for child in only[0].children:
+                    sym_name = child.tostr().lower()
+                    use_only_list[mod_name].append(sym_name)
+                    sym_to_mod_map[sym_name] = mod_name
+
+        invoked_kernels = set()
         idx = 0
         # Walk through all statements looking for procedure calls
         for statement in walk(self._ast.content, Call_Stmt):
@@ -121,6 +150,14 @@ class Alg(object):
             call_name = str(statement.items[0])
             if call_name.lower() == self._invoke_name.lower():
                 # The call statement is an invoke
+
+                # Work out which kernels are involved.
+                arg_spec_list = statement.children[1]
+                for child in arg_spec_list.children:
+                    # An invoke() can include a 'name=xxx' argument so we have
+                    # to check that we have a Part_Ref
+                    if isinstance(child, Part_Ref):
+                        invoked_kernels.add(child.children[0].tostr().lower())
 
                 # Get the PSy callee name and argument list and
                 # replace the existing algorithm invoke call with
@@ -137,18 +174,31 @@ class Alg(object):
                 adduse(statement, self._psy.name, only=True,
                        funcnames=[psy_invoke_info.name])
 
-                # Remove the USE statements for each of the kernels.
-                kernels = psy_invoke_info.schedule.walk(DynKern)
-                for kern in kernels:
-                    mod_name = kern.module_name
-                    use_stmts = walk(self._ast, Fortran2003.Use_Stmt)
-
                 idx += 1
 
         if idx == 0:
             raise NoInvokesError(
                 "Algorithm file contains no invoke() calls: refusing to "
                 "generate empty PSy code")
+
+        # Remove the USE statements for the invoked kernels provided that
+        # they're not referenced anywhere.
+        all_names = set(name.tostr().lower() for name in
+                        walk(self._ast.content, Name)
+                        if not isinstance(name.parent, Only_List))
+        # Update the lists of symbols imported from each module
+        for kern in invoked_kernels:
+            if kern not in all_names and kern in sym_to_mod_map:
+                # Kernel name is not referenced anywhere but is imported from
+                # a module (so is not a Built-In).
+                mod_name = sym_to_mod_map[kern]
+                use_only_list[mod_name].remove(kern)
+        # Finally remove those USE statements that used to have symbols
+        # associated with them but now have none.
+        for mod, symbols in use_only_list.items():
+            if symbols == []:
+                this_use = use_stmt_map[mod]
+                this_use.parent.content.remove(this_use)
 
         return self._ast
 
