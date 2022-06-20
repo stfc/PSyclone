@@ -56,6 +56,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
@@ -6946,25 +6947,24 @@ class HaloReadAccess(HaloDepth):
                 self._var_depth = "2*" + self._var_depth
 
 
-class DynLoop(Loop):
+class DynLoop(PSyLoop):
     '''
-    The LFRic-specific Loop class. This passes the LFRic-specific
+    The LFRic-specific PSyLoop class. This passes the LFRic-specific
     loop information to the base class so it creates the one
     we require.  Creates LFRic-specific loop bounds when the code is
     being generated.
 
-    :param parent: the parent of this Node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param str loop_type: the type (iteration space) of this loop.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     :raises InternalError: if an unrecognised loop_type is specified.
 
     '''
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, parent=None, loop_type=""):
+    def __init__(self, loop_type="", **kwargs):
         const = LFRicConstants()
-        super(DynLoop, self).__init__(parent=parent,
-                                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
         self.loop_type = loop_type
 
         # Set our variable at initialisation as it might be required
@@ -7687,7 +7687,7 @@ class DynLoop(Loop):
                                   "OpenMP parallel region.")
 
         if self._loop_type != "null":
-            super(DynLoop, self).gen_code(parent)
+            super().gen_code(parent)
         else:
             # This is a 'null' loop and therefore we do not actually generate
             # a loop - we go on down to the children instead.
