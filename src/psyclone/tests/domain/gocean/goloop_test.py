@@ -125,7 +125,7 @@ def test_goloop_create(monkeypatch):
     assert goloop.children[2].value == '1'
 
     # Try with an invalid loop type
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(TypeError) as err:
         goloop = GOLoop.create(parent=gosched,
                                loop_type="invalid",
                                field_name="cv_fld",
