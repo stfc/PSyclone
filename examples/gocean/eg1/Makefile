@@ -34,11 +34,12 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-# The compiler to use may be specified via the F90 environment
-# variable. e.g. to use PGI and OpenACC:
+# The compiler to use may be specified via the F90 and F90FLAGS
+# environment variables. To use the NVIDIA compiler and enable
+# openacc compilation with managed memory, use:
 #
-# export F90=pgf90
-# export F90FLAGS=""
+# export F90=nvfortran
+# export F90FLAGS="-acc=gpu -Minfo=all -gpu=managed"
 # export LDFLAGS=""
 
 include ../../common.mk
