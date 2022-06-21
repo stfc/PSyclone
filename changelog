@@ -2,8 +2,6 @@
 	standalone module to remove dependence on infrastructure for
 	driver code.
 
-	2) PR #1766 for #1744. Fixes syntax errors in Fortran test files.
-
 release 2.3.1 17th of June 2022	
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
