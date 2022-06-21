@@ -39,9 +39,10 @@ include ../../common.mk
 # The compiler to use may be specified via the F90 environment
 # variable.
 #
-# export F90=mpifc
+# export F90=nvfortran
 # export F90FLAGS="-acc"
 # export LDFLAGS=""
+# Currently only compatible with F90=nvfortran
 F90FLAGS ?= -Minfo -acc -ta=tesla:cc70
 
 # Location of the infrastucture code (which is a submodule of the
@@ -74,13 +75,14 @@ ${INF_LIB}:
 	${MAKE} -C ${INF_DIR} fd_lib
 
 psy_gen.f90 alg_gen.f90: openacc
+alg_gen.o: psy_gen.o
 
 %.o: %.f90
-	# Currently only compatible with F90=pgf90
 	${F90} ${F90FLAGS} -I${INF_INC} -c $<
 
-compile-acc: ${INF_LIB} alg_gen.f90 ${KERNELS} psy_gen.o
-	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o \
+compile-acc: ${INF_LIB} ${KERNELS} alg_gen.o psy_gen.o
+	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} \
+		${KERNELS} alg_gen.o psy_gen.o \
 		${INF_LIB} -o alg_openacc.exe
 
 others:
