@@ -536,7 +536,7 @@ def test_lfric_cma():
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: WRITE" in var_info
+    assert "op1_proxy%local_stencil: READ" in var_info
     assert "op1_proxy%ncell_3d: READ" in var_info
 
 
@@ -903,7 +903,7 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
+    assert "lma_op1_proxy%local_stencil: READ" in var_info
 
 
 def test_lfric_stencil():
