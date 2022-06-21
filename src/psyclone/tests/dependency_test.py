@@ -349,6 +349,43 @@ def test_dynamo():
             "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
 
+def test_dynamo_args():
+    ''' Test the handling of an LFRic (Dynamo0.3) kernel arguments.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "27.access_tests.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
+    invoke_read = psy.invokes.get('invoke_read')
+    invoke_write = psy.invokes.get('invoke_write')
+    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
+    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+
+    # Check the parameters that will change access type according to read or
+    # write declaration of the argument:
+    assert var_accesses_read[Signature("cma_op1_matrix")][0].access_type \
+           == AccessType.READ
+    assert var_accesses_write[Signature("cma_op1_matrix")][0].access_type \
+           == AccessType.WRITE
+
+    # All other parameters are read-only (e.g. sizes, ... - they will not
+    # be modified, even of the actual data is written):
+    for name in ["nrow", "ncol", "bandwidth", "alpha", "beta", "gamma_m",
+                 "gamma_p"]:
+        assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
+        assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
+
+
 def test_location(parser):
     '''Test if the location assignment is working, esp. if each new statement
     gets a new location, but accesses in the same statement have the same

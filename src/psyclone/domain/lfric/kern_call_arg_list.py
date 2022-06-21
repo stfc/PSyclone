@@ -194,9 +194,10 @@ class KernCallArgList(ArgOrdering):
         for component in components:
             name = self._symtab.find_or_create_tag(
                 arg.name + "_" + component).name
-            # Matrix is an output parameter, the rest are input
+            # Matrix takes the access from the declaration of the argument
+            # (i.e. read, write, ...), the rest are always read-only parameters
             if component == "matrix":
-                mode = AccessType.WRITE
+                mode = arg.access
             else:
                 mode = AccessType.READ
             self.append(name, var_accesses, mode=mode)
@@ -391,10 +392,12 @@ class KernCallArgList(ArgOrdering):
         '''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
+        # This argument is always read only:
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
+        # The access mode of `local_stencil` is taken from the meta-data:
         self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
-                    mode=AccessType.WRITE)
+                    mode=arg.access)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
