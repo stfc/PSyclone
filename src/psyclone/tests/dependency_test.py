@@ -508,6 +508,8 @@ def test_lfric_operator():
     # pylint: disable=pointless-statement
     psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f0: READ+WRITE" in var_info
+    assert "f1: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
