@@ -383,7 +383,7 @@ def test_multiple_stencil_same_name():
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
 
-
+    
 # Sample code for use in subsequent adduse tests.
 CODE = ("program test\n"
         "  integer :: i\n"
@@ -409,7 +409,24 @@ def get_parse_tree(code, parser):
     reader = FortranStringReader(code)
     return parser(reader)
 
-# Function adduse tests These should be moved in #240.
+
+# Function _rm_kernel_use_stmts tests. These will be removed once the LFRic
+# algorithm layer uses PSyIR (#1618).
+
+
+def test_rm_kernel_use_stmts(parser):
+    '''Tests for the _rm_kernel_use_stmts() method.'''
+    code = ("program test\n"
+            "  use my_kernel_mod, only: my_kernel_type\n"
+            "  use kernel2_mod, only: kernel2_type, something_else\n"
+            "end program test\n")
+    parse_tree = get_parse_tree(code, parser)
+    alg_gen._rm_kernel_use_stmts([], parse_tree)
+    assert 0
+
+
+# Function adduse tests. These will be removed once the LFRic algorithm
+# layer uses PSyIR (#1618).
 
 
 @pytest.mark.parametrize("location", [None, "lilliput"])

@@ -118,30 +118,6 @@ class Alg:
         :raises NoInvokesError: if no 'invoke()' calls are found.
 
         '''
-        # Setup the various lookup tables that we'll need later to ensure that
-        # unused USE statements are removed.
-
-        # Map from the module name to the associated Use_Stmt in the
-        # parse tree.
-        use_stmt_map = {}
-        # Map from module name to the list of symbols imported from it.
-        use_only_list = {}
-        # Map from symbol name to the name of the module from which it is
-        # imported.
-        sym_to_mod_map = {}
-
-        for use_stmt in walk(self._ast, Use_Stmt):
-            mod_name = use_stmt.children[2].tostr().lower()
-            use_stmt_map[mod_name] = use_stmt
-            use_only_list[mod_name] = None
-            only = walk(use_stmt, Only_List)
-            if only:
-                use_only_list[mod_name] = []
-                for child in only[0].children:
-                    sym_name = child.tostr().lower()
-                    use_only_list[mod_name].append(sym_name)
-                    sym_to_mod_map[sym_name] = mod_name
-
         invoked_kernels = set()
         idx = 0
         # Walk through all statements looking for procedure calls
@@ -151,7 +127,8 @@ class Alg:
             if call_name.lower() == self._invoke_name.lower():
                 # The call statement is an invoke
 
-                # Work out which kernels are involved.
+                # Work out which kernels are involved so that we can update the
+                # USE statements later.
                 arg_spec_list = statement.children[1]
                 for child in arg_spec_list.children:
                     # An invoke() can include a 'name=xxx' argument so we have
@@ -181,26 +158,64 @@ class Alg:
                 "Algorithm file contains no invoke() calls: refusing to "
                 "generate empty PSy code")
 
-        # Remove the USE statements for the invoked kernels provided that
-        # they're not referenced anywhere.
-        all_names = set(name.tostr().lower() for name in
-                        walk(self._ast.content, Name)
-                        if not isinstance(name.parent, Only_List))
-        # Update the lists of symbols imported from each module
-        for kern in invoked_kernels:
-            if kern not in all_names and kern in sym_to_mod_map:
-                # Kernel name is not referenced anywhere but is imported from
-                # a module (so is not a Built-In).
-                mod_name = sym_to_mod_map[kern]
-                use_only_list[mod_name].remove(kern)
-        # Finally remove those USE statements that used to have symbols
-        # associated with them but now have none.
-        for mod, symbols in use_only_list.items():
-            if symbols == []:
-                this_use = use_stmt_map[mod]
-                this_use.parent.content.remove(this_use)
+        # Remove any un-needed imports of the kernels referenced by the removed
+        # invoke() calls.
+        _rm_kernel_use_stmts(invoked_kernels, self._ast)
 
         return self._ast
+
+
+def _rm_kernel_use_stmts(kernels, ptree):
+    '''
+    Remove any unneeded imports of the named kernels from the supplied fparser2
+    parse tree.
+
+    :param Set[str] kernels: the names of the kernels that are no longer \
+        invoked.
+    :param ptree: the fparser2 parse tree to update.
+    :type ptree: :py:class:`fparser.two.Fortran2003.Program`
+
+    '''
+    # Setup the various lookup tables that we'll need.
+    # Map from the module name to the associated Use_Stmt in the
+    # parse tree.
+    use_stmt_map = {}
+    # Map from module name to the list of symbols imported from it.
+    use_only_list = {}
+    # Map from symbol name to the name of the module from which it is
+    # imported.
+    sym_to_mod_map = {}
+
+    for use_stmt in walk(ptree, Use_Stmt):
+        mod_name = use_stmt.children[2].tostr().lower()
+        use_stmt_map[mod_name] = use_stmt
+        use_only_list[mod_name] = None
+        only = walk(use_stmt, Only_List)
+        if only:
+            use_only_list[mod_name] = []
+            for child in only[0].children:
+                sym_name = child.tostr().lower()
+                use_only_list[mod_name].append(sym_name)
+                sym_to_mod_map[sym_name] = mod_name
+
+    # Remove the USE statements for the invoked kernels provided that
+    # they're not referenced anywhere (apart from USE statements).
+    all_names = set(name.tostr().lower() for name in
+                    walk(ptree.content, Name)
+                    if not isinstance(name.parent, Only_List))
+    # Update the lists of symbols imported from each module
+    for kern in kernels:
+        if kern not in all_names and kern in sym_to_mod_map:
+            # Kernel name is not referenced anywhere but is imported from
+            # a module (so is not a Built-In).
+            mod_name = sym_to_mod_map[kern]
+            use_only_list[mod_name].remove(kern)
+    # Finally remove those USE statements that used to have symbols
+    # associated with them but now have none.
+    for mod, symbols in use_only_list.items():
+        if symbols == []:
+            this_use = use_stmt_map[mod]
+            this_use.parent.content.remove(this_use)
 
 
 def adduse(location, name, only=None, funcnames=None):
