@@ -37,7 +37,7 @@
 '''
 Python driver script to run PSyclone on (pre-processed) NEMO source files, i.e.
 those produced by the build system in <MY_CONFIG_NAME>/BLD/ppsrc/nemo.
-For example::
+For example:
 
 >>> process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
   <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
@@ -47,6 +47,7 @@ Or, if you have Gnu 'parallel':
 >>> parallel process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
   {} ::: <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
 
+Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
 from __future__ import print_function

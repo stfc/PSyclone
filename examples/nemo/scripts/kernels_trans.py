@@ -54,6 +54,7 @@ region is found to contain such a node (by the ``valid_acc_kernel``
 routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel region.
 
+Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
 from __future__ import print_function
@@ -108,11 +109,11 @@ NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
                   "interp3", "integ_spline"]
 
 
-class ExcludeSettings(object):
+class ExcludeSettings():
     '''
     Class to hold settings on what to exclude from OpenACC KERNELS regions.
 
-    :param dict settings: map of settings to override or {}.
+    :param Optional[dict] settings: map of settings to override.
 
     '''
     def __init__(self, settings={}):
@@ -205,7 +206,7 @@ def valid_acc_kernel(node):
             # arrays of rank 2 or greater are dynamically allocated, whereas 1D
             # arrays are often static in NEMO. Hence, we disallow IFs where the
             # logical expression involves the latter.
-            if any([len(array.children) == 1 for array in arrays]):
+            if any(len(array.children) == 1 for array in arrays):
                 log_msg(routine_name,
                         "IF references 1D arrays that may be static", enode)
                 return False
