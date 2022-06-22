@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOACCEnterDataDirective
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.nodes import ACCDataDirective
+from psyclone.psyir.nodes import ACCDataDirective, Routine
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -306,28 +306,26 @@ def test_kind_parameter(parser):
     assert "copyin(wp)" not in gen_code.lower()
 
 
-def test_no_copyin_intrinsics(parser):
+def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
     ''' Check that we don't generate a copyin/out for Fortran instrinsic
     functions (i.e. we don't mistake them for array accesses). '''
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     for intrinsic in ["cos(ji)", "sin(ji)", "tan(ji)", "atan(ji)",
                       "mod(ji, 5)"]:
-        reader = FortranStringReader(
-            "program call_intrinsic\n"
-            "use kind_params_mod\n"
-            "integer :: ji, jpj\n"
-            "real(kind=wp) :: sto_tmp(5)\n"
-            "do ji = 1,jpj\n"
-            "sto_tmp(ji) = {0}\n"
-            "end do\n"
-            "end program call_intrinsic\n".format(intrinsic))
-        code = parser(reader)
-        psy = PSyFactory(API, distributed_memory=False).create(code)
-        schedule = psy.invokes.invoke_list[0].schedule
+        code = (f"program call_intrinsic\n"
+                f"use kind_params_mod\n"
+                f"integer :: ji, jpj\n"
+                f"real(kind=wp) :: sto_tmp(5)\n"
+                f"do ji = 1,jpj\n"
+                f"sto_tmp(ji) = {intrinsic}\n"
+                f"end do\n"
+                f"end program call_intrinsic\n")
+        psy = fortran_reader.psyir_from_source(code)
+        schedule = psy.walk(Routine)[0]
         acc_trans.apply(schedule.children[0:1])
-        gen_code = str(psy.gen)
+        gen_code = fortran_writer(psy)
         idx = intrinsic.index("(")
-        assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
+        assert f"copyin({intrinsic[0:idx]})" not in gen_code.lower()
 
 
 def test_no_code_blocks(parser):

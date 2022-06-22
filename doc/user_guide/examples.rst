@@ -481,35 +481,34 @@ better job when optimising the code.
 Example 14: OpenACC
 ^^^^^^^^^^^^^^^^^^^
 
-Example of adding OpenACC directives in the dynamo0.3 API. This is a
-work in progress so the generated code may not work as
-expected. However it is never-the-less useful as a starting
-point. Three scripts are provided.
+Example of adding OpenACC directives in the dynamo0.3 API.
+A single transformation script (``acc_parallel_dm.py``) is provided
+which demonstrates how to add OpenACC Loop, Parallel and Enter Data
+directives to the PSy-layer. It supports distributed memory being
+switched on by placing an OpenACC Parallel directive around each
+OpenACC Loop directive, rather than having one for the whole invoke.
+This approach avoids having halo exchanges within an OpenACC Parallel
+region. The script also uses :ref:`ACCRoutineTrans <available_kernel_trans>`
+to transform the one user-supplied kernel through
+the addition of an ``!$acc routine`` directive. This ensures that the
+compiler builds a version suitable for execution on the accelerator (GPU).
 
-The first script (``acc_kernels.py``) shows how to add OpenACC Kernels
-directives to the PSy-layer. This example only works with distributed
-memory switched off as the OpenACC Kernels transformation does not yet
-support halo exchanges within an OpenACC Kernels region.
+The generated code has two problems:
 
-The second script (``acc_parallel.py``)shows how to add OpenACC Loop,
-Parallel and Enter Data directives to the PSy-layer. Again this
-example only works with distributed memory switched off as the OpenACC
-Parallel transformation does not support halo exchanges within an
-OpenACC Parallel region.
+ 1. There are no checks on whether loops are safe to parallelise or not,
+    it is just assumed they are - i.e. support for colouring or locking
+    is not yet implemented.
+ 2. Although the user-supplied kernel is transformed so as to have the
+    necessary ``!$acc routine`` directive, the associated (but unnecessary)
+    ``use`` statement in the transformed Algorithym layer still uses the
+    name of the original, untransformed kernel (issue #1724).
 
-The third script (``acc_parallel_dm.py``) is the same as the second
-except that it does support distributed memory being switched on by
-placing an OpenACC Parallel directive around each OpenACC Loop
-directive, rather than having one for the whole invoke. This approach
-avoids having halo exchanges within an OpenACC Parallel region.
-
-The generated code has a number of problems including 1) it does not
-modify the kernels to include the OpenACC Routine directive, 2) a
-loop's upper bound is computed via a derived type (this should be
-computed beforehand) 3) set_dirty and set_clean calls are placed
-within an OpenACC Parallel directive and 4) there are no checks on
-whether loops are parallel or not, it is just assumed they are -
-i.e. support for colouring or locking is not yet implemented.
+Since no colouring is required in this case, the generated Alg layer
+may be fixed by hand (by simply deleting the offending ``use`` statement)
+and the resulting code compiled and run on GPU. However, performance will
+be very poor as, with the limited optimisations and directives currently
+applied, the NVIDIA compiler refuses to run the user-supplied kernel in
+parallel.
 
 Example 15: CPU Optimisation of Matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -595,19 +594,26 @@ kernel call. For example:
     ./extract
     ncdump ./main-update.nc | less
 
-Example 18: Incrementing a Continuous Field After Reading It
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Example of a ``GH_READINC`` access. A kernel with ``GH_READINC``
-access first reads the field data and then increments the field
-data. This contrasts with a ``GH_INC`` access which simply increments
-the field data. As an increment is effectively a read followed by
-a write, it may not be clear why we need to distinguish between these
-cases. The reason for distinguishing is that the ``GH_INC`` access is
-able to remove a halo exchange, or at least reduce its depth by one,
-in certain circumstances, whereas a ``GH_READINC`` is not able to take
-advantage of this optimisation.
+Example containing one kernel with a ``GH_READINC`` access and one
+with a ``GH_WRITE`` access, both for continuous fields. A kernel with
+``GH_READINC`` access first reads the field data and then increments
+the field data. This contrasts with a ``GH_INC`` access which simply
+increments the field data. As an increment is effectively a read
+followed by a write, it may not be clear why we need to distinguish
+between these cases. The reason for distinguishing is that the
+``GH_INC`` access is able to remove a halo exchange (or at least
+reduce its depth by one) in certain circumstances, whereas a
+``GH_READINC`` is not able to take advantage of this optimisation.
 
+A kernel with a ``GH_WRITE`` access for a continuous field must guarantee to
+write the same value to a given shared DoF, independent of which cell
+is being updated. As :ref:`described <dev_guide:iterators_continuous>`
+in the Developer Guide, this means that annexed DoFs are computed
+correctly without the need to iterate into the L1 halo and thus can
+remove the need for halo exchanges on those fields that are read.
 
 NEMO
 ----

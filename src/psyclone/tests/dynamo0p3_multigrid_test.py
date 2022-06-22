@@ -794,7 +794,8 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      DO colour=loop2_start,loop2_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=loop3_start,last_cell_all_colours_fld_c(colour,1)\n"
+        "        DO cell=loop3_start,"
+        "last_halo_cell_all_colours_fld_c(colour,1)\n"
         "          !\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output

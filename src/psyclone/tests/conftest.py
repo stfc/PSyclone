@@ -38,12 +38,11 @@
 ''' Module which performs pytest set-up so that we can specify
     command-line options. Also creates certain test fixtures. '''
 
-from __future__ import absolute_import
-
 import os
 import pytest
 
 from fparser.two.parser import ParserFactory
+from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -143,18 +142,36 @@ def infra_compile(tmpdir_factory, request):
     GOcean1p0Build(tmpdir)
 
 
-@pytest.fixture(scope="session")
-def parser():
+@pytest.fixture(name="_session_parser", scope="session")
+def _session_parser():
     '''
     Creates and returns an fparser object. Since this is expensive we only
-    do this once per test session (scope="session" above).
+    do this once per test session (scope="session" above). This fixture is
+    only intended to be used in the 'public' fixture `parser` below.
+
+    TODO #1188 - move this to tests/psyir/frontend/conftest.py.
+
+    '''
+    return ParserFactory().create(std="f2008")
+
+
+@pytest.fixture(scope="function")
+def parser(_session_parser):
+    '''
+    Returns the session fparser object but clears any existing symbol tables
+    before doing so.
+
+    TODO #1188 - as part of isolating fparser usage to the PSyIR frontend,
+    this fixture will be removed and replaced by the one in
+    tests/psyir/frontend/conftest.py.
 
     Note: If this fixture is not used to get the fparser parse tree but is
     used as just a step in getting the PSyIR, use the fortran_reader fixture
     below.
 
     '''
-    return ParserFactory().create(std="f2008")
+    SYMBOL_TABLES.clear()
+    return _session_parser
 
 
 @pytest.fixture(scope="function")

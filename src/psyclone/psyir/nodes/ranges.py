@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing the definition of the Range node. '''
 
@@ -151,14 +151,13 @@ class Range(Node):
         '''
         if not isinstance(value, Node):
             raise TypeError(
-                "The {0} value of a Range must be a sub-class of "
-                "Node but got: {1}".format(name, type(value).__name__))
+                f"The {name} value of a Range must be a sub-class of "
+                f"Node but got: {type(value).__name__}")
         if (isinstance(value, Literal) and
                 value.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise TypeError(
-                "If the {0} value of a Range is a Literal then it "
-                "must be of type INTEGER but got {1}".format(
-                    name, value.datatype))
+                f"If the {name} value of a Range is a Literal then it "
+                f"must be of type INTEGER but got {value.datatype}")
 
     def _check_completeness(self):
         ''' Perform internal consistency checks for this Range.
@@ -171,8 +170,8 @@ class Range(Node):
 
         if len(self._children) != 3:
             raise InternalError(
-                "Malformed Range: should have three children but "
-                "found {0}: {1}".format(len(self._children), self._children))
+                f"Malformed Range: should have three children but "
+                f"found {len(self._children)}: {self._children}")
 
     @property
     def start(self):
@@ -223,8 +222,8 @@ class Range(Node):
         self._check_valid_input(value, "stop")
         if not self.children:
             raise IndexError(
-                "The Stop value '{0}' can not be inserted into range '{1}'"
-                " before the Start value is provided.".format(value, self))
+                f"The Stop value '{value}' can not be inserted into range "
+                f"'{self}' before the Start value is provided.")
         if len(self.children) == 1:
             self.children.append(value)
         else:
@@ -252,9 +251,8 @@ class Range(Node):
         self._check_valid_input(value, "step")
         if len(self.children) < 2:
             raise IndexError(
-                "The Step value '{0}' can not be inserted into range '{1}'"
-                " before the Start and Stop values are provided."
-                "".format(value, self))
+                f"The Step value '{value}' can not be inserted into range "
+                f"'{self}' before the Start and Stop values are provided.")
         if len(self.children) == 2:
             self.children.append(value)
         else:

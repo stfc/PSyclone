@@ -278,34 +278,19 @@ psyclone -s ./kernel_constants.py \
 ## Example 14: OpenACC
 
 This example shows how OpenACC directives can be added to the LFRic
-PSy-layer. This is work in progress so the resultant code is not
-expected to run correctly but it gives a starting point for
-evaluation.
+PSy-layer. It adds OpenACC enter data, parallel and loop directives in the
+presence of halo exchanges. It also transforms the (one) user-supplied
+kernel with the addition of an `ACC routine` directive.
 
-1. Adding OpenACC kernels directives. -nodm is used as an exception is
-   raised if Halo Exchange nodes are found within an OpenACC kernels
-   region.
-   ```sh
-   cd eg14/
-   psyclone -s ./acc_kernels.py -nodm main.x90
-   ```
+```sh
+cd eg14/
+psyclone -s ./acc_parallel_dm.py main.x90
+```
 
-2. Adding OpenACC enter data, parallel and loop directives. -nodm is
-   used as an exception is raised if Halo Exchange nodes are found within
-   an OpenACC parallel region.
-   ```sh
-   cd eg14/
-   psyclone -s ./acc_parallel.py -nodm main.x90
-   ```
-
-3. Adding OpenACC enter data, parallel and loop directives in the
-   presence of halo exchanges. This does not currently produce compilable code
-   because calls to set_clean()/dirty() end up within parallel regions - TODO
-   #450.
-   ```sh
-   cd eg14/
-   psyclone -s ./acc_parallel_dm.py main.x90
-   ```
+The supplied Makefile defines a `compile` target that will build the
+transformed code. Currently the compilation will fail because the
+generated PSy-layer code does not contain the correct name for the
+transformed kernel module (issue #1724).
 
 ## Example 15: Optimise matvec Kernel for CPU
 
@@ -335,9 +320,11 @@ the LFRic code. For more details please refer to the relevant
 [eg17/README.md](./eg17) document.
 
 
-## Example 18: Incrementing a Continuous Field After Reading It
+## Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading.
 
-This example shows the use of a ``GH_READINC`` access. ``GH_READINC``
+This example shows the use of kernel with a ``GH_READINC`` access and
+a kernel with a ``GH_WRITE`` access, both for fields on continuous
+function spaces. ``GH_READINC``
 access indicates that a field is first read within a kernel and then
 subsequently incremented. The field must, therefore, be on a
 continuous function space. The only difference from a PSyclone code
@@ -350,7 +337,16 @@ line in the generated code. if you manually change the metadata to
 ``GH_INC`` in this example and ensure that the configuration file has
 ``COMPUTE_ANNEXED_DOFS`` set to ``true``, you will see that this halo
 exchange is not generated (although the generated code would then be
-invalid). To run:
+invalid).
+
+``GH_WRITE``, when used for a field on a continuous function space, means
+that the kernel guarantees to write the same value to a given shared entity,
+independent of which cell is currently being updated. This means that
+annexed DoFs on owned cells will be correctly computed without the need to
+iterate into the L1 halo and thus the outer loop limit is always
+``last_edge_cell``, irrespective of whether distributed memory is turned on.
+
+To run:
 
 ```sh
 cd eg18/

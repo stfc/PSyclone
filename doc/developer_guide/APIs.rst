@@ -418,11 +418,18 @@ For inter-grid kernels, it is the coarse mesh that provides the iteration
 space. (The kernel is passed a list of the cells in the fine mesh that are
 associated with the current coarse cell.)
 
+.. _iterators_continuous:
+
 Cell iterators: Continuous
 --------------------------
 
+Note that if PSyclone does not know whether a modified field is
+discontinuous or continuous (because e.g. its function space is given
+as ``ANY_SPACE_*`` in kernel metadata) then it must assume it is continuous.
+
 When a kernel is written to iterate over cells and modify a continuous
-field, PSyclone always computes dofs on owned cells and redundantly
+field, PSyclone always (with the exception of ``GH_WRITE`` access -
+see below) computes dofs on owned cells and redundantly
 computes dofs in the level-1 halo (or to depth 2 if the field is on
 the fine mesh of an inter-grid kernel - see :ref:`multigrid`). Users
 can apply a redundant computation transformation to increase the halo
@@ -431,9 +438,11 @@ compute the level-1 halo. The reason for this is to ensure that the
 shared dofs on cells on the edge of the partition (both owned and
 annexed) are always correctly computed. Note that the outermost halo
 dofs are not correctly computed and therefore the outermost halo of
-the modified field is dirty after redundant computation. Also note
-that if we do not know whether a modified field is discontinuous or
-continuous then we must assume it is continuous.
+the modified field is dirty after redundant computation. Since shared
+dofs for a field with ``GH_WRITE`` access are guaranteed to have the
+same, correct value written to them, independent of whether or not
+the current cell "owns" them, there is no need to perform redundant
+computation in this case.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby
 no redundant computation is performed and partial-sum results are
@@ -533,21 +542,24 @@ has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
 them clean.
 
-There are 4 cases to consider:
+There are five cases to consider:
 
 1) the field is read in a loop that iterates over dofs,
 2) the field is read in a loop that iterates over owned cells and
    level-1 halo cells,
 3) the field is incremented in a loop that iterates over owned cells and
-   level-1 halo cells, and
-4) the field is read in a loop that iterates over owned cells
+   level-1 halo cells,
+4) the field is read in a loop that iterates over owned cells, and
+5) the field is written in a loop that iterates over owned cells.
 
 In case 1) the annexed dofs will not be read as the loop only iterates
 over owned dofs so a halo exchange is not required. In case 2) the
 full level-1 halo will be read (including annexed dofs) so a halo
 exchange is required. In case 3) the annexed dofs will be updated so a
 halo exchange is required. In case 4) the annexed dofs will be read so
-a halo exchange will be required.
+a halo exchange will be required. In case 5) the annexed dofs will be
+written with correct values (a condition of a kernel with ``GH_WRITE``
+for a continuous field) so no halo exchange is required.
 
 If we now take the case where annexed dofs are computed for loops that
 iterate over dofs (``COMPUTE_ANNEXED_DOFS`` is ``true``) then a field's
@@ -645,7 +657,7 @@ In PSyclone we apply a lazy halo exchange approach (as opposed to an
 eager one), adding a halo exchange just before it is required.
 
 It is simple to determine where halo exchanges should be added for the
-initial schedule. There are three cases:
+initial schedule. There are four cases:
 
 1) loops that iterate over cells and modify a continuous field will
    access the level-1 halo. This means that any field that is read
@@ -660,7 +672,13 @@ initial schedule. There are three cases:
    variable is set to ``true`` then no halo exchange is required as
    annexed dofs will always be clean.
 
-2) continuous fields that are read from within loops that iterate over
+2) loops that iterate over cells and modify a continuous field but
+   specify `GH_WRITE` access are a special case since the value to be
+   written to any dof location is guaranteed to be independent of
+   loop iteration (i.e. the current cell column). As such, annexed
+   dofs are not required to be clean since they are not accessed.
+
+3) continuous fields that are read from within loops that iterate over
    cells and modify a discontinuous field will access their annexed
    dofs. If the annexed dofs are known to be dirty (because the
    previous modification of the field is known to be from within a
@@ -672,7 +690,7 @@ initial schedule. There are three cases:
    set to ``true`` then no halo exchange is required as annexed dofs
    will always be clean.
 
-3) fields that have a stencil access will access the halo and need
+4) fields that have a stencil access will access the halo and need
    halo exchange calls added.
 
 Halo exchanges are created separately (for fields with halo reads) for
