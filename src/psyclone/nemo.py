@@ -44,11 +44,12 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.nemo import NemoConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Loop, Schedule, Routine
+from psyclone.psyir.nodes import Schedule, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -247,21 +248,17 @@ class NemoKern(InlinedKern):
                             "have been called.")
 
 
-class NemoLoop(Loop):
+class NemoLoop(PSyLoop):
     '''
-    Class representing a Loop in NEMO.
+    Class representing a PSyLoop in NEMO.
 
-    :param parent: parent of this NemoLoop in the PSyclone AST.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param str variable_name: optional name of the loop iterator \
-        variable. Defaults to an empty string.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, parent=None, variable=None):
+    def __init__(self, **kwargs):
         const = NemoConstants()
-        Loop.__init__(self, parent=parent,
-                      variable=variable,
-                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
 
     @staticmethod
     def create(variable, start, stop, step, children):
@@ -292,7 +289,7 @@ class NemoLoop(Loop):
             are not of the expected type.
 
         '''
-        Loop._check_variable(variable)
+        NemoLoop._check_variable(variable)
 
         if not isinstance(children, list):
             raise GenerationError(

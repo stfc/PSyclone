@@ -69,11 +69,11 @@ def test_constructor_invalid_loop_type(monkeypatch):
 
     '''
     # An invalid type should be caught by the setter in the base Loop class.
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(TypeError) as err:
         DynLoop(loop_type="wrong")
     const = LFRicConstants()
-    assert ("Error, loop_type value (wrong) is invalid. Must be one of {0}."
-            .format(const.VALID_LOOP_TYPES) in str(err.value))
+    assert (f"Error, loop_type value (wrong) is invalid. Must be one of "
+            f"{const.VALID_LOOP_TYPES}." in str(err.value))
     # Monkeypatch the list of valid loop types so as to reach the code
     # that attempts to set the loop variable.
     monkeypatch.setattr(LFRicConstants, "VALID_LOOP_TYPES", ["wrong"])
