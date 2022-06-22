@@ -40,10 +40,9 @@ include ../../common.mk
 # variable.
 #
 # export F90=nvfortran
-# export F90FLAGS="-acc"
+# export F90FLAGS = -Minfo -acc -ta=tesla:cc70
 # export LDFLAGS=""
 # Currently only compatible with F90=nvfortran
-F90FLAGS ?= -Minfo -acc -ta=tesla:cc70
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
