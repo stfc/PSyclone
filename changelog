@@ -5,6 +5,9 @@
 	2) PR #1766 FOR #1764. Fixes various syntax errors in some of the
 	Fortran test files.
 
+	3) PR #1759 for #1752. Updates to GOcean examples so that F90FLAGS
+	is used consistently and is also used when linking.
+
 release 2.3.1 17th of June 2022	
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
