@@ -44,8 +44,9 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
-from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product, _get_active_variables_datatype
+from psyclone.psyad.tl2ad import _create_adjoint_name, _find_container, \
+    _create_inner_product, _create_array_inner_product, \
+    _get_active_variables_datatype
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
@@ -55,7 +56,20 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
     ScalarType
 
 
-# 1: generate_adjoint_str function
+# _generate_adjoint_name function
+
+def test_generate_adjoint_name():
+    '''Test that the _generate_adjoint_name() function works as
+    expected.
+
+    '''
+    assert _create_adjoint_name("name") == "adj_name"
+    assert _create_adjoint_name("NAME") == "adj_name"
+    assert _create_adjoint_name("tl_name") == "adj_name"
+    assert _create_adjoint_name("Tl_NaMe") == "adj_name"
+
+
+# generate_adjoint_str function
 
 # expected output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
@@ -187,7 +201,7 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     assert harness in caplog.text
 
 
-# 2: _find_container function
+#  _find_container function
 
 def test_find_container():
     ''' Tests for the internal, helper function _find_container(). '''
@@ -217,7 +231,7 @@ def test_find_container():
             "not supported." in str(err.value))
 
 
-# 3: _get_active_variables_datatype function
+# _get_active_variables_datatype function
 
 def test_get_active_variables_datatype_error(fortran_reader):
     ''' Test that the _get_active_variables_datatype raises the expected
@@ -283,7 +297,7 @@ def test_get_active_variables_datatype(fortran_reader):
     assert atype.precision.name == "i_def"
 
 
-# 4: generate_adjoint function
+# generate_adjoint function
 
 def test_generate_adjoint(fortran_reader):
     '''Test that the generate_adjoint() function works as expected.'''
@@ -413,7 +427,7 @@ def test_generate_adjoint_logging(caplog):
     assert expected_ad_fortran_str in ad_fortran_str
 
 
-# 5: generate_adjoint_test
+# generate_adjoint_test
 
 def test_generate_adjoint_test_errors():
     ''' Check that generate_adjoint_test() raises the expected exceptions if
@@ -772,7 +786,7 @@ def test_generate_harness_unknown_kind_error(fortran_reader):
             str(err.value))
 
 
-# 6: _create_inner_product and _create_array_inner_product
+# _create_inner_product and _create_array_inner_product
 
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected

@@ -68,10 +68,11 @@ TL_NAME_PREFIX = "tl_"
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def create_adjoint_name(tl_name):
+def _create_adjoint_name(tl_name):
     '''Create an adjoint name from the supplied tangent linear name. This
     is done by stripping the TL_NAME_PREFIX from the name if it exists
-    and then adding the ADJOINT_NAME_PREFIX.
+    and then adding the ADJOINT_NAME_PREFIX. The adjoint name is also
+    lower-cased.
 
     :param str: the tangent-linear name.
 
@@ -79,9 +80,9 @@ def create_adjoint_name(tl_name):
     :rtype: str
 
     '''
-    adj_name = tl_name
-    if tl_name.startswith(TL_NAME_PREFIX):
-        adj_name = tl_name[len(TL_NAME_PREFIX):]
+    adj_name = tl_name.lower()
+    if adj_name.startswith(TL_NAME_PREFIX):
+        adj_name = adj_name[len(TL_NAME_PREFIX):]
     return ADJOINT_NAME_PREFIX + adj_name
 
 
@@ -252,7 +253,7 @@ def generate_adjoint(tl_psyir, active_variables):
         # for the existing TL code so that we don't accidentally clash with
         # e.g. the name of the kernel routine.
         container.name = container.symbol_table.next_available_name(
-            create_adjoint_name(container.name))
+            _create_adjoint_name(container.name))
 
     routines = ad_psyir.walk(Routine)
 
@@ -271,7 +272,7 @@ def generate_adjoint(tl_psyir, active_variables):
     # within a module.
     if container:
         kernel_sym = container.symbol_table.lookup(routine.name)
-        adj_kernel_name = create_adjoint_name(routine.name)
+        adj_kernel_name = _create_adjoint_name(routine.name)
         # A symbol's name is immutable so create a new RoutineSymbol
         adj_kernel_sym = container.symbol_table.new_symbol(
             adj_kernel_name, symbol_type=RoutineSymbol,
@@ -280,7 +281,7 @@ def generate_adjoint(tl_psyir, active_variables):
         routine.name = adj_kernel_sym.name
     else:
         routine.name = routine.symbol_table.next_available_name(
-            create_adjoint_name(routine.name))
+            _create_adjoint_name(routine.name))
 
     logger.debug("AD kernel will be named '%s'", routine.name)
 
