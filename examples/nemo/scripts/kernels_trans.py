@@ -65,7 +65,6 @@ from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
-from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
                                            ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans
@@ -485,11 +484,13 @@ def trans(psy):
             print(f"Transforming {invoke.name} with acc kernels")
             have_kernels = add_kernels(sched.children)
             if have_kernels and ACC_DATA:
+                print(f"Transforming {invoke.name} with acc enter data")
                 ACC_EDATA_TRANS.apply(sched)
         else:
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
 
         if ACC_DATA:
+            print(f"Transforming {invoke.name} with acc update")
             ACC_UPDATE_TRANS.apply(sched, options={"allow-codeblocks": True})
 
         # Add profiling instrumentation
