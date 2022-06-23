@@ -65,16 +65,25 @@ from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, \
     Literal, Return, Call, ACCDirective, ACCLoopDirective
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
+from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
+                                           ACCUpdateTrans
+from psyclone.transformations import ACCEnterDataTrans
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
+ACC_EDATA_TRANS = ACCEnterDataTrans()
+ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 PROFILE_NONACC = True
+
+# Whether or not to add OpenACC enter data and update directives to explicitly
+# move data between host and device memory
+ACC_DATA = True
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
@@ -443,9 +452,9 @@ def try_kernels_trans(nodes):
 
 
 def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies OpenACC
-    'kernels' directives to NEMO code. Data movement is handled automatically
-    by CUDA Unified Memory.
+    '''A PSyclone-script compliant transformation function. Applies
+    OpenACC 'kernels' directives to NEMO code. Data movement can be
+    handled manually or through CUDA's managed-memory functionality.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -474,9 +483,14 @@ def trans(psy):
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if invoke.name.lower() not in ACC_IGNORE:
             print(f"Transforming {invoke.name} with acc kernels")
-            add_kernels(sched.children)
+            have_kernels = add_kernels(sched.children)
+            if have_kernels and ACC_DATA:
+                ACC_EDATA_TRANS.apply(sched)
         else:
             print(f"Addition of OpenACC to routine {invoke.name} disabled!")
+
+        if ACC_DATA:
+            ACC_UPDATE_TRANS.apply(sched, options={"allow-codeblocks": True})
 
         # Add profiling instrumentation
         if PROFILE_NONACC:
