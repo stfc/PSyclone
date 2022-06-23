@@ -342,10 +342,7 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
         from psyclone.psyGen import InvokeSchedule
         from psyclone.psyir.tools import DependencyTools
         if not self._node_lowered:
-            idx = self.position + 1
             dep_tools = DependencyTools()
-            inputs, outputs = dep_tools.get_in_out_parameters(
-                self.parent.children[idx:])
             # We must generate a list of all of the fields accessed by
             # OpenACC kernels (calls within an OpenACC parallel or kernels
             # directive)
@@ -353,7 +350,6 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
             # for later use in any sub-class.
             self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                     (ACCParallelDirective, ACCKernelsDirective))
-            #import pdb; pdb.set_trace()
             # 2. For each directive, loop over each of the variables used by
             #    the kernels it contains and add it to our list if we don't
             #    already have it
@@ -368,7 +364,8 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
                     # TODO use Config to get loop variable names
                     if name in ["ji", "jj", "jk"]:
                         continue
-                    sym = self.scope.symbol_table.lookup(name)
+                    # TODO examine type of sym?
+                    # sym = self.scope.symbol_table.lookup(name)
                     if name not in self._variables_to_copy:
                         self._variables_to_copy.append(name)
             self._node_lowered = True
