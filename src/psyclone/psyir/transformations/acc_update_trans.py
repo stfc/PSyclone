@@ -40,13 +40,13 @@ data is kept up-to-date on the host.
 
 from __future__ import absolute_import
 from fparser.two import Fortran2003
-from psyclone.configuration import Config
+from psyclone.nemo import NemoInvokeSchedule
+from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Call, IfBlock, Loop, Schedule, Operation,
                                   BinaryOperation, ACCKernelsDirective,
-                                  ACCParallelDirective, ACCUpdateDirective,
+                                  ACCParallelDirective,
                                   ACCEnterDataDirective, CodeBlock, Routine)
 from psyclone.psyir.tools import DependencyTools
-from psyclone.psyGen import Transformation
 
 
 class ACCUpdateTrans(Transformation):
@@ -61,10 +61,7 @@ class ACCUpdateTrans(Transformation):
         # We treat a Call as being a (potential) ACC region because we
         # don't know what happens within it.
         self._acc_region_nodes = (ACCParallelDirective, ACCKernelsDirective,
-                                  Call, CodeBlock)
-        loop_type_mapping = Config.get().api_conf("nemo") \
-                                        .get_loop_type_mapping()
-        self._loop_vars = loop_type_mapping.keys()
+                                  Call)
         # Those fparser2 nodes that may occur inside a CodeBlock but represent
         # accesses that do not require any data synchronisation between CPU
         # and GPU.
@@ -129,16 +126,12 @@ class ACCUpdateTrans(Transformation):
         '''
         self.validate(node, options)
 
+        excluded_nodes = self._acc_region_nodes
         if options and options.get("allow-codeblocks", False):
-            excluded_nodes = tuple(list(self._acc_region_nodes) + [CodeBlock])
-        else:
-            excluded_nodes = self._acc_region_nodes
+            excluded_nodes = self._acc_region_nodes + (CodeBlock,)
 
         routine = node.ancestor(Routine, include_self=True)
-        if routine:
-            self._routine_name = routine.name
-        else:
-            self._routine_name = ""
+        self._routine_name = routine.name if routine else ""
 
         # Call the routine that recursively adds updates to all Schedules
         # within the supplied Schedule.
@@ -254,40 +247,33 @@ class ACCUpdateTrans(Transformation):
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        if sched.ancestor(NemoInvokeSchedule, include_self=True):
+            from psyclone.nemo import NemoACCUpdateDirective as AccUpdateDir
+        else:
+            from psyclone.psyir.nodes import ACCUpdateDirective as AccUpdateDir
+
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
-        parent = sched
-        # Copy any data that is read by this region to the host if it is
-        # on the GPU.
-        if inputs:
+
+        # Copy any data that is read by this region to the host (resp. device)
+        # if it is on the device (resp. host).
+        for idx, inouts in enumerate((inputs, outputs)):
+            if not inouts:
+                continue
+            if idx == 0:   # inputs
+                node_index = 0
+                node_offset = 0
+                direction = "host"
+            elif idx == 1: # outputs
+                node_index = -1
+                node_offset = 1
+                direction = "device"
             # Since the supplied nodes may be the children of an IfBlock or
             # Loop, we have to search up to find the ancestor that *is* a
             # child of the Schedule we are working on.
-            first_child = node_list[0]
-            while first_child not in parent.children:
-                first_child = first_child.parent
-            sig_list = []
-            for sig in inputs:
-                if sig.var_name in self._loop_vars:
-                    continue
-                sig_list.append(sig)
-            if sig_list:
-                update_dir = ACCUpdateDirective(sig_list, "host")
-                parent.addchild(update_dir, parent.children.index(first_child))
-        # Copy any data that is written by this region and that is on the GPU
-        # back to the GPU.
-        if outputs:
-            # Since the supplied nodes may be the children of an IfBlock or
-            # Loop, we have to search up to find the ancestor that *is* a
-            # child of the Schedule we are working on.
-            last_child = node_list[-1]
-            while last_child not in parent.children:
-                last_child = last_child.parent
-            sig_list = []
-            for sig in outputs:
-                if sig.var_name in self._loop_vars:
-                    continue
-                sig_list.append(sig)
-            if sig_list:
-                update_dir = ACCUpdateDirective(sig_list, "device")
-                parent.addchild(update_dir,
-                                parent.children.index(last_child)+1)
+            child = node_list[node_index]
+            while child not in sched.children:
+                child = child.parent
+            sig_list = set(inouts)
+            update_dir = AccUpdateDir(sig_list, direction)
+            sched.addchild(update_dir, sched.children.index(child)+node_offset)
