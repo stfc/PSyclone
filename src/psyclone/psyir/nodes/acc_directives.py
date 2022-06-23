@@ -106,14 +106,17 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         '''
         variables = set()
 
-        try:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.psyir.tools import DependencyTools
+
+        if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
-            if not self.kernels(): raise AttributeError
             for call in self.kernels():
                 for arg in call.arguments.acc_args:
                     variables.add(arg)
-        except AttributeError:
-            from psyclone.psyir.tools import DependencyTools
+        else:
             dep_tools = DependencyTools()
             inputs, outputs = dep_tools.get_in_out_parameters(self.children)
             for sig in (inputs + outputs):
