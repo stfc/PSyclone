@@ -39,7 +39,16 @@ by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
 '''
-class Sum2CodeTrans(Transformation):
+
+from psyclone.psyir.nodes import (
+    UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference,
+    Literal, Loop, ArrayReference)
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, ScalarType
+from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
+    Operator2CodeTrans)
+
+
+class Sum2CodeTrans(Operator2CodeTrans):
     '''Provides a transformation from a PSyIR SUM Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -67,15 +76,22 @@ class Sum2CodeTrans(Transformation):
 
     '''
     def __init__(self):
-        super(Abs2CodeTrans, self).__init__()
-        self._operator_name = "ABS"
-        self._classes = (UnaryOperation,)
-        self._operators = (UnaryOperation.Operator.ABS,)
+        super(Sum2CodeTrans, self).__init__()
+        self._operator_name = "SUM"
+        self._classes = (UnaryOperation, BinaryOperation, NaryOperation)
+        self._operators = (UnaryOperation.Operator.SUM, BinaryOperation.Operator.SUM, NaryOperation.Operator.SUM)
 
-    def validate(self, node):
+    def validate(self, node, options=None):
         ''' xxx '''
-        # assignment
-        # rhs is sum and nothing else
+        super(Sum2CodeTrans, self).validate(node, options)
+
+        # Is this really a constraint for us (no, I don't think so).
+        ## Check the sum is the only code on the rhs of an assignment i.e. ... = sum(a)
+        #if not isinstance(node.parent, Assignment):
+        #    raise TransformationError(
+        #        "Sum2CodeTrans only supports the transformation of a "
+        #        "SUM operation when it is the sole operation on the rhs "
+        #        "of an assignment.")
 
     def apply(self, node, options=None):
         '''Apply the SUM intrinsic conversion transformation to the specified
@@ -84,9 +100,26 @@ class Sum2CodeTrans(Transformation):
         self.validate(node)
 
         # TODO get args 1) array, 2) dimension 3) mask
+        array_ref = node.children[0]
 
-        # TODO determine dimension of array statically else raise exception
-        
+        ndims = None
+        # Determine the dimension of the array
+        if len(array_ref.children) == 0:
+            if not array_ref.symbol.is_array:
+                raise Exception("Expected an array")
+            ndims = len(array_ref.symbol.shape)
+        else:
+            # This is an array reference
+            ndims = len(array_ref.children)
+
+        # Determine the datatype of the array's values and create a
+        # scalar of that type
+        array_intrinsic = array_ref.symbol.datatype.intrinsic
+        array_precision =  array_ref.symbol.datatype.precision
+        scalar_type = ScalarType(array_intrinsic, array_precision)
+
+        # Try to determine the bounds of the array dimensions
+
         # sum each dimension into lhs scalar with optional mask.
         # zero scalar sum (real or integer)
         # Create loop for each dimension as a nest
@@ -99,45 +132,33 @@ class Sum2CodeTrans(Transformation):
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
-        # Create two temporary variables.  There is an assumption here
-        # that the ABS Operator returns a PSyIR real type. This might
-        # not be what is wanted (e.g. the args might PSyIR integers),
-        # or there may be errors (arguments are of different types)
-        # but this can't be checked as we don't have the appropriate
-        # methods to query nodes (see #658).
-        symbol_res_var = symbol_table.new_symbol(
-            "res_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
-        symbol_tmp_var = symbol_table.new_symbol(
-            "tmp_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        # Create temporary sum variable (sum_var)
+        symbol_sum_var = symbol_table.new_symbol(
+            "sum_var", symbol_type=DataSymbol, datatype=scalar_type)
 
-        # Replace operation with a temporary (res_X).
-        node.replace_with(Reference(symbol_res_var))
+        # Replace operation with a temporary variable (sum_var).
+        node.replace_with(Reference(symbol_sum_var))
 
-        # tmp_var=X
-        lhs = Reference(symbol_tmp_var)
-        rhs = node.children[0].detach()
+        # sum_var=0.0 or 0
+        lhs = Reference(symbol_sum_var)
+        # TODO "0" if integer
+        rhs = Literal("0.0", scalar_type)
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
-        # if condition: tmp_var>0.0
-        lhs = Reference(symbol_tmp_var)
-        rhs = Literal("0.0", REAL_TYPE)
-        if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
-                                              lhs, rhs)
+        # sum_var = sum_var + array(i,...)
+        lhs = Reference(symbol_sum_var)
+        rhs_child1 = Reference(symbol_sum_var)
+        rhs_child2 = node.children[0].detach()
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
+                                     rhs_child2)
 
-        # then_body: res_var=tmp_var
-        lhs = Reference(symbol_res_var)
-        rhs = Reference(symbol_tmp_var)
-        then_body = [Assignment.create(lhs, rhs)]
-
-        # else_body: res_var=-1.0*tmp_var
-        lhs = Reference(symbol_res_var)
-        lhs_child = Reference(symbol_tmp_var)
-        rhs_child = Literal("-1.0", REAL_TYPE)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child,
-                                     rhs_child)
-        else_body = [Assignment.create(lhs, rhs)]
-
-        # if [if_condition] then [then_body] else [else_body]
-        if_stmt = IfBlock.create(if_condition, then_body, else_body)
-        assignment.parent.children.insert(assignment.position, if_stmt)
+        statement = Assignment.create(lhs, rhs)
+        array_indices = []
+        for idx in range(ndims):
+            symbol_iterator = symbol_table.new_symbol(
+            f"i_{idx}", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            statement = Loop.create(symbol_iterator, Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), [statement])
+            array_indices.append(Reference(symbol_iterator))
+        assignment.parent.children.insert(assignment.position, statement)
+        rhs_child2.replace_with(ArrayReference.create(rhs_child2.symbol, array_indices))

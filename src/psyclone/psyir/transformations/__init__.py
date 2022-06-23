@@ -61,6 +61,8 @@ from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
+from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
+    Sum2CodeTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
