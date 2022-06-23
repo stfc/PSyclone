@@ -302,3 +302,24 @@ def test_preprocess_associativity4(fortran_reader, fortran_writer):
     preprocess_trans(psyir, ["a", "c", "d"])
     result = fortran_writer(psyir)
     assert result == expected
+
+
+def test_associativity5(fortran_reader, fortran_writer):
+    ''' xxx '''
+    code = (
+        "subroutine example(a,b,c)\n"
+        "  real :: a,b,c\n"
+        "  a = 0.5 * (b + c)\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine example(a, b, c)\n"
+        "  real :: a\n"
+        "  real :: b\n"
+        "  real :: c\n\n"
+        "  a = 0.5 * b + 0.5 * c\n\n"
+        "end subroutine example\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "b", "c"])
+    result = fortran_writer(psyir)
+    assert result == expected
+
