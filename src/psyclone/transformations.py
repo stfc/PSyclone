@@ -2812,7 +2812,7 @@ class ACCEnterDataTrans(Transformation):
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
         '''
         # Ensure that the proposed transformation is valid
@@ -2824,6 +2824,9 @@ class ACCEnterDataTrans(Transformation):
                 AccEnterDataDir
         elif isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
+                AccEnterDataDir
+        elif isinstance(sched, NemoInvokeSchedule):
+            from psyclone.nemo import NemoACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that validate() has done its job
@@ -2844,9 +2847,8 @@ class ACCEnterDataTrans(Transformation):
         :param sched: Schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of str:values or None
 
-        :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
 
@@ -2857,11 +2859,6 @@ class ACCEnterDataTrans(Transformation):
             raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
-
-        if not isinstance(sched, (GOInvokeSchedule, DynInvokeSchedule)):
-            raise NotImplementedError(
-                f"ACCEnterDataTrans: ACCEnterDataDirective not implemented for"
-                f" a schedule of type {type(sched)}")
 
         # Check that we don't already have a data region of any sort
         directives = sched.walk(Directive)
