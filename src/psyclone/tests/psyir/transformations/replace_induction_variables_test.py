@@ -1,0 +1,127 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2022, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+
+'''This module tests the ReplaceInductionVariables transformation.
+'''
+
+from __future__ import absolute_import, print_function
+
+import pytest
+
+from psyclone.psyir.nodes import Literal
+from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.transformations import (ReplaceInductionVariables,
+                                            TransformationError)
+
+
+# ----------------------------------------------------------------------------
+def test_riv_general():
+    '''Test general functionality of the transformation. '''
+
+    riv = ReplaceInductionVariables()
+
+    assert str(riv) == "Replaces all induction variables in a loop."
+    assert riv.name == "ReplaceInductionVariables"
+
+
+# ----------------------------------------------------------------------------
+def test_riv_errors():
+    '''Test errors that should be thrown. '''
+
+    riv = ReplaceInductionVariables()
+    lit = Literal("1", INTEGER_TYPE)
+    with pytest.raises(TransformationError) as err:
+        riv.apply(lit)
+
+    assert ("Error in ReplaceInductionVariables transformation. The "
+            "supplied node argument should be a PSyIR Loop, but found "
+            "'Literal'" in str(err.value))
+
+
+# ----------------------------------------------------------------------------
+def test_riv_constants(fortran_reader, fortran_writer):
+    '''Tests if loop-invariant assignments are replaced as expected.'''
+    source = '''program test
+                integer i, invariant, ic1, ic2, ic3, ic4, ic5, ic6
+                real, dimension(10) :: a
+                invariant = 1
+                do i = 1, 10
+                    ic1 = 12                ! Constant
+                    ic2 = invariant         ! Invariant variable
+                    ic3 = i+1               ! Dependent on loop variable
+                    ic4 = i + 1 + invariant ! Loop variable plus invariant
+                    ic5 = i*i+3*sin(i)      ! Complicated expression
+                    ic6 = ic4 + ic5         ! Multi-step replacement
+                    a(ic1) = 1+(ic1+1)*ic1
+                    a(ic2) = 2+(ic2+1)*ic2
+                    a(ic3) = 3+(ic3+1)*ic3
+                    a(ic4) = 4+(ic4+1)*ic4
+                    a(ic5) = 5+(ic5+1)*ic5
+                    a(ic6) = 6+(ic6+1)*ic6
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    # The first child is the assignment to 'invariant'
+    loop = psyir.children[0].children[1]
+
+    riv = ReplaceInductionVariables()
+    riv.apply(loop)
+    out_all = fortran_writer(psyir)
+    out_loop = fortran_writer(loop)
+
+    assert "a(12) = 1 + (12 + 1) * 12" in out_loop
+    # Make sure the assignment to ic1 has been added outside of the loop:
+    assert "ic1 = 12" in out_all
+    assert "ic1 = 12" not in out_loop
+
+    assert "a(invariant) = 2 + (invariant + 1) * invariant" in out_loop
+    # Make sure the assignment to ic2 has been added outside of the loop:
+    assert "ic2 = invariant" in out_all
+    assert "ic2 = invariant" not in out_loop
+
+    assert "a(i + 1) = 3 + (i + 1 + 1) * (i + 1)" in out_loop
+    assert "ic3 = 10 + 1" in out_all
+
+    assert ("a(i + 1 + invariant) = 4 + (i + 1 + invariant + 1) * "
+            "(i + 1 + invariant)" in out_loop)
+    assert "ic4 = 10 + 1 + invariant" in out_all
+
+    assert ("a(i * i + 3 * SIN(i)) = 5 + (i * i + 3 * SIN(i) + 1) * "
+            "(i * i + 3 * SIN(i))" in out_loop)
+    assert "ic5 = 10 * 10 + 3 * SIN(10)" in out_all
+    assert ("a(i + 1 + invariant + (i * i + 3 * SIN(i))) = 6 + "
+            "(i + 1 + invariant + (i * i + 3 * SIN(i)) + 1) * "
+            "(i + 1 + invariant + (i * i + 3 * SIN(i)))" in out_loop)
+    assert "ic6 = 10 + 1 + invariant + (10 * 10 + 3 * SIN(10))" in out_all
