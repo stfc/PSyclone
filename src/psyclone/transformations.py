@@ -2834,16 +2834,18 @@ class ACCEnterDataTrans(Transformation):
                 f"ACCEnterDataTrans.validate() has not rejected an "
                 f"(unsupported) schedule of type {type(sched)}")
 
-        # Add the directive
-        data_dir = AccEnterDataDir(parent=sched, children=[])
-        acc_regions = sched.walk((ACCParallelDirective, ACCKernelsDirective))
-        if acc_regions:
-            current = acc_regions[0]
+        # Determine where to place the directive
+        posn = 0
+        directive_cls = (ACCParallelDirective, ACCKernelsDirective)
+        directive = sched.walk(directive_cls, stop_type=directive_cls)
+        if directive:
+            current = directive[0]
             while current not in sched.children:
                 current = current.parent
             posn = sched.children.index(current)
-        else:
-            posn = 0
+
+        # Add the directive
+        data_dir = AccEnterDataDir(parent=sched, children=[])
         sched.addchild(data_dir, index=posn)
 
     def validate(self, sched, options=None):
@@ -2864,14 +2866,13 @@ class ACCEnterDataTrans(Transformation):
         super().validate(sched, options)
 
         if not isinstance(sched, Schedule):
-            raise TransformationError("Cannot apply an OpenACC enter-data "
-                                      "directive to something that is "
-                                      "not a Schedule")
+            raise TransformationError("Cannot apply an OpenACC enter data "
+                                      "directive to something that is not a "
+                                      "Schedule")
 
         # Check that we don't already have a data region of any sort
-        directives = sched.walk(Directive)
-        if any(isinstance(ddir, (ACCDataDirective, ACCEnterDataDirective))
-               for ddir in directives):
+        directive_cls = (ACCDataDirective, ACCEnterDataDirective)
+        if sched.walk(directive_cls, stop_type=directive_cls):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 

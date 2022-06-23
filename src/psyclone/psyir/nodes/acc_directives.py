@@ -173,10 +173,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         super().__init__(children=children, parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        # The _sig_list are computed dynamically until the
-        # _node_lowered flag is set to True, after that re-use the stored ones.
         self._sig_list = set()
-        self._node_lowered = False
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -213,20 +210,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule
 
-        if not self._node_lowered:
-            # We must generate a list of all of the fields accessed by OpenACC
-            # kernels (calls within an OpenACC parallel or kernels directive)
-            # 1. Find all parallel and kernels directives. We store this list
-            # for later use in any sub-class.
-            self._acc_dirs = self.ancestor(InvokeSchedule).walk(
-                    (ACCParallelDirective, ACCKernelsDirective))
-            # 2. For each directive, add the fields used by the kernels it
-            # contains (as given by kernel_references) and add it to our set.
-            # TODO GOcean grid properties are duplicated in this set under
-            # different names (the OpenACC deep copy support should spot this).
-            for pdir in self._acc_dirs:
-                self._sig_list.update(pdir.kernel_references)
-            self._node_lowered = True
+        # We must generate a list of all of the fields accessed by OpenACC
+        # kernels (calls within an OpenACC parallel or kernels directive)
+        # 1. Find all parallel and kernels directives. We store this list
+        # for later use in any sub-class.
+        self._acc_dirs = self.ancestor(InvokeSchedule).walk(
+                (ACCParallelDirective, ACCKernelsDirective))
+        # 2. For each directive, add the fields used by the kernels it
+        # contains (as given by kernel_references) and add it to our set.
+        # TODO GOcean grid properties are duplicated in this set under
+        # different names (the OpenACC deep copy support should spot this).
+        for pdir in self._acc_dirs:
+            self._sig_list.update(pdir.kernel_references)
 
         super().lower_to_language_level()
 
@@ -762,7 +757,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     :param signatures: the access signature(s) that need to be synchronised \
                        with the accelerator.
-    :type signatures: List[:py:class:`psyclone.core.Signature`]
+    :type signatures: Set[:py:class:`psyclone.core.Signature`]
     :param str direction: the direction of the synchronisation.
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -854,8 +849,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         for sig in self._sig_list:
             for idx in range(len(sig)):
                 # TODO this is 1) Fortran specific and 2) repeated code
-                name = "%".join(sig[:idx+1])
-                names.add(name)
+                names.add("%".join(sig[:idx+1]))
         sym_list = ",".join(sorted(names))
         return f"acc update {condition}{self._direction}({sym_list})"
 

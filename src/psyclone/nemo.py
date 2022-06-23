@@ -49,8 +49,8 @@ from psyclone.domain.nemo import NemoConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Schedule, Routine, ACCKernelsDirective,
-                                  ACCParallelDirective, ACCEnterDataDirective)
+from psyclone.psyir.nodes import (ACCEnterDataDirective, ACCUpdateDirective,
+                                  Schedule, Routine)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -343,5 +343,27 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
         '''
         super().lower_to_language_level()
 
+        # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
         self._sig_list.difference_update(loop_var)
+
+class NemoACCUpdateDirective(ACCUpdateDirective):
+    '''
+    NEMO-specific support for the OpenACC update directive.
+
+    '''
+    def begin_string(self):
+        '''
+        Returns the beginning statement of this directive, i.e.
+        "acc update host(symbol)". The backend is responsible for adding the
+        correct characters to mark this as a directive (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        # Remove known loop variables from the set of variables to transfer
+        loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
+        self._sig_list.difference_update(loop_var)
+
+        return super().begin_string()
