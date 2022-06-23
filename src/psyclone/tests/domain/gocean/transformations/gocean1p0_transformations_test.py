@@ -1219,8 +1219,7 @@ def test_acc_parallel_trans_dm():
     accdt.apply(schedule)
     code = str(psy.gen)
     # Check that the start of the parallel region is in the right place.
-    assert ("      CALL p_fld%halo_exchange(1)\n"
-            "      !$acc parallel default(present)\n"
+    assert ("      !$acc parallel default(present)\n"
             "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             in code)
     # Check that the end parallel is generated correctly.
@@ -1264,7 +1263,7 @@ def test_acc_data_not_a_schedule():
 
     with pytest.raises(TransformationError) as err:
         acct.apply(schedule.children[0])
-    assert ("Cannot apply an OpenACC enter-data directive to something that "
+    assert ("Cannot apply an OpenACC enter data directive to something that "
             "is not a Schedule" in str(err.value))
 
 

@@ -40,11 +40,10 @@ data is kept up-to-date on the host.
 
 from __future__ import absolute_import
 from fparser.two import Fortran2003
-from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Call, IfBlock, Loop, Schedule, Operation,
                                   BinaryOperation, ACCKernelsDirective,
-                                  ACCParallelDirective,
+                                  ACCParallelDirective, ACCUpdateDirective,
                                   ACCEnterDataDirective, CodeBlock, Routine)
 from psyclone.psyir.tools import DependencyTools
 
@@ -248,10 +247,10 @@ class ACCUpdateTrans(Transformation):
 
         '''
         # pylint: disable=import-outside-toplevel
+        from psyclone.nemo import NemoInvokeSchedule
         if sched.ancestor(NemoInvokeSchedule, include_self=True):
-            from psyclone.nemo import NemoACCUpdateDirective as AccUpdateDir
-        else:
-            from psyclone.psyir.nodes import ACCUpdateDirective as AccUpdateDir
+            from psyclone.nemo import NemoACCUpdateDirective as \
+                ACCUpdateDirective
 
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
 
@@ -275,5 +274,5 @@ class ACCUpdateTrans(Transformation):
             while child not in sched.children:
                 child = child.parent
             sig_list = set(inouts)
-            update_dir = AccUpdateDir(sig_list, direction)
+            update_dir = ACCUpdateDirective(sig_list, direction)
             sched.addchild(update_dir, sched.children.index(child)+node_offset)
