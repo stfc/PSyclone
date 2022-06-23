@@ -44,11 +44,11 @@ import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
-from psyclone.tests.utilities import get_invoke, Compile
+from psyclone.psyir.transformations import ACCUpdateTrans
+from psyclone.tests.utilities import Compile, get_invoke
 
 
 # Constants
@@ -100,78 +100,56 @@ def test_explicit(parser):
             "end program explicit_do") in gen_code
 
 
-def test_data_single_node(parser):
-    ''' Check that the ACCDataTrans works if passed a single node rather
-    than a list. '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule[0])
-    assert isinstance(schedule[0], ACCDataDirective)
-
-
-def test_data_no_gen_code():
-    ''' Check that the ACCDataDirective.gen_code() method raises the
-    expected InternalError as it should not be called. '''
-    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule.children[0:2])
-    with pytest.raises(InternalError) as err:
-        schedule.children[0].gen_code(schedule)
-    assert ("ACCDataDirective.gen_code should not have "
-            "been called" in str(err.value))
-
-
-def test_explicit_directive(parser):
-    '''Check code generation for a single explicit loop containing a
-    kernel with a pre-existing (openacc kernels) directive.
-
-    '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    acc_trans.apply(schedule.children, {"default_present": True})
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen).lower()
-
-    assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
-            "\n"
-            "  !$acc data copyout(umask)\n"
-            "  !$acc kernels default(present)\n"
-            "  do jk = 1, jpk, 1") in gen_code
-
-    assert ("  enddo\n"
-            "  !$acc end kernels\n"
-            "  !$acc end data\n"
-            "\n"
-            "end program explicit_do") in gen_code
-
-
-def test_array_syntax():
-    '''Check code generation for a mixture of loops and code blocks.'''
-    psy, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+def test_simple_missed_region(parser):
+    ''' Check code generation when there is a simple section of host code
+    between two kernels regions. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  USE some_mod, only: dia_ptr_hst
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  INTEGER :: jn
+  LOGICAL :: l_ptr
+  INTEGER, DIMENSION(jpi,jpj) :: tmask
+  REAL, DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
+  zftv(:,:,:) = 0.0d0
+  IF( l_ptr )THEN
+    CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+    zftv(:,:,:) = 1.0d0
+  END IF
+  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+  zftu(:,:,1) = 1.0d0
+  tmask(:,:) = jpi
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = ACCEnterDataTrans()
+    acc_kernels = ACCKernelsTrans()
+    acc_update = ACCUpdateTrans()
     # We do not permit arbitrary code blocks to be included in data
     # regions so just put two of the loops into regions.
-    acc_trans.apply([schedule.children[0]])
-    acc_trans.apply([schedule.children[-1]])
+    acc_kernels.apply(schedule[0])
+    acc_kernels.apply(schedule[3:5])
+    acc_trans.apply(schedule)
+    acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-
-    assert ("  real(kind=wp), dimension(jpi,jpj,jpk) :: ztfw\n"
+    assert ("  real, dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
-            "  !$acc data copyout(zftv)\n"
-            "  zftv(:,:,:) = 0.0d0" in gen_code)
+            "  !$acc enter data copyin(zftv,jpi,tmask,zftu)\n"
+            "  !$acc kernels\n"
+            "  zftv(:,:,:) = 0.0d0\n"
+            "  !$acc end kernels\n"
+            "  !$acc update if(acc_is_present(jn)) host(jn)\n"
+            "  !$acc update if(acc_is_present(l_ptr)) host(l_ptr)\n"
+            "  !$acc update if(acc_is_present(zftv)) host(zftv)\n"
+            "  if (l_ptr) then\n" in gen_code)
 
-    assert ("  !$acc data copyout(tmask)\n"
+    assert ("  !$acc kernels\n"
+            "  zftu(:,:,1) = 1.0d0\n"
             "  tmask(:,:) = jpi\n"
-            "  !$acc end data\n"
+            "  !$acc end kernels\n"
             "\n"
             "end subroutine tra_ldf_iso" in gen_code)
 
@@ -198,34 +176,6 @@ def test_multi_data():
     assert ("    enddo\n"
             "    !$acc end data\n"
             "  enddo") in gen_code
-
-
-def test_replicated_loop(parser, tmpdir):
-    '''Check code generation with two loops that have the same
-    structure.
-
-    '''
-    reader = FortranStringReader("subroutine replicate()\n"
-                                 "   INTEGER :: dummy\n"
-                                 "   REAL :: zwx(10,10)\n"
-                                 "   zwx(:,:) = 0.e0\n"
-                                 "   zwx(:,:) = 0.e0\n"
-                                 "END subroutine replicate\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('replicate').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule.children[0:1])
-    acc_trans.apply(schedule.children[1:2])
-    gen_code = str(psy.gen)
-
-    assert ("  !$acc data copyout(zwx)\n"
-            "  zwx(:,:) = 0.e0\n"
-            "  !$acc end data\n"
-            "  !$acc data copyout(zwx)\n"
-            "  zwx(:,:) = 0.e0\n"
-            "  !$acc end data" in gen_code)
-    assert Compile(tmpdir).string_compiles(gen_code)
 
 
 def test_data_ref(parser):

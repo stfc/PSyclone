@@ -40,6 +40,7 @@
 transformations and base classes.
 '''
 
+from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
@@ -80,7 +81,8 @@ from psyclone.psyir.transformations.transformation_error \
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ArrayRange2LoopTrans',
+__all__ = ['ACCUpdateTrans',
+           'ArrayRange2LoopTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',

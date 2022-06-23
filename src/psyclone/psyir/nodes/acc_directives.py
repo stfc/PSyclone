@@ -769,7 +769,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
-    def __init__(self, symbol, direction, children=None, parent=None):
+    def __init__(self, symbol, direction, children=None, parent=None,
+                 conditional=True):
         super().__init__(children=children, parent=parent)
         if not isinstance(direction, six.string_types) or direction not in \
                 self._VALID_DIRECTIONS:
@@ -785,6 +786,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         self._direction = direction
         self._symbol = symbol
+        self._conditional = conditional
 
     def __eq__(self, other):
         '''
@@ -832,7 +834,11 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc update " + self._direction + "(" + self._symbol.name + ")"
+        if self._conditional:
+            condition = f"if(acc_is_present({self._symbol.name}))"
+        else:
+            condition = ""
+        return f"acc update {condition} {self._direction}({self._symbol.name})"
 
 
 # For automatic API documentation generation
