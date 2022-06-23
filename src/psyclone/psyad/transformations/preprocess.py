@@ -95,6 +95,10 @@ def preprocess_trans(kernel_psyir, active_variable_names):
         else:
             sym_maths = SymbolicMaths.get()
             sym_maths.expand(assignment.rhs)
+            # sym_maths does not work if one of the terms is a literal
+            # e.g. 0.5*(a+b) so run the associativity function to
+            # catch any such cases.
+            associativity(assignment, active_variable_names)
 
 
 def associativity(assignment, active_variable_names):
