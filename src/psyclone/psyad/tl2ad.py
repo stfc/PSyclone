@@ -79,6 +79,7 @@ def create_adjoint_name(tl_name):
     :rtype: str
 
     '''
+    adj_name = tl_name
     if tl_name.startswith(TL_NAME_PREFIX):
         adj_name = tl_name[len(TL_NAME_PREFIX):]
     return ADJOINT_NAME_PREFIX + adj_name
