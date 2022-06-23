@@ -38,7 +38,8 @@
 ''' Symbols package module '''
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
-    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
+    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
+    PreprocessorInterface
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
@@ -70,6 +71,7 @@ __all__ = ['ArgumentInterface',
            'INTEGER4_TYPE',
            'INTEGER8_TYPE',
            'LocalInterface',
+           'PreprocessorInterface',
            'NoType',
            'REAL_TYPE',
            'REAL_SINGLE_TYPE',

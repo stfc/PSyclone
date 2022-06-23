@@ -85,6 +85,13 @@ class UnresolvedInterface(SymbolInterface):
     def __str__(self):
         return "Unresolved"
 
+class PreprocessorInterface(SymbolInterface):
+    # pylint: disable=too-few-public-methods
+    '''The symbol exists in the file through a preprocessor declaration'''
+
+    def __str__(self):
+        return "Preprocessor"
+
 
 class ImportInterface(SymbolInterface):
     '''Describes the interface to a Symbol that is imported from an external

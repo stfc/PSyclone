@@ -47,7 +47,7 @@ import copy
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, ImportInterface, \
     ContainerSymbol, DataTypeSymbol, RoutineSymbol, SymbolError, \
-    UnresolvedInterface
+    UnresolvedInterface, ArgumentInterface
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.errors import InternalError
 
@@ -746,10 +746,13 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
-        # TODO #898 remove() does not currently check for any uses of
-        # old_symbol.
         self.remove(old_symbol)
         self.add(new_symbol)
+        # Update the references to this symbol
+        from psyclone.psyir.nodes import Reference
+        for ref in self._node.walk(Reference):
+            if ref.symbol is old_symbol:
+                ref.symbol = new_symbol
 
     def remove(self, symbol):
         '''
@@ -819,6 +822,24 @@ class SymbolTable():
                 del self._tags[tag]
 
         self._symbols.pop(norm_name)
+
+    def move_symbol_upwards(self, symbol, ancestor_symtab):
+
+        if isinstance(symbol, ArgumentInterface):
+            raise SymbolError("")
+
+        found = False
+        if self.node is not None and ancestor_symtab.node is not None:
+            current_table = self
+            while current_table:
+                current_table = current_table.parent_symbol_table()
+                if current_table is ancestor_symtab:
+                    found = True
+                    break
+        if not found:
+            raise SymbolError("")
+
+
 
     @property
     def argument_list(self):
