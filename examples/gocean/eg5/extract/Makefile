@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,9 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
+READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
+READ_KERNEL_DATA = $(READ_DIR)/read_kernel_data_mod.o \
+
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
@@ -82,7 +85,7 @@ compile: transform $(NAME) $(DRIVER_INIT) $(DRIVER_UPDATE)
 transform: psy.f90
 
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
+F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR) -I$(READ_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 alg.f90 psy.f90: test.x90 extract_transform.py
@@ -90,26 +93,22 @@ alg.f90 psy.f90: test.x90 extract_transform.py
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf    \
 	$(INF_LIB)                                \
 	$$(nf-config --flibs)
 
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $(KERNELS) $(DRIVER_INIT).o \
-	-o $(DRIVER_INIT)            \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
-	$(INF_LIB)     \
-	$$(nf-config --flibs)
+#TODO #1757: $(INF_LIB) is required because of the meta-data in the
+#            kernel - once this is fixed, $(INF_LIB) can be removed.
+$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o $(READ_KERNEL_DATA)
+	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT)  \
+		$(INF_LIB) $(READ_KERNEL_DATA) $$(nf-config --flibs)
 
-$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o  \
-	-o $(DRIVER_UPDATE)                         \
-	$(INF_LIB)     \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf      \
-	$$(nf-config --flibs)
+#TODO #1757: $(INF_LIB) is required because of the meta-data in the
+#            kernel - once this is fixed, $(INF_LIB) can be removed.
+$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o $(READ_KERNEL_DATA)
+	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE) \
+		$(INF_LIB) $(READ_KERNEL_DATA) $$(nf-config --flibs)
 
 # The dl_esm_inf library
 $(INF_LIB):
@@ -124,6 +123,8 @@ psy.o:	$(KERNELS)
 # directory will fail.
 $(DRIVER_INIT).f90: psy.f90
 $(DRIVER_UPDATE).f90: psy.f90
+$(DRIVER_INIT).o: $(READ_KERNEL_DATA)
+$(DRIVER_UPDATE).o: $(READ_KERNEL_DATA)
 
 # Dependency to INF_LIB to make sure the mod file are available
 $(KERNELS):  $(INF_LIB)
@@ -136,6 +137,10 @@ $(KERNELS):  $(INF_LIB)
 $(EXTRACT_DIR)/lib_kernel_data_netcdf.a:
 	make -C $(EXTRACT_DIR)
 
+$(READ_KERNEL_DATA):
+		make -C $(READ_DIR)
+
 allclean: clean
 	make -C $(INF_DIR) clean
 	make -C $(EXTRACT_DIR) clean
+	make -C $(READ_DIR) clean
