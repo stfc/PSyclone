@@ -541,7 +541,7 @@ Example
 +++++++
 
 If we take the same kernel used in the stub-generation
-:ref:`stub-generation-example` then running ::
+:ref:`example <stub-generation-example>` then running ::
 
   > psyclone-kern -gen alg tests/test_files/dynamo0p3/simple.f90
 
