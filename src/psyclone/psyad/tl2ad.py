@@ -58,7 +58,7 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
 #: TODO #1346 this tolerance should be user configurable.
 INNER_PRODUCT_TOLERANCE = 1500.0
 #: The prefix we will prepend to a routine, container and metadata
-#: names when generating : the adjoint. If the original name contains
+#: names when generating the adjoint. If the original name contains
 #: the tl prefix, then this is removed.
 ADJOINT_NAME_PREFIX = "adj_"
 TL_NAME_PREFIX = "tl_"

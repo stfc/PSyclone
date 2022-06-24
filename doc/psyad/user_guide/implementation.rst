@@ -474,6 +474,49 @@ expressions as part of the pre-processing phase. In this example, the
 resulting code is :math:`a*b + a*c` which PSyAD can then take the
 adjoint of.
 
+Naming
+++++++
+
+The generated adjoint code uses modified versions of the
+module and subroutine names that are used in the tangent linear code.
+
+The modifications are as follows: if the original tangent linear name
+is prepended with `tl_` then this is removed; the tangent linear names
+are then prepended with `adj_`.
+
+All adjoint names are also output in lower case, irrespective of the
+case used in the tangent linear names.
+
+For example, the following tangent linear example:
+
+.. code-block:: fortran
+    
+    module tl_example_mod
+    contains
+        subroutine tl_example_code()
+	end subroutine tl_example_code
+    end module tl_example_mod
+
+would become:
+
+.. code-block:: fortran
+    
+    module adj_example_mod
+    contains
+        subroutine adj_example_code()
+	end subroutine adj_example_code
+    end module adj_example_mod
+
+The Met Office have a convention whereby module names and file names
+have `_mod` appended, subroutine names have `_code` appended and
+metadata names have `_type` appended. The approach taken here
+maintains this convention for the generated adjoint names (as long as
+the tangent-linear names were also compliant).
+
+.. note:: At the moment the metadata is not modified by PSyAD (see
+	  issue #1772) so it needs to be changed manually after the
+	  adjoint code has been created.
+
 Test Harness
 ++++++++++++
 
