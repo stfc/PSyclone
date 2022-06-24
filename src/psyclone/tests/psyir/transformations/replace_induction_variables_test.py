@@ -112,19 +112,20 @@ def test_riv_working(fortran_reader, fortran_writer):
     assert "ic2 = invariant" not in out_loop
 
     assert "a(i + 1) = 3 + (i + 1 + 1) * (i + 1)" in out_loop
-    assert "ic3 = 10 + 1" in out_all
+    assert "ic3 = i - 1 + 1" in out_all
 
     assert ("a(i + 1 + invariant) = 4 + (i + 1 + invariant + 1) * "
             "(i + 1 + invariant)" in out_loop)
-    assert "ic4 = 10 + 1 + invariant" in out_all
+    assert "ic4 = i - 1 + 1 + invariant" in out_all
 
     assert ("a(i * i + 3 * SIN(i)) = 5 + (i * i + 3 * SIN(i) + 1) * "
             "(i * i + 3 * SIN(i))" in out_loop)
-    assert "ic5 = 10 * 10 + 3 * SIN(10)" in out_all
+    assert "ic5 = (i - 1) * (i - 1) + 3 * SIN(i - 1)" in out_all
     assert ("a(i + 1 + invariant + (i * i + 3 * SIN(i))) = 6 + "
             "(i + 1 + invariant + (i * i + 3 * SIN(i)) + 1) * "
             "(i + 1 + invariant + (i * i + 3 * SIN(i)))" in out_loop)
-    assert "ic6 = 10 + 1 + invariant + (10 * 10 + 3 * SIN(10))" in out_all
+    assert ("ic6 = i - 1 + 1 + invariant + ((i - 1) * (i - 1) + "
+            "3 * SIN(i - 1))" in out_all)
 
 
 # ----------------------------------------------------------------------------
@@ -160,3 +161,28 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
     riv.apply(loop)
     out_after = fortran_writer(loop)
     assert out_before == out_after
+
+
+# ----------------------------------------------------------------------------
+def test_riv_other_step_size(fortran_reader, fortran_writer):
+    '''Tests loops with a step size different from one, which affects
+    the value to be assigned to replaced induction variables.
+    '''
+    source = '''program test
+                integer i, ic1, ic2
+                real, dimension(10) :: a
+                do i = 1, 10, 5
+                    ic1 = i+1
+                    ic2 = 3
+                    a(ic1) = 1+(ic1+1)*ic1
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+
+    riv = ReplaceInductionVariables()
+    riv.apply(loop)
+    out = fortran_writer(psyir)
+    assert "a(i + 1) = 1 + (i + 1 + 1) * (i + 1)" in out
+    assert "ic1 = i - 5 + 1" in out
+    assert "ic2 = 3" in out

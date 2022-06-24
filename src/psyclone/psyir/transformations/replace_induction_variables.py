@@ -40,7 +40,8 @@ from __future__ import absolute_import
 
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import ArrayReference, Assignment, Loop, Reference
+from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
+                                  Loop, Reference)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -80,9 +81,13 @@ class ReplaceInductionVariables(Transformation):
             tmp(i) = 2 * (i - 1)
           enddo
           ic = 2
-          im = 100 - 1
+          im = i - 1 - 1
 
         end subroutine sub
+
+    After the loop the replaced assignments to the induction variables are
+    added so these variables will have the correct value if they should be
+    used elsewhere.
 
     The following restrictions apply for the assignment to an induction
     variable:
@@ -221,14 +226,19 @@ class ReplaceInductionVariables(Transformation):
 
             # In case that the variable value is used after the loop, we add
             # an assignment to this variable after the loop, which gives it
-            # the expected value. So we replace all instances of the loop
-            # variable with the 'stop' expression from the loop (since this
-            # will be the value this variable will have when exiting the loop):
+            # the expected value. The final value of the value of the loop
+            # variable minus the step size.
             symbol_table = node.scope.symbol_table
             loop_var_symbol = symbol_table.lookup(loop_var)
+            # Create the expression `loop_var - step`:
+            final = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                           Reference(loop_var_symbol),
+                                           node.step_expr.copy())
+            # And add the assignment back to the end of the loop, replacing
+            # the loop variable with the final value:
             self._replace_references(assignment, Reference(loop_var_symbol),
-                                     node.stop_expr)
-            # Now attach the assignment to the end of the loop, in case
+                                     final)
+            # Now attach the assignment after the loop, in case
             # that this value is needed elsewhere.
             node.parent.children.insert(node.position+1, assignment)
 
