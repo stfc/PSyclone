@@ -42,7 +42,7 @@ GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
 run: compile
 
 compile: transform
-	@echo "Compilation is not supported: the generated code must be "
+	@echo "#1770 Compilation is not supported: the generated code must be "
 	@echo "inserted into an LFRic mini-app."
 
 # Dependencies
