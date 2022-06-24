@@ -71,7 +71,7 @@ def test_riv_errors():
 
 
 # ----------------------------------------------------------------------------
-def test_riv_constants(fortran_reader, fortran_writer):
+def test_riv_working(fortran_reader, fortran_writer):
     '''Tests if loop-invariant assignments are replaced as expected.'''
     source = '''program test
                 integer i, invariant, ic1, ic2, ic3, ic4, ic5, ic6
@@ -125,3 +125,38 @@ def test_riv_constants(fortran_reader, fortran_writer):
             "(i + 1 + invariant + (i * i + 3 * SIN(i)) + 1) * "
             "(i + 1 + invariant + (i * i + 3 * SIN(i)))" in out_loop)
     assert "ic6 = 10 + 1 + invariant + (10 * 10 + 3 * SIN(10))" in out_all
+
+
+# ----------------------------------------------------------------------------
+def test_riv_not_movable(fortran_reader, fortran_writer):
+    '''Tests assignments that cannot be moved.
+    '''
+    source = '''program test
+                integer i, ic1, ic2, ic3, ic4, ic5
+                real, dimension(10) :: a
+                do i = 1, 10
+                    ic1 = i+a(i)             ! a is written to below
+                    ic3 = ic2                ! Read ic2 before write
+                    ic2 = 5                  ! write to ic2 is not first use
+                    ic4 = i-1                ! written twice
+                    if (i.eq.3) then         ! Nothing inside another statement
+                        ic5 = 1
+                    endif
+                    a(ic1) = 1+(ic1+1)*ic1
+                    a(ic2) = 2+(ic2+1)*ic2
+                    a(ic3) = 3+(ic3+1)*ic3
+                    ic4 = i + 1              ! written twice
+                    a(ic4) = 4+(ic4+1)*ic4
+                    a(ic5) = 5+(ic5+1)*ic5
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+
+    # None of the statements can be moved, so the output
+    # before and after the transformation should be identical:
+    out_before = fortran_writer(loop)
+    riv = ReplaceInductionVariables()
+    riv.apply(loop)
+    out_after = fortran_writer(loop)
+    assert out_before == out_after
