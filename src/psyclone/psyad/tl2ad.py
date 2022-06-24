@@ -91,14 +91,14 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
-    logger.debug(f"PSyIR\n{tl_psyir.view(colour=False)}")
+    logger.debug("PSyIR\n%s", tl_psyir.view(colour=False))
 
     # Apply any required transformations to the TL PSyIR
     logger.debug("Preprocessing")
     preprocess_trans(tl_psyir, active_variables)
 
-    logger.debug(f"PSyIR after TL preprocessing\n"
-                 f"{tl_psyir.view(colour=False)}")
+    logger.debug("PSyIR after TL preprocessing\n%s",
+                 tl_psyir.view(colour=False))
 
     # TL to AD translation
     ad_psyir = generate_adjoint(tl_psyir, active_variables)
@@ -280,19 +280,19 @@ def _add_precision_symbol(symbol, table):
     :param table: the symbol table to which to add the precision symbol.
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-    :raises TypeError: if the supplied symbol is not of the correct type \
+    :raises TypeError: if the supplied symbol is not of the correct type.
     :raises NotImplementedError: if the supplied symbol is not local or \
                                  explicitly imported.
 
     '''
-    # A precision symbol must be of integer or unknown type.
+    # A precision symbol must be of integer, deferred or unknown type.
     if not (isinstance(symbol.datatype, (DeferredType, UnknownType)) or
             isinstance(symbol.datatype, ScalarType) and
             symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
         raise TypeError(
             f"For a symbol to represent a precision it must be of deferred, "
             f"unknown or scalar, integer type but '{symbol.name}' has type "
-            f"'{symbol.datatype}'")
+            f"'{symbol.datatype}'.")
 
     if symbol.name in table:
         return
@@ -300,15 +300,15 @@ def _add_precision_symbol(symbol, table):
     if symbol.is_local:
         table.add(symbol.copy())
     elif symbol.is_import:
-        cntr = symbol.interface.container_symbol
+        contr_sym = symbol.interface.container_symbol
         try:
-            kind_contr = table.lookup(cntr.name)
+            kind_contr_sym = table.lookup(contr_sym.name)
         except KeyError:
             # The table does not already have a symbol for this container.
-            kind_contr = symbol.interface.container_symbol.copy()
-            table.add(kind_contr)
+            kind_contr_sym = contr_sym.copy()
+            table.add(kind_contr_sym)
         kind_symbol = symbol.copy()
-        kind_symbol.interface = ImportInterface(kind_contr)
+        kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
     else:
         raise NotImplementedError(
