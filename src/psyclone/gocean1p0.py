@@ -59,6 +59,7 @@ from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
@@ -72,7 +73,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, HaloExchange
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop, Literal, Schedule, KernelSchedule, \
+from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
     StructureReference, BinaryOperation, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, CodeBlock, \
     ACCKernelsDirective, Container, ACCUpdateDirective
@@ -331,8 +332,8 @@ class GOInvokeSchedule(InvokeSchedule):
 
 
 # pylint: disable=too-many-instance-attributes
-class GOLoop(Loop):
-    ''' The GOcean specific Loop class. This passes the GOcean specific
+class GOLoop(PSyLoop):
+    ''' The GOcean specific PSyLoop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
@@ -355,8 +356,8 @@ class GOLoop(Loop):
                  iteration_space="", index_offset=""):
         const = GOceanConstants()
 
-        Loop.__init__(self, parent=parent,
-                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(parent=parent,
+                         valid_loop_types=const.VALID_LOOP_TYPES)
 
         # The following attributes are validated in the respective setters
         self.loop_type = loop_type
@@ -966,7 +967,7 @@ class GOLoop(Loop):
         # Check that it is a properly formed GOLoop
         self._validate_loop()
 
-        Loop.gen_code(self, parent)
+        super().gen_code(parent)
 
 
 # pylint: disable=too-few-public-methods

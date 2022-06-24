@@ -37,7 +37,7 @@
 '''
 Python driver script to run PSyclone on (pre-processed) NEMO source files, i.e.
 those produced by the build system in <MY_CONFIG_NAME>/BLD/ppsrc/nemo.
-For example::
+For example:
 
 >>> process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
   <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
@@ -47,6 +47,7 @@ Or, if you have Gnu 'parallel':
 >>> parallel process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
   {} ::: <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
 
+Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
 from __future__ import print_function
@@ -55,25 +56,13 @@ import sys
 from time import perf_counter
 
 # Files that we will only add profiling to
-PROFILE_ONLY = ["bdyini.f90", "bdydta.f90", "bdyvol.f90",
-                "diaobs.f90",
-                "diawri.f90",  # Unused & has Return in profile region
-                "dommsk.f90",
+PROFILE_ONLY = ["bdydta.f90", "bdyvol.f90",
                 "fldread.f90",
-                "icbclv.f90", "icbdyn.f90", "icbrst.f90",
-                "icbthm.f90", "icbutl.f90", "icbdia.f90", "icbini.f90",
-                "icb_oce.f90", "icbstp.f90", "icbtrj.f90",
-                "ice.f90",  # lines are too long
-                "icedyn_adv_pra.f90",  # lines are too long
-                "iceforcing.f90",
-                "iceistate.f90",
-                "icethd_ent.f90", "icethd_zdf.f90",
-                "icethd_dh.f90", "iom.f90", "iom_nf90.f90",
-                "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
-                "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
-                "obs_surf_def.f90", "obs_read_prof.f90", "obs_read_surf.f90",
-                "obs_write.f90",
-                "stopar.f90",
+                "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
+                "icbstp.f90",
+                "iom.f90", "iom_nf90.f90",
+                "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
+                "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
                 "tide_mod.f90", "zdfosm.f90"]
 
 # Files that we won't touch at all
@@ -85,9 +74,8 @@ EXCLUDED_FILES = [
     # Array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
     # mpif.h include is lost
-    "mppini.f90", "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
-    "timing.f90", "lib_mpp.f90",
-    "nemogcm.f90",
+    "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
+    "timing.f90", "lib_mpp.f90", "nemogcm.f90",
     # Fns defined within fn are lost
     "storng.f90"]
 

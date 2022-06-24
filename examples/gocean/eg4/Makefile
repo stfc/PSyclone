@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,14 @@
 
 include ../../common.mk
 
+# The compiler to use may be specified via the F90 environment
+# variable.
+#
+# export F90=nvfortran
+# export F90FLAGS = -Minfo -acc -ta=tesla:cc70
+# export LDFLAGS=""
+# Currently only compatible with F90=nvfortran
+
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= ../../../external
@@ -66,13 +74,15 @@ ${INF_LIB}:
 	${MAKE} -C ${INF_DIR} fd_lib
 
 psy_gen.f90 alg_gen.f90: openacc
+alg_gen.o: psy_gen.o
 
 %.o: %.f90
-	# Currently only compatible with F90=pgf90
-	${F90} -Minfo -acc -ta=tesla:cc70 ${LDFLAGS} -I${INF_INC} -c $<
+	${F90} ${F90FLAGS} -I${INF_INC} -c $<
 
-compile-acc: ${INF_LIB} alg_gen.f90 ${KERNELS} psy_gen.o
-	${F90} -acc ${LDFLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} -o alg_openacc.exe
+compile-acc: ${INF_LIB} ${KERNELS} alg_gen.o psy_gen.o
+	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} \
+		${KERNELS} alg_gen.o psy_gen.o \
+		${INF_LIB} -o alg_openacc.exe
 
 others:
 	# The following currently fail as work is in progress to support transforming

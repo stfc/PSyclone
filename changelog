@@ -1,3 +1,26 @@
+	1) PR #1758 for #1741. Splits the PSyData read functionality into a
+	standalone module to remove dependence on infrastructure for
+	driver code.
+
+	2) PR #1766 FOR #1764. Fixes various syntax errors in some of the
+	Fortran test files.
+
+	3) PR #1759 for #1752. Updates to GOcean examples so that F90FLAGS
+	is used consistently and is also used when linking.
+
+	4) PR #1700. Various improvements to the example NEMO processing
+	scripts.
+
+release 2.3.1 17th of June 2022	
+
+        1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
+
+	2) PR #1669 for #450. Remove set_dirty/clean from ACC regions
+
+	3) PR #1745 towards #1731. Split PSyLoop class from Loop node.
+
+	4) PR #1761 for #1760. Create release 2.3.1
+
 release 2.3.0 9th June 2022
 
 	1) PR #1672. Fixes BOZ literal standard incompatibility in the

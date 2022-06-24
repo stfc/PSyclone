@@ -72,21 +72,6 @@ def setup():
     Config._instance = None
 
 
-def test_loop_fuse_different_iterates_over():
-    ''' Test that an appropriate error is raised when we attempt to
-    fuse two loops that have differing values of ITERATES_OVER '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    lftrans = LoopFuseTrans()
-
-    # Attempt to fuse two loops that are iterating over different
-    # things
-    with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err.value)
-
-
 def test_loop_fuse_error():
     ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
@@ -1213,6 +1198,36 @@ def test_acc_parallel_trans(tmpdir, fortran_writer):
     assert acc_end_idx > acc_idx
     assert do_idx == (acc_idx + 1)
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_acc_parallel_trans_dm():
+    ''' Test that the OpenACC parallel transform works correctly when
+    distributed memory is enabled. '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=True)
+    schedule = invoke.schedule
+    acct = ACCParallelTrans()
+    accdt = ACCEnterDataTrans()
+    # Applying the transformation to the whole schedule should fail because
+    # of the HaloExchange nodes.
+    with pytest.raises(TransformationError) as err:
+        acct.apply(schedule.children)
+    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
+    acct.apply(schedule.children[1:])
+    # Add an enter-data region.
+    accdt.apply(schedule)
+    code = str(psy.gen)
+    # Check that the start of the parallel region is in the right place.
+    assert ("      CALL p_fld%halo_exchange(1)\n"
+            "      !$acc parallel default(present)\n"
+            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            in code)
+    # Check that the end parallel is generated correctly.
+    assert ("        END DO\n"
+            "      END DO\n"
+            "      !$acc end parallel\n\n"
+            "    END SUBROUTINE invoke_0\n" in code)
 
 
 def test_acc_incorrect_parallel_trans():
