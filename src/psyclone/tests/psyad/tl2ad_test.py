@@ -563,11 +563,13 @@ def test_add_precision_symbol():
     isym = DataSymbol("iwrong", REAL_TYPE)
     with pytest.raises(TypeError) as err:
         _add_precision_symbol(isym, table)
-    assert "integer type but 'iwrong' has type 'Scalar<REAL" in str(err.value)
+    assert ("integer type but 'iwrong' has type 'Scalar<REAL, UNDEFINED>'." in
+            str(err.value))
     arr_sym = DataSymbol("iarray", ArrayType(INTEGER_TYPE, [10]))
     with pytest.raises(TypeError) as err:
         _add_precision_symbol(arr_sym, table)
-    assert "integer type but 'iarray' has type 'Array" in str(err.value)
+    assert ("integer type but 'iarray' has type 'Array<Scalar<INTEGER, "
+            "UNDEFINED>, shape=[10]>'." in str(err.value))
     def_sym = DataSymbol("my_def",
                          UnknownFortranType("integer, parameter :: my_def"))
     _add_precision_symbol(def_sym, table)
