@@ -34,20 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Module providing a transformation that removed induction variables from
-a loop. For example:
-    ik = 10
-    do i=1, n
-       im = i-1
-       ik = ik + 4
-       a(i) = a(im) + b(ik)
-    enddo
-would become:
-    ik = 10
-    ik0 = ik
-    do i=1, n
-       a(i) = a(i-1) + b(ik0 + i * 4)
-    enddo
-'''
+a loop. '''
 
 from __future__ import absolute_import
 
@@ -59,8 +46,55 @@ from psyclone.psyir.transformations.transformation_error \
 
 
 class ReplaceInductionVariables(Transformation):
-    '''Provides a transformation that replaces all induction
-    variables in a loop.
+    '''Move all supported induction variables out of the loop, and replace
+    their usage inside the loop. For example:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.psyir.transformations import ReplaceInductionVariables
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> psyir = FortranReader().psyir_from_source("""
+    ... subroutine sub()
+    ...     integer :: i, im, ic, tmp(100)
+    ...     do i=1, 100
+    ...         im = i - 1
+    ...         ic = 2
+    ...         tmp(i) = ic * im
+    ...     enddo
+    ... end subroutine sub""")
+    >>> loop = psyir.walk(Loop)[0]
+    >>> ReplaceInductionVariables().apply(loop)
+    >>> print(FortranWriter()(psyir))
+
+    will generate:
+
+    .. code-block:: fortran
+
+        subroutine sub()
+          integer :: i
+          integer :: im
+          integer :: ic
+          integer, dimension(100) :: tmp
+
+          do i = 1, 100, 1
+            tmp(i) = 2 * (i - 1)
+          enddo
+          ic = 2
+          im = 100 - 1
+
+        end subroutine sub
+
+    The following restrictions apply for the assignment to an induction
+    variable:
+
+    * the variable must be a non-structure scalar.
+    * none of variables on the right-hand side can be written in the loop body
+      (the loop variable is written in the Loop statement, not in
+      the body, so it can be used).
+    * the assigned variable must not be read before the assignment.
+    * the assigned variable cannot occur on the right-hand side
+      (e.g. `k = k + 3`).
+    * there must only be one assignment to the variable.
 
     '''
     def __str__(self):
@@ -69,13 +103,26 @@ class ReplaceInductionVariables(Transformation):
     # ------------------------------------------------------------------------
     @staticmethod
     def _replace_references(psyir, original, replacement):
-        # We can't modify the tree while walking it, so just store
-        # the required information
+        '''This function replaces all occurrences of the `original` reference
+        with a copy of the node of the `replacement` in the given PSyIR tree.
+
+        :param psyir: the PSyIR in which to replace `original` with \
+            `replacement`.
+        :type psyir: :py:class:`psyclone.psyir.nodes.Node`
+        :param original: the reference which is to be replaced.
+        :type original: :py:class:`psyclone.psyir.nodes.Reference`
+        :param replacement: the node to insert.
+        :type replacement: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Just in case we avoid modifying the tree while walking it,
+        # so first just store the nodes to be replaced in a list
         to_replace = []
         for node in psyir.walk(Reference):
             if node == original:
                 to_replace.append(node)
 
+        # Then do the actual replacement
         for node in to_replace:
             copy = replacement.copy()
             node.replace_with(copy)
@@ -85,7 +132,7 @@ class ReplaceInductionVariables(Transformation):
     def _is_induction_variable(assignment, accesses_in_loop_body):
         '''Tests if the assignment is an induction statement that can be
         replaced. An induction statements requires:
-        - all variables on the rhs cannot be written in the loop body
+        - None of the variables on the rhs can be written in the loop body
           (the loop variable is written in the Loop statement, not in
           the body)
         - the assigned variable cannot be read before the assignment
