@@ -36,6 +36,9 @@
 '''This module contains tools for creating standalone LFRic
    algorithm-layer code.
 
+   TODO #1771: these tools should be incorporated into the Alg class as they
+   provide an alternative way of construction an Algorithm layer.
+
 '''
 
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
@@ -50,18 +53,22 @@ from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
                                   Container)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, ScalarType,
-    ArgumentInterface)
+    ImportInterface, ContainerSymbol, RoutineSymbol, ArgumentInterface)
 
 
 # The order of the finite-element scheme that will be used by any generated
 # algorithm layer.
-ELEMENT_ORDER = "1"
+_ELEMENT_ORDER = "1"
 
 
 def _create_alg_mod(name):
     '''
-    Creates a standalone LFRic algorithm subroutine within a module.
+    Creates a standalone LFRic algorithm subroutine within a module. The
+    generated subroutine has three arguments:
+
+     * mesh: pointer to the LFRic mesh object.
+     * chi: coordinate field (optional).
+     * panel_id: field mapping cells to panel IDs (optional).
 
     :param str name: the name to give the created routine. The associated \
                      container will have "_mod" appended to this name.
@@ -76,35 +83,18 @@ def _create_alg_mod(name):
         raise TypeError(f"Supplied routine name must be a str but got "
                         f"'{type(name).__name__}'")
 
-    cont = Container(name+"_mod")
     alg_sub = Routine(name)
-
     table = alg_sub.symbol_table
 
-    # Create ContainerSymbols for each of the modules that we will need.
-    for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "function_space_collection_mod", "mesh_mod"]:
-        table.new_symbol(mod, symbol_type=ContainerSymbol)
+    # Create Container and Type Symbols for each of the modules/types that
+    # we will need.
+    for root in ["field", "function_space", "function_space_collection",
+                 "mesh"]:
+        csym = table.new_symbol(root + "_mod", symbol_type=ContainerSymbol)
 
-    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(table.lookup("field_mod")))
-
-    table.new_symbol("function_space_type",
-                     symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("function_space_mod")))
-
-    table.new_symbol("function_space_collection",
-                     symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("function_space_collection_mod")))
-
-    table.new_symbol("mesh_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(table.lookup("mesh_mod")))
+        table.new_symbol(root + "_type", symbol_type=DataTypeSymbol,
+                         datatype=DeferredType(),
+                         interface=ImportInterface(csym))
 
     # Declare the three arguments to the subroutine. All of them have to be
     # of UnknownFortranType - the mesh because it is a pointer and chi and
@@ -125,16 +115,18 @@ def _create_alg_mod(name):
     table.add(pid)
     table.specify_argument_list([mesh_ptr, chi, pid])
 
-    cont.addchild(alg_sub)
+    # Create top-level Container and put the new Subroutine inside it.
+    container = Container(name+"_mod")
+    container.addchild(alg_sub)
 
-    return cont
+    return container
 
 
 def _create_function_spaces(prog, fspaces):
     '''
     Adds PSyIR to the supplied Routine that declares and intialises the
     specified function spaces. The order of these spaces is set by the
-    `ELEMENT_ORDER` constant at the top of this module.
+    `_ELEMENT_ORDER` constant at the top of this module.
 
     :param prog: the routine to which to add declarations and initialisation.
     :type prog: :py:class:`psyclone.psyir.nodes.Routine`
@@ -154,8 +146,11 @@ def _create_function_spaces(prog, fspaces):
                              symbol_type=DataSymbol,
                              datatype=psyir.LfricIntegerScalarDataType(),
                              constant_value=Literal(
-                                 ELEMENT_ORDER,
+                                 _ELEMENT_ORDER,
                                  psyir.LfricIntegerScalarDataType()))
+
+    fs_cont_mod = table.new_symbol("fs_continuity_mod",
+                                   symbol_type=ContainerSymbol)
 
     # Initialise the function spaces required by the kernel arguments.
     const = LFRicConstants()
@@ -169,8 +164,7 @@ def _create_function_spaces(prog, fspaces):
 
         table.new_symbol(f"{space}", tag=f"{space}", symbol_type=DataSymbol,
                          datatype=DeferredType(),
-                         interface=ImportInterface(
-                             table.lookup("fs_continuity_mod")))
+                         interface=ImportInterface(fs_cont_mod))
 
         vsym_ptr = table.new_symbol(
             f"vector_space_{space}_ptr", symbol_type=DataSymbol,

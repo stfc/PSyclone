@@ -37,9 +37,6 @@
 exception-handling to translate the original algorithm file into one
 that can be compiled and linked with the generated PSy code.
 
-It also provides the generate() function that, given kernel metadata, will
-create suitable algorithm-layer code which invokes that kernel.
-
 '''
 
 # fparser contains classes that are generated at run time.
@@ -133,8 +130,8 @@ class Alg(object):
                 # The PSy-layer generates a subroutine within a module
                 # so we need to add a 'use module_name, only :
                 # subroutine_name' to the algorithm layer.
-                adduse(statement, self._psy.name, only=True,
-                       funcnames=[psy_invoke_info.name])
+                _adduse(statement, self._psy.name, only=True,
+                        funcnames=[psy_invoke_info.name])
                 idx += 1
 
         if idx == 0:
@@ -145,7 +142,7 @@ class Alg(object):
         return self._ast
 
 
-def adduse(location, name, only=None, funcnames=None):
+def _adduse(location, name, only=None, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse
     tree. This will be added at the first valid location before the
     current location.
@@ -176,7 +173,7 @@ def adduse(location, name, only=None, funcnames=None):
     # pylint: disable=too-many-branches
     if not isinstance(location, Base):
         raise GenerationError(
-            f"alg_gen.py:adduse: Location argument must be a sub-class of "
+            f"alg_gen.py:_adduse: Location argument must be a sub-class of "
             f"fparser.two.utils.Base but got: {type(location).__name__}.")
 
     if funcnames:
@@ -184,7 +181,7 @@ def adduse(location, name, only=None, funcnames=None):
         if only is False:
             # However, the only clause has been explicitly set to False.
             raise GenerationError(
-                "alg_gen.py:adduse: If the 'funcnames' argument is provided "
+                "alg_gen.py:_adduse: If the 'funcnames' argument is provided "
                 "and has content, then the 'only' argument must not be set "
                 "to 'False'.")
         if only is None:
@@ -227,12 +224,12 @@ def adduse(location, name, only=None, funcnames=None):
         # We currently only support program, subroutine and function
         # as ancestors
         raise NotImplementedError(
-            f"alg_gen.py:adduse: Unsupported parent code found "
+            f"alg_gen.py:_adduse: Unsupported parent code found "
             f"'{type(parent_prog_statement)}'. Currently support is limited "
             f"to program, subroutine and function.")
     if not isinstance(parent_prog_statement.content[1], Specification_Part):
         raise InternalError(
-            f"alg_gen.py:adduse: The second child of the parent code "
+            f"alg_gen.py:_adduse: The second child of the parent code "
             f"(content[1]) is expected to be a specification part but "
             f"found '{repr(parent_prog_statement.content[1])}'.")
 

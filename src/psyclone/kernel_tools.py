@@ -163,6 +163,8 @@ def run(args):
             if api == "dynamo0.3":
                 # pylint: disable=import-outside-toplevel
                 from psyclone.domain.lfric.algorithm.alg_gen import generate
+                # TODO #1771. Refactor the generate() functionality into the
+                # Alg class.
                 code = generate(args.filename)
             else:
                 print(f"Algorithm generation from kernel metadata is "

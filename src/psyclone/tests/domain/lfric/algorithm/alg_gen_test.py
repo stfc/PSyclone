@@ -76,8 +76,6 @@ def create_prog_fixture():
                                  symbol_type=DataTypeSymbol,
                                  datatype=DeferredType(),
                                  interface=ImportInterface(fsc_mod))
-    prog.symbol_table.new_symbol("fs_continuity_mod",
-                                 symbol_type=ContainerSymbol)
     return prog
 
 
@@ -112,13 +110,13 @@ def test_create_alg_mod(fortran_writer):
     assert "type(field_type), intent(in), optional :: panel_id" in gen
 
 
-def test_create_function_spaces_no_spaces(prog, fortran_writer):
+def test_create_function_spaces_no_spaces(prog):
     ''' Check that a Routine is populated as expected, even when there
     are no actual function spaces. '''
-    prog.symbol_table.new_symbol("fs_continuity_mod",
-                                 symbol_type=ContainerSymbol)
     alg_gen._create_function_spaces(prog, [])
     assert prog.symbol_table.lookup("element_order")
+    assert isinstance(prog.symbol_table.lookup("fs_continuity_mod"),
+                      ContainerSymbol)
 
 
 def test_create_function_spaces_invalid_space(prog):
@@ -133,8 +131,8 @@ def test_create_function_spaces_invalid_space(prog):
 def test_create_function_spaces(prog, fortran_writer):
     ''' Check that a Routine is populated correctly when valid function-space
     names are supplied. '''
-    fs_mod_sym = prog.symbol_table.lookup("fs_continuity_mod")
     alg_gen._create_function_spaces(prog, ["w3", "w1"])
+    fs_mod_sym = prog.symbol_table.lookup("fs_continuity_mod")
     gen = fortran_writer(prog)
     for space in ["w1", "w3"]:
         sym = prog.symbol_table.lookup(space)

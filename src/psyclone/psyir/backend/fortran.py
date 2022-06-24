@@ -355,10 +355,10 @@ class FortranWriter(LanguageWriter):
                  initial_indent_depth=0, check_global_constraints=True):
         # Construct the base class using () as array parenthesis, and
         # % as structure access symbol
-        super(FortranWriter, self).__init__(("(", ")"), "%", skip_nodes,
-                                            indent_string,
-                                            initial_indent_depth,
-                                            check_global_constraints)
+        super().__init__(("(", ")"), "%", skip_nodes,
+                         indent_string,
+                         initial_indent_depth,
+                         check_global_constraints)
         # Reverse the Fparser2Reader maps that are used to convert from
         # Fortran operator names to PSyIR operator names.
         self._operator_2_str = {}

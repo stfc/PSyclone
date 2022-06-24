@@ -429,16 +429,15 @@ class LFRicConstants():
         # hardwiring it here.
         if not space.startswith("any_"):
             return space
-        elif space == "any_w2":
+        if space == "any_w2":
             return "w2"
-        elif space.startswith("any_space_"):
+        if space.startswith("any_space_"):
             return LFRicConstants.CONTINUOUS_FUNCTION_SPACES[0]
-        elif space.startswith("any_discontinuous_space_"):
+        if space.startswith("any_discontinuous_space_"):
             return LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES[0]
-        else:
-            raise InternalError(
-                f"Error mapping from meta-data function space "
-                f"to actual space: cannot handle '{space}'")
+
+        raise InternalError(f"Error mapping from meta-data function space "
+                            f"to actual space: cannot handle '{space}'")
 
 
 # =============================================================================

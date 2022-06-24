@@ -68,9 +68,8 @@ for module in MODULES:
         MODULE_NAME.upper(), MODULE_NAME))
     # Create the variables specified by the module (using PSyIR DataSymbols)
     for module_var in module.vars:
-        exec("{0} = DataSymbol('{1}', INTEGER_TYPE, interface="
-             "ImportInterface({2}))".format(
-                 module_var.upper(), module_var, MODULE_NAME.upper()))
+        exec(f"{module_var.upper()} = DataSymbol('{module_var}', INTEGER_TYPE,"
+             f" interface=ImportInterface({MODULE_NAME.upper()}))")
 
 # Define generic LFRic scalar datatypes and symbols
 
@@ -93,21 +92,19 @@ for info in GENERIC_SCALAR_DATATYPES:
     PRECISION = info.precision
     # Create the specific datatype
     exec(
-        "class {0}DataType(ScalarType):\n"
-        "    def __init__(self, precision=None):\n"
-        "        if not precision:\n"
-        "            precision = {1}\n"
-        "        super({0}DataType, self).__init__(\n"
-        "            ScalarType.Intrinsic.{2}, precision)\n"
-        "".format(NAME, PRECISION.upper(), INTRINSIC))
+        f"class {NAME}DataType(ScalarType):\n"
+        f"    def __init__(self, precision=None):\n"
+        f"        if not precision:\n"
+        f"            precision = {PRECISION.upper()}\n"
+        f"        super({NAME}DataType, self).__init__(\n"
+        f"            ScalarType.Intrinsic.{INTRINSIC}, precision)\n")
     # Create the specific symbol
     exec(
-        "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__(self, name, precision=None, **kwargs):\n"
-        "        super().__init__(\n"
-        "            name, {0}DataType(precision=precision),\n"
-        "            **kwargs)\n"
-        "".format(NAME))
+        f"class {NAME}DataSymbol(DataSymbol):\n"
+        f"    def __init__(self, name, precision=None, **kwargs):\n"
+        f"        super().__init__(\n"
+        f"            name, {NAME}DataType(precision=precision),\n"
+        f"            **kwargs)\n")
 
 
 # Define any LFRic-specific scalar literals

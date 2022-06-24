@@ -41,7 +41,7 @@ of a Kernel as required by an `invoke` of that kernel.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
-from psyclone.psyir.symbols import (ArrayType, ScalarType, DataSymbol,
+from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType, SymbolTable,
                                     ContainerSymbol, ImportInterface)
 
