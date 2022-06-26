@@ -41,15 +41,17 @@ import logging
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
-    generate_adjoint_test
-from psyclone.psyad.tl2ad import _create_adjoint_name, _find_container, \
-    _create_inner_product, _create_array_inner_product, \
-    _get_active_variables_datatype, _add_precision_symbol
+from psyclone.psyad import (
+    generate_adjoint_str, generate_adjoint, generate_adjoint_test)
+from psyclone.psyad.tl2ad import (
+    _create_adjoint_name, _find_container, _create_inner_product,
+    _create_array_inner_product, _get_active_variables_datatype,
+    _add_precision_symbol)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
-    Assignment, BinaryOperation, Reference, Literal
+from psyclone.psyir.nodes import (
+    Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
+    Reference, Literal)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
