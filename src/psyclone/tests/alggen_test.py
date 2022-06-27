@@ -42,6 +42,9 @@ import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
 from psyclone import alg_gen
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
@@ -383,7 +386,7 @@ def test_multiple_stencil_same_name():
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
 
-    
+
 # Sample code for use in subsequent adduse tests.
 CODE = ("program test\n"
         "  integer :: i\n"
@@ -419,11 +422,47 @@ def test_rm_kernel_use_stmts(parser):
     code = ("program test\n"
             "  use my_kernel_mod, only: my_kernel_type\n"
             "  use kernel2_mod, only: kernel2_type, something_else\n"
+            "contains\n"
+            "  subroutine my_sub()\n"
+            "    use a_kernel_mod, only: a_kernel_type\n"
+            "  end subroutine my_sub\n"
             "end program test\n")
     parse_tree = get_parse_tree(code, parser)
+    # An empty list of kernel names should be fine.
     alg_gen._rm_kernel_use_stmts([], parse_tree)
-    assert 0
-
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    # A kernel name that doesn't exist should be fine (because we need to
+    # support builtins).
+    alg_gen._rm_kernel_use_stmts(["my_builtin"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that the use associated with a named kernel is removed.
+    alg_gen._rm_kernel_use_stmts(["my_kernel_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "my_kernel_type" not in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that a use statement is not removed if it imports symbols other
+    # than the named kernel.
+    alg_gen._rm_kernel_use_stmts(["kernel2_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    alg_gen._rm_kernel_use_stmts(["kernel2_type", "something_else"],
+                                 parse_tree)
+    # One Specification_Part should have been removed entirely.
+    assert len(walk(parse_tree, Fortran2003.Specification_Part)) == 1
+    gen = str(parse_tree).lower()
+    assert "kernel2_type" not in gen
+    assert "something_else" not in gen
+    # Finally, check for the use in the nested subroutine.
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    alg_gen._rm_kernel_use_stmts(["a_kernel_type"], parse_tree)
+    assert not walk(parse_tree, Fortran2003.Specification_Part)
+    gen = str(parse_tree).lower()
+    assert "a_kernel_type" not in gen
 
 # Function adduse tests. These will be removed once the LFRic algorithm
 # layer uses PSyIR (#1618).

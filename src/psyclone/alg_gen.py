@@ -210,12 +210,19 @@ def _rm_kernel_use_stmts(kernels, ptree):
             # a module (so is not a Built-In).
             mod_name = sym_to_mod_map[kern]
             use_only_list[mod_name].remove(kern)
+
     # Finally remove those USE statements that used to have symbols
     # associated with them but now have none.
     for mod, symbols in use_only_list.items():
         if symbols == []:
             this_use = use_stmt_map[mod]
-            this_use.parent.content.remove(this_use)
+            spec_part = this_use.parent
+            spec_part.content.remove(this_use)
+            # fparser currently falls over when asked to create Fortran for an
+            # empty Specification_Part (fparser/#359). We therefore remove the
+            # modified Specification_Part entirely if it is now empty.
+            if not spec_part.content:
+                spec_part.parent.content.remove(spec_part)
 
 
 def adduse(location, name, only=None, funcnames=None):
