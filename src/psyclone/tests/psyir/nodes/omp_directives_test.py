@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from psyclone.f2pygen import ModuleGen
