@@ -37,7 +37,7 @@
    algorithm-layer code.
 
    TODO #1771: these tools should be incorporated into the Alg class as they
-   provide an alternative way of construction an Algorithm layer.
+   provide an alternative way of constructing an Algorithm layer.
 
 '''
 
@@ -317,6 +317,9 @@ def generate(kernel_path):
         ending in '_mod'.
 
     '''
+    # TODO #1771 this code needs refactoring.
+    # pylint: disable=too-many-locals
+
     # Create PSyIR for an algorithm routine.
     cont = _create_alg_mod("test_alg")
     sub = cont.walk(Routine)[0]

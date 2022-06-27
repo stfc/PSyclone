@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,8 +64,8 @@ MODULES = [
 for module in MODULES:
     MODULE_NAME = module.name
     # Create the module (using a PSyIR ContainerSymbol)
-    exec("{0} = ContainerSymbol('{1}')\n".format(
-        MODULE_NAME.upper(), MODULE_NAME))
+    exec(f"{MODULE_NAME.upper()} = ContainerSymbol('{MODULE_NAME}')\n")
+
     # Create the variables specified by the module (using PSyIR DataSymbols)
     for module_var in module.vars:
         exec(f"{module_var.upper()} = DataSymbol('{module_var}', INTEGER_TYPE,"
@@ -121,12 +121,10 @@ class LfricDimension(Literal):
     '''
     # pylint: disable=undefined-variable
     def __init__(self, value):
-        super(LfricDimension, self).__init__(
-            value, LfricIntegerScalarDataType())
+        super().__init__(value, LfricIntegerScalarDataType())
         if value not in ['1', '3']:
-            raise ValueError(
-                "An LFRic dimension object must be '1' or '3', but "
-                "found '{0}'.".format(value))
+            raise ValueError(f"An LFRic dimension object must be '1' or '3', "
+                             f"but found '{value}'.")
 
 
 LFRIC_SCALAR_DIMENSION = LfricDimension("1")
@@ -160,19 +158,16 @@ for info in SPECIFIC_SCALAR_DATATYPES:
     NAME = "".join(info.name.title().split())
     TYPE = "".join(info.generic_type.title().split())
     ARGS = ["self", "name"] + info.properties
-    VARS = ["        self.{0} = {0}".format(var) for var in info.properties]
+    VARS = [f"        self.{var} = {var}\n" for var in info.properties]
     # Create the specific datatype
-    exec(
-        "class {0}DataType({1}DataType):\n"
-        "    pass\n"
-        "".format(NAME, TYPE))
+    exec(f"class {NAME}DataType({TYPE}DataType):\n"
+         f"    pass\n")
     # Create the specific symbol
     exec(
-        "class {0}DataSymbol({1}DataSymbol):\n"
-        "    def __init__({2}, **kwargs):\n"
-        "{3}\n"
-        "        super().__init__(name, **kwargs)\n"
-        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS)))
+        f"class {NAME}DataSymbol({TYPE}DataSymbol):\n"
+        f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
+        f"{''.join(VARS)}\n"
+        f"        super().__init__(name, **kwargs)\n")
 
 # Define LFRic field datatypes and symbols
 
@@ -255,37 +250,32 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     DIMS = array_type.dims
     SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
-    ARGS = (["self", "name", "dims"] + array_type.properties)
-    VARS = ["        self.{0} = {0}".format(var) for var in
-            array_type.properties]
     # Create the specific datatype
     exec(
-        "class {0}DataType(ArrayType):\n"
-        "    def __init__(self, dims):\n"
-        "        if (len(dims) != {2}):\n"
-        "            raise TypeError(\n"
-        "                \"{0}DataType expected the number of supplied \"\n"
-        "                \"dimensions to be {2} but found {{0}}.\"\n"
-        "                \"\".format(len(dims)))\n"
-        "        super({0}DataType, self).__init__(\n"
-        "            {1}DataType(), dims)\n"
-        "".format(NAME, SCALAR_TYPE, len(DIMS)))
+        f"class {NAME}DataType(ArrayType):\n"
+        f"    def __init__(self, dims):\n"
+        f"        if (len(dims) != {len(DIMS)}):\n"
+        f"            raise TypeError(\n"
+        f"                '{NAME}DataType expected the number of supplied '\n"
+        f"                'dimensions to be {len(DIMS)} but found {{0}}.'\n"
+        f"                ''.format(len(dims)))\n"
+        f"        super({NAME}DataType, self).__init__(\n"
+        f"            {SCALAR_TYPE}DataType(), dims)\n")
     # Create the specific symbol
+    ARGS = (["self", "name", "dims"] + array_type.properties)
+    VARS = [f"        self.{var} = {var}\n" for var in array_type.properties]
     exec(
-        "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__({1}, **kwargs):\n"
-        "{2}\n"
-        "        super().__init__(name, {0}DataType(dims),  **kwargs)\n"
-        "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
+        f"class {NAME}DataSymbol(DataSymbol):\n"
+        f"    def __init__({', '.join(ARGS)}, **kwargs):\n"
+        f"{''.join(VARS)}\n"
+        f"        super().__init__(name, {NAME}DataType(dims),  **kwargs)\n")
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
 for array_type in FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     VECTOR_NAME = NAME.replace("Field", "VectorField")
-    exec(
-        "class {0}DataSymbol({1}DataSymbol):\n"
-        "    pass\n"
-        "".format(VECTOR_NAME, NAME))
+    exec(f"class {VECTOR_NAME}DataSymbol({NAME}DataSymbol):\n"
+         f"    pass\n")
 
 
 def add_lfric_precision_symbol(table, name):
@@ -304,10 +294,13 @@ def add_lfric_precision_symbol(table, name):
         table but is not imported from the correct container.
     '''
     if name == "i_def":
+        # pylint: disable=undefined-variable
         sym = I_DEF
     elif name == "r_def":
+        # pylint: disable=undefined-variable
         sym = R_DEF
     elif name == "l_def":
+        # pylint: disable=undefined-variable
         sym = L_DEF
     else:
         raise ValueError(f"'{name}' is not a recognised LFRic precision.")
@@ -315,6 +308,7 @@ def add_lfric_precision_symbol(table, name):
     if name in table:
         # Sanity check that the existing symbol is the right one.
         existing_sym = table.lookup(name)
+        # pylint: disable=undefined-variable
         if (not isinstance(existing_sym.interface, ImportInterface) or
                 existing_sym.interface.container_symbol is not CONSTANTS_MOD):
             raise ValueError(
@@ -323,6 +317,7 @@ def add_lfric_precision_symbol(table, name):
                 f"module ({CONSTANTS_MOD.name}).")
         return
 
+    # pylint: disable=undefined-variable
     if CONSTANTS_MOD.name not in table:
         table.add(CONSTANTS_MOD)
     table.add(sym)
