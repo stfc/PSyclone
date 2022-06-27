@@ -130,14 +130,16 @@ class KernCallInvokeArgList(ArgOrdering):
 
         # Create a DataSymbol for this kernel argument.
         if scalar_arg.intrinsic_type == "real":
-            psyir.add_lfric_precision_symbol(self._symtab, "r_def")
             datatype = psyir.LfricRealScalarDataType()
         elif scalar_arg.intrinsic_type == "integer":
-            psyir.add_lfric_precision_symbol(self._symtab, "i_def")
             datatype = psyir.LfricIntegerScalarDataType()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")
+
+        consts = LFRicConstants()
+        precision_name = consts.SCALAR_PRECISION_MAP[scalar_arg.intrinsic_type]
+        psyir.add_lfric_precision_symbol(self._symtab, precision_name)
 
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,
