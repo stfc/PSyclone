@@ -152,7 +152,8 @@ class RegionDirective(Directive):
         '''
         if not Config.get().distributed_memory or self.ancestor(Loop):
             return
-
+        # Have to import PSyLoop here to avoid a circular dependence.
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.common.psylayer import PSyLoop
 
         commented = False
