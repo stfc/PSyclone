@@ -308,9 +308,9 @@ def test_accupdatedirective_init():
 
     # Check argument validations
     with pytest.raises(TypeError) as err:
-        _ = ACCUpdateDirective(["invalid"], "host")
+        _ = ACCUpdateDirective({"invalid"}, "host")
     assert ("The ACCUpdateDirective signatures argument must be a "
-            "list of signatures but got ['str']"
+            "set of signatures but got {'str'}"
             in str(err.value))
 
     sig = [Signature("x")]

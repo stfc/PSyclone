@@ -40,11 +40,11 @@ data is kept up-to-date on the host.
 
 from __future__ import absolute_import
 from fparser.two import Fortran2003
-from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (Call, IfBlock, Loop, Schedule, Operation,
-                                  BinaryOperation, ACCKernelsDirective,
-                                  ACCParallelDirective, ACCUpdateDirective,
-                                  ACCEnterDataDirective, CodeBlock, Routine)
+from psyclone.psyGen import InvokeSchedule, Transformation
+from psyclone.psyir.nodes import (Call, IfBlock, Loop, Routine, Schedule,
+                                  ACCEnterDataDirective,
+                                  ACCKernelsDirective, ACCParallelDirective)
+from psyclone.psyir.nodes.acc_directives import _sig_tools
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -57,17 +57,7 @@ class ACCUpdateTrans(Transformation):
     def __init__(self):
         # Perform some set-up required by the recursive routine.
         self._dep_tools = DependencyTools()
-        # We treat a Call as being a (potential) ACC region because we
-        # don't know what happens within it.
-        self._acc_region_nodes = (ACCParallelDirective, ACCKernelsDirective,
-                                  Call)
-        # Those fparser2 nodes that may occur inside a CodeBlock but represent
-        # accesses that do not require any data synchronisation between CPU
-        # and GPU.
-        self._fp_ignore_nodes = (Fortran2003.Allocate_Stmt,
-                                 Fortran2003.Deallocate_Stmt,
-                                 Fortran2003.Inquire_Stmt,
-                                 Fortran2003.Open_Stmt)
+        self._acc_nodes = (ACCParallelDirective, ACCKernelsDirective)
 
         super().__init__()
 
@@ -84,8 +74,6 @@ class ACCUpdateTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Schedule.
         :raises TransformationError: if the supplied node is already within \
             an OpenACC region.
-        :raises TransformationError: if the supplied Schedule contains any \
-            CodeBlocks and the 'allow-codeblocks' option is False.
         '''
         # transformations module file needs moving into the psyir
         # hierarchy.
@@ -100,13 +88,6 @@ class ACCUpdateTrans(Transformation):
             raise TransformationError(
                 "Cannot apply the ACCUpdateTrans to nodes that are already "
                 "within an OpenACC region.")
-
-        if not options or not options.get("allow-codeblocks", False):
-            if node.walk(CodeBlock):
-                raise TransformationError(
-                    "Supplied Schedule contains one or more CodeBlocks which "
-                    "prevents the data analysis required for adding Update "
-                    "directives.")
 
         super().validate(node, options)
 
@@ -125,18 +106,14 @@ class ACCUpdateTrans(Transformation):
         '''
         self.validate(node, options)
 
-        excluded_nodes = self._acc_region_nodes
-        if options and options.get("allow-codeblocks", False):
-            excluded_nodes = self._acc_region_nodes + (CodeBlock,)
-
         routine = node.ancestor(Routine, include_self=True)
         self._routine_name = routine.name if routine else ""
 
         # Call the routine that recursively adds updates to all Schedules
         # within the supplied Schedule.
-        self._add_updates_to_schedule(node, excluded_nodes)
+        self._add_updates_to_schedule(node)
 
-    def _add_updates_to_schedule(self, sched, excluded_nodes):
+    def _add_updates_to_schedule(self, sched):
         '''
         Recursively identify those statements that are not being executed
         on the GPU and add any required OpenACC update directives.
@@ -146,103 +123,48 @@ class ACCUpdateTrans(Transformation):
 
         '''
         # We must walk through the Schedule and find those nodes representing
-        # contiguous regions of code that are not executed on the GPU. Any
-        # Call nodes are taken as boundaries of such regions because it may
-        # be that the body of the call is executed on the GPU.
-        node_list = []
-        for child in sched.children[:]:
-            if isinstance(child, ACCEnterDataDirective):
+        # contiguous regions of code that are executed on the CPU.
+        cpu_stmts = []
+        for stmt in sched.children[:]:
+            if isinstance(stmt, ACCEnterDataDirective):
                 continue
-            if not child.walk(excluded_nodes):
-                node_list.append(child)
+            elif not stmt.walk(self._acc_nodes):
+                cpu_stmts.append(stmt)
             else:
-                if node_list:
-                    self._add_update_directives(sched, node_list)
-                    node_list = []
-                if isinstance(child, Call):
-                    ops = child.walk(Operation)
-                    if any(op.operator not in [BinaryOperation.Operator.LBOUND,
-                                               BinaryOperation.Operator.UBOUND]
-                           for op in ops):
-                        ptree = Fortran2003.Stop_Stmt(
-                            f"STOP 'PSyclone: {self._routine_name}: manually "
-                            f"add ACC update statements for the temporaries "
-                            f"required by the following Call'")
-                        sched.addchild(CodeBlock(
-                            [ptree], CodeBlock.Structure.STATEMENT),
-                                       index=child.position)
-                if isinstance(child, IfBlock):
-                    # Add any update statements that are required due to
-                    # (read) accesses within the condition of the If.
-                    self._add_update_directives(sched, [child.condition])
-                    # Recurse down
-                    self._add_updates_to_schedule(child.if_body,
-                                                  excluded_nodes)
-                    if child.else_body:
-                        self._add_updates_to_schedule(child.else_body,
-                                                      excluded_nodes)
-                if isinstance(child, Loop):
-                    # We have a loop that is on the CPU but contains code
-                    # that could be on the GPU.
-                    # The loop start, stop and step values could all
-                    # potentially have been written to on the GPU.
-                    self._add_update_directives(sched, [child.start_expr,
-                                                        child.stop_expr,
-                                                        child.step_expr])
-                    # Recurse down into the loop body
-                    self._add_updates_to_schedule(child.loop_body,
-                                                  excluded_nodes)
-                if isinstance(child, CodeBlock):
-                    # All is not lost if we encounter a CodeBlock as we may
-                    # be able to infer that it doesn't require any data
-                    # transfers.
-                    fp_nodes = child.get_ast_nodes
-                    for fp_node in fp_nodes:
-                        if isinstance(fp_node, self._fp_ignore_nodes):
-                            continue
-                        if isinstance(fp_node, Fortran2003.Write_Stmt):
-                            if fp_node.children[-1] is None:
-                                # A WRITE with no arguments is fine.
-                                continue
-                            if all(isinstance(
-                                    fp_child,
-                                    Fortran2003.Char_Literal_Constant) for
-                                   fp_child in fp_node.children[-1].children):
-                                # A WRITE that only uses character literals
-                                # is also fine.
-                                continue
-                        # If we reach this point then the CodeBlock contains
-                        # (or may contain) variable accesses so we inject code
-                        # to abort the execution.
-                        ptree = Fortran2003.Stop_Stmt(
-                            f"STOP 'PSyclone: {self._routine_name}: manually "
-                            f"add ACC update statements (if required) for the "
-                            f"following CodeBlock...'")
-                        sched.addchild(CodeBlock(
-                            [ptree], CodeBlock.Structure.STATEMENT),
-                                       index=child.position)
-                        # If this is not the last child in the Schedule then we
-                        # can add a comment to show where the CodeBlock ends.
-                        if child is not sched.children[-1]:
-                            sibling = sched.children[child.position+1]
-                            sibling.preceding_comment = (
-                                "...CodeBlock ends here.")
-                        break
+                # After a sequence of pure CPU statements, update the GPU
+                if cpu_stmts:
+                    self._add_update_directives_gpu(sched, cpu_stmts)
+                    cpu_stmts = []
+
+                if isinstance(stmt, self._acc_nodes):
+                    # If a compute construct is found, update the CPU
+                    self._add_update_directives_cpu(sched, stmt)
+                else:
+                    # Recurse down the schedule tree
+                    if isinstance(stmt, IfBlock):
+                        self._add_updates_to_schedule(stmt.if_body)
+                        if stmt.else_body:
+                            self._add_updates_to_schedule(stmt.else_body)
+                    elif isinstance(stmt, Loop):
+                        self._add_updates_to_schedule(stmt.loop_body)
 
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the CPU?
-        if node_list:
-            self._add_update_directives(sched, node_list)
+        if cpu_stmts:
+            self._add_update_directives_gpu(sched, cpu_stmts)
 
-    def _add_update_directives(self, sched, node_list):
+        # At the end of a routine, we exit cleanly by updating the CPU
+        if isinstance(sched, InvokeSchedule):
+            self._add_update_directives_cpu(sched, None)
+
+    def _add_update_directives_cpu(self, sched, direc):
         '''
-        Adds the required update directives before and after the nodes in
-        the supplied list.
+        Adds the required update directive after the supplied compute
+        construct.
 
-        :param sched: the schedule which contains the nodes in node_list.
+        :param sched: the schedule which contains the node in direc.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param node_list: the PSyIR nodes representing code executed on the \
-                          CPU rather than the GPU.
+        :param stmts: the PSyIR node representing code executed on the GPU.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -252,27 +174,76 @@ class ACCUpdateTrans(Transformation):
             from psyclone.nemo import NemoACCUpdateDirective as \
                 ACCUpdateDirective
 
-        inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
+        acc_outputs = set([kref for kref in direc.out_kernel_references])
+        
+        # Capture the inputs of the dependent CPU statements unless we find a
+        # call statement, in which case we assume all GPU outputs need updating 
+        dependent_stmts = self._dependent_stmts(direc)
+        nacc_stmts = self._non_acc_stmts(dependent_stmts)
+        if all(stmt.walk(Call) is None for stmt in nacc_stmts):
+            cpu_inputs, _ = DependencyTools().get_in_out_parameters(nacc_stmts)
+            acc_outputs.intersection_update(cpu_inputs)
 
-        # Copy any data that is read by this region to the host (resp. device)
-        # if it is on the device (resp. host).
-        for idx, inouts in enumerate((inputs, outputs)):
-            if not inouts:
-                continue
-            if idx == 0:   # inputs
-                node_index = 0
-                node_offset = 0
-                direction = "host"
-            elif idx == 1: # outputs
-                node_index = -1
-                node_offset = 1
-                direction = "device"
-            # Since the supplied nodes may be the children of an IfBlock or
-            # Loop, we have to search up to find the ancestor that *is* a
-            # child of the Schedule we are working on.
-            child = node_list[node_index]
-            while child not in sched.children:
-                child = child.parent
-            sig_list = set(inouts)
-            update_dir = ACCUpdateDirective(sig_list, direction)
-            sched.addchild(update_dir, sched.children.index(child)+node_offset)
+        # Add the directive just after the compute construct
+        update_dir = ACCUpdateDirective(acc_outputs, 'host')
+        sched.addchild(update_dir, sched.children.index(direc)+1)
+
+    def _add_update_directives_gpu(self, sched, stmts):
+        '''
+        Adds the required update directive after the statements in the supplied
+        list.
+
+        :param sched: the schedule which contains the nodes in stmts.
+        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param stmts: the PSyIR nodes representing code executed on the \
+                      CPU rather than the GPU.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.nemo import NemoInvokeSchedule
+        if sched.ancestor(NemoInvokeSchedule, include_self=True):
+            from psyclone.nemo import NemoACCUpdateDirective as \
+                ACCUpdateDirective
+
+        dependent_stmts = self._dependent_stmts(stmts[-1])
+        acc_directives = [cdir for stmt in dependent_stmts 
+                               for cdir in stmt.walk(self._acc_nodes)]
+        acc_inputs = set([kref for cdir in acc_directives
+                               for kref in cdir.in_kernel_references])
+
+        # Capture the outputs of the CPU statements unless we find a call
+        # statement, in which case we assume all GPU inputs need updating 
+        if all(stmt.walk(Call) is None for stmt in stmts):
+            _, cpu_outputs = DependencyTools().get_in_out_parameters(stmts)
+            acc_inputs.intersection_update(cpu_outputs)
+
+        # Add the directive just after the last CPU statement
+        update_dir = ACCUpdateDirective(acc_inputs, 'device')
+        sched.addchild(update_dir, sched.children.index(stmts[-1])+1)
+
+    def _dependent_stmts(self, stmt):
+        outermost_loop = None
+        while not isinstance(stmt.parent, InvokeSchedule):
+            if isinstance(stmt, Loop):
+                outermost_loop = stmt
+            stmt = stmt.parent
+
+        index = stmt.parent.children.index(stmt)
+        dependent_stmts = stmt.parent.children[index+1:]
+
+        if outermost_loop:
+            dependent_stmts += outermost_loop.loop_body
+
+        return dependent_stmts
+
+    def _non_acc_stmts(self, stmts):
+        non_acc_stmts = []
+        for stmt in stmts:
+            if not stmt.walk(self._acc_nodes):
+                non_acc_stmts.append(stmt)
+            else:
+                non_acc_stmts.extend(self._non_acc_stmts(stmt.children))
+        
+        return non_acc_stmts
+

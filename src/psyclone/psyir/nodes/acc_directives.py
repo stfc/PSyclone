@@ -109,7 +109,6 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.psyir.tools import DependencyTools
 
         if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
@@ -117,13 +116,26 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
                 for arg in call.arguments.acc_args:
                     variables.add(arg)
         else:
-            dep_tools = DependencyTools()
-            inputs, outputs = dep_tools.get_in_out_parameters(self.children)
-            for sig in (inputs + outputs):
-                for idx in range(len(sig)):
-                    # TODO this is Fortran specific
-                    variables.add("%".join(sig[:idx+1]))
+            variables = set().union(self.in_kernel_references,
+                                    self.out_kernel_references)
+            variables = _sig_tools(variables)
         return variables
+
+    @property
+    def in_kernel_references(self):
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools
+
+        inputs, _ = DependencyTools().get_in_out_parameters(self.children)
+        return inputs
+
+    @property
+    def out_kernel_references(self):
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools
+
+        _, outputs = DependencyTools().get_in_out_parameters(self.children)
+        return outputs
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -794,8 +806,8 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         if not all(isinstance(sig, Signature) for sig in signatures):
             raise TypeError(
                 f"The ACCUpdateDirective signatures argument must be a "
-                f"list of signatures but got "
-                f"{[type(sig).__name__ for sig in signatures]}")
+                f"set of signatures but got "
+                f"{set([type(sig).__name__ for sig in signatures])}")
 
         self._sig_list = signatures
         self._direction = direction
@@ -848,14 +860,17 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         '''
         condition = "if_present " if self._conditional else ""
-        names = set()
-        for sig in self._sig_list:
-            for idx in range(len(sig)):
-                # TODO this is 1) Fortran specific and 2) repeated code
-                names.add("%".join(sig[:idx+1]))
+        names = _sig_tools(self._sig_list)
         sym_list = ",".join(sorted(names))
         return f"acc update {condition}{self._direction}({sym_list})"
 
+def _sig_tools(sig_list):
+    names = set()
+    for sig in sig_list:
+        for idx in range(len(sig)):
+            # TODO this is Fortran specific
+            names.add("%".join(sig[:idx+1]))
+    return names
 
 # For automatic API documentation generation
 __all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
