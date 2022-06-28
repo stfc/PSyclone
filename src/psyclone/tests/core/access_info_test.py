@@ -635,3 +635,54 @@ def test_symbol_array_detection(fortran_reader):
     b_is_array = sym_b.is_array_access(access_info=access_info_b,
                                        index_variable="j")
     assert not b_is_array
+
+
+# -----------------------------------------------------------------------------
+def test_access_info_clone():
+    '''Test that clone() works as expected.'''
+    var_info = VariablesAccessInfo()
+    assert var_info.array_shape_accesses_are_read is False
+    var_info_clone = var_info.clone()
+    # Make sure the default gets cloned.
+    assert var_info_clone.array_shape_accesses_are_read is False
+
+    var_info = VariablesAccessInfo(array_shape_accesses_are_read=True)
+    assert var_info.array_shape_accesses_are_read is True
+    var_info_clone = var_info.clone()
+    # Make sure the default gets cloned.
+    assert var_info_clone.array_shape_accesses_are_read is True
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
+def test_shape_access_handling(function, fortran_reader):
+    '''Verifies the handling of accesses to arrays using shape operations like
+    size, lbound and ubound.
+    '''
+
+    code = f'''program test_prog
+               real, dimension(5,5) :: b, c
+               integer :: i, j
+               do i=1, {function}(b, 1)
+               enddo
+               do i=1, {function}(b, j)
+               enddo
+               end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    # When collecting accesses to the shape as read, b must be in the
+    # list of accesses
+    vai = VariablesAccessInfo(loop1, array_shape_accesses_are_read=True)
+    assert str(vai) == "b: READ, i: READ+WRITE"
+    # When disabling the collection of read accesses, b must not be in the
+    # list of accesses
+    vai = VariablesAccessInfo(loop1, array_shape_accesses_are_read=False)
+    assert str(vai) == "i: READ+WRITE"
+
+    # Now verify that the read to a variable as dimension parameter
+    # will be reported:
+    loop2 = psyir.children[0].children[1]
+    vai = VariablesAccessInfo(loop2, array_shape_accesses_are_read=True)
+    assert str(vai) == "b: READ, i: READ+WRITE, j: READ"
+    vai = VariablesAccessInfo(loop2, array_shape_accesses_are_read=False)
+    assert str(vai) == "i: READ+WRITE, j: READ"

@@ -73,7 +73,7 @@ class Operation(DataNode):
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
-        super(Operation, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
@@ -201,7 +201,7 @@ class Operation(DataNode):
         :returns: whether other is equal to self.
         :rtype: bool
         '''
-        is_eq = super(Operation, self).__eq__(other)
+        is_eq = super().__eq__(other)
         is_eq = is_eq and self.operator == other.operator
         is_eq = is_eq and self.argument_names == other.argument_names
 
@@ -294,7 +294,7 @@ class Operation(DataNode):
         # pylint: disable=protected-access
         self._reconcile()
         # copy
-        new_copy = super(Operation, self).copy()
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         new_list = []
         for idx, child in enumerate(new_copy.children):
@@ -501,6 +501,32 @@ class BinaryOperation(Operation):
 
         '''
         return position in (0, 1) and isinstance(child, DataNode)
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information for this binary operation.
+        If the operation accesses the shape of the array, and the
+        var_accesses argument has `array_shape_accesses_are_read` disabled,
+        then the size, lbound and ubound operation will only report accesses
+        to the second child (which is the optional dimension parameters of
+        these function).
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        if not var_accesses.array_shape_accesses_are_read and \
+                self._operator in [BinaryOperation.Operator.SIZE,
+                                   BinaryOperation.Operator.LBOUND,
+                                   BinaryOperation.Operator.UBOUND]:
+            # If accesses to the array shapes are not supposed to be read
+            # accesses, ignore the first child (the array), but do check
+            # the optional dim parameter:
+            self._children[1].reference_accesses(var_accesses)
+            return
+
+        super().reference_accesses(var_accesses)
 
     @staticmethod
     def create(operator, lhs, rhs):

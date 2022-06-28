@@ -253,6 +253,38 @@ def test_arrays_parallelise(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
+def test_arrays_parallelise2(fortran_reader):
+    '''Tests the array checks of can_loop_be_parallelised when using
+    size() - the first argument of size should be ignored.
+    '''
+    source = '''program test
+                integer ji, jj, jk
+                integer, parameter :: jpi=5, jpj=10
+                real, dimension(jpi,jpi) :: mask, umask
+                do jj = 1, size(mask(:,:), 1)
+                   do ji = 1, size(mask(:,:), 2)
+                      mask(ji, jj) = -1.0d0
+                    end do
+                end do
+                do jj = 1, size(mask, 1)
+                   do ji = 1, size(mask, 2)
+                      mask(ji, jj) = -1.0d0
+                    end do
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children[0:2]
+    dep_tools = DependencyTools()
+
+    parallel = dep_tools.can_loop_be_parallelised(
+        loops[0], only_nested_loops=False)
+    assert parallel is True
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
+    assert parallel is True
+
+
+# -----------------------------------------------------------------------------
 # This list contains the test cases and expected partition information.
 # The first two entries of each 3-tuple are the LHS and RHS. The third
 # element is the partition information, which is a list of partitions. Each

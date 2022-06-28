@@ -41,7 +41,6 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.core import AccessType, Signature
 from psyclone.psyir.symbols import Symbol
 
@@ -62,7 +61,7 @@ class Reference(DataNode):
     _colour = "yellow"
 
     def __init__(self, symbol, parent=None):
-        super(Reference, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.symbol = symbol
 
     def __eq__(self, other):
@@ -159,15 +158,6 @@ class Reference(DataNode):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        if (self.parent and isinstance(self.parent, Operation) and
-                self.parent.operator in [BinaryOperation.Operator.LBOUND,
-                                         BinaryOperation.Operator.UBOUND]
-                and self.parent.children[0] is self):
-            # This reference is the first argument to a lbound or
-            # ubound intrinsic. These intrinsics do not access the
-            # array elements, they determine the array
-            # bounds. Therefore there is no data dependence.
-            return
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:

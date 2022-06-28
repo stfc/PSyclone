@@ -441,13 +441,18 @@ class VariablesAccessInfo(dict):
                   which to initialise this object.
     :type nodes: None, :py:class:`psyclone.psyir.nodes.Node` or\
                  List[:py:class:`psyclone.psyir.nodes.Node`]
+    :param bool array_shape_accesses_are_read: if True (default), an access \
+        to an array using `size`, `lbound`, or `ubound` are considered read \
+        accesses  to the array. If this is set to False, these accesses will \
+        not be reported as 'read' accesses.
 
     '''
-    def __init__(self, nodes=None):
+    def __init__(self, nodes=None, array_shape_accesses_are_read=False):
         # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
         dict.__init__(self)
 
+        self._array_shape_accesses_are_read = array_shape_accesses_are_read
         # Stores the current location information
         self._location = 0
         if nodes:
@@ -472,6 +477,15 @@ class VariablesAccessInfo(dict):
                                     f"schedule or a list of Nodes in a "
                                     f"schedule but have been passed an "
                                     f"object of type: {arg_type}")
+
+    def clone(self):
+        '''Returns a new instance of the VariablesAccessInfo class,
+        which has the same options specified as this object (which is
+        for now the array_shape_accesses_are_read attribute).
+        '''
+
+        return VariablesAccessInfo(
+            array_shape_accesses_are_read=self._array_shape_accesses_are_read)
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables
@@ -683,6 +697,12 @@ class VariablesAccessInfo(dict):
 
         var_access_info = self[signature]
         return var_access_info.has_read_write()
+
+    @property
+    def array_shape_accesses_are_read(self):
+        ''':returns: whether accesses to an array shape using `size`, `lbound`
+            or `ubound` are considered read accesses or not.'''
+        return self._array_shape_accesses_are_read
 
 
 # ---------- Documentation utils -------------------------------------------- #
