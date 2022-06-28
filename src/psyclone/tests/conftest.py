@@ -114,7 +114,7 @@ def config_fixture(monkeypatch):
 
     '''
     orig_config = Config.get()
-    new_config = copy.deepcopy(orig_config)
+    new_config = copy.copy(orig_config)
     monkeypatch.setattr(Config, "_instance", new_config)
     yield new_config
     monkeypatch.undo()
