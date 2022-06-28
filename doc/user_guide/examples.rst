@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -614,6 +614,22 @@ is being updated. As :ref:`described <dev_guide:iterators_continuous>`
 in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.
+
+.. _lfric_alg_gen_example:
+
+Example 20: Algorithm Generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm layer for a kernel. A makefile is provide that also
+runs ``psyclone`` to create an executable program from the generated
+algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+.. code-block:: bash
+
+    cd eg20/
+    psyclone-kern -gen alg ../code/testkern_mod.F90
 
 NEMO
 ----
