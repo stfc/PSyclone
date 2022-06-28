@@ -93,7 +93,7 @@ alg.f90 psy.f90: test.x90 extract_transform.py
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(EXTRACT_DIR) -l_kernel_data_netcdf    \
 	$(INF_LIB)                                \
 	$$(nf-config --flibs)

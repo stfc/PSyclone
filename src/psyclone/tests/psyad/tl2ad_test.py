@@ -37,7 +37,6 @@
 within the psyad directory.
 
 '''
-from __future__ import print_function, absolute_import
 import logging
 import pytest
 
@@ -45,14 +44,16 @@ from psyclone.errors import InternalError
 from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
     generate_adjoint_test
 from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product, _get_active_variables_datatype
+    _create_array_inner_product, _get_active_variables_datatype, \
+    _add_precision_symbol
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
     Assignment, BinaryOperation, Reference, Literal
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, \
-    INTEGER_TYPE, REAL_TYPE, ArrayType, RoutineSymbol, ImportInterface, \
-    ScalarType
+from psyclone.psyir.symbols import (
+    DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
+    ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
+    ArgumentInterface, UnknownFortranType, DeferredType)
 
 
 # 1: generate_adjoint_str function
@@ -529,6 +530,56 @@ def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
     # assert Compile(tmpdir).string_compiles(harness)
 
 
+def test_add_precision_symbol():
+    ''' Tests for the _add_precision_symbol() utility function. '''
+    table = SymbolTable()
+    sym = DataSymbol("i_def", INTEGER_TYPE)
+    _add_precision_symbol(sym, table)
+    # A local symbol should just be copied into the table.
+    new_sym = table.lookup("i_def")
+    assert new_sym is not sym
+    # Calling _add_precision a second time should do nothing.
+    _add_precision_symbol(sym, table)
+    assert table.lookup("i_def") is new_sym
+    # An imported symbol should have its originating Container copied
+    # over too.
+    csym = ContainerSymbol("some_mod")
+    rdef = DataSymbol("r_def", INTEGER_TYPE, interface=ImportInterface(csym))
+    _add_precision_symbol(rdef, table)
+    csym_copy = table.lookup("some_mod")
+    assert isinstance(csym_copy, ContainerSymbol)
+    assert csym_copy is not csym
+    rdef_copy = table.lookup("r_def")
+    assert rdef_copy.interface.container_symbol is csym_copy
+    # A precision symbol must be either local or imported
+    arg_sym = DataSymbol("wrong", INTEGER_TYPE, interface=ArgumentInterface())
+    table.specify_argument_list([arg_sym])
+    with pytest.raises(NotImplementedError) as err:
+        _add_precision_symbol(arg_sym, table)
+    assert ("One or more variables have a precision specified by symbol "
+            "'wrong' which is not local or explicitly imported" in
+            str(err.value))
+    # A precision symbol must be a scalar integer or of deferred/unknown type
+    isym = DataSymbol("iwrong", REAL_TYPE)
+    with pytest.raises(TypeError) as err:
+        _add_precision_symbol(isym, table)
+    assert ("integer type but 'iwrong' has type 'Scalar<REAL, UNDEFINED>'." in
+            str(err.value))
+    arr_sym = DataSymbol("iarray", ArrayType(INTEGER_TYPE, [10]))
+    with pytest.raises(TypeError) as err:
+        _add_precision_symbol(arr_sym, table)
+    assert ("integer type but 'iarray' has type 'Array<Scalar<INTEGER, "
+            "UNDEFINED>, shape=[10]>'." in str(err.value))
+    def_sym = DataSymbol("my_def",
+                         UnknownFortranType("integer, parameter :: my_def"))
+    _add_precision_symbol(def_sym, table)
+    assert table.lookup("my_def")
+    odef_sym = DataSymbol("o_def", DeferredType(),
+                          interface=ImportInterface(csym))
+    _add_precision_symbol(odef_sym, table)
+    assert table.lookup("o_def")
+
+
 def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):
     ''' Test that we don't get a name clash when one of the kernel arguments
     matches the name we will give (internally) to the extent of the test
@@ -698,11 +749,13 @@ def test_generate_harness_kind_import(fortran_reader, fortran_writer):
     '''
     tl_code = (
         "module my_mod\n"
-        "  use kinds_mod, only: r_def\n"
+        "  use kinds_mod, only: r_def, i_def\n"
+        "  use precision_mod, only: i32\n"
         "  contains\n"
-        "  subroutine kern(field, npts)\n"
-        "    integer, intent(in) :: npts\n"
+        "  subroutine kern(field, npts, iflag)\n"
+        "    integer(kind=i_def), intent(in) :: npts\n"
         "    real(kind=r_def), intent(inout) :: field(npts)\n"
+        "    integer(kind=i32), intent(in) :: iflag\n"
         "    field = 0.0\n"
         "  end subroutine kern\n"
         "end module my_mod\n"
@@ -714,7 +767,8 @@ def test_generate_harness_kind_import(fortran_reader, fortran_writer):
     assert ("  real(kind=r_def), dimension(npts) :: field\n"
             "  real(kind=r_def), dimension(npts) :: field_input" in harness)
     assert "real(kind=r_def) :: inner1\n" in harness
-    assert "use kinds_mod, only : r_def" in harness
+    assert "use kinds_mod, only : i_def, r_def" in harness
+    assert "use precision_mod, only : i32" in harness
     assert ("real(kind=r_def), parameter :: overall_tolerance = "
             "1500.0_r_def" in harness)
 
@@ -767,7 +821,7 @@ def test_generate_harness_unknown_kind_error(fortran_reader):
     ad_psyir = generate_adjoint(tl_psyir, ["field"])
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
-    assert ("active variables ['field'] have a precision specified by "
+    assert ("One or more variables have a precision specified by "
             "symbol 'r_def' which is not local or explicitly imported" in
             str(err.value))
 

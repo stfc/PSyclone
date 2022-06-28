@@ -55,11 +55,13 @@ PSYCLONE_DIR := $(abspath $(dir $(this_file))..)
 ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
   # Failed to find the configuration file so don't attempt to specify it.
   # Will be picked up from default locations or $PSYCLONE_CONFIG.
-  PSYCLONE ?= psyclone
+  PSYCLONE ?= "psyclone -l output"
   KERNEL_STUB_GEN ?= "psyclone-kern -gen stub"
+  KERNEL_ALG_GEN ?= "psyclone-kern -gen alg"
 else
   PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
   KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg psyclone-kern -gen stub
+  KERNEL_ALG_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg psyclone-kern -gen alg
 endif
 
 PSYAD ?= psyad

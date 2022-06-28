@@ -238,6 +238,12 @@ def test_gen_decls_routine(fortran_writer):
     symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
+    # Check that a routine 'symbol' resulting from a call to a type-
+    # bound procedure is quietly ignored.
+    symbol_table.add(RoutineSymbol("grid%init",
+                                   interface=UnresolvedInterface()))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert result == ""
     # Now add a user-defined routine symbol but with an (unsupported)
     # ArgumentInterface
     rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
