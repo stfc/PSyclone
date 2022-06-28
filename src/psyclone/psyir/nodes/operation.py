@@ -42,14 +42,12 @@ sub-classes.'''
 import abc
 from enum import Enum
 import re
-import six
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Operation(DataNode):
+class Operation(DataNode, metaclass=abc.ABCMeta):
     '''
     Abstract base class for PSyIR nodes representing operators.
 
