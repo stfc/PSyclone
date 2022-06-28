@@ -394,6 +394,8 @@ can be found in the API-specific sections).
 
 ####
 
+.. _replace_induction_variable_trans:
+
 .. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariables
       :members: apply
       :noindex:
