@@ -320,8 +320,8 @@ def test_goloop_field_accesses():
     assert len(p_fld.all_accesses) == 9
 
 
-def test_dynamo():
-    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+def test_lfric():
+    ''' Test the handling of an LFRic loop. Note that the variable
     accesses are reported based on the user's point of view, not the code
     actually created by PSyclone, e.g. it shows a dependency on 'some_field',
     but not on some_field_proxy etc. Also the dependency is at this stage taken
@@ -349,8 +349,8 @@ def test_dynamo():
             "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
 
-def test_dynamo_args():
-    ''' Test the handling of an LFRic (Dynamo0.3) kernel arguments.
+def test_lfric_kern_cma_args():
+    ''' Test the handling of LFRic kernel arguments.
 
     '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -371,14 +371,14 @@ def test_dynamo_args():
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
-    assert var_accesses_read[Signature("cma_op1_matrix")][0].access_type \
-           == AccessType.READ
-    assert var_accesses_write[Signature("cma_op1_matrix")][0].access_type \
-           == AccessType.WRITE
+    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.READ)
+    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.WRITE)
 
     # All other parameters are read-only (e.g. sizes, ... - they will not
-    # be modified, even of the actual data is written):
-    for name in ["nrow", "ncol", "bandwidth", "alpha", "beta", "gamma_m",
+    # be modified, even if the actual data is written):
+    for name in ["nrow", "bandwidth", "alpha", "beta", "gamma_m",
                  "gamma_p"]:
         assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
                 == AccessType.READ)
@@ -906,6 +906,7 @@ def test_lfric_acc_operator():
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
     assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "cma_op1_matrix: WRITE" in var_info
 
 
 def test_lfric_stencil():

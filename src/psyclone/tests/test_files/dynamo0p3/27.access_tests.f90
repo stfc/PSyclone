@@ -35,22 +35,24 @@
 
 program access_tests
 
-  ! Description: invoke containing multiple kernels, the first 
-  ! of which is a kernel that operates on the domain instead of a
-  ! cell-column and the last of which is a CMA kernel.
-  use constants_mod,                only: r_def
+  ! Description: this program contains two invokes that test read and
+  ! write declaration of CMA.
   use field_mod,                    only: field_type
-  use testkern_access_read_mod,     only: testkern_access_read_type
-  use testkern_access_write_mod,    only: testkern_access_write_type
+  use operator_mod,                 only: operator_type
+  use columnwise_operator_mod,      only: columnwise_operator_type
+  use columnwise_op_asm_kernel_mod, only: columnwise_op_asm_kernel_type
+  use columnwise_op_app_same_fs_kernel_mod, &
+                                    only: columnwise_op_app_same_fs_kernel_type
 
   implicit none
 
-  real(kind=r_def) :: b, c
-  type(field_type) :: f1, f2, f3, f4
+  type(field_type)               :: f1, f2
   type(operator_type)            :: lma_op1
   type(columnwise_operator_type) :: cma_op1
 
-  call invoke( testkern_access_read_type(f1, f2, cma_op1), name="read")
-  call invoke( testkern_access_write_type(f1, lma_op1, cma_op1), name="write")
+  ! This kernel has a cma thas is read:
+  call invoke( columnwise_op_app_same_fs_kernel_type(f1, f2, cma_op1), name="read")
+  ! This kernel has a cma that is written:
+  call invoke( columnwise_op_asm_kernel_type(lma_op1, cma_op1), name="write")
 
 end program access_tests
