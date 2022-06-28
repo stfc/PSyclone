@@ -41,16 +41,13 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
-from __future__ import absolute_import, print_function
 import abc
-from configparser import ConfigParser, MissingSectionHeaderError, \
-    ParsingError
+from configparser import (ConfigParser, MissingSectionHeaderError,
+                          ParsingError)
 from collections import namedtuple
 import os
 import re
 import sys
-
-import six
 
 from psyclone.errors import PSycloneError, InternalError
 
@@ -240,10 +237,10 @@ class Config(object):
         # Check for missing section headers and general parsing errors
         # (e.g. incomplete or incorrect key-value mapping)
         except (MissingSectionHeaderError, ParsingError) as err:
-            six.raise_from(ConfigurationError(
+            raise ConfigurationError(
                 "ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: {0})".format(str(err)),
-                config=self), err)
+                config=self) from err
 
         # Check that the configuration file has a [DEFAULT] section. Even
         # if there isn't one in the file, ConfigParser creates an (empty)
@@ -263,9 +260,9 @@ class Config(object):
             self._distributed_mem = self._config['DEFAULT'].getboolean(
                 'DISTRIBUTED_MEMORY')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "Error while parsing DISTRIBUTED_MEMORY: {0}".
-                format(str(err)), config=self), err)
+            raise ConfigurationError(
+                f"Error while parsing DISTRIBUTED_MEMORY: {err}",
+                config=self) from err
 
         # API for PSyclone
         if "DEFAULTAPI" in self._config["DEFAULT"]:
@@ -284,10 +281,8 @@ class Config(object):
         # Sanity check
         if self._api not in Config._supported_api_list:
             raise ConfigurationError(
-                "The API ({0}) is not in the list of supported "
-                "APIs ({1}).".format(self._api,
-                                     Config._supported_api_list),
-                config=self)
+                f"The API ({self._api}) is not in the list of supported "
+                f"APIs ({Config._supported_api_list}).", config=self)
 
         # Default API for stub-generator
         if 'defaultstubapi' not in self._config['DEFAULT']:
@@ -309,17 +304,17 @@ class Config(object):
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "Error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
-                format(str(err)), config=self), err)
+            raise ConfigurationError(
+                f"Error while parsing REPRODUCIBLE_REDUCTIONS: {err}",
+                config=self) from err
 
         try:
             self._reprod_pad_size = self._config['DEFAULT'].getint(
                 'REPROD_PAD_SIZE')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
-                config=self), err)
+            raise ConfigurationError(
+                f"error while parsing REPROD_PAD_SIZE: {err}",
+                config=self) from err
 
         if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
             # Use the default name if no default is specified for the
@@ -338,9 +333,9 @@ class Config(object):
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
         except ValueError as err:
-            six.raise_from(ConfigurationError(
-                "error while parsing OCL_DEVICES_PER_NODE: "
-                "{0}".format(str(err)), config=self), err)
+            raise ConfigurationError(
+                f"error while parsing OCL_DEVICES_PER_NODE: {err}",
+                config=self) from err
 
         # Verify that the prefixes will result in valid Fortran names:
         valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
@@ -659,9 +654,8 @@ class Config(object):
                         "Include path '{0}' does not exist".format(path))
                 self._include_paths.append(path)
         except (TypeError, ValueError) as err:
-            six.raise_from(ValueError("include_paths must be a list but got: "
-                                      "{0}". format(type(path_list))),
-                           err)
+            raise ValueError(f"include_paths must be a list but got: "
+                             f"{type(path_list)}") from err
 
     @property
     def valid_psy_data_prefixes(self):
@@ -728,11 +722,9 @@ class APISpecificConfig(object):
                     AccessType.from_string(access_type)
             except ValueError as err:
                 # Raised by from_string()
-                six.raise_from(ConfigurationError("Unknown access type '{0}' "
-                                                  "found for key '{1}'"
-                                                  .format(access_type,
-                                                          api_access_name)),
-                               err)
+                raise ConfigurationError(
+                    f"Unknown access type '{access_type}' found for key "
+                    f"'{api_access_name}'") from err
 
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
@@ -761,10 +753,8 @@ class APISpecificConfig(object):
                 key, value = entry.split(":", 1)
             except ValueError as err:
                 # Raised when split does not return two elements:
-                six.raise_from(ConfigurationError("Invalid format for "
-                                                  "mapping: {0}".
-                                                  format(entry.strip())),
-                               err)
+                raise ConfigurationError(
+                    f"Invalid format for mapping: {entry.strip()}") from err
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = str(value.strip())
         return return_dict
@@ -1081,10 +1071,9 @@ class GOceanConfig(APISpecificConfig):
                 try:
                     self._debug_mode = section.getboolean("debug_mode")
                 except ValueError as err:
-                    six.raise_from(ConfigurationError(
-                        "error while parsing DEBUG_MODE in the "
-                        "[gocean1p0] section of the config file: {0}"
-                        .format(str(err))), err)
+                    raise ConfigurationError(
+                        f"error while parsing DEBUG_MODE in the [gocean1p0] "
+                        f"section of the config file: {err}") from err
             elif key == "grid-properties":
                 # Grid properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array: real,
@@ -1108,7 +1097,7 @@ class GOceanConfig(APISpecificConfig):
                                 .format(grid_property,
                                         all_props[grid_property],
                                         config.filename)
-                        six.raise_from(ConfigurationError(error), err)
+                        raise ConfigurationError(error) from err
                     # Make sure to remove the spaces which the config
                     # file might contain
                     self._grid_properties[grid_property] = \
