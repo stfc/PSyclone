@@ -98,13 +98,13 @@ def test_otterparallelnode_lower_to_language():
     assert not routine.walk(OtterParallelNode)
     calls = routine.walk(Call)
     assert len(calls) == 2
-    assert calls[0].routine.name == "fortran_otterParallelBegin_i"
+    assert calls[0].routine.name == "fortran_otterThreadsBegin_i"
     assert len(calls[0].children) == 3
     assert calls[0].children[0].name == "__FILE__"
     assert calls[0].children[1].value == "my_routine"
     assert calls[0].children[2].name == "__LINE__"
 
-    assert calls[1].routine.name == "fortran_otterParallelEnd"
+    assert calls[1].routine.name == "fortran_otterThreadsEnd"
     assert len(calls[1].children) == 0
 
 
@@ -243,7 +243,7 @@ def test_ottersyncorhonisechildrennode_lower_to_language():
     assert not routine.walk(OtterSynchroniseChildrenNode)
     calls = routine.walk(Call)
     assert len(calls) == 1
-    assert calls[0].routine.name == "fortran_otterSynchroniseChildTasks_i"
+    assert calls[0].routine.name == "fortran_otterSynchroniseTasks_i"
     assert len(calls[0].children) == 3
     assert calls[0].children[0].name == "__FILE__"
     assert calls[0].children[1].value == "my_routine"

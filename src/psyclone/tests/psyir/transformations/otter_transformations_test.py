@@ -82,11 +82,11 @@ def test_otterparallel_trans_apply():
     paralleltrans = OtterParallelTrans()
     paralleltrans.apply(schedule.children[:])
     code = str(psy.gen)
-    assert ("USE otter_serial, ONLY: fortran_otterParallelBegin_i, "
-            "fortran_otterParallelEnd" in code)
-    assert ("CALL fortran_otterParallelBegin_i(__FILE__, 'invoke_0_compute_cu'"
+    assert ("USE otter_serial, ONLY: fortran_otterThreadsBegin_i, "
+            "fortran_otterThreadsEnd" in code)
+    assert ("CALL fortran_otterThreadsBegin_i(__FILE__, 'invoke_0_compute_cu'"
             ", __LINE__)" in code)
-    assert "CALL fortran_otterParallelEnd" in code
+    assert "CALL fortran_otterThreadsEnd" in code
 
 def test_ottertaskloop_trans_str():
     tlooptrans = OtterTaskloopTrans()
@@ -185,8 +185,8 @@ def test_ottersyncchild_trans_apply():
     synctrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = '''END DO
-      CALL fortran_otterSynchroniseChildTasks_i(__FILE__, 'invoke_0_compute_cu', __LINE__)'''
-    assert ("USE otter_serial, ONLY: fortran_otterSynchroniseChildTasks_i"
+      CALL fortran_otterSynchroniseTasks_i(__FILE__, 'invoke_0_compute_cu', __LINE__)'''
+    assert ("USE otter_serial, ONLY: fortran_otterSynchroniseTasks_i"
              in code)
     assert correct in code
 

@@ -181,8 +181,8 @@ class OtterParallelNode(OtterNode):
     _text_name = "otterParallelNode"
     _colour = "green"
 
-    _start_subroutine_call = "fortran_otterParallelBegin_i"
-    _end_subroutine_call = "fortran_otterParallelEnd"
+    _start_subroutine_call = "fortran_otterThreadsBegin_i"
+    _end_subroutine_call = "fortran_otterThreadsEnd"
 
 
 class OtterTaskNode(OtterNode):
@@ -242,7 +242,7 @@ class OtterSynchroniseChildrenNode(OtterNode):
     _text_name = "otterSynchroniseChildrenNode"
     _colour = "green"
 
-    _start_subroutine_call = "fortran_otterSynchroniseChildTasks_i"
+    _start_subroutine_call = "fortran_otterSynchroniseTasks_i"
 
 
 class OtterSynchroniseDescendantTasksNode(OtterNode):
