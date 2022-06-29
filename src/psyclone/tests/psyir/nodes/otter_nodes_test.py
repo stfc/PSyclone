@@ -186,10 +186,7 @@ def test_otterloopnode_lower_to_language():
     calls = routine.walk(Call)
     assert len(calls) == 2
     assert calls[0].routine.name == "fortran_otterLoopBegin_i"
-    assert len(calls[0].children) == 3
-    assert calls[0].children[0].name == "__FILE__"
-    assert calls[0].children[1].value == "my_routine"
-    assert calls[0].children[2].name == "__LINE__"
+    assert len(calls[0].children) == 0
 
     assert calls[1].routine.name == "fortran_otterLoopEnd"
     assert len(calls[1].children) == 0
@@ -215,10 +212,7 @@ def test_otterloopiterationnode_lower_to_language():
     calls = routine.walk(Call)
     assert len(calls) == 2
     assert calls[0].routine.name == "fortran_otterLoopIterationBegin_i"
-    assert len(calls[0].children) == 3
-    assert calls[0].children[0].name == "__FILE__"
-    assert calls[0].children[1].value == "my_routine"
-    assert calls[0].children[2].name == "__LINE__"
+    assert len(calls[0].children) == 0
 
     assert calls[1].routine.name == "fortran_otterLoopIterationEnd"
     assert len(calls[1].children) == 0
@@ -270,10 +264,7 @@ def test_ottersyncorhonisedescendenttasksnode_lower_to_language():
     assert len(calls) == 2
     assert (calls[0].routine.name == 
             "fortran_otterSynchroniseDescendantTasksBegin_i")
-    assert len(calls[0].children) == 3
-    assert calls[0].children[0].name == "__FILE__"
-    assert calls[0].children[1].value == "my_routine"
-    assert calls[0].children[2].name == "__LINE__"
+    assert len(calls[0].children) == 0
 
     assert (calls[1].routine.name == 
             "fortran_otterSynchroniseDescendantTasksEnd")

@@ -155,9 +155,9 @@ def test_otterloop_trans_apply():
             "fortran_otterLoopEnd, fortran_otterLoopIterationBegin_i, "
             "fortran_otterLoopIterationEnd" in code)
     correct = \
-        '''CALL fortran_otterLoopBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
+        '''CALL fortran_otterLoopBegin_i()
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
-        CALL fortran_otterLoopIterationBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
+        CALL fortran_otterLoopIterationBegin_i()
 '''
     assert correct in code
 
@@ -210,7 +210,7 @@ def test_ottersyncdec_trans_apply():
             "fortran_otterSynchroniseDescendantTasksBegin_i, "
             "fortran_otterSynchroniseDescendantTasksEnd" in code)
     correct = \
-        '''CALL fortran_otterSynchroniseDescendantTasksBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
+        '''CALL fortran_otterSynchroniseDescendantTasksBegin_i()
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
 '''
     assert correct in code
