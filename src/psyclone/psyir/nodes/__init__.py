@@ -88,7 +88,7 @@ from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause
 from psyclone.psyir.nodes.otter_nodes import OtterTraceSetupNode, \
-        OtterParallelNode, OtterTaskNode, OtterTaskSingleNode, \
+        OtterParallelNode, OtterTaskNode, \
         OtterLoopNode, OtterLoopIterationNode, OtterSynchroniseChildrenNode, \
         OtterSynchroniseDescendantTasksNode, OtterTraceNode, OtterNode
 
@@ -172,7 +172,6 @@ __all__ = [
         'OtterTraceSetupNode',
         'OtterParallelNode',
         'OtterTaskNode',
-        'OtterTaskSingleNode',
         'OtterLoopNode',
         'OtterLoopIterationNode',
         'OtterSynchroniseChildrenNode',

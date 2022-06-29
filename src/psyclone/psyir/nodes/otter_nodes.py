@@ -197,18 +197,6 @@ class OtterTaskNode(OtterNode):
     _end_subroutine_call = "fortran_otterTaskEnd"
 
 
-class OtterTaskSingleNode(OtterNode):
-    '''
-    Node to represent OtterTaskSingleBegin and OtterTaskSingleEnd calls.
-    '''
-    _children_valid_format = "Schedule"
-    _text_name = "otterTaskSingleNode"
-    _colour = "green"
-
-    _start_subroutine_call = "fortran_otterTaskSingleBegin_i"
-    _end_subroutine_call = "fortran_otterTaskSingleEnd"
-
-
 class OtterLoopNode(OtterNode):
     '''
     Node to represent OtterLoopBegin and OtterLoopEnd calls.

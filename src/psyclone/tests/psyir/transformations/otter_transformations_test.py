@@ -40,7 +40,7 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import OtterParallelTrans, \
-        OtterTaskloopTrans, OtterTraceSetupTrans, OtterTaskSingleTrans, \
+        OtterTaskloopTrans, OtterTraceSetupTrans, \
         OtterLoopTrans, OtterSynchroniseChildrenTrans, \
         OtterSynchroniseDescendantsTrans, OtterTraceStartEndTrans
 
@@ -117,25 +117,6 @@ def test_ottertaskloop_trans_apply():
         CALL fortran_otterTaskEnd
       END DO'''
     assert correct in code
-
-def test_ottertasksingle_trans_str():
-    strans = OtterTaskSingleTrans()
-    assert (str(strans) == "Adds a Otter TaskSingle node to a region of code")
-
-def test_ottertasksingle_trans_apply():
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    paralleltrans = OtterTaskSingleTrans()
-    paralleltrans.apply(schedule.children[:])
-    code = str(psy.gen)
-    assert ("USE otter_serial, ONLY: fortran_otterTaskSingleBegin_i, "
-            "fortran_otterTaskSingleEnd" in code)
-    assert ("CALL fortran_otterTaskSingleBegin_i(__FILE__, 'invoke_0_compute_cu'"
-            ", __LINE__)" in code)
-    assert "CALL fortran_otterTaskSingleEnd" in code
 
 
 def test_otterloop_trans_str():

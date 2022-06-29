@@ -42,7 +42,7 @@ from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
         Call
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.otter_nodes import OtterTraceSetupNode, \
-        OtterParallelNode, OtterTaskNode, OtterTaskSingleNode, \
+        OtterParallelNode, OtterTaskNode, \
         OtterLoopNode, OtterLoopIterationNode, OtterSynchroniseChildrenNode, \
         OtterSynchroniseDescendantTasksNode, OtterTraceNode
 from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
@@ -134,35 +134,6 @@ def test_ottertasknode_lower_to_language():
     assert calls[0].children[2].name == "__LINE__"
 
     assert calls[1].routine.name == "fortran_otterTaskEnd"
-    assert len(calls[1].children) == 0
-
-
-def test_ottertasksinglenode_lower_to_language():
-    ''' Test that the OtterTaskSingleNode is lowered as expected. '''
-
-    # Try without an ancestor Routine
-    psy_node = OtterTaskSingleNode()
-    with pytest.raises(GenerationError) as excinfo:
-        psy_node.lower_to_language_level()
-    assert ("An OtterNode must be inside a Routine context when"
-            " lowering but 'otterTaskSingleNode[]' is not."
-            in str(excinfo.value))
-
-    # Add the ancestor Routine and empty body
-    routine = Routine("my_routine")
-    routine.addchild(psy_node)
-    psy_node.lower_to_language_level()
-
-    assert not routine.walk(OtterTaskSingleNode)
-    calls = routine.walk(Call)
-    assert len(calls) == 2
-    assert calls[0].routine.name == "fortran_otterTaskSingleBegin_i"
-    assert len(calls[0].children) == 3
-    assert calls[0].children[0].name == "__FILE__"
-    assert calls[0].children[1].value == "my_routine"
-    assert calls[0].children[2].name == "__LINE__"
-
-    assert calls[1].routine.name == "fortran_otterTaskSingleEnd"
     assert len(calls[1].children) == 0
 
 

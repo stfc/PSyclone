@@ -46,7 +46,7 @@ from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Schedule, Reference, \
     OtterTraceSetupNode, OtterParallelNode, OtterTaskNode, \
-    OtterTaskSingleNode, OtterLoopNode, OtterLoopIterationNode, \
+    OtterLoopNode, OtterLoopIterationNode, \
     OtterSynchroniseChildrenNode, OtterSynchroniseDescendantTasksNode, \
     OtterTraceNode, Assignment
 from psyclone.psyir.transformations.transformation_error import \
@@ -128,30 +128,6 @@ class OtterTaskloopTrans(LoopTrans):
         parent.children.insert(position, task_node)
         node.detach()
         task_node.children[0].addchild(node)
-
-
-class OtterTaskSingleTrans(RegionTrans):
-    '''
-    TODO
-    '''
-    def __str__(self):
-        rval = "Adds a Otter TaskSingle node to a region of code"
-        return rval
-
-    def apply(self, nodes, options=None):
-        '''TODO'''
-        node_list = self.get_node_list(nodes)
-        self.validate(node_list, options)
-
-        # Get useful references
-        parent = node_list[0].parent
-        position = node_list[0].position
-
-        otter_tasksingle_node = OtterTaskSingleNode()
-        parent.children.insert(position, otter_tasksingle_node)
-        for child in node_list:
-            child.detach()
-            otter_tasksingle_node.children[0].addchild(child)
 
 class OtterLoopTrans(LoopTrans):
     '''
