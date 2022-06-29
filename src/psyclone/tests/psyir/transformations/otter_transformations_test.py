@@ -185,7 +185,7 @@ def test_ottersyncchild_trans_apply():
     synctrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = '''END DO
-      CALL fortran_otterSynchroniseTasks_i(__FILE__, 'invoke_0_compute_cu', __LINE__)'''
+      CALL fortran_otterSynchroniseTasks_i(0)'''
     assert ("USE otter_serial, ONLY: fortran_otterSynchroniseTasks_i"
              in code)
     assert correct in code
