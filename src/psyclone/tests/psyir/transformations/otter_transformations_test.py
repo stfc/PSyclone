@@ -40,7 +40,7 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import OtterParallelTrans, \
-        OtterTaskloopTrans, OtterTraceSetupTrans, OtterTaskSingleTrans, \
+        OtterTaskloopTrans, OtterTraceSetupTrans, \
         OtterLoopTrans, OtterSynchroniseChildrenTrans, \
         OtterSynchroniseDescendantsTrans, OtterTraceStartEndTrans
 
@@ -82,11 +82,11 @@ def test_otterparallel_trans_apply():
     paralleltrans = OtterParallelTrans()
     paralleltrans.apply(schedule.children[:])
     code = str(psy.gen)
-    assert ("USE otter_serial, ONLY: fortran_otterParallelBegin_i, "
-            "fortran_otterParallelEnd" in code)
-    assert ("CALL fortran_otterParallelBegin_i(__FILE__, 'invoke_0_compute_cu'"
+    assert ("USE otter_serial, ONLY: fortran_otterThreadsBegin_i, "
+            "fortran_otterThreadsEnd" in code)
+    assert ("CALL fortran_otterThreadsBegin_i(__FILE__, 'invoke_0_compute_cu'"
             ", __LINE__)" in code)
-    assert "CALL fortran_otterParallelEnd" in code
+    assert "CALL fortran_otterThreadsEnd" in code
 
 def test_ottertaskloop_trans_str():
     tlooptrans = OtterTaskloopTrans()
@@ -118,25 +118,6 @@ def test_ottertaskloop_trans_apply():
       END DO'''
     assert correct in code
 
-def test_ottertasksingle_trans_str():
-    strans = OtterTaskSingleTrans()
-    assert (str(strans) == "Adds a Otter TaskSingle node to a region of code")
-
-def test_ottertasksingle_trans_apply():
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    paralleltrans = OtterTaskSingleTrans()
-    paralleltrans.apply(schedule.children[:])
-    code = str(psy.gen)
-    assert ("USE otter_serial, ONLY: fortran_otterTaskSingleBegin_i, "
-            "fortran_otterTaskSingleEnd" in code)
-    assert ("CALL fortran_otterTaskSingleBegin_i(__FILE__, 'invoke_0_compute_cu'"
-            ", __LINE__)" in code)
-    assert "CALL fortran_otterTaskSingleEnd" in code
-
 
 def test_otterloop_trans_str():
     looptrans = OtterLoopTrans()
@@ -155,9 +136,9 @@ def test_otterloop_trans_apply():
             "fortran_otterLoopEnd, fortran_otterLoopIterationBegin_i, "
             "fortran_otterLoopIterationEnd" in code)
     correct = \
-        '''CALL fortran_otterLoopBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
+        '''CALL fortran_otterLoopBegin_i()
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
-        CALL fortran_otterLoopIterationBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
+        CALL fortran_otterLoopIterationBegin_i()
 '''
     assert correct in code
 
@@ -185,8 +166,8 @@ def test_ottersyncchild_trans_apply():
     synctrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = '''END DO
-      CALL fortran_otterSynchroniseChildTasks_i(__FILE__, 'invoke_0_compute_cu', __LINE__)'''
-    assert ("USE otter_serial, ONLY: fortran_otterSynchroniseChildTasks_i"
+      CALL fortran_otterSynchroniseTasks_i(0)'''
+    assert ("USE otter_serial, ONLY: fortran_otterSynchroniseTasks_i"
              in code)
     assert correct in code
 
@@ -210,7 +191,7 @@ def test_ottersyncdec_trans_apply():
             "fortran_otterSynchroniseDescendantTasksBegin_i, "
             "fortran_otterSynchroniseDescendantTasksEnd" in code)
     correct = \
-        '''CALL fortran_otterSynchroniseDescendantTasksBegin_i(__FILE__, 'invoke_0_compute_cu', __LINE__)
+        '''CALL fortran_otterSynchroniseDescendantTasksBegin_i()
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
 '''
     assert correct in code
