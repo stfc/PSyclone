@@ -156,7 +156,8 @@ end SUBROUTINE tra_ldf_iso
 
 
 def test_call_accesses(parser):
-    ''' Check that a call does not result in any update directives. '''
+    ''' Check that a call results in extra update directives and that 
+    consecutive update directives are not redundant. '''
     code = '''
 SUBROUTINE tra_ldf_iso()
   USE some_mod, only: dia_ptr_hst
@@ -179,10 +180,8 @@ end SUBROUTINE tra_ldf_iso
     gen_code = str(psy.gen).lower()
     assert ("  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
+            "  !$acc update if_present host(jn)\n"
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
-            # TODO we should be able to infer that the following update is
-            # not required because if it *is* updated in the call above then
-            # the GPU copy should already be up-to-date.
             "  !$acc update if_present host(zftv)\n"
             "  checksum = sum(zftv)\n" in gen_code)
 
@@ -213,11 +212,8 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     assert ("  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n" in gen_code)
-    # TODO again we should be able to spot that this update is not required
-    # as it is only separated from the previous region by a call().
     assert ("  end if\n"
             "  !$acc update if_present host(zftv)\n" in gen_code)
 
@@ -252,7 +248,7 @@ end SUBROUTINE tra_ldf_iso
     gen_code = str(psy.gen).lower()
     # Loop variable should not be copied to device
     assert "device(ji)" not in gen_code
-    # Currently jpi is copied to and fro. We need a list of variables that
+    # Currently jpi is copied to and from. We need a list of variables that
     # are written just once and are read-only thereafter. Such variables will
     # be written on the CPU (e.g. after reading from namelist).
     assert ("  zftv(:,:,:) = 0.0d0\n"
@@ -267,9 +263,8 @@ end SUBROUTINE tra_ldf_iso
             in gen_code)
 
 
-def test_codeblock_stop(parser):
-    ''' Test that we insert a STOP if we encounter a CodeBlock that we can't
-    reason about. '''
+def test_codeblock(parser):
+    ''' Test that we can reason about CodeBlocks.'''
     code = '''
 subroutine lbc_update()
   use oce, only: tmask, jpi, jpj, jpk
@@ -286,18 +281,18 @@ end subroutine lbc_update
     psy = PSyFactory(API, distributed_memory=False).create(ast)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_update = ACCUpdateTrans()
-    acc_update.apply(schedule, options={"allow-codeblocks": True})
-    assert isinstance(schedule[0], CodeBlock)
+    acc_update.apply(schedule)
     assert isinstance(schedule[1], CodeBlock)
     gen_code = str(psy.gen).lower()
-    assert ("  stop 'psyclone: lbc_update: manually add acc update statements "
-            "(if required) for the following codeblock...'\n"
-            "  open" in gen_code)
+    # TODO We are probably relying on undefined behaviour here
+    assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
+            '''  open(unit = 32, file = "some_forcing.dat")''' in gen_code)
+    assert ("  read(32, *) tmask\n"
+            "  !$acc update if_present device(jpi,jpj,jpk,tmask)" in gen_code)
 
 
 def test_codeblock_no_access(parser):
-    ''' Check that we permit a CodeBlock if we are confident it doesn't modify
-    access data. '''
+    ''' Check that we also permit a CodeBlock if it doesn't access data. '''
     code = '''
 subroutine lbc_update()
   use oce, only: tmask, jpi, jpj, jpk
@@ -312,7 +307,7 @@ end subroutine lbc_update
     psy = PSyFactory(API, distributed_memory=False).create(ast)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_update = ACCUpdateTrans()
-    acc_update.apply(schedule, options={"allow-codeblocks": True})
+    acc_update.apply(schedule)
     assert len(schedule.children) == 1
     assert isinstance(schedule[0], CodeBlock)
     assert isinstance(schedule[0].get_ast_nodes[0], Fortran2003.Open_Stmt)
