@@ -44,6 +44,7 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.nemo import NemoConstants
 from psyclone.errors import GenerationError, InternalError
@@ -345,25 +346,21 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
 
         # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
-        self._sig_list.difference_update(loop_var)
+        self._sig_set.difference_update({Signature(var) for var in loop_var})
 
 class NemoACCUpdateDirective(ACCUpdateDirective):
     '''
     NEMO-specific support for the OpenACC update directive.
 
     '''
-    def begin_string(self):
+    def lower_to_language_level(self):
         '''
-        Returns the beginning statement of this directive, i.e.
-        "acc update host(symbol)". The backend is responsible for adding the
-        correct characters to mark this as a directive (e.g. "!$").
-
-        :returns: the opening statement of this directive.
-        :rtype: str
+        In-place replacement of this directive concept into language-level
+        PSyIR constructs.
 
         '''
+        super().lower_to_language_level()
+
         # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
-        self._sig_list.difference_update(loop_var)
-
-        return super().begin_string()
+        self._sig_set.difference_update({Signature(var) for var in loop_var})

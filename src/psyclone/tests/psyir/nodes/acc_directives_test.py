@@ -313,7 +313,7 @@ def test_accupdatedirective_init():
             "list of signatures but got ['str']"
             in str(err.value))
 
-    sig = [Signature("x")]
+    sig = {Signature("x")}
     with pytest.raises(ValueError) as err:
         _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
@@ -322,7 +322,7 @@ def test_accupdatedirective_init():
 
     # Successful init
     directive = ACCUpdateDirective(sig, "host")
-    assert directive._sig_list == sig
+    assert directive._sig_set == sig
     assert directive._direction == "host"
     assert directive._conditional is True
 

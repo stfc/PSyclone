@@ -215,14 +215,14 @@ class ACCUpdateTrans(Transformation):
                 child = child.parent
             
             update_pos = sched.children.index(child) + node_offset
-            sig_list = set(inouts)
+            sig_set = set(inouts)
 
             # Avoid repeating variables in a neighbouring update directive
             if update_pos < len(sched.children):
                 preceding_node = sched.children[update_pos - 1]
                 if isinstance(preceding_node, ACCUpdateDirective):
-                    sig_list.difference_update(preceding_node.sig_list)
+                    sig_set.difference_update(preceding_node.sig_set)
 
-            if sig_list:
-                update_dir = ACCUpdateDirective(sig_list, direction)
+            if sig_set:
+                update_dir = ACCUpdateDirective(sig_set, direction)
                 sched.addchild(update_dir, update_pos)

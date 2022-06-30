@@ -104,26 +104,37 @@ class ACCRegionDirective(ACCDirective, RegionDirective):
         :returns: set of variable names
         :rtype: Set[str]
         '''
-        variables = set()
 
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.psyir.tools import DependencyTools
 
         if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
+            sig_set = set()
             for call in self.kernels():
                 for arg in call.arguments.acc_args:
-                    variables.add(arg)
+                    sig_set.add(arg)
         else:
-            dep_tools = DependencyTools()
-            inputs, outputs = dep_tools.get_in_out_parameters(self.children)
-            for sig in (inputs + outputs):
-                for idx in range(len(sig)):
-                    # TODO this is Fortran specific
-                    variables.add("%".join(sig[:idx+1]))
-        return variables
+            sig_set = set().union(self.in_kernel_references,
+                                  self.out_kernel_references)
+        return sig_set
+
+    @property
+    def in_kernel_references(self):
+         # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools
+
+        inputs, _ = DependencyTools().get_in_out_parameters(self.children)
+        return inputs
+
+    @property
+    def out_kernel_references(self):
+         # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools
+
+        _, outputs = DependencyTools().get_in_out_parameters(self.children)
+        return outputs
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -176,7 +187,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         super().__init__(children=children, parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
-        self._sig_list = set()
+        self._sig_set = set()
 
     def gen_code(self, parent):
         '''Generate the elements of the f2pygen AST for this Node in the
@@ -196,7 +207,8 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         self.begin_string()
 
         # Add the enter data directive.
-        copy_in_str = "copyin(" + ",".join(sorted(self._sig_list)) + ")"
+        sym_list = _sig_set_to_string(self._sig_set)
+        copy_in_str = f"copyin({sym_list})"
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
         # Call an API-specific subclass of this class in case
@@ -224,7 +236,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # TODO GOcean grid properties are duplicated in this set under
         # different names (the OpenACC deep copy support should spot this).
         for pdir in self._acc_dirs:
-            self._sig_list.update(pdir.kernel_references)
+            self._sig_set.update(pdir.kernel_references)
 
         super().lower_to_language_level()
 
@@ -238,16 +250,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :raises GenerationError: if there are no variables to copy to \
                                  the device.
         '''
-        if not self._sig_list:
+        if not self._sig_set:
             # There should be at least one variable to copyin.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
                 "within the region?")
 
+        sym_list = _sig_set_to_string(self._sig_set)
+
         # Variables need lexicographic sorting since sets guarantee no ordering
         # and members of composite variables must appear later in deep copies.
-        return f"acc enter data copyin({','.join(sorted(self._sig_list))})"
+        return f"acc enter data copyin({sym_list})"
 
     def data_on_device(self, parent):
         '''
@@ -797,14 +811,14 @@ class ACCUpdateDirective(ACCStandaloneDirective):
                 f"list of signatures but got "
                 f"{[type(sig).__name__ for sig in signatures]}")
 
-        self._sig_list = signatures
+        self._sig_set = signatures
         self._direction = direction
         self._conditional = conditional
 
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two ACCUpdateDirective nodes are
-        equal if their direction and sig_list members are equal.
+        equal if their direction and sig_set members are equal.
 
         :param object other: the object to check equality to.
 
@@ -813,7 +827,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.direction == other.direction
-        is_eq = is_eq and self.sig_list == other.sig_list
+        is_eq = is_eq and self.sig_set == other.sig_set
 
         return is_eq
 
@@ -828,14 +842,14 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         return self._direction
 
     @property
-    def sig_list(self):
+    def sig_set(self):
         '''
-        Returns the symbol to synchronise with the accelerator.
+        Returns the set of symbols to synchronise with the accelerator.
 
         :returns: the symbol to synchronise with the accelerator.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return self._sig_list
+        return self._sig_set
 
     def begin_string(self):
         '''
@@ -848,13 +862,19 @@ class ACCUpdateDirective(ACCStandaloneDirective):
 
         '''
         condition = "if_present " if self._conditional else ""
-        names = set()
-        for sig in self._sig_list:
-            for idx in range(len(sig)):
-                # TODO this is 1) Fortran specific and 2) repeated code
-                names.add("%".join(sig[:idx+1]))
-        sym_list = ",".join(sorted(names))
+        sym_list = _sig_set_to_string(self._sig_set)
+
         return f"acc update {condition}{self._direction}({sym_list})"
+
+def _sig_set_to_string(sig_set):
+    # TODO this is Fortran specific
+    names = set()
+    for sig in sig_set:
+        if isinstance(sig, str):
+            names.add(sig)
+        elif isinstance(sig, Signature):
+            names.update({"%".join(sig[:idx+1]) for idx in range(len(sig))})
+    return ",".join(sorted(names))
 
 
 # For automatic API documentation generation
