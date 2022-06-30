@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ transform: test.x90 read_only_transform.py
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(READ_ONLY_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(READ_ONLY_DIR) -l_read_only $(INF_LIB)
 
 # The read-only library

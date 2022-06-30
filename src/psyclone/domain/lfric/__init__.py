@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
-# Modified R. W. Ford, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
+#           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
 '''
@@ -48,6 +48,8 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
+from psyclone.domain.lfric.kern_call_invoke_arg_list import \
+    KernCallInvokeArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 

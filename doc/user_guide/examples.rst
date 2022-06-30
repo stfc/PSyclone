@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -481,35 +481,34 @@ better job when optimising the code.
 Example 14: OpenACC
 ^^^^^^^^^^^^^^^^^^^
 
-Example of adding OpenACC directives in the dynamo0.3 API. This is a
-work in progress so the generated code may not work as
-expected. However it is never-the-less useful as a starting
-point. Three scripts are provided.
+Example of adding OpenACC directives in the dynamo0.3 API.
+A single transformation script (``acc_parallel_dm.py``) is provided
+which demonstrates how to add OpenACC Loop, Parallel and Enter Data
+directives to the PSy-layer. It supports distributed memory being
+switched on by placing an OpenACC Parallel directive around each
+OpenACC Loop directive, rather than having one for the whole invoke.
+This approach avoids having halo exchanges within an OpenACC Parallel
+region. The script also uses :ref:`ACCRoutineTrans <available_kernel_trans>`
+to transform the one user-supplied kernel through
+the addition of an ``!$acc routine`` directive. This ensures that the
+compiler builds a version suitable for execution on the accelerator (GPU).
 
-The first script (``acc_kernels.py``) shows how to add OpenACC Kernels
-directives to the PSy-layer. This example only works with distributed
-memory switched off as the OpenACC Kernels transformation does not yet
-support halo exchanges within an OpenACC Kernels region.
+The generated code has two problems:
 
-The second script (``acc_parallel.py``)shows how to add OpenACC Loop,
-Parallel and Enter Data directives to the PSy-layer. Again this
-example only works with distributed memory switched off as the OpenACC
-Parallel transformation does not support halo exchanges within an
-OpenACC Parallel region.
+ 1. There are no checks on whether loops are safe to parallelise or not,
+    it is just assumed they are - i.e. support for colouring or locking
+    is not yet implemented.
+ 2. Although the user-supplied kernel is transformed so as to have the
+    necessary ``!$acc routine`` directive, the associated (but unnecessary)
+    ``use`` statement in the transformed Algorithym layer still uses the
+    name of the original, untransformed kernel (issue #1724).
 
-The third script (``acc_parallel_dm.py``) is the same as the second
-except that it does support distributed memory being switched on by
-placing an OpenACC Parallel directive around each OpenACC Loop
-directive, rather than having one for the whole invoke. This approach
-avoids having halo exchanges within an OpenACC Parallel region.
-
-The generated code has a number of problems including 1) it does not
-modify the kernels to include the OpenACC Routine directive, 2) a
-loop's upper bound is computed via a derived type (this should be
-computed beforehand) 3) set_dirty and set_clean calls are placed
-within an OpenACC Parallel directive and 4) there are no checks on
-whether loops are parallel or not, it is just assumed they are -
-i.e. support for colouring or locking is not yet implemented.
+Since no colouring is required in this case, the generated Alg layer
+may be fixed by hand (by simply deleting the offending ``use`` statement)
+and the resulting code compiled and run on GPU. However, performance will
+be very poor as, with the limited optimisations and directives currently
+applied, the NVIDIA compiler refuses to run the user-supplied kernel in
+parallel.
 
 Example 15: CPU Optimisation of Matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -615,6 +614,22 @@ is being updated. As :ref:`described <dev_guide:iterators_continuous>`
 in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.
+
+.. _lfric_alg_gen_example:
+
+Example 20: Algorithm Generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm layer for a kernel. A makefile is provide that also
+runs ``psyclone`` to create an executable program from the generated
+algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+.. code-block:: bash
+
+    cd eg20/
+    psyclone-kern -gen alg ../code/testkern_mod.F90
 
 NEMO
 ----

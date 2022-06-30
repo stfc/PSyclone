@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,37 +30,46 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# ------------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I. Kavcic, Met Office
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Loop, Parallel and Enter Data directives
-generically. This can be applied via the -s option in the psyclone
-script.
+include ../../common.mk
 
-'''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCLoopTrans
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
 
+LFRIC_PATH = ${PSYCLONE_DIR}/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC loop, parallel and enter data directives generically.
+run: compile
 
-    '''
-    loop_trans = ACCLoopTrans()
-    parallel_trans = ACCParallelTrans()
-    enter_data_trans = ACCEnterDataTrans()
+compile: transform ${LFRIC_LIB}
+	@echo "#1770 Compilation is not supported: the generated code must be "
+	@echo "inserted into an LFRic mini-app."
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
 
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
-        for loop in schedule.loops():
-            loop_trans.apply(loop)
-        parallel_trans.apply(schedule.children)
-        enter_data_trans.apply(schedule)
+# Dependencies
+%.F90:
+	ln -s ../code/$@ .
 
-    return psy
+# Keep the generated psy and alg files
+.precious: test_alg_mod_psy.f90 test_alg_mod.f90
+
+# Use the psyclone-kern tool to create an algorithm layer that will
+# 'invoke' our kernel
+test_alg_mod.x90: testkern_mod.F90
+	${KERNEL_ALG_GEN} -api dynamo0.3 -o test_alg_mod.x90 ../code/testkern_mod.F90
+
+transform: test_alg_mod_psy.f90
+
+# Process the generated algorithm layer with PSyclone to generate a compilable
+# algorithm file and a suitable PSy-layer subroutine.
+test_alg_mod_psy.f90 test_alg_mod.f90: test_alg_mod.x90
+	${PSYCLONE} -d ../code -opsy test_alg_mod_psy.f90 -oalg test_alg_mod.f90 $<
+
+allclean: clean
+	make -C $(LFRIC_PATH) allclean

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
 #     export F90=mpif90
-#     export FFLAGS="-O3"
+#     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
 # The nan-test wrapper library:
@@ -54,7 +54,7 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 NAN_TEST_DIR = $(PSYROOT)/lib/nan_test/dl_esm_inf
-FFLAGS += -I$(INF_INC) -I $(NAN_TEST_DIR) 
+F90FLAGS += -I$(INF_INC) -I $(NAN_TEST_DIR)
 LIB_NAME = lib_nan_test.a
 
 # The two kernels used in the application.
@@ -78,7 +78,7 @@ run: compile
 	./nan_test 2>&1| grep "PSyData: Variable a_fld has the invalid value"
 
 $(NAME): $(INF_LIB) $(NAN_TEST_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(NAN_TEST_DIR) -l_nan_test $(INF_LIB)
 
 # The nan-test library
@@ -107,7 +107,7 @@ alg.o:	psy.o
 psy.o:	$(KERNELS)
 
 %.o: %.f90
-	$(F90) $(FFLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
 	$(MAKE) -C $(NAN_TEST_DIR) allclean

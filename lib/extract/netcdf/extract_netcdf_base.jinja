@@ -11,10 +11,7 @@
    using this base class can provide the required Fortran basic
    types (see ALL_TYPES below) and the list of array dimensions
    (see ALL_DIMS) that need to be supported when processing this
-   template. This template will also provide functions to read
-   the written data - this way a driver can link with this
-   PSyData library and will work independent of the file format
-   chosen.
+   template.
 
    This Extraction base class depends on the PSyData base
    class, which will provide the other Fortran-type-specific
@@ -45,7 +42,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2021, Science and Technology Facilities Council.
+! Copyright (c) 2020-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -83,10 +80,6 @@
 !! to the PSyData API and linked in with this library will create
 !! a NetCDF file that contains all scalar values, and the dimensions
 !! and content for each array.
-!! As an extention to the PSyData API it defines additional methods
-!! that can be used by a driver/reader:
-!! OpenRead:      opens a file for reading
-!! ReadScalar...: reads the specified scalar value
 
 module extract_netcdf_base_mod
 
@@ -119,27 +112,21 @@ module extract_netcdf_base_mod
         procedure :: PreStart
         procedure :: PreEndDeclaration
         procedure :: PostEnd
-        procedure :: OpenRead
 
         {# Collect and declare the various procedures for the same generic interface -#}
         {# ------------------------------------------------------------------------- -#}
         {% set all_declares=[] -%}
         {% set all_provides=[] -%}
-        {% set all_reads=[] -%}
         {% for name, type, bits in ALL_TYPES %}
         procedure :: DeclareScalar{{name}}
         procedure :: WriteScalar{{name}}
-        procedure :: ReadScalar{{name}}
           {{- all_declares.append("DeclareScalar"~name) or "" -}}
           {{- all_provides.append("WriteScalar"~name) or "" }}
-          {{- all_reads.append("ReadScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: DeclareArray{{dim}}d{{name}}
         procedure :: WriteArray{{dim}}d{{name}}
-        procedure :: ReadArray{{dim}}d{{name}}
             {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
             {{- all_provides.append("WriteArray"~dim~"d"~name) or "" }}
-            {{- all_reads.append("ReadArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
@@ -155,12 +142,6 @@ module extract_netcdf_base_mod
         generic, public :: ProvideVariable => &
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
-
-        !> The generic interface for reading the value of variables.
-        !! This is not part of the official PSyData API, but is used in
-        !! the drivers created by PSyclone.
-        generic, public :: ReadVariable => &
-            {{all_reads|join(", &\n"+indent) }}
 
     end type ExtractNetcdfBaseType
 
@@ -249,31 +230,6 @@ contains
         endif
 
     end subroutine PreStart
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine is called to open a NetCDF file for reading. The
-    !! filename is based on the module and kernel name. This is used by a
-    !! driver program that will read a NetCDF file previously created by the
-    !! PSyData API.
-    !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
-    !! @param[in] module_name The name of the module of the instrumented
-    !!            region.
-    !! @param[in] region_name The name of the instrumented region.
-    subroutine OpenRead(this, module_name, region_name)
-
-        use netcdf, only : nf90_open, NF90_NOWRITE
-
-        implicit none
-
-        class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in)                            :: module_name, &
-                                                               region_name
-        integer :: retval
-
-        retval = CheckError(nf90_open(module_name//"-"//region_name//".nc", &
-                                        NF90_NOWRITE, this%ncid))
-
-    end subroutine OpenRead
 
     ! -------------------------------------------------------------------------
     !> This subroutine is called once all variables are declared (this includes
@@ -383,32 +339,6 @@ contains
 
     end subroutine WriteScalar{{name}}
 
-    ! -------------------------------------------------------------------------
-    !> This subroutine reads the value of a scalar {{type}}
-    !! variable from the NetCDF file and returns it to the user. Note that
-    !! this function is not part of the PSyData API, but it is convenient to
-    !! have these functions together here. The driver can then be linked with
-    !! this  PSyData library and will be able to read the files.
-    !! @param[in,out] this The instance of the ExtractNetcdfBaseType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[out] value The read value is stored here.
-    subroutine ReadScalar{{name}}(this, name, value)
-
-        use netcdf, only : nf90_inq_varid, nf90_get_var
-
-        implicit none
-
-        class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in)                            :: name
-        {{type}}, intent(out)                               :: value
-
-        integer                                             :: retval, varid
-
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
-
-    end subroutine ReadScalar{{name}}
-
   {# Now provide the array implementations #}
   {# ------------------------------------- #}
   {% for dim in ALL_DIMS %}
@@ -489,60 +419,6 @@ contains
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
 
     end subroutine WriteArray{{dim}}d{{name}}
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine reads the values of a {{dim}}d-array of {{type}}
-    !! It allocates memory for the allocatable parameter 'value' to store the
-    !! read values which is then returned to the caller. If the memory for the
-    !! array cannot be allocated, the application will be stopped.
-    !! @param[in,out] this The instance of the extract_PsyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
-    !!             which is allocated here and stores the values read.
-    subroutine ReadArray{{dim}}d{{name}}(this, name, value)
-
-        use netcdf
-
-        implicit none
-
-        class(ExtractNetcdfBaseType), intent(inout), target          :: this
-        character(*), intent(in)                                     :: name
-        {{type}}, dimension({{DIMENSION}}), allocatable, intent(out) :: value
-
-        integer        :: retval, varid
-        integer        :: dim_id
-        {# Create list of variables: "dimid1,dimid2,dimid3,dimid4" #}
-        {% set dim_sizes = "dim_size"~range(1,dim+1)|join(",dim_size") %}
-        integer        :: {{dim_sizes}}
-        integer        :: ierr
-
-        ! First query the dimensions of the original array from the
-        ! NetCDF file
-        {% for i in range(1, dim+1) %}
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%{{i}}"), &
-                                           dim_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
-                                                   len=dim_size{{i}}))
-        {% endfor %}
-
-        ! Allocate enough space to store the values to be read:
-        allocate(value({{dim_sizes}}), Stat=ierr)
-        if (ierr /= 0) then
-            write(stderr,*) "Cannot allocate array for ", name, &
-                            " of size ", {{dim_sizes}}, &
-                            " in ReadArray{{dim}}d{{name}}."
-            stop
-        endif
-
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        ! The compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
-        value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
-
-    end subroutine ReadArray{{dim}}d{{name}}
 
     {% endfor -%}  {# for dim in ALL_DIMS #}
 
