@@ -42,9 +42,9 @@ classes.
 import pytest
 
 from psyclone.domain.gocean.transformations import KernTrans
-from psyclone.domain.gocean.kernel import KernelMetadataSymbol
+from psyclone.domain.gocean.kernel import GOceanKernel
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import FileContainer, Node
+from psyclone.psyir.nodes import FileContainer, Node, Routine
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 
@@ -256,9 +256,13 @@ def test_apply_ok(fortran_reader):
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
-    metadata = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
-    assert not isinstance(metadata, KernelMetadataSymbol)
+    routine = kernel_psyir.children[0]
+    assert isinstance(routine, Routine)
+    assert not isinstance(routine, GOceanKernel)
+    metadata = routine.symbol_table.lookup("compute_cu")
     kern_trans.apply(kernel_psyir)
+    # This should not be found
     metadata = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
-    assert isinstance(metadata, KernelMetadataSymbol)
-    assert metadata.iterates_over == "GO_ALL_PTS"
+    routine = kernel_psyir.children[0]
+    assert isinstance(routine, GOceanKernel)
+    assert routine.metadata.iterates_over == "GO_ALL_PTS"

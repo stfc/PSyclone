@@ -39,8 +39,9 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 '''
 from psyclone.domain.gocean.kernel import KernelMetadataSymbol
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Schedule, Container
+from psyclone.psyir.nodes import Schedule, Container, Routine
 from psyclone.psyir.transformations import TransformationError
+from psyclone.domain.gocean.kernel.psyir import GOceanKernelMetadata, GOceanKernel
 
 
 class KernTrans(Transformation):
@@ -93,9 +94,11 @@ class KernTrans(Transformation):
         # Validate the metadata. This is done as part of the setup()
         # method. This method can't be called until we specialise the
         # symbol, so we specialise with a copy of the symbol.
-        tmp_metadata_symbol = metadata_symbol.copy()
-        tmp_metadata_symbol.specialise(KernelMetadataSymbol)
-        tmp_metadata_symbol.setup()
+        #tmp_metadata_symbol = metadata_symbol.copy()
+        #tmp_metadata_symbol.specialise(KernelMetadataSymbol)
+        #tmp_metadata_symbol.setup()
+
+        metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol.datatype)
 
         if not isinstance(node, Container):
             raise TransformationError(
@@ -142,8 +145,14 @@ class KernTrans(Transformation):
         :type options: Optional[Dict[str: str]]
 
         '''
+
         self.validate(node, options=options)
 
+        # Find routine.
+        routines = node.walk(Routine)
+        routine = routines[0]
+        
+        # find metadata type
         # Find the metadata symbol. No need to check it is found as
         # this is done in the validate method.
         metadata_symbol = None
@@ -155,9 +164,23 @@ class KernTrans(Transformation):
             except KeyError:
                 pass
 
-        # Transform the kernel metadata
-        metadata_symbol.specialise(KernelMetadataSymbol)
-        metadata_symbol.setup()
+        # Create metadata
+        metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol.datatype)
+        ## Specialise routine
+        if routine.return_symbol:
+            routine_symbol_name = routine.return_symbol.name
+        else:
+            routine_symbol_name = None
+        routine.symbol_table._node = None
+        go_kernel = GOceanKernel.create(
+            routine.name, routine.symbol_table, routine.pop_all_children(),
+            routine.is_program, routine_symbol_name)
+        go_kernel.metadata = metadata
+        routine.replace_with(go_kernel)
+
+        # Remove metadata type
+        # How????
+        # metadata_symbol.detach()
 
 
 __all__ = ['KernTrans']

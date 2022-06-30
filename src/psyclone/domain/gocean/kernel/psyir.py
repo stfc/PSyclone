@@ -47,104 +47,95 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import DataTypeSymbol, Symbol, UnknownFortranType
 
 
-class KernelMetadataSymbol(DataTypeSymbol):
-    '''Specialise DataTypeSymbol to capture Kernel Metadata information,
-    verify that it conforms to the expected syntax and provide the
-    information to PSyclone in an easier to access form.
-
-    :param str name: the name of this symbol.
-    :param datatype: the type represented by this symbol.
-    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param visibility: the visibility of this symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: the interface to this symbol.
-    :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+class GOceanKernel(Routine):
+    '''A GOcean-specific kernel. This specialises the generic Routine node
+    and adds in any domain-specific information.
 
     '''
-    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
-        super().__init__(name, datatype, visibility, interface)
-        self.setup()
+    def metadata(self):
+        ''' GOcean metadata '''
+        return self._metadata
 
-    def setup(self):
-        '''Populate KernelMetadataSymbol properties and check that the symbol
-        contains valid metadata.
+    def lower(self):
+        ''' xxx '''
+        pass
 
-        :raises InternalError: if the kernel metadata is not stored as \
-            a PSyIR UnknownFortranType.
-        :raises InternalError: if the kernel metadata is not a derived type.
-        :raises ParseError: if meta_args is not a list.
-        :raises ParseError: if a meta_arg entry has invalid content.
-        :raises ParseError: if a meta_arg entry has an invalid number \
-            of arguments.
+class GOceanKernelMetadata():
+    ''' xxx '''
 
-        '''
-        if not isinstance(self.datatype, UnknownFortranType):
+    def __init__(self):
+        self._itererates_over = None
+        self._index_offset = None
+        self._meta_args = None
+        self._code = None
+
+    def lower_to_psyir(self):
+        ''' xxx '''
+        return UnknownFortranType(self.fortran_string())
+        
+    @staticmethod
+    def create_from_psyir(datatype):
+        ''' xxx '''
+        if not isinstance(datatype, UnknownFortranType):
             raise InternalError(
                 f"Expected kernel metadata to be stored in the PSyIR as "
                 f"an UnknownFortranType, but found "
-                f"{type(self.datatype).__name__}.")
+                f"{type(datatype).__name__}.")
+
+        kernel_metadata = GOceanKernelMetadata()
 
         # In an UnknownFortranType, the declaration is stored as a
         # string, so create an fparser2 parse tree.
-        reader = FortranStringReader(self.datatype.declaration)
+        reader = FortranStringReader(datatype.declaration)
         try:
             spec_part = Fortran2003.Derived_Type_Def(reader)
         except Fortran2003.NoMatchError:
             # pylint: disable=raise-missing-from
             raise InternalError(
                 f"Expected kernel metadata to be a Fortran derived type, but "
-                f"found '{self.datatype.declaration}'.")
-
-        # We do not use the setters here for setting the values of
-        # iterates_over, index_offset and code as the setters update
-        # the underlying string representation and we don't want/need
-        # to do that as we are actually using the value of the string
-        # representation to set these values.
+                f"found '{datatype.declaration}'.")
 
         const = GOceanConstants()
         # Extract and store the required 'iterates_over',
-        # 'index_offset' and 'code' properties from the parse tree for
-        # ease of access.
+        # 'index_offset' and 'code' properties from the parse tree
 
         # the value of iterates over (go_all_pts, ...)
-        value = self._get_property(spec_part, "iterates_over").string
-        self._validate_iterates_over(value)
-        self._iterates_over = value
+        value = GOceanKernelMetadata._get_property(spec_part, "iterates_over").string
+        kernel_metadata.iterates_over = value
 
         # the value of index offset (NE, ...)
-        value = self._get_property(spec_part, "index_offset").string
-        self._validate_index_offset(value)
-        self._index_offset = value
+        value = GOceanKernelMetadata._get_property(spec_part, "index_offset").string
+        kernel_metadata.index_offset = value
 
         # the name of the procedure that this metadata refers to.
-        self._code = self._get_property(spec_part, "code").string
+        kernel_metadata.procedure = GOceanKernelMetadata._get_property(spec_part, "code").string
 
         # meta_args contains arguments which have
         # properties. Therefore create appropriate (GridArg, ScalarArg
         # or FieldArg) instances to capture this information.
-        meta_args = self._get_property(spec_part, "meta_args")
-        args = walk(meta_args, Fortran2003.Ac_Value_List)
+        kernel_metadata._meta_args = GOceanKernelMetadata._get_property(spec_part, "meta_args")
+        args = walk(kernel_metadata.meta_args, Fortran2003.Ac_Value_List)
         if not args:
             raise ParseError(
                 f"meta_args should be a list, but found '{str(meta_args)}' "
                 f"in '{spec_part}'.")
 
-        self._meta_args = []
+        kernel_metadata._meta_args = []
         for meta_arg in args[0].children:
             if len(meta_arg.children[1].children) == 2:
                 # Grid args have 2 arguments
-                self._meta_args.append(self.GridArg(meta_arg, self))
+                kernel_metadata.meta_args.append(GOceanKernelMetadata.GridArg(meta_arg, kernel_metadata))
             elif len(meta_arg.children[1].children) == 3:
                 # scalar and field args have 3 arguments
                 arg2 = meta_arg.children[1].children[1].string.lower()
                 if arg2 in const.VALID_FIELD_GRID_TYPES:
-                    self._meta_args.append(self.FieldArg(meta_arg, self))
+                    kernel_metadata.meta_args.append(GOceanKernelMetadata.FieldArg(meta_arg, kernel_metadata))
                 elif arg2 in const.VALID_SCALAR_TYPES:
-                    self._meta_args.append(self.ScalarArg(meta_arg, self))
+                    kernel_metadata.meta_args.append(GOceanKernelMetadata.ScalarArg(meta_arg, kernel_metadata))
                 else:
                     raise ParseError(
                         f"Expected a 'meta_arg' entry with 3 arguments to "
@@ -158,26 +149,7 @@ class KernelMetadataSymbol(DataTypeSymbol):
                     f"found {len(meta_arg.children[1].children)} in "
                     f"{str(meta_arg)}.")
 
-    def fortran_string(self):
-        '''
-        :returns: the metadata represented by this instance as a Fortran \
-            string.
-        :rtype: str
-        '''
-        go_args = []
-        for go_arg in self.meta_args:
-            go_args.append(go_arg.fortran_string())
-        go_args_str = ", ".join(go_args)
-        result = (
-            f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
-            f"TYPE(go_arg), DIMENSION({len(self.meta_args)}) :: "
-            f"meta_args = (/{go_args_str}/)\n"
-            f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
-            f"  INTEGER :: index_offset = {self.index_offset}\n"
-            f"  CONTAINS\n"
-            f"  PROCEDURE, NOPASS :: code => {self.procedure}\n"
-            f"END TYPE {self.name}\n")
-        return result
+        return kernel_metadata
 
     @staticmethod
     def _get_property(spec_part, property_name):
@@ -254,6 +226,27 @@ class KernelMetadataSymbol(DataTypeSymbol):
         raise ParseError(
             f"'{property_name}' was not found in {str(spec_part)}.")
 
+    def fortran_string(self):
+        '''
+        :returns: the metadata represented by this instance as a Fortran \
+            string.
+        :rtype: str
+        '''
+        go_args = []
+        for go_arg in self.meta_args:
+            go_args.append(go_arg.fortran_string())
+        go_args_str = ", ".join(go_args)
+        result = (
+            f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
+            f"TYPE(go_arg), DIMENSION({len(self.meta_args)}) :: "
+            f"meta_args = (/{go_args_str}/)\n"
+            f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
+            f"  INTEGER :: index_offset = {self.index_offset}\n"
+            f"  CONTAINS\n"
+            f"  PROCEDURE, NOPASS :: code => {self.procedure}\n"
+            f"END TYPE {self.name}\n")
+        return result
+
     @staticmethod
     def _validate_iterates_over(value):
         '''Check that 'value' is a valid 'iterates_over' value (go_all_pts,
@@ -287,8 +280,6 @@ class KernelMetadataSymbol(DataTypeSymbol):
         '''
         self._validate_iterates_over(value)
         self._iterates_over = value
-        # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self.fortran_string()
 
     @staticmethod
     def _validate_index_offset(value):
@@ -323,8 +314,6 @@ class KernelMetadataSymbol(DataTypeSymbol):
         '''
         self._validate_index_offset(value)
         self._index_offset = value
-        # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self.fortran_string()
 
     @property
     def meta_args(self):
@@ -351,8 +340,6 @@ class KernelMetadataSymbol(DataTypeSymbol):
             metadata to the specified value.
         '''
         self._code = value
-        # Update the underlying string representation of the datatype.
-        self.datatype.declaration = self.fortran_string()
 
     class GridArg():
         '''Internal class to capture Kernel metadata argument information for
@@ -908,6 +895,27 @@ stable/gocean1p0.html#argument-metadata-meta-args>` \
             # Update the underlying string representation of the datatype.
             self._parent.datatype.declaration = \
                 self._parent.fortran_string()
+
+
+
+class KernelMetadataSymbol(DataTypeSymbol):
+    '''Specialise DataTypeSymbol to capture Kernel Metadata information,
+    verify that it conforms to the expected syntax and provide the
+    information to PSyclone in an easier to access form.
+
+    :param str name: the name of this symbol.
+    :param datatype: the type represented by this symbol.
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
+    :param visibility: the visibility of this symbol.
+    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param interface: the interface to this symbol.
+    :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+
+    '''
+    def __init__(self, name, datatype, visibility=Symbol.DEFAULT_VISIBILITY,
+                 interface=None):
+        super().__init__(name, datatype, visibility, interface)
+        self.setup()
 
 
 __all__ = ['KernelMetadataSymbol']
