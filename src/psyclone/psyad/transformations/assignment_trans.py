@@ -79,6 +79,8 @@ class AssignmentTrans(AdjointTransformation):
         deferred_inc = []
         sym_maths = SymbolicMaths.get()
         # For each term
+        print (rhs_terms)
+        exit(1)
         for rhs_term in rhs_terms:
 
             # Find the active var in rhs_term if one exists (we may
@@ -282,6 +284,7 @@ class AssignmentTrans(AdjointTransformation):
         # Check each expression term. It must be in the form
         # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
+            print (rhs_term.view())
 
             # When searching for references to an active variable we must
             # take care to exclude those cases where they are present as

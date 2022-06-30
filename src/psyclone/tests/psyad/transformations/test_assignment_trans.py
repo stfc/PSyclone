@@ -526,6 +526,20 @@ def test_multi_increment(tmpdir, index_str):
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
+def test_unary_minus(tmpdir):
+    '''Test that the transformation works when there is a unary minus on
+    the lhs of an expression.
+
+    '''
+    tl_fortran = (
+        "  real :: x, a, b\n"
+        "  a = -x * b\n")
+    active_variables = ["a", "b"]
+    ad_fortran = (
+        "xxx")
+    check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
+
+
 def test_single_valued_sub(tmpdir):
     '''Test the transformation works when there is one active variable on
     the rhs (B) that is negated, with the active variable on the lhs
