@@ -95,9 +95,9 @@ def preprocess_trans(kernel_psyir, active_variable_names):
         else:
             sym_maths = SymbolicMaths.get()
             sym_maths.expand(assignment.rhs)
-            # sym_maths does not work if one of the terms is a literal
-            # e.g. 0.5*(a+b) so run the associativity function to
-            # catch any such cases.
+            # The expand function does not expand if one of the terms
+            # is a literal e.g. 0.5*(a+b) so run the associativity
+            # function to catch any such cases.
             associativity(assignment, active_variable_names)
 
 
@@ -108,7 +108,8 @@ def associativity(assignment, active_variable_names):
     x*b and a*/x +- b*/x respectively.
 
     This function can be removed when support for Range nodes is added
-    to the SymbolicMaths expand function, see issue #1655.
+    to the SymbolicMaths expand function, see issue #1655, and if the
+    expand function can be modified so that it expands literals.
 
     :param assignment: the Assignment Node that we are looking at.
     :type assignment: :py:class:`psyclone.psyir.nodes.Assignment`

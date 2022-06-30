@@ -305,7 +305,11 @@ def test_preprocess_associativity4(fortran_reader, fortran_writer):
 
 
 def test_associativity5(fortran_reader, fortran_writer):
-    ''' xxx '''
+    '''Test that the associativity function works as expected when we have
+    a literal as part of the expression that we would like to
+    expand.
+
+    '''
     code = (
         "subroutine example(a,b,c)\n"
         "  real :: a,b,c\n"
@@ -322,4 +326,3 @@ def test_associativity5(fortran_reader, fortran_writer):
     preprocess_trans(psyir, ["a", "b", "c"])
     result = fortran_writer(psyir)
     assert result == expected
-
