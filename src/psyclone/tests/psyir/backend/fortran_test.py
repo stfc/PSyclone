@@ -365,6 +365,12 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
         fortran_writer.gen_typedecl(tsymbol, include_visibility=True)
     assert ("visibility must be one of Symbol.Visibility.PRIVATE/PUBLIC but "
             "'my_type' has visibility of type 'str'" in str(err.value))
+    # Symbol of deferred type.
+    tsymbol = DataTypeSymbol("my_type", DeferredType())
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_typedecl(tsymbol)
+    assert ("Local Symbol 'my_type' is of DeferredType and therefore no "
+            "declaration can be created for it." in str(err.value))
 
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
