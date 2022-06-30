@@ -21,6 +21,9 @@
 	8) PR #1767 for #1739. Fixes dep-analysis bug whereby CMA operator
 	arguments to LFRic kernels were not given correct access value.
 
+	9) PR #1763 for #1717. Fixes invalid adjoint names for subroutine
+	and module.
+
 release 2.3.1 17th of June 2022	
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
