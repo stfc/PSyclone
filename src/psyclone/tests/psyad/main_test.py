@@ -37,9 +37,7 @@
 within the psyad directory.
 
 '''
-from __future__ import print_function, absolute_import
 import logging
-import six
 import pytest
 from psyclone.psyad import main
 
@@ -116,12 +114,12 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
-        "[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+        "[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
         "-a ACTIVE [ACTIVE ...] -- filename\n\n"
-        "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
+        "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename              LFRic tangent-linear kernel source\n\n")
+        "  filename              tangent-linear kernel source\n\n")
     assert expected2 in output
     expected3 = (
         "  -h, --help            show this help message and exit\n"
@@ -130,9 +128,11 @@ def test_main_h_option(capsys):
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
-        "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
-        "  -oad OAD              filename for the transformed code\n")
+        "  -api API              the PSyclone API that the TL kernel conforms")
     assert expected3 in output
+    assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
+            in output)
+    assert "-oad OAD              filename for the transformed code" in output
 
 
 # no args
@@ -150,13 +150,10 @@ def test_main_no_args(capsys):
     # of the executable is replaced with either pytest or -c when
     # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
-    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
                  "-a ACTIVE [ACTIVE ...] -- filename")
-    if six.PY2:
-        expected3 = "error: too few arguments\n"
-    else:
-        expected3 = ("error: the following arguments are required: "
-                     "-a/--active, filename\n")
+    expected3 = ("error: the following arguments are required: "
+                 "-a/--active, filename\n")
     assert expected1 in error
     assert expected2 in error
     assert expected3 in error
@@ -174,8 +171,6 @@ def test_main_no_a_arg(capsys):
     assert output == ""
     expected = ("error: the following arguments are required: "
                 "-a/--active")
-    if six.PY2:
-        expected = "argument -a/--active is required"
     assert expected in error
 
 
@@ -205,8 +200,6 @@ def test_main_no_filename(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected = "error: the following arguments are required: filename\n"
-    if six.PY2:
-        expected = "error: too few arguments\n"
     assert expected in error
 
 
@@ -222,8 +215,6 @@ def test_main_no_separator(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected = "error: the following arguments are required: filename\n"
-    if six.PY2:
-        expected = "error: too few arguments\n"
     assert expected in error
 
 
@@ -262,7 +253,7 @@ def test_main_tangentlinearerror(tmpdir, capsys):
         "real :: a, b\n"
         "a = b\n"
         "end program test\n")
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = tmpdir.join("tl.f90")
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
@@ -282,7 +273,7 @@ def test_main_keyerror(tmpdir, capsys):
     code.
 
     '''
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = tmpdir.join("tl.f90")
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     with pytest.raises(SystemExit) as info:
@@ -307,7 +298,7 @@ def test_main_not_implemented_error(tmpdir, capsys):
         "a = b\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = tmpdir.join("tl.f90")
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
@@ -348,7 +339,7 @@ def test_main_stdout(tmpdir, capsys):
         "  a = 0.0\n"
         "  a = 0.0\n\n"
         "end program adj_test\n")
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = tmpdir.join("tl.f90")
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     main(["-a", "a", "--", filename])
