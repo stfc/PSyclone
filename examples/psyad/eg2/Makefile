@@ -40,7 +40,7 @@ NAN_TEST_DIR = $(PSYROOT)/lib/nan_test/lfric
 LIB_NAME = lib_nan_test.a
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-GENERATED_FILES += *_mod_adj.[fF]90 test_harness.exe \
+GENERATED_FILES += adj_*.[fF]90 test_harness.exe \
                    *.x90 alg.f90 psy.f90 *.mod *.o
 
 LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -52,13 +52,13 @@ F90FLAGS += -I$(LFRIC_DIR) -ffree-line-length-none -I$(NAN_TEST_DIR)
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 TL_KERNEL_NAME ?= tl_hydrostatic_kernel
 TL_KERNEL_FILE = ${TL_KERNEL_NAME}_mod.F90
-ADJ_KERNEL_X90_FILE = $(subst .F90,_adj.x90,${TL_KERNEL_FILE})
-ADJ_KERNEL_F90_FILE = $(subst .x90,.f90,${ADJ_KERNEL_X90_FILE})
+ADJ_KERNEL_F90_FILE = $(subst tl_,adj_,${TL_KERNEL_FILE})
+ADJ_KERNEL_X90_FILE = $(subst .F90,.x90,${ADJ_KERNEL_F90_FILE})
 
 TL_PROC_NAME = $(subst _kernel,_code,${TL_KERNEL_NAME})
-ADJ_PROC_NAME = ${TL_PROC_NAME}_adj
+ADJ_PROC_NAME = $(subst tl_,adj_,${TL_PROC_NAME})
 TL_KERNEL_TYPE = ${TL_KERNEL_NAME}_type
-ADJ_KERNEL_TYPE = ${TL_KERNEL_TYPE}_adj
+ADJ_KERNEL_TYPE = $(subst tl_,adj_,${TL_KERNEL_TYPE})
 
 transform: psy.f90
 
