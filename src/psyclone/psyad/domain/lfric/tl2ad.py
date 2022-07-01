@@ -56,15 +56,19 @@ from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
 
 def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     '''
+    Adds PSyIR to a supplied Routine to compute the sum of the inner products
+    of the supplied scalars and fields.
+
     :param prog: the Routine to which to add PSyIR.
-    :type prog:
-    :param scalars: the scalars to include in the sum.
-    :type scalars:
+    :type prog: :py:class:`psyclone.psyir.nodes.Routine`
+    :param scalars: list of pairs of scalars to multiply and sum.
+    :type scalars: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`,
+                              :py:class:`psyclone.psyir.symbols.DataSymbol`]]
     :param field_sums: the results of all of the inner products of the \
                        various field arguments.
-    :type field_sums:
+    :type field_sums: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
     :param sum_sym: the symbol into which to accumulate the final sum.
-    :type sum_sym:
+    :type sum_sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     '''
     prog.addchild(Assignment.create(Reference(sum_sym),
