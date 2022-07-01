@@ -483,22 +483,23 @@ def test_increment_multi_add(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10), c(10), d(10)\n"
-        "  real w(10), x, y(10), z\n"
-        "  integer i\n"
-        "  a({0}) = w({0})*a({0})+x*b({0})+y({0})*c({0})+d({0})*z\n".format(
-            index_str))
+        f"  real a(10), b(10), c(10), d(10)\n"
+        f"  real w(10), x, y(10), z\n"
+        f"  integer i\n"
+        f"  a({index_str}) = w({index_str})*a({index_str})+x*b({index_str})+"
+        f"y({index_str})*c({index_str})+d({index_str})*z\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  real, dimension(10) :: w\n  real :: x\n"
-        "  real, dimension(10) :: y\n  real :: z\n"
-        "  integer :: i\n\n"
-        "  b({0}) = b({0}) + x * a({0})\n"
-        "  c({0}) = c({0}) + y({0}) * a({0})\n"
-        "  d({0}) = d({0}) + a({0}) * z\n"
-        "  a({0}) = w({0}) * a({0})\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        f"  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
+        f"  real, dimension(10) :: w\n  real :: x\n"
+        f"  real, dimension(10) :: y\n  real :: z\n"
+        f"  integer :: i\n\n"
+        f"  b({index_str}) = b({index_str}) + x * a({index_str})\n"
+        f"  c({index_str}) = c({index_str}) + y({index_str}) * "
+        f"a({index_str})\n"
+        f"  d({index_str}) = d({index_str}) + a({index_str}) * z\n"
+        f"  a({index_str}) = w({index_str}) * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -610,17 +611,19 @@ def test_multi_inc_sub(tmpdir, index_str):
 
     '''
     tl_fortran = (
-        "  real a(10), b(10)\n"
-        "  integer :: i\n"
-        "  real :: x,y\n"
-        "  a({0}) = -a({0})-x*a({0})+b({0})+a({0})/y\n".format(index_str))
+        f"  real a(10), b(10)\n"
+        f"  integer :: i\n"
+        f"  real :: x,y\n"
+        f"  a({index_str}) = -a({index_str})-x*a({index_str})+"
+        f"b({index_str})+a({index_str})/y\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: i\n"
-        "  real :: x\n  real :: y\n\n"
-        "  b({0}) = b({0}) + a({0})\n"
-        "  a({0}) = -a({0}) - x * a({0}) + a({0}) / y\n\n".format(index_str))
+        f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
+        f"  integer :: i\n"
+        f"  real :: x\n  real :: y\n\n"
+        f"  b({index_str}) = b({index_str}) + a({index_str})\n"
+        f"  a({index_str}) = -a({index_str}) - x * a({index_str}) "
+        f"+ a({index_str}) / y\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -768,16 +771,16 @@ def test_precedence_active_vars(in_op1, in_op2, out_op, tmpdir):
 
     '''
     tl_fortran = (
-        "  real :: a,b,c,d\n"
-        "  a = b {1} (c {0} d)\n".format(in_op1, in_op2))
+        f"  real :: a,b,c,d\n"
+        f"  a = b {in_op2} (c {in_op1} d)\n")
     active_variables = ["a", "b", "c", "d"]
     ad_fortran = (
-        "  real :: a\n  real :: b\n"
-        "  real :: c\n  real :: d\n\n"
-        "  b = b + a\n"
-        "  c = c {1} a\n"
-        "  d = d {0} a\n"
-        "  a = 0.0\n\n".format(out_op, in_op2))
+        f"  real :: a\n  real :: b\n"
+        f"  real :: c\n  real :: d\n\n"
+        f"  b = b + a\n"
+        f"  c = c {in_op2} a\n"
+        f"  d = d {out_op} a\n"
+        f"  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -960,9 +963,9 @@ def test_validate_rhs_term_active(operator, string):
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each non-zero term on the RHS of the assigment 'a = b {0} c\n' "
-            "must have an active variable but 'c' does not.".format(string)
-            in str(info.value))
+    assert (f"Each non-zero term on the RHS of the assigment 'a = b "
+            f"{string} c\n' must have an active variable but 'c' does "
+            f"not." in str(info.value))
 
 
 def test_validate_rhs_assign():
@@ -1301,6 +1304,32 @@ def test_validate_missing_array_indices():
     assert ("Assignment is to an array range but found a reference to the LHS "
             "variable 'a' without array notation on the RHS: "
             "'a(2:5) = x * a\n'" in str(err.value))
+
+
+def test_validate_unary_minus():
+    '''Check that validate does not raise an exception if a valid term
+    containing multiplies and divides is multiplied by minus one.
+
+    active vars = ["a", "b"]
+    a = -(x*b)
+
+    '''
+    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    rhs_symbol1 = DataSymbol("x", REAL_TYPE)
+    rhs_symbol2 = DataSymbol("b", REAL_TYPE)
+    # x*b
+    multiply = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(
+            rhs_symbol1), Reference(rhs_symbol2))
+    # -(x*b)
+    minus = UnaryOperation.create(UnaryOperation.Operator.MINUS, multiply)
+    # a = -(x*b)
+    assignment = Assignment.create(Reference(lhs_symbol), minus)
+    trans = AssignmentTrans(active_variables=[
+        lhs_symbol, rhs_symbol2])
+    # with pytest.raises(TangentLinearError) as info:
+    trans.validate(assignment)
+
 
 # _split_nodes() method
 

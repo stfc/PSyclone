@@ -244,8 +244,8 @@ class AssignmentTrans(AdjointTransformation):
         # Check node argument is an assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Node argument in assignment transformation should be a PSyIR "
-                "Assignment, but found '{0}'.".format(type(node).__name__))
+                f"Node argument in assignment transformation should be a "
+                f"PSyIR Assignment, but found '{type(node).__name__}'.")
         assign = node
 
         # If there are no active variables then return
@@ -261,10 +261,9 @@ class AssignmentTrans(AdjointTransformation):
         if assign.lhs.symbol not in self._active_variables:
             # There are active vars on RHS but not on LHS
             raise TangentLinearError(
-                "Assignment node '{0}' has the following active variables on "
-                "its RHS '{1}' but its LHS '{2}' is not an active variable."
-                "".format(self._writer(assign), assignment_active_var_names,
-                          assign.lhs.name))
+                f"Assignment node '{self._writer(assign)}' has the following "
+                f"active variables on its RHS '{assignment_active_var_names}' "
+                f"but its LHS '{assign.lhs.name}' is not an active variable.")
 
         # Split the RHS of the assignment into <expr> +- <expr> +- <expr>
         rhs_terms = self._split_nodes(
@@ -299,17 +298,17 @@ class AssignmentTrans(AdjointTransformation):
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    "Each non-zero term on the RHS of the assigment '{0}' "
-                    "must have an active variable but '{1}' does not."
-                    "".format(self._writer(assign), self._writer(rhs_term)))
+                    f"Each non-zero term on the RHS of the assigment "
+                    f"'{self._writer(assign)}' must have an active variable "
+                    f"but '{self._writer(rhs_term)}' does not.")
 
             if len(active_vars) > 1:
                 # This term can only contain one active variable
                 raise TangentLinearError(
-                    "Each term on the RHS of the assigment '{0}' must not "
-                    "have more than one active variable but '{1}' has {2}."
-                    "".format(self._writer(assign), self._writer(rhs_term),
-                              len(active_vars)))
+                    f"Each term on the RHS of the assigment "
+                    f"'{self._writer(assign)}' must not have more than one "
+                    f"active variable but '{self._writer(rhs_term)}' has "
+                    f"{len(active_vars)}.")
 
             if (isinstance(rhs_term, Reference) and rhs_term.symbol
                     in self._active_variables):
@@ -318,6 +317,12 @@ class AssignmentTrans(AdjointTransformation):
                 # a multiplier of unity) and is therefore valid.
                 continue
 
+            # The whole term may be multiplied by minus one. If so,
+            # strip this out as it stops us splitting up the term into
+            # expressions.
+            if (isinstance(rhs_term, UnaryOperation) and
+                    rhs_term.operator == UnaryOperation.Operator.MINUS):
+                rhs_term = rhs_term.children[0]
             # Split the term into <expr> */ <expr> */ <expr>
             expr_terms = self._split_nodes(
                 rhs_term, [BinaryOperation.Operator.MUL,
@@ -337,10 +342,10 @@ class AssignmentTrans(AdjointTransformation):
                     break
             else:
                 raise TangentLinearError(
-                    "Each term on the RHS of the assignment '{0}' must "
-                    "be linear with respect to the active variable, but "
-                    "found '{1}'.".format(
-                        self._writer(assign), self._writer(rhs_term)))
+                    f"Each term on the RHS of the assignment "
+                    f"'{self._writer(assign)}' must be linear with respect "
+                    f"to the active variable, but found "
+                    f"'{self._writer(rhs_term)}'.")
 
             # The term must be a product of an active variable with an
             # inactive expression. Check that the active variable does
@@ -356,10 +361,10 @@ class AssignmentTrans(AdjointTransformation):
                         parent.children[1] is candidate):
                     # Found a divide and the active variable is on its RHS
                     raise TangentLinearError(
-                        "In tangent-linear code an active variable cannot "
-                        "appear as a denominator but '{0}' was found in "
-                        "'{1}'.".format(
-                            self._writer(rhs_term), self._writer(assign)))
+                        f"In tangent-linear code an active variable cannot "
+                        f"appear as a denominator but "
+                        f"'{self._writer(rhs_term)}' was found in "
+                        f"'{self._writer(assign)}'.")
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent
