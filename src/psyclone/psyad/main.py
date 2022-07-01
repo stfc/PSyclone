@@ -82,7 +82,7 @@ def main(args):
         '-t', '--gen-test',
         help='generate a standalone unit test for the adjoint code',
         action='store_true')
-    parser.add_argument('-api', default="",
+    parser.add_argument('-api', default=None,
                         help='the PSyclone API that the TL kernel conforms '
                         'to (if any)')
     parser.add_argument('-otest',
@@ -114,7 +114,8 @@ def main(args):
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
-            args.api, tl_fortran_str, args.active, create_test=generate_test)
+            tl_fortran_str, args.active, api=args.api,
+            create_test=generate_test)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
