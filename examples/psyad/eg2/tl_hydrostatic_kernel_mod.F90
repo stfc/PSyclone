@@ -190,7 +190,7 @@ subroutine tl_hydrostatic_code(nlayers,          &
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
   ! Internal variables
-  integer               :: df, k, idx
+  integer               :: df, k
   integer               :: qp1, qp2
   real(kind=r_def), dimension(ndf_w3)          :: exner_e
   real(kind=r_def), dimension(ndf_wt)          :: theta_v_e
@@ -245,17 +245,9 @@ subroutine tl_hydrostatic_code(nlayers,          &
         grad_theta_v_at_quad(:) = 0.0_r_def
         do df = 1, ndf_wt
           theta_v_at_quad   = theta_v_at_quad                                 &
-               + theta_v_e(df)*wt_basis(1,df,qp1,qp2)
-          !*** Issue #1581. We generate incorrect code for this assignment
-          !*** due to the implicit loop. Replaced with an explicit loop
-          !*** for now.
-          !*** grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
-          !***                                   + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2)
-          do idx = 1, 3
-            grad_theta_v_at_quad(idx) = grad_theta_v_at_quad(idx)         &
-               + theta_v_e(df)*wt_diff_basis(idx,df,qp1,qp2)
-          end do
-          !*** End of replacement code.
+                            + theta_v_e(df)*wt_basis(1,df,qp1,qp2)
+          grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
+                                   + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2)
         end do
         ! Calculation
         do df = 1, ndf_w2
