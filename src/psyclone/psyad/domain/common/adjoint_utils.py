@@ -1,8 +1,55 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2022, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
+''' Provides various utilities in support of the PSyAD adjoint
+    functionality. '''
+
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+                                  Reference, Assignment, IfBlock)
+from psyclone.psyir.symbols import DataSymbol
+
 #: The prefix we will prepend to a routine, container and metadata
 #: names when generating the adjoint. If the original name contains
 #: the tl prefix, then this is removed.
 ADJOINT_NAME_PREFIX = "adj_"
 TL_NAME_PREFIX = "tl_"
+#: The tolerance applied to the comparison of the inner product values in
+#: the generated test-harness code.
+#: TODO #1346 this tolerance should be user configurable.
+INNER_PRODUCT_TOLERANCE = 1500.0
 
 
 def create_adjoint_name(tl_name):
@@ -23,4 +70,64 @@ def create_adjoint_name(tl_name):
     return ADJOINT_NAME_PREFIX + adj_name
 
 
-__all__ = ["create_adjoint_name"]
+def create_real_comparison(sym_table, kernel, var1, var2):
+    '''
+    Creates PSyIR that checks the values held by Symbols var1 and var2 for
+    equality, allowing for machine precision.
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: the PSyIR nodes that perform the check.
+    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    freader = FortranReader()
+    statements = []
+    mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
+                                datatype=var1.datatype)
+    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
+                                    datatype=var1.datatype)
+    overall_tol = sym_table.new_symbol("overall_tolerance",
+                                       symbol_type=DataSymbol,
+                                       datatype=var1.datatype,
+                                       constant_value=INNER_PRODUCT_TOLERANCE)
+    # TODO #1161 - the PSyIR does not support `SPACING`
+    assign = freader.psyir_from_statement(
+        f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
+        sym_table)
+    statements.append(assign)
+    statements[-1].preceding_comment = (
+        "Test the inner-product values for equality, allowing for the "
+        "precision of the active variables")
+    sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                    Reference(var1), Reference(var2))
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
+    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                    abs_op, Reference(mtol))
+    statements.append(Assignment.create(Reference(rel_diff), div_op))
+
+    # TODO #1345 make this code language agnostic.
+    write1 = freader.psyir_from_statement(
+        f"write(*,*) 'Test of adjoint of ''{kernel.name}'' PASSED: ', "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+    write2 = freader.psyir_from_statement(
+        f"write(*,*) 'Test of adjoint of ''{kernel.name}'' FAILED: ', "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
+                                              Reference(rel_diff),
+                                              Reference(overall_tol)),
+                       [write1], [write2]))
+
+    return statements
+
+
+__all__ = ["create_adjoint_name", "create_real_comparison"]
