@@ -897,29 +897,30 @@ def test_generate_harness_unknown_kind_error(fortran_reader):
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected
     exceptions if given invalid inputs. '''
+    table = SymbolTable()
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
     var1 = DataSymbol("var1", REAL_DOUBLE_TYPE)
     var2 = DataSymbol("var2", INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var1, var2)])
+        _create_inner_product(accum, [(var1, var2)], table)
     assert ("Cannot compute inner product of Symbols 'var1' and 'var2' "
             "because they represent different datatypes (Scalar" in
             str(err.value))
     var3 = DataSymbol("var3", ArrayType(REAL_DOUBLE_TYPE, [10]))
     with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var1, var3)])
+        _create_inner_product(accum, [(var1, var3)], table)
     assert ("Cannot compute inner product of Symbols 'var1' and 'var3' "
             "because they represent different datatypes (Scalar" in
             str(err.value))
     var4 = DataSymbol("var4", ArrayType(REAL_TYPE, [10]))
     with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var4, var3)])
+        _create_inner_product(accum, [(var4, var3)], table)
     assert ("Cannot compute inner product of Symbols 'var4' and 'var3' "
             "because they represent different datatypes (Array" in
             str(err.value))
     var5 = DataSymbol("var5", ArrayType(REAL_TYPE, [10, 10]))
     with pytest.raises(TypeError) as err:
-        _create_inner_product(accum, [(var4, var5)])
+        _create_inner_product(accum, [(var4, var5)], table)
     assert ("Cannot compute inner product of Symbols 'var4' and 'var5' "
             "because they represent different datatypes (Array" in
             str(err.value))
@@ -927,17 +928,18 @@ def test_create_inner_product_errors():
 
 def test_create_array_inner_product_errors():
     ''' Tests for the checks in _create_array_inner_product function. '''
+    table = SymbolTable()
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
     array_type = ArrayType(INTEGER_TYPE, [10])
     var1 = DataSymbol("var1", INTEGER_TYPE)
     var2 = DataSymbol("var2", array_type)
     with pytest.raises(TypeError) as err:
-        _create_array_inner_product(accum, var1, var2)
+        _create_array_inner_product(accum, var1, var2, table)
     assert ("Symbols 'var1' and 'var2' because they represent different "
             "datatypes" in str(err.value))
     var2 = DataSymbol("var2", INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
-        _create_array_inner_product(accum, var1, var2)
+        _create_array_inner_product(accum, var1, var2, table)
     assert ("Supplied Symbols must represent arrays but got 'Scalar<INTEGER, "
             "UNDEFINED>' for 'var1'" in str(err.value))
 
@@ -948,7 +950,8 @@ def test_create_inner_product_scalars(fortran_writer):
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
     var1 = DataSymbol("var1", INTEGER_TYPE)
     var2 = DataSymbol("var2", INTEGER_TYPE)
-    nodes = _create_inner_product(accum, [(var1, var2)])
+    table = SymbolTable()
+    nodes = _create_inner_product(accum, [(var1, var2)], table)
     assert len(nodes) == 2
     assert isinstance(nodes[0], Assignment)
     assert nodes[0].lhs.symbol is accum
@@ -964,11 +967,14 @@ def test_create_inner_product_scalars(fortran_writer):
 def test_create_inner_product_1d_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given rank-1 arrays. '''
+    table = SymbolTable()
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
     array_type = ArrayType(INTEGER_TYPE, [10])
     var1 = DataSymbol("var1", array_type)
     var2 = DataSymbol("var2", array_type)
-    nodes = _create_inner_product(accum, [(var1, var2)])
+    table.add(var1)
+    table.add(var2)
+    nodes = _create_inner_product(accum, [(var1, var2)], table)
     assert len(nodes) == 2
     assert isinstance(nodes[0], Assignment)
     assert nodes[0].lhs.symbol is accum
@@ -984,11 +990,15 @@ def test_create_inner_product_1d_arrays(fortran_writer):
 def test_create_inner_product_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given arrays with rank > 1. '''
+    table = SymbolTable()
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    table.add(accum)
     array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
     var1 = DataSymbol("var1", array_type)
     var2 = DataSymbol("var2", array_type)
-    nodes = _create_inner_product(accum, [(var1, var2)])
+    table.add(var1)
+    table.add(var2)
+    nodes = _create_inner_product(accum, [(var1, var2)], table)
     assert len(nodes) == 2
     assert isinstance(nodes[0], Assignment)
     assert nodes[0].lhs.symbol is accum
@@ -1004,13 +1014,21 @@ def test_create_inner_product_arrays(fortran_writer):
 def test_inner_product_scalars_and_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given arrays and scalars. '''
+    table = SymbolTable()
     accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    table.add(accum)
     array3d_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
     vars3d = DataSymbol("var1", array3d_type), DataSymbol("var2", array3d_type)
+    table.add(vars3d[0])
+    table.add(vars3d[1])
     array1d_type = ArrayType(INTEGER_TYPE, [5])
     vecs = DataSymbol("vec1", array1d_type), DataSymbol("vec2", array1d_type)
+    table.add(vecs[0])
+    table.add(vecs[1])
     scals = DataSymbol("a1", REAL_TYPE), DataSymbol("a2", REAL_TYPE)
-    nodes = _create_inner_product(accum, [vars3d, vecs, scals])
+    table.add(scals[0])
+    table.add(scals[1])
+    nodes = _create_inner_product(accum, [vars3d, vecs, scals], table)
     assert len(nodes) == 4
     assert all(isinstance(node, Assignment) for node in nodes)
     assert fortran_writer(nodes[0]) == "result = 0.0\n"
