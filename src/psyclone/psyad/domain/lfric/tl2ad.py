@@ -45,7 +45,9 @@ from psyclone.domain.lfric.algorithm.alg_gen import (
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import KernelTypeFactory
-from psyclone.psyad.domain.common.adjoint_utils import create_adjoint_name
+from psyclone.parse.utils import ParseError
+from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
+                                                        create_real_comparison)
 from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
                                   Literal, BinaryOperation, Routine)
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
@@ -91,6 +93,8 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                                                Reference(sum_sym),
                                                Reference(sym))))
         else:
+            # For a field vector we have an array of inner-product values that
+            # must be summed.
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
                 add_op = BinaryOperation.create(
@@ -103,12 +107,18 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
 
 def generate_lfric_adjoint_test(tl_source):
     '''
+    Constructs and returns the PSyIR for a Container and Routine that
+    implements a test of the adjoint of the supplied tangent-linear kernel.
+
     :param str tl_source: the Fortran source of an LFRic module defining a \
                           tangent-linear kernel.
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
     :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+    :raises ValueError: if the supplied source results in an empty parse tree \
+                        or does not contain a module.
 
     '''
     container = _create_alg_mod("adjoint_test")
@@ -118,6 +128,13 @@ def generate_lfric_adjoint_test(tl_source):
     # Parse the kernel metadata (this still uses fparser1 as that's what
     # the meta-data handling is currently based upon).
     parse_tree = fpapi.parse(tl_source)
+    if not parse_tree.content:
+        raise ValueError(f"Supplied TL code ('{tl_source}') is empty.")
+
+    if parse_tree.content[0].blocktype != "module":
+        raise ValueError(
+            f"Test harness code can only be generated if the supplied TL "
+            f"kernel is within a module but got: '{tl_source}'")
 
     # Get the name of the module that contains the kernel and create a
     # ContainerSymbol for it.
@@ -140,8 +157,14 @@ def generate_lfric_adjoint_test(tl_source):
 
     # Construct a DynKern using the metadata. This is used when constructing
     # the kernel argument list.
-    ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                      name=kernel_name)
+    try:
+        ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
+                                                          name=kernel_name)
+    except ParseError as err:
+        raise ValueError(
+            f"Failed to parse kernel metadata in supplied tangent-linear "
+            f"code: '{tl_source}'. Is it a valid LFRic kernel?") from err
+
     kern = DynKern()
     kern.load_meta(ktype)
 
@@ -335,8 +358,6 @@ def generate_lfric_adjoint_test(tl_source):
                                   inner2_sym)
 
     # Finally, compare the two inner products.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyad.tl2ad import create_real_comparison
     stmts = create_real_comparison(table, kern, inner1_sym, inner2_sym)
     for stmt in stmts:
         routine.addchild(stmt)
