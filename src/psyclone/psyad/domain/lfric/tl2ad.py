@@ -201,10 +201,12 @@ def generate_lfric_adjoint_test(tl_source):
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
 
+    # Initialise all operator arguments.
     for sym, to_space, from_space in kern_args.operators:
         input_sym = input_symbols[sym.name]
         # Initialise the operator that will keep a copy of the input values.
         initialise_operator(routine, input_sym, to_space, from_space)
+        # TODO change these two to use user-supplied kernels.
         kernel_list.append(LFRicBuiltinFunctor.create(setop_rand,
                                                       [Reference(sym)]))
         kernel_list.append(LFRicBuiltinFunctor.create(

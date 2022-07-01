@@ -96,14 +96,14 @@ def test_generate_adjoint_str(caplog):
         "end program test_adj\n")
 
     with caplog.at_level(logging.INFO):
-        result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
+        result, test_harness = generate_adjoint_str("", tl_code, ["a", "b"])
 
     assert caplog.text == ""
     assert expected in result
     assert test_harness == ""
 
     with caplog.at_level(logging.DEBUG):
-        result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
+        result, test_harness = generate_adjoint_str("", tl_code, ["a", "b"])
 
     assert tl_code in caplog.text
     assert ("PSyIR\n"
@@ -150,7 +150,7 @@ def test_generate_adjoint_str_trans():
         "  res_dot_product = 0.0\n\n"
         "end program adj_test\n")
     result, test_harness = generate_adjoint_str(
-        tl_code, ["a", "b", "res_dot_product"])
+        "", tl_code, ["a", "b", "res_dot_product"])
     assert expected in result
     assert not test_harness
 
@@ -167,7 +167,7 @@ def test_generate_adjoint_str_generate_harness():
         "end module my_mod\n"
     )
     result, harness = generate_adjoint_str(
-        tl_code, ["field"], create_test=True)
+        "", tl_code, ["field"], create_test=True)
     assert "subroutine adj_kern(field)\n" in result
     assert "program adj_test\n" in harness
     assert "! Call the tangent-linear kernel\n" in harness
@@ -190,10 +190,11 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
         "end module my_mod\n"
     )
     with caplog.at_level(logging.INFO):
-        _ = generate_adjoint_str(tl_code, ["field"], create_test=True)
+        _ = generate_adjoint_str("", tl_code, ["field"], create_test=True)
     assert caplog.text == ""
     with caplog.at_level(logging.DEBUG):
-        _, harness = generate_adjoint_str(tl_code, ["field"], create_test=True)
+        _, harness = generate_adjoint_str("", tl_code, ["field"],
+                                          create_test=True)
     assert ("Creating test harness for TL kernel 'kern' and AD kernel "
             "'kern_adj'" in caplog.text)
     assert ("Kernel 'kern' has the following dimensioning arguments: ['n']" in
