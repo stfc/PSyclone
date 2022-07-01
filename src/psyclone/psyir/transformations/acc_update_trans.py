@@ -41,7 +41,7 @@ data is kept up-to-date on the host.
 from __future__ import absolute_import
 from fparser.two import Fortran2003
 from psyclone.core import Signature
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import InvokeSchedule, Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Schedule,
                                   ACCEnterDataDirective, ACCUpdateDirective,
@@ -59,7 +59,8 @@ class ACCUpdateTrans(Transformation):
         # Perform some set-up required by the recursive routine.
         self._dep_tools = DependencyTools()
         self._acc_regions = (ACCParallelDirective, ACCKernelsDirective)
-        self._breakpoints = (Call, CodeBlock)
+        # Assume CodeBlocks do not call routines executed on the GPU
+        self._brk_nodes = (Call, )
 
         super().__init__()
 
@@ -134,12 +135,12 @@ class ACCUpdateTrans(Transformation):
         for child in sched.children[:]:
             if isinstance(child, ACCEnterDataDirective):
                 continue
-            elif not child.walk(self._acc_regions + self._breakpoints):
+            elif not child.walk(self._acc_regions + self._brk_nodes):
                 node_list.append(child)
             else:
                 self._add_update_directives(sched, node_list)
                 node_list.clear()
-                if isinstance(child, self._breakpoints):
+                if isinstance(child, self._brk_nodes):
                     self._add_update_directives(sched, [child])
                 elif isinstance(child, IfBlock):
                     # Add any update statements that are required due to
@@ -186,6 +187,9 @@ class ACCUpdateTrans(Transformation):
 
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
 
+        # Workaround for lack of precise access data
+        inputs = inputs + outputs
+
         # Workaround for CodeBlocks
         # TODO We are probably relying on undefined behaviour here
         for node in node_list:
@@ -196,32 +200,91 @@ class ACCUpdateTrans(Transformation):
 
         # Copy any data that is read by this region to the host (resp. device)
         # if it is on the device (resp. host).
+        IN, OUT = 0, 1
         for idx, inouts in enumerate((inputs, outputs)):
             if not inouts:
                 continue
-            if idx == 0:   # inputs
+            if idx == IN:   # inputs
                 node_index = 0
                 node_offset = 0
                 direction = "host"
-            elif idx == 1: # outputs
+            elif idx == OUT: # outputs
                 node_index = -1
                 node_offset = 1
                 direction = "device"
+
+            sig_set = set(inouts)
+
             # Since the supplied nodes may be the children of an IfBlock or
             # Loop, we have to search up to find the ancestor that *is* a
             # child of the Schedule we are working on.
             child = node_list[node_index]
             while child not in sched.children:
                 child = child.parent
-            
-            update_pos = sched.children.index(child) + node_offset
-            sig_set = set(inouts)
 
-            # Avoid repeating variables in a neighbouring update directive
-            if update_pos < len(sched.children):
-                preceding_node = sched.children[update_pos - 1]
-                if isinstance(preceding_node, ACCUpdateDirective):
-                    sig_set.difference_update(preceding_node.sig_set)
+            while True:
+                update_pos = sched.children.index(child) + node_offset
+
+                # If within if, cannnot push directive out.
+                if isinstance(sched.parent, IfBlock):
+                    break
+
+                # TODO If within loop, can push directive out if executed once.
+                if isinstance(sched.parent, Loop):
+                    beg, end = None, None
+                elif idx == IN:
+                    beg, end = None, update_pos
+                elif idx == OUT:
+                    beg, end = update_pos, None
+
+                dep_stmts = sched.children[beg:end]
+
+                if any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
+                    break
+
+                dep_acc = [acc for stmt in dep_stmts
+                               for acc  in stmt.walk(self._acc_regions)]
+
+                acc_sig_set = set()
+                for acc in dep_acc:
+                    if idx == IN:
+                        acc_sig_set.update(acc.out_kernel_references)
+                    elif idx == OUT:
+                        acc_sig_set.update(acc.in_kernel_references)
+
+                if not sig_set.intersection(acc_sig_set):
+                    if idx == IN:
+                        update_pos = 0
+                    elif idx == OUT:
+                        update_pos = len(sched.children)
+                else:
+                    break
+
+                if isinstance(sched, InvokeSchedule):
+                    break
+
+                while True:
+                    child = child.parent
+                    sched = child.parent
+                    if isinstance(sched, Schedule):
+                        break
+
+            # Merge consecutive update directives with the same direction
+            # Avoid repeated variables in consecutive update directives
+            for update_offset in (-1, 0):
+                try:
+                    neighbour_node = sched.children[update_pos + update_offset]
+                    if isinstance(neighbour_node, ACCUpdateDirective):
+                        if neighbour_node.direction == direction:
+                            neighbour_node.sig_set.update(sig_set)
+                            sig_set = set()
+                        else:
+                            # TODO to confirm I understand my own algorithm.
+                            if update_offset == 0:
+                                raise ValueError("Didn't think possible")
+                            sig_set.difference_update(neighbour_node.sig_set)
+                except IndexError:
+                    pass
 
             if sig_set:
                 update_dir = ACCUpdateDirective(sig_set, direction)
