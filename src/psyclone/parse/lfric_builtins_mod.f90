@@ -539,18 +539,6 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: setval_X_code
   end type setval_X
 
-  !> op2 = op1
-  type, public, extends(kernel_type) :: setop_X
-     private
-     type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
-          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2) &
-          /)
-     integer :: operates_on = domain
-   contains
-     procedure, nopass :: setop_X_code
-  end type setop_X
-
   !> field = random()
   type, public, extends(kernel_type) :: setval_random
      private
@@ -561,17 +549,6 @@ use argument_mod,  only : arg_type,            &
    contains
      procedure, nopass :: setval_random_code
   end type setval_random
-
-  !> operator = random()
-  type, public, extends(kernel_type) :: setop_random
-     private
-     type(arg_type) :: meta_args(1) = (/                                     &
-          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
-          /)
-     integer :: operates_on = DOMAIN
-   contains
-     procedure, nopass :: setop_random_code
-  end type setop_random
 
 ! ------------------------------------------------------------------- !
 ! ============== Inner product of real fields ======================= !
@@ -1142,14 +1119,8 @@ contains
   subroutine setval_X_code()
   end subroutine setval_X_code
 
-  subroutine setop_X_code()
-  end subroutine setop_X_code
-
   subroutine setval_random_code()
   end subroutine setval_random_code
-
-  subroutine setop_random_code()
-  end subroutine setop_random_code
 
   ! Inner product of real fields
   subroutine X_innerproduct_Y_code()

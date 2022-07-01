@@ -20,13 +20,12 @@ This will construct the adjoint of the kernel (written to
 `tl_hydrostatic_kernel_mod_adj.x90`) and a test harness in the form of an
 Algorithm (`main_alg.x90`). The Makefile then proceeds to process the test
 harness Algorithm using PSyclone to generate an algorithm (`alg.f90`) and
-PSy layer (`psy.f90`). If the compile target is specified:
+PSy layer (`psy.f90`).
 
-```sh
-make compile
-```
-
-then these files are built and an executable produced.
+There is no `compile` target for this example because the generated code
+requires the full LFRic infrastructure. However, it is straightforward
+to modify the LFRic "skeleton" mini-app to call the algorithm subroutine
+that has been generated.
 
 Alternatively, PSyAD may be run from the command line as:
 
@@ -75,7 +74,7 @@ ACTIVE_VAR_LIST="r_u vorticity wind res_dot_product vorticity_term cross_product
 
 BSD 3-Clause License
 
-Copyright (c) 2021, Science and Technology Facilities Council.
+Copyright (c) 2021-2022, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
