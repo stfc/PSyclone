@@ -49,6 +49,7 @@ import pytest
 from fparser import api as fpapi
 
 import psyclone
+from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
     RealFieldDataDataSymbol, LfricIntegerScalarDataSymbol, \
@@ -354,7 +355,7 @@ def test_kern_last_cell_all_colours():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_cell_all_colours"
+    assert loop.kernel.last_cell_all_colours == "last_halo_cell_all_colours"
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -371,4 +372,23 @@ def test_kern_last_cell_all_colours_intergrid():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_cell_all_colours_field1"
+    assert (loop.kernel.last_cell_all_colours ==
+            "last_edge_cell_all_colours_field1")
+
+
+def test_kern_all_updates_are_writes():
+    ''' Tests for the 'all_updates_are_writes' property of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loop = sched.walk(DynLoop)[0]
+    # The only argument updated by this kernel has GH_INC access.
+    assert not loop.kernel.all_updates_are_writes
+    # Patch the kernel so that a different argument has GH_WRITE access.
+    loop.kernel.args[2]._access = AccessType.WRITE
+    # There is still a GH_INC argument.
+    assert not loop.kernel.all_updates_are_writes
+    # Change the GH_INC to be GH_WRITE.
+    loop.kernel.args[1]._access = AccessType.WRITE
+    assert loop.kernel.all_updates_are_writes

@@ -36,9 +36,12 @@
 '''This module contains tools for creating standalone LFRic
    algorithm-layer code.
 
+   TODO #1771: these tools should be incorporated into the Alg class as they
+   provide an alternative way of constructing an Algorithm layer.
+
 '''
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
 from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
@@ -46,128 +49,84 @@ from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
+from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
+                                  Container)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, INTEGER_TYPE, ScalarType,
-    LocalInterface)
+    ImportInterface, ContainerSymbol, RoutineSymbol, ArgumentInterface)
 
 
 # The order of the finite-element scheme that will be used by any generated
 # algorithm layer.
-ELEMENT_ORDER = "1"
-# The number of data values held at each dof location. Currently PSyclone
-# only supports a value of 1. Extending to multi-data fields is the
-# subject of #868.
-NDATA_SIZE = "1"
+_ELEMENT_ORDER = "1"
 
 
-def _create_alg_driver(name, nlayers):
+def _create_alg_mod(name):
     '''
-    Creates a standalone LFRic program with the necessary infrastructure
-    set-up calls contained in a CodeBlock.
+    Creates a standalone LFRic algorithm subroutine within a module. The
+    generated subroutine has three arguments:
 
-    :param str name: the name to give the created program.
-    :param int nlayers: the number of vertical levels to give the model.
+     * mesh: pointer to the LFRic mesh object.
+     * chi: coordinate field (optional).
+     * panel_id: field mapping cells to panel IDs (optional).
 
-    :returns: an LFRic program.
-    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+    :param str name: the name to give the created routine. The associated \
+                     container will have "_mod" appended to this name.
 
-    :raises TypeError: if either of the supplied arguments are of the wrong \
-                       type.
+    :returns: a container.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+    :raises TypeError: if the 'name' argument is of the wrong type.
+
     '''
     if not isinstance(name, str):
-        raise TypeError(f"Supplied program name must be a str but got "
+        raise TypeError(f"Supplied routine name must be a str but got "
                         f"'{type(name).__name__}'")
-    if not isinstance(nlayers, int):
-        raise TypeError(f"Supplied number of vertical levels must be an int "
-                        f"but got '{type(nlayers).__name__}'")
 
-    # For simplicity we use a template algorithm layer.
-    alg_code = f'''\
-PROGRAM {name}
-  use some_mod
-  use mesh_mod, only: mesh_type, PLANE
-  use partition_mod, only: partition_type, partitioner_planar, \
-partitioner_interface
-  use global_mesh_base_mod, only: global_mesh_base_type
-  use extrusion_mod, only: uniform_extrusion_type
-  IMPLICIT NONE
-  type(partition_type) :: partition
-  type(mesh_type), target :: mesh
-  type(global_mesh_base_type), target :: global_mesh
-  class(global_mesh_base_type), pointer :: global_mesh_ptr
-  type(uniform_extrusion_type), target :: extrusion
-  type(uniform_extrusion_type), pointer :: extrusion_ptr
+    alg_sub = Routine(name)
+    table = alg_sub.symbol_table
 
-  global_mesh = global_mesh_base_type()
-  global_mesh_ptr => global_mesh
-  partitioner_ptr => partitioner_planar
-  partition = partition_type(global_mesh_ptr, partitioner_ptr, 1, 1, 0, 0, 1)
-  extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, {nlayers})
-  extrusion_ptr => extrusion
-  mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
-  write(*, *) "Mesh has", mesh % get_nlayers(), "layers."
-END PROGRAM {name}
-'''
-    # Create the PSyIR of this code.
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(alg_code)
+    # Create Container and Type Symbols for each of the modules/types that
+    # we will need.
+    for root in ["field", "function_space", "function_space_collection",
+                 "mesh"]:
+        csym = table.new_symbol(root + "_mod", symbol_type=ContainerSymbol)
 
-    prog = psyir.walk(Routine)[0].detach()
-    table = prog.symbol_table
-    # Remove the fake container symbol (needed to prevent FortranReader from
-    # complaining about undefined symbols).
-    table.remove(table.lookup("some_mod"))
+        table.new_symbol(root + "_type", symbol_type=DataTypeSymbol,
+                         datatype=DeferredType(),
+                         interface=ImportInterface(csym))
 
-    # Create ContainerSymbols for each of the modules that we will need.
-    for mod in ["field_mod", "function_space_mod", "fs_continuity_mod",
-                "constants_mod", "operator_mod"]:
-        table.new_symbol(mod, symbol_type=ContainerSymbol)
+    # Declare the three arguments to the subroutine. All of them have to be
+    # of UnknownFortranType - the mesh because it is a pointer and chi and
+    # panel_id because they are optional.
+    mesh_ptr_type = UnknownFortranType(
+        "type(mesh_type), pointer, intent(in) :: mesh")
+    mesh_ptr = DataSymbol("mesh", mesh_ptr_type, interface=ArgumentInterface())
+    table.add(mesh_ptr)
 
-    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("field_mod")))
+    chi_type = UnknownFortranType(
+        "type(field_type), dimension(3), intent(in), optional :: chi")
+    chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
+    table.add(chi)
 
-    table.new_symbol("function_space_type",
-                     symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(
-                         table.lookup("function_space_mod")))
+    pid_type = UnknownFortranType(
+        "type(field_type), intent(in), optional :: panel_id")
+    pid = DataSymbol("panel_id", pid_type, interface=ArgumentInterface())
+    table.add(pid)
+    table.specify_argument_list([mesh_ptr, chi, pid])
 
-    # TODO we won't always need operator_type but figuring that out here
-    # might be hard.
-    table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType(),
-                     interface=ImportInterface(table.lookup("operator_mod")))
+    # Create top-level Container and put the new Subroutine inside it.
+    container = Container(name+"_mod")
+    container.addchild(alg_sub)
 
-    # If we put this declaration in the template code above then we just
-    # end up with a CodeBlock (Issue #1687) so we have to massage it here.
-    part_ptr = table.lookup("partitioner_ptr")
-    part_ptr.specialise(DataSymbol, interface=LocalInterface(),
-                        datatype=UnknownFortranType(
-                            "PROCEDURE(partitioner_interface), "
-                            "POINTER :: partitioner_ptr"))
-
-    table.new_symbol("r_def", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE,
-                     interface=ImportInterface(
-                         table.lookup("constants_mod")))
-    table.new_symbol("i_def", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE,
-                     interface=ImportInterface(
-                         table.lookup("constants_mod")))
-
-    return prog
+    return container
 
 
 def _create_function_spaces(prog, fspaces):
     '''
     Adds PSyIR to the supplied Routine that declares and intialises the
     specified function spaces. The order of these spaces is set by the
-    `ELEMENT_ORDER` constant at the top of this module. The number of data
-    values at each dof location is set by the `NDATA_SIZE` module constant.
+    `_ELEMENT_ORDER` constant at the top of this module.
 
     :param prog: the routine to which to add declarations and initialisation.
     :type prog: :py:class:`psyclone.psyir.nodes.Routine`
@@ -182,17 +141,16 @@ def _create_function_spaces(prog, fspaces):
     reader = FortranReader()
 
     # The order of the finite-element scheme.
+    psyir.add_lfric_precision_symbol(table, "i_def")
     order = table.new_symbol("element_order", tag="element_order",
                              symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE,
-                             constant_value=Literal(ELEMENT_ORDER,
-                                                    INTEGER_TYPE))
+                             datatype=psyir.LfricIntegerScalarDataType(),
+                             constant_value=Literal(
+                                 _ELEMENT_ORDER,
+                                 psyir.LfricIntegerScalarDataType()))
 
-    # The number of data values to be held at each dof location.
-    ndata_sz = table.new_symbol("ndata_sz", symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
-    prog.addchild(Assignment.create(Reference(ndata_sz),
-                                    Literal(NDATA_SIZE, INTEGER_TYPE)))
+    fs_cont_mod = table.new_symbol("fs_continuity_mod",
+                                   symbol_type=ContainerSymbol)
 
     # Initialise the function spaces required by the kernel arguments.
     const = LFRicConstants()
@@ -206,25 +164,20 @@ def _create_function_spaces(prog, fspaces):
 
         table.new_symbol(f"{space}", tag=f"{space}", symbol_type=DataSymbol,
                          datatype=DeferredType(),
-                         interface=ImportInterface(
-                             table.lookup("fs_continuity_mod")))
-        vsym = table.new_symbol(f"vector_space_{space}",
-                                symbol_type=DataSymbol,
-                                datatype=UnknownFortranType(
-                                    f"TYPE(function_space_type), TARGET :: "
-                                    f"vector_space_{space}"))
+                         interface=ImportInterface(fs_cont_mod))
+
         vsym_ptr = table.new_symbol(
             f"vector_space_{space}_ptr", tag=f"{space}_ptr",
             symbol_type=DataSymbol,
             datatype=UnknownFortranType(
                 f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr"))
-        cblock = reader.psyir_from_expression(
-            f"function_space_type(mesh, {order.name}, {space}, "
-            f"{ndata_sz.name})", table)
-        prog.addchild(Assignment.create(Reference(vsym), cblock))
-        prog.addchild(reader.psyir_from_statement(
-            f"{vsym_ptr.name} => {vsym.name}\n", table))
+
+        cblock = reader.psyir_from_statement(
+            f"{vsym_ptr.name} => function_space_collection%get_fs( mesh, "
+            f"{order.name}, {space})", table)
+
+        prog.addchild(cblock)
 
 
 def initialise_field(prog, sym, space):
@@ -299,9 +252,9 @@ def initialise_quadrature(prog, qr_sym, shape):
 
     if shape == "gh_quadrature_xyoz":
         order = table.lookup_with_tag("element_order")
-        psyir = reader.psyir_from_expression(
+        expr = reader.psyir_from_expression(
             f"quadrature_xyoz_type({order.name}+3, {qr_rule_sym.name})", table)
-        prog.addchild(Assignment.create(Reference(qr_sym), psyir))
+        prog.addchild(Assignment.create(Reference(qr_sym), expr))
 
     else:
         raise NotImplementedError(f"Initialisation for quadrature of type "
@@ -388,9 +341,13 @@ def generate(kernel_path):
         ending in '_mod'.
 
     '''
-    # Create PSyIR for a skeleton driver routine.
-    prog = _create_alg_driver("lfric_alg", 20)
-    table = prog.symbol_table
+    # TODO #1771 this code needs refactoring.
+    # pylint: disable=too-many-locals
+
+    # Create PSyIR for an algorithm routine.
+    cont = _create_alg_mod("test_alg")
+    sub = cont.walk(Routine)[0]
+    table = sub.symbol_table
 
     # Parse the kernel metadata. Currently this uses fparser1 as that's what
     # the existing meta-data handling is based upon. Ultimately, this will
@@ -429,37 +386,37 @@ def generate(kernel_path):
     # Declare and initialise the data structures required by the kernel
     # arguments. Appropriate symbols are added to the symbol table associated
     # with the routine we are constructing.
-    kern_args = construct_kernel_args(prog, kern)
+    kern_args = construct_kernel_args(sub, kern)
 
     # Initialise argument values to unity. Since we are using this somewhat
     # arbitrary value, we use an *integer* literal for this, irrespective of
     # the actual type of the scalar argument. The compiler/run-time will take
     # care of appropriate type casting.
+    psyir.add_lfric_precision_symbol(table, "i_def")
     for sym in kern_args.scalars:
-        prog.addchild(Assignment.create(Reference(sym),
-                                        Literal("1", INTEGER_TYPE)))
+        sub.addchild(Assignment.create(
+            Reference(sym),
+            Literal("1", psyir.LfricIntegerScalarDataType())))
 
     # We use the setval_c builtin to initialise all fields to unity.
     # Currently we have to create a symbol for this builtin in order to
-    # create the appropriate functor. Although we put this symbol in the
-    # table, the backend will currently fail because it is undefined.
-    # TODO #1645 will address this.
+    # create the appropriate functor.
+    # TODO #1645 - we do *not* put this symbol in the table as otherwise
+    # the backend will currently fail because it is undefined.
     setval_c = DataTypeSymbol("setval_c", DeferredType())
-    # TODO don't add it to the table in order to allow the backend to work.
-    # table.add(setval_c)
 
     # As with the scalar initialisation, we don't worry about precision
     # here since we are just setting the field values to unity. If the
-    # field itself is of a precision other than rdef (or is perhaps
+    # field itself is of a precision other than r_def (or is perhaps
     # integer rather than real) we rely on type casting by the
     # compiler/run-time.
-    rdef = table.lookup("r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    psyir.add_lfric_precision_symbol(table, "r_def")
     kernel_list = []
     for sym, _ in kern_args.fields:
         kernel_list.append(
-            LFRicBuiltinFunctor.create(setval_c, [Reference(sym),
-                                                  Literal("1.0", rdef_type)]))
+            LFRicBuiltinFunctor.create(
+                setval_c, [Reference(sym),
+                           Literal("1.0", psyir.LfricRealScalarDataType())]))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []
@@ -470,9 +427,9 @@ def generate(kernel_path):
 
     # Create the 'call invoke(...)' for the list of kernels.
     invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
-    prog.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
+    sub.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym, kernel_list, 0))
 
-    return FortranWriter()(prog)
+    return FortranWriter()(cont)
 
 
 # For automatic API documentation.

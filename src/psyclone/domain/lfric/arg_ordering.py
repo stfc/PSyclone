@@ -39,7 +39,6 @@
 kernel calls.
 '''
 
-from __future__ import print_function, absolute_import
 import abc
 
 from psyclone.core import AccessType, Signature
@@ -47,7 +46,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 
 
-class ArgOrdering(object):
+class ArgOrdering:
     # pylint: disable=too-many-public-methods
     # TODO: #845 Check that all implicit variables have the right type.
     '''Base class capturing the arguments, type and ordering of data in
@@ -142,9 +141,8 @@ class ArgOrdering(object):
         '''
         if not self._generate_called:
             raise InternalError(
-                "The argument list in {0} is empty. "
-                "Has the generate() method been called?"
-                .format(type(self).__name__))
+                f"The argument list in {type(self).__name__} is empty. "
+                f"Has the generate() method been called?")
         return self._arglist
 
     def generate(self, var_accesses=None):
@@ -251,10 +249,9 @@ class ArgOrdering(object):
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
-                    "ArgOrdering.generate(): Unexpected argument type found. "
-                    "Expected one of '{0}' but found '{1}'".
-                    format(const.VALID_ARG_TYPE_NAMES,
-                           arg.argument_type))
+                    f"ArgOrdering.generate(): Unexpected argument type found. "
+                    f"Expected one of '{const.VALID_ARG_TYPE_NAMES}' but "
+                    f"found '{arg.argument_type}'")
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
@@ -305,21 +302,22 @@ class ArgOrdering(object):
             # operator as argument
             if len(self._kern.arguments.args) > 1:
                 raise GenerationError(
-                    "Kernel {0} has {1} arguments when it should only have 1 "
-                    "(an LMA operator)".format(self._kern.name,
-                                               len(self._kern.arguments.args)))
+                    f"Kernel {self._kern.name} has "
+                    f"{len(self._kern.arguments.args)} arguments when it "
+                    f"should only have 1 (an LMA operator)")
             op_arg = self._kern.arguments.args[0]
             if op_arg.argument_type != "gh_operator":
                 raise GenerationError(
-                    "Expected an LMA operator from which to look-up boundary "
-                    "dofs but kernel {0} has argument {1}.".
-                    format(self._kern.name, op_arg.argument_type))
+                    f"Expected an LMA operator from which to look-up boundary "
+                    f"dofs but kernel {self._kern.name} has argument "
+                    f"{op_arg.argument_type}.")
             if op_arg.access != AccessType.READWRITE:
                 raise GenerationError(
-                    "Kernel {0} is recognised as a kernel which applies "
-                    "boundary conditions to an operator. However its operator "
-                    "argument has access {1} rather than gh_readwrite.".
-                    format(self._kern.name, op_arg.access.api_specific_name()))
+                    f"Kernel {self._kern.name} is recognised as a kernel which"
+                    f" applies boundary conditions to an operator. However its"
+                    f" operator argument has access "
+                    f"{op_arg.access.api_specific_name()} rather than "
+                    f"gh_readwrite.")
             self.operator_bcs_kernel(op_arg.function_space_to,
                                      var_accesses=var_accesses)
 
@@ -560,9 +558,9 @@ class ArgOrdering(object):
         const = LFRicConstants()
         if not scalar_arg.is_scalar:
             raise InternalError(
-                "Expected argument type to be one of {0} but got '{1}'".
-                format(const.VALID_SCALAR_NAMES,
-                       scalar_arg.argument_type))
+                f"Expected argument type to be one of "
+                f"{const.VALID_SCALAR_NAMES} but got "
+                f"'{scalar_arg.argument_type}'")
 
         self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access)
 

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic Met Office
 
 program single_invoke_cma
 
@@ -40,7 +40,7 @@ program single_invoke_cma
   ! a matrix-matrix calculation with CMA operators and scalars.
 
   use constants_mod,             only: r_def
-  use operator_mod,              only: columnwise_operator_type
+  use columnwise_operator_mod,   only: columnwise_operator_type
   use columnwise_op_mul_2scalars_kernel_mod, &
                                  only: columnwise_op_mul_2scalars_kernel_type
 

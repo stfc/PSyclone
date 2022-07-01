@@ -5,13 +5,16 @@ uses OpenACC. The framework for this stand-alone example is explained in
 more details in the directory
 ``<PSYCLONEHOME>/examples/lfric/eg17/full_example``.
 
-The script ``acc_parallel_dm.py`` applies the OpenACC transformation to all 
-kernels. See the [OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html#openacc)
-section of the PSyclone documentation for details about this transformation.
+The script ``acc_parallel_dm.py`` applies various OpenACC transformations
+to all kernels. See the PSyclone User Guide for [details](https://psyclone.readthedocs.io/en/stable/examples.html#example-14-openacc).
 
 ## Compilation
 
-A simple makefile is provided to compile the example. It needs:
+Note that due to #1724 compilation will currently fail. A temporary workaround
+is to edit the generated Alg file (``main_alg.f90``) and remove the
+``use testkern_w0_kernel_mod, only: ...`` line.
+
+A simple Makefile is provided to compile the example. It needs:
 - the infrastructure library ``liblfric.a`` provided in
   ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
 

@@ -118,7 +118,10 @@ def test_variable_access_info():
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
     assert vai.is_read() is False
+
     assert vai.all_accesses == []
+    assert vai.all_read_accesses == []
+    assert vai.all_write_accesses == []
     assert vai.signature == Signature("var_name")
 
     vai.add_access_with_location(AccessType.READ, 2, Node(),
@@ -126,10 +129,14 @@ def test_variable_access_info():
     assert str(vai) == "var_name:READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
+    assert vai.all_read_accesses == [vai[0]]
+    assert vai.all_write_accesses == []
     vai.change_read_to_write()
     assert not vai.is_read()
     assert vai.is_written()
     assert not vai.is_read_only()
+    assert vai.all_read_accesses == []
+    assert vai.all_write_accesses == [vai[0]]
 
     # Now we have one write access, which we should not be able to
     # change to write again:
@@ -155,6 +162,8 @@ def test_variable_access_info():
     vai.add_access_with_location(AccessType.WRITE, 3, Node(),
                                  component_indices=None)
     assert vai.is_read_only() is False
+    assert vai.all_read_accesses == [vai[1]]
+    assert vai.all_write_accesses == [vai[0], vai[2]]
 
 
 # -----------------------------------------------------------------------------
@@ -548,16 +557,16 @@ def to_fortran(writer, index_expression):
 def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
     '''This function tests the handling of derived array types.
     '''
-    code = '''module test
+    code = f'''module test
         contains
         subroutine tmp()
           use my_mod
           !use my_mod, only: something
           !type(something) :: a, b, c
           integer :: i, j, k
-          c(i)%e(j,k) = {0}
+          c(i)%e(j,k) = {array}
         end subroutine tmp
-        end module test'''.format(array)
+        end module test'''
 
     schedule = fortran_reader.psyir_from_source(code).children[0]
     node1 = schedule.children[0][0]

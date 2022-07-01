@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Author S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the CommentableMixin implementation.'''
@@ -67,8 +67,8 @@ class CommentableMixin:
         :param str comment: comment preceding this statement.
         '''
         if not isinstance(comment, six.string_types):
-            raise TypeError("The preceding_comment must be a string but"
-                            " found '{0}'.".format(type(comment).__name__))
+            raise TypeError(f"The preceding_comment must be a string but"
+                            f" found '{type(comment).__name__}'.")
         self._preceding_comment = comment
 
     @property
@@ -85,8 +85,8 @@ class CommentableMixin:
         :param str comment: inline comment associated with this statement.
         '''
         if not isinstance(comment, six.string_types):
-            raise TypeError("The inline_comment must be a string but"
-                            " found '{0}'.".format(type(comment).__name__))
+            raise TypeError(f"The inline_comment must be a string but"
+                            f" found '{type(comment).__name__}'.")
         self._inline_comment = comment
 
 

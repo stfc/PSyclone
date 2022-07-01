@@ -41,12 +41,12 @@ from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 
 @pytest.fixture(name="dynkern", scope="module")
-def dynkern_fixture(parser):
+def dynkern_fixture():
     '''
     :returns: a DynKern object created from example metadata.
     :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
     '''
-    field_code = '''
+    mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
      type(arg_type), meta_args(7) =                               &
@@ -72,7 +72,11 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-    kernel_metadata = get_kernel_parse_tree(field_code)
+    # This fixture doesn't need a parser fixture as currently the metadata
+    # parsing is handled by fparser1.
+    # Once we switch over to using fparser2 (#1631) then this fixture may
+    # need to ensure that fparser2 is initialised correctly.
+    kernel_metadata = get_kernel_parse_tree(mdata_code)
     ktype = KernelTypeFactory(api="dynamo0.3").create(
         kernel_metadata, name="testkern_field_type")
     kern = DynKern()

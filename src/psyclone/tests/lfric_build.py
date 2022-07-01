@@ -98,6 +98,7 @@ class LFRicBuild(Compile):
                               "field_mod",
                               "integer_field_mod",
                               "r_solver_field_mod",
+                              "r_tran_field_mod",
                               "quadrature_rule_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",
@@ -105,7 +106,9 @@ class LFRicBuild(Compile):
                               "quadrature_xoyoz_mod",
                               "quadrature_edge_mod",
                               "quadrature_face_mod",
+                              "operator_parent_mod",
                               "operator_mod",
+                              "columnwise_operator_mod",
                               "flux_direction_mod"
                               ]
 

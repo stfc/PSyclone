@@ -329,7 +329,7 @@ class LFRicConstants():
                 "kind": "r_solver"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
-                "module": "operator_mod",
+                "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
@@ -406,7 +406,7 @@ class LFRicConstants():
         '''
         Maps from a valid kernel metadata function-space name to one
         that exists within the LFRic infrastructure. This is necessary
-        because meta-data can contain 'wildcard' names such as 'any_w2' but,
+        because meta-data can contain 'generic' names such as 'any_w2' but,
         when generating code, we need the name of a specific function space
         that is recognised by the LFRic infrastructure.
 
@@ -426,18 +426,19 @@ class LFRicConstants():
                 f"'{space}' is not a recognised LFRic function space (one of "
                 f"{LFRicConstants.VALID_FUNCTION_SPACE_NAMES}).")
 
+        # TODO #1709 - make this mapping configurable rather than
+        # hardwiring it here.
         if not space.startswith("any_"):
             return space
-        elif space == "any_w2":
+        if space == "any_w2":
             return "w2"
-        elif space.startswith("any_space_"):
+        if space.startswith("any_space_"):
             return LFRicConstants.CONTINUOUS_FUNCTION_SPACES[0]
-        elif space.startswith("any_discontinuous_space_"):
+        if space.startswith("any_discontinuous_space_"):
             return LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES[0]
-        else:
-            raise InternalError(
-                f"Error mapping from meta-data function space "
-                f"to actual space: cannot handle '{space}'")
+
+        raise InternalError(f"Error mapping from meta-data function space "
+                            f"to actual space: cannot handle '{space}'")
 
 
 # =============================================================================

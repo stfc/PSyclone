@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
@@ -42,7 +42,6 @@ This module contains the abstract Node implementation.
 
 '''
 import copy
-import six
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
@@ -51,6 +50,7 @@ from psyclone.psyir.symbols import SymbolError
 # coloured, textual representations of Invoke schedules. If it's not
 # available then we don't use colour.
 try:
+    # pylint disable=import-outside-toplevel
     from termcolor import colored
 except ImportError:
     # We don't have the termcolor package available so provide
@@ -80,6 +80,7 @@ def _graphviz_digraph_class():
 
     '''
     try:
+        # pylint: disable=import-outside-toplevel
         import graphviz as gv
         return gv.Digraph
     except ImportError:
@@ -123,16 +124,17 @@ class ChildrenList(list):
             children for this list.
         '''
         if not self._validation_function(index, item):
-            errmsg = "Item '{0}' can't be child {1} of '{2}'.".format(
-                item.__class__.__name__, index,
-                self._node_reference.coloured_name(False))
+            errmsg = (f"Item '{item.__class__.__name__}' can't be child "
+                      f"{index} of "
+                      f"'{self._node_reference.coloured_name(False)}'.")
+
             if self._validation_text == "<LeafNode>":
-                errmsg = errmsg + " {0} is a LeafNode and doesn't accept " \
-                    "children.".format(
-                        self._node_reference.coloured_name(False))
+                errmsg = (f"{errmsg} "
+                          f"{self._node_reference.coloured_name(False)} is a "
+                          f"LeafNode and doesn't accept children.")
             else:
-                errmsg = errmsg + " The valid format is: '{0}'.".format(
-                    self._validation_text)
+                errmsg = (f"{errmsg} The valid format is: "
+                          f"'{self._validation_text}'.")
 
             raise GenerationError(errmsg)
 
@@ -153,20 +155,18 @@ class ChildrenList(list):
         '''
         if item.parent and not item.has_constructor_parent:
             raise GenerationError(
-                "Item '{0}' can't be added as child of '{1}' because it is not"
-                " an orphan. It already has a '{2}' as a parent.".format(
-                    item.coloured_name(False),
-                    self._node_reference.coloured_name(False),
-                    item.parent.coloured_name(False)))
+                f"Item '{item.coloured_name(False)}' can't be added as child "
+                f"of '{self._node_reference.coloured_name(False)}' because "
+                f"it is not an orphan. It already has a "
+                f"'{item.parent.coloured_name(False)}' as a parent.")
+
         if item.parent and item.has_constructor_parent:
             if item.parent is not self._node_reference:
                 raise GenerationError(
-                    "'{0}' cannot be set as parent of '{1}' because its "
-                    "constructor predefined the parent reference to a "
-                    "different '{2}' node."
-                    .format(self._node_reference.coloured_name(False),
-                            item.coloured_name(False),
-                            item.parent.coloured_name(False)))
+                    f"'{self._node_reference.coloured_name(False)}' cannot be "
+                    f"set as parent of '{item.coloured_name(False)}' because "
+                    f"its constructor predefined the parent reference to a "
+                    f"different '{item.parent.coloured_name(False)}' node.")
 
     def _set_parent_link(self, node):
         '''
@@ -366,10 +366,9 @@ class Node(object):
                     self._annotations.append(annotation)
                 else:
                     raise InternalError(
-                        "{0} with unrecognised annotation '{1}', valid "
-                        "annotations are: {2}.".format(
-                            self.__class__.__name__, annotation,
-                            self.valid_annotations))
+                        f"{self.__class__.__name__} with unrecognised "
+                        f"annotation '{annotation}', valid "
+                        f"annotations are: {self.valid_annotations}.")
 
     def __eq__(self, other):
         '''
@@ -432,17 +431,16 @@ class Node(object):
         if colour:
             if self._colour is None:
                 raise NotImplementedError(
-                    "The _colour attribute is abstract so needs to be given "
-                    "a string value in the concrete class '{0}'."
-                    "".format(type(self).__name__))
+                    f"The _colour attribute is abstract so needs to be given "
+                    f"a string value in the concrete class "
+                    f"'{type(self).__name__}'.")
             try:
                 return colored(name_string, self._colour)
             except KeyError as info:
-                message = (
-                    "The _colour attribute in class '{0}' has been set to a "
-                    "colour ('{1}') that is not supported by the termcolor "
-                    "package.".format(type(self).__name__, self._colour))
-                six.raise_from(InternalError(message), info)
+                raise InternalError(
+                    f"The _colour attribute in class '{type(self).__name__}' "
+                    f"has been set to a colour ('{self._colour}') that is not "
+                    f"supported by the termcolor package.") from info
         return name_string
 
     def node_str(self, colour=True):
@@ -528,10 +526,9 @@ class Node(object):
             return None
         try:
             graph = digraph(format=file_format)
-        except ValueError:
-            raise GenerationError(
-                "unsupported graphviz file format '{0}' provided".
-                format(file_format))
+        except ValueError as err:
+            raise GenerationError(f"unsupported graphviz file format "
+                                  f"'{file_format}' provided") from err
         self.dag_gen(graph)
         graph.render(filename=file_name)
         return graph
@@ -747,17 +744,17 @@ class Node(object):
         # 1: check new_node is a Node
         if not isinstance(new_node, Node):
             raise GenerationError(
-                "In the psyir.nodes.Node.is_valid_location() method the "
-                "supplied argument is not a Node, it is a '{0}'.".
-                format(type(new_node).__name__))
+                f"In the psyir.nodes.Node.is_valid_location() method the "
+                f"supplied argument is not a Node, it is a "
+                f"'{type(new_node).__name__}'.")
 
         # 2: check position has a valid value
         valid_positions = ["before", "after"]
         if position not in valid_positions:
             raise GenerationError(
-                "The position argument in the psyGenNode.is_valid_location() "
-                "method must be one of {0} but found '{1}'".format(
-                    valid_positions, position))
+                f"The position argument in the psyGenNode.is_valid_location() "
+                f"method must be one of {valid_positions} but found "
+                f"'{position}'")
 
         # 3: check self and new_node have the same parent
         if not self.sameParent(new_node):
@@ -869,6 +866,17 @@ class Node(object):
         return result
 
     def addchild(self, child, index=None):
+        '''
+        Adds the supplied node as a child of this node (at position index if
+        supplied). The supplied node must not have an existing parent.
+
+        :param child: the node to add as a child of this one.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :param index: optional position at which to insert new child. Default \
+                      is to append new child to the list of existing children.
+        :type index: Optional[int]
+
+        '''
         if index is not None:
             self._children.insert(index, child)
         else:
@@ -876,6 +884,10 @@ class Node(object):
 
     @property
     def children(self):
+        '''
+        :returns: the immediate children of this Node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         return self._children
 
     @children.setter
@@ -971,8 +983,8 @@ class Node(object):
             position = self.START_POSITION
         elif position < self.START_POSITION:
             raise InternalError(
-                "Search for Node position started from {0} "
-                "instead of {1}.".format(position, self.START_POSITION))
+                f"Search for Node position started from {position} "
+                f"instead of {self.START_POSITION}.")
         for child in children:
             position += 1
             if child is self:
@@ -1000,17 +1012,15 @@ class Node(object):
             node = node.parent
         return node
 
-    def sameRoot(self, node_2):
-        if self.root is node_2.root:
-            return True
-        return False
-
     def sameParent(self, node_2):
+        '''
+        :returns: True if `node_2` has the same parent as this node, False \
+                  otherwise.
+        :rtype: bool
+        '''
         if self.parent is None or node_2.parent is None:
             return False
-        if self.parent is node_2.parent:
-            return True
-        return False
+        return self.parent is node_2.parent
 
     def walk(self, my_type, stop_type=None):
         ''' Recurse through the PSyIR tree and return all objects that are
@@ -1023,16 +1033,14 @@ class Node(object):
         reduce the number of recursive calls.
 
         :param my_type: the class(es) for which the instances are collected.
-        :type my_type: either a single :py:class:`psyclone.Node` class \
-            or a tuple of such classes
+        :type my_type: type | Tuple[type, ...]
         :param stop_type: class(es) at which recursion is halted (optional).
-
-        :type stop_type: None or a single :py:class:`psyclone.Node` \
-            class or a tuple of such classes
+        :type stop_type: Optional[type | Tuple[type, ...]]
 
         :returns: list with all nodes that are instances of my_type \
-            starting at and including this node.
-        :rtype: list of :py:class:`psyclone.Node` instances.
+                  starting at and including this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
         '''
         local_list = []
         if isinstance(self, my_type):
@@ -1046,27 +1054,34 @@ class Node(object):
             local_list += child.walk(my_type, stop_type)
         return local_list
 
-    def ancestor(self, my_type, excluding=None, include_self=False):
+    def ancestor(self, my_type, excluding=None, include_self=False,
+                 limit=None):
         '''
-        Search back up tree and check whether we have an ancestor that is
-        an instance of the supplied type. If we do then we return
+        Search back up the tree and check whether this node has an ancestor
+        that is an instance of the supplied type. If it does then we return
         it otherwise we return None. An individual (or tuple of) (sub-)
         class(es) to ignore may be provided via the `excluding` argument. If
-        include_self is True then the current node is included in the search.
+        `include_self` is True then the current node is included in the search.
+        If `limit` is provided then the search ceases if/when the supplied
+        node is encountered.
 
         :param my_type: class(es) to search for.
-        :type my_type: type or tuple of types
-        :param tuple excluding: individual (or tuple of) (sub-)class(es) to \
-                                ignore or None.
+        :type my_type: type | Tuple[type, ...]
+        :param excluding: (sub-)class(es) to ignore or None.
+        :type excluding: Optional[type | Tuple[type, ...]]
         :param bool include_self: whether or not to include this node in the \
                                   search.
+        :param limit: an optional node at which to stop the search.
+        :type limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: First ancestor Node that is an instance of any of the \
                   requested classes or None if not found.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises TypeError: if `excluding` is provided but is not a type or \
                            tuple of types.
+        :raises TypeError: if `limit` is provided but is not an instance \
+                           of Node.
         '''
         if include_self:
             myparent = self
@@ -1080,11 +1095,15 @@ class Node(object):
                 excludes = excluding
             else:
                 raise TypeError(
-                    "The 'excluding' argument to ancestor() must be a type or "
-                    "a tuple of types but got: '{0}'".format(
-                        type(excluding).__name__))
+                    f"The 'excluding' argument to ancestor() must be a type or"
+                    f" a tuple of types but got: '{type(excluding).__name__}'")
 
-        while myparent is not None:
+        if limit and not isinstance(limit, Node):
+            raise TypeError(
+                f"The 'limit' argument to ancestor() must be an instance of "
+                f"Node but got '{type(limit).__name__}'")
+
+        while myparent not in [None, limit]:
             if isinstance(myparent, my_type):
                 if not (excluding and isinstance(myparent, excludes)):
                     # This parent node is not an instance of an excluded
@@ -1096,8 +1115,9 @@ class Node(object):
     def kernels(self):
         '''
         :returns: all kernels that are descendants of this node in the PSyIR.
-        :rtype: list of :py:class:`psyclone.psyGen.Kern` sub-classes.
+        :rtype: List[:py:class:`psyclone.psyGen.Kern`]
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
@@ -1182,22 +1202,40 @@ class Node(object):
         builtins) that are beneath this node in the PSyIR.
 
         :returns: all user-supplied kernel calls below this node.
-        :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
+        :rtype: List[:py:class:`psyclone.psyGen.CodedKern`]
+
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import CodedKern
         return self.walk(CodedKern)
 
     def loops(self):
-        '''Return all loops currently in this schedule.'''
+        '''
+        :returns: all loops currently in this schedule.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Loop`]
+        '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Loop
         return self.walk(Loop)
 
     def reductions(self, reprod=None):
-        '''Return all calls that have reductions and are decendents of this
+        '''
+        Return all kernels that have reductions and are decendents of this
         node. If reprod is not provided, all reductions are
         returned. If reprod is False, all builtin reductions that are
         not set to reproducible are returned. If reprod is True, all
-        builtins that are set to reproducible are returned.'''
+        builtins that are set to reproducible are returned.
+
+        :param reprod: if provided, filter reductions by whether or not they \
+                       are set to be reproducible.
+        :type param: Optional[bool]
+
+        :returns: all kernels involving reductions that are descendants of \
+                  this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Kern`]
+
+        '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern
 
         call_reduction_list = []
@@ -1214,9 +1252,13 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        ''':returns: True if this Node is within an OpenMP parallel region.
+        '''
+        :returns: True if this Node is within an OpenMP parallel region, \
+                  False otherwise.
+        :rtype: bool
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import OMPParallelDirective
         omp_dir = self.ancestor(OMPParallelDirective)
         if omp_dir:
@@ -1268,8 +1310,8 @@ class Node(object):
         if node:
             return node
         raise SymbolError(
-            "Unable to find the scope of node '{0}' as none of its ancestors "
-            "are Container or Schedule nodes.".format(self))
+            f"Unable to find the scope of node '{self}' as none of its "
+            f"ancestors are Container or Schedule nodes.")
 
     def replace_with(self, node):
         '''Removes self, and its descendants, from the PSyIR tree to which it
@@ -1287,18 +1329,17 @@ class Node(object):
         '''
         if not isinstance(node, Node):
             raise TypeError(
-                "The argument node in method replace_with in the Node class "
-                "should be a Node but found '{0}'."
-                "".format(type(node).__name__))
+                f"The argument node in method replace_with in the Node class "
+                f"should be a Node but found '{type(node).__name__}'.")
         if not self.parent:
             raise GenerationError(
                 "This node should have a parent if its replace_with method "
                 "is called.")
         if node.parent is not None:
             raise GenerationError(
-                "The parent of argument node in method replace_with in the "
-                "Node class should be None but found '{0}'."
-                "".format(type(node.parent).__name__))
+                f"The parent of argument node in method replace_with in the "
+                f"Node class should be None but found "
+                f"'{type(node.parent).__name__}'.")
 
         self.parent.children[self.position] = node
 

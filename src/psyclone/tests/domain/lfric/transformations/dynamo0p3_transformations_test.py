@@ -46,12 +46,14 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop
+from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+    DynHaloExchangeEnd, DynHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective
+    OMPDoDirective, ACCEnterDataDirective
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -66,7 +68,8 @@ from psyclone.transformations import OMPParallelTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans, \
     Dynamo0p3AsyncHaloExchangeTrans, \
-    Dynamo0p3KernelConstTrans
+    Dynamo0p3KernelConstTrans, \
+    ACCLoopTrans, ACCParallelTrans, ACCKernelsTrans, ACCEnterDataTrans
 
 
 # The version of the API that the tests in this file
@@ -80,6 +83,63 @@ def setup():
     Config.get().api = "dynamo0.3"
     yield()
     Config._instance = None
+
+
+def test_colour_trans_create_colours_loop(dist_mem):
+    '''
+    Test the '_create_colours_loop()' method of Dynamo0p3ColourTrans.
+    We test with and without distributed memory and for the case where
+    the kernel has a 'GH_WRITE' access to a continuous field. (The latter
+    is a special case as it does not require a halo access.)
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                           name="invoke_0_testkern_type", dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+    loop = schedule.walk(Loop)[0]
+    kernel = loop.loop_body[0]
+
+    new_loop = ctrans._create_colours_loop(loop)
+    assert isinstance(new_loop, DynLoop)
+    assert new_loop.loop_type == "colours"
+    colour_loop = new_loop.loop_body[0]
+    assert isinstance(colour_loop, DynLoop)
+    assert colour_loop.loop_type == "colour"
+    assert new_loop.field_space == loop.field_space
+    assert colour_loop.field_space == loop.field_space
+    assert colour_loop.field_name == loop.field_name
+    assert new_loop._lower_bound_name == "start"
+    assert new_loop._upper_bound_name == "ncolours"
+    assert colour_loop._lower_bound_name == "start"
+    if dist_mem:
+        # Since the kernel has a GH_INC access we need to loop into the
+        # halo.
+        assert colour_loop._upper_bound_name == "colour_halo"
+    else:
+        assert colour_loop._upper_bound_name == "ncolour"
+
+    # Modify one GH_INC to be GH_WRITE. Since there is still a GH_INC this
+    # should have no effect - we still need to loop into the halo if DM
+    # is enabled.
+    kernel.args[2]._access = AccessType.WRITE
+    new_loop1 = DynLoop(parent=schedule)
+    new_loop1.load(kernel)
+    new_cloop = ctrans._create_colours_loop(new_loop1)
+    colour_loop = new_cloop.loop_body[0]
+    if dist_mem:
+        assert colour_loop._upper_bound_name == "colour_halo"
+    else:
+        assert colour_loop._upper_bound_name == "ncolour"
+
+    # Finally, change the remaining GH_INC access to be GH_WRITE. We no
+    # longer need to loop into the halo.
+    kernel.args[1]._access = AccessType.WRITE
+    new_loop1 = DynLoop(parent=schedule)
+    new_loop1.load(kernel)
+    new_cloop = ctrans._create_colours_loop(new_loop1)
+    colour_loop = new_cloop.loop_body[0]
+    assert colour_loop._upper_bound_name == "ncolour"
 
 
 def test_colour_trans_declarations(tmpdir, dist_mem):
@@ -139,10 +199,10 @@ def test_colour_trans(tmpdir, dist_mem):
 
     if dist_mem:
         assert ("integer(kind=i_def), allocatable :: "
-                "last_cell_all_colours(:,:)" in gen)
+                "last_halo_cell_all_colours(:,:)" in gen)
     else:
         assert ("integer(kind=i_def), allocatable :: "
-                "last_cell_all_colours(:)" in gen)
+                "last_edge_cell_all_colours(:)" in gen)
 
     # Check that we're calling the API to get the no. of colours
     # and the generated loop bounds are correct
@@ -155,18 +215,18 @@ def test_colour_trans(tmpdir, dist_mem):
     assert "loop1_start = 1" in gen
 
     if dist_mem:
-        assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_"
+        assert ("last_halo_cell_all_colours = mesh%get_last_halo_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_cell_all_colours(colour,"
+            "        do cell=loop1_start,last_halo_cell_all_colours(colour,"
             "1)\n")
     else:  # not dist_mem
-        assert ("last_cell_all_colours = mesh%get_last_edge_cell_all_"
+        assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_cell_all_colours(colour)\n")
+            "        do cell=loop1_start,last_edge_cell_all_colours(colour)\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
@@ -235,30 +295,26 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
-
-    if dist_mem:
-        index = 1
-    else:
-        index = 0
+    loop = schedule.walk(Loop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as a
     # string
     gen = str(psy.gen)
 
     if dist_mem:
-        lookup = "last_cell_all_colours(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "last_cell_all_colours(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
 
     assert (
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,{0}\n"
-        "          !\n"
-        "          CALL columnwise_op_asm_field_kernel_code("
-        "cmap(colour, ".format(lookup)) in gen
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        DO cell=loop1_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL columnwise_op_asm_field_kernel_code("
+        f"cmap(colour, ") in gen
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
@@ -284,14 +340,10 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
-
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
+    loop = schedule.walk(Loop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string
@@ -338,6 +390,28 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
         "CALL testkern_mesh_prop_code(nlayers, a, f1_proxy%data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour, cell)), nfaces_re_h, "
         "adjacent_face(:,cmap(colour, cell))" in gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_trans_continuous_write(dist_mem, tmpdir):
+    ''' Test the colouring transformation for a loop containing a kernel that
+    has a 'GH_WRITE' access for a field on a continuous space.
+
+    '''
+    psy, invoke = get_invoke("14.1.2_stencil_w2_write.f90", TEST_API,
+                             name="invoke_0", dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+    for loop in schedule.walk(Loop):
+        ctrans.apply(loop)
+    gen = str(psy.gen)
+
+    # The loop should not access the halo, irrespective of whether DM is
+    # enabled.
+    assert ("last_edge_cell_all_colours = "
+            "mesh%get_last_edge_cell_all_colours()" in gen)
+    assert "DO cell=loop1_start,last_edge_cell_all_colours(colour)" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -452,14 +526,14 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     assert ("      ncolour = mesh%get_ncolours()\n"
             "      cmap => mesh%get_colour_map()\n" in code)
     if dist_mem:
-        lookup = "last_cell_all_colours(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "last_cell_all_colours(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
     output = (
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        !$omp parallel do default(shared), private(cell), "
-        "schedule(static)\n"
-        "        DO cell=loop1_start,{0}\n".format(lookup))
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        !$omp parallel do default(shared), private(cell), "
+        f"schedule(static)\n"
+        f"        DO cell=loop1_start,{lookup}\n")
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1225,40 +1299,40 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert "loop0_stop = ncolour" in code
 
     if dist_mem:
-        lookup = "last_cell_all_colours(colour,1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
-        lookup = "last_cell_all_colours(colour)"
+        lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
-        "      !\n"
-        "      DO colour=loop0_start,loop0_stop\n"
-        "        !$omp parallel default(shared), private(cell)\n"
-        "        !$omp do schedule(static)\n"
-        "        DO cell=loop1_start,{0}\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
-        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO\n"
-        "        !$omp end do\n"
-        "        !$omp do schedule(static)\n"
-        "        DO cell=loop2_start,{0}\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
-        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO\n"
-        "        !$omp end do\n"
-        "        !$omp end parallel\n"
-        "      END DO\n".format(lookup))
+        f"      !\n"
+        f"      DO colour=loop0_start,loop0_stop\n"
+        f"        !$omp parallel default(shared), private(cell)\n"
+        f"        !$omp do schedule(static)\n"
+        f"        DO cell=loop1_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+        f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        f"        END DO\n"
+        f"        !$omp end do\n"
+        f"        !$omp do schedule(static)\n"
+        f"        DO cell=loop2_start,{lookup}\n"
+        f"          !\n"
+        f"          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+        f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        f"        END DO\n"
+        f"        !$omp end do\n"
+        f"        !$omp end parallel\n"
+        f"      END DO\n")
 
     assert output in code
 
@@ -1429,7 +1503,7 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()")
         assert code in result
@@ -1469,8 +1543,8 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
                 name = "annexed"
             else:
                 name = "owned"
-            assert ("loop{0}_stop = f{1}_proxy%vspace%get_last_dof_{2}()".
-                    format(idx-1, idx, name) in result)
+            assert (f"loop{idx-1}_stop = f{idx}_proxy%vspace%"
+                    f"get_last_dof_{name}()" in result)
 
         code = (
             "      !$omp parallel do default(shared), private(df), "
@@ -1481,9 +1555,11 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -1493,9 +1569,11 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f2_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -1505,14 +1583,13 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f3_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
         for idx in range(1, 4):
-            assert ("loop{0}_stop = undf_aspc1_f{1}".format(idx-1, idx)
-                    in result)
+            assert f"loop{idx-1}_stop = undf_aspc1_f{idx}" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -1576,7 +1653,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
             "      CALL f2_proxy%set_dirty()\n"
@@ -1634,15 +1711,14 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
+            "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
-            "      !$omp master\n"
             "      CALL f2_proxy%set_dirty()\n"
-            "      !$omp end master\n"
             "      !\n"
-            "      !$omp end parallel")
+)
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
@@ -1703,41 +1779,24 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      !$omp master\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop1_start,loop1_stop\n"
             "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      !$omp master\n"
-            "      CALL f2_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop2_start,loop2_stop\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
+            "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
-            "      !$omp master\n"
-            "      CALL f3_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
-            "      !$omp end parallel")
+            "      CALL f1_proxy%set_dirty()\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      CALL f3_proxy%set_dirty()\n")
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f1" in result
@@ -1807,17 +1866,15 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
+            "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
-            "      !$omp master\n"
             "      CALL f1_proxy%set_dirty()\n"
             "      CALL f2_proxy%set_dirty()\n"
             "      CALL f3_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
-            "      !$omp end parallel")
+            "      !\n")
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f1" in result
@@ -2032,20 +2089,20 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      !$omp master\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop1_start,loop1_stop\n"
             "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
     else:  # not distmem. annexed can be True or False
@@ -2119,14 +2176,6 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      !$omp master\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop1_start,loop1_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)\n"
@@ -2140,6 +2189,14 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
     else:  # not distmem. annexed can be True or False
@@ -2540,7 +2597,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n")
         assert code in result
@@ -2617,15 +2674,15 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
+            "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
-            "      !$omp master\n"
             "      CALL f1_proxy%set_dirty()\n"
-            "      !$omp end master\n"
             "      !\n"
-            "      !$omp end parallel\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
         if not annexed:
@@ -2705,9 +2762,11 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
+                "above loop(s)\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
@@ -2779,15 +2838,15 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
+                "      !$omp end parallel\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
+                "above loop(s)\n"
                 "      !\n"
-                "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
                 "      !\n"
-                "      !$omp end parallel\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem, annexed is True or False
@@ -2847,9 +2906,11 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !\n"
             "      ! Zero summation variables\n"
@@ -2933,9 +2994,11 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
+                "above loop(s)\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
@@ -3001,15 +3064,15 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
+                "      !$omp end parallel\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
+                "above loop(s)\n"
                 "      !\n"
-                "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
                 "      !\n"
-                "      !$omp end parallel\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
@@ -3247,14 +3310,6 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      !$omp master\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !$omp end master\n"
-            "      !\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
@@ -3263,6 +3318,14 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      ! End of set dirty/clean section for above loop(s)\n"
+            "      !\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
         assert code in result
@@ -3364,14 +3427,6 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
@@ -3380,6 +3435,14 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
@@ -3458,14 +3521,6 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
@@ -3474,6 +3529,14 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      ! End of set dirty/clean section for above loop(s)\n"
+                "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in result
         else:  # distmem is False. annexed can be True or False
@@ -3738,8 +3801,6 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert not schedule.reductions(reprod=not reprod)
             assert len(schedule.reductions()) == 1
-            from psyclone.domain.lfric.lfric_builtins import \
-                LFRicXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
                                LFRicXInnerproductYKern))
 
@@ -4004,10 +4065,8 @@ def test_rc_continuous_depth():
     result = str(psy.gen)
 
     for field_name in ["f2", "m1", "m2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
-                format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=3)".
-                format(field_name)) in result
+        assert f"IF ({field_name}_proxy%is_dirty(depth=3)) THEN" in result
+        assert f"CALL {field_name}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
@@ -4070,9 +4129,9 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     result = str(psy.gen)
     print(result)
     for field_name in ["f1", "f2", "m1"]:
-        assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL {0}_proxy%halo_exchange(depth=3)".
-                format(field_name)) in result
+        assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
+                f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
+                in result)
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop0_start,loop0_stop" in result
     assert ("      CALL m2_proxy%set_dirty()\n"
@@ -4179,15 +4238,13 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     result = str(psy.gen)
     print(result)
     for idx in range(1, 4):
-        assert ("IF (f2_proxy({0})%is_dirty(depth=3)) THEN".
-                format(idx)) in result
-        assert ("CALL f2_proxy({0})%halo_exchange(depth=3)".
-                format(idx)) in result
+        assert f"IF (f2_proxy({idx})%is_dirty(depth=3)) THEN" in result
+        assert f"CALL f2_proxy({idx})%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop0_start,loop0_stop" in result
     for idx in range(1, 4):
-        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
+        assert f"CALL f1_proxy({idx})%set_dirty()" in result
+        assert f"CALL f1_proxy({idx})%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4283,16 +4340,14 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for idx in range(1, 4):
-        assert ("IF (f1_proxy({0})%is_dirty(depth="
-                "3)) THEN".format(idx)) not in result
-        assert ("CALL f1_proxy({0})%halo_exchange("
-                "depth=3)".format(idx)) in result
+        assert f"IF (f1_proxy({idx})%is_dirty(depth=3)) THEN" not in result
+        assert f"CALL f1_proxy({idx})%halo_exchange(depth=3)" in result
         assert "loop1_stop = mesh%get_last_halo_cell(3)" in result
     assert "DO cell=loop1_start,loop1_stop" in result
     for idx in range(1, 4):
-        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
+        assert f"CALL f1_proxy({idx})%set_dirty()" in result
+        assert f"CALL f3_proxy({idx})%set_dirty()" in result
+        assert f"CALL f3_proxy({idx})%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4373,8 +4428,8 @@ def test_rc_dofs_depth():
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for field in ["f1", "f2"]:
-        assert "IF ({0}_proxy%is_dirty(depth=3)) THEN".format(field) in result
-        assert "CALL {0}_proxy%halo_exchange(depth=3)".format(field) in result
+        assert f"IF ({field}_proxy%is_dirty(depth=3)) THEN" in result
+        assert f"CALL {field}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "DO df=loop0_start,loop0_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
@@ -4445,10 +4500,8 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     if annexed:
         fld_hex_names.remove("f1")
     for field_name in fld_hex_names:
-        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=1"
-                ")".format(field_name)) in result
+        assert f"IF ({field_name}_proxy%is_dirty(depth=1)) THEN" in result
+        assert f"CALL {field_name}_proxy%halo_exchange(depth=1)" in result
     assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "DO df=loop1_start,loop1_stop" in result
     assert "CALL f1_proxy%set_dirty()" in result
@@ -4552,9 +4605,9 @@ def test_rc_vector_depth(tmpdir):
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     for index in range(1, 4):
-        assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
+        assert f"CALL chi_proxy({index})%set_dirty()" in result
     for index in range(1, 4):
-        assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
+        assert f"CALL chi_proxy({index})%set_clean(2)" in result
 
 
 def test_rc_vector_no_depth(tmpdir):
@@ -4645,7 +4698,6 @@ def test_rc_updated_dependence_analysis():
     rc_trans.apply(loop, {"depth": 2})
     previous_field = f2_field.backward_dependence()
     previous_node = previous_field.call
-    from psyclone.dynamo0p3 import DynHaloExchange
     # check f2_field has a backward dependence with the new halo
     # exchange field
     assert isinstance(previous_node, DynHaloExchange)
@@ -5022,8 +5074,8 @@ def test_rc_invalid_depth_type():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
-    assert ("the supplied depth should be an integer but found "
-            "type '%s'" % (type("2")) in str(excinfo.value))
+    assert (f"the supplied depth should be an integer but found "
+            f"type '{type('txt')}'" in str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
@@ -5449,11 +5501,11 @@ def test_rc_colour(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,2)\n"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,2)\n"
         in result)
 
     # We've requested redundant computation out to the level 2 halo
@@ -5500,11 +5552,11 @@ def test_rc_max_colour(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh)\n"
         in result)
 
@@ -5575,11 +5627,11 @@ def test_rc_then_colour(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,3)\n"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,3)\n"
         "          !\n"
         "          CALL testkern_code(nlayers, a, f1_proxy%data,"
         " f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
@@ -5633,11 +5685,11 @@ def test_rc_then_colour2(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = mesh%"
+            "get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh)\n" in result)
 
     assert (
@@ -5694,11 +5746,11 @@ def test_loop_fuse_then_rc(tmpdir):
         "      END IF\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
-    assert ("last_cell_all_colours = mesh%get_last_halo_cell_all_colours()"
-            in result)
+    assert ("last_halo_cell_all_colours = mesh%"
+            "get_last_halo_cell_all_colours()" in result)
     assert (
         "      DO colour=loop0_start,loop0_stop\n"
-        "        DO cell=loop1_start,last_cell_all_colours(colour,"
+        "        DO cell=loop1_start,last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh)\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
@@ -6066,7 +6118,6 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     True as it affects how many halo exchanges are generated.
 
     '''
-
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
@@ -6078,7 +6129,6 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     result = str(psy.gen)
     schedule = invoke.schedule
 
-    from psyclone.dynamo0p3 import DynHaloExchange
     if annexed:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
         assert isinstance(schedule.children[2], DynHaloExchange)
@@ -6169,18 +6219,18 @@ def test_intergrid_colour(dist_mem):
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
     if dist_mem:
-        assert ("last_cell_all_colours_fld_m = "
+        assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
             "      do colour=loop1_start,loop1_stop\n"
-            "        do cell=loop2_start,last_cell_all_colours_fld_m"
+            "        do cell=loop2_start,last_halo_cell_all_colours_fld_m"
             "(colour,1)\n")
     else:
-        assert ("last_cell_all_colours_fld_m = "
+        assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
             "      do colour=loop1_start,loop1_stop\n"
-            "        do cell=loop2_start,last_cell_all_colours_fld_m"
+            "        do cell=loop2_start,last_edge_cell_all_colours_fld_m"
             "(colour)\n")
     assert expected in gen
     expected = (
@@ -6259,15 +6309,15 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
             "schedule(static)\n" in gen)
 
     if dist_mem:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_cell_"
-                "all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_cell_all_colours_fld_c(colour,1)\n"
-                in gen)
+        assert ("last_halo_cell_all_colours_fld_c = "
+                "mesh_fld_c%get_last_halo_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_halo_cell_all_colours_fld_c"
+                "(colour,1)\n" in gen)
     else:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
+        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
                 "cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_cell_all_colours_fld_c(colour)\n"
-                in gen)
+        assert ("DO cell=loop5_start,last_edge_cell_all_colours_fld_c"
+                "(colour)\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6292,28 +6342,28 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
+        assert ("last_halo_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
                 "cell_all_colours()" in gen)
-        upper_bound = "last_cell_all_colours_fld_c(colour,1)"
+        upper_bound = "last_halo_cell_all_colours_fld_c(colour,1)"
     else:
-        assert ("last_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
+        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
                 "cell_all_colours()\n" in gen)
-        upper_bound = "last_cell_all_colours_fld_c(colour)"
+        upper_bound = "last_edge_cell_all_colours_fld_c(colour)"
     assert "loop0_stop = ncolour_fld_c\n" in gen
-    assert ("      DO colour=loop0_start,loop0_stop\n"
-            "        !$omp parallel default(shared), private(cell)\n"
-            "        !$omp do schedule(static)\n"
-            "        DO cell=loop1_start,{0}\n"
-            "          !\n"
-            "          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
-            "ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            "undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
-            "        END DO\n"
-            "        !$omp end do\n"
-            "        !$omp end parallel\n"
-            "      END DO\n".format(upper_bound) in gen)
+    assert (f"      DO colour=loop0_start,loop0_stop\n"
+            f"        !$omp parallel default(shared), private(cell)\n"
+            f"        !$omp do schedule(static)\n"
+            f"        DO cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
+            f"(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
+            f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
+            f"fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
+            f"undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
+            f"        END DO\n"
+            f"        !$omp end do\n"
+            f"        !$omp end parallel\n"
+            f"      END DO\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6370,8 +6420,6 @@ def test_accenterdatatrans():
     Enter Data directive to the PSy-layer in the dynamo0.3 API.
 
     '''
-    from psyclone.transformations import ACCEnterDataTrans
-    from psyclone.psyir.nodes import ACCEnterDataDirective
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=False)
@@ -6388,8 +6436,6 @@ def test_accenterdata_builtin(tmpdir):
     containing a call to a BuiltIn kernel.
 
     '''
-    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-        ACCParallelTrans
     acc_enter_trans = ACCEnterDataTrans()
     parallel_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
@@ -6404,11 +6450,10 @@ def test_accenterdata_builtin(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("!$acc enter data copyin(0.0_r_def,f1_proxy,f1_proxy%data,"
-            "f2_proxy,f2_proxy%data,ginger,m1_proxy,m1_proxy%data,m2_proxy,"
-            "m2_proxy%data,map_aspc1_f1,map_w1,map_w2,map_w3,ndf_aspc1_f1,"
-            "ndf_w1,ndf_w2,ndf_w3,nlayers,undf_aspc1_f1,undf_w1,undf_w2,"
-            "undf_w3)" in output)
+    assert ("!$acc enter data copyin(f1_proxy,f1_proxy%data,"
+            "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
+            "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+            "nlayers,undf_w1,undf_w2,undf_w3)" in output)
     assert "loop1_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
             "      do df=loop1_start,loop1_stop\n"
@@ -6426,7 +6471,6 @@ def test_acckernelstrans():
     Kernels directive to the PSy layer in the dynamo0.3 API.
 
     '''
-    from psyclone.transformations import ACCKernelsTrans
     kernels_trans = ACCKernelsTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
@@ -6441,11 +6485,42 @@ def test_acckernelstrans():
         "      END DO\n"
         "      !$acc end kernels\n" in code)
 
+
+def test_acckernelstrans_dm():
+    '''
+    Test that an ACCKernelsTrans transformation can add an OpenACC
+    Kernels directive to the PSy layer in the LFRic (dynamo0.3) API when
+    distributed memory is enabled.
+
+    '''
+    kernels_trans = ACCKernelsTrans()
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type", dist_mem=True)
+    sched = invoke.schedule
+    with pytest.raises(TransformationError) as err:
+        kernels_trans.apply(sched.children)
+    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+            "ACCKernelsTrans transformation" in str(err.value))
+    kernels_trans.apply(sched.walk(Loop))
+    code = str(psy.gen)
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in code
+    assert (
+        "      !$acc kernels\n"
+        "      DO cell=loop0_start,loop0_stop\n" in code)
+    assert (
+        "      END DO\n"
+        "      !$acc end kernels\n"
+        "      !\n"
+        "      ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n" in code)
+
 # Class ACCKernelsTrans end
 
 
 # Class ACCParallelTrans start
-def test_accparalleltrans():
+def test_accparalleltrans(tmpdir):
     '''
     Test that an ACCParallelTrans transformation can add an OpenACC
     Parallel directive to the PSy layer in the dynamo0.3 API. An
@@ -6453,7 +6528,6 @@ def test_accparalleltrans():
     raises an exception at code-generation time.
 
     '''
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
@@ -6464,7 +6538,7 @@ def test_accparalleltrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
         "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"
@@ -6475,6 +6549,49 @@ def test_accparalleltrans():
         "      END DO\n"
         "      !$acc end parallel\n") in code
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_accparalleltrans_dm(tmpdir):
+    '''
+    Test that the ACCParallelTrans transformation works correctly when
+    distributed memory is enabled. In particular any type-bound procedure
+    calls related to halo exchanges must not be within the parallel region.
+
+    '''
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type", dist_mem=True)
+    sched = invoke.schedule
+    sched.view()
+    # Cannot include halo-exchange nodes within an ACC parallel region.
+    with pytest.raises(TransformationError) as err:
+        acc_par_trans.apply(sched)
+    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
+    acc_par_trans.apply(sched.walk(Loop)[0])
+    acc_enter_trans.apply(sched)
+    code = str(psy.gen)
+
+    assert ("      !$acc parallel default(present)\n"
+            "      DO cell=loop0_start,loop0_stop\n"
+            "        !\n"
+            "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+            "undf_w3, map_w3(:,cell))\n"
+            "      END DO\n"
+            "      !$acc end parallel\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the above "
+            "loop(s)\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n" in code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 # Class ACCParallelTrans end
 # Class ACCLoopTrans start
 
@@ -6484,8 +6601,6 @@ def test_acclooptrans():
     directive to the PSy layer in the dynamo0.3 API.
 
     '''
-    from psyclone.transformations import ACCLoopTrans, ACCParallelTrans, \
-        ACCEnterDataTrans
     acc_par_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
     acc_enter_trans = ACCEnterDataTrans()
@@ -6498,7 +6613,7 @@ def test_acclooptrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
         "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"
@@ -6932,7 +7047,6 @@ def test_vector_halo_exchange_remove():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
-    from psyclone.dynamo0p3 import DynHaloExchange
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], DynHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
@@ -6961,13 +7075,13 @@ def test_vector_async_halo_exchange(tmpdir):
     result = str(psy.gen)
     for index in [1, 2, 3]:
         assert (
-            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy({0})%halo_exchange_start(depth=1)\n"
-            "      END IF\n"
-            "      !\n"
-            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy({0})%halo_exchange_finish(depth=1)\n"
-            "      END IF\n".format(index)) in result
+            f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
+            f"        CALL f1_proxy({index})%halo_exchange_start(depth=1)\n"
+            f"      END IF\n"
+            f"      !\n"
+            f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
+            f"        CALL f1_proxy({index})%halo_exchange_finish(depth=1)\n"
+            f"      END IF\n") in result
     assert (
         "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
         "      !\n"
@@ -6989,8 +7103,7 @@ def test_vector_async_halo_exchange(tmpdir):
     # start and end calls.
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[6], {"depth": 2})
-    from psyclone.dynamo0p3 import DynHaloExchangeStart, \
-        DynHaloExchangeEnd
+
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
         assert isinstance(schedule.children[index], DynHaloExchangeStart)
@@ -7441,5 +7554,4 @@ def test_all_loop_trans_base_validate(monkeypatch):
                 else:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
-                "{0}.validate() does not call LoopTrans.validate()".format(
-                    name)
+                f"{name}.validate() does not call LoopTrans.validate()"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
+
+# The compiler to use may be specified via the F90 and F90FLAGS
+# environment variables. To use the NVIDIA compiler and enable
+# openacc compilation with managed memory, use:
+#
+# export F90=nvfortran
+# export F90FLAGS="-acc=gpu -Minfo=all -gpu=managed"
+# export LDFLAGS=""
 
 include ../../common.mk
 
@@ -69,14 +77,14 @@ openmp_taskloop: ompt_psy.f90 ompt_alg.f90
 
 # TODO: Cannot compile this example until #1474 is resolved.
 #compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} fd_lib
-#	${F90} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
+#	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
 	${INF_LIB} -o shallow_ompt.exe
 
 compile: transform
 	@echo "No compile targets for example gocean/eg1, see #1474"
 
 %.o: %.f90
-	${F90} ${LDFLAGS} -I${INF_INC} -c $<
+	${F90} ${F90FLAGS} -I${INF_INC} -c $<
 
 run: compile
 	@echo "No run targets for example gocean/eg1"

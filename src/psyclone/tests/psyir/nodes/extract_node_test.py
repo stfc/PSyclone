@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. B. G. Chalk, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs pytest tests on the ExtractNode PSyIR node. '''
@@ -46,8 +47,12 @@ def test_extract_node_equality():
     # for their equality to be True
     symboltable = SymbolTable()
     symboltable2 = SymbolTable()
-    sched1 = Schedule(symbol_table=symboltable)
-    sched2 = Schedule(symbol_table=symboltable)
+    # Make sure they have the same ST instance, providing them as constructor
+    # parameters would create a copy and not use the same instance.
+    sched1 = Schedule()
+    sched1._symbol_table = symboltable
+    sched2 = Schedule()
+    sched2._symbol_table = symboltable
     sched3 = Schedule(symbol_table=symboltable2)
     node1 = ExtractNode(children=[sched1])
     node2 = ExtractNode(children=[sched2])

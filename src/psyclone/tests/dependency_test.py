@@ -320,8 +320,8 @@ def test_goloop_field_accesses():
     assert len(p_fld.all_accesses) == 9
 
 
-def test_dynamo():
-    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+def test_lfric():
+    ''' Test the handling of an LFRic loop. Note that the variable
     accesses are reported based on the user's point of view, not the code
     actually created by PSyclone, e.g. it shows a dependency on 'some_field',
     but not on some_field_proxy etc. Also the dependency is at this stage taken
@@ -347,6 +347,43 @@ def test_dynamo():
             "m2: READ, map_w1: READ, map_w2: READ, "
             "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
             "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+
+
+def test_lfric_kern_cma_args():
+    ''' Test the handling of LFRic kernel arguments.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "27.access_tests.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
+    invoke_read = psy.invokes.get('invoke_read')
+    invoke_write = psy.invokes.get('invoke_write')
+    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
+    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+
+    # Check the parameters that will change access type according to read or
+    # write declaration of the argument:
+    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.READ)
+    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.WRITE)
+
+    # All other parameters are read-only (e.g. sizes, ... - they will not
+    # be modified, even if the actual data is written):
+    for name in ["nrow", "bandwidth", "alpha", "beta", "gamma_m",
+                 "gamma_p"]:
+        assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
+        assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
 
 
 def test_location(parser):
@@ -471,6 +508,8 @@ def test_lfric_operator():
     # pylint: disable=pointless-statement
     psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f0: READ+WRITE" in var_info
+    assert "f1: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
@@ -499,7 +538,7 @@ def test_lfric_cma():
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: WRITE" in var_info
+    assert "op1_proxy%local_stencil: READ" in var_info
     assert "op1_proxy%ncell_3d: READ" in var_info
 
 
@@ -866,7 +905,8 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
+    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "cma_op1_matrix: WRITE" in var_info
 
 
 def test_lfric_stencil():
