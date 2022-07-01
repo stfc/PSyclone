@@ -41,7 +41,6 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
 		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
-                driver_water_constants_mod.o \
 		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
 		log_mod.o linked_list_mod.o reference_element_mod.o function_space_mod.o \
 		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o \
@@ -134,9 +133,6 @@ count_mod.o: log_mod.o mpi_mod.o
 master_dofmap_mod.o: constants_mod.o
 io_utility_mod.o: constants_mod.o log_mod.o
 timer_mod.o: constants_mod.o io_utility_mod.o log_mod.o mpi_mod.o scalar_mod.o
-ugrid_2d_mod.o: ugrid_file_mod.o ugrid_generator_mod.o
-ugrid_file_mod.o: file_mod.o
-ugrid_generator_mod.o: constants_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
