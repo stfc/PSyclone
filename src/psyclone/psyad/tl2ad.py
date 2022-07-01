@@ -65,24 +65,24 @@ INNER_PRODUCT_TOLERANCE = 1500.0
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(api, tl_fortran_str, active_variables,
-                         create_test=False):
+def generate_adjoint_str(tl_fortran_str, active_variables,
+                         api=None, create_test=False):
     '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
-    :param str api: The PSyclone API in use. Empty string if none.
     :param str tl_fortran_str: Fortran implementation of a tangent-linear \
         kernel.
     :param list of str active_variables: list of active variable names.
-    :param bool create_test: whether or not to create test code for the \
-        adjoint kernel.
+    :param Optional[str] api: The PSyclone API in use, if any.
+    :param Optional[bool] create_test: whether or not to create test code \
+        for the adjoint kernel (defaults to True).
 
     :returns: a 2-tuple consisting of a string containing the Fortran \
         implementation of the supplied tangent-linear kernel and (if \
         requested) a string containing the Fortran implementation of a test \
         harness for the adjoint kernel.
-    :rtype: 2-tuple of str
+    :rtype: Tuple[str, str]
 
     '''
     logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ def generate_adjoint_str(api, tl_fortran_str, active_variables,
         else:
             raise NotImplementedError(
                 f"Test-harness generation is not implemented for the "
-                f"{api} API.")
+                f"'{api}' API.")
         test_fortran_str = writer(test_psyir)
         logger.debug(test_fortran_str)
 

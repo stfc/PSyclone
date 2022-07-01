@@ -36,6 +36,7 @@
 ''' Provides LFRic-specific PSyclone adjoint functionality. '''
 
 from fparser import api as fpapi
+from psyclone.domain.lfric import psyir
 from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.alg_gen import (
@@ -106,7 +107,7 @@ def generate_lfric_adjoint_test(tl_source):
     :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
     '''
-    container = _create_alg_mod("main")
+    container = _create_alg_mod("adjoint_test")
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
@@ -156,8 +157,6 @@ def generate_lfric_adjoint_test(tl_source):
     # exist as part of the DSL.
     setval_x = DataTypeSymbol("setval_x", DeferredType())
     setval_rand = DataTypeSymbol("setval_random", DeferredType())
-    setop_x = DataTypeSymbol("setop_x", DeferredType())
-    setop_rand = DataTypeSymbol("setop_random", DeferredType())
     x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
     x_innerprod_y = DataTypeSymbol("x_innerproduct_y", DeferredType())
 
@@ -223,8 +222,8 @@ def generate_lfric_adjoint_test(tl_source):
     kern = LFRicKernelFunctor.create(kernel_routine, arg_nodes)
     kernel_list.append(kern)
 
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL,
-                           table.lookup("r_def"))
+    rdef_sym = psyir.add_lfric_precision_symbol(table, "r_def")
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
 
     # Compute the inner products of the results of the TL kernel.
     field_ip_symbols = []
@@ -262,8 +261,11 @@ def generate_lfric_adjoint_test(tl_source):
 
     # Create the 'call invoke(...)' for the list of kernels.
     invoke_sym = table.new_symbol("invoke", symbol_type=RoutineSymbol)
-    routine.addchild(LFRicAlgorithmInvokeCall.create(invoke_sym,
-                                                     kernel_list, 0))
+    inv_call = LFRicAlgorithmInvokeCall.create(invoke_sym,
+                                               kernel_list, 0)
+    inv_call.preceding_comment = (
+        "Initialise arguments and call the tangent-linear kernel.")
+    routine.addchild(inv_call)
 
     # Compute the first inner products.
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,

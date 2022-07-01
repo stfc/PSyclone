@@ -59,6 +59,17 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, UnknownFortranType, DeferredType)
 
 
+TL_CODE = (
+    "module my_mod\n"
+    "  contains\n"
+    "  subroutine kern(field)\n"
+    "    real, intent(inout) :: field\n"
+    "    field = 0.0\n"
+    "  end subroutine kern\n"
+    "end module my_mod\n"
+)
+
+
 # _generate_adjoint_name function
 
 def test_generate_adjoint_name():
@@ -150,28 +161,66 @@ def test_generate_adjoint_str_trans():
         "  res_dot_product = 0.0\n\n"
         "end program adj_test\n")
     result, test_harness = generate_adjoint_str(
-        "", tl_code, ["a", "b", "res_dot_product"])
+        tl_code, ["a", "b", "res_dot_product"])
     assert expected in result
     assert not test_harness
 
 
-def test_generate_adjoint_str_generate_harness():
-    ''' Test the create_test option to generate_adjoint_str(). '''
-    tl_code = (
-        "module my_mod\n"
-        "  contains\n"
-        "  subroutine kern(field)\n"
-        "    real, intent(inout) :: field\n"
-        "    field = 0.0\n"
-        "  end subroutine kern\n"
-        "end module my_mod\n"
-    )
+def test_generate_adjoint_str_generate_harness_no_api():
+    '''Test the create_test option to generate_adjoint_str() when no
+    API is specified.'''
     result, harness = generate_adjoint_str(
-        "", tl_code, ["field"], create_test=True)
+        TL_CODE, ["field"], create_test=True)
     assert "subroutine adj_kern(field)\n" in result
     assert "program adj_test\n" in harness
     assert "! Call the tangent-linear kernel\n" in harness
     assert "end program adj_test\n" in harness
+
+
+def test_generate_adjoint_str_generate_harness_invalid_api():
+    '''Test that passing an unsupported API to generate_adjoint_str()
+    raises the expected error.'''
+    with pytest.raises(NotImplementedError) as err:
+        _ = generate_adjoint_str(
+            TL_CODE, ["field"], api="gocean1.0", create_test=True)
+    assert ("Test-harness generation is not implemented for the 'gocean1.0' "
+            "API" in str(err.value))
+
+
+def test_generate_adjoint_str_generate_harness_lfric():
+    '''Test the create_test option to generate_adjoint_str() when the
+    LFRic (dynamo0p3) API is specified.'''
+    tl_code = (
+        "module testkern_mod\n"
+        "  use kinds_mod, only: i_def, r_def\n"
+        "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
+        "gh_write, w3, cell_column\n"
+        "  type, extends(kernel_type) :: testkern_type\n"
+        "     type(arg_type), dimension(1) :: meta_args =          & \n"
+        "          (/ arg_type(gh_field,  gh_real, gh_write,  w3)  & \n"
+        "           /)\n"
+        "     integer :: operates_on = cell_column\n"
+        "   contains\n"
+        "     procedure, nopass :: code => testkern_code\n"
+        "  end type testkern_type\n"
+        "contains\n"
+        "  subroutine testkern_code(nlayers, field, ndf_w3, undf_w3, map_w3)\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w3, undf_w3\n"
+        "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "    real(kind=r_def), intent(inout), dimension(undf_w3) :: field\n"
+        "    field = 0.0\n"
+        "  end subroutine testkern_code\n"
+        "end module testkern_mod\n"
+    )
+    result, harness = generate_adjoint_str(
+        tl_code, ["field"], api="dynamo0.3", create_test=True)
+    assert ("subroutine adj_testkern_code(nlayers, field, ndf_w3, "
+            "undf_w3, map_w3)\n" in result)
+    assert "module adjoint_test_mod\n" in harness
+    assert "subroutine adjoint_test(mesh, chi, panel_id)" in harness
+    assert "call the tangent-linear kernel.\n" in harness
+    assert "end module adjoint_test_mod\n" in harness
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
