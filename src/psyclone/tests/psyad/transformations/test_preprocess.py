@@ -118,7 +118,7 @@ def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
         "  do i = 1, 10, 1\n"
         "    b(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      b(i) = b(i) + d(i,j) * c(j)\n"
+        "      b(i) = b(i) + c(j) * d(i,j)\n"
         "    enddo\n"
         "  enddo\n"
         "  res_dot_product = 0.0\n"
