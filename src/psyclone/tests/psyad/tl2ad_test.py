@@ -43,8 +43,9 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyad import (
     generate_adjoint_str, generate_adjoint, generate_adjoint_test)
+from psyclone.psyad.domain.common.adjoint_utils import create_adjoint_name
 from psyclone.psyad.tl2ad import (
-    _create_adjoint_name, _find_container, _create_inner_product,
+    _find_container, _create_inner_product,
     _create_array_inner_product, _get_active_variables_datatype,
     _add_precision_symbol)
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -65,10 +66,10 @@ def test_generate_adjoint_name():
     expected.
 
     '''
-    assert _create_adjoint_name("name") == "adj_name"
-    assert _create_adjoint_name("NAME") == "adj_name"
-    assert _create_adjoint_name("tl_name") == "adj_name"
-    assert _create_adjoint_name("Tl_NaMe") == "adj_name"
+    assert create_adjoint_name("name") == "adj_name"
+    assert create_adjoint_name("NAME") == "adj_name"
+    assert create_adjoint_name("tl_name") == "adj_name"
+    assert create_adjoint_name("Tl_NaMe") == "adj_name"
 
 
 # generate_adjoint_str function
