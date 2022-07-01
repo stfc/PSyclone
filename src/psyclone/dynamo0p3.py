@@ -912,8 +912,7 @@ class DynKernMetadata(KernelType):
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = (const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
-                           + const.VALID_OPERATOR_NAMES)
+        valid_arg_types = (const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES)
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
@@ -1842,10 +1841,9 @@ class LFRicMeshProperties(DynCollection):
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
-            # User-supplied kernels that operate on the 'domain' need the
-            # number of columns, excluding those in the halo.
-            if (call.iterates_over == "domain" and not
-                    isinstance(call, LFRicBuiltIn)):
+            # Kernels that operate on the 'domain' need the number of columns,
+            # excluding those in the halo.
+            if call.iterates_over == "domain":
                 if MeshProperty.NCELL_2D_NO_HALOS not in self._properties:
                     self._properties.append(MeshProperty.NCELL_2D_NO_HALOS)
             # Kernels performing CMA operations need the number of columns,
@@ -3351,11 +3349,6 @@ class LFRicLoopBounds(DynCollection):
         api_config = config.api_conf("dynamo0.3")
 
         for idx, loop in enumerate(loops):
-
-            if loop.loop_type == "null":
-                # We don't need loop bounds for a 'null' loop.
-                continue
-
             root_name = f"loop{idx}_start"
             try:
                 lbound = sym_table.lookup_with_tag(root_name)
@@ -9601,9 +9594,9 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype())
             return Reference(scalar_sym)
 
-        if self.is_field or self.is_operator:
-            # Although the argument to a Kernel is a field or operator, the
-            # data itself is accessed through a field_proxy.
+        if self.is_field:
+            # Although the argument to a Kernel is a field, the data itself
+            # is accessed through a field_proxy.
             try:
                 sym = symbol_table.lookup(self.proxy_name)
             except KeyError:

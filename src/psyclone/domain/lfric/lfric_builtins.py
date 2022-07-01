@@ -108,6 +108,7 @@ class LFRicBuiltInCallFactory(object):
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
+        :raises InternalError: if the built-in does not iterate over dofs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -125,12 +126,13 @@ class LFRicBuiltInCallFactory(object):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynLoop
 
-        if call.ktype.iterates_over == "domain":
-            loop_type = "null"
-        elif call.ktype.iterates_over == "dof":
+        if call.ktype.iterates_over == "dof":
             loop_type = "dof"
         else:
-            raise InternalError("ARPDBG")
+            raise InternalError(
+                f"An LFRic built-in must iterate over dofs but kernel "
+                f"'{call.func_name}' iterates over "
+                f"'{call.ktype.iterates_over}'")
         dofloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
@@ -209,13 +211,12 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must operate on "
-                "DoFs but found '{0}' for {1}.".
-                format(self.iterates_over, str(self)))
+                f"In the LFRic API built-in calls must operate on one of "
+                f"{const.BUILTIN_ITERATION_SPACES} but found "
+                f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
-        op_count = 0
         spaces = set()   # All field arguments must be on the same space
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
@@ -244,17 +245,13 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 field_count += 1
                 spaces.add(arg.function_space)
                 data_types.add(arg.data_type)
-            if arg.argument_type in const.VALID_OPERATOR_NAMES:
-                op_count += 1
-                spaces.add(arg.function_space_from)
-                data_types.add(arg.data_type)
 
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "
                              "to but found {0} for kernel '{1}'.".
                              format(write_count, self.name))
-        if field_count == 0 and op_count == 0:
+        if field_count == 0:
             raise ParseError("A built-in kernel in the LFRic API "
                              "must have at least one field as an argument but "
                              "kernel '{0}' has none.".format(self.name))
@@ -1507,30 +1504,6 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         self.replace_with(assign)
 
 
-class LFRicSetOpXKern(LFRicBuiltIn):
-    ''' Set a real-valued operator equal to another, real-valued, operator.
-
-    '''
-    def __str__(self):
-        return ("Built-in: Set a real-valued operator equal to another such "
-                "operator")
-
-    def lower_to_language_level(self):
-        '''
-        TODO
-        '''
-        # TODO we just use implicit array notation here to do the copy to save
-        # having to generate the full loop structure.
-        lhs = StructureReference.create(
-            self._arguments.args[0].psyir_expression().symbol,
-            ["local_stencil"])
-        rhs = StructureReference.create(
-            self._arguments.args[1].psyir_expression().symbol,
-            ["local_stencil"])
-        assign = Assignment.create(lhs, rhs)
-        self.replace_with(assign)
-
-
 class LFRicSetvalRandomKern(LFRicBuiltIn):
     ''' Fill a real-valued field with pseudo-random numbers.
 
@@ -1549,25 +1522,6 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         '''
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
         parent.add(CallGen(parent, name="random_number", args=[field_name]))
-
-
-class LFRicSetOpRandomKern(LFRicSetvalRandomKern):
-    '''
-    '''
-    def __str__(self):
-        return "Built-in: Fill an operator with pseudo-random numbers"
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        setval_random Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        op_name = self._arguments.args[0].proxy_name+"%local_stencil"
-        parent.add(CallGen(parent, name="random_number", args=[op_name]))
 
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
@@ -2194,9 +2148,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # real field's values
     "setval_c": LFRicSetvalCKern,
     "setval_X": LFRicSetvalXKern,
-    "setop_X": LFRicSetOpXKern,
     "setval_random": LFRicSetvalRandomKern,
-    "setop_random": LFRicSetOpRandomKern,
     # Inner product of real fields
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
@@ -2296,9 +2248,7 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncXPowintNKern',
            'LFRicSetvalCKern',
            'LFRicSetvalXKern',
-           'LFRicSetOpXKern',
            'LFRicSetvalRandomKern',
-           'LFRicSetOpRandomKern',
            'LFRicXInnerproductYKern',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',

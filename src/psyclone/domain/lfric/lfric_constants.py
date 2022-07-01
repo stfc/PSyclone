@@ -176,13 +176,12 @@ class LFRicConstants():
                                            "null"]
 
         # Valid LFRic iteration spaces for built-in kernels
-        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof", "domain"]
+        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
 
         # The types of argument that are valid for built-in kernels in the
         # LFRic API
         LFRicConstants.VALID_BUILTIN_ARG_TYPES = \
             LFRicConstants.VALID_FIELD_NAMES + \
-            LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
         # The data types of argument that are valid for built-in kernels

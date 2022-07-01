@@ -290,18 +290,10 @@ class KernCallInvokeArgList(ArgOrdering):
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
+        :raises NotImplementedError: operators are not yet supported.
+
         '''
-        op_type = self._symtab.lookup("operator_type")
-        sym = self._symtab.new_symbol(arg.name, symbol_type=DataSymbol,
-                                      datatype=op_type)
-        consts = LFRicConstants()
-        self._operators.append(
-            (sym,
-             consts.specific_function_space(
-                 arg.function_space_to.orig_name),
-             consts.specific_function_space(
-                 arg.function_space_from.orig_name)))
-        self.append(sym.name, var_accesses, mode=arg.access)
+        raise NotImplementedError("Operators are not yet supported.")
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.

@@ -40,14 +40,13 @@
     using pytest. Currently all built-in operations are 'pointwise' in that
     they iterate over DOFs. However this may change in the future. '''
 
-# imports
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
+from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
+                                                  LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -145,24 +144,21 @@ def test_lfricbuiltin_missing_defs(monkeypatch):
             "Built-in operations" in str(excinfo.value))
 
 
-def test_lfricbuiltin_not_over_dofs():
+def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     ''' Check that we raise an appropriate error if we encounter a
     built-in that does not iterate over dofs. '''
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
         api=API)
-    # Restore the original file name before doing the assert in case
-    # it fails
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert ("built-in calls must operate on DoFs but found 'cell_column' "
-            "for Built-in: Set a real-valued field " in str(excinfo.value))
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # Get a valid built-in kernel and then monkeypatch it.
+    kern = psy.invokes.invoke_list[0].schedule.walk(LFRicBuiltIn)[0]
+    monkeypatch.setattr(kern, "_iterates_over", "broken")
+    with pytest.raises(ParseError) as err:
+        kern._validate()
+    assert ("built-in calls must operate on one of ['dof'] but found 'broken' "
+            "for Built-in: Set a real-valued field " in str(err.value))
 
 
 def test_builtin_multiple_writes():
