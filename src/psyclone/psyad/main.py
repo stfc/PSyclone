@@ -84,12 +84,12 @@ def main(args):
         action='store_true')
     parser.add_argument('-api', default="",
                         help='the PSyclone API that the TL kernel conforms '
-                        'to (if any).')
+                        'to (if any)')
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
     parser.add_argument('-oad', help='filename for the transformed code')
-    parser.add_argument('filename', help='LFRic tangent-linear kernel source')
+    parser.add_argument('filename', help='tangent-linear kernel source')
 
     args = parser.parse_args(args)
 
