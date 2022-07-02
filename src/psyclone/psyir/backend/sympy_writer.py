@@ -184,7 +184,7 @@ class SymPyWriter(FortranWriter):
             # pylint: disable=protected-access
             expression_str_list.append(writer._visit(expr))
         try:
-            return ([parse_expr(expr, type_map, evaluate=False)
+            return ([parse_expr(expr, type_map)
                      for expr in expression_str_list],
                     type_map)
         except SyntaxError as err:

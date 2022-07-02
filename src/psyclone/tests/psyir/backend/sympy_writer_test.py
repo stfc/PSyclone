@@ -316,7 +316,7 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     # see if they simplify to nothing (0) and are therefore
     # equivalent.
     expr = parse_expr("a%a_b_1 + a%a_c(1) + i")
-    assert simplify(sympy_list[0] - expr) == 0
+    assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
 
 

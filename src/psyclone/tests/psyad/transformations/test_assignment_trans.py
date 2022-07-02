@@ -1305,8 +1305,8 @@ def test_validate_missing_array_indices():
             "variable 'a' without array notation on the RHS: "
             "'a(2:5) = x * a\n'" in str(err.value))
 
-
 # _split_nodes() method
+
 
 def test_splitnodes_single():
     '''Test _split_nodes returns a single entry node_list when there
