@@ -317,12 +317,6 @@ class AssignmentTrans(AdjointTransformation):
                 # a multiplier of unity) and is therefore valid.
                 continue
 
-            # The whole term may be multiplied by minus one. If so,
-            # strip this out as it stops us splitting up the term into
-            # expressions.
-            if (isinstance(rhs_term, UnaryOperation) and
-                    rhs_term.operator == UnaryOperation.Operator.MINUS):
-                rhs_term = rhs_term.children[0]
             # Split the term into <expr> */ <expr> */ <expr>
             expr_terms = self._split_nodes(
                 rhs_term, [BinaryOperation.Operator.MUL,

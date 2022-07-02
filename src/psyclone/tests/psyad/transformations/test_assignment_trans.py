@@ -1306,33 +1306,7 @@ def test_validate_missing_array_indices():
             "'a(2:5) = x * a\n'" in str(err.value))
 
 
-def test_validate_unary_minus():
-    '''Check that validate does not raise an exception if a valid term
-    containing multiplies and divides is multiplied by minus one.
-
-    active vars = ["a", "b"]
-    a = -(x*b)
-
-    '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("b", REAL_TYPE)
-    # x*b
-    multiply = BinaryOperation.create(
-        BinaryOperation.Operator.MUL, Reference(
-            rhs_symbol1), Reference(rhs_symbol2))
-    # -(x*b)
-    minus = UnaryOperation.create(UnaryOperation.Operator.MINUS, multiply)
-    # a = -(x*b)
-    assignment = Assignment.create(Reference(lhs_symbol), minus)
-    trans = AssignmentTrans(active_variables=[
-        lhs_symbol, rhs_symbol2])
-    # with pytest.raises(TangentLinearError) as info:
-    trans.validate(assignment)
-
-
 # _split_nodes() method
-
 
 def test_splitnodes_single():
     '''Test _split_nodes returns a single entry node_list when there

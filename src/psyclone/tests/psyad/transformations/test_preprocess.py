@@ -313,7 +313,7 @@ def test_associativity5(tmpdir, fortran_reader, fortran_writer):
     code = (
         "subroutine example(a,b,c)\n"
         "  real :: a,b,c\n"
-        "  a = 0.5 * (b + c)\n"
+        "  a = 0.5*(b + c)\n"
         "end subroutine\n")
     expected = (
         "subroutine example(a, b, c)\n"
@@ -321,6 +321,31 @@ def test_associativity5(tmpdir, fortran_reader, fortran_writer):
         "  real :: b\n"
         "  real :: c\n\n"
         "  a = 0.5 * b + 0.5 * c\n\n"
+        "end subroutine example\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "b", "c"])
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_associativity6(tmpdir, fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when we have
+    a negative literal as part of the expression that we would like to
+    expand.
+
+    '''
+    code = (
+        "subroutine example(a,b,c)\n"
+        "  real :: a,b,c\n"
+        "  a = -0.5*(b + c)\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine example(a, b, c)\n"
+        "  real :: a\n"
+        "  real :: b\n"
+        "  real :: c\n\n"
+        "  a = -0.5 * b - 0.5 * c\n\n"
         "end subroutine example\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "b", "c"])
