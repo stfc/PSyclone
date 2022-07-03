@@ -37,6 +37,7 @@
 ''' This module provides the PSyIR Fortran front-end.'''
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
@@ -71,6 +72,8 @@ class FortranReader(object):
         '''
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(source_code)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
         parse_tree = self._parser(string_reader)
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -149,6 +152,8 @@ class FortranReader(object):
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
         string_reader = FortranStringReader(source_code)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
         try:
             exec_part = Fortran2003.Execution_Part(string_reader)
         except NoMatchError as err:
