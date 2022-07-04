@@ -41,7 +41,6 @@ to LFRic Algorithm PSyIR and from LFRic Algorithm PSyIR to processed
 PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.domain.lfric.algorithm import \
@@ -50,7 +49,7 @@ from psyclone.domain.lfric.algorithm import \
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, REAL_TYPE
 

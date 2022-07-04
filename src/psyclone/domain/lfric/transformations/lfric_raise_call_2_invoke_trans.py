@@ -41,9 +41,9 @@ uses specialised classes.
 from psyclone.psyir.nodes import ArrayReference
 
 from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
-from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
-    LFRicKernelFunctor, LFRicAlgorithmInvokeCall
-from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+from psyclone.domain.lfric.algorithm import (
+    LFRicBuiltinFunctor,
+    LFRicKernelFunctor, LFRicAlgorithmInvokeCall, BUILTIN_FUNCTOR_MAP)
 
 
 class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
@@ -70,7 +70,6 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
         calls = []
         for idx, call_arg in enumerate(call.children):
 
-            arg_info = []
             if call.argument_names[idx]:
                 call_name = f"'{call_arg.value}'"
             elif isinstance(call_arg, ArrayReference):
@@ -87,13 +86,14 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                 for fp2_node in call_arg.get_ast_nodes:
                     # This child is a kernel or builtin
                     name = fp2_node.children[0].string
-                    args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                    args = RaiseCall2InvokeTrans._parse_args(call_arg,
+                                                             fp2_node)
                     name = fp2_node.children[0].string
                     if name in BUILTIN_FUNCTOR_MAP:
                         calls.append(BUILTIN_FUNCTOR_MAP[name].create(
                             call.scope.symbol_table, args))
                     else:
-                        type_symbol = InvokeCallTrans._get_symbol(
+                        type_symbol = RaiseCall2InvokeTrans._get_symbol(
                             call, fp2_node)
                         self._specialise_symbol(type_symbol)
                         calls.append(LFRicKernelFunctor.create(type_symbol,
