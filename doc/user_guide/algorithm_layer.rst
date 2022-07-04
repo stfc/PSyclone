@@ -65,7 +65,8 @@ translated into something like the following::
   ...
 
 In addition, any ``use`` statements importing Kernels
-(``integrate_one_kernel`` in this example) are removed.
+(``integrate_one_kernel`` in this example) are removed because they
+are no longer required in the transformed algorithm code.
 
 You may have noticed from other examples in this guide that an
 algorithm specification in an invoke call references the metadata

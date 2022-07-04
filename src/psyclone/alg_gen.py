@@ -107,9 +107,10 @@ class Alg:
     @property
     def gen(self):
         '''
-        Modifies and returns the algorithm code. 'invoke()' calls are replaced
-        with calls to the corresponding PSy-layer routines and USE statements
-        for kernel-type symbols are removed.
+        Modifies and returns the algorithm code. 'invoke' calls are replaced
+        with calls to the corresponding PSy-layer routines and the USE
+        statements for the kernels that were referenced by each 'invoke' are
+        removed.
 
         :returns: the modified algorithm specification as an fparser2 \
                   parse tree.
@@ -200,12 +201,12 @@ def _rm_kernel_use_stmts(kernels, ptree):
 
     # Remove the USE statements for the invoked kernels provided that
     # they're not referenced anywhere (apart from USE statements).
-    all_names = set(name.tostr().lower() for name in
-                    walk(ptree.content, Name)
-                    if not isinstance(name.parent, Only_List))
+    all_other_names = set(name.tostr().lower() for name in
+                          walk(ptree.children, Name)
+                          if not isinstance(name.parent, Only_List))
     # Update the lists of symbols imported from each module
     for kern in kernels:
-        if kern not in all_names and kern in sym_to_mod_map:
+        if kern not in all_other_names and kern in sym_to_mod_map:
             # Kernel name is not referenced anywhere but is imported from
             # a module (so is not a Built-In).
             mod_name = sym_to_mod_map[kern]
@@ -217,12 +218,12 @@ def _rm_kernel_use_stmts(kernels, ptree):
         if symbols == []:
             this_use = use_stmt_map[mod]
             spec_part = this_use.parent
-            spec_part.content.remove(this_use)
+            spec_part.children.remove(this_use)
             # fparser currently falls over when asked to create Fortran for an
             # empty Specification_Part (fparser/#359). We therefore remove the
             # modified Specification_Part entirely if it is now empty.
-            if not spec_part.content:
-                spec_part.parent.content.remove(spec_part)
+            if not spec_part.children:
+                spec_part.parent.children.remove(spec_part)
 
 
 def adduse(location, name, only=None, funcnames=None):

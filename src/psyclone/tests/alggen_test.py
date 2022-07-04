@@ -70,7 +70,7 @@ def test_single_function_invoke():
     gen = str(alg).lower()
     assert "use single_invoke_psy, only: invoke_0_testkern_type" in gen
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert "use testkern_mod, only: testkern_type" not in gen
+    assert "use testkern_mod" not in gen
 
 
 def test_single_function_named_invoke():
@@ -142,7 +142,7 @@ def test_single_function_invoke_qr():
                                    "1.1.0_single_invoke_xyoz_qr.f90"),
                       api="dynamo0.3")
     gen = str(alg).lower()
-    assert "use testkern_qr, only: testkern_qr_type" not in gen
+    assert "use testkern_qr" not in gen
     assert "use single_invoke_psy, only: invoke_0_testkern_qr_type" in gen
     assert ("call invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
@@ -162,8 +162,10 @@ def test_single_function_multi_invokes():
     alg, _ = generate(os.path.join(BASE_PATH, "3_multi_invokes.f90"),
                       api="dynamo0.3")
     gen = str(alg).lower()
-    assert "use testkern_mod, only: testkern_type" not in gen
-    assert "use testkern_qr, only: testkern_qr_type" not in gen
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # Use statements for PSy-layer routines should have been added.
     assert "use multi_invokes_psy, only: invoke_0_testkern_type" in gen
     assert "use multi_invokes_psy, only: invoke_2_testkern_type" in gen
     assert "use multi_invokes_psy, only: invoke_1_testkern_qr_type" in gen
@@ -181,8 +183,10 @@ def test_named_multi_invokes():
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg).lower()
-    assert "use testkern_mod, only: testkern_type" not in gen
-    assert "use testkern_qr, only: testkern_qr_type" not in gen
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # Use statements for PSy-layer routines should have been added.
     assert ("use multi_functions_multi_invokes_psy, only: "
             "invoke_my_first" in gen)
     assert ("use multi_functions_multi_invokes_psy, only: "
@@ -209,8 +213,10 @@ def test_multi_function_invoke_qr():
     alg, _ = generate(os.path.join(
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
     gen = str(alg).lower()
-    assert "use testkern_qr, only: testkern_qr_type" not in gen
-    assert "use testkern_mod, only: testkern_type" not in gen
+    # Use statements for kernels should have been removed.
+    assert "use testkern_qr" not in gen
+    assert "use testkern_mod" not in gen
+    # Use statement for PSy-layer routines should have been added.
     assert "use multi_invoke_qr_psy, only: invoke_0" in gen
     assert "call invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
 
