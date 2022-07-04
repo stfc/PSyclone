@@ -393,14 +393,14 @@ def test_multiple_stencil_same_name():
             "f3, f4, extent, f3_direction)") in output
 
 
-# Sample code for use in subsequent adduse tests.
+# Sample code for use in subsequent _adduse tests.
 CODE = ("program test\n"
         "  integer :: i\n"
         "  i=0\n"
         "end program test\n")
 
 
-# Utility function for parsing code, used in subsequent adduse tests.
+# Utility function for parsing code, used in subsequent _adduse tests.
 def get_parse_tree(code, parser):
     '''Utility function that takes Fortran code as a string and returns an
     fparser2 parse tree of the code. Pass in an instance of the parser
@@ -482,7 +482,7 @@ def test_adduse_invalid_location(location):
     '''
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("Location argument must be a sub-class of fparser.two.utils.Base "
             "but got: " in str(excinfo.value))
 
@@ -497,7 +497,7 @@ def test_adduse_only_names1(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -516,7 +516,7 @@ def test_adduse_only_names2(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -535,7 +535,7 @@ def test_adduse_only_names3(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -549,7 +549,7 @@ def test_adduse_only_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True)
+    alg_gen._adduse(location, name, only=True)
     assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -563,7 +563,7 @@ def test_adduse_noonly_names(parser):
     parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
-    alg_gen.adduse(location, name, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, funcnames=["a", "b", "c"])
     assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -578,7 +578,7 @@ def test_adduse_onlyfalse_names(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        alg_gen.adduse(location, name, only=False, funcnames=["a", "b", "c"])
+        alg_gen._adduse(location, name, only=False, funcnames=["a", "b", "c"])
     assert ("If the 'funcnames' argument is provided and has content, "
             "then the 'only' argument must not be set to "
             "'False'.") in str(excinfo.value)
@@ -594,7 +594,7 @@ def test_adduse_noonly_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name)
+    alg_gen._adduse(location, name)
     assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -613,7 +613,7 @@ def test_adduse_noprogparent(parser):
     name = "my_use"
 
     with pytest.raises(GenerationError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("The specified location is invalid as it has no parent in the "
             "parse tree that is a program, module, subroutine or "
             "function.") in str(excinfo.value)
@@ -632,7 +632,7 @@ def test_adduse_unsupportedparent1(parser):
     name = "my_use"
 
     with pytest.raises(NotImplementedError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("Currently support is limited to program, subroutine and "
             "function.") in str(excinfo.value)
 
@@ -652,18 +652,7 @@ def test_adduse_nospec(parser):
     name = "my_use"
 
     with pytest.raises(InternalError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
             "('PROGRAM', Name('test'))'.") in str(excinfo.value)
-
-
-def test_generate_notimplemented():
-    '''
-    Check that calling :py:func:`psyclone.alg_gen.generate` raises the
-    expected error. (This function will be implemented as part of #1555.)
-
-    '''
-    with pytest.raises(NotImplementedError) as err:
-        alg_gen.generate(None, None)
-    assert "not yet implemented - #1555" in str(err.value)

@@ -30,39 +30,46 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
-#           R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I. Kavcic, Met Office
 
-'''Module for the LFRic domain.
-'''
+include ../../common.mk
 
-# The order here is not alphabetical, but important because
-# there are various dependencies between the modules (e.g.
-# KernCallAccArgList imports KernCallArgList, ArgOrdering
-# imports LFRicArgDescriptor, ...).
-from psyclone.domain.lfric.function_space import FunctionSpace
-from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
-from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
-from psyclone.domain.lfric.kern_call_invoke_arg_list import \
-    KernCallInvokeArgList
-from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
-from psyclone.domain.lfric.kernel_interface import KernelInterface
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric import FunctionSpace
+LFRIC_PATH = ${PSYCLONE_DIR}/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicConstants']
+run: compile
+
+compile: transform ${LFRIC_LIB}
+	@echo "#1770 Compilation is not supported: the generated code must be "
+	@echo "inserted into an LFRic mini-app."
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
+
+# Dependencies
+%.F90:
+	ln -s ../code/$@ .
+
+# Keep the generated psy and alg files
+.precious: test_alg_mod_psy.f90 test_alg_mod.f90
+
+# Use the psyclone-kern tool to create an algorithm layer that will
+# 'invoke' our kernel
+test_alg_mod.x90: testkern_mod.F90
+	${KERNEL_ALG_GEN} -api dynamo0.3 -o test_alg_mod.x90 ../code/testkern_mod.F90
+
+transform: test_alg_mod_psy.f90
+
+# Process the generated algorithm layer with PSyclone to generate a compilable
+# algorithm file and a suitable PSy-layer subroutine.
+test_alg_mod_psy.f90 test_alg_mod.f90: test_alg_mod.x90
+	${PSYCLONE} -d ../code -opsy test_alg_mod_psy.f90 -oalg test_alg_mod.f90 $<
+
+allclean: clean
+	make -C $(LFRIC_PATH) allclean
