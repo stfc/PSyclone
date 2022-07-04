@@ -225,11 +225,12 @@ class ACCUpdateTrans(Transformation):
             while True:
                 update_pos = sched.children.index(child) + node_offset
 
-                # If within if, cannnot push directive out.
+                # If within if statement, cannot push update directive out.
                 if isinstance(sched.parent, IfBlock):
                     break
 
-                # TODO If within loop, can push directive out if executed once.
+                # TODO If within loop statement, can push update directive out
+                # if its body is executed at least once.
                 if isinstance(sched.parent, Loop):
                     beg, end = None, None
                 elif idx == IN:
@@ -253,11 +254,14 @@ class ACCUpdateTrans(Transformation):
                         acc_sig_set.update(acc.in_kernel_references)
 
                 if not sig_set.intersection(acc_sig_set):
+                    # Push update directives to the ends to encourage merging.
                     if idx == IN:
                         update_pos = 0
                     elif idx == OUT:
                         update_pos = len(sched.children)
                 else:
+                    # Cannot push update directive out due to dependencies in
+                    # the current schedule.
                     break
 
                 if isinstance(sched, InvokeSchedule):
@@ -269,8 +273,8 @@ class ACCUpdateTrans(Transformation):
                     if isinstance(sched, Schedule):
                         break
 
-            # Merge consecutive update directives with the same direction
-            # Avoid repeated variables in consecutive update directives
+            # Merge consecutive update directives with the same direction.
+            # Avoid repeated variables in consecutive update directives.
             for update_offset in (-1, 0):
                 try:
                     neighbour_node = sched.children[update_pos + update_offset]
