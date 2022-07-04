@@ -139,75 +139,10 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Ensure we always use the routine-level symbol table
         symbol_table = node.ancestor(Routine).symbol_table
 
-        # See if there is any configuration information for this array index
-        loop_type_order = Config.get().api_conf("nemo").get_index_order()
-        # TODO: Add tests in get_loop_type_data() to make sure values
-        # are strings that represent an integer or a valid variable
-        # name, e.g. 1a should not be allowed. See issue #1035
-        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
-        try:
-            loop_type = loop_type_order[array_index]
-            loop_type_info = loop_type_data[loop_type]
-            lower_bound_info = loop_type_info['start']
-            upper_bound_info = loop_type_info['stop']
-            loop_variable_name = loop_type_info['var']
-        except IndexError:
-            lower_bound_info = None
-            upper_bound_info = None
-            loop_variable_name = symbol_table.next_available_name("idx")
-
-        # Lower bound
-        lower_bound = None
-        if not array_reference.is_lower_bound(array_index):
-            # The range specifies a lower bound so use it
-            lower_bound = node.start.copy()
-        elif lower_bound_info:
-            # The config metadata specifies a lower bound so use it
-            try:
-                _ = int(lower_bound_info)
-                lower_bound = Literal(lower_bound_info, INTEGER_TYPE)
-            except ValueError:
-                # It's not a Literal, but is it an existing symbol?
-                try:
-                    lower_bound = Reference(
-                        symbol_table.lookup(lower_bound_info))
-                except KeyError:
-                    # The config lower bound symbol name does not exist
-                    pass
-        # The lower bound is still not set so use the LBOUND() intrinsic
-        if not lower_bound:
-            lower_bound = node.start.copy()
-
-        # Upper bound
-        upper_bound = None
-        if not array_reference.is_upper_bound(array_index):
-            # The range specifies an upper bound so use it
-            upper_bound = node.stop.copy()
-        elif upper_bound_info:
-            # The config metadata specifies an upper bound so use it
-            try:
-                _ = int(upper_bound_info)
-                upper_bound = Literal(upper_bound_info, INTEGER_TYPE)
-            except ValueError:
-                # It's not a Literal, but is it an existing symbol?
-                try:
-                    upper_bound = Reference(
-                        symbol_table.lookup(upper_bound_info))
-                except KeyError:
-                    # The config upper bound symbol name does not exist
-                    pass
-        # The upper_bound bound is still not set so use the UBOUND() intrinsic
-        if not upper_bound:
-            upper_bound = node.stop.copy()
-
-        # Just use the specified step value
-        step = node.step.copy()
-
-        # Look up the loop variable in the symbol table. If it does
-        # not exist then create it.
-        loop_variable_symbol = symbol_table.find_or_create(
-                loop_variable_name, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+        # Create a new, unique, iteration variable for the new loop
+        loop_variable_symbol = symbol_table.new_symbol(root_name="idx",
+                                                       symbol_type=DataSymbol,
+                                                       datatype=INTEGER_TYPE)
 
         # Replace the loop_idx array dimension with the loop variable.
         n_ranges = None
@@ -235,8 +170,9 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Replace the assignment with the new explicit loop structure
         position = assignment.position
-        loop = NemoLoop.create(loop_variable_symbol, lower_bound,
-                               upper_bound, step, [assignment.detach()])
+        start, stop, step = node.pop_all_children()
+        loop = NemoLoop.create(loop_variable_symbol, start, stop, step,
+                               [assignment.detach()])
         parent.children.insert(position, loop)
 
         if not assignment.lhs.walk(Range):
@@ -394,59 +330,6 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "Error in NemoArrayRange2LoopTrans transformation. This "
                     "transformation can only be applied to the outermost "
                     "Range.")
-
-        # If there is a loop variable defined in the config file and
-        # this variable is already defined in the code, is it defined
-        # as an integer?
-        array_index = node.parent.indices.index(node)
-        loop_type_order = Config.get().api_conf("nemo").get_index_order()
-        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
-        try:
-            loop_type = loop_type_order[array_index]
-            loop_type_info = loop_type_data[loop_type]
-            loop_variable_name = loop_type_info['var']
-            try:
-                symbol_table = node.scope.symbol_table
-                loop_variable_symbol = symbol_table.lookup(loop_variable_name)
-                # Check the existing loop variable name is a scalar integer
-                if isinstance(loop_variable_symbol, DeferredType) or \
-                   not (loop_variable_symbol.is_scalar and
-                        loop_variable_symbol.datatype.intrinsic is
-                        ScalarType.Intrinsic.INTEGER):
-                    raise TransformationError(
-                        f"The config file specifies '{loop_variable_name}' as "
-                        f"the name of the iteration variable but this is "
-                        f"already declared in the code as something that is "
-                        f"not a scalar integer or a deferred type.")
-            except KeyError:
-                # Variable is not defined
-                pass
-
-            # Make sure this array is not already inside a loop with the
-            # loop_variable_name that we choose. If it is we ignore it (as
-            # usually we will already have some explicit loops above this
-            # construct to apply further parallelisation/optimisations).
-            current = node.parent
-            while not isinstance(current, Routine):
-                if isinstance(current, Loop):
-                    varname = current.variable.name
-                    if varname.lower() == loop_variable_name.lower():
-                        raise TransformationError(LazyString(
-                            lambda: f"The config file specifies "
-                            f"'{loop_variable_name}' as the name of the "
-                            f"iteration variable but this is already used "
-                            f"by an ancestor loop variable in:"
-                            f"\n{FortranWriter()(current)}"))
-                current = current.parent
-            # Note that we don't check if the variable name is used in a
-            # context other that the loop if it's an integer. We assume this
-            # is a guarantee of the API.
-
-        except IndexError:
-            # There is no name for this index in the config file (it can
-            # proceed as the apply will generate a new variable for it)
-            pass
-
 
 # For automatic document generation
 __all__ = [
