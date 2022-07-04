@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,28 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
-! Modified R. W. Ford. STFC Daresbury Lab.
+!Author: J. Henrichs, Bureau of Meteorology
 
-program enforce_bc_kernel_example
+program access_tests
 
-  ! This boundary condition kernel has been created as a temporary measure
-  ! as boundary layer information is not currently described
-  ! in the API. Therefore, for the moment, users can add this kernel
-  ! when they want to enforce boundary conditions
-  use field_mod, only : field_type
-  use enforce_bc_kernel_mod, only : enforce_bc_kernel_type
-  type(field_type) :: a
+  ! Description: this program contains two invokes that test read and
+  ! write declaration of CMA.
+  use field_mod,                    only: field_type
+  use operator_mod,                 only: operator_type
+  use columnwise_operator_mod,      only: columnwise_operator_type
+  use columnwise_op_asm_kernel_mod, only: columnwise_op_asm_kernel_type
+  use columnwise_op_app_same_fs_kernel_mod, &
+                                    only: columnwise_op_app_same_fs_kernel_type
 
-  call invoke(enforce_bc_kernel_type(a))
+  implicit none
 
-end program enforce_bc_kernel_example
+  type(field_type)               :: f1, f2
+  type(operator_type)            :: lma_op1
+  type(columnwise_operator_type) :: cma_op1
+
+  ! This kernel has a cma thas is read:
+  call invoke( columnwise_op_app_same_fs_kernel_type(f1, f2, cma_op1), name="read")
+  ! This kernel has a cma that is written:
+  call invoke( columnwise_op_asm_kernel_type(lma_op1, cma_op1), name="write")
+
+end program access_tests
