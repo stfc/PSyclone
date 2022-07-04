@@ -99,11 +99,23 @@ class Sum2CodeTrans(Operator2CodeTrans):
         '''
         self.validate(node)
 
-        # TODO get args 1) array, 2) dimension 3) mask
-        array_ref = node.children[0]
+        # Determine the arguments to sum
+        args = [None, None, None]
+        arg_names_map = {"array": 0, "dimension": 1, "mask": 2}
+        for idx in range(len(node.children)):
+            if not node.argument_names[idx]:
+                # positional arg
+                args[idx] = node.children[idx]
+            else:
+                # named arg
+                name = node.argument_names[idx].lower()
+                args[arg_names_map[name]] = node.children[idx]
+        array_ref = args[0]
+        dimension_ref = args[1]
+        mask_ref = args[2]
 
-        ndims = None
         # Determine the dimension of the array
+        ndims = None
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
                 raise Exception("Expected an array")

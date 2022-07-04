@@ -62,6 +62,47 @@ def test_apply():
         "  real :: result\n"
         "  result = sum(array)\n"
         "end program\n")
+    expected = (
+        "program sum_test\n"
+        "  real, dimension(10,10) :: array\n"
+        "  real :: result\n"
+        "  real :: sum_var\n"
+        "  integer :: i_0\n"
+        "  integer :: i_1\n\n"
+        "  sum_var = 0.0\n"
+        "  do i_1 = 1, 1, 1\n"
+        "    do i_0 = 1, 1, 1\n"
+        "      sum_var = sum_var + array(i_0,i_1)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  result = sum_var\n\n"
+        "end program sum_test\n")
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = Sum2CodeTrans()
+    trans.apply(sum_node)
+    writer = FortranWriter()
+    result = writer(psyir)
+    assert result == expected
+
+
+# array(:,:)
+# array(2:3,n:x)
+# integer array
+# precision
+
+
+def test_args():
+    ''' xxx '''
+    code = (
+        "program sum_test\n"
+        "  real :: array(10,10)\n"
+        "  real :: result\n"
+        "  integer, parameter :: dimension=2\n"
+        "  result = sum(array,dimension)\n"
+        "end program\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
@@ -72,11 +113,6 @@ def test_apply():
     result = writer(psyir)
     print(result)
     exit(1)
-
-# array(:,:)
-# array(2:3,n:x)
-# integer array
-# precision
 
 
 def create_matmul():
