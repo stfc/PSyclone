@@ -136,18 +136,16 @@ class LFRicKernelFunctor(KernelFunctor):
     _text_name = "LFRicKernelFunctor"
 
 
-# Generate classes representing LFRic BuiltIn Functors.
+# Generate classes representing LFRic BuiltIn Functors by using the type()
+# function.
 
 #: Dictionary of BuiltIn Functors, indexed by lower-case name.
 BUILTIN_FUNCTOR_MAP = {}
 
 for name in BUILTIN_MAP_CAPITALISED:
-    code = (
-        f"class LFRic_{name}_Functor(LFRicBuiltinFunctor):\n"
-        f"    _builtin_name = '{name.lower()}'\n"
-        f"\n"
-        f"BUILTIN_FUNCTOR_MAP['{name.lower()}'] = LFRic_{name}_Functor\n")
-    exec(code)
+    BUILTIN_FUNCTOR_MAP[name.lower()] = type(f"LFRic_{name}_Functor",
+                                             (LFRicBuiltinFunctor,),
+                                             {"_builtin_name": name.lower()})
 
 
 # For AutoAPI documentation generation.
