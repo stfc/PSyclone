@@ -1,7 +1,0 @@
-{
-  "ignorePatterns": [
-    {
-      "pattern": "^https://code.metoffice.gov.uk/trac/*"
-    }
-  ]
-}

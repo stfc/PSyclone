@@ -57,7 +57,9 @@ import six
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall
+from psyclone.domain.common.transformations import (AlgTrans,
+                                                    AlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -263,6 +265,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
             handle_script(script_name, psyir, "trans_alg", is_optional=True)
+
+        # Transform 'invoke' calls into calls to PSy-layer subroutines
+        invoke_trans = AlgInvoke2PSyCallTrans()
+        for invoke in psyir.walk(AlgorithmInvokeCall):
+            invoke_trans.apply(invoke)
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()

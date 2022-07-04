@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
 '''Specialise generic PSyIR representing an invoke call withing the
 algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from fparser.two.Fortran2003 import Actual_Arg_Spec
-
 from psyclone.psyir.nodes import ArrayReference
 
-from psyclone.domain.common.transformations import InvokeCallTrans
-from psyclone.domain.lfric.algorithm import (
-    LFRicKernelFunctor, LFRicAlgorithmInvokeCall, BUILTIN_FUNCTOR_MAP)
+from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
+from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor, \
+    LFRicKernelFunctor, LFRicAlgorithmInvokeCall
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 
 
-class LFRicInvokeCallTrans(InvokeCallTrans):
+class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
@@ -69,9 +68,12 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
 
         call_name = None
         calls = []
-        for call_arg in call.children:
+        for idx, call_arg in enumerate(call.children):
 
-            if isinstance(call_arg, ArrayReference):
+            arg_info = []
+            if call.argument_names[idx]:
+                call_name = f"'{call_arg.value}'"
+            elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
                 if call_arg.name in BUILTIN_FUNCTOR_MAP:
@@ -82,36 +84,24 @@ class LFRicInvokeCallTrans(InvokeCallTrans):
                     calls.append(LFRicKernelFunctor.create(call_arg.symbol,
                                                            args))
             else:
-                for fp2_node in call_arg._fp2_nodes:
-                    if isinstance(fp2_node, Actual_Arg_Spec):
-                        # This child is a named argument
-                        call_name = fp2_node.children[1].string
+                for fp2_node in call_arg.get_ast_nodes:
+                    # This child is a kernel or builtin
+                    name = fp2_node.children[0].string
+                    args = InvokeCallTrans._parse_args(call_arg, fp2_node)
+                    name = fp2_node.children[0].string
+                    if name in BUILTIN_FUNCTOR_MAP:
+                        calls.append(BUILTIN_FUNCTOR_MAP[name].create(
+                            call.scope.symbol_table, args))
                     else:
-                        # This child is a kernel or builtin
-                        args = InvokeCallTrans._parse_args(call_arg, fp2_node)
-                        name = fp2_node.children[0].string
-                        if name in BUILTIN_FUNCTOR_MAP:
-                            calls.append(BUILTIN_FUNCTOR_MAP[name].create(
-                                call.scope.symbol_table, args))
-                        else:
-                            type_symbol = InvokeCallTrans._get_symbol(
-                                call, fp2_node)
-                            self._specialise_symbol(type_symbol)
-                            calls.append(LFRicKernelFunctor.create(type_symbol,
-                                                                   args))
+                        type_symbol = InvokeCallTrans._get_symbol(
+                            call, fp2_node)
+                        self._specialise_symbol(type_symbol)
+                        calls.append(LFRicKernelFunctor.create(type_symbol,
+                                                               args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
-    @property
-    def name(self):
-        '''
-        :returns: a name identifying this transformation.
-        :rtype: str
 
-        '''
-        return "LFRicInvokeCallTrans"
-
-
-__all__ = ['LFRicInvokeCallTrans']
+__all__ = ['LFRicRaiseCall2InvokeTrans']

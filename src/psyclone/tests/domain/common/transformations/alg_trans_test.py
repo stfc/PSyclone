@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import Call
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelFunctor
-from psyclone.domain.common.transformations import InvokeCallTrans, AlgTrans
+from psyclone.domain.common.transformations import (RaiseCall2InvokeTrans,
+                                                    AlgTrans)
 
 
 def test_init():
@@ -58,7 +59,7 @@ def test_init():
     alg_trans = AlgTrans()
     assert alg_trans.name == "AlgTrans"
     assert isinstance(alg_trans, AlgTrans)
-    assert isinstance(alg_trans._invoke_trans, InvokeCallTrans)
+    assert isinstance(alg_trans._invoke_trans, RaiseCall2InvokeTrans)
 
 
 def test_validate_node_error(fortran_reader):

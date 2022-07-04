@@ -184,7 +184,7 @@ do not currently support operators).
 
 .. _lfric-cma-operator:
 
-Column-Wise Operator
+Column-wise Operator
 ++++++++++++++++++++
 
 The LFRic API has support for the construction and use of
@@ -207,7 +207,8 @@ matrix-matrix. The following example sketches-out what the use
 of such kernels might look like in the Algorithm layer::
 
   use field_mod, only: field_type
-  use operator_mod, only : operator_type, columnwise_operator_type
+  use operator_mod, only : operator_type
+  use columnwise_operator_mod, only : columnwise_operator_type
   type(field_type) :: field1, field2, field3
   type(operator_type) :: lma_op1, lma_op2
   type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
@@ -231,7 +232,7 @@ operators are then combined to produce a third, ``cma_op3``. This is
 then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
-Column-Wise operations based on their arguments as described in
+column-wise operations based on their arguments as described in
 metadata (see :ref:`dynamo0.3-cma-mdata-rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
@@ -384,7 +385,7 @@ as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
 example Algorithm code given at the beginning of this Section.)
 
-.. _dynamo0.3-mixed-precision:
+.. _lfric-mixed-precision:
 
 Mixed Precision
 ---------------
@@ -393,9 +394,9 @@ The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
 developer must declare scalars, fields and operators in the algorithm
 layer with the required LFRic-supported precision. In the current
-implementation there are two supported precisions for `REAL` data and
-one each for `INTEGER` and `LOGICAL` data. The actual precision used in
-the code can be set in a configuration file. For example, INTEGER data
+implementation there are two supported precisions for ``REAL`` data and
+one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
+the code can be set in a configuration file. For example, ``INTEGER`` data
 could be set to be 32-bit precision. As REAL data has more than one
 supported precision, different parts of the code can be configured to
 have different precision.
@@ -405,34 +406,38 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+------------------------+----------+
-| Data Type                | Kernel Metadata        |Precision |
-+==========================+========================+==========+
-| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF    |
-+--------------------------+------------------------+----------+	    
-| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER |
-+--------------------------+------------------------+----------+	    
-| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF    |
-+--------------------------+------------------------+----------+	    
-| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF    |
-+--------------------------+------------------------+----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF    |
-+--------------------------+------------------------+----------+	    
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER |
-+--------------------------+------------------------+----------+	    
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF    |
-+--------------------------+------------------------+----------+	    
-| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF    |
-+--------------------------+------------------------+----------+	    
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER |
-+--------------------------+------------------------+----------+	    
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER |
-+--------------------------+------------------------+----------+	    
++--------------------------+------------------------+-----------+
+| Data Type                | Kernel Metadata        | Precision |
++==========================+========================+===========+
+| REAL(R_DEF)              | GH_SCALAR, GH_REAL     | R_DEF     |
++--------------------------+------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL     | R_SOLVER  |
++--------------------------+------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR, GH_REAL     | R_TRAN    |
++--------------------------+------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER  | I_DEF     |
++--------------------------+------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL  | L_DEF     |
++--------------------------+------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL      | R_DEF     |
++--------------------------+------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL      | R_SOLVER  |
++--------------------------+------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL      | R_TRAN    |
++--------------------------+------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER   | I_DEF     |
++--------------------------+------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR            | R_DEF     |
++--------------------------+------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR            | R_SOLVER  |
++--------------------------+------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR | R_SOLVER  |
++--------------------------+------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
-capture all of the precision options. In particular, from the metadata
-it is not possible to determine whether a `REAL` scalar, `REAL` field
-or `REAL` operator has precision `R_DEF` or `R_SOLVER`.
+capture all of the precision options. For example, from the metadata
+it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
+or ``REAL`` operator has precision ``R_DEF`` or ``R_SOLVER``.
 
 If a scalar, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
@@ -448,16 +453,17 @@ generic kernel twice with potentially different precision. The
 implementation of the generic kernel such that it supports both 32-
 and 64-bit precision is also shown. The use of LFRic names for
 precision in the algorithm code allows precision to be controlled in a
-simple way. For example r_solver could be set to be 32-bits in one
-configuration and 64-bits in another:
+simple way. For example, ``r_solver`` could be set to be 32-bits in
+one configuration and 64-bits in another:
 
 .. code-block:: fortran
 
   program test
 
-    use constants_mod, only : r_def, r_solver
-    use field_mod,     only : field_type, r_solver_field_type
-    use example_mod,   only : example_type
+    use constants_mod,      only : r_def, r_solver
+    use field_mod,          only : field_type
+    use r_solver_field_mod, only : r_solver_field_type
+    use example_mod,        only : example_type
 
     type(field_type)          :: field_r_def
     type(r_solver_field_type) :: field_r_solver
@@ -512,9 +518,9 @@ configuration and 64-bits in another:
 
 In order to support mixed precision, PSyclone needs to know the
 precision (as specified in the algorithm layer) of any kernel
-arguments that are of a type that supports different precisions (e.g
-GH_FIELD). The reason for this is that PSyclone needs to be able to
-declare data with the correct precision information within the
+arguments that are of a type that supports different precisions (e.g.
+``GH_FIELD``). The reason for this is that PSyclone needs to be able
+to declare data with the correct precision information within the
 PSy-layer to ensure that the correct flavour of kernels are called.
 
 PSyclone must therefore determine this information from the algorithm
@@ -529,21 +535,24 @@ PSyclone must be able to determine the datatype of a field from the
 algorithm layer declarations. If it is not able to do this, PSyclone
 will abort with a message that indicates the problem.
 
-Supported field types are `field_type` (which contains `real` data
-with precision `r_def`), `r_solver_field_type` (which contains `real`
-data with precision `r_solver`) and `integer_field_type` (which
-contains `integer` data with precision `i_def`).
+Supported field types are ``field_type`` (which contains ``real`` data
+with precision ``r_def``), ``r_solver_field_type`` (which contains
+``real`` data with precision ``r_solver``), ``r_tran_field_type``
+(which contains ``real`` data with precision ``r_tran``) and
+``integer_field_type`` (which contains ``integer`` data with precision
+``i_def``).
 
 Field Vectors
 +++++++++++++
 
 If PSyclone finds an argument that is declared as a
-`field_vector_type` or `r_solver_field_vector_type` it will assume
-that the actual field being referenced is of type `field_type` or
-`r_solver_field_type` respectively.
+``field_vector_type``, ``r_solver_field_vector_type`` or
+``r_tran_field_vector_type`` it will assume that the actual field
+being referenced is of type ``field_type``, ``r_solver_field_type``,
+or ``r_tran_field_type`` respectively.
 
 If PSyclone finds an argument that is declared as an
-`abstract_field_type` then it will not know the actual type of the
+``abstract_field_type`` then it will not know the actual type of the
 argument. For instance, the following algorithm layer code will cause
 PSyclone to raise an exception::
 
@@ -581,22 +590,23 @@ Scalars
 It is not mandatory for PSyclone to be able to determine the datatype
 of a scalar from the algorithm layer. This constraint was considered
 to be too restrictive as PSyclone currently only examines the
-declarations in the same source file as the `invoke` when determining
-datatype. This means that if scalars are imported from other modules
-(as is often the case) then their datatype cannot be determined.
+declarations in the same source file as the ``invoke`` when
+determining datatype. This means that if scalars are imported from
+other modules (as is often the case) then their datatype cannot be
+determined.
 
 If the precision information for a scalar is found by PSyclone then
 this is used. If the scalar declaration is found and it contains no
 precision information then PSyclone will abort with a message that
 indicates the problem (since this violates LFRic coding standards). If
 no declaration information is found then default precision values are
-used, as specified in the PSyclone config file (`r_def` for real,
-`i_def` for integer and `l_def` for logical).
+used, as specified in the PSyclone config file (``r_def`` for real,
+``i_def`` for integer and ``l_def`` for logical).
 
-Supported precisions for scalars are `r_def` and `r_solver` for real
-data, `i_def` for integer data and `l_def` for logical data. If an
-unsupported scalar precision is found then PSyclone will abort with a
-message that indicates the problem.
+Supported precisions for scalars are ``r_def``, ``r_solver`` and
+``r_tran`` for real data, ``i_def`` for integer data and ``l_def`` for
+logical data. If an unsupported scalar precision is found then
+PSyclone will abort with a message that indicates the problem.
 
 LMA Operators
 +++++++++++++
@@ -605,17 +615,17 @@ PSyclone must be able to determine the datatype of an LMA operator.
 If it is not able to do this, PSyclone will abort with a message that
 indicates the problem.
 
-Supported LMA Operator types are `operator_type` (which contains real
-data with precision `r_def`) and `r_solver_operator_type` (which
-contains real data with precision `r_solver`).
+Supported LMA Operator types are ``operator_type`` (which contains real
+data with precision ``r_def``) and ``r_solver_operator_type`` (which
+contains real data with precision ``r_solver``).
 
-Columnwise Operators
-++++++++++++++++++++
+Column-wise Operators
++++++++++++++++++++++
 
 It is not mandatory for PSyclone to be able to determine the datatype
-of a Columnwise Operator. The reason for this is that only one
-datatype is supported, a `columnwise_operator_type` which contains
-real data with precision `r_solver`. PSyclone can therefore simply add
+of a column-wise operator. The reason for this is that only one
+datatype is supported, a ``columnwise_operator_type`` which contains
+real data with precision ``r_solver``. PSyclone can therefore simply add
 this datatype in the PSy-layer. However, if the datatype information
 is found in the algorithm layer then and it is not of the expected
 type then PSyclone will abort with a message that indicates the
@@ -841,7 +851,7 @@ Rules for Inter-Grid Kernels
 ++++++++++++++++++++++++++++
 
 1) An inter-grid kernel is identified by the presence of a field or
-   field-vector argument with the optional `mesh_arg` metadata element (see
+   field-vector argument with the optional ``mesh_arg`` metadata element (see
    :ref:`dynamo0.3-intergrid-mdata`).
 
 2) An invoke that contains one or more inter-grid kernels must not contain
@@ -851,7 +861,7 @@ Rules for Inter-Grid Kernels
 3) An inter-grid kernel is only permitted to have field or field-vector
    arguments.
 
-4) All inter-grid kernel arguments must have the `mesh_arg` metadata entry.
+4) All inter-grid kernel arguments must have the ``mesh_arg`` metadata entry.
 
 5) An inter-grid kernel (and metadata) must have at least one field on
    each of the fine and coarse meshes. Specifying all fields as coarse or
@@ -978,7 +988,8 @@ combinations are specified later in this section (see
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
 * ``GH_WRITE`` indicates the data is modified in the Kernel before
-  (optionally) being read.
+  (optionally) being read. If any shared DoFs are written to then
+  different iterations of the Kernel must write the same value.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
   update quantities which do not share DoFs, such as operators and
@@ -1053,7 +1064,7 @@ For example::
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
           does not yet support ``integer`` and ``logical`` reductions.
 
-For a scalar the argument metadata contains only these three entries.
+For a scalar, the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -1065,7 +1076,7 @@ field the fourth argument specifies the function space that the field
 lives on. More details about the supported function spaces are in
 subsection :ref:`lfric-function-space`.
 
-For example, the metadata for a kernel that applies a Column-wise
+For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
   type(arg_type) :: meta_args(3) = (/                              &
@@ -1182,8 +1193,8 @@ modes depend upon the argument type and the function space it is on:
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
-| GH_FIELD               | Continuous                   | GH_READ, GH_INC,   |
-|                        |                              | GH_READINC         |
+| GH_FIELD               | Continuous                   | GH_READ, GH_WRITE, |
+|                        |                              | GH_INC, GH_READINC | 
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -1199,11 +1210,22 @@ in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
 in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
-``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
-function space (see :ref:`lfric-function-space` for the list of
-discontinuous function spaces). Parallelisation of the loop over the
-horizontal domain for a kernel that updates such a field will not require
-colouring for either of the above cases (since there are no shared entities).
+``GH_READWRITE`` as its access pattern must typically (see below) be
+on a horizontally-discontinuous function space (see
+:ref:`lfric-function-space` for the list of discontinuous function
+spaces). Parallelisation of the loop over the horizontal domain for a
+Kernel that updates such a field will not require colouring for either
+of the above cases (since there are no shared entities).
+
+There is however an exception to this - certain Kernels may write to
+shared entities but each Kernel iteration is guaranteed to write the
+*same value* to a given shared DoF. In this case, provided that the
+first access to any such shared DoF is a write, the loop containing
+such a Kernel may be parallelised without colouring. Therefore,
+``GH_WRITE`` access is permitted for ``GH_FIELD`` arguments on
+continuous function spaces. Obviously, care must be taken to ensure
+that the Kernel implementation satisfies the constraints just
+described as PSyclone cannot currently check this.
 
 If a field is described as being on ``ANY_SPACE_*``, there is currently no
 way to determine its continuity from the metadata (unless we can statically
@@ -1796,7 +1818,7 @@ conventions, are:
       field array is a rank-1, ``real`` array with extent equal to the
       number of unique degrees of freedom for the space that the field
       is on. Its precision (kind) depends on how it is defined in the
-      algorithm layer, see the :ref:`dynamo0.3-mixed-precision` section
+      algorithm layer, see the :ref:`lfric-mixed-precision` section
       for more details. This value is passed in separately. Again, the
       intent is determined from the metadata (see
       :ref:`dynamo0.3-api-meta-args`).
@@ -1833,7 +1855,7 @@ conventions, are:
       ``<operator_name>"_ncell_3d"``. Next include the operator.  This
       is a rank-3, ``real`` array. Its precision (kind) depends on how
       it is defined in the algorithm layer, see the
-      :ref:`dynamo0.3-mixed-precision` section for more details. The
+      :ref:`lfric-mixed-precision` section for more details. The
       extents of the first two dimensions are the local degrees of
       freedom for the ``to`` and ``from`` function spaces,
       respectively, and that of the third is
@@ -2104,7 +2126,7 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
       for the ``to`` and ``from`` spaces, respectively. The third
       dimension is ``ncell_3d``. The precision of the array depends on
       how it is defined in the algorithm layer, see the
-      :ref:`dynamo0.3-mixed-precision` section for more details;
+      :ref:`lfric-mixed-precision` section for more details;
 
    2) If it is a CMA operator, include a ``real``, 3-dimensional array
       of kind ``r_solver``. The first dimension is
@@ -2193,7 +2215,7 @@ The full set of rules is then:
    1) If it is a field, include the field array. This is a ``real``
       array of rank 1. Its precision (kind) depends on how it is
       defined in the algorithm layer, see the
-      :ref:`dynamo0.3-mixed-precision`. The field array name is
+      :ref:`lfric-mixed-precision`. The field array name is
       currently specified as being
       ``"field_"<argument_position>"_"<field_function_space>``. The
       extent of the array is the number of unique degrees of freedom
@@ -2411,22 +2433,33 @@ The Built-ins supported for the LFRic API are listed in the related
 subsections, grouped first by the data type of fields they operate on
 (:ref:`real-valued <lfric-built-ins-real>` and
 :ref:`integer-valued <lfric-built-ins-int>`) and then by the mathematical
-operation they perform. For clarity, the calculation performed by each
-Built-in is described using Fortran array syntax; this does not necessarily
-reflect the actual implementation of the Built-in (*e.g.* it could be
-implemented by PSyclone generating a call to an optimised Maths library).
+operation they perform.
+
+The field arguments in Built-ins are the derived types that represent the
+:ref:`LFRic fields <lfric-field>`, however mathematical operations are
+actually performed on the data of the *field proxies* (e.g.
+``field1_proxy%data(:)``). For instance, ``X_plus_Y`` Built-in adds the
+values of two fields accessed via their proxies in a loop over DoFs:
+
+.. code-block:: fortran
+
+  DO df=loop0_start,loop0_stop
+     field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
+
+where the precise values of the loop limits depend on the use of
+:ref:`distributed memory <distributed_memory>`,
+:ref:`annexed DoFs <lfric-annexed_dofs>` or both.
 
 As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
-:ref:`field <lfric-field>` objects is always ``in``. The field or
-scalar that has its data modified by a Built-in is marked in **bold**.
+:ref:`field <lfric-field>` objects is always ``in`` (because it is only
+the data pointed to from within the object that is modified). The field
+or scalar that has its data modified by a Built-in is marked in **bold**.
 
-.. note:: The field arguments in Built-ins are the derived types that
-          represent the :ref:`LFRic fields <lfric-field>`, however
-          mathematical operations are actually performed on the data of
-          the *field proxies* (e.g. ``field1_proxy_data(:)``). PSyclone
-          issue #1149 will revisit the representation of declarations
-          and computations in the descriptions of individual Built-ins.
+For clarity, the calculation performed by each Built-in is described using
+Fortran array syntax without the details about field proxies. The actual
+implementation of the Built-in may change in future (*e.g.* it could be
+implemented by PSyclone generating a call to an optimised Maths library).
 
 .. _dynamo0.3-api-built-ins-metadata:
 
@@ -2538,8 +2571,8 @@ scheme presented below. Any new Built-in needs to comply with these rules.
    1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
 
    2) Descriptive name of mathematical operation on *RHS* arguments in the
-      form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
-      ``<RHSargs>_<operationname>_<RHSargs>`` for more;
+      form  ``<operationname>_<RHSargs>`` or
+      ``<RHSargs>_<operationname>_<RHSargs>``;
 
    3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
       arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``);
@@ -2575,6 +2608,38 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 Built-in operations on ``real``-valued fields
 +++++++++++++++++++++++++++++++++++++++++++++
 
+As described :ref:`above <lfric-built-ins-dtype-access>`, Built-ins that
+operate on ``real``-valued fields mandate ``GH_REAL`` as the kernel
+metadata for fields and scalars.
+
+The precision of fields and scalars, however, is determined by the algorithm
+layer via precision variables as described in the :ref:`Mixed Precision
+<lfric-mixed-precision>` section. Fields can be of ``field_type`` with
+``r_def`` precision, ``r_solver_field_type`` with ``r_solver`` precision
+and ``r_tran_field_type`` with ``r_tran`` precision. ``real`` scalars
+can have ``r_def``, ``r_solver`` and ``r_tran`` precision.
+
+For instance, field and scalar declarations for the ``aX_plus_Y``
+Built-in that operates on ``r_solver_field_type`` and uses ``r_solver``
+scalar will be::
+
+  real(r_solver), intent(in) :: ascalar
+  type(r_solver_field_type), intent(in) :: zfield, xfield, yfield
+
+Mixing precisions is not explicitly forbidden, so we may have e.g.
+``X_divideby_a`` Built-in where::
+
+  real(r_def), intent(in) :: ascalar
+  type(r_tran_field_type), intent(in) :: yfield, xfield
+
+Certain Built-ins are currently restricted in the precision of the
+arguments that they accept. Those that calculate the inner product
+and sum of a field are restricted to ``r_def`` precision because the
+scalar global reductions in the LFRic infrastructure are currently
+only able to support ``field_type`` and hence have ``r_def`` precision.
+In addition, all integer arguments to Built-ins are currently restricted
+to ``i_def`` precision.
+
 Addition
 ########
 
@@ -2584,142 +2649,94 @@ as a ``real``-valued field are denoted with the keyword **plus**.
 X_plus_Y
 ^^^^^^^^
 
-**X_plus_Y** (*field3*, *field1*, *field2*)
+**X_plus_Y** (**field3**, *field1*, *field2*)
 
 Sums two fields and stores the result in the third field (``Z = X + Y``)::
 
   field3(:) = field1(:) + field2(:)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 inc_X_plus_Y
 ^^^^^^^^^^^^
 
-**inc_X_plus_Y** (*field1*, *field2*)
+**inc_X_plus_Y** (**field1**, *field2*)
 
 Adds the second field to the first and returns it (``X = X + Y``)::
 
   field1(:) = field1(:) + field2(:)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 a_plus_X
 ^^^^^^^^
 
-**a_plus_X** (*field2*, *rscalar*, *field1*)
+**a_plus_X** (**field2**, *rscalar*, *field1*)
 
 Adds a ``real`` scalar value to all elements of a field and stores
 the result in another field (``Y = a + X``)::
 
   field2(:) = rscalar + field1(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field2**, *field1*
-
 inc_a_plus_X
 ^^^^^^^^^^^^
 
-**inc_a_plus_X** (*rscalar*, *field*)
+**inc_a_plus_X** (*rscalar*, **field**)
 
 Adds a ``real`` scalar value to all elements of a field and returns
 the field (``X = a + X``)::
 
   field(:) = rscalar + field(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field**
-
 aX_plus_Y
 ^^^^^^^^^
 
-**aX_plus_Y** (*field3*, *rscalar*, *field1*, *field2*)
+**aX_plus_Y** (**field3**, *rscalar*, *field1*, *field2*)
 
 Performs ``Z = aX + Y``::
 
   field3(:) = rscalar*field1(:) + field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 inc_aX_plus_Y
 ^^^^^^^^^^^^^
 
-**inc_aX_plus_Y** (*rscalar*, *field1*, *field2*)
+**inc_aX_plus_Y** (*rscalar*, **field1**, *field2*)
 
 Performs ``X = aX + Y`` (increments the first field)::
 
   field1(:) = rscalar*field1(:) + field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 inc_X_plus_bY
 ^^^^^^^^^^^^^
 
-**inc_X_plus_bY** (*field1*, *rscalar*, *field2*)
+**inc_X_plus_bY** (**field1**, *rscalar*, *field2*)
 
 Performs ``X = X + bY`` (increments the first field)::
 
   field1(:) = field1(:) + rscalar*field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 aX_plus_bY
 ^^^^^^^^^^
 
-**aX_plus_bY** (*field3*, *rscalar1*, *field1*, *rscalar2*, *field2*)
+**aX_plus_bY** (**field3**, *rscalar1*, *field1*, *rscalar2*, *field2*)
 
 Performs ``Z = aX + bY``::
 
   field3(:) = rscalar1*field1(:) + rscalar2*field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 inc_aX_plus_bY
 ^^^^^^^^^^^^^^
 
-**inc_aX_plus_bY** (*rscalar1*, *field1*, *rscalar2*, *field2*)
+**inc_aX_plus_bY** (*rscalar1*, **field1**, *rscalar2*, *field2*)
 
 Performs ``X = aX + bY`` (increments the first field)::
 
   field1(:) = rscalar1*field1(:) + rscalar2*field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 aX_plus_aY
 ^^^^^^^^^^
 
-**aX_plus_aY** (*field3*, *rscalar*, *field1*, *field2*)
+**aX_plus_aY** (**field3**, *rscalar*, *field1*, *field2*)
 
 Performs ``Z = aX + aY = a(X + Y)``::
 
   field3(:) = rscalar*(field1(:) + field2(:))
-
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 Subtraction
 ###########
@@ -2730,115 +2747,97 @@ result as a ``real``-valued field are denoted with the keyword **minus**.
 X_minus_Y
 ^^^^^^^^^
 
-**X_minus_Y** (*field3*, *field1*, *field2*)
+**X_minus_Y** (**field3**, *field1*, *field2*)
 
 Subtracts the second field from the first and returns the result in the
 third field (``Z = X - Y``)::
 
   field3(:) = field1(:) - field2(:)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 inc_X_minus_Y
 ^^^^^^^^^^^^^
 
-**inc_X_minus_Y** (*field1*, *field2*)
+**inc_X_minus_Y** (**field1**, *field2*)
 
 Subtracts the second field from the first and returns it (``X = X - Y``)::
 
   field1(:) = field1(:) - field2(:)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 a_minus_X
 ^^^^^^^^^
 
-**a_minus_X** (*field2*, *rscalar*, *field1*)
+**a_minus_X** (**field2**, *rscalar*, *field1*)
 
 Subtracts all elements of a field from a ``real`` scalar value and
 stores the result in another field (``Y = a - X``)::
 
   field2(:) = rscalar - field1(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field2**, *field1*
-
 inc_a_minus_X
 ^^^^^^^^^^^^^
 
-**inc_a_minus_X** (*rscalar*, *field*)
+**inc_a_minus_X** (*rscalar*, **field**)
 
 Subtracts all elements of a field from a ``real`` scalar value and
 returns the field (``X = a - X``)::
 
   field(:) = rscalar - field(:)
 
-where:
+X_minus_a
+^^^^^^^^^
 
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field**
+**X_minus_a** (**field2**, *field1*, *rscalar*)
+
+Subtracts a ``real`` scalar value from all elements of a field and
+stores the result in another field (``Y = X - a``)::
+
+  field2(:) = field1(:) - rscalar
+
+inc_X_minus_a
+^^^^^^^^^^^^^
+
+**inc_X_minus_a** (**field**, *rscalar*)
+
+Subtracts a ``real`` scalar value from all elements of a field and
+returns the field (``X = X - a``)::
+
+  field(:) = field(:) - rscalar
 
 aX_minus_Y
 ^^^^^^^^^^
 
-**aX_minus_Y** (*field3*, *rscalar*, *field1*, *field2*)
+**aX_minus_Y** (**field3**, *rscalar*, *field1*, *field2*)
 
 Performs ``Z = aX - Y``::
 
   field3(:) = rscalar*field1(:) - field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 X_minus_bY
 ^^^^^^^^^^
 
-**X_minus_bY** (*field3*, *field1*, *rscalar*, *field2*)
+**X_minus_bY** (**field3**, *field1*, *rscalar*, *field2*)
 
 Performs ``Z = X - bY``::
 
   field3(:) = field1(:) - rscalar*field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 inc_X_minus_bY
 ^^^^^^^^^^^^^^
 
-**inc_X_minus_bY** (*field1*, *rscalar*, *field2*)
+**inc_X_minus_bY** (**field1**, *rscalar*, *field2*)
 
 Performs ``X = X - bY`` (decrements the first field)::
 
   field1(:) = field1(:) - rscalar*field2(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 aX_minus_bY
 ^^^^^^^^^^^
 
-**aX_minus_bY** (*field3*, *rscalar1*, *field1*, *rscalar2*, *field2*)
+**aX_minus_bY** (**field3**, *rscalar1*, *field1*, *rscalar2*, *field2*)
 
 Performs ``Z = aX - bY``::
 
   field3(:) = rscalar1*field1(:) - rscalar2*field2(:)
-
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 Multiplication
 ##############
@@ -2849,43 +2848,30 @@ result as a ``real``-valued field are denoted with the keyword **times**.
 X_times_Y
 ^^^^^^^^^
 
-**X_times_Y** (*field3*, *field1*, *field2*)
+**X_times_Y** (**field3**, *field1*, *field2*)
 
 Multiplies two fields DoF by DoF and returns the result in a
 third field (``Z = X*Y``)::
 
   field3(:) = field1(:)*field2(:)
 
-where:
-
-* ``type(field_type), intent(in)`` :: **field3**, *field1*, *field2*
-
 inc_X_times_Y
 ^^^^^^^^^^^^^
 
-**inc_X_times_Y** (*field1*, *field2*)
+**inc_X_times_Y** (**field1**, *field2*)
 
 Multiplies the first field by the second and returns it (``X = X*Y``)::
 
   field1(:) = field1(:)*field2(:)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
-
 inc_aX_times_Y
 ^^^^^^^^^^^^^^
 
-**inc_aX_times_Y** (*rscalar*, *field1*, *field2*)
+**inc_aX_times_Y** (*rscalar*, **field1**, *field2*)
 
 Performs ``X = a*X*Y`` (increments the first field)::
 
   field1(:) = rscalar*field1(:)*field2(:)
-
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 Scaling
 #######
@@ -2897,32 +2883,22 @@ also denoted with the keyword **times**.
 a_times_X
 ^^^^^^^^^
 
-**a_times_X** (*field2*, *rscalar*, *field1*)
+**a_times_X** (**field2**, *rscalar*, *field1*)
 
 Multiplies a field by a ``real`` scalar value and stores the result
 in another field (``Y = a*X``)::
 
   field2(:) = rscalar*field1(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field2**, *field1*
-
 inc_a_times_X
 ^^^^^^^^^^^^^
 
-**inc_a_times_X** (*rscalar*, *field*)
+**inc_a_times_X** (*rscalar*, **field**)
 
 Multiplies a field by a ``real`` scalar value and returns the
 field (``X = a*X``)::
 
   field(:) = rscalar*field(:)
-
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field**
 
 Division
 ########
@@ -2933,29 +2909,41 @@ as a ``real``-valued field are denoted with the keyword **divideby**.
 X_divideby_Y
 ^^^^^^^^^^^^
 
-**X_divideby_Y** (*field3*, *field1*, *field2*)
+**X_divideby_Y** (**field3**, *field1*, *field2*)
 
 Divides the first field by the second field, DoF by DoF, and stores the
 result in the third field (``Z = X/Y``)::
 
   field3(:) = field1(:)/field2(:)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
-
 inc_X_divideby_Y
 ^^^^^^^^^^^^^^^^
 
-**inc_X_divideby_Y** (*field1*, *field2*)
+**inc_X_divideby_Y** (**field1**, *field2*)
 
 Divides the first field by the second and returns it (``X = X/Y``)::
 
   field1(:) = field1(:)/field2(:)
 
-where:
+X_divideby_a
+^^^^^^^^^^^^
 
-* ``type(field_type), intent(in) ::`` **field1**, *field2*
+**X_divideby_a** (**field2**, *field1*, *rscalar*)
+
+Divides each field element by a ``real`` scalar value and stores
+the result in another field (``Y = X/a``)::
+
+  field2(:) = field1(:)/rscalar
+
+inc_X_divideby_a
+^^^^^^^^^^^^^^^^
+
+**inc_X_divideby_a** (**field**, *rscalar*)
+
+Divides each field element by a ``real`` scalar value and returns
+the field (``X = X/a``)::
+
+  field(:) = field(:)/rscalar
 
 Inverse scaling
 ###############
@@ -2967,32 +2955,22 @@ scalar by elements of a ``real``-valued field.
 a_divideby_X
 ^^^^^^^^^^^^
 
-**a_divideby_X** (*field2*, *rscalar*, *field1*)
+**a_divideby_X** (**field2**, *rscalar*, *field1*)
 
 Divides a ``real`` scalar value by each field element and stores the
 result in another field (``Y = a/X``)::
 
   field2(:) = rscalar/field1(:)
 
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field2**, *field1*
-
 inc_a_divideby_X
 ^^^^^^^^^^^^^^^^
 
-**inc_a_divideby_X** (*rscalar*, *field*)
+**inc_a_divideby_X** (*rscalar*, **field**)
 
 Divides a ``real`` scalar value by each field element and returns
 the field (``X = a/X``)::
 
   field(:) = rscalar/field(:)
-
-where:
-
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field**
 
 Setting to a value
 ##################
@@ -3003,31 +2981,22 @@ value are denoted with the keyword **setval**.
 setval_c
 ^^^^^^^^
 
-**setval_c** (*field*, *constant*)
+**setval_c** (**field**, *constant*)
 
 Sets all elements of a field *field* to a ``real`` scalar
 *constant* (``X = c``)::
 
   field(:) = constant
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field**
-* ``real(r_def), intent(in) ::`` *constant*
-
 setval_X
 ^^^^^^^^
 
-**setval_X** (*field2*, *field1*)
+**setval_X** (**field2**, *field1*)
 
 Sets a field *field2* equal (DoF per DoF) to another field
 *field1* (``Y = X``)::
 
   field2(:) = field1(:)
-
-where:
-
-* ``type(field_type), intent(in) ::`` **field2**, *field1*
 
 Raising to power
 ################
@@ -3039,32 +3008,24 @@ for an ``integer`` exponent.
 inc_X_powreal_a
 ^^^^^^^^^^^^^^^
 
-**inc_X_powreal_a** (*field*, *rscalar*)
+**inc_X_powreal_a** (**field**, *rscalar*)
 
 Raises a field to a ``real`` scalar value and returns the
 field (``X = X**a``)::
 
   field(:) = field(:)**rscalar
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field**
-* ``real(r_def), intent(in) ::`` *rscalar*
-
 inc_X_powint_n
 ^^^^^^^^^^^^^^
 
-**inc_X_powint_n** (*field*, *iscalar*)
+**inc_X_powint_n** (**field**, *iscalar*)
 
 Raises a field to an ``integer`` scalar value and returns
 the field (``X = X**n``)::
 
   field(:) = field(:)**iscalar
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field**
-* ``integer(i_def), intent(in) ::`` *iscalar*
+where ``iscalar`` is an ``integer`` scalar of ``i_def`` precision.
 
 Inner product
 #############
@@ -3076,36 +3037,34 @@ or of a ``real``-valued field with itself and return the result as a
 .. note:: When used with distributed memory these Built-ins will
           trigger the addition of a global sum which may affect the
           performance and/or scalability of the code.
+          Also, whilst the fields in these Built-ins can be of any
+          supported ``real`` :ref:`precision <lfric-mixed-precision>`,
+          the only currently supported precision for the global
+          reductions in the LFRic infrastructure is ``r_def``, hence
+          the result will be converted accordingly.
 
 X_innerproduct_Y
 ^^^^^^^^^^^^^^^^
 
-**X_innerproduct_Y** (*innprod*, *field1*, *field2*)
+**X_innerproduct_Y** (**innprod**, *field1*, *field2*)
 
 Computes the inner product of two fields, *field1*
 and *field2*, *i.e.*::
 
   innprod = SUM(field1(:)*field2(:))
 
-where:
-
-* ``real(r_def), intent(out) ::`` **innprod**
-* ``type(field_type), intent(in) ::`` *field1*, *field2*
+where **innprod** is a ``real`` scalar of ``r_def`` precision.
 
 X_innerproduct_X
 ^^^^^^^^^^^^^^^^
 
-**X_innerproduct_X** (*innprod*, *field*)
+**X_innerproduct_X** (**innprod**, *field*)
 
-Computes the inner product of the field *field1*
-by itself, *i.e.*::
+Computes the inner product of the field *field1* by itself, *i.e.*::
 
   innprod = SUM(field(:)*field(:))
 
-where:
-
-* ``real(r_def), intent(out) ::`` **innprod**
-* ``type(field_type), intent(in) ::`` *field*
+where **innprod** is a ``real`` scalar of ``r_def`` precision.
 
 Sum of elements
 ###############
@@ -3116,21 +3075,23 @@ the result as a ``real`` scalar is denoted with the keyword **sum**.
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
+          Also, whilst the fields in these Built-ins can be of any
+          supported ``real`` :ref:`precision <lfric-mixed-precision>`,
+          the only currently supported precision for the global
+          reductions in the LFRic infrastructure is ``r_def``, hence
+          the result will be converted accordingly.
 
 sum_X
 ^^^^^
 
-**sum_X** (*sumfld*, *field*)
+**sum_X** (**sumfld**, *field*)
 
 Sums all of the elements of the field *field* and returns the result
 in the ``real`` scalar variable *sumfld*::
 
   sumfld = SUM(field(:))
 
-where:
-
-* ``real(r_def), intent(out) ::`` **sumfld**
-* ``type(field_type), intent(in) ::`` *field*
+where **sumfld** is a ``real`` scalar of ``r_def`` precision.
 
 Sign of elements
 ################
@@ -3141,19 +3102,66 @@ with the keyword **sign**.
 sign_X
 ^^^^^^
 
-**sign_X** (*field2*, *rscalar*, *field1*)
+**sign_X** (**field2**, *rscalar*, *field1*)
 
-Returns the sign of a ``real``-valued field using the Fortran intrinsic
-``sign`` function as ``Y = sign(a, X)``, where ``a`` is a ``real``
-scalar and ``Y`` and ``X`` are ``real``-valued fields.
-The results are ``a`` for ``X >= 0`` and ``-a`` for ``X < 0``::
+Returns the sign of a ``real``-valued field, e.g. in Fortran:
+``Y = sign(a, X)``. Here ``a`` is a ``real`` scalar and ``Y`` and ``X``
+are ``real``-valued fields. The results are ``a`` for ``X >= 0`` and
+``-a`` for ``X < 0``::
 
-  field2 = SIGN(rscalar, field1)
+  field2(:) = SIGN(rscalar, field1(:))
 
-where:
+DoF-wise maximum of elements
+############################
 
-* ``real(r_def), intent(in) ::`` *rscalar*
-* ``type(field_type), intent(in) ::`` **field2**, *field1*
+Built-ins which return the DoF-wise maximum of a ``real`` scalar and
+a ``real``-valued field are denoted with the keyword **max**.
+
+max_aX
+^^^^^^
+
+**max_aX** (**field2**, *rscalar*, *field1*)
+
+Returns maximum of *rscalar* and each element of the field *field1* as
+the second field **field2** (``Y = max(a, X)``)::
+
+  field2(:) = MAX(rscalar, field1(:))
+
+inc_max_aX
+^^^^^^^^^^
+
+**inc_max_aX** (*rscalar*, **field**)
+
+Returns maximum of *rscalar* and each element of the field *field* in
+the same field (``X = max(a, X)``)::
+
+  field(:) = MAX(rscalar, field(:))
+
+DoF-wise minimum of elements
+############################
+
+Built-ins which return the DoF-wise minimum of a ``real`` scalar and
+a ``real``-valued field are denoted with the keyword **min**.
+
+min_aX
+^^^^^^
+
+**min_aX** (**field2**, *rscalar*, *field1*)
+
+Returns minimum of *rscalar* and each element of the field *field1* as
+the second field **field2** (``Y = min(a, X)``)::
+
+  field2(:) = MIN(rscalar, field1(:))
+
+inc_min_aX
+^^^^^^^^^^
+
+**inc_min_aX** (*rscalar*, **field**)
+
+Returns minimum of *rscalar* and each element of the field *field* in
+the same field (``X = min(a, X)``)::
+
+  field(:) = MIN(rscalar, field(:))
 
 Conversion of ``real`` to ``integer`` field elements
 ####################################################
@@ -3164,22 +3172,19 @@ A Built-in which takes a ``real`` field and converts it to an
 int_X
 ^^^^^
 
-**int_X** (*ifield2*, *field1*)
+**int_X** (**ifield2**, *field1*)
 
 Converts ``real``-valued field elements to ``integer``-valued field
-elements using the Fortran intrinsic ``int`` function as
-``Y = int(X, i_def)``. Here ``Y`` is an ``integer``-valued field and
-``X`` is the ``real``-valued field being converted::
+elements, e.g. in Fortran this would be: ``Y = int(X, i_def)``.
+Here ``Y`` is an ``integer``-valued field and ``X`` is the
+``real``-valued field being converted::
 
-  ifield2 = INT(field1, i_def)
+  ifield2(:) = INT(field1(:), i_def)
 
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield2**
-* ``type(field_type), intent(in) ::`` *field1*
-
-.. note:: The correct ``integer`` kind, ``i_def``, is read from the
-          PSyclone :ref:`configuration file <lfric-datatype-kind>`.
+where **ifield2** is an ``integer_field_type`` of ``i_def`` precision
+and a ``real``-valued field *field1* can be of any :ref:`supported
+precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g.
+``r_tran`` for ``r_tran_field_type``).
 
 .. _lfric-built-ins-int:
 
@@ -3189,6 +3194,18 @@ Built-in operations on ``integer``-valued fields
 The number of supported Built-in operations on the ``integer``-valued
 fields is not as large as for their ``real`` counterparts as not all
 mathematical operations on ``integer``-valued fields make sense.
+
+As described :ref:`above <lfric-built-ins-dtype-access>`, Built-ins that
+operate on ``integer``-valued fields mandate ``GH_INTEGER`` as the kernel
+metadata for fields and scalars. Both ``integer`` scalar arguments and
+``integer``-valued fields can only currently have ``i_def`` precision,
+as described in the :ref:`Mixed Precision <lfric-mixed-precision>` section.
+
+For instance, field and scalar declarations for the ``X_minus_a``
+Built-in will be::
+
+  integer(i_def), intent(in) :: ascalar
+  type(integer_field_type), intent(in) :: yfield, xfield
 
 Addition
 ########
@@ -3200,58 +3217,40 @@ the prefix **int**.
 int_X_plus_Y
 ^^^^^^^^^^^^
 
-**int_X_plus_Y** (*ifield3*, *ifield1*, *ifield2*)
+**int_X_plus_Y** (**ifield3**, *ifield1*, *ifield2*)
 
 Sums two fields and stores the result in the third field (``Z = X + Y``)::
 
   ifield3(:) = ifield1(:) + ifield2(:)
 
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield3**, *ifield1*, *ifield2*
-
 int_inc_X_plus_Y
 ^^^^^^^^^^^^^^^^
 
-**int_inc_X_plus_Y** (*ifield1*, *ifield2*)
+**int_inc_X_plus_Y** (**ifield1**, *ifield2*)
 
 Adds the second field to the first and returns it (``X = X + Y``)::
 
   ifield1(:) = ifield1(:) + ifield2(:)
 
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
-
 int_a_plus_X
 ^^^^^^^^^^^^
 
-**int_a_plus_X** (*ifield2*, *iscalar*, *ifield1*)
+**int_a_plus_X** (**ifield2**, *iscalar*, *ifield1*)
 
 Adds an ``integer`` scalar value to all elements of a field and stores
 the result in another field (``Y = a + X``)::
 
   ifield2(:) = iscalar + ifield1(:)
 
-where:
-
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
-
 int_inc_a_plus_X
 ^^^^^^^^^^^^^^^^
 
-**int_inc_a_plus_X** (*iscalar*, *ifield*)
+**int_inc_a_plus_X** (*iscalar*, **ifield**)
 
 Adds an ``integer`` scalar value to all elements of a field and returns
 the field (``X = a + X``)::
 
   ifield(:) = iscalar + ifield(:)
-
-where:
-
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield**
 
 Subtraction
 ###########
@@ -3263,59 +3262,61 @@ and the prefix **int**.
 int_X_minus_Y
 ^^^^^^^^^^^^^
 
-**int_X_minus_Y** (*ifield3*, *ifield1*, *ifield2*)
+**int_X_minus_Y** (**ifield3**, *ifield1*, *ifield2*)
 
 Subtracts the second field from the first and returns the result in the
 third field (``Z = X - Y``)::
 
   ifield3(:) = ifield1(:) - ifield2(:)
 
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield3**, *ifield1*, *ifield2*
-
 int_inc_X_minus_Y
 ^^^^^^^^^^^^^^^^^
 
-**int_inc_X_minus_Y** (*ifield1*, *ifield2*)
+**int_inc_X_minus_Y** (**ifield1**, *ifield2*)
 
 Subtracts the second field from the first and returns it (``X = X - Y``)::
 
   ifield1(:) = ifield1(:) - ifield2(:)
 
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
-
 int_a_minus_X
 ^^^^^^^^^^^^^
 
-**int_a_minus_X** (*ifield2*, *iscalar*, *ifield1*)
+**int_a_minus_X** (**ifield2**, *iscalar*, *ifield1*)
 
 Subtracts all elements of a field from an ``integer`` scalar value and
 stores the result in another field (``Y = a - X``)::
 
   ifield2(:) = iscalar - ifield1(:)
 
-where:
-
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
-
 int_inc_a_minus_X
 ^^^^^^^^^^^^^^^^^
 
-**int_inc_a_minus_X** (*iscalar*, *ifield*)
+**int_inc_a_minus_X** (*iscalar*, **ifield**)
 
 Subtracts all elements of a field from an ``integer`` scalar value and
 returns the field (``X = a - X``)::
 
   ifield(:) = iscalar - ifield(:)
 
-where:
+int_X_minus_a
+^^^^^^^^^^^^^
 
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield**
+**int_X_minus_a** (**ifield2**, *ifield1*, *iscalar*)
+
+Subtracts an ``integer`` scalar value from all elements of a field and
+stores the result in another field (``Y = X - a``)::
+
+  ifield2(:) =  ifield1(:) - iscalar
+
+int_inc_X_minus_a
+^^^^^^^^^^^^^^^^^
+
+**int_inc_X_minus_a** (**ifield**, *iscalar*)
+
+Subtracts an ``integer`` scalar value from all elements of a field and
+returns the field (``X = X - a``)::
+
+  ifield(:) =  ifield(:) - iscalar
 
 Multiplication
 ##############
@@ -3327,29 +3328,21 @@ and the prefix **int**.
 int_X_times_Y
 ^^^^^^^^^^^^^
 
-**int_X_times_Y** (*ifield3*, *ifield1*, *ifield2*)
+**int_X_times_Y** (**ifield3**, *ifield1*, *ifield2*)
 
 Multiplies two fields DoF by DoF and returns the result in a
 third field (``Z = X*Y``)::
 
   ifield3(:) = ifield1(:)*ifield2(:)
 
-where:
-
-* ``type(integer_field_type), intent(in)`` :: **ifield3**, *ifield1*, *ifield2*
-
 int_inc_X_times_Y
 ^^^^^^^^^^^^^^^^^
 
-**int_inc_X_times_Y** (*ifield1*, *ifield2*)
+**int_inc_X_times_Y** (**ifield1**, *ifield2*)
 
 Multiplies the first field by the second and returns it (``X = X*Y``)::
 
   ifield1(:) = ifield1(:)*ifield2(:)
-
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
 
 Scaling
 #######
@@ -3360,32 +3353,22 @@ Built-ins which scale ``integer``-valued fields are denoted with the keyword
 int_a_times_X
 ^^^^^^^^^^^^^
 
-**int_a_times_X** (*ifield2*, *iscalar*, *ifield1*)
+**int_a_times_X** (**ifield2**, *iscalar*, *ifield1*)
 
 Multiplies a field by an ``integer`` scalar and stores the result
 in another field (``Y = a*X``)::
 
   ifield2(:) = iscalar*ifield1(:)
 
-where:
-
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
-
 int_inc_a_times_X
 ^^^^^^^^^^^^^^^^^
 
-**int_inc_a_times_X** (*iscalar*, *ifield*)
+**int_inc_a_times_X** (*iscalar*, **ifield**)
 
 Multiplies a field by an ``integer`` scalar value and returns the
 field (``X = a*X``)::
 
   ifield(:) = iscalar*ifield(:)
-
-where:
-
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield**
 
 Setting to a value
 ##################
@@ -3396,31 +3379,22 @@ value are denoted with the keyword **setval** and the prefix **int**.
 int_setval_c
 ^^^^^^^^^^^^
 
-**int_setval_c** (*ifield*, *constant*)
+**int_setval_c** (**ifield**, *constant*)
 
 Sets all elements of a field *ifield* to an ``integer`` scalar
 *constant* (``X = c``)::
 
   ifield(:) = constant
 
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield**
-* ``integer(i_def), intent(in) ::`` *constant*
-
 int_setval_X
 ^^^^^^^^^^^^
 
-**int_setval_X** (*ifield2*, *ifield1*)
+**int_setval_X** (**ifield2**, *ifield1*)
 
 Sets a field *ifield2* equal (DoF per DoF) to another field
 *ifield1* (``Y = X``)::
 
   ifield2(:) = ifield1(:)
-
-where:
-
-* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
 
 Sign of elements
 ################
@@ -3431,19 +3405,66 @@ is denoted with the keyword **sign** and the prefix **int**.
 int_sign_X
 ^^^^^^^^^^
 
-**int_sign_X** (*ifield2*, *iscalar*, *ifield1*)
+**int_sign_X** (**ifield2**, *iscalar*, *ifield1*)
 
-Returns the sign of an ``integer``-valued field using the Fortran
-intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a`` is an
-``integer`` scalar and ``Y`` and ``X`` are ``integer``-valued fields.
+Returns the sign of an ``integer``-valued field, e.g. in Fortran:
+``Y = sign(a, X)``. Here ``a`` is an ``integer`` scalar and ``Y``
+and ``X`` are ``integer``-valued fields.
 The results are ``a`` for ``X >= 0`` and ``-a`` for ``a < 0``::
 
-  ifield2 = SIGN(iscalar, ifield1)
+  ifield2(:) = SIGN(iscalar, ifield1(:))
 
-where:
+DoF-wise maximum of elements
+############################
 
-* ``integer(i_def), intent(in) ::`` *iscalar*
-* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+Built-ins which return the DoF-wise maximum of an ``integer`` scalar
+and an ``integer``-valued field are denoted with the keyword **max**.
+
+int_max_aX
+^^^^^^^^^^
+
+**int_max_aX** (**ifield2**, *iscalar*, *ifield1*)
+
+Returns maximum of *iscalar* and each element of the field *ifield1* as
+the second field **ifield2** (``Y = max(a, X)``)::
+
+  ifield2(:) = MAX(iscalar, ifield1(:))
+
+int_inc_max_aX
+^^^^^^^^^^^^^^
+
+**int_inc_max_aX** (*iscalar*, **ifield**)
+
+Returns maximum of *iscalar* and each element of the field *ifield* in
+the same field (``X = max(a, X)``)::
+
+  ifield(:) = MAX(iscalar, ifield(:))
+
+DoF-wise minimum of elements
+############################
+
+Built-ins which return the DoF-wise minimum of an ``integer`` scalar
+and an ``integer``-valued field are denoted with the keyword **min**.
+
+int_min_aX
+^^^^^^^^^^
+
+**int_min_aX** (**ifield2**, *iscalar*, *ifield1*)
+
+Returns minimum of *iscalar* and each element of the field *ifield1* as
+the second field **ifield2** (``Y = min(a, X)``)::
+
+  ifield2(:) = MIN(iscalar, ifield1(:))
+
+int_inc_min_aX
+^^^^^^^^^^^^^^
+
+**int_inc_min_aX** (*iscalar*, **ifield**)
+
+Returns minimum of *iscalar* and each element of the field *ifield* in
+the same field (``X = min(a, X)``)::
+
+  ifield(:) = MIN(iscalar, ifield(:))
 
 Conversion of ``integer`` to ``real`` field elements
 ####################################################
@@ -3454,22 +3475,20 @@ a ``real`` field is denoted with the keyword **real**.
 real_X
 ^^^^^^
 
-**real_X** (*field2*, *ifield1*)
+**real_X** (**field2**, *ifield1*)
 
 Converts ``integer``-valued field elements to ``real``-valued
-field elements using the Fortran intrinsic ``real`` function as
-``Y = real(X, r_def)``. Here ``Y`` is a ``real``-valued field and
-``X`` is the ``integer``-valued field being converted::
+field elements, e.g. in Fortran this would be ``Y = real(X, r_def)``.
+Here ``Y`` is a ``real``-valued field and ``X`` is the
+``integer``-valued field being converted::
 
-  field2 = REAL(ifield1, r_def)
+  field2(:) = REAL(ifield1(:), r_<prec>)
 
-where:
-
-* ``type(field_type), intent(in) ::`` **field2**
-* ``type(integer_field_type), intent(in) ::`` *ifield1*
-
-.. note:: The correct ``real`` kind, ``r_def``, is read from the
-          PSyclone :ref:`configuration file <lfric-datatype-kind>`.
+where *ifield1* is an ``integer_field_type`` of ``i_def`` precision.
+The ``real``-valued **field1** can be of any :ref:`supported
+precisions <lfric-mixed-precision>` for ``GH_REAL`` fields, hence
+``r_<prec>`` is determined from the algorithm layer (e.g.
+``r_solver`` for ``r_solver_field_type``).
 
 Boundary Conditions
 -------------------
@@ -3620,7 +3639,7 @@ metadata descriptors, ``GH_REAL`` and ``GH_INTEGER``.
 
 The default kind (precision) for these supported data types is
 set to ``r_def``, ``i_def`` and ``l_def``, respectively, in the
-`default_kind` dictionary in the configuration file. These default
+``default_kind`` dictionary in the configuration file. These default
 values are defined in the LFRic infrastructure code.
 
 .. note:: Whilst the ``logical`` Fortran primitive (intrinsic) data

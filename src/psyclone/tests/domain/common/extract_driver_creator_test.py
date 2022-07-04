@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for creating drivers that read
@@ -111,7 +112,7 @@ def test_driver_creation1(tmpdir):
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
     # property dx. The grid property will be renamed to 'dx_1':
-    expected = '''use extract_psy_data_mod, only : extract_PsyDataType
+    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
 
   real*8, allocatable, dimension(:,:) :: out_fld
   real*8, allocatable, dimension(:,:) :: in_out_fld
@@ -121,7 +122,7 @@ def test_driver_creation1(tmpdir):
   real*8, allocatable, dimension(:,:) :: out_fld_post
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
-  type(extract_PsyDataType) :: extract_psy_data
+  type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
@@ -190,7 +191,7 @@ def test_driver_creation2(tmpdir):
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
     # property dx. The grid property will be renamed to 'dx_1':
-    expected = '''use extract_psy_data_mod, only : extract_PsyDataType
+    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
 
   integer :: istop
   integer :: jstop
@@ -202,7 +203,7 @@ def test_driver_creation2(tmpdir):
   real*8, allocatable, dimension(:,:) :: out_fld_post
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
-  type(extract_PsyDataType) :: extract_psy_data
+  type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('module_name', 'local_name')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
   ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
@@ -521,9 +522,10 @@ def test_driver_creation_import_modules(fortran_reader):
     symbol_table = program.scope.symbol_table
     all_symbols = symbol_table.get_symbols()
     assert len(all_symbols) == 2
-    assert str(all_symbols["my_module"]) == "my_module: <not linked>"
+    assert str(all_symbols["my_module"]) == \
+        "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == "mod_func : RoutineSymbol <DeferredType>"
+    assert str(mod_func) == "mod_func: RoutineSymbol<DeferredType>"
 
 
 # -----------------------------------------------------------------------------

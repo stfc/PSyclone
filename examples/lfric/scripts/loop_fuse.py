@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, STFC Daresbury Laboratory
+# Modified by S. Siso, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply loop fusion generically. Fusion is attempted for all
@@ -76,7 +76,7 @@ def trans(psy):
         total_fused += local_fused
         if local_fused > 0:
             print("After fusing ...")
-            schedule.view()
+            print(schedule.view())
 
     print("Fused {0} loops".format(total_fused))
     return psy

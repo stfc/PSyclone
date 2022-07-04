@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,23 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program single_invoke_cma
 
   ! Description: single CMA assembly kernel which includes a scalar
   ! argument
   use constants_mod,                       only: r_def
-  use operator_mod,                        only: operator_type, &
-                                                 columnwise_operator_type
+  use operator_mod,                        only: operator_type
+  use columnwise_operator_mod,             only: columnwise_operator_type
   use columnwise_op_asm_kernel_scalar_mod, only: columnwise_op_asm_kernel_scalar_type
 
   implicit none
 
   type(operator_type)            :: lma_op1
   type(columnwise_operator_type) :: cma_op1
-  real(r_def)                    :: my_scalar = 1.0
+  real(kind=r_def)               :: my_scalar = 1.0_r_def
 
   call invoke( &
           ! Perversely name the scalar argument so as to deliberately clash

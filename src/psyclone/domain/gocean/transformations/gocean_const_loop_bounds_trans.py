@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,10 +85,9 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
     >>> clbtrans.apply(schedule)
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
-
     def __str__(self):
         return "Use constant loop bounds for all loops in a GOInvokeSchedule"
 

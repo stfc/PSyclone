@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+
 
 '''Module providing a transformation from a generic PSyIR representation of
    a PSy layer into a NEMO-specific one.
@@ -64,22 +66,23 @@ class CreateNemoPSyTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
     >>> trans.apply(psyir)
-    >>> psyir.view()
-    FileContainer[None]
-        NemoInvokeSchedule[invoke='sub']
-            0: Loop[type='lon', field_space='None', it_space='None']
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Schedule[]
-                    0: InlinedKern[]
-                        Schedule[]
-                            0: Assignment[]
-                                ArrayReference[name:'tmp']
-                                    Reference[name:'ji']
-                                BinaryOperation[operator:'MUL']
-                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-                                    Reference[name:'ji']
+    >>> print(psyir.view(colour=False, indent="   "))
+    FileContainer[]
+       NemoInvokeSchedule[invoke='sub']
+          0: Loop[type='lon', field_space='None', it_space='None']
+             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+             Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+             Schedule[]
+                0: InlinedKern[]
+                   Schedule[]
+                      0: Assignment[]
+                         ArrayReference[name:'tmp']
+                            Reference[name:'ji']
+                         BinaryOperation[operator:'MUL']
+                            Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                            Reference[name:'ji']
+    <BLANKLINE>
 
     The result of this transformation is that the root `Routine` has
     been converted into a `NemoInvokeSchedule`, the `Loop` is now a

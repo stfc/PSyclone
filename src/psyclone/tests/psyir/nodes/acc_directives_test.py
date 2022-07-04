@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
@@ -49,7 +49,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ACCRoutineDirective, \
     ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
     ACCKernelsTrans
 
@@ -85,7 +85,7 @@ def test_accenterdatadirective_gencode_1():
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
     # Test that the same error is produced by the begin_string() which is used
     # by the PSyIR backend
@@ -94,7 +94,7 @@ def test_accenterdatadirective_gencode_1():
         sched[0].begin_string()
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
 
 # (2/4) Method gen_code
@@ -114,7 +114,7 @@ def test_accenterdatadirective_gencode_2():
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
 
 # (3/4) Method gen_code
@@ -135,10 +135,10 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n" in code)
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # (4/4) Method gen_code
@@ -166,10 +166,10 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
-        "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
-        "f3_proxy,f3_proxy%data)\n" in code)
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,f3_proxy,f3_proxy%data,m1_proxy,m1_proxy%data,"
+        "m2_proxy,m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+        "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # Class ACCLoopDirective start
@@ -197,6 +197,32 @@ def test_accloopdirective_node_str(monkeypatch):
                 "independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
+
+
+def test_accloopdirective_equality():
+    ''' Test the __eq__ method of ACCLoopDirective node. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    directive1 = ACCLoopDirective()
+    directive2 = ACCLoopDirective()
+    directive1.children[0]._symbol_table = symboltable
+    directive2.children[0]._symbol_table = symboltable
+    assert directive1 == directive2
+
+    # Check equality fails when collapse is different
+    directive2._collapse = 2
+    assert directive1 != directive2
+
+    # Check equality fails when independent is different
+    directive2._collapse = directive1.collapse
+    directive2._independent = False
+    assert directive1 != directive2
+
+    # Check equality fails when sequential is different
+    directive2._independent = directive1.independent
+    directive2._sequential = not directive1._sequential
+    assert directive1 != directive2
 
 # Class ACCLoopDirective end
 
@@ -244,7 +270,23 @@ def test_acckernelsdirective_gencode(default_present):
         "      !$acc end kernels\n" in code)
 
 
+def test_acckerneldirective_equality():
+    ''' Test the __eq__ method of ACCKernelsDirective node. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    directive1 = ACCKernelsDirective()
+    directive2 = ACCKernelsDirective()
+    directive1.children[0]._symbol_table = symboltable
+    directive2.children[0]._symbol_table = symboltable
+    assert directive1 == directive2
+
+    # Check equality fails when default_present is different
+    directive2._default_present = not directive1._default_present
+    assert directive1 != directive2
+
 # Class ACCRoutineDirective
+
 
 def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
@@ -273,8 +315,8 @@ def test_accupdatedirective_init():
     with pytest.raises(ValueError) as err:
         _ = ACCUpdateDirective(symbol, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
-            "any of the values in '('host', 'device')' but found 'invalid'."
-            in str(err.value))
+            "any of the values in '('self', 'host', 'device')' but found "
+            "'invalid'." in str(err.value))
 
     # Successful init
     directive = ACCUpdateDirective(symbol, "host")
@@ -291,3 +333,19 @@ def test_accupdatedirective_begin_string():
 
     assert directive1.begin_string() == "acc update host(x)"
     assert directive2.begin_string() == "acc update device(x)"
+
+
+def test_accupdatedirective_equality():
+    ''' Test the __eq__ method of ACCUpdateDirective node. '''
+    symbol = DataSymbol("x", REAL_TYPE)
+    directive1 = ACCUpdateDirective(symbol, "device")
+    directive2 = ACCUpdateDirective(symbol, "device")
+    assert directive1 == directive2
+
+    # Check equality fails when different symbols
+    directive3 = ACCUpdateDirective(DataSymbol("t", REAL_TYPE), "device")
+    assert directive1 != directive3
+
+    # Check equality fails when different directions
+    directive4 = ACCUpdateDirective(symbol, "host")
+    assert directive1 != directive4

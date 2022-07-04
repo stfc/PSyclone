@@ -117,3 +117,24 @@ def test_codeblock_get_symbol_names(parser):
     assert "mytest" in block.get_symbol_names()
     assert "subroutine" not in block.get_symbol_names()
     assert "sqrt" not in block.get_symbol_names()
+
+
+def test_codeblock_equality(parser):
+    '''Test the __eq__ method of the Codeblock class.'''
+    reader = FortranStringReader('''
+    subroutine mytest
+        a = b + sqrt(c)
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block2 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block3 = CodeBlock(prog.children, CodeBlock.Structure.EXPRESSION)
+    assert block == block2
+    assert block != block3
+    reader = FortranStringReader('''
+    subroutine mytest
+        a = b + c
+    end subroutine mytest''')
+    prog = parser(reader)
+    block4 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    assert block != block4

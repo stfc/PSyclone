@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import Call
 from psyclone.domain.lfric.algorithm import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
-    LFRicInvokeCallTrans
+    LFRicRaiseCall2InvokeTrans
 
 
 def test_init():
@@ -56,7 +56,7 @@ def test_init():
     alg_trans = LFRicAlgTrans()
     assert alg_trans.name == "LFRicAlgTrans"
     assert isinstance(alg_trans, LFRicAlgTrans)
-    assert isinstance(alg_trans._invoke_trans, LFRicInvokeCallTrans)
+    assert isinstance(alg_trans._invoke_trans, LFRicRaiseCall2InvokeTrans)
 
 
 def test_apply(fortran_reader):

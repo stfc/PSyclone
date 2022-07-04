@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone using the -s option.
 This is a template that doesn't do anything, but it contains the
@@ -54,7 +55,7 @@ def trans(psy):
     '''
 
     # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
+    # TODO: import the transformation and create an instance
     # ------------------------------------------------------
     # from ... import ...
     # extract = ...()
@@ -76,6 +77,6 @@ def trans(psy):
 
     # Just as feedback: show the modified schedule, which should have
     # a new node at the top:
-    schedule.view()
+    print(schedule.view())
 
     return psy

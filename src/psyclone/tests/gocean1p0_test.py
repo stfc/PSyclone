@@ -1284,12 +1284,12 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     schedule = psy.invokes.invoke_list[0].schedule
 
     expected_sched = (
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "GOLoop[variable:'j', loop_type:'outer']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "GOLoop[variable:'i', loop_type:'inner']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "StructureReference[name:'cu_fld']\n"
         "StructureMember[name:'grid']\n"
@@ -1305,12 +1305,12 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(schedule)
     expected_sched = (
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+        "GOLoop[variable:'j', loop_type:'outer']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+        "GOLoop[variable:'i', loop_type:'inner']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "Reference[name:'istop']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"

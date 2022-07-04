@@ -52,15 +52,25 @@ subroutine has no content.
 
 The algorithm generator also takes a file containing a kernel
 implementation but this time generates an appropriate algorithm layer
-that represents a complete, standalone application. This algorithm layer
-plus the associated kernel metadata may then be processed with PSyclone
-in the usual way to generate code which executes the supplied kernel.
+subroutine. This algorithm layer plus the associated kernel metadata
+may then be processed with PSyclone in the usual way to generate code
+which executes the supplied kernel.
 
 This functionality is provided to the user via the ``psyclone-kern``
 command, described in more detail below.
 
 The psyclone-kern Command
 ---------------------------
+
+Before using the ``psyclone-kern`` tool, PSyclone must be installed. If you
+have not already done so, please follow the instructions for setting
+up PSyclone in Section :ref:`Getting Going <getting-going>`.
+
+PSyclone will be installed in a particular location on your machine,
+which will be referred to as the ``<PSYCLONEINSTALL>`` directory. The
+``psyclone-kern`` script comes with the PSyclone
+installation. A quick check ``> which psyclone-kern`` should return
+the location of the ``<PSYCLONEINSTALL>/bin`` directory.
 
 The ``psyclone-kern`` command has the following arguments:
 
@@ -124,6 +134,10 @@ Quick Start
 2) Run the following command ::
 
     > psyclone-kern -gen stub <PATH>/my_file.f90
+3) To have the generated code written to file rather than stdout use the
+   `-o` flag ::
+
+    > psyclone-kern -gen stub -o my_stub_file.f90 ./my_kernel_mod.f90
 
 (Since stub generation is the default, the ``-gen stub`` may be omitted
 if desired.)
@@ -164,31 +178,11 @@ know exactly how to call a Kernel. These rules are outlined in Section
 
 Therefore PSyclone has been coded with the LFRic API rules which
 are then applied when reading the Kernel metadata to produce the
-require Kernel call and its arguments in the generated PSy
+required Kernel call and its arguments in the generated PSy
 layer. These same rules are used by the Kernel stub generator to
 produce Kernel subroutine stubs, thereby guaranteeing that Kernel
 calls from the PSy layer and the associated Kernel subroutines are
 consistent.
-
-.. _stub-generation-use:
-
-Use
-+++
-
-Before using the ``psyclone-kern`` tool, PSyclone must be installed. If you
-have not already done so, please follow the instructions for setting
-up PSyclone in Section :ref:`Getting Going <getting-going>`.
-
-PSyclone will be installed in a particular location on your machine,
-which will be referred to as the ``<PSYCLONEINSTALL>`` directory. The
-``psyclone-kern`` script comes with the PSyclone
-installation. A quick check ``> which psyclone-kern`` should return
-the location of the ``<PSYCLONEINSTALL>/bin`` directory.
-
-The easiest way to use the stub generator is to run this ``psyclone-kern``
-script with the ``-gen stub`` flag and, optionally, the ``-o`` flag::
-
-    > psyclone-kern -gen stub -o my_stub_file.f90 ./my_kernel_mod.f90
 
 .. _stub-generation-kernels:
 
@@ -222,7 +216,11 @@ Example
 
 A simple, single field example of a kernel that can be used as input for the
 stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
-is shown below::
+is shown below:
+
+.. _simple_metadata:
+
+ .. code-block:: fortran
 
   module simple_mod
 
@@ -266,7 +264,9 @@ If we run the kernel stub generator on the ``simple.f90`` example::
 
   > psyclone-kern -gen stub tests/test_files/dynamo0p3/simple.f90
 
-we get the following kernel stub output::
+we get the following kernel stub output:
+
+ .. code-block:: fortran
 
   MODULE simple_mod
     IMPLICIT NONE
@@ -321,7 +321,9 @@ specifies that there are four fields passed by the algorithm layer, the
 fourth of which is a vector field of size three. All three of the spaces
 require a basis function and the ``W0`` and ``W2`` function spaces
 additionally require a differential basis function. The content of the
-Kernel, excluding the subroutine body, is given below::
+Kernel, excluding the subroutine body, is given below:
+
+ .. code-block:: fortran
 
   module ru_kernel_mod
 
@@ -368,9 +370,11 @@ If we run the kernel stub generator on this example::
 
   > psyclone-kern -gen stub tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
-we obtain the following output::
+we obtain the following output:
 
-   MODULE ru_mod
+ .. code-block:: fortran
+
+  MODULE ru_mod
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE ru_code(nlayers, field_1_w2, field_2_w3, iscalar_3, rscalar_4, &
@@ -494,5 +498,120 @@ message. For example::
 Algorithm Generator
 -------------------
 
-Currently this will raise a ``NotImplementedError`` as the functionality will
-be implemented as part of #1555.
+Quick Start
++++++++++++
+
+1) Use an existing Kernel file containing a full LFRic kernel implementation.
+2) Run the following command ::
+
+    > psyclone-kern -gen alg <PATH>/my_kern_file_mod.f90
+
+3) The generated Algorithm code will be output to stdout by default. To have
+   it written to a file use the `-o` flag.
+
+Introduction
+++++++++++++
+
+The ability to generate a valid LFRic Algorithm layer that calls a given kernel
+is useful for a number of reasons:
+
+1) Starting point for creating a test for a kernel;
+2) Benchmarking an individual kernel;
+3) Constructing a test harness for the adjoint of a kernel produced by
+   :ref:`PSyAD <psyad:introduction>`.
+
+Currently algorithm generation is only supported for the LFRic (Dynamo
+0.3) API but it could be extended to the GOcean API if desired.
+
+Mapping of Function Spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every field or operator argument to an LFRic kernel must have its
+function space(s) specified in the metadata of the kernel. This information
+is used by the algorithm generation to ensure that each kernel argument
+is correctly constructed. However, the metadata permits the use of certain
+'generic' function-space specifiers (see :ref:`Supported Function Spaces
+<lfric-function-space>`). If an argument is specified as being on one of
+these spaces then the algorithm generator chooses an appropriate, specific
+function space for that argument. e.g. an argument that is specified as
+being on ``ANY_SPACE_<n>`` will be constructed on ``W0`` while one on
+``ANY_DISCONTINUOUS_SPACE_<n>`` will be constructed on ``W3``.
+
+Example
++++++++
+
+If we take the same kernel used in the stub-generation
+:ref:`example <stub-generation-example>` then running ::
+
+  > psyclone-kern -gen alg tests/test_files/dynamo0p3/simple.f90
+
+gives the following algorithm layer code:
+
+ .. code-block:: fortran
+
+  module test_alg_mod
+    implicit none
+    public
+
+  contains
+    subroutine test_alg(mesh, chi, panel_id)
+      use field_mod, only : field_type
+      use function_space_mod, only : function_space_type
+      use fs_continuity_mod, only : w1
+      use function_space_collection_mod, only : function_space_collection
+      use mesh_mod, only : mesh_type
+      use simple_mod, only : simple_type
+      use constants_mod, only : i_def, r_def
+      integer(kind=i_def), parameter :: element_order = 1_i_def
+      type(mesh_type), pointer, intent(in) :: mesh
+      type(field_type), dimension(3), intent(in), optional :: chi
+      type(field_type), intent(in), optional :: panel_id
+      TYPE(function_space_type), POINTER :: vector_space_w1_ptr
+      type(field_type) :: field_1
+
+      vector_space_w1_ptr => function_space_collection % get_fs(mesh, element_order, w1)
+      call field_1 % initialise(vector_space=vector_space_w1_ptr, name='field_1')
+      call invoke(setval_c(field_1, 1.0_r_def), simple_type(field_1))
+
+    end subroutine test_alg
+
+  end module test_alg_mod
+
+Note that the generated code implements an Algorithm subroutine that
+is intended to be called from within an LFRic application that has
+already setup data structures for the mesh (and, optionally, the `chi`
+coordinate field and panel ID mapping).  Since the :ref:`metadata
+<simple_metadata>` for the `simple_type` kernel specifies that the
+field argument is on `W1`, the generated code must ensure that the
+appropriate function space is set up and used to initialise the field.
+Once that's done, the interesting part is the `invoke` call:
+
+ .. code-block:: fortran
+
+      call invoke(setval_c(field_1, 1.0_r_def), &
+                  simple_type(field_1))
+
+(where a line-break has been added for clarity). In this example the `invoke`
+is for two kernels: the first is a :ref:`Built-in <built-ins>` that gives
+`field_1` the value `1.0` everywhere and the second is the 'simple' kernel
+itself which is passed the now initialised `field_1`.
+
+This Algorithm code can now be processed by PSyclone in the normal way in
+order to generate a transformed version plus an associated PSy-layer routine.
+See :ref:`lfric_alg_gen_example` for a full example of doing this.
+
+Limitations
++++++++++++
+
+ * Algorithm generation is only currently supported for the LFRic
+   (dynamo 0.3) API.
+ * All fields are currently set to unity. Obviously the generated algorithm
+   code may be edited to change this.
+ * The generator does not currently recognise 'special' fields that hold
+   geometry information (such as Chi or the face IDs) and these too will
+   all be initialised to unity. This is the subject of Issue #1708 (although
+   note that the generated code already permits the caller to supply Chi and/or
+   face IDs).
+ * Kernels with operator arguments are not yet supported.
+ * Kernels with stencil accesses are not yet supported.
+

@@ -65,14 +65,14 @@ def test_loop_swap_apply(tmpdir):
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -83,14 +83,14 @@ def test_loop_swap_apply(tmpdir):
     schedule_str = str(schedule)
 
     expected = (
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -100,14 +100,14 @@ def test_loop_swap_apply(tmpdir):
     schedule_str = str(schedule)
 
     expected = (
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -117,14 +117,14 @@ def test_loop_swap_apply(tmpdir):
     schedule_str = str(schedule)
 
     expected = (
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'i'.*?"
-        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -289,14 +289,14 @@ def test_loop_swap_schedule_is_kept():
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
@@ -331,14 +331,14 @@ def test_loop_swap_abort_if_symbols():
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_ssh_code.*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_u_code .*?"
-        r"Loop\[id:'', variable:'j'.*?"
-        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[variable:'j'.*?"
+        r"Loop\[variable:'i'.*?"
         r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))

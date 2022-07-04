@@ -108,7 +108,7 @@ the number of MPI processes and resulting inter-process communication.)
 
    and the `write` statement is represented as a CodeBlock in the PSyIR:
    ```
-    13: Loop[type='levels', field_space='None', it_space='None']
+    20: Loop[type='levels', field_space='None', it_space='None']
         ...
         Schedule[]
             0: Loop[type='lat', field_space='None', it_space='None']
@@ -137,12 +137,12 @@ the number of MPI processes and resulting inter-process communication.)
    ```
 
    Edit the `omp_trans.py` script to use this approach and then build the
-   code. Verify that PSyclone now successfully transforms the code and
-   examine the PSyIR to see where the OpenMP directives have been
-   inserted. You should see that there are now `Directive` nodes in the
-   PSyIR, e.g.:
+   code (`make tra_adv.exe`). Verify that PSyclone now successfully
+   transforms the code and examine the PSyIR to see where the OpenMP
+   directives have been inserted. You should see that there are now
+   `Directive` nodes in the PSyIR, e.g.:
 
-       7: Directive[OMP parallel do]
+       14: OMPParallelDoDirective[]
            Schedule[]
                0: Loop[type='levels', field_space='None', it_space='None']
                    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -192,8 +192,8 @@ other options are available.)
 1. The quickest way to add profiling instrumentation is to edit the Makefile
    and add `--profile invokes` to the PSyclone command line. You will also
    need to edit `runner.f90` and uncomment the call to
-   `profile_psydatashutdown`. Having done this, `make clean`
-   followed by `make` will rebuild the mini-app, now instrumented using the
+   `profile_psydatashutdown`. Having done this, `make clean` followed by
+   `make tra_adv.exe` will rebuild the mini-app, now instrumented using the
    simple timing library.
    Running the mini-app should now produce timing information:
    ```bash
@@ -244,7 +244,9 @@ immediate children of the root Schedule.
    | 8                 | 0.28125  | 2.0      |
 
 Hopefully you too will be able to see a speedup when running the code
-on your machine. Note that there are many things to consider when
+on your machine although you will probably need to increase the number
+of iterations (`IT`) that the code does to get reliable timings. Note
+that there are many things to consider when
 looking at performance including (but not limited to); the compiler
 and compiler flags, the number of physical cores your particular CPU
 has, binding threads to cores, whether or not you're running inside a

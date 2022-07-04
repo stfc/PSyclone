@@ -137,8 +137,9 @@ Fixture name   	 Description
 annexed        	 Supplies a test with the various possible values of the LFRic
                  `annexed_dofs` option.
 dist_mem       	 Supplies a test with the various possible values of the
-                 `distributed-memory` option (only applicable to the LFRic API
-                 currently).
+                 `distributed-memory` option (only applicable to the LFRic and
+		 GOcean APIs currently). Also monkeypatches the global
+		 configuration object with the corresponding setting.
 fortran_reader   Provides a Fortran PSyIR front-end object to convert Fortran
                  code snippets into PSyIR.
 fortran_writer   Provides a Fortran PSyIR back-end object to convert PSyIR
@@ -431,7 +432,7 @@ computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked. Those links to skip
     (because they are e.g. password protected) are specified in the
-    ``PSyclone/mlc_config.json`` configuration file.
+    ``PSyclone/.github/workflows/mlc_config.json`` configuration file.
 
  2. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.

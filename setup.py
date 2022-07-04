@@ -159,7 +159,7 @@ if __name__ == '__main__':
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
         # TODO #1507: remove dependence on 'six'
-        install_requires=['pyparsing', 'fparser==0.0.13', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.16', 'configparser',
                           'six', 'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],

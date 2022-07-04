@@ -31,26 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Transformation module for LFRic.
 '''
 
-from psyclone.domain.lfric.transformations.lfric_extract_trans \
-    import LFRicExtractTrans
-from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
-    import LFRicLoopFuseTrans
-from psyclone.domain.lfric.transformations.lfric_invokecall_trans \
-    import LFRicInvokeCallTrans
+# pylint: disable=unused-import
 from psyclone.domain.lfric.transformations.lfric_alg_trans \
     import LFRicAlgTrans
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric.transformations import LFRicExtractTrans
-
-__all__ = ['LFRicExtractTrans',
-           'LFRicLoopFuseTrans',
-           'LFRicInvokeCallTrans',
-           'LFRicAlgTrans']
+from psyclone.domain.lfric.transformations.lfric_alg_invoke_2_psy_call_trans \
+    import LFRicAlgInvoke2PSyCallTrans
+from psyclone.domain.lfric.transformations.lfric_extract_trans \
+    import LFRicExtractTrans
+from psyclone.domain.lfric.transformations.lfric_raise_call_2_invoke_trans \
+    import LFRicRaiseCall2InvokeTrans
+from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
+    import LFRicLoopFuseTrans

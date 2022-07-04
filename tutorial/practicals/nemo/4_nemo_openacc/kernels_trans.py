@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,4 +81,4 @@ def trans(psy):
     # Loop through the children of the loop body and transform those
     # that are over levels
 
-    sched.view()
+    print(sched.view())

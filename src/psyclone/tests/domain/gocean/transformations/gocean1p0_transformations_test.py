@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -70,21 +70,6 @@ def setup():
     Config.get().api = "gocean1.0"
     yield()
     Config._instance = None
-
-
-def test_loop_fuse_different_iterates_over():
-    ''' Test that an appropriate error is raised when we attempt to
-    fuse two loops that have differing values of ITERATES_OVER '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    lftrans = LoopFuseTrans()
-
-    # Attempt to fuse two loops that are iterating over different
-    # things
-    with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err.value)
 
 
 def test_loop_fuse_error():
@@ -1215,6 +1200,36 @@ def test_acc_parallel_trans(tmpdir, fortran_writer):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
+def test_acc_parallel_trans_dm():
+    ''' Test that the OpenACC parallel transform works correctly when
+    distributed memory is enabled. '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=True)
+    schedule = invoke.schedule
+    acct = ACCParallelTrans()
+    accdt = ACCEnterDataTrans()
+    # Applying the transformation to the whole schedule should fail because
+    # of the HaloExchange nodes.
+    with pytest.raises(TransformationError) as err:
+        acct.apply(schedule.children)
+    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
+    acct.apply(schedule.children[1:])
+    # Add an enter-data region.
+    accdt.apply(schedule)
+    code = str(psy.gen)
+    # Check that the start of the parallel region is in the right place.
+    assert ("      CALL p_fld%halo_exchange(1)\n"
+            "      !$acc parallel default(present)\n"
+            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            in code)
+    # Check that the end parallel is generated correctly.
+    assert ("        END DO\n"
+            "      END DO\n"
+            "      !$acc end parallel\n\n"
+            "    END SUBROUTINE invoke_0\n" in code)
+
+
 def test_acc_incorrect_parallel_trans():
     '''Test that the acc transform can not be used to change
     the order of operations.'''
@@ -1293,9 +1308,9 @@ def test_acc_data_copyin(tmpdir):
     code = str(psy.gen)
 
     assert (
-        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
-        "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+        "      !$acc enter data copyin(cu_fld,cu_fld%data,cv_fld,cv_fld%data,"
+        "p_fld,p_fld%data,u_fld,u_fld%data,unew_fld,unew_fld%data,"
+        "uold_fld,uold_fld%data,v_fld,v_fld%data)\n" in code)
 
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -1319,13 +1334,12 @@ def test_acc_data_grid_copyin(tmpdir):
     accdt.apply(schedule)
     code = str(psy.gen)
 
-    # TODO grid properties are effectively duplicated in this list (but the
-    # OpenACC deep-copy support should spot this).
-    pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
-             "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
-             "u_fld%grid%area_u,d_fld,d_fld%data,du_fld,du_fld%data,"
-             "d_fld%grid,d_fld%grid%tmask,d_fld%grid%area_t,"
-             "d_fld%grid%area_u)")
+    # TODO GOcean grid properties are duplicated in this set under
+    # different names (the OpenACC deep copy support should spot this).
+    pcopy = ("!$acc enter data copyin(cu_fld,cu_fld%data,d_fld,d_fld%data,"
+             "d_fld%grid,d_fld%grid%area_t,d_fld%grid%area_u,d_fld%grid%tmask,"
+             "du_fld,du_fld%data,u_fld,u_fld%data,u_fld%grid,"
+             "u_fld%grid%area_t,u_fld%grid%area_u,u_fld%grid%tmask)")
     assert pcopy in code
     # Check that we flag that the fields are now on the device
     for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
@@ -1594,7 +1608,7 @@ def test_acc_loop_before_enter_data():
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("An ACC parallel region must be preceded by an ACC enter-data "
+    assert ("An ACC parallel region must be preceded by an ACC enter data "
             "directive but in 'invoke_0' this is not the case." in
             str(err.value))
 

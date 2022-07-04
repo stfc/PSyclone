@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel NAN-verification to
@@ -73,5 +74,5 @@ def trans(psy):
     # Enclose everything in a nan_test region
     nan_test.apply(schedule.children, {"region_name": ("main", "update")})
 
-    # newschedule.view()
+    # print(schedule.view())
     return psy

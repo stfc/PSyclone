@@ -37,14 +37,13 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
 
-from __future__ import absolute_import
 
 from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    FortranWriter, precedence
+    FortranWriter, precedence, _validate_named_args
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
@@ -366,6 +365,12 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
         fortran_writer.gen_typedecl(tsymbol, include_visibility=True)
     assert ("visibility must be one of Symbol.Visibility.PRIVATE/PUBLIC but "
             "'my_type' has visibility of type 'str'" in str(err.value))
+    # Symbol of deferred type.
+    tsymbol = DataTypeSymbol("my_type", DeferredType())
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_typedecl(tsymbol)
+    assert ("Local Symbol 'my_type' is of DeferredType and therefore no "
+            "declaration can be created for it." in str(err.value))
 
 
 def test_gen_typedecl_unknown_fortran_type(fortran_writer):
@@ -530,6 +535,30 @@ def test_precedence_error():
     '''
     with pytest.raises(KeyError):
         _ = precedence('invalid')
+
+
+def test_validate_named_args():
+    '''Check that the _validate_named_args utility function works as
+    expected
+
+    '''
+    # type error
+    with pytest.raises(TypeError) as info:
+        _validate_named_args(None)
+    assert ("The _validate_named_args utility function expects either a "
+            "Call or Operation node, but found 'NoneType'." in str(info.value))
+    # visitor error
+    call = Call.create(RoutineSymbol("hello"), [
+        ("name", Literal("1.0", REAL_TYPE)), Literal("2.0", REAL_TYPE)])
+    with pytest.raises(VisitorError) as info:
+        _validate_named_args(call)
+    assert("Fortran expects all named arguments to occur after all "
+           "positional arguments but this is not the case for "
+           "Call[name='hello']" in str(info.value))
+    # ok
+    call = Call.create(RoutineSymbol("hello"), [
+        Literal("1.0", REAL_TYPE), ("name", Literal("2.0", REAL_TYPE))])
+    _validate_named_args(call)
 
 
 def test_fw_gen_use(fortran_writer):
@@ -720,130 +749,6 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
                       "end type var\n")
-
-
-def test_gen_decls(fortran_writer):
-    '''Check the FortranWriter class gen_decls method produces the
-    expected declarations. Also check that an exception is raised if
-    an 'argument' symbol exists in the supplied symbol table and the
-    optional argument 'is_module_scope' is set to True.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol_table.add(ContainerSymbol("my_module"))
-    use_statement = DataSymbol("my_use", DeferredType(),
-                               interface=ImportInterface(
-                                   symbol_table.lookup("my_module")))
-    symbol_table.add(use_statement)
-    argument_variable = DataSymbol("arg", INTEGER_TYPE,
-                                   interface=ArgumentInterface())
-    symbol_table.add(argument_variable)
-    local_variable = DataSymbol("local", INTEGER_TYPE)
-    symbol_table.add(local_variable)
-    dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    dtype_variable = DataTypeSymbol("field", dtype)
-    symbol_table.add(dtype_variable)
-    grid_type = DataTypeSymbol("grid_type", DeferredType(),
-                               interface=ImportInterface(
-                                   symbol_table.lookup("my_module")))
-    symbol_table.add(grid_type)
-    grid_variable = DataSymbol("grid", grid_type)
-    symbol_table.add(grid_variable)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer :: arg\n"
-                      "type :: field\n"
-                      "  integer, public :: flag\n"
-                      "end type field\n"
-                      "integer :: local\n"
-                      "type(grid_type) :: grid\n")
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
-    assert ("Arguments are not allowed in this context but this symbol table "
-            "contains argument(s): '['arg']'." in str(excinfo.value))
-
-    # Add a symbol with a deferred (unknown) interface
-    symbol_table.add(DataSymbol("unknown", INTEGER_TYPE,
-                                interface=UnresolvedInterface()))
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert ("The following symbols are not explicitly declared or imported "
-            "from a module and there are no wildcard "
-            "imports which could be bringing them into scope: "
-            "'unknown'" in str(excinfo.value))
-
-
-def test_gen_decls_nested_scope(fortran_writer):
-    ''' Test that gen_decls() correctly checks for potential wildcard imports
-    of an unresolved symbol in an outer scope.
-
-    '''
-    inner_table = SymbolTable()
-    inner_table.add(DataSymbol("unknown1", INTEGER_TYPE,
-                               interface=UnresolvedInterface()))
-    routine = Routine.create("my_func", inner_table, [Return()])
-    cont_table = SymbolTable()
-    _ = Container.create("my_mod", cont_table, [routine])
-
-    cont_table.add(ContainerSymbol("my_module"))
-    # Innermost symbol table contains "unknown1" and there's no way it can
-    # be brought into scope
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_decls(inner_table)
-    assert ("symbols are not explicitly declared or imported from a module "
-            "and there are no wildcard imports which "
-            "could be bringing them into scope: 'unknown1'" in str(err.value))
-    # Add a ContainerSymbol with a wildcard import in the outermost scope
-    csym = ContainerSymbol("other_mod")
-    csym.wildcard_import = True
-    cont_table.add(csym)
-    # The inner symbol table contains a symbol with an unresolved interface
-    # but nothing that requires an actual declaration
-    result = fortran_writer.gen_decls(inner_table)
-    assert result == ""
-    # Move the wildcard import into the innermost table
-    cont_table.remove(csym)
-    inner_table.add(csym)
-    result = fortran_writer.gen_decls(inner_table)
-    assert result == ""
-
-
-def test_gen_decls_routine(fortran_writer):
-    '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not an ImportInterface, unless there's a wildcard
-    import from a Container.
-
-    '''
-    symbol_table = SymbolTable()
-    # Check that a RoutineSymbol representing an intrinsic is OK
-    symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
-    result = fortran_writer.gen_decls(symbol_table)
-    assert result == ""
-    # Now add a user-defined routine symbol but with an (unsupported)
-    # ArgumentInterface
-    rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
-    symbol_table.add(rsym)
-    with pytest.raises(VisitorError) as info:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
-            "ArgumentInterface). This is not supported by the Fortran "
-            "back-end." in str(info.value))
-    # Replace that symbol with one that has a deferred interface
-    symbol_table.remove(rsym)
-    symbol_table.add(RoutineSymbol("sub2", interface=UnresolvedInterface()))
-    with pytest.raises(VisitorError) as info:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert (
-        "Routine symbol 'sub2' does not have an ImportInterface or "
-        "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
-        "import which could bring it into scope. This is not supported by the "
-        "Fortran back-end." in str(info.value))
-    # Now add a wildcard import from a ContainerSymbol
-    csym = ContainerSymbol("some_mod")
-    csym.wildcard_import = True
-    symbol_table.add(csym)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert result == ""
 
 
 def test_gen_access_stmt(fortran_writer):
@@ -1358,10 +1263,12 @@ def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_binaryoperator_sum(fortran_writer, tmpdir, fortran_reader):
-    '''Check the FortranWriter class binary_operation method with the sum
-    operator correctly prints out the Fortran representation of an
-    intrinsic.
+def test_fw_binaryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+    '''Check the FortranWriter class binary_operation method operator
+    correctly prints out the Fortran representation of an intrinsic
+    with a named argument. The sum intrinsic is used here. Also check
+    that the expected exception is raised if all of the named
+    arguments are not after the positional arguments.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1379,8 +1286,29 @@ def test_fw_binaryoperator_sum(fortran_writer, tmpdir, fortran_reader):
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = SUM(array, dim = 1)" in result
+    assert "a = SUM(array, dim=1)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+    code = code.replace("sum(array,dim=1)", "sum(array=array,1)")
+    schedule = fortran_reader.psyir_from_source(code)
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(schedule)
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "BinaryOperation[operator:'SUM']" in str(info.value))
+
+
+def test_fw_binaryoperator_namedarg2(fortran_writer):
+    '''Check the FortranWriter class binary_operation method operator
+    correctly outputs the Fortran representation of an intrinsic with
+    its first argument being a named argument.
+
+    '''
+    intrinsic = BinaryOperation.create(
+        BinaryOperation.Operator.SUM, ("test1", Literal("1.0", REAL_TYPE)),
+        ("test2", Literal("2.0", REAL_TYPE)))
+    result = fortran_writer(intrinsic)
+    assert result == "SUM(test1=1.0, test2=2.0)"
 
 
 def test_fw_binaryoperator_matmul(fortran_writer, tmpdir, fortran_reader):
@@ -1543,6 +1471,42 @@ def test_fw_naryoperator(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(schedule)
     assert "a = MAX(1.0, 1.0, 2.0)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_naryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+    '''Check the FortranWriter class nary_operation method operator
+    correctly prints out the Fortran representation of an intrinsic
+    with a named argument. The sum intrinsic is used here. Also check
+    that the expected exception is raised if all of the named
+    arguments are not after the positional arguments.
+
+    '''
+    # Generate fparser2 parse tree from Fortran code.
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(array, n)\n"
+        "  integer, intent(in) :: n\n"
+        "  real, intent(out) :: array(n)\n"
+        "  integer :: a\n"
+        "    a = sum(array,dim=1,mask=.false.)\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+
+    # Generate Fortran from the PSyIR schedule
+    result = fortran_writer(schedule)
+    assert "a = SUM(array, dim=1, mask=.false.)" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+    code = code.replace(
+        "sum(array,dim=1,mask=.false.)", "sum(array,dim=1,.false.)")
+    schedule = fortran_reader.psyir_from_source(code)
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(schedule)
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "NaryOperation[operator:'SUM']" in str(info.value))
 
 
 def test_fw_naryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -1864,6 +1828,18 @@ def test_fw_unaryoperator2(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(schedule)
     assert "a = SIN(1.0)" in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_unaryoperator_namedarg(fortran_writer):
+    '''Check the FortranWriter class unary_operation method operator
+    correctly outputs the Fortran representation of an intrinsic with
+    a named argument.
+
+    '''
+    intrinsic = UnaryOperation.create(
+        UnaryOperation.Operator.SUM, ("value", Literal("1.0", REAL_TYPE)))
+    result = fortran_writer(intrinsic)
+    assert result == "SUM(value=1.0)"
 
 
 def test_fw_unaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -2203,6 +2179,31 @@ def test_fw_call_node(fortran_writer):
     assert expected in result
 
 
+def test_fw_call_node_namedargs(fortran_writer):
+    '''Test the PSyIR call node is translated to the required Fortran code
+    when there are named arguments and that the expected exception is
+    raised if all of the named arguments are not after the positional
+    arguments.
+
+    '''
+    routine_symbol = RoutineSymbol("mysub")
+    call = Call.create(
+        routine_symbol,
+        [Literal("1.0", REAL_TYPE),
+         ("arg2", Literal("2.0", REAL_TYPE)),
+         ("arg3", Literal("3.0", REAL_TYPE))])
+    result = fortran_writer(call)
+    assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
+
+    call.children[2] = Literal("4.0", REAL_TYPE)
+
+    with pytest.raises(VisitorError) as info:
+        _ = fortran_writer(call)
+    assert ("Fortran expects all named arguments to occur after all "
+            "positional arguments but this is not the case for "
+            "Call[name='mysub']" in str(info.value))
+
+
 def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
     '''Test that a PSyIR call node with arguments represented by CodeBlocks
     is translated to the required Fortran code.
@@ -2214,13 +2215,13 @@ def test_fw_call_node_cblock_args(fortran_reader, fortran_writer):
         "subroutine test()\n"
         "  use my_mod, only : kernel\n"
         "  real :: a, b\n"
-        "  call kernel(a, 'not'//'nice', name=\"roo\", b)\n"
+        "  call kernel(a, 'not'//'nice', b, name='roo')\n"
         "end subroutine")
     call_node = psyir.walk(Call)[0]
     cblocks = psyir.walk(CodeBlock)
-    assert len(cblocks) == 2
+    assert len(cblocks) == 1
     gen = fortran_writer(call_node)
-    assert gen == '''call kernel(a, 'not' // 'nice', name = "roo", b)\n'''
+    assert gen == '''call kernel(a, 'not' // 'nice', b, name='roo')\n'''
 
 
 def test_fw_comments(fortran_writer):

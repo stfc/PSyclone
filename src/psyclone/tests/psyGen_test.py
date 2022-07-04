@@ -43,7 +43,6 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -52,7 +51,8 @@ from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
     DynKernelArguments, DynGlobalSum
@@ -67,7 +67,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, Loop, colored
+    Literal, Node, KernelSchedule, Call, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
@@ -187,9 +187,9 @@ def test_transformation_init_name():
     assert trans.name == "TestTrans"
     assert isinstance(trans._writer, FortranWriter)
     with pytest.raises(TypeError) as info:
-        _ = TestTrans(writer=None)
+        _ = TestTrans(writer="wrong")
     assert ("The writer argument to a transformation should be a "
-            "PSyIRVisitor, but found 'NoneType'." in str(info.value))
+            "PSyIRVisitor, but found 'str'." in str(info.value))
     trans = TestTrans(writer=CWriter())
     assert isinstance(trans._writer, CWriter)
 
@@ -410,18 +410,6 @@ def test_invokeschedule_node_str():
     assert colored("InvokeSchedule", InvokeSchedule._colour) in output
 
 
-def test_sched_ocl_setter():
-    ''' Check that the opencl setter raises the expected error if not passed
-    a bool. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    with pytest.raises(ValueError) as err:
-        psy.invokes.invoke_list[0].schedule.opencl = "a string"
-    assert "Schedule.opencl must be a bool but got " in str(err.value)
-
-
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -551,9 +539,9 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     with pytest.raises(NotImplementedError) as err:
         gen = str(psy.gen)
     assert ("Can not module-inline subroutine 'ru_code' because symbol"
-            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
-            "already exists and changing names of module-inlined subroutines "
-            "is not implemented yet.") in str(err.value)
+            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Local>' with the "
+            "same name already exists and changing names of module-inlined "
+            "subroutines is not implemented yet.") in str(err.value)
 
     # TODO # 898. Manually force removal of previous symbol as
     # symbol_table.remove() for DataSymbols is not implemented yet.
@@ -803,19 +791,22 @@ def test_kern_is_coloured2():
     table = SymbolTable()
     # Create the loop variables
     for idx in range(3):
-        table.new_symbol("cell{0}".format(idx), symbol_type=DataSymbol,
+        table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = DynKern()
-    loops = [Loop.create(table.lookup("cell0"), Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE), [my_kern])]
-    loops.append(Loop.create(table.lookup("cell1"), Literal("1", INTEGER_TYPE),
-                             Literal("10", INTEGER_TYPE),
-                             Literal("1", INTEGER_TYPE), [loops[-1]]))
-    loops.append(Loop.create(table.lookup("cell2"), Literal("1", INTEGER_TYPE),
-                             Literal("10", INTEGER_TYPE),
-                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops = [PSyLoop.create(table.lookup("cell0"),
+                            Literal("1", INTEGER_TYPE),
+                            Literal("10", INTEGER_TYPE),
+                            Literal("1", INTEGER_TYPE), [my_kern])]
+    loops.append(PSyLoop.create(table.lookup("cell1"),
+                                Literal("1", INTEGER_TYPE),
+                                Literal("10", INTEGER_TYPE),
+                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops.append(PSyLoop.create(table.lookup("cell2"),
+                                Literal("1", INTEGER_TYPE),
+                                Literal("10", INTEGER_TYPE),
+                                Literal("1", INTEGER_TYPE), [loops[-1]]))
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
@@ -1033,7 +1024,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
     builtin = schedule.walk(BuiltIn)[0]
     arg = builtin.arguments.args[0]
     arg._precision = ""
-    
+
     generated_code = str(psy.gen)
 
     if dist_mem:

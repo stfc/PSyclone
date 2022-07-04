@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ print(fwriter(PSY.container))
 
 print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 TRANS_INFO = TransInfo()
 print(TRANS_INFO.list)
@@ -91,7 +91,7 @@ OMP_TRANS = TRANS_INFO.get_trans_name('GOceanOMPParallelLoopTrans')
 FUSE_TRANS.apply(SCHEDULE.children[0], SCHEDULE.children[1])
 FUSE_TRANS.apply(SCHEDULE.children[0], SCHEDULE.children[1])
 FUSE_TRANS.apply(SCHEDULE.children[0], SCHEDULE.children[1])
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 # fuse all inner loops
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
@@ -100,9 +100,9 @@ FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
                  SCHEDULE.children[0].loop_body[1])
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
                  SCHEDULE.children[0].loop_body[1])
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 OMP_TRANS.apply(SCHEDULE.children[0])
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 print(fwriter(PSY.container))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -137,7 +137,7 @@ def test_datasymbol_specialise_and_process_arguments():
         sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         constant_value=3.14)
     assert("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
-           "which means the constant value is expected to be"
+           "meaning the constant value should be"
            in str(error.value))
 
 
@@ -145,32 +145,32 @@ def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
     symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
-    assert "sname: <Scalar<REAL, SINGLE>, Local>" in str(symbol)
+    assert "sname: DataSymbol<Scalar<REAL, SINGLE>, Local>" in str(symbol)
 
     sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
-    assert "s1: <Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym1)
+    assert "s1: DataSymbol<Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym1)
 
     array_type = ArrayType(REAL_SINGLE_TYPE,
                            [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
-    assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
+    assert ("s2: DataSymbol<Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
             "2, Reference[name:'s1']]>, Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
                       interface=ImportInterface(my_mod))
-    assert ("s3: <Scalar<REAL, SINGLE>, Import(container='my_mod')>"
+    assert ("s3: DataSymbol<Scalar<REAL, SINGLE>, Import(container='my_mod')>"
             in str(sym3))
 
     sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
-    assert ("s3: <Scalar<INTEGER, SINGLE>, Local, "
+    assert ("s3: DataSymbol<Scalar<INTEGER, SINGLE>, Local, "
             "constant_value=Literal"
             "[value:'12', Scalar<INTEGER, SINGLE>]>" in str(sym3))
 
     sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
-    assert "s4: <Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym4)
+    assert "s4: DataSymbol<Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym4)
 
 
 def test_datasymbol_constant_value_setter():
@@ -236,24 +236,24 @@ def test_datasymbol_constant_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=9.81)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<INTEGER, SINGLE>' which "
-            "means the constant value is expected to be") in str(error.value)
+            "instance datatype is 'Scalar<INTEGER, SINGLE>' meaning "
+            "the constant value should be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', CHARACTER_TYPE, constant_value=42)
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' which "
-            "means the constant value is expected to be") in str(error.value)
+            "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' meaning "
+            "the constant value should be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, constant_value="hello")
     assert ("Error setting constant value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' which "
-            "means the constant value is expected to be") in str(error.value)
+            "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' meaning "
+            "the constant value should be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
 
@@ -433,5 +433,5 @@ def test_datasymbol_str():
     '''Test that the DataSymbol __str__ method returns the expected string'''
     data_symbol = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
     assert (data_symbol.__str__() ==
-            "a: <Scalar<INTEGER, 4>, Local, constant_value=Literal[value:'3', "
-            "Scalar<INTEGER, 4>]>")
+            "a: DataSymbol<Scalar<INTEGER, 4>, Local, constant_value="
+            "Literal[value:'3', Scalar<INTEGER, 4>]>")

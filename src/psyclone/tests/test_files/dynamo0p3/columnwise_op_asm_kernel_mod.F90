@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,10 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 !> @brief Kernel which assembles a locally assembled matrix (LMA) into a
-!>        columnwise assembled matrix (CMA)
+!!        columnwise assembled matrix (CMA).
 module columnwise_op_asm_kernel_mod
 
 use kernel_mod,              only : kernel_type
@@ -50,7 +50,7 @@ use argument_mod,            only : arg_type, func_type,                 &
                                     ANY_DISCONTINUOUS_SPACE_2,           &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -81,17 +81,17 @@ public columnwise_op_asm_kernel_code
 contains
 
   !> @brief The subroutine which is called directly from the PSy layer and
-  !> assembles the LMA into a CMA
+  !!        assembles the LMA into a CMA.
   !> @details Given an LMA representation of the operator mapping between two
-  !> horizontally discontinuous spaces, assemble the columnwise matrix
-  !> representation of the operator.
+  !!          horizontally discontinuous spaces, assemble the columnwise
+  !!          matrix representation of the operator.
   !>
   !> @param [in] cell Horizontal cell index
   !> @param [in] nlayers Number of vertical layers
   !> @param [in] ncell_2d Number of cells in 2d grid
   !> @param [in] ncell_3d Total number of cells
   !> @param [in] local_stencil Locally assembled matrix
-  !> @param [out] columnwise_matrix Banded matrix to assemble into
+  !> @param [in,out] columnwise_matrix Banded matrix to assemble into
   !> @param [in] nrow Number of rows in the banded matrix
   !> @param [in] ncol Number of columns in the banded matrix
   !> @param [in] bandwidth Bandwidth of the banded matrix
@@ -132,7 +132,7 @@ contains
     integer(kind=i_def), dimension(ndf_to,nlayers), intent(in)   :: column_banded_dofmap_to
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
+    real(kind=r_solver), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
 
     write(*,*) "Hello CMA World"
 

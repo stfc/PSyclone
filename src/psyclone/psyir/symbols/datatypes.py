@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -96,9 +96,9 @@ class UnknownType(DataType):
     def __init__(self, declaration_txt):
         if not isinstance(declaration_txt, str):
             raise TypeError(
-                "UnknownType constructor expects the original variable "
-                "declaration as a string but got an argument of type '{0}'".
-                format(type(declaration_txt).__name__))
+                f"UnknownType constructor expects the original variable "
+                f"declaration as a string but got an argument of type "
+                f"'{type(declaration_txt).__name__}'")
         self._declaration = None
         self.declaration = declaration_txt
 
@@ -137,7 +137,7 @@ class UnknownFortranType(UnknownType):
 
     '''
     def __str__(self):
-        return "UnknownFortranType('{0}')".format(self._declaration)
+        return f"UnknownFortranType('{self._declaration}')"
 
 
 class ScalarType(DataType):
@@ -176,28 +176,27 @@ class ScalarType(DataType):
     def __init__(self, intrinsic, precision):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
-                "ScalarType expected 'intrinsic' argument to be of type "
-                "ScalarType.Intrinsic but found '{0}'."
-                "".format(type(intrinsic).__name__))
+                f"ScalarType expected 'intrinsic' argument to be of type "
+                f"ScalarType.Intrinsic but found "
+                f"'{type(intrinsic).__name__}'.")
         if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
             raise TypeError(
-                "ScalarType expected 'precision' argument to be of type "
-                "int, ScalarType.Precision or DataSymbol, but found '{0}'."
-                "".format(type(precision).__name__))
+                f"ScalarType expected 'precision' argument to be of type "
+                f"int, ScalarType.Precision or DataSymbol, but found "
+                f"'{type(precision).__name__}'.")
         if isinstance(precision, int) and precision <= 0:
             raise ValueError(
-                "The precision of a DataSymbol when specified as an "
-                "integer number of bytes must be > 0 but found '{0}'."
-                "".format(precision))
+                f"The precision of a DataSymbol when specified as an integer "
+                f"number of bytes must be > 0 but found '{precision}'.")
         if (isinstance(precision, DataSymbol) and
                 not (isinstance(precision.datatype, ScalarType) and
                      precision.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER) and
                 not isinstance(precision.datatype, DeferredType)):
             raise ValueError(
-                "A DataSymbol representing the precision of another "
-                "DataSymbol must be of either 'deferred' or scalar, "
-                "integer type but got: {0}".format(str(precision)))
+                f"A DataSymbol representing the precision of another "
+                f"DataSymbol must be of either 'deferred' or scalar, "
+                f"integer type but got: {precision}")
 
         self._intrinsic = intrinsic
         self._precision = precision
@@ -229,7 +228,7 @@ class ScalarType(DataType):
             precision_str = self.precision.name
         else:
             precision_str = str(self.precision)
-        return "Scalar<{0}, {1}>".format(self.intrinsic.name, precision_str)
+        return f"Scalar<{self.intrinsic.name}, {precision_str}>"
 
 
 class ArrayType(DataType):
@@ -302,16 +301,17 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            self._intrinsic = datatype.intrinsic
-            self._precision = datatype.precision
+            if not isinstance(datatype, UnknownType):
+                self._intrinsic = datatype.intrinsic
+                self._precision = datatype.precision
         elif isinstance(datatype, DataTypeSymbol):
             self._intrinsic = datatype
             self._precision = None
         else:
             raise TypeError(
-                "ArrayType expected 'datatype' argument to be of type "
-                "DataType or DataTypeSymbol but found '{0}'."
-                "".format(type(datatype).__name__))
+                f"ArrayType expected 'datatype' argument to be of type "
+                f"DataType or DataTypeSymbol but found "
+                f"'{type(datatype).__name__}'.")
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
         self._validate_shape(shape)
@@ -419,18 +419,18 @@ class ArrayType(DataType):
                         isinstance(symbol.datatype,
                                    (UnknownFortranType, DeferredType))):
                     raise TypeError(
-                        "If a DataSymbol is referenced in a dimension "
-                        "declaration then it should be a scalar integer or "
-                        "of UnknownType or DeferredType, but '{0}' is a "
-                        "'{1}'.".format(symbol.name, symbol.datatype))
+                        f"If a DataSymbol is referenced in a dimension "
+                        f"declaration then it should be a scalar integer or "
+                        f"of UnknownType or DeferredType, but "
+                        f"'{symbol.name}' is a '{symbol.datatype}'.")
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
 
         if not isinstance(extents, list):
             raise TypeError(
-                "ArrayType 'shape' must be of type list but found '{0}'."
-                "".format(type(extents).__name__))
+                f"ArrayType 'shape' must be of type list but found "
+                f"'{type(extents).__name__}'.")
 
         for dimension in extents:
             if isinstance(dimension, DataNode):
@@ -438,24 +438,23 @@ class ArrayType(DataType):
             elif isinstance(dimension, tuple):
                 if len(dimension) != 2:
                     raise TypeError(
-                        "A DataSymbol shape-list element specifying lower "
-                        "and upper bounds must be a 2-tuple but '{0}' has {1} "
-                        "entries.".format(str(dimension), len(dimension)))
+                        f"A DataSymbol shape-list element specifying lower "
+                        f"and upper bounds must be a 2-tuple but "
+                        f"'{dimension}' has {len(dimension)} entries.")
                 for dim in dimension:
                     if isinstance(dim, DataNode):
                         _validate_data_node(dim)
                     elif not isinstance(dim, int):
                         raise TypeError(
-                            "A DataSymbol shape-list element specifying lower "
-                            "and upper bounds must be a 2-tuple containing "
-                            "either int or DataNode entries but '{0}' contains"
-                            " '{1}'".format(str(dimension),
-                                            type(dim).__name__))
+                            f"A DataSymbol shape-list element specifying lower"
+                            f" and upper bounds must be a 2-tuple containing "
+                            f"either int or DataNode entries but '{dimension}'"
+                            f" contains '{type(dim).__name__}'")
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
-                    "DataSymbol shape list elements can only be 'int', "
-                    "ArrayType.Extent, 'DataNode' or tuple but found "
-                    "'{0}'.".format(type(dimension).__name__))
+                    f"DataSymbol shape list elements can only be 'int', "
+                    f"ArrayType.Extent, 'DataNode' or tuple but found "
+                    f"'{type(dimension).__name__}'.")
 
     def __str__(self):
         '''
@@ -487,14 +486,13 @@ class ArrayType(DataType):
                     dim_text += str(dimension.upper)
                 dims.append(dim_text)
             elif isinstance(dimension, ArrayType.Extent):
-                dims.append("'{0}'".format(dimension.name))
+                dims.append(f"'{dimension.name}'")
             else:
                 raise InternalError(
-                    "ArrayType shape list elements can only be 'ArrayType."
-                    "ArrayBounds', or 'ArrayType.Extent', but found '{0}'."
-                    "".format(type(dimension).__name__))
-        return ("Array<{0}, shape=[{1}]>".format(
-            self._datatype, ", ".join(dims)))
+                    f"ArrayType shape list elements can only be 'ArrayType."
+                    f"ArrayBounds', or 'ArrayType.Extent', but found "
+                    f"'{type(dimension).__name__}'.")
+        return (f"Array<{self._datatype}, shape=[{', '.join(dims)}]>")
 
 
 class StructureType(DataType):
@@ -536,10 +534,9 @@ class StructureType(DataType):
         for component in components:
             if len(component) != 3:
                 raise TypeError(
-                    "Each component must be specified using a 3-tuple of "
-                    "(name, type, visibility) but found a tuple with {0} "
-                    "members: {1}".format(
-                        len(component), str(component)))
+                    f"Each component must be specified using a 3-tuple of "
+                    f"(name, type, visibility) but found a tuple with "
+                    f"{len(component)} members: {component}")
             stype.add(component[0], component[1], component[2])
         return stype
 
@@ -568,24 +565,24 @@ class StructureType(DataType):
         '''
         if not isinstance(name, str):
             raise TypeError(
-                "The name of a component of a StructureType must be a 'str' "
-                "but got '{0}'".format(type(name).__name__))
+                f"The name of a component of a StructureType must be a 'str' "
+                f"but got '{type(name).__name__}'")
         if not isinstance(datatype, (DataType, DataTypeSymbol)):
             raise TypeError(
-                "The type of a component of a StructureType must be a "
-                "'DataType' or 'DataTypeSymbol' but got '{0}'".format(
-                    type(datatype).__name__))
+                f"The type of a component of a StructureType must be a "
+                f"'DataType' or 'DataTypeSymbol' but got "
+                f"'{type(datatype).__name__}'")
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(
-                "The visibility of a component of a StructureType must be "
-                "an instance of 'Symbol.Visibility' but got '{0}'".format(
-                    type(visibility).__name__))
+                f"The visibility of a component of a StructureType must be "
+                f"an instance of 'Symbol.Visibility' but got "
+                f"'{type(visibility).__name__}'")
         if datatype is self:
             # A StructureType cannot contain a component of its own type
             raise TypeError(
-                "Error attempting to add component '{0}' - a StructureType "
-                "definition cannot be recursive - i.e. it cannot contain "
-                "components with the same type as itself.".format(name))
+                f"Error attempting to add component '{name}' - a "
+                f"StructureType definition cannot be recursive - i.e. it "
+                f"cannot contain components with the same type as itself.")
 
         self._components[name] = self.ComponentType(name, datatype, visibility)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -187,16 +187,15 @@ def test_fn_call_no_kernel(parser):
     assert isinstance(loop.loop_body[0], Assignment)
 
 
-def test_schedule_view(capsys):
+def test_schedule_view():
     ''' Check the schedule view/str methods work as expected '''
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     sched_str = str(sched)
-    assert "NemoLoop[id:'', variable:'ji', loop_type:'lon']" in sched_str
-    assert "NemoLoop[id:'', variable:'jj', loop_type:'lat']" in sched_str
-    assert "NemoLoop[id:'', variable:'jk', loop_type:'levels']" in sched_str
-    sched.view()
-    output, _ = capsys.readouterr()
+    assert "NemoLoop[variable:'ji', loop_type:'lon']" in sched_str
+    assert "NemoLoop[variable:'jj', loop_type:'lat']" in sched_str
+    assert "NemoLoop[variable:'jk', loop_type:'levels']" in sched_str
+    output = sched.view()
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", Loop._colour)

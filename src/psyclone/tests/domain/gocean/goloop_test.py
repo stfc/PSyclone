@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -124,6 +124,16 @@ def test_goloop_create(monkeypatch):
     assert goloop.children[1].value == '20'
     assert goloop.children[2].value == '1'
 
+    # Try with an invalid loop type
+    with pytest.raises(TypeError) as err:
+        goloop = GOLoop.create(parent=gosched,
+                               loop_type="invalid",
+                               field_name="cv_fld",
+                               iteration_space="go_internal_pts",
+                               field_space="go_cv")
+    assert ("Error, loop_type value (invalid) is invalid. Must be one of "
+            "['inner', 'outer']." in str(err.value))
+
 
 def test_goloop_properties_getters_and_setters():
     ''' Test that the GOLoop getters and setters, retrieve and set the
@@ -187,7 +197,7 @@ def test_goloop_bounds_invalid_iteration_space():
     gojloop.iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
-    assert ("Cannot generate custom loop bound for loop GOLoop[id:'', "
+    assert ("Cannot generate custom loop bound for loop GOLoop["
             "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't find "
             "any suitable field." in str(err.value))
 

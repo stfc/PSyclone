@@ -109,6 +109,20 @@ class ExtractNode(PSyDataNode):
         else:
             self._post_name = "_post"
 
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ExtractNodes are equal if
+        their extract_body members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.post_name == other.post_name
+        return is_eq
+
     @property
     def extract_body(self):
         '''
@@ -117,6 +131,14 @@ class ExtractNode(PSyDataNode):
 
         '''
         return super(ExtractNode, self).psy_data_body
+
+    @property
+    def post_name(self):
+        '''
+        :returns: the _post_name member of this ExtractNode.
+        :rtype: str
+        '''
+        return self._post_name
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ

@@ -45,7 +45,6 @@ from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import abc
 import six
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -55,9 +54,8 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, Call, OMPDoDirective
-from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, ContainerSymbol, ImportInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
-    ArgumentInterface, DeferredType
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, Symbol, \
+    ContainerSymbol, ImportInterface, ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -676,7 +674,7 @@ class InvokeSchedule(Routine):
     >>> invokes.names
     >>> invoke = invokes.get("name")
     >>> schedule = invoke.schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
@@ -686,14 +684,16 @@ class InvokeSchedule(Routine):
      :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
     def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
-                 reserved_names=None, parent=None):
-        super(InvokeSchedule, self).__init__(name, parent=parent)
+                 reserved_names=None, **kwargs):
+        super().__init__(name, **kwargs)
 
         self._invoke = None
 
@@ -712,18 +712,6 @@ class InvokeSchedule(Routine):
                 self.addchild(BuiltInFactory.create(call, parent=self))
             else:
                 self.addchild(KernFactory.create(call, parent=self))
-
-        # TODO #1134: If OpenCL is just a PSyIR transformation the following
-        # properties may not be needed or are transformation options instead.
-        # Flag to choose whether or not to generate OpenCL
-        self._opencl = False  # Whether or not to generate OpenCL
-        # Flag to choose whether or not to add an OpenCL barrier at the end of
-        # the Invoke code.
-        self._opencl_end_barrier = True
-
-        # This reference will store during gen_code() the block of code that
-        # is executed only on the first iteration of the invoke.
-        self._first_time_block = None
 
     @property
     def symbol_table(self):
@@ -802,123 +790,14 @@ class InvokeSchedule(Routine):
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
 
-        if self._opencl:
-            parent.add(UseGen(parent, name="iso_c_binding"))
-            parent.add(UseGen(parent, name="clfortran"))
-            parent.add(UseGen(parent, name="fortcl", only=True,
-                              funcnames=["get_num_cmd_queues",
-                                         "get_cmd_queues",
-                                         "get_kernel_by_name"]))
-
-            # Declare variables needed on a OpenCL PSy-layer invoke
-            nqueues = self.symbol_table.new_symbol(
-                "num_cmd_queues", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues").name
-            qlist = self.symbol_table.new_symbol(
-                "cmd_queues", symbol_type=DataSymbol,
-                datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
-                tag="opencl_cmd_queues").name
-            first = self.symbol_table.new_symbol(
-                "first_time", symbol_type=DataSymbol,
-                datatype=BOOLEAN_TYPE, tag="first_time").name
-            flag = self.symbol_table.new_symbol(
-                "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-                tag="opencl_error").name
-            self.symbol_table.new_symbol(
-                "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-                tag="opencl_bytes")
-            self.symbol_table.new_symbol(
-                "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-                tag="opencl_wevent")
-
-            parent.add(DeclGen(parent, datatype="integer", save=True,
-                               entity_decls=[nqueues]))
-            parent.add(DeclGen(parent, datatype="integer", save=True,
-                               pointer=True, kind="c_intptr_t",
-                               entity_decls=[qlist + "(:)"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[flag]))
-            parent.add(DeclGen(parent, datatype="logical", save=True,
-                               entity_decls=[first],
-                               initial_values=[".true."]))
-            if_first = IfThenGen(parent, first)
-            # Keep a reference to the block of code that is executed only on
-            # the first iteration of the invoke.
-            self._first_time_block = if_first
-            parent.add(if_first)
-            if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
-            if_first.add(CommentGen(if_first,
-                                    " Ensure OpenCL run-time is initialised "
-                                    "for this PSy-layer module"))
-            if_first.add(CallGen(if_first, "psy_init"))
-            if_first.add(AssignGen(if_first, lhs=nqueues,
-                                   rhs="get_num_cmd_queues()"))
-            if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
-                                   rhs="get_cmd_queues()"))
-            # Kernel pointers
-            kernels = self.walk(Kern)
-            for kern in kernels:
-                kernel = "kernel_" + kern.name
-                try:
-                    self.symbol_table.lookup_with_tag(kernel)
-                except KeyError:
-                    self.symbol_table.add(RoutineSymbol(kernel), tag=kernel)
-                parent.add(
-                    DeclGen(parent, datatype="integer", kind="c_intptr_t",
-                            save=True, target=True, entity_decls=[kernel]))
-                if_first.add(
-                    AssignGen(
-                        if_first, lhs=kernel,
-                        rhs='get_kernel_by_name("{0}")'.format(kern.name)))
-
         for entity in self._children:
             entity.gen_code(parent)
-
-        if self.opencl and self._opencl_end_barrier:
-
-            parent.add(CommentGen(parent,
-                                  " Block until all kernels have finished"))
-
-            # We need a clFinish for all the queues in the implementation
-            opencl_num_queues = 1
-            for kern in self.coded_kernels():
-                opencl_num_queues = max(
-                    opencl_num_queues,
-                    kern.opencl_options['queue_number'])
-            for queue_number in range(1, opencl_num_queues + 1):
-                parent.add(
-                    AssignGen(parent, lhs=flag,
-                              rhs="clFinish({0}({1}))".format(qlist,
-                                                              queue_number)))
 
         # Restore symbol table (with a protected access attribute change)
         # pylint: disable=protected-access
         self._symbol_table = symbol_table_before_gen
         self.parent._symbol_table = psy_symbol_table_before_gen
         # pylint: enable=protected-access
-
-    @property
-    def opencl(self):
-        '''
-        :returns: Whether or not we are generating OpenCL for this \
-            InvokeSchedule.
-        :rtype: bool
-        '''
-        return self._opencl
-
-    @opencl.setter
-    def opencl(self, value):
-        '''
-        Setter for whether or not to generate the OpenCL version of this
-        schedule.
-
-        :param bool value: whether or not to generate OpenCL.
-        '''
-        if not isinstance(value, bool):
-            raise ValueError(
-                "InvokeSchedule.opencl must be a bool but got {0}".
-                format(type(value)))
-        self._opencl = value
 
 
 class GlobalSum(Statement):
@@ -1817,7 +1696,7 @@ class CodedKern(Kern):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified and not self.ancestor(InvokeSchedule).opencl:
+        if not self.modified:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -1838,25 +1717,8 @@ class CodedKern(Kern):
             name_idx += 1
             new_suffix = ""
 
-            # GOcean OpenCL needs to differentiate between kernels generated
-            # from the same module file, so we include the kernelname into the
-            # output filename.
-            # TODO: Issue 499, this works as an OpenCL quickfix but it needs
-            # to be generalized and be consistent with the '--kernel-renaming'
-            # conventions.
-            if self.ancestor(InvokeSchedule).opencl:
-                if self.name.lower().endswith("_code"):
-                    new_suffix += "_" + self.name[:-5]
-                else:
-                    new_suffix += "_" + self.name
-
             new_suffix += "_{0}".format(name_idx)
-
-            # Choose file extension
-            if self.ancestor(InvokeSchedule).opencl:
-                new_name = old_base_name + new_suffix + ".cl"
-            else:
-                new_name = old_base_name + new_suffix + "_mod.f90"
+            new_name = old_base_name + new_suffix + "_mod.f90"
 
             try:
                 # Atomically attempt to open the new kernel file (in case
@@ -1875,13 +1737,7 @@ class CodedKern(Kern):
 
         # Use the suffix we have determined to rename all relevant quantities
         # within the AST of the kernel code.
-        # We can't rename OpenCL kernels as the Invoke set_args functions
-        # have already been generated. The link to an specific kernel
-        # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  FORTCL_KERNELS_FILE environment variable)
-        if not self.ancestor(InvokeSchedule).opencl:
-            # Rename PSyIR module and kernel names.
-            self._rename_psyir(new_suffix)
+        self._rename_psyir(new_suffix)
 
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
@@ -1895,35 +1751,17 @@ class CodedKern(Kern):
             os.close(fdesc)
             return
 
-        if self.ancestor(InvokeSchedule).opencl:
-            from psyclone.psyir.backend.opencl import OpenCLWriter
-            ocl_writer = OpenCLWriter(
-                kernels_local_size=self._opencl_options['local_size'])
-            new_kern_code = ocl_writer(self.get_kernel_schedule())
-        elif self._kern_schedule:
-            # A PSyIR kernel schedule has been created. This means
-            # that the PSyIR has been modified. Therefore use the
-            # chosen PSyIR back-end to write out the modified kernel
-            # code. At the moment there is no way to choose which
-            # back-end to use, so simply use the Fortran one (and
-            # limit the line length). This test is only required
-            # whilst old style (direct fp2) transformations still
-            # exist.
-            fortran_writer = FortranWriter()
-            # Start from the root of the schedule as we want to output
-            # any module information surrounding the kernel subroutine
-            # as well as the subroutine itself.
-            new_kern_code = fortran_writer(self.get_kernel_schedule().root)
-            fll = FortLineLength()
-            new_kern_code = fll.process(new_kern_code)
-        else:
-            # This is an old style transformation which modifes the
-            # fp2 parse tree directly. Therefore use the fp2
-            # representation to generate the Fortran for this
-            # transformed kernel, ensuring that the line length is
-            # limited.
-            fll = FortLineLength()
-            new_kern_code = fll.process(str(self.ast))
+        # If we reach this point the kernel needs to be written out into a
+        # file using a PSyIR back-end. At the moment there is no way to choose
+        # which back-end to use, so simply use the Fortran one (and limit the
+        # line length).
+        fortran_writer = FortranWriter()
+        # Start from the root of the schedule as we want to output
+        # any module information surrounding the kernel subroutine
+        # as well as the subroutine itself.
+        new_kern_code = fortran_writer(self.get_kernel_schedule().root)
+        fll = FortLineLength()
+        new_kern_code = fll.process(new_kern_code)
 
         if not fdesc:
             # If we've not got a file descriptor at this point then that's
@@ -2939,7 +2777,7 @@ class TransInfo(object):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class Transformation(object):
+class Transformation():
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
@@ -2949,12 +2787,16 @@ class Transformation(object):
     :type writer: :py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`
 
     '''
-    def __init__(self, writer=FortranWriter()):
-        if not isinstance(writer, PSyIRVisitor):
-            raise TypeError(
-                "The writer argument to a transformation should be a "
-                "PSyIRVisitor, but found '{0}'.".format(type(writer).__name__))
-        self._writer = writer
+    def __init__(self, writer=None):
+
+        if writer:
+            if not isinstance(writer, PSyIRVisitor):
+                raise TypeError(
+                    f"The writer argument to a transformation should be a "
+                    f"PSyIRVisitor, but found '{type(writer).__name__}'.")
+            self._writer = writer
+        else:
+            self._writer = FortranWriter()
 
     @property
     def name(self):

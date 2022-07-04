@@ -522,6 +522,8 @@ variable that is available to it from the enclosing module scope.
 .. note:: these rules *only* apply to kernels that are the target of
       PSyclone kernel transformations.
 
+.. _available_kernel_trans:
+
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
@@ -640,7 +642,7 @@ in. For example::
 
     # Get the schedule associated with the required invoke
     > schedule = invoke.schedule
-    > schedule.view()
+    > print(schedule.view())
     InvokeSchedule[invoke='invoke_0', dm=True]
         0: Loop[type='dof', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
             Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
@@ -659,7 +661,7 @@ with the new one. For example::
 
     # Apply it to the loop schedule of the selected invoke
     > ol.apply(schedule.children[0])
-    > schedule.view()
+    > print(schedule.view())
 
     # Generate the Fortran code for the new PSy layer
     > print(psy.gen)
@@ -858,10 +860,9 @@ OpenCL functionality. It also relies upon the device acceleration support
 provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
-.. note:: The generated OpenCL files follow the `--kernel-renaming` argument
-    conventions, but in addition to the `<modulename>` they also include the
-    `<kernelname>` as part of the filename in the format:
-    `<modulename>_<kernelname>_index.cl`
+.. note:: The generated OpenCL kernels are written in a file called
+    opencl_kernels_<index>.cl where the index keeps increasing if the
+    file name already exist.
 
 
 The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
@@ -1012,9 +1013,10 @@ user-supplied kernel routines are called from within
 PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
-directive added. Again, please see PSyclone/examples/gocean/eg2 for an
-example. This transformation is currently not supported for kernels in
-the Dynamo0.3 API.
+directive added. See either PSyclone/examples/gocean/eg2 or
+PSyclone/examples/lfric/eg14 for an example (although please note that
+this transformation is not yet fully working for kernels in
+the LFRic (Dynamo0.3) API - see #1724).
 
 SIR
 ---
