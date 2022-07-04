@@ -39,7 +39,7 @@ import os
 import pytest
 
 from psyclone.domain.lfric import KernCallInvokeArgList
-from psyclone.domain.lfric.algorithm import alg_gen
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
@@ -79,19 +79,24 @@ def create_prog_fixture():
     return prog
 
 
-def test_create_alg_mod_wrong_arg_type():
+@pytest.fixture(name="lfric_alg", scope="function")
+def create_alg_fixture():
+    return LFRicAlg()
+
+
+def test_create_alg_mod_wrong_arg_type(lfric_alg):
     '''
     Test that _create_alg_mod() rejects arguments of the wrong type.
     '''
     with pytest.raises(TypeError) as err:
-        alg_gen._create_alg_mod(5)
+        lfric_alg._create_alg_mod(5)
     assert ("Supplied routine name must be a str but got 'int'" in
             str(err.value))
 
 
-def test_create_alg_mod(fortran_writer):
+def test_create_alg_mod(lfric_alg, fortran_writer):
     ''' Test the correct operation of _create_alg_mod(). '''
-    psyir = alg_gen._create_alg_mod("my_test_alg")
+    psyir = lfric_alg._create_alg_mod("my_test_alg")
     assert isinstance(psyir, Container)
 
     # TODO #284 ideally we'd test that the generated code compiles but that
@@ -110,28 +115,28 @@ def test_create_alg_mod(fortran_writer):
     assert "type(field_type), intent(in), optional :: panel_id" in gen
 
 
-def test_create_function_spaces_no_spaces(prog):
+def test_create_function_spaces_no_spaces(lfric_alg, prog):
     ''' Check that a Routine is populated as expected, even when there
     are no actual function spaces. '''
-    alg_gen._create_function_spaces(prog, [])
+    lfric_alg._create_function_spaces(prog, [])
     assert prog.symbol_table.lookup("element_order")
     assert isinstance(prog.symbol_table.lookup("fs_continuity_mod"),
                       ContainerSymbol)
 
 
-def test_create_function_spaces_invalid_space(prog):
+def test_create_function_spaces_invalid_space(lfric_alg, prog):
     ''' Check that the expected error is raised if an invalid function-space
     name is supplied. '''
     with pytest.raises(InternalError) as err:
-        alg_gen._create_function_spaces(prog, ["wwrong", "w1"])
+        lfric_alg._create_function_spaces(prog, ["wwrong", "w1"])
     assert ("Function space 'wwrong' is not a valid LFRic function space "
             "(one of [" in str(err.value))
 
 
-def test_create_function_spaces(prog, fortran_writer):
+def test_create_function_spaces(lfric_alg, prog, fortran_writer):
     ''' Check that a Routine is populated correctly when valid function-space
     names are supplied. '''
-    alg_gen._create_function_spaces(prog, ["w3", "w1"])
+    lfric_alg._create_function_spaces(prog, ["w3", "w1"])
     fs_mod_sym = prog.symbol_table.lookup("fs_continuity_mod")
     gen = fortran_writer(prog)
     for space in ["w1", "w3"]:
@@ -143,7 +148,7 @@ def test_create_function_spaces(prog, fortran_writer):
                 f"get_fs(mesh, element_order, {space})" in gen)
 
 
-def test_initialise_field(prog, fortran_writer):
+def test_initialise_field(lfric_alg, prog, fortran_writer):
     ''' Test that the initialise_field() function works as expected for both
     individual fields and field vectors. '''
     table = prog.symbol_table
@@ -159,14 +164,14 @@ def test_initialise_field(prog, fortran_writer):
                      datatype=INTEGER_TYPE)
     # First - a single field argument.
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
-    alg_gen.initialise_field(prog, sym, "w3")
+    lfric_alg.initialise_field(prog, sym, "w3")
     gen = fortran_writer(prog)
     assert ("call field1 % initialise(vector_space=vector_space_w3_ptr, "
             "name='field1')" in gen)
     # Second - a field vector.
     dtype = ArrayType(ftype, [3])
     sym = table.new_symbol("fieldv2", symbol_type=DataSymbol, datatype=dtype)
-    alg_gen.initialise_field(prog, sym, "w2")
+    lfric_alg.initialise_field(prog, sym, "w2")
     gen = fortran_writer(prog)
     for idx in range(1, 4):
         assert (f"call fieldv2({idx}) % initialise(vector_space="
@@ -174,12 +179,12 @@ def test_initialise_field(prog, fortran_writer):
     # Third - invalid type.
     sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     with pytest.raises(InternalError) as err:
-        alg_gen.initialise_field(prog, sym, "w2")
+        lfric_alg.initialise_field(prog, sym, "w2")
     assert ("Expected a field symbol to either be of ArrayType or have a type "
             "specified by a DataTypeSymbol but found Scalar" in str(err.value))
 
 
-def test_initialise_quadrature(prog, fortran_writer):
+def test_initialise_quadrature(lfric_alg, prog, fortran_writer):
     ''' Tests for the initialise_quadrature function with the supported
     XYoZ shape. '''
     table = prog.symbol_table
@@ -193,7 +198,7 @@ def test_initialise_quadrature(prog, fortran_writer):
         datatype=DeferredType(), interface=ImportInterface(quad_container))
     sym = table.new_symbol("qr", symbol_type=DataSymbol, datatype=quad_type)
 
-    alg_gen.initialise_quadrature(prog, sym, "gh_quadrature_xyoz")
+    lfric_alg.initialise_quadrature(prog, sym, "gh_quadrature_xyoz")
     # Check that new symbols have been added.
     assert table.lookup("quadrature_rule_gaussian_mod")
     qtype = table.lookup("quadrature_rule_gaussian_type")
@@ -205,7 +210,7 @@ def test_initialise_quadrature(prog, fortran_writer):
             in gen)
 
 
-def test_initialise_quadrature_unsupported_shape(prog):
+def test_initialise_quadrature_unsupported_shape(lfric_alg, prog):
     ''' Test that the initialise_quadrature function raises the expected error
     for an unsupported quadrature shape. '''
     table = prog.symbol_table
@@ -220,12 +225,12 @@ def test_initialise_quadrature_unsupported_shape(prog):
     sym = table.new_symbol("qr", symbol_type=DataSymbol, datatype=quad_type)
 
     with pytest.raises(NotImplementedError) as err:
-        alg_gen.initialise_quadrature(prog, sym, "gh_quadrature_xyz")
+        lfric_alg.initialise_quadrature(prog, sym, "gh_quadrature_xyz")
     assert ("Initialisation for quadrature of type 'gh_quadrature_xyz' is "
             "not yet implemented." in str(err.value))
 
 
-def test_construct_kernel_args(prog, dynkern, fortran_writer):
+def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
     ''' Tests for the construct_kernel_args() function. Since this function
     primarily calls _create_function_spaces(), initialise_field(),
     KernCallInvokeArgList.generate() and initialise_quadrature(), all of which
@@ -235,7 +240,7 @@ def test_construct_kernel_args(prog, dynkern, fortran_writer):
     prog.symbol_table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                                  datatype=DeferredType(),
                                  interface=ImportInterface(field_mod))
-    kargs = alg_gen.construct_kernel_args(prog, dynkern)
+    kargs = lfric_alg.construct_kernel_args(prog, dynkern)
 
     assert isinstance(kargs, KernCallInvokeArgList)
     gen = fortran_writer(prog)
@@ -252,39 +257,41 @@ def test_construct_kernel_args(prog, dynkern, fortran_writer):
     # TODO #240 - test for compilation.
 
 
-def test_generate_invalid_kernel(tmpdir):
-    ''' Check that the generate() function raises NotImplementedError if the
-    supplied kernel file does not follow LFRic naming conventions. '''
+def test_create_from_kernel_invalid_kernel(lfric_alg, tmpdir):
+    ''' Check that the create_from_kernel() function raises
+    NotImplementedError if the supplied kernel file does not follow LFRic
+    naming conventions. '''
     kern_file = os.path.join(tmpdir, "fake_kern.f90")
     with open(kern_file, "w", encoding='utf-8') as ffile:
         print('''module my_mod_wrong
 end module my_mod_wrong''', file=ffile)
     with pytest.raises(NotImplementedError) as err:
-        alg_gen.generate(kern_file)
+        lfric_alg.create_from_kernel(kern_file)
     assert ("fake_kern.f90) contains a module named 'my_mod_wrong' which does "
             "not follow " in str(err.value))
 
 
-def test_generate_invalid_field_type(monkeypatch):
+def test_create_from_kernel_invalid_field_type(lfric_alg, monkeypatch):
     ''' Check that we get the expected internal error if a field object of
     the wrong type is encountered. '''
     # This requires that we monkeypatch the KernCallInvokeArgList class so
     # that it returns an invalid field symbol.
-
     monkeypatch.setattr(KernCallInvokeArgList, "fields",
                         [(DataSymbol("fld", DeferredType()), None)])
     with pytest.raises(InternalError) as err:
-        alg_gen.generate(os.path.join(BASE_PATH, "testkern_mod.F90"))
+        lfric_alg.create_from_kernel(os.path.join(BASE_PATH,
+                                                  "testkern_mod.F90"))
     assert ("field symbol to either be of ArrayType or have a type specified "
             "by a DataTypeSymbol but found DeferredType for field 'fld'" in
             str(err.value))
 
 
-def test_generate_with_scalar():
-    ''' Check that the generate() method returns the expected Fortran for a
+def test_create_from_kernel_with_scalar(lfric_alg, fortran_writer):
+    ''' Check that create_from_kernel() returns the expected Fortran for a
     valid LFRic kernel that has a scalar argument. '''
-    code = alg_gen.generate(os.path.join(BASE_PATH,
-                                         "testkern_mod.F90"))
+    psyir = lfric_alg.create_from_kernel(os.path.join(BASE_PATH,
+                                                      "testkern_mod.F90"))
+    code = fortran_writer(psyir)
     assert "real(kind=r_def) :: rscalar_1" in code
     assert ("    rscalar_1 = 1_i_def\n"
             "    call invoke(setval_c(field_2, 1.0_r_def), "
@@ -295,11 +302,13 @@ def test_generate_with_scalar():
             in code)
 
 
-def test_generate_with_vector():
-    ''' Test that the generate() method returns the expected Fortran for a
+def test_create_from_kernel_with_vector(lfric_alg, fortran_writer):
+    ''' Test that create_from_kernel() returns the expected Fortran for a
     valid LFRic kernel that takes a field vector. '''
-    code = alg_gen.generate(os.path.join(BASE_PATH,
-                                         "testkern_coord_w0_mod.f90"))
+    psyir = lfric_alg.create_from_kernel(
+        os.path.join(BASE_PATH,
+                     "testkern_coord_w0_mod.f90"))
+    code = fortran_writer(psyir)
     assert '''\
     type(field_type) :: field_1
     type(field_type), dimension(3) :: field_2

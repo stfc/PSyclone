@@ -39,7 +39,7 @@
 '''
 
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
-from psyclone.domain.lfric.algorithm import (
+from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError

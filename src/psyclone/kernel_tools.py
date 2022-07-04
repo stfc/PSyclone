@@ -52,10 +52,12 @@ import sys
 import traceback
 
 from psyclone import gen_kernel_stub
+from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.version import __VERSION__
 
 # Dictionary of supported generation modes where values are a brief
@@ -161,11 +163,8 @@ def run(args):
         if args.gen == "alg":
             # Generate algorithm code.
             if api == "dynamo0.3":
-                # pylint: disable=import-outside-toplevel
-                from psyclone.domain.lfric.algorithm.alg_gen import generate
-                # TODO #1771. Refactor the generate() functionality into the
-                # Alg class.
-                code = generate(args.filename)
+                alg_psyir = LFRicAlg().create_from_kernel(args.filename)
+                code = FortranWriter()(alg_psyir)
             else:
                 print(f"Algorithm generation from kernel metadata is "
                       f"not yet implemented for API '{api}'", file=sys.stderr)

@@ -38,6 +38,7 @@ transformation from PSyIR to LFRic-specific PSyIR and transformations
 on LFRic-specific PSyIR.
 
 '''
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import \
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
 
