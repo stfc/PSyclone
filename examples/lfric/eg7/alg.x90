@@ -37,7 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
-! Modified by R. W. Ford, STFC Daresbury
+! Modified by R. W. Ford, STFC Daresbury Lab
 !
 !> @brief Example of columnwise assembled (CMA) operators.
 module alg
@@ -45,11 +45,14 @@ module alg
   use columnwise_op_app_kernel_mod,      only : columnwise_op_app_kernel_type
   use columnwise_op_mul_kernel_mod,      only : columnwise_op_mul_kernel_type
   use matrix_vector_kernel_mod,          only : matrix_vector_kernel_type
+  use field_mod,                         only : field_type
+  use operator_mod,                      only : operator_type
+  use columnwise_operator_mod,           only : columnwise_operator_type
 
 contains
 
   subroutine test_cma_multiply_grad_v_div_v(grad_v_cma, &
-                                            div_v_cma) 
+                                            div_v_cma)
 
     implicit none
 

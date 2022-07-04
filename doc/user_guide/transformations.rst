@@ -522,6 +522,8 @@ variable that is available to it from the enclosing module scope.
 .. note:: these rules *only* apply to kernels that are the target of
       PSyclone kernel transformations.
 
+.. _available_kernel_trans:
+
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
@@ -1011,9 +1013,10 @@ user-supplied kernel routines are called from within
 PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
-directive added. Again, please see PSyclone/examples/gocean/eg2 for an
-example. This transformation is currently not supported for kernels in
-the Dynamo0.3 API.
+directive added. See either PSyclone/examples/gocean/eg2 or
+PSyclone/examples/lfric/eg14 for an example (although please note that
+this transformation is not yet fully working for kernels in
+the LFRic (Dynamo0.3) API - see #1724).
 
 SIR
 ---

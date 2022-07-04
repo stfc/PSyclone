@@ -46,14 +46,12 @@
 
 '''
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import io
 import sys
 import traceback
 
-from psyclone import alg_gen, gen_kernel_stub
+from psyclone import gen_kernel_stub
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
@@ -161,8 +159,17 @@ def run(args):
 
     try:
         if args.gen == "alg":
-            # Generate algorithm
-            code = alg_gen.generate(args.filename, api=api)
+            # Generate algorithm code.
+            if api == "dynamo0.3":
+                # pylint: disable=import-outside-toplevel
+                from psyclone.domain.lfric.algorithm.alg_gen import generate
+                # TODO #1771. Refactor the generate() functionality into the
+                # Alg class.
+                code = generate(args.filename)
+            else:
+                print(f"Algorithm generation from kernel metadata is "
+                      f"not yet implemented for API '{api}'", file=sys.stderr)
+                sys.exit(1)
         elif args.gen == "stub":
             # Generate kernel stub
             code = gen_kernel_stub.generate(args.filename, api=api)

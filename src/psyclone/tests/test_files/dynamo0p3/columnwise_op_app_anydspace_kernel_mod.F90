@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,11 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
-! Kernel which applies a columnwise assembled operator to a field on
-! any discontinuous space
+!> @brief Kernel which applies a columnwise assembled operator to a field on
+!!        any discontinuous space.
 module columnwise_op_app_anydspace_kernel_mod
 
 use kernel_mod,              only : kernel_type
@@ -50,7 +50,7 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1, &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -121,7 +121,7 @@ contains
                                      cma_indirection_map_aspc1
     real(kind=r_def), intent(inout), dimension(undf_adspc1) :: field1
     real(kind=r_def), intent(in), dimension(undf_aspc1)     :: field2
-    real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
+    real(kind=r_solver), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on &
                 discontinuous space ANY_DISCONTINUOUS_SPACE_1"

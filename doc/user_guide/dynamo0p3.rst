@@ -184,7 +184,7 @@ do not currently support operators).
 
 .. _lfric-cma-operator:
 
-Column-Wise Operator
+Column-wise Operator
 ++++++++++++++++++++
 
 The LFRic API has support for the construction and use of
@@ -207,7 +207,8 @@ matrix-matrix. The following example sketches-out what the use
 of such kernels might look like in the Algorithm layer::
 
   use field_mod, only: field_type
-  use operator_mod, only : operator_type, columnwise_operator_type
+  use operator_mod, only : operator_type
+  use columnwise_operator_mod, only : columnwise_operator_type
   type(field_type) :: field1, field2, field3
   type(operator_type) :: lma_op1, lma_op2
   type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
@@ -231,7 +232,7 @@ operators are then combined to produce a third, ``cma_op3``. This is
 then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
-Column-Wise operations based on their arguments as described in
+column-wise operations based on their arguments as described in
 metadata (see :ref:`dynamo0.3-cma-mdata-rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
@@ -618,11 +619,11 @@ Supported LMA Operator types are ``operator_type`` (which contains real
 data with precision ``r_def``) and ``r_solver_operator_type`` (which
 contains real data with precision ``r_solver``).
 
-Columnwise Operators
-++++++++++++++++++++
+Column-wise Operators
++++++++++++++++++++++
 
 It is not mandatory for PSyclone to be able to determine the datatype
-of a Columnwise Operator. The reason for this is that only one
+of a column-wise operator. The reason for this is that only one
 datatype is supported, a ``columnwise_operator_type`` which contains
 real data with precision ``r_solver``. PSyclone can therefore simply add
 this datatype in the PSy-layer. However, if the datatype information
@@ -1075,7 +1076,7 @@ field the fourth argument specifies the function space that the field
 lives on. More details about the supported function spaces are in
 subsection :ref:`lfric-function-space`.
 
-For example, the metadata for a kernel that applies a Column-wise
+For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
   type(arg_type) :: meta_args(3) = (/                              &

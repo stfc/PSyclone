@@ -1,3 +1,41 @@
+	1) PR #1758 for #1741. Splits the PSyData read functionality into a
+	standalone module to remove dependence on infrastructure for
+	driver code.
+
+	2) PR #1766 FOR #1764. Fixes various syntax errors in some of the
+	Fortran test files.
+
+	3) PR #1759 for #1752. Updates to GOcean examples so that F90FLAGS
+	is used consistently and is also used when linking.
+
+	4) PR #1700. Various improvements to the example NEMO processing
+	scripts.
+
+	5) PR #1762 for #1743. Ensures declaration of precision variables
+	in PSyAD test harness.
+
+	6) PR #1774 for #1773. Fixes syntax error in test Fortran file.
+
+	7) PR #1620 for #1555. Create Algorithm Layer for a Kernel.
+
+	8) PR #1767 for #1739. Fixes dep-analysis bug whereby CMA operator
+	arguments to LFRic kernels were not given correct access value.
+
+	9) PR #1763 for #1717. Fixes invalid adjoint names for subroutine
+	and module.
+
+release 2.3.1 17th of June 2022	
+
+        1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
+
+	2) PR #1669 for #450. Remove set_dirty/clean from ACC regions
+
+	3) PR #1745 towards #1731. Split PSyLoop class from Loop node.
+
+	4) PR #1761 for #1760. Create release 2.3.1
+
+release 2.3.0 9th June 2022
+
 	1) PR #1672. Fixes BOZ literal standard incompatibility in the
 	nvidia profiling wrapper code.
 
@@ -75,6 +113,21 @@
 	26) PR #1347 for #1730. The Fortran backend now generates declarations with
 	dependencies in the appropriate order.
 
+	27) PR #1729. Minor fixes for MarkDown link checker and path to
+	test file.
+
+	28) PR #1733 for #1707. Update PSyclone master to the latest version of
+	fparser to enable running of PSyclone tests.
+
+	29) PR #1679. Add a limit parameter to the PSyIR node ancestor method.
+
+	30) PR #1749 for #1748. Updates version of fparser specified in setup.py
+	to 0.0.15.
+
+	31) PR #1740 for #1738. Update the operator implementation in the 
+	cut-down LFRic infrastructure and change the USE statements generated
+	for CMA operators.
+ 
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-

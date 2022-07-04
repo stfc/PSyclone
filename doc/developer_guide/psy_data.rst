@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -1039,9 +1039,9 @@ all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
 variables (see :ref:`user_guide:psyke_netcdf`). This program does
 not depend on any infrastructure library (like 'dl_esm_inf`'), it
-only needs the PSyData wrapper library (e.g.
-``lib/extract/netcdf/dl_esm_inf``), plus any libraries the wrapper
-depends on (e.g. NetCDF).
+only needs the PSyData ReadKernelData library (ie.
+``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
+the wrapper depends on (e.g. NetCDF).
 
 The following changes are applied by the ``ExtractionDriverCreator``
 in order to generate stand-alone code for GOcean:
@@ -1055,7 +1055,7 @@ in order to generate stand-alone code for GOcean:
    becomes the variable ``my_field_whole_xstart``.
 3. For each input-only variable one variable (with a potentially
    flattened name) is created. It calls ``ReadVariable`` from the
-   PSyData extraction library, which will allocate the variable
+   PSyData ReadKernelData module, which will allocate the variable
    if it is an array.
 4. For each input+output variable two variables are created and
    initialised (especially allocated if the variable is an array)

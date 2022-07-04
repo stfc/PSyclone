@@ -179,7 +179,7 @@ def test_script_invalid_content():
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "error.py"))
     assert "attempted to import 'error' but script file " in str(error.value)
-    assert ("/src/psyclone/tests/test_files/dynamo0p3/error.py' is "
+    assert ("src/psyclone/tests/test_files/dynamo0p3/error.py' is "
             "not valid python" in str(error.value))
 
 

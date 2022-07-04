@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,11 @@
 class for all API-specific loop fusion transformations.
 '''
 
-from psyclone.psyir.transformations import LoopTrans
+from psyclone.core import SymbolicMaths
+from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
-    TransformationError
+    TransformationError, LazyString
 
 
 class LoopFuseTrans(LoopTrans):
@@ -75,8 +77,8 @@ class LoopFuseTrans(LoopTrans):
                                      iteration space.
         '''
         # Check that the supplied Nodes are Loops
-        super(LoopFuseTrans, self).validate(node1, options=options)
-        super(LoopFuseTrans, self).validate(node2, options=options)
+        super().validate(node1, options=options)
+        super().validate(node2, options=options)
 
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
@@ -90,10 +92,23 @@ class LoopFuseTrans(LoopTrans):
                 f"Error in {self.name} transformation. Nodes are not siblings "
                 f"who are next to each other.")
         # Check that the iteration space is the same
-        if node1.iteration_space != node2.iteration_space:
-            raise TransformationError(
-                f"Error in {self.name} transformation. Loops do not have the "
-                f"same iteration space.")
+        if isinstance(node1, PSyLoop) and isinstance(node2, PSyLoop):
+            # TODO 1731: For some PSyLoops the iteration space is encoded just
+            # in the attributes and not reflected in the loop bounds.
+            if node1.iteration_space != node2.iteration_space:
+                raise TransformationError(
+                    f"Error in {self.name} transformation. Loops do not have "
+                    f"the same iteration space.")
+        else:
+            if not (SymbolicMaths.equal(node1.start_expr, node2.start_expr) and
+                    SymbolicMaths.equal(node1.stop_expr, node2.stop_expr) and
+                    SymbolicMaths.equal(node1.step_expr, node2.step_expr)):
+                raise TransformationError(LazyString(
+                    lambda node1=node1, node2=node2:
+                        f"Error in {self.name} transformation. Loops do not "
+                        f"have the same iteration space:\n"
+                        f"{node1.view()}\n"
+                        f"{node2.view()}"))
 
     def apply(self, node1, node2, options=None):
         # pylint: disable=arguments-differ
@@ -110,8 +125,6 @@ class LoopFuseTrans(LoopTrans):
         '''
         # Validity checks for the supplied nodes
         self.validate(node1, node2, options=options)
-
-        schedule = node1.root
 
         # Remove node2 from the parent
         node2.detach()

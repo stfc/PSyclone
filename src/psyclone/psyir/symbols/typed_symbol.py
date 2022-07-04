@@ -95,7 +95,8 @@ class TypedSymbol(Symbol):
     def datatype(self):
         '''
         :returns: datatype of the TypedSymbol.
-        :rtype: str
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType` or \
+                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return self._datatype
 

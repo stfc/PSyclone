@@ -37,8 +37,10 @@
 ''' This module provides the PSyIR Fortran front-end.'''
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
+from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment
@@ -57,6 +59,7 @@ class FortranReader(object):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
         self._processor = Fparser2Reader()
+        SYMBOL_TABLES.clear()
 
     def psyir_from_source(self, source_code):
         ''' Generate the PSyIR tree representing the given Fortran source code.
@@ -67,7 +70,10 @@ class FortranReader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(source_code)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
         parse_tree = self._parser(string_reader)
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -146,6 +152,8 @@ class FortranReader(object):
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
         string_reader = FortranStringReader(source_code)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(True, False))
         try:
             exec_part = Fortran2003.Execution_Part(string_reader)
         except NoMatchError as err:
@@ -176,7 +184,10 @@ class FortranReader(object):
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
+        SYMBOL_TABLES.clear()
+
         # Note that this is the main performance hotspot in PSyclone, taking
         # more than 90% of the runtime in some cases. Therefore this is a good
         # place to implement caching in order to avoid repeating parsing steps
