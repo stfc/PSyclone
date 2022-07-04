@@ -63,13 +63,14 @@ class LFRicAlg:
     #: generated algorithm layer.
     _ELEMENT_ORDER = "1"
 
-    def create_from_kernel(self, kernel_path):
+    def create_from_kernel(self, name, kernel_path):
         '''
         Generates LFRic algorithm PSyIR that calls the supplied kernel through
         an 'invoke'. All of the arguments required by the kernel are
         constructed and intialised appropriately. Fields and scalars are all
         set to unity.
 
+        :param str name: name to use for the algorithm subroutine.
         :param str kernel_path: location of Kernel source code.
 
         :returns: LFRic algorithm PSyIR.
@@ -83,7 +84,7 @@ class LFRicAlg:
         # pylint: disable=too-many-locals
 
         # Create PSyIR for an algorithm routine.
-        cont = self._create_alg_mod("test_alg")
+        cont = self._create_alg_mod(name)
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
@@ -172,7 +173,8 @@ class LFRicAlg:
                                                      kernel_list, 0))
         return cont
 
-    def _create_alg_mod(self, name):
+    @staticmethod
+    def _create_alg_mod(name):
         '''
         Creates a standalone LFRic algorithm subroutine within a module. The
         generated subroutine has three arguments:

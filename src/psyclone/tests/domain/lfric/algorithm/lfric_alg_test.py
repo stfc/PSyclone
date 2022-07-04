@@ -81,6 +81,10 @@ def create_prog_fixture():
 
 @pytest.fixture(name="lfric_alg", scope="function")
 def create_alg_fixture():
+    '''
+    :returns: an LFRicAlg instance.
+    :rtype: :py:class:`psyclone.domain.lfric.algorithm.LFRicAlg`
+    '''
     return LFRicAlg()
 
 
@@ -266,7 +270,7 @@ def test_create_from_kernel_invalid_kernel(lfric_alg, tmpdir):
         print('''module my_mod_wrong
 end module my_mod_wrong''', file=ffile)
     with pytest.raises(NotImplementedError) as err:
-        lfric_alg.create_from_kernel(kern_file)
+        lfric_alg.create_from_kernel("test", kern_file)
     assert ("fake_kern.f90) contains a module named 'my_mod_wrong' which does "
             "not follow " in str(err.value))
 
@@ -279,8 +283,8 @@ def test_create_from_kernel_invalid_field_type(lfric_alg, monkeypatch):
     monkeypatch.setattr(KernCallInvokeArgList, "fields",
                         [(DataSymbol("fld", DeferredType()), None)])
     with pytest.raises(InternalError) as err:
-        lfric_alg.create_from_kernel(os.path.join(BASE_PATH,
-                                                  "testkern_mod.F90"))
+        lfric_alg.create_from_kernel("test", os.path.join(BASE_PATH,
+                                                          "testkern_mod.F90"))
     assert ("field symbol to either be of ArrayType or have a type specified "
             "by a DataTypeSymbol but found DeferredType for field 'fld'" in
             str(err.value))
@@ -289,9 +293,11 @@ def test_create_from_kernel_invalid_field_type(lfric_alg, monkeypatch):
 def test_create_from_kernel_with_scalar(lfric_alg, fortran_writer):
     ''' Check that create_from_kernel() returns the expected Fortran for a
     valid LFRic kernel that has a scalar argument. '''
-    psyir = lfric_alg.create_from_kernel(os.path.join(BASE_PATH,
+    psyir = lfric_alg.create_from_kernel("test",
+                                         os.path.join(BASE_PATH,
                                                       "testkern_mod.F90"))
     code = fortran_writer(psyir)
+    assert "module test_mod" in code
     assert "real(kind=r_def) :: rscalar_1" in code
     assert ("    rscalar_1 = 1_i_def\n"
             "    call invoke(setval_c(field_2, 1.0_r_def), "
@@ -306,6 +312,7 @@ def test_create_from_kernel_with_vector(lfric_alg, fortran_writer):
     ''' Test that create_from_kernel() returns the expected Fortran for a
     valid LFRic kernel that takes a field vector. '''
     psyir = lfric_alg.create_from_kernel(
+        "test",
         os.path.join(BASE_PATH,
                      "testkern_coord_w0_mod.f90"))
     code = fortran_writer(psyir)

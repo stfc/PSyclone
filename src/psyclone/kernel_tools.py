@@ -163,7 +163,8 @@ def run(args):
         if args.gen == "alg":
             # Generate algorithm code.
             if api == "dynamo0.3":
-                alg_psyir = LFRicAlg().create_from_kernel(args.filename)
+                alg_psyir = LFRicAlg().create_from_kernel("test_alg",
+                                                          args.filename)
                 code = FortranWriter()(alg_psyir)
             else:
                 print(f"Algorithm generation from kernel metadata is "

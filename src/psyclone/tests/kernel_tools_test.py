@@ -157,7 +157,7 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
     ''' Check that line-length limiting is applied to generated algorithm
     and kernel-stub code when requested. '''
 
-    def long_psyir_gen(_1, _2):
+    def long_psyir_gen(_1, _2, _3):
         ''' Function that returns PSyIR containing a line longer
         than 132 chars. '''
         routine = Routine.create("my_sub", SymbolTable(), [])
@@ -196,7 +196,7 @@ def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
 
-    def fake_psyir_gen(_1, _2):
+    def fake_psyir_gen(_1, _2, _3):
         '''Returns PSyIR for a module containing a particular string for
         testing purposes.'''
         return fortran_reader.psyir_from_source(
