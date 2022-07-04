@@ -861,6 +861,14 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
+        if not self._sig_set:
+            # There should be at least one variable to update.
+            raise GenerationError(
+                "ACCUpdate directive did not find any data to update. "
+                "This most likely happened because a specialisation of "
+                "ACCUpdateDirective.lower_to_level_language removed all the "
+                "variables this directive was created to update.")
+
         condition = "if_present " if self._conditional else ""
         sym_list = _sig_set_to_string(self._sig_set)
 
