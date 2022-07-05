@@ -180,11 +180,14 @@ def test_lfric_auto_gen_builtin_functor(name):
     table = sched.symbol_table
     lbc = BUILTIN_FUNCTOR_MAP[name]
     funky = lbc.create(table, [])
+    funky2 = lbc.create(table, [])
     assert isinstance(funky, LFRicBuiltinFunctor)
     sym = table.lookup(name)
     assert isinstance(sym, DataTypeSymbol)
     routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall.create(routine, [funky], 0)
+    call = LFRicAlgorithmInvokeCall.create(routine, [funky, funky2], 0)
     sched.addchild(call)
     funky.lower_to_language_level()
     assert name not in table._symbols
+    # Lowering the second built-in should not cause problems.
+    funky2.lower_to_language_level()
