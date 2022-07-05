@@ -38,9 +38,9 @@ transformation from PSyIR to LFRic-specific PSyIR and transformations
 on LFRic-specific PSyIR.
 
 '''
-from psyclone.domain.lfric.algorithm.psyir import \
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor, \
-    BUILTIN_FUNCTOR_MAP
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor,
+    BUILTIN_FUNCTOR_MAP)
 
 # The entities in the __all__ list are made available to import directly from
 # this package

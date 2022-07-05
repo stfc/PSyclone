@@ -42,7 +42,6 @@ from psyclone.psyir.nodes import ArrayReference
 
 from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 from psyclone.domain.lfric.algorithm import (
-    LFRicBuiltinFunctor,
     LFRicKernelFunctor, LFRicAlgorithmInvokeCall, BUILTIN_FUNCTOR_MAP)
 
 
@@ -68,6 +67,8 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
 
         call_name = None
         calls = []
+        table = call.scope.symbol_table
+
         for idx, call_arg in enumerate(call.children):
 
             if call.argument_names[idx]:
@@ -77,7 +78,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                 args = call_arg.pop_all_children()
                 if call_arg.name in BUILTIN_FUNCTOR_MAP:
                     calls.append(BUILTIN_FUNCTOR_MAP[call_arg.name].create(
-                        call.scope.symbol_table, args))
+                        table, args))
                 else:
                     self._specialise_symbol(call_arg.symbol)
                     calls.append(LFRicKernelFunctor.create(call_arg.symbol,
@@ -91,7 +92,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                     name = fp2_node.children[0].string
                     if name in BUILTIN_FUNCTOR_MAP:
                         calls.append(BUILTIN_FUNCTOR_MAP[name].create(
-                            call.scope.symbol_table, args))
+                            table, args))
                     else:
                         type_symbol = RaiseCall2InvokeTrans._get_symbol(
                             call, fp2_node)
