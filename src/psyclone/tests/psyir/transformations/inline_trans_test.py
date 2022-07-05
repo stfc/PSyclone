@@ -38,8 +38,7 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Call, Container, FileContainer
-from psyclone.psyir.symbols import ArrayType, Symbol
+from psyclone.psyir.nodes import Call
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -54,6 +53,30 @@ def test_init():
 
 
 # apply
+
+
+def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
+    '''Check that a call to an empty routine is simply removed.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    i = 10\n\n"
+            "  end subroutine run_it\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
@@ -87,6 +110,38 @@ def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that apply() correctly handles the case where a symbol
+    in the routine to be in-lined clashes with an existing symbol. '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    real :: y\n"
+        "    i = 10\n"
+        "    y = 1.0\n"
+        "    call sub(y)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x)\n"
+        "    real, intent(inout) :: x\n"
+        "    real :: i\n"
+        "    i = 3.0\n"
+        "    x = 2.0*x + i\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    i = 10\n"
+            "    y = 1.0\n"
+            "    i_1 = 3.0\n"
+            "    y = 2.0 * y + i_1\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = InlineTrans()
@@ -106,3 +161,50 @@ def test_validate_node():
         hoist_trans.validate(None)
     assert ("The target of the InlineTrans transformation should be "
             "a Call but found 'NoneType'." in str(info.value))
+
+
+def test_validate_routine_not_found(fortran_reader):
+    '''Test that validate() raises the expected error if the source of the
+    routine to be inlined cannot be found.'''
+    code = (
+        "module test_mod\n"
+        "  use some_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Failed to find the source for routine 'sub' and therefore "
+            "cannot inline it." in str(err.value))
+
+
+def test_validate_codeblock(fortran_reader):
+    '''Test that validate() refuses to inline a routine if it
+    contains a CodeBlock.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    write(*,*) idx\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
+            "cannot be inlined" in str(err.value))

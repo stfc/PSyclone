@@ -39,7 +39,7 @@ This module contains the InlineTrans transformation.
 '''
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Call, Routine, Reference
+from psyclone.psyir.nodes import Call, Routine, Reference, CodeBlock
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -63,13 +63,8 @@ class InlineTrans(Transformation):
 
         # The table we will copy symbols into.
         table = node.scope.symbol_table
-        name = node.routine.name
-        root = node.root
-        for routine in root.walk(Routine):
-            if routine.name == name:
-                break
-        else:
-            raise TransformationError("This should probably be in validate()")
+        # Find the routine to be inlined.
+        routine = self._find_routine(node)
 
         if not routine.children:
             # Called routine is empty so just remove the call.
@@ -78,18 +73,31 @@ class InlineTrans(Transformation):
 
         dummy_args = routine.symbol_table.argument_list
 
+        # Copy each Symbol from the Routine into the symbol table associated
+        # with the call site.
+        for sym in routine.symbol_table.symbols:
+            if sym in dummy_args:
+                continue
+            try:
+                table.add(sym)
+            except KeyError:
+                # A Symbol with the same name already exists so we rename the
+                # one that we are adding.
+                new_name = table.next_available_name(
+                    sym.name, other_table=routine.symbol_table)
+                routine.symbol_table.rename_symbol(sym, new_name)
+                table.add(sym)
+
+        # Construct lists of the nodes that will be inserted and all of the
+        # References that they contain.
         new_stmts = []
         refs = []
         for child in routine.children:
             new_stmts.append(child.copy())
             refs.extend(new_stmts[-1].walk(Reference))
 
-        # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site.
-        for sym in routine.symbol_table.symbols:
-            if sym not in dummy_args:
-                table.add(sym)
-
+        # Update any references to dummy arguments so that they refer to the
+        # actual arguments instead.
         for ref in refs:
             if ref.symbol in dummy_args:
                 ref.replace_with(
@@ -103,15 +111,6 @@ class InlineTrans(Transformation):
         for child in new_stmts[1:]:
             idx += 1
             parent.addchild(child, idx)
-
-    @staticmethod
-    def map_dummy_arg_refs(node, dummy_args, actual_args):
-        new_node = node.copy()
-        for ref in new_node.walk(Reference):
-            if ref.symbol in dummy_args:
-                ref.replace_with(
-                    actual_args[dummy_args.index(ref.symbol)].copy())
-        return new_node
 
     def validate(self, node, options=None):
         '''
@@ -132,3 +131,32 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"The target of the InlineTrans transformation "
                 f"should be a Call but found '{type(node).__name__}'.")
+
+        # Check that we can find the source of the routine being inlined.
+        routine = self._find_routine(node)
+
+        if routine.walk(CodeBlock):
+            raise TransformationError(
+                f"Routine '{node.routine.name}' contains one or more "
+                f"CodeBlocks and therefore cannot be inlined.")
+
+    def _find_routine(self, call_node):
+        '''
+        Searches for the definition of the routine that is being called by
+        the supplied Call.
+
+        :returns: the PSyIR for the target routine.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+        :raises TransformationError: if the definition cannot be found.
+
+        '''
+        name = call_node.routine.name
+        root = call_node.root
+        for routine in root.walk(Routine):
+            if routine.name == name:
+                return routine
+        else:
+            raise TransformationError(
+                f"Failed to find the source for routine '{name}' and "
+                f"therefore cannot inline it.")
