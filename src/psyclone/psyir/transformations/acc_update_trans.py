@@ -186,23 +186,24 @@ class ACCUpdateTrans(Transformation):
             return
 
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
+        inputs, outputs = set(inputs), set(outputs)
 
         # Workaround for lack of precise access data
-        inputs = inputs + outputs
+        inputs.update(outputs)
 
         # Workaround for CodeBlocks
         # TODO We are probably relying on undefined behaviour here
         for node in node_list:
             if isinstance(node, CodeBlock):
                 for symbol_name in node.get_symbol_names():
-                    inputs.append(Signature(symbol_name))
-                    outputs.append(Signature(symbol_name))
+                    inputs.add(Signature(symbol_name))
+                    outputs.add(Signature(symbol_name))
 
         # Copy any data that is read by this region to the host (resp. device)
         # if it is on the device (resp. host).
         IN, OUT = 0, 1
-        for idx, inouts in enumerate((inputs, outputs)):
-            if not inouts:
+        for idx, cpu_sig in enumerate((inputs, outputs)):
+            if not cpu_sig:
                 continue
             if idx == IN:   # inputs
                 node_index = 0
@@ -212,8 +213,6 @@ class ACCUpdateTrans(Transformation):
                 node_index = -1
                 node_offset = 1
                 direction = "device"
-
-            sig_set = set(inouts)
 
             # Since the supplied nodes may be the children of an IfBlock or
             # Loop, we have to search up to find the ancestor that *is* a
@@ -225,51 +224,53 @@ class ACCUpdateTrans(Transformation):
             while True:
                 update_pos = sched.children.index(child) + node_offset
 
-                # If within if statement, cannot push update directive out.
-                if isinstance(sched.parent, IfBlock):
-                    break
-
-                # TODO If within loop statement, can push update directive out
-                # if its body is executed at least once.
-                if isinstance(sched.parent, Loop):
-                    beg, end = None, None
-                elif idx == IN:
+                if idx == IN:
                     beg, end = None, update_pos
+                    tentative_update_pos = 0
                 elif idx == OUT:
                     beg, end = update_pos, None
+                    tentative_update_pos = len(sched.children)
 
-                dep_stmts = sched.children[beg:end]
+                text_dep_stmts = sched.children[beg:end]
+                text_sig = set()
+                text_sync = []
 
-                if any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
+                loop_dep_stmts = sched.children[end:beg]
+                loop_sig = set()
+                loop_sync = []
+
+                for dep_stmts, sig, sync in [
+                    (text_dep_stmts, text_sig, text_sync), 
+                    (loop_dep_stmts, loop_sig, loop_sync)]:
+                    for stmt in dep_stmts:
+                        for acc in stmt.walk(self._acc_regions):
+                            if idx == IN:
+                                sig.update(acc.out_kernel_references)
+                            elif idx == OUT:
+                                sig.update( acc.in_kernel_references)
+                    # If there are data dependencies or there is a statement
+                    # (e.g a call) that requires synchronisation.
+                    if any(cpu_sig.intersection(sig)) or \
+                        any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
+                        sync.append(True)
+
+                # If synchronisation required, directive can't be moved at all.
+                if text_sync:
                     break
 
-                dep_acc = [acc for stmt in dep_stmts
-                               for acc  in stmt.walk(self._acc_regions)]
+                update_pos = tentative_update_pos
 
-                acc_sig_set = set()
-                for acc in dep_acc:
-                    if idx == IN:
-                        acc_sig_set.update(acc.out_kernel_references)
-                    elif idx == OUT:
-                        acc_sig_set.update(acc.in_kernel_references)
-
-                if not sig_set.intersection(acc_sig_set):
-                    # Push update directives to the ends to encourage merging.
-                    if idx == IN:
-                        update_pos = 0
-                    elif idx == OUT:
-                        update_pos = len(sched.children)
-                else:
-                    # Cannot push update directive out due to dependencies in
-                    # the current schedule.
+                # Under routine/if statement, cannot push update directive out.
+                if isinstance(sched, InvokeSchedule) or \
+                   isinstance(sched.parent, IfBlock):
                     break
-
-                if isinstance(sched, InvokeSchedule):
+                # TODO If within loop statement, can push update directive out
+                # *if* its body is executed at least once.
+                elif isinstance(sched.parent, Loop) and loop_sync:
                     break
 
                 while True:
-                    child = child.parent
-                    sched = child.parent
+                    child, sched = child.parent, sched.parent
                     if isinstance(sched, Schedule):
                         break
 
@@ -280,16 +281,13 @@ class ACCUpdateTrans(Transformation):
                     neighbour_node = sched.children[update_pos + update_offset]
                     if isinstance(neighbour_node, ACCUpdateDirective):
                         if neighbour_node.direction == direction:
-                            neighbour_node.sig_set.update(sig_set)
-                            sig_set = set()
+                            neighbour_node.sig_set.update(cpu_sig)
+                            cpu_sig = set()
                         else:
-                            # TODO to confirm I understand my own algorithm.
-                            if update_offset == 0:
-                                raise ValueError("Didn't think possible")
-                            sig_set.difference_update(neighbour_node.sig_set)
+                            cpu_sig.difference_update(neighbour_node.sig_set)
                 except IndexError:
                     pass
 
-            if sig_set:
-                update_dir = ACCUpdateDirective(sig_set, direction)
+            if cpu_sig:
+                update_dir = ACCUpdateDirective(cpu_sig, direction)
                 sched.addchild(update_dir, update_pos)
