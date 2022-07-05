@@ -38,6 +38,7 @@ This module contains the InlineTrans transformation.
 
 '''
 
+from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Reference, CodeBlock
 from psyclone.psyir.transformations.transformation_error import (
@@ -64,13 +65,16 @@ class InlineTrans(Transformation):
         # The table we will copy symbols into.
         table = node.scope.symbol_table
         # Find the routine to be inlined.
-        routine = self._find_routine(node)
+        orig_routine = self._find_routine(node)
 
-        if not routine.children:
+        if not orig_routine.children:
             # Called routine is empty so just remove the call.
             node.detach()
             return
 
+        # Ensure we don't modify the original Routine by working with a
+        # copy of it.
+        routine = orig_routine.copy()
         dummy_args = routine.symbol_table.argument_list
 
         # Copy each Symbol from the Routine into the symbol table associated
@@ -145,18 +149,27 @@ class InlineTrans(Transformation):
         Searches for the definition of the routine that is being called by
         the supplied Call.
 
+        Currently only supports routines that are present in the
+        same source file - TODO #924.
+
         :returns: the PSyIR for the target routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :raises TransformationError: if the definition cannot be found.
-
+        :raises TransformationError: if the RoutineSymbol is not local.
+        :raises InternalError: if the routine symbol is local but the \
+            definition cannot be found.
         '''
         name = call_node.routine.name
-        root = call_node.root
-        for routine in root.walk(Routine):
+        routine_sym = call_node.scope.symbol_table.lookup(name)
+        if not routine_sym.is_local:
+            raise TransformationError(
+                f"Routine '{name}' is imported and therefore cannot currently "
+                f"be inlined - TODO #924.")
+        table = routine_sym.find_symbol_table(call_node)
+        for routine in table.node.walk(Routine):
             if routine.name == name:
                 return routine
         else:
-            raise TransformationError(
+            raise InternalError(
                 f"Failed to find the source for routine '{name}' and "
                 f"therefore cannot inline it.")
