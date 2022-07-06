@@ -34,13 +34,10 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from an Assignment node
-containing an Array Reference node in its left-hand-side which in turn
-has at least one PSyIR Range node specifying an access to an array
-index (equivalent to an array assignment statement in Fortran) to the
-equivalent loop representation using a NemoLoop node. A Range node is
-provided to the apply method of the tranformation to indicate which
-array index should be transformed.
+'''Module providing a transformation that given an Assignment node to an
+ArrayReference in its left-hand-side which has at least one PSyIR Range
+node (equivalent to an array assignment statement in Fortran), it converts it
+to the equivalent explicit loop representation using a NemoLoop node.
 
 '''
 
@@ -63,8 +60,10 @@ from psyclone.psyir.transformations.transformation_error import \
 
 
 class NemoArrayRange2LoopTrans(Transformation):
-    '''Provides a transformation from a PSyIR ArrayReference Range to a
-    PSyIR NemoLoop. For example:
+    '''Transformation that given an assignment with an ArrayReference Range
+    in the LHS (equivalent to an array assignment statement in Fortran), it
+    converts it to an explicit loop doing each of the individual element
+    assignments separately. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -96,30 +95,17 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        '''Apply the NemoArrayRange2Loop transformation if the supplied node
-        is the outermost Range node (specifying an access to an array
-        index) within an Array Reference that is on the left-hand-side
-        of an Assignment node. These constraints are required for
-        correctness and an exception will be raised if they are not
-        satisfied. If the constraints are satisfied then the outermost
-        Range nodes within array references within the Assignment node
-        are replaced with references to a loop index. A NemoLoop loop
-        (with the same loop index) is also placed around the modified
-        assignment statement. If the array reference on the
-        left-hand-side of the assignment only had one range node as an
-        index (so now has none) then the assignment is also placed
-        within a NemoKern.
+        ''' Apply the transformation that given an assignment with an
+        ArrayReference Range in the LHS (equivalent to an array assignment
+        statement in Fortran), it converts it to an explicit loop doing each
+        of the individual element assignments separately.
 
-        The name of the loop index is taken from the PSyclone
-        configuration file if a name exists for the particular array
-        index, otherwise a new name is generated. The bounds of the
-        loop are taken from the Range node if they are provided. If
-        not, the loop bounds are taken from the PSyclone configuration
-        file if bounds values are supplied. If not, the LBOUND or
-        UBOUND intrinsics are used as appropriate. The type of the
-        NemoLoop is also taken from the configuration file if it is
-        supplied for that index, otherwise it is specified as being
-        "unknown".
+        The Range node is provided to the apply method of the transformation
+        to indicate which array index should be transformed. This can only
+        be applied to the outermost Range of the ArrayReference.
+
+        This is currently specific to NEMO. It will create NemoLoops and
+        put the loop body inside a NemoKern to conform to the NEMO API.
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`

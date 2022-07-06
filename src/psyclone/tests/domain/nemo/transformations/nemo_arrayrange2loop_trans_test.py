@@ -72,7 +72,7 @@ def test_transform():
 
 def test_apply_bounds(tmpdir):
     '''Check that the apply method uses the range bounds if these are specified
-    or the LBOUND, UBOUND expressions if they are not. Also check the the body
+    or the LBOUND, UBOUND expressions if they are not. Also check that the body
     of the loop is placed in a NemoKern.
 
     '''
@@ -272,7 +272,6 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
     trans.apply(array_ref.member.member.children[1])
     trans.apply(array_ref.member.member.children[0])
     result = fortran_writer(psyir)
-    print(result)
     assert (
         "  do idx = LBOUND(mystruct%field2(4,3)%field, 3), "
         "UBOUND(mystruct%field2(4,3)%field, 3), 1\n"
