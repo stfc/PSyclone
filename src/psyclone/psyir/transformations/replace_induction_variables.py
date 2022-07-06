@@ -114,17 +114,10 @@ class ReplaceInductionVariables(Transformation):
         :type replacement: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # Just in case we avoid modifying the tree while walking it,
-        # so first just store the nodes to be replaced in a list
-        to_replace = []
         for node in psyir.walk(Reference):
             if node == original:
-                to_replace.append(node)
-
-        # Then do the actual replacement
-        for node in to_replace:
-            copy = replacement.copy()
-            node.replace_with(copy)
+                copy = replacement.copy()
+                node.replace_with(copy)
 
     # ------------------------------------------------------------------------
     @staticmethod
