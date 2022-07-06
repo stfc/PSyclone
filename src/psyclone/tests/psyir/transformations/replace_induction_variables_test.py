@@ -131,7 +131,8 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
     '''Tests assignments that cannot be moved.
     '''
     source = '''program test
-                integer i, ic1, ic2, ic3, ic4, ic5
+                integer i, ic1, ic2, ic3, ic4, ic5, ic6
+                integer :: some_func
                 real, dimension(10) :: a
                 do i = 1, 10
                     ic1 = i+a(i)             ! a is written to below
@@ -141,12 +142,14 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
                     if (i.eq.3) then         ! Nothing inside another statement
                         ic5 = 1
                     endif
+                    ic6 = i + some_func()    ! Function might depend on #calls
                     a(ic1) = 1+(ic1+1)*ic1
                     a(ic2) = 2+(ic2+1)*ic2
                     a(ic3) = 3+(ic3+1)*ic3
                     ic4 = i + 1              ! written twice
                     a(ic4) = 4+(ic4+1)*ic4
                     a(ic5) = 5+(ic5+1)*ic5
+                    a(ic6) = 6+(ic6+1)*ic6
                 end do
                 end program test'''
     psyir = fortran_reader.psyir_from_source(source)
