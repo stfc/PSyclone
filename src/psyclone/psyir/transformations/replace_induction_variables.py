@@ -64,28 +64,24 @@ class ReplaceInductionVariables(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> ReplaceInductionVariables().apply(loop)
     >>> print(FortranWriter()(psyir))
+    subroutine sub()
+      integer :: i
+      integer :: im
+      integer :: ic
+      integer, dimension(100) :: tmp
+    <BLANKLINE>
+      do i = 1, 100, 1
+        tmp(i) = 2 * (i - 1)
+      enddo
+      ic = 2
+      im = i - 1 - 1
+    <BLANKLINE>
+    end subroutine sub
+    <BLANKLINE>
 
-    will generate:
 
-    .. code-block:: fortran
-
-        subroutine sub()
-          integer :: i
-          integer :: im
-          integer :: ic
-          integer, dimension(100) :: tmp
-
-          do i = 1, 100, 1
-            tmp(i) = 2 * (i - 1)
-          enddo
-          ic = 2
-          im = i - 1 - 1
-
-        end subroutine sub
-
-    After the loop the replaced assignments to the induction variables are
-    added so these variables will have the correct value if they should be
-    used elsewhere.
+    The replaced induction variables assignments are added after the loop,
+    so these variables will have the correct value if they are used elsewhere.
 
     The following restrictions apply for the assignment to an induction
     variable:
