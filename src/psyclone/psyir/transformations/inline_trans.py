@@ -40,7 +40,8 @@ This module contains the InlineTrans transformation.
 
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Call, Routine, Reference, CodeBlock
+from psyclone.psyir.nodes import (
+    Call, Routine, Reference, CodeBlock, Return, Literal)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -53,6 +54,8 @@ class InlineTrans(Transformation):
     '''
     def apply(self, node, options=None):
         '''
+        Inlines the body of the routine that is the target of the supplied
+        call.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -69,6 +72,12 @@ class InlineTrans(Transformation):
 
         if not orig_routine.children:
             # Called routine is empty so just remove the call.
+            node.detach()
+            return
+
+        if isinstance(orig_routine.children[0], Return):
+            # The first statement in the routine is a Return so we can
+            # just remove the call.
             node.detach()
             return
 
@@ -100,6 +109,11 @@ class InlineTrans(Transformation):
             new_stmts.append(child.copy())
             refs.extend(new_stmts[-1].walk(Reference))
 
+        if isinstance(new_stmts[-1], Return):
+            # If the final statement of the routine is a return then
+            # remove it from the list.
+            del new_stmts[-1]
+
         # Update any references to dummy arguments so that they refer to the
         # actual arguments instead.
         for ref in refs:
@@ -126,6 +140,9 @@ class InlineTrans(Transformation):
         :type options: dict of str:values or None
 
         :raises TransformationError: if the supplied node is not a Call.
+        :raises TransformationError: if the routine body contains a return \
+            that is not the first or last statement.
+        :raises TransformationError: if the routine body contains a CodeBlock.
 
         '''
         super().validate(node, options=options)
@@ -136,12 +153,40 @@ class InlineTrans(Transformation):
                 f"The target of the InlineTrans transformation "
                 f"should be a Call but found '{type(node).__name__}'.")
 
+        name = node.routine.name
+
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 
+        if not routine.children:
+            # An empty routine is fine.
+            return
+
+        if routine.children and isinstance(routine.children[0], Return):
+            # The first statement in the routine is a Return so we don't
+            # care what else it may contain.
+            return
+
+        #if not all(isinstance(child, (Reference, Literal)) for child in
+        #           node.children):
+        #    raise TransformationError(
+        #        f"One or more of the arguments in the call to '{name}' is "
+        #        f"not a simple Reference or Literal. Cannot inline such "
+        #        f"a call.")
+
+        return_stmts = routine.walk(Return)
+        if return_stmts:
+            if len(return_stmts) > 1 or not isinstance(routine.children[-1],
+                                                       Return):
+                # Either there is more than one Return statement or there is
+                # just one but it isn't the last statement of the Routine.
+                raise TransformationError(
+                    f"Routine '{name}' contains one or more "
+                    f"Return statements and therefore cannot be inlined.")
+
         if routine.walk(CodeBlock):
             raise TransformationError(
-                f"Routine '{node.routine.name}' contains one or more "
+                f"Routine '{name}' contains one or more "
                 f"CodeBlocks and therefore cannot be inlined.")
 
     def _find_routine(self, call_node):

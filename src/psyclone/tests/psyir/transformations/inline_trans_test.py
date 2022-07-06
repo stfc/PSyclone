@@ -80,6 +80,59 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_single_return(fortran_reader, fortran_writer, tmpdir):
+    '''Check that a call to a routine containing only a return statement
+    is removed. '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    return\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    i = 10\n\n"
+            "  end subroutine run_it\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_return_then_cb(fortran_reader, fortran_writer, tmpdir):
+    '''Check that a call to a routine containing a return statement followed
+    by a CodeBlock is removed.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    return\n"
+        "    write(*,*) idx\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    i = 10\n\n"
+            "  end subroutine run_it\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
 def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
     ''' Check that the apply() method works correctly for a very simple
     call to a routine with an array reference as argument. '''
@@ -173,6 +226,34 @@ def test_apply_imported_symbols(fortran_reader, fortran_writer):
     # We can't check this with compilation because of the import of some_mod.
 
 
+def test_apply_last_stmt_is_return(fortran_reader, fortran_writer, tmpdir):
+    '''Test that the apply method correctly omits any final 'return'
+    statement that may be present in the routine to be inlined.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = idx + 3\n"
+        "    return\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    output = fortran_writer(psyir)
+    assert ("    i = 10\n"
+            "    i = i + 3\n\n"
+            "  end subroutine run_it\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = InlineTrans()
@@ -217,8 +298,36 @@ raises the expected error if the source of the
             "inlined - TODO #924" in str(err.value))
 
 
+def test_validate_return_stmt(fortran_reader):
+    '''Test that validate() raises the expected error if the target routine
+    contains one or more Returns which that aren't either the very first
+    statement or very last statement.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = 3\n"
+        "    return\n"
+        "    idx = idx + 3\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' contains one or more Return statements and "
+            "therefore cannot be inlined" in str(err.value))
+
+
 def test_validate_codeblock(fortran_reader):
-    '''Test that validate() refuses to inline a routine if it
+    '''Test that validate() raises the expected error for a routine that
     contains a CodeBlock.'''
     code = (
         "module test_mod\n"
