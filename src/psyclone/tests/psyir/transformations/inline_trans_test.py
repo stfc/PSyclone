@@ -254,6 +254,69 @@ def test_apply_last_stmt_is_return(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_call_args(fortran_reader, fortran_writer):
+    '''Check that apply works correctly if any of the actual
+    arguments are not simple references.'''
+    code = (
+        "module test_mod\n"
+        " use kinds_mod, only: i_def\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  integer :: i\n"
+        "  i = 10\n"
+        "  call sub(i, 2*i, 5_i_def)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx, incr1, incr2)\n"
+        "    integer, intent(inout) :: idx\n"
+        "    integer, intent(in) :: incr1\n"
+        "    integer(kind=i_def), intent(in) :: incr2\n"
+        "    idx = idx + incr1 * incr2\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("    i = 10\n"
+            "    i = i + 2 * i * 5_i_def\n\n"
+            "  end subroutine run_it\n" in output)
+    # Cannot test for compilation because of 'kinds_mod'.
+
+
+def test_apply_duplicate_imports(fortran_reader, fortran_writer):
+    '''Check that apply works correctly when the routine to be inlined
+    imports symbols from a container that is also accessed in the
+    calling routine.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  use kinds_mod, only: i_def\n"
+        "  integer :: i\n"
+        "  i = 10_i_def\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use kinds_mod, only: i_def\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    use kinds_mod, only : i_def\n"
+            "    integer :: i\n\n" in output)
+    assert ("    i = 10_i_def\n"
+            "    i = i + 5_i_def\n\n"
+            "  end subroutine run_it\n" in output)
+    # Cannot test for compilation because of 'kinds_mod'.
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = InlineTrans()

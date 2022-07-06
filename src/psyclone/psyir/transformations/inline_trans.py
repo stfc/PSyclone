@@ -114,8 +114,8 @@ class InlineTrans(Transformation):
             # remove it from the list.
             del new_stmts[-1]
 
-        # Update any references to dummy arguments so that they refer to the
-        # actual arguments instead.
+        # Replace any references to dummy arguments with copies of the
+        # actual arguments.
         for ref in refs:
             if ref.symbol in dummy_args:
                 ref.replace_with(
