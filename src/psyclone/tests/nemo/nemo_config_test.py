@@ -102,7 +102,7 @@ def test_invalid_nemo_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         assert "Invalid loop type 'invalid' found " in str(err.value)
-        assert "Must be one of [\\'lon\\', \\'lat\\']"
+        assert "Must be one of ['lon', 'lat']" in str(err.value)
 
     # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"

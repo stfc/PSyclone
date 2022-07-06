@@ -93,8 +93,7 @@ class RegionDirective(Directive):
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = Schedule(children=children, parent=self)
-        super(RegionDirective, self).__init__(ast, children=[sched],
-                                              parent=parent)
+        super().__init__(ast, children=[sched], parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
