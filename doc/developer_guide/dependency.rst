@@ -590,7 +590,7 @@ Dependency Tools
 ================
 
 PSyclone contains a class that builds upon the data-dependency functionality
-to provide useful tools for dependency analaysis. It especially provides
+to provide useful tools for dependency analysis. It especially provides
 messages for the user to indicate why parallelisation was not possible. It
 uses `SymPy` internally to compare expressions symbolically.
 

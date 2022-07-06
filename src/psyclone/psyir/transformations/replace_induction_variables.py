@@ -33,10 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Module providing a transformation that removed induction variables from
+'''Module providing a transformation that removes induction variables from
 a loop. '''
-
-from __future__ import absolute_import
 
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
@@ -99,7 +97,7 @@ class ReplaceInductionVariables(Transformation):
     * the assigned variable must not be read before the assignment.
     * the assigned variable cannot occur on the right-hand side
       (e.g. `k = k + 3`).
-    * there must only be one assignment to the variable.
+    * there must be only one assignment to this induction variable.
 
     '''
     def __str__(self):
@@ -188,7 +186,7 @@ class ReplaceInductionVariables(Transformation):
         '''Apply the ReplaceInductionVariables transformation to the
         specified node. The node must be a loop. In case of nested
         loops, the transformation might need to be applied several
-        time, from the inner-most loop outwards.
+        times, from the inner-most loop outwards.
 
         :param node: a Loop node.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -197,8 +195,8 @@ class ReplaceInductionVariables(Transformation):
         self.validate(node)
         loop_var = node.variable.name
 
-        # Find assignments that are directly part of the loop (this avoid
-        # issues with assignment inside if statements):
+        # Find assignments that are directly part of the loop (this
+        # prevents issues with assignment inside if statements):
         all_accesses = VariablesAccessInfo(node.loop_body)
         indx = 0
         while indx < len(node.loop_body.children):

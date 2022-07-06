@@ -36,8 +36,6 @@
 '''This module tests the ReplaceInductionVariables transformation.
 '''
 
-from __future__ import absolute_import, print_function
-
 import pytest
 
 from psyclone.psyir.nodes import Literal
