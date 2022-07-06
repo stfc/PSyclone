@@ -62,7 +62,7 @@ TEST_MOD = (
 
 EXPECTED_HARNESS_CODE = ('''program adj_test
   use my_mod, only : kern
-  use my_mod_adj, only : kern_adj
+  use adj_my_mod, only : adj_kern
   integer, parameter :: array_extent = 20
   real, parameter :: overall_tolerance = 1500.0
   real :: inner1
@@ -81,7 +81,7 @@ EXPECTED_HARNESS_CODE = ('''program adj_test
   inner1 = 0.0
   inner1 = inner1 + field * field
   ! Call the adjoint of the kernel
-  call kern_adj(field)
+  call adj_kern(field)
   ! Compute inner product of results of adjoint kernel with the original \
 inputs to the tangent-linear kernel
   inner2 = 0.0
@@ -343,11 +343,11 @@ def test_main_stdout(tmpdir, capsys):
 
     '''
     expected = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  real :: a\n\n"
         "  a = 0.0\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
     filename = six.text_type(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
@@ -364,11 +364,11 @@ def test_main_fileout(tmpdir, capsys):
 
     '''
     expected = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  real :: a\n\n"
         "  a = 0.0\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:

@@ -41,22 +41,37 @@ import logging
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyad import generate_adjoint_str, generate_adjoint, \
-    generate_adjoint_test
-from psyclone.psyad.tl2ad import _find_container, _create_inner_product, \
-    _create_array_inner_product, _get_active_variables_datatype, \
-    _add_precision_symbol
+from psyclone.psyad import (
+    generate_adjoint_str, generate_adjoint, generate_adjoint_test)
+from psyclone.psyad.tl2ad import (
+    _create_adjoint_name, _find_container, _create_inner_product,
+    _create_array_inner_product, _get_active_variables_datatype,
+    _add_precision_symbol)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Container, FileContainer, Return, Routine, \
-    Assignment, BinaryOperation, Reference, Literal
+from psyclone.psyir.nodes import (
+    Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
+    Reference, Literal)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
     ArgumentInterface, UnknownFortranType, DeferredType)
 
 
-# 1: generate_adjoint_str function
+# _generate_adjoint_name function
+
+def test_generate_adjoint_name():
+    '''Test that the _generate_adjoint_name() function works as
+    expected.
+
+    '''
+    assert _create_adjoint_name("name") == "adj_name"
+    assert _create_adjoint_name("NAME") == "adj_name"
+    assert _create_adjoint_name("tl_name") == "adj_name"
+    assert _create_adjoint_name("Tl_NaMe") == "adj_name"
+
+
+# generate_adjoint_str function
 
 # expected output
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
@@ -119,7 +134,7 @@ def test_generate_adjoint_str_trans():
         "a = dot_product(b(:), c(:))\n"
         "end program test\n")
     expected = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  real :: a\n"
         "  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n"
@@ -132,7 +147,7 @@ def test_generate_adjoint_str_trans():
         "    b(i) = b(i) + res_dot_product * c(i)\n"
         "  enddo\n"
         "  res_dot_product = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
     result, test_harness = generate_adjoint_str(
         tl_code, ["a", "b", "res_dot_product"])
     assert expected in result
@@ -152,7 +167,7 @@ def test_generate_adjoint_str_generate_harness():
     )
     result, harness = generate_adjoint_str(
         tl_code, ["field"], create_test=True)
-    assert "subroutine kern_adj(field)\n" in result
+    assert "subroutine adj_kern(field)\n" in result
     assert "program adj_test\n" in harness
     assert "! Call the tangent-linear kernel\n" in harness
     assert "end program adj_test\n" in harness
@@ -188,7 +203,7 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     assert harness in caplog.text
 
 
-# 2: _find_container function
+#  _find_container function
 
 def test_find_container():
     ''' Tests for the internal, helper function _find_container(). '''
@@ -218,7 +233,7 @@ def test_find_container():
             "not supported." in str(err.value))
 
 
-# 3: _get_active_variables_datatype function
+# _get_active_variables_datatype function
 
 def test_get_active_variables_datatype_error(fortran_reader):
     ''' Test that the _get_active_variables_datatype raises the expected
@@ -284,7 +299,7 @@ def test_get_active_variables_datatype(fortran_reader):
     assert atype.precision.name == "i_def"
 
 
-# 4: generate_adjoint function
+# generate_adjoint function
 
 def test_generate_adjoint(fortran_reader):
     '''Test that the generate_adjoint() function works as expected.'''
@@ -295,13 +310,13 @@ def test_generate_adjoint(fortran_reader):
         "a = b + c\n"
         "end program test\n")
     expected_ad_fortran_str = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  real :: a\n  real :: b\n  real :: c\n\n"
         "  a = 0.0\n  b = 0.0\n  c = 0.0\n"
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
     tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
     ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
@@ -322,7 +337,7 @@ def test_generate_adjoint_kind(fortran_reader):
         "a = b + c\n"
         "end program test\n")
     expected_ad_fortran_str = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  use kinds_mod, only : r_def\n"
         "  real(kind=r_def) :: a\n  real(kind=r_def) :: b\n  "
         "real(kind=r_def) :: c\n\n"
@@ -330,7 +345,7 @@ def test_generate_adjoint_kind(fortran_reader):
         "  b = b + a\n"
         "  c = c + a\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
     tl_psyir = fortran_reader.psyir_from_source(tl_fortran_str)
 
     ad_psyir = generate_adjoint(tl_psyir, ["a", "b", "c"])
@@ -414,7 +429,7 @@ def test_generate_adjoint_logging(caplog):
     assert expected_ad_fortran_str in ad_fortran_str
 
 
-# 5: generate_adjoint_test
+# generate_adjoint_test
 
 def test_generate_adjoint_test_errors():
     ''' Check that generate_adjoint_test() raises the expected exceptions if
@@ -465,13 +480,13 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
     assert test_psyir.is_program is True
     sym_table = test_psyir.symbol_table
     tl_kern = sym_table.lookup("kern")
-    adj_kern = sym_table.lookup("kern_adj")
+    adj_kern = sym_table.lookup("adj_kern")
     assert isinstance(tl_kern, RoutineSymbol)
     assert isinstance(adj_kern, RoutineSymbol)
     assert isinstance(tl_kern.interface, ImportInterface)
     assert isinstance(adj_kern.interface, ImportInterface)
     assert tl_kern.interface.container_symbol.name == "my_mod"
-    assert adj_kern.interface.container_symbol.name == "my_mod_adj"
+    assert adj_kern.interface.container_symbol.name == "adj_my_mod"
     harness = fortran_writer(test_psyir)
     assert ("  real, dimension(npts) :: field\n"
             "  real, dimension(npts) :: field_input" in harness)
@@ -484,7 +499,7 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  inner1 = 0.0\n"
             "  inner1 = inner1 + DOT_PRODUCT(field, field)\n"
             "  ! Call the adjoint of the kernel\n"
-            "  call kern_adj(field, npts)\n"
+            "  call adj_kern(field, npts)\n"
             "  ! Compute inner product of results of adjoint kernel with "
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
@@ -606,7 +621,7 @@ def test_generate_harness_extent_name_clash(fortran_reader, fortran_writer):
     assert "real, dimension(array_extent_1) :: field1" in harness
     assert "real, dimension(array_extent_1) :: field1_input" in harness
     assert "call kern(field1, array_extent_1)" in harness
-    assert "call kern_adj(field1, array_extent_1)" in harness
+    assert "call adj_kern(field1, array_extent_1)" in harness
 
 
 def test_generate_harness_arg_name_clash(fortran_reader, fortran_writer):
@@ -636,7 +651,7 @@ def test_generate_harness_arg_name_clash(fortran_reader, fortran_writer):
     assert "real, dimension(extent) :: array_extent_1" in harness
     assert "real, dimension(extent) :: array_extent_1_input" in harness
     assert "call kern(array_extent_1, extent)" in harness
-    assert "call kern_adj(array_extent_1, extent)" in harness
+    assert "call adj_kern(array_extent_1, extent)" in harness
 
 
 def test_generate_harness_routine_name_clash(fortran_reader, fortran_writer):
@@ -793,7 +808,7 @@ def test_generate_harness_constant_kind(fortran_reader, fortran_writer):
     ad_psyir = generate_adjoint(tl_psyir, ["field"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
     harness = fortran_writer(test_psyir)
-    assert ("  use my_mod_adj, only : kern_adj\n"
+    assert ("  use adj_my_mod, only : adj_kern\n"
             "  integer, parameter :: r_def = 8\n" in harness)
     assert ("  real(kind=r_def), dimension(npts) :: field\n"
             "  real(kind=r_def), dimension(npts) :: field_input" in harness)
@@ -826,7 +841,7 @@ def test_generate_harness_unknown_kind_error(fortran_reader):
             str(err.value))
 
 
-# 6: _create_inner_product and _create_array_inner_product
+# _create_inner_product and _create_array_inner_product
 
 def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected

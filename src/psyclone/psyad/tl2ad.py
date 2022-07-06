@@ -57,13 +57,33 @@ from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
 #: the generated test-harness code.
 #: TODO #1346 this tolerance should be user configurable.
 INNER_PRODUCT_TOLERANCE = 1500.0
-#: The suffix we will prepend to a routine and container name when generating
-#: its adjoint.
-ADJOINT_NAME_SUFFIX = "_adj"
+#: The prefix we will prepend to a routine, container and metadata
+#: names when generating the adjoint. If the original name contains
+#: the tl prefix, then this is removed.
+ADJOINT_NAME_PREFIX = "adj_"
+TL_NAME_PREFIX = "tl_"
 #: The extent we will allocate to each dimension of arrays used in the
 #: generated test-harness code.
 #: TODO #1331 provide some way of configuring the extent of the test arrays
 TEST_ARRAY_DIM_SIZE = 20
+
+
+def _create_adjoint_name(tl_name):
+    '''Create an adjoint name from the supplied tangent linear name. This
+    is done by stripping the TL_NAME_PREFIX from the name if it exists
+    and then adding the ADJOINT_NAME_PREFIX. The adjoint name is also
+    lower-cased.
+
+    :param str: the tangent-linear name.
+
+    :returns: the adjoint name.
+    :rtype: str
+
+    '''
+    adj_name = tl_name.lower()
+    if adj_name.startswith(TL_NAME_PREFIX):
+        adj_name = adj_name[len(TL_NAME_PREFIX):]
+    return ADJOINT_NAME_PREFIX + adj_name
 
 
 def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
@@ -234,7 +254,7 @@ def generate_adjoint(tl_psyir, active_variables):
         # for the existing TL code so that we don't accidentally clash with
         # e.g. the name of the kernel routine.
         container.name = container.symbol_table.next_available_name(
-            container.name + ADJOINT_NAME_SUFFIX)
+            _create_adjoint_name(container.name))
 
     routines = ad_psyir.walk(Routine)
 
@@ -253,7 +273,7 @@ def generate_adjoint(tl_psyir, active_variables):
     # within a module.
     if container:
         kernel_sym = container.symbol_table.lookup(routine.name)
-        adj_kernel_name = routine.name + ADJOINT_NAME_SUFFIX
+        adj_kernel_name = _create_adjoint_name(routine.name)
         # A symbol's name is immutable so create a new RoutineSymbol
         adj_kernel_sym = container.symbol_table.new_symbol(
             adj_kernel_name, symbol_type=RoutineSymbol,
@@ -262,7 +282,7 @@ def generate_adjoint(tl_psyir, active_variables):
         routine.name = adj_kernel_sym.name
     else:
         routine.name = routine.symbol_table.next_available_name(
-            routine.name + ADJOINT_NAME_SUFFIX)
+            _create_adjoint_name(routine.name))
 
     logger.debug("AD kernel will be named '%s'", routine.name)
 
