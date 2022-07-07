@@ -99,7 +99,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
         parent = node.parent
         position = node.position
 
-        for bound in node.children[0:2]:
+        for bound in node.children[0:3]:
 
             # Skip Literals and non-structure references. Maybe it could be
             # more selective by allowing arithmetic expressions
@@ -110,7 +110,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
                 continue
 
             # Create new symbol
-            symbol = parent.scope.symbol_table.new_symbol(
+            symbol = node.ancestor(Routine).symbol_table.new_symbol(
                 "loop_bound", symbol_type=DataSymbol, datatype=INTEGER_TYPE
             )
             # Move bound expression to an assignment preceding the loop

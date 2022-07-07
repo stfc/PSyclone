@@ -1,0 +1,148 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2022, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# Author: S. Siso, STFC Daresbury Lab
+
+'''This module tests the hoist loop bound expressions transformation.
+'''
+
+import pytest
+
+from psyclone.psyir.nodes import Literal, Loop, Routine
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
+    TransformationError
+
+
+def test_str():
+    '''Test the transformation's str method return the expected string.
+
+    '''
+    trans = HoistLoopBoundExprTrans()
+    assert str(trans) == ("Hoist complex loop bound expressions outside the "
+                          "loop construct")
+
+
+def test_apply(fortran_reader, fortran_writer):
+    '''Test the apply method moves the complex loop bounds out of
+    the loop construct and places them immediately before the loop.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            use mymod, only: mytype
+            contains
+            subroutine test(A)
+                real, dimension(:), intent(inout) :: A
+                integer :: i
+                do i=1, UBOUND(a,1), mytype%step
+                    A(i) = 1
+                enddo
+            end subroutine test
+        end module test_mod
+    ''')
+    loop = psyir.walk(Loop)[0]
+    trans = HoistLoopBoundExprTrans()
+    trans.apply(loop)
+    print(fortran_writer(psyir))
+    # Start expression is not hoisted because it is a literal
+    expected = """
+    loop_bound_1 = mytype%step
+    loop_bound = UBOUND(a, 1)
+    do i = 1, loop_bound, loop_bound_1
+      a(i) = 1
+    enddo\n"""
+    assert expected in fortran_writer(psyir)
+
+
+def test_apply_nested(fortran_reader, fortran_writer):
+    '''Test the apply method moves the complex loop bounds out of
+    the loop construct and places them immediately before the loop,
+    but the symbols are always at the routine scope.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            use mymod, only: mytype
+            contains
+            subroutine test(A)
+                real, dimension(:,:), intent(inout) :: A
+                integer :: start = 1
+                integer :: i,j
+                do i=start, UBOUND(a,2)
+                    do j=LBOUND(a,1), UBOUND(a,1)
+                        A(j, i) = 1
+                    enddo
+                enddo
+            end subroutine test
+        end module test_mod
+    ''')
+    trans = HoistLoopBoundExprTrans()
+    for loop in psyir.walk(Loop):
+        trans.apply(loop)
+    print(fortran_writer(psyir))
+    # Start expression is not hoisted because it is a simple scalar reference
+    expected = """
+    loop_bound = UBOUND(a, 2)
+    do i = start, loop_bound, 1
+      loop_bound_2 = UBOUND(a, 1)
+      loop_bound_1 = LBOUND(a, 1)
+      do j = loop_bound_1, loop_bound_2, 1
+        a(j,i) = 1
+      enddo
+    enddo\n"""
+    assert expected in fortran_writer(psyir)
+    routine_symtab = psyir.walk(Routine)[0].symbol_table
+    # Check that all the new symbols are in the routine scope
+    assert "loop_bound" in routine_symtab
+    assert "loop_bound_1" in routine_symtab
+    assert "loop_bound_2" in routine_symtab
+
+
+def test_validate():
+    '''Test the apply method call the validation and this checks that the
+    hoist is invoked to a loop which has an ancestor Routine node.
+
+    '''
+    trans = HoistLoopBoundExprTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(Literal("3", INTEGER_TYPE))
+    assert ("Target of HoistLoopBoundExprTrans transformation must be a "
+            "sub-class of Loop but got 'Literal'" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.apply(Loop.create(
+            DataSymbol("i", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+            Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE), []))
+    assert ("The loop provided to HoistLoopBoundExprTrans must belong to a "
+            "Routine where to place the hoisted expressions."
+            in str(err.value))
