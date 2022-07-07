@@ -37,4 +37,4 @@
 layer.
 
 '''
-from psyclone.domain.gocean.kernel.psyir import GOceanKernel, KernelMetadataSymbol
+from psyclone.domain.gocean.kernel.psyir import GOceanContainer, GOceanKernelMetadata
