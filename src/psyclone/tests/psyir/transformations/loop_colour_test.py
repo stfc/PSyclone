@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,37 +30,42 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# ----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Loop, Parallel and Enter Data directives
-generically. This can be applied via the -s option in the psyclone
-script.
+''' pytest tests for the ColourTrans transformation. '''
 
-'''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCLoopTrans
+import pytest
+
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Loop, Literal
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.transformations import ColourTrans
 
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC loop, parallel and enter data directives generically.
+def test_colour_trans_str():
+    ''' Test the __str__ property of the class. '''
+    ctrans = ColourTrans()
+    assert str(ctrans) == "Split a loop into colours"
+
+
+def test_colour_trans_create_loop():
+    '''
+    Test that the '_create_colours_loop()' method raises an
+    InternalError.
 
     '''
-    loop_trans = ACCLoopTrans()
-    parallel_trans = ACCParallelTrans()
-    enter_data_trans = ACCEnterDataTrans()
-
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
-
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
-        for loop in schedule.loops():
-            loop_trans.apply(loop)
-        parallel_trans.apply(schedule.children)
-        enter_data_trans.apply(schedule)
-
-    return psy
+    ctrans = ColourTrans()
+    with pytest.raises(InternalError) as err:
+        ctrans._create_colours_loop(None)
+    assert ("_create_colours_loop() must be overridden in an API-specific "
+            "sub-class" in str(err.value))
+    # Check that apply() also calls _create_colours_loop().
+    with pytest.raises(InternalError) as err:
+        ctrans.apply(Loop.create(DataSymbol("ji", INTEGER_TYPE),
+                                 Literal("1", INTEGER_TYPE),
+                                 Literal("10", INTEGER_TYPE),
+                                 Literal("1", INTEGER_TYPE),
+                                 []))
+    assert ("_create_colours_loop() must be overridden in an API-specific "
+            "sub-class" in str(err.value))

@@ -184,7 +184,7 @@ do not currently support operators).
 
 .. _lfric-cma-operator:
 
-Column-Wise Operator
+Column-wise Operator
 ++++++++++++++++++++
 
 The LFRic API has support for the construction and use of
@@ -207,7 +207,8 @@ matrix-matrix. The following example sketches-out what the use
 of such kernels might look like in the Algorithm layer::
 
   use field_mod, only: field_type
-  use operator_mod, only : operator_type, columnwise_operator_type
+  use operator_mod, only : operator_type
+  use columnwise_operator_mod, only : columnwise_operator_type
   type(field_type) :: field1, field2, field3
   type(operator_type) :: lma_op1, lma_op2
   type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
@@ -231,7 +232,7 @@ operators are then combined to produce a third, ``cma_op3``. This is
 then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
-Column-Wise operations based on their arguments as described in
+column-wise operations based on their arguments as described in
 metadata (see :ref:`dynamo0.3-cma-mdata-rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
@@ -618,11 +619,11 @@ Supported LMA Operator types are ``operator_type`` (which contains real
 data with precision ``r_def``) and ``r_solver_operator_type`` (which
 contains real data with precision ``r_solver``).
 
-Columnwise Operators
-++++++++++++++++++++
+Column-wise Operators
++++++++++++++++++++++
 
 It is not mandatory for PSyclone to be able to determine the datatype
-of a Columnwise Operator. The reason for this is that only one
+of a column-wise operator. The reason for this is that only one
 datatype is supported, a ``columnwise_operator_type`` which contains
 real data with precision ``r_solver``. PSyclone can therefore simply add
 this datatype in the PSy-layer. However, if the datatype information
@@ -987,7 +988,8 @@ combinations are specified later in this section (see
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
 * ``GH_WRITE`` indicates the data is modified in the Kernel before
-  (optionally) being read.
+  (optionally) being read. If any shared DoFs are written to then
+  different iterations of the Kernel must write the same value.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
   update quantities which do not share DoFs, such as operators and
@@ -1062,7 +1064,7 @@ For example::
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
           does not yet support ``integer`` and ``logical`` reductions.
 
-For a scalar the argument metadata contains only these three entries.
+For a scalar, the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -1074,7 +1076,7 @@ field the fourth argument specifies the function space that the field
 lives on. More details about the supported function spaces are in
 subsection :ref:`lfric-function-space`.
 
-For example, the metadata for a kernel that applies a Column-wise
+For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
   type(arg_type) :: meta_args(3) = (/                              &
@@ -1191,8 +1193,8 @@ modes depend upon the argument type and the function space it is on:
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
-| GH_FIELD               | Continuous                   | GH_READ, GH_INC,   |
-|                        |                              | GH_READINC         |
+| GH_FIELD               | Continuous                   | GH_READ, GH_WRITE, |
+|                        |                              | GH_INC, GH_READINC | 
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -1208,11 +1210,22 @@ in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
 in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
-``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
-function space (see :ref:`lfric-function-space` for the list of
-discontinuous function spaces). Parallelisation of the loop over the
-horizontal domain for a kernel that updates such a field will not require
-colouring for either of the above cases (since there are no shared entities).
+``GH_READWRITE`` as its access pattern must typically (see below) be
+on a horizontally-discontinuous function space (see
+:ref:`lfric-function-space` for the list of discontinuous function
+spaces). Parallelisation of the loop over the horizontal domain for a
+Kernel that updates such a field will not require colouring for either
+of the above cases (since there are no shared entities).
+
+There is however an exception to this - certain Kernels may write to
+shared entities but each Kernel iteration is guaranteed to write the
+*same value* to a given shared DoF. In this case, provided that the
+first access to any such shared DoF is a write, the loop containing
+such a Kernel may be parallelised without colouring. Therefore,
+``GH_WRITE`` access is permitted for ``GH_FIELD`` arguments on
+continuous function spaces. Obviously, care must be taken to ensure
+that the Kernel implementation satisfies the constraints just
+described as PSyclone cannot currently check this.
 
 If a field is described as being on ``ANY_SPACE_*``, there is currently no
 way to determine its continuity from the metadata (unless we can statically

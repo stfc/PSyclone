@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office.
-#          A. R. Porter, STFC Daresbury Laboratory.
+# Authors: I. Kavcic, Met Office
+#          A. R. Porter and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
@@ -153,8 +153,7 @@ class ExtractTrans(PSyDataTrans):
         # memory is enabled.
         if Config.get().distributed_memory:
             raise TransformationError(
-                "Error in {0}: Distributed memory is not supported."
-                .format(str(self.name)))
+                f"Error in {self.name}: Distributed memory is not supported.")
 
         # Check constraints not covered by excluded_node_types for
         # individual Nodes in node_list.
@@ -165,9 +164,8 @@ class ExtractTrans(PSyDataTrans):
             if isinstance(node, (Kern, BuiltIn)) and \
                isinstance(node.parent.parent, Loop):
                 raise TransformationError(
-                    "Error in {0}: Application to a Kernel or a Built-in "
-                    "call without its parent Loop is not allowed."
-                    .format(str(self.name)))
+                    f"Error in {self.name}: Application to a Kernel or a "
+                    f"Built-in call without its parent Loop is not allowed.")
 
             # Check that ExtractNode is not inserted between a Loop and its
             # parent Directive when optimisations are applied, as this may
@@ -176,8 +174,8 @@ class ExtractTrans(PSyDataTrans):
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
                     and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Application to a Loop without its parent "
-                    "Directive is not allowed.".format(str(self.name)))
+                    f"Error in {self.name}: Application to a Loop without its "
+                    f"parent Directive is not allowed.")
 
             # Check that ExtractNode is not inserted within a thread
             # parallel region when optimisations are applied. For instance,
@@ -186,9 +184,8 @@ class ExtractTrans(PSyDataTrans):
             # Parallel Directive) or within an OMPParallelDoDirective.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Application to Nodes enclosed within "
-                    "a thread-parallel region is not allowed."
-                    .format(str(self.name)))
+                    f"Error in {self.name}: Application to Nodes enclosed "
+                    f"within a thread-parallel region is not allowed.")
 
         # Performs validation checks specific to PSyData-based
         # transformations.

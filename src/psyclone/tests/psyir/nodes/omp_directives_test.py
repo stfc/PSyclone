@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from psyclone.f2pygen import ModuleGen
@@ -704,7 +703,7 @@ def test_omp_loop_directive_validate_global_constraints():
         omploop.validate_global_constraints()
     assert ("OMPLoopDirective must have as many immediately nested loops as "
             "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
-            " has a collpase=2 and the nested statement at depth 1 is a "
+            " has a collapse=2 and the nested statement at depth 1 is a "
             "Assignment rather than a Loop."
             in str(err.value))
 

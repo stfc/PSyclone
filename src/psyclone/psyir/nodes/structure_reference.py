@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -104,9 +104,8 @@ class StructureReference(Reference):
         '''
         if not isinstance(symbol, DataSymbol):
             raise TypeError(
-                "The 'symbol' argument to StructureReference.create() "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
+                f"The 'symbol' argument to StructureReference.create() "
+                f"should be a DataSymbol but found '{type(symbol).__name__}'.")
 
         return StructureReference._create(symbol, symbol.datatype, members,
                                           parent=parent)
@@ -151,19 +150,18 @@ class StructureReference(Reference):
         if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
                                         DeferredType, UnknownType)):
             raise TypeError(
-                "A StructureReference must refer to a symbol that is (or "
-                "could be) a structure, however symbol '{0}' has type "
-                "'{1}'.".format(symbol.name, symbol_type))
+                f"A StructureReference must refer to a symbol that is (or "
+                f"could be) a structure, however symbol '{symbol.name}' has "
+                f"type '{symbol_type}'.")
         if not isinstance(members, list):
             raise TypeError(
-                "The 'members' argument to StructureReference._create() "
-                "must be a list but found '{0}'."
-                "".format(type(members).__name__))
+                f"The 'members' argument to StructureReference._create() "
+                f"must be a list but found '{type(members).__name__}'.")
         if not members:
             raise ValueError(
-                "A StructureReference must include one or more structure "
-                "'members' that are being accessed but got an empty list for "
-                "symbol '{0}'".format(symbol.name))
+                f"A StructureReference must include one or more structure "
+                f"'members' that are being accessed but got an empty list for "
+                f"symbol '{symbol.name}'")
 
         # Create the base reference to the symbol that is a structure
         ref = cls(symbol, parent=parent)
@@ -183,11 +181,10 @@ class StructureReference(Reference):
             subref = Member(members[-1])
         else:
             raise TypeError(
-                "The list of 'members' passed to StructureType._create() "
-                "must consist of either 'str' or 2-tuple entries but "
-                "found '{0}' in the last entry while attempting to create "
-                "reference to symbol '{1}'".format(type(members[-1]).__name__,
-                                                   symbol.name))
+                f"The list of 'members' passed to StructureType._create() "
+                f"must consist of either 'str' or 2-tuple entries but found "
+                f"'{type(members[-1]).__name__}' in the last entry while "
+                f"attempting to create reference to symbol '{symbol.name}'")
 
         # Now do the remaining entries in the members list. Since we know that
         # each of these forms part of a structure they must be either a
@@ -213,11 +210,10 @@ class StructureReference(Reference):
                 subref = StructureMember.create(component, subref)
             else:
                 raise TypeError(
-                    "The list of 'members' passed to StructureType._create() "
-                    "must consist of either 'str' or 2-tuple entries but "
-                    "found '{0}' while attempting to create reference to "
-                    "symbol '{1}'".format(type(component).__name__,
-                                          symbol.name))
+                    f"The list of 'members' passed to StructureType._create() "
+                    f"must consist of either 'str' or 2-tuple entries but "
+                    f"found '{type(component).__name__}' while attempting to "
+                    f"create reference to symbol '{symbol.name}'")
             child_member = subref
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
@@ -240,9 +236,9 @@ class StructureReference(Reference):
         '''
         if not self.children or not isinstance(self.children[0], Member):
             raise InternalError(
-                "{0} malformed or incomplete. It must have a single child "
-                "that must be a (sub-class of) Member, but found: {1}".format(
-                    type(self).__name__, self.children))
+                f"{type(self).__name__} malformed or incomplete. It must have "
+                f"a single child that must be a (sub-class of) Member, but "
+                f"found: {self.children}")
         return self.children[0]
 
     def rank_of_subsection(self):

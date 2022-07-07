@@ -31,15 +31,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program multi_invoke_cma
 
   ! Description: invoke containing multiple CMA-related kernels
-  use inf,                                only: field_type,    &
-                                                operator_type, &
-                                                columnwise_operator_type
+  use field_mod,                          only: field_type
+  use operator_mod,                       only: operator_type
+  use columnwise_operator_mod,            only: columnwise_operator_type
   use columnwise_op_asm_field_kernel_mod, only: columnwise_op_asm_field_kernel_type
   use columnwise_op_app_kernel_mod,       only: columnwise_op_app_kernel_type
   use columnwise_op_mul_kernel_mod,       only: columnwise_op_mul_kernel_type
