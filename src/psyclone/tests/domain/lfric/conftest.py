@@ -36,8 +36,17 @@
 ''' Module containing pytest fixtures for the LFRic-specific tests. '''
 
 import pytest
+from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+
+
+@pytest.fixture(scope="module", autouse=True)
+def api_setup_fixture():
+    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
+    Config.get().api = "dynamo0.3"
+    yield()
+    Config._instance = None
 
 
 @pytest.fixture(name="dynkern", scope="module")

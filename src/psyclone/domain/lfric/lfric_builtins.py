@@ -42,17 +42,17 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
-from __future__ import absolute_import
 import abc
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
-    BinaryOperation
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
+                                    RoutineSymbol)
+from psyclone.psyir.nodes import (Assignment, Reference, StructureReference,
+                                  BinaryOperation, Call)
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.f2pygen import AssignGen, PSyIRGen, CallGen
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -108,6 +108,7 @@ class LFRicBuiltInCallFactory(object):
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
+        :raises InternalError: if the built-in does not iterate over dofs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -120,13 +121,19 @@ class LFRicBuiltInCallFactory(object):
         # this built-in.
         builtin = BUILTIN_MAP[call.func_name]()
 
-        # Create the loop over DoFs
+        # Create the loop over the appropriate entity.
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynLoop
-        const = LFRicConstants()
-        dofloop = DynLoop(parent=parent,
-                          loop_type=const.BUILTIN_ITERATION_SPACES[0])
+
+        if call.ktype.iterates_over == "dof":
+            loop_type = "dof"
+        else:
+            raise InternalError(
+                f"An LFRic built-in must iterate over dofs but kernel "
+                f"'{call.func_name}' iterates over "
+                f"'{call.ktype.iterates_over}'")
+        dofloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -204,9 +211,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must operate on "
-                "DoFs but found '{0}' for {1}.".
-                format(self.iterates_over, str(self)))
+                f"In the LFRic API built-in calls must operate on one of "
+                f"{const.BUILTIN_ITERATION_SPACES} but found "
+                f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
@@ -1497,6 +1504,29 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         self.replace_with(assign)
 
 
+class LFRicSetvalRandomKern(LFRicBuiltIn):
+    ''' Fill a real-valued field with pseudo-random numbers.
+
+    '''
+    def __str__(self):
+        return "Built-in: Fill a real-valued field with pseudo-random numbers"
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by a Call node.
+
+        '''
+        # Get indexed refs for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      call random_number(proxy0%data(df))
+        routine = RoutineSymbol("random_number")
+        call = Call.create(routine, arg_refs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(call)
+
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
 # ------------------------------------------------------------------- #
@@ -2122,6 +2152,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # real field's values
     "setval_c": LFRicSetvalCKern,
     "setval_X": LFRicSetvalXKern,
+    "setval_random": LFRicSetvalRandomKern,
     # Inner product of real fields
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
@@ -2221,6 +2252,7 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncXPowintNKern',
            'LFRicSetvalCKern',
            'LFRicSetvalXKern',
+           'LFRicSetvalRandomKern',
            'LFRicXInnerproductYKern',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',
