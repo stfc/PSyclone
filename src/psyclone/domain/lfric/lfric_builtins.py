@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import (Assignment, Reference, StructureReference,
                                   BinaryOperation, Call)
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.f2pygen import AssignGen, PSyIRGen, CallGen
+from psyclone.f2pygen import AssignGen, PSyIRGen
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API

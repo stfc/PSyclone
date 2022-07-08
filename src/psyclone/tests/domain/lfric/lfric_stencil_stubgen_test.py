@@ -37,8 +37,6 @@
 
 ''' This module tests the LFRic kernel-stub generator for using pytest. '''
 
-# imports
-from __future__ import absolute_import, print_function
 
 import os
 
@@ -52,14 +50,6 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
 
 
 def test_stub_stencil_extent():

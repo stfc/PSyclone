@@ -39,8 +39,6 @@
     LFRic API using pytest. Currently all built-in operations are 'pointwise'
     in that they iterate over DOFs. However this may change in the future. '''
 
-# imports
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -57,14 +55,6 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 # The PSyclone API under test
 API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
 
 
 # ------------- Adding integer fields --------------------------------------- #

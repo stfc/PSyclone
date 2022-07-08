@@ -40,7 +40,6 @@ Module containing pytest tests for the mesh-property support in the kernel-stub
 generation functionality with the LFRic (Dynamo0.3) API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
@@ -54,15 +53,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
-
 
 MESH_PROP_MDATA = '''
 module testkern_mesh_prop_quad_mod

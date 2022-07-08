@@ -39,7 +39,6 @@ Module containing pytest tests for the reference-element stub generation
 functionality of the Dynamo0.3 API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
@@ -51,15 +50,6 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
-
 
 REF_ELEM_QUAD_MDATA = '''
 module testkern_refelem_quad_mod

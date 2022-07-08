@@ -39,7 +39,6 @@ Module containing pytest tests for the mesh-property functionality
 of the LFRic (Dynamo0.3) API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
@@ -81,14 +80,6 @@ end module testkern_mesh_mod
 '''
 
 # Tests for parsing the metadata
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
 
 
 def test_mdata_parse():

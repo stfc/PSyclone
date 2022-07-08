@@ -37,7 +37,6 @@
 ''' This module contains pytest tests for LFRic kernels which operate on
     the 'domain'. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser import api as fpapi
@@ -53,14 +52,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = TEST_API
-    yield()
-    Config._instance = None
 
 
 def test_domain_kernel():
