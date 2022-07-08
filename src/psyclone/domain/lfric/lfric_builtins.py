@@ -1523,10 +1523,9 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      call random_number(proxy0%data(df))
 
-        # TODO #XXX
-        # Currently we have to create a Symbol for the intrinsic but *not*
-        # add it to the symbol table (since there's no import for it).
-        # This can be removed once we have proper support for intrinsics
+        # TODO #1366 - currently we have to create a Symbol for the intrinsic
+        # but *not* add it to the symbol table (since there's no import for
+        # it). This can be removed once we have proper support for intrinsics
         # that are not operators.
         routine = RoutineSymbol("random_number")
         call = Call.create(routine, arg_refs)
