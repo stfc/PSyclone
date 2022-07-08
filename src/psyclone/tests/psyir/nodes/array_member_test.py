@@ -36,10 +36,9 @@
 
 ''' This module contains pytest tests for the ArrayMember class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir import symbols, nodes
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 
 
 def test_am_constructor():

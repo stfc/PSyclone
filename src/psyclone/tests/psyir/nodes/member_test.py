@@ -37,9 +37,10 @@
 
 ''' This module contains pytest tests for the Member class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir import nodes
+from psyclone.psyir.symbols import (DataSymbol, DeferredType, StructureType,
+                                    ArrayType, INTEGER_TYPE, Symbol)
 
 
 def test_member_constructor():
@@ -101,4 +102,9 @@ def test_member_equality():
 
 def test_rank_of_subsection():
     ''' The rank of a Member should be zero as it is not an array. '''
-    assert nodes.Member("m1").rank_of_subsection() == 0
+    stype = StructureType()
+    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
+    stype.add("data", ArrayType(INTEGER_TYPE, [3, 4]))
+    sym = DataSymbol("grid_type", DeferredType())
+    sref = nodes.StructureReference.create(sym, ["m1"])
+    assert sref.member.rank_of_subsection() == 0

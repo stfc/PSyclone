@@ -39,10 +39,11 @@
 
 ''' This module contains the implementation of the Member node.'''
 
-from __future__ import absolute_import
-
 from psyclone.core import Signature
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import DeferredType, ScalarType
 
 
 class Member(Node):
@@ -151,7 +152,19 @@ class Member(Node):
         :rtype: int
 
         '''
-        return 0
+        ref = self.ancestor(Reference)
+        if not ref:
+            raise GenerationError(
+                f"Structure reference incomplete: Member '{self.name}' is not "
+                f"a part of a Reference.")
+        dtype = ref.symbol.datatype
+        if isinstance(dtype, DeferredType):
+            # TODO. This Member could in fact be an array but we have no way
+            # of knowing without finding the definition of the derived type.
+            return 0
+        if isinstance(dtype, ScalarType):
+            return 0
+        return len(dtype.shape)
 
 
 # For Sphinx AutoAPI documentation generation
