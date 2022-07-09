@@ -41,6 +41,7 @@ import re
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, get_child
 
 from psyclone.configuration import Config
@@ -175,11 +176,11 @@ class GOceanKernelMetadata():
         ''' Lower the metadata to language-level PSyIR.
 
         :returns: metadata as stored in language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.symbols.UnknownFortranType`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         '''
         return DataTypeSymbol(
-            self.name, UnknownFortranType(self.fortran_string()))
+            str(self.name), UnknownFortranType(self.fortran_string()))
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -228,19 +229,21 @@ class GOceanKernelMetadata():
         :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
             GOceanKernelMetadata`
 
-        :raises InternalError: if the datatype argument is not the \
-            expected type.
+        :raises ValueError: if the string does not contain a fortran \
+            derived type.
         :raises ParseError: if the metadata has an unexpected format.
 
         '''
         kernel_metadata = GOceanKernelMetadata()
 
+        # Ensure the Fortran2003 parser is initialised.
+        _ = ParserFactory().create(std="f2003")
         reader = FortranStringReader(fortran_string)
         try:
             spec_part = Fortran2003.Derived_Type_Def(reader)
         except Fortran2003.NoMatchError:
             # pylint: disable=raise-missing-from
-            raise InternalError(
+            raise ValueError(
                 f"Expected kernel metadata to be a Fortran derived type, but "
                 f"found '{fortran_string}'.")
 

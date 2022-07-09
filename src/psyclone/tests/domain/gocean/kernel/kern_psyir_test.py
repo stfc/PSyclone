@@ -46,9 +46,13 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
+from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
+    GOceanContainer
+from psyclone.domain.gocean.transformations import KernTrans
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
-
-from psyclone.domain.gocean.kernel import GOceanKernelMetadata
+from psyclone.psyir.nodes import Container
+from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "TYPE(go_arg), DIMENSION(4) :: meta_args = ("
@@ -63,12 +67,65 @@ METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "END TYPE compute_cu\n")
 
 PROGRAM = (
-    f"program dummy\n"
-    f"  use random ! avoid any missing declaration errors\n"
+    f"module dummy\n"
     f"{METADATA}"
-    f"end program dummy\n")
+    f"contains\n"
+    f"  subroutine kern()\n"
+    f"  end subroutine kern\n"
+    f"end module dummy\n")
+
 
 # Class GOceanContainer
+
+def test_goceancontainer_init():
+    '''Test that an instance of GOceanContainer can be created. '''
+    container = GOceanContainer("name", None)
+    assert container.name == "name"
+    assert container._metadata is None
+
+
+def test_goceancontainer_create():
+    '''Test that the GOceanContainer create method works as
+    expected. Includes raising any exceptions. Also make use of the
+    metadata property.
+
+    '''
+    metadata = GOceanKernelMetadata.create_from_fortran_string(METADATA)
+    container = GOceanContainer.create("name", metadata, SymbolTable(), [])
+    assert container.name == "name"
+    assert container.metadata.fortran_string() == METADATA
+    assert container.children == []
+    with pytest.raises(ValueError) as info:
+        _ = GOceanKernelMetadata.create_from_fortran_string("Not valid")
+    assert ("Expected kernel metadata to be a Fortran derived type, but "
+            "found 'Not valid'." in str(str(info.value)))
+
+
+def test_goceancontainer_lower(fortran_reader):
+    '''Test that the GOceanContainer lower_to_language_level method works
+    as expected.
+
+    '''
+    # First load program and perform checks
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
+    assert isinstance(kernel_psyir.children[0], Container)
+    assert not isinstance(kernel_psyir.children[0], GOceanContainer)
+    assert kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+
+    # Now raise to GOcean PSyIR and perform checks
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    kern_trans.apply(kernel_psyir)
+    assert isinstance(kernel_psyir.children[0], GOceanContainer)
+    with pytest.raises(KeyError):
+        kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+
+    # Now use lower_to_language_level and perform checks
+    container = kernel_psyir.children[0]
+    container.lower_to_language_level()
+    assert isinstance(kernel_psyir.children[0], Container)
+    assert not isinstance(kernel_psyir.children[0], GOceanContainer)
+    assert kernel_psyir.children[0].symbol_table.lookup("compute_cu")
 
 
 # Class GOceanKernelMetadata
@@ -124,14 +181,22 @@ def test_goceankernelmetadata_init2():
 
 # create_from_psyir
 def test_goceankernelmetadata_create1(fortran_reader):
-    '''Test the create_from_psyir method works as expected. Also tests the
-    fortran string method.
+    '''Test the create_from_psyir method works as expected including any
+    exceptions. Also tests the fortran string method.
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
+    with pytest.raises(TypeError) as info:
+        _ = GOceanKernelMetadata.create_from_psyir("symbol")
+    assert "Expected a datasymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
     assert METADATA in metadata.fortran_string()
+    symbol._datatype = REAL_TYPE
+    with pytest.raises(InternalError) as info:
+        _ = GOceanKernelMetadata.create_from_psyir(symbol)
+    assert ("Expected kernel metadata to be stored in the PSyIR as an "
+            "UnknownFortranType, but found ScalarType." in str(info.value))
 
 
 # create_from_fortran_string
