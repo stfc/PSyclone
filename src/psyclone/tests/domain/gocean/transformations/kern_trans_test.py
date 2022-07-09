@@ -41,10 +41,10 @@ classes.
 '''
 import pytest
 
+from psyclone.domain.gocean.kernel import GOceanContainer
 from psyclone.domain.gocean.transformations import KernTrans
-from psyclone.domain.gocean.kernel import GOceanKernel
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import FileContainer, Node, Routine
+from psyclone.psyir.nodes import FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 
@@ -62,12 +62,24 @@ METADATA = (
     "  contains\n"
     "    procedure, nopass :: code => compute_cu_code\n"
     "  end type compute_cu\n")
+METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
+            "TYPE(go_arg), DIMENSION(4) :: meta_args = (/go_arg(GO_WRITE, "
+            "GO_CU, GO_POINTWISE), go_arg(GO_READ, GO_CT, "
+            "GO_STENCIL(000, 011, 000)), go_arg(GO_READ, GO_GRID_AREA_T), "
+            "go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)\n"
+            "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n"
+            "  INTEGER :: index_offset = GO_OFFSET_SW\n"
+            "  CONTAINS\n"
+            "  PROCEDURE, NOPASS :: code => compute_cu_code\n"
+            "END TYPE compute_cu\n")
 
 PROGRAM = (
-    f"program dummy\n"
-    f"  use random ! avoid any missing declaration errors\n"
+    f"module dummy\n"
     f"{METADATA}"
-    f"end program dummy\n")
+    f"contains\n"
+    f"  subroutine kern()\n"
+    f"  end subroutine kern\n"
+    f"end module dummy\n")
 
 
 def test_kerntrans_init():
@@ -77,34 +89,36 @@ def test_kerntrans_init():
     assert kern_trans._metadata_name is None
 
 
-def test_validate_noname():
+def test_validate_noname(fortran_reader):
     '''Test that the validate method raises an exception if the
     metadata_name property has not been set (or has been set to
     something that is 'empty')
 
     '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(None)
+        kern_trans.validate(kernel_psyir)
     assert ("The kern_trans transformation requires the metadata name to be "
             "set before applying the transformation." in str(info.value))
     kern_trans.metadata_name = ""
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(None)
+        kern_trans.validate(kernel_psyir)
     assert ("The kern_trans transformation requires the metadata name to be "
             "set before applying the transformation." in str(info.value))
 
 
-def test_validate_nosymbol():
+def test_validate_nosymbol(fortran_reader):
     '''Test that the validate method raises an exception if the
     metadata_name property does not correspond to a symbol in the
     supplied PSyIR.
 
     '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "does_not_exist"
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(Node())
+        kern_trans.validate(kernel_psyir)
     assert ("The metadata name (does_not_exist) provided to the "
             "transformation does not correspond to a symbol in the "
             "supplied PSyIR." in str(info.value))
@@ -139,7 +153,7 @@ def test_validate_metadata(fortran_reader):
 
     '''
     modified_program = PROGRAM.replace(
-        "     integer :: ITERATES_OVER = GO_ALL_PTS\n", "")
+        "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n", "")
     kernel_psyir = fortran_reader.psyir_from_source(modified_program)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
@@ -157,8 +171,10 @@ def test_validate_container(fortran_reader):
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
+    routine = kernel_psyir.children[0].children[0]
+    routine.detach()
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(kernel_psyir.children[0])
+        kern_trans.validate(routine)
     assert ("Error in KernTrans transformation. The supplied call argument "
             "should be a Container node but found 'Routine'."
             in str(info.value))
@@ -249,20 +265,25 @@ def test_apply_keyerror(fortran_reader):
 
 
 def test_apply_ok(fortran_reader):
-    '''Test that the apply method modifies the required symbol as
-    expected.
+    '''Test that the apply method specialises the expected container node,
+    adding the required metadata and removes the original psyir
+    symbol.
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = KernTrans()
     kern_trans.metadata_name = "compute_cu"
-    routine = kernel_psyir.children[0]
-    assert isinstance(routine, Routine)
-    assert not isinstance(routine, GOceanKernel)
-    metadata = routine.symbol_table.lookup("compute_cu")
+    container = kernel_psyir.children[0]
+    assert isinstance(container, Container)
+    assert not isinstance(container, GOceanContainer)
+    # The symbol should exist
+    _ = container.symbol_table.lookup("compute_cu")
     kern_trans.apply(kernel_psyir)
-    # This should not be found
-    metadata = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
-    routine = kernel_psyir.children[0]
-    assert isinstance(routine, GOceanKernel)
-    assert routine.metadata.iterates_over == "GO_ALL_PTS"
+    container = kernel_psyir.children[0]
+    # The symbol should be removed
+    with pytest.raises(KeyError):
+        _ = container.symbol_table.lookup("compute_cu")
+    # The container should now be a GOceanContainer
+    assert isinstance(container, GOceanContainer)
+    # and should contain the metadata
+    assert container.metadata.fortran_string() == METADATA

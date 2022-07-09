@@ -37,11 +37,10 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.domain.gocean.kernel import KernelMetadataSymbol
+from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Schedule, Container, Routine
+from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
-from psyclone.domain.gocean.kernel.psyir import GOceanKernelMetadata, GOceanKernel
 
 
 class KernTrans(Transformation):
@@ -72,34 +71,6 @@ class KernTrans(Transformation):
             a parent.
 
         '''
-        if not self._metadata_name:
-            raise TransformationError(
-                "The kern_trans transformation requires the metadata name to "
-                "be set before applying the transformation.")
-
-        metadata_symbol = None
-        for schedule_node in node.walk(Schedule):
-            try:
-                metadata_symbol = schedule_node.symbol_table.lookup(
-                    self._metadata_name)
-                break
-            except KeyError:
-                pass
-        else:
-            raise TransformationError(
-                f"The metadata name ({self._metadata_name}) provided to the "
-                f"transformation does not correspond to a symbol in the "
-                f"supplied PSyIR.")
-
-        # Validate the metadata. This is done as part of the setup()
-        # method. This method can't be called until we specialise the
-        # symbol, so we specialise with a copy of the symbol.
-        #tmp_metadata_symbol = metadata_symbol.copy()
-        #tmp_metadata_symbol.specialise(KernelMetadataSymbol)
-        #tmp_metadata_symbol.setup()
-
-        metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol.datatype)
-
         if not isinstance(node, Container):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied call "
@@ -111,6 +82,46 @@ class KernTrans(Transformation):
                 f"Error in {self.name} transformation. The supplied node "
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent.")
+
+        if not self._metadata_name:
+            raise TransformationError(
+                f"Error in {self.name} transformation. The kern_trans "
+                f"transformation requires the metadata name to "
+                f"be set before applying the transformation.")
+
+        metadata_symbol = None
+        scoping_node = None
+        for test_node in node.walk(ScopingNode):
+            try:
+                metadata_symbol = test_node.symbol_table.lookup(
+                    self._metadata_name)
+                scoping_node = test_node
+                break
+            except KeyError:
+                pass
+        else:
+            raise TransformationError(
+                f"Error in {self.name} transformation. The metadata name "
+                f"({self._metadata_name}) provided to the transformation "
+                f"does not correspond to a symbol in the supplied PSyIR.")
+
+        # Check that scoping node is a container or has an ancestor
+        # that is a container.
+        container = scoping_node
+        if not isinstance(container, Container):
+            container = scoping_node.ancestor(Container)
+        if not container:
+            raise TransformationError(
+                f"Error in {self.name} transformation. The metadata symbol "
+                f"should reside within a Container but none was found.")
+        if isinstance(container, FileContainer):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The Container in "
+                f"which the metadata symbol resides is a FileContainer, "
+                f"but should be a generic Container")
+
+        # Check that the metadata can be generated without any errors.
+        _ = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
 
     @property
     def metadata_name(self):
@@ -130,8 +141,9 @@ class KernTrans(Transformation):
         '''
         if not isinstance(value, str):
             raise TypeError(
-                f"The kern_trans transformation requires the metadata name "
-                f"to be a string, but found '{type(value).__name__}'.")
+                f"Error in {self.name} transformation. The kern_trans "
+                f"transformation requires the metadata name to be a string, "
+                f"but found '{type(value).__name__}'.")
 
         self._metadata_name = value
 
@@ -148,39 +160,37 @@ class KernTrans(Transformation):
 
         self.validate(node, options=options)
 
-        # Find routine.
-        routines = node.walk(Routine)
-        routine = routines[0]
-        
-        # find metadata type
-        # Find the metadata symbol. No need to check it is found as
-        # this is done in the validate method.
+        # Find the metadata symbol based on the supplied name.
         metadata_symbol = None
-        for schedule_node in node.walk(Schedule):
+        scoping_node = None
+        for test_node in node.walk(ScopingNode):
             try:
-                metadata_symbol = schedule_node.symbol_table.lookup(
+                metadata_symbol = test_node.symbol_table.lookup(
                     self._metadata_name)
+                scoping_node = test_node
                 break
             except KeyError:
                 pass
 
-        # Create metadata
-        metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol.datatype)
-        ## Specialise routine
-        if routine.return_symbol:
-            routine_symbol_name = routine.return_symbol.name
-        else:
-            routine_symbol_name = None
-        routine.symbol_table._node = None
-        go_kernel = GOceanKernel.create(
-            routine.name, routine.symbol_table, routine.pop_all_children(),
-            routine.is_program, routine_symbol_name)
-        go_kernel.metadata = metadata
-        routine.replace_with(go_kernel)
+        # Find the container in which this metadata resides.
+        container = scoping_node
+        if not isinstance(container, Container):
+            container = scoping_node.ancestor(Container)
 
-        # Remove metadata type
-        # How????
-        # metadata_symbol.detach()
+        # Create metadata
+        metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
+
+        # Remove metadata symbol.
+        symbol_table = scoping_node.symbol_table
+        norm_name = symbol_table._normalize(metadata_symbol.name)
+        symbol_table._symbols.pop(norm_name)
+
+        # Replace container
+        children = container.pop_all_children()
+        gocean_container = GOceanContainer.create(
+            container.name, metadata, container.symbol_table.detach(),
+            children)
+        container.replace_with(gocean_container)
 
 
 __all__ = ['KernTrans']
