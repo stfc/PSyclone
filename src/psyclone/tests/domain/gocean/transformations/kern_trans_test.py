@@ -124,6 +124,26 @@ def test_validate_nosymbol(fortran_reader):
             "supplied PSyIR." in str(info.value))
 
 
+def test_validate_container1(fortran_reader):
+    '''Test that the validate method raises the expected exceptions if the
+    metadata symol does not reside within a Container node or resides
+    within a FileContainer node.
+
+    '''
+    code = (
+        f"subroutine test\n"
+        f"{METADATA}\n"
+        f"end subroutine test\n")
+    kernel_psyir = fortran_reader.psyir_from_source(code)
+    kern_trans = KernTrans()
+    kern_trans.metadata_name = "compute_cu"
+    with pytest.raises(TransformationError) as info:
+        kern_trans.validate(kernel_psyir)
+    assert ("The Container in which the metadata symbol resides is a "
+            "FileContainer, but should be a generic Container."
+            in str(info.value))
+
+
 def test_validate_keyerror(fortran_reader):
     '''Test that the PSyIR tree walk to find the metadata symbol works if
     multiple symbol tables need to be searched before finding the
@@ -163,7 +183,7 @@ def test_validate_metadata(fortran_reader):
             "compute_cu" in str(info.value))
 
 
-def test_validate_container(fortran_reader):
+def test_validate_container2(fortran_reader):
     '''Test that the validate method raises the expected exception if the
     supplied node is not a Container node.
 

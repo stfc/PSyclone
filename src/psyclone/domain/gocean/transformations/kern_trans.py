@@ -105,20 +105,17 @@ class KernTrans(Transformation):
                 f"({self._metadata_name}) provided to the transformation "
                 f"does not correspond to a symbol in the supplied PSyIR.")
 
-        # Check that scoping node is a container or has an ancestor
-        # that is a container.
+        # Find the nearest ancestor container including self.  There
+        # will always be at least one ancestor container as otherwise
+        # an earlier test will fail.
         container = scoping_node
         if not isinstance(container, Container):
             container = scoping_node.ancestor(Container)
-        if not container:
-            raise TransformationError(
-                f"Error in {self.name} transformation. The metadata symbol "
-                f"should reside within a Container but none was found.")
         if isinstance(container, FileContainer):
             raise TransformationError(
                 f"Error in {self.name} transformation. The Container in "
                 f"which the metadata symbol resides is a FileContainer, "
-                f"but should be a generic Container")
+                f"but should be a generic Container.")
 
         # Check that the metadata can be generated without any errors.
         _ = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
