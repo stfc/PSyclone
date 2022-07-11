@@ -212,8 +212,8 @@ def test_validate_parent(fortran_reader):
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("Error in KernTrans transformation. The supplied node should be "
-            "the root of a PSyIR tree but this node has a parent."
-            in str(info.value))
+            "the root of a PSyIR tree but this node has a parent "
+            "(FileContainer)." in str(info.value))
 
 
 def test_validate_ok(fortran_reader):

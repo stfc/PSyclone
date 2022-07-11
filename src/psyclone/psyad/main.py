@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@ from __future__ import absolute_import, print_function
 import argparse
 import logging
 import sys
-
-import six
 
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
@@ -99,9 +97,8 @@ def main(args):
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
     try:
-        with open(filename) as my_file:
+        with open(filename, mode='r', encoding='utf8') as my_file:
             tl_fortran_str = my_file.read()
-            tl_fortran_str = six.text_type(tl_fortran_str)
     except FileNotFoundError:
         logger.error("psyad error: file '%s', not found.", filename)
         sys.exit(1)

@@ -137,15 +137,15 @@ class GOceanKernelMetadata():
         metadata values of the kernel arguments.
     :type meta_args: List[:py:class:`GridArg` | :py:class:`FieldArg` \
         | :py:class:`ScalarArg`] | NoneType
-    :param procedure: the name of the kernel procedure to call.
-    :type procedure: str | NoneType
+    :param procedure_name: the name of the kernel procedure to call.
+    :type procedure_name: str | NoneType
     :param name: the name of the symbol to use for the metadata in \
         language-level PSyIR.
     :type name: str | NoneType
 
     '''
     def __init__(self, iterates_over=None, index_offset=None, meta_args=None,
-                 procedure=None, name=None):
+                 procedure_name=None, name=None):
         # Validate values using setters if they are not None
         self._iterates_over = None
         if iterates_over is not None:
@@ -169,7 +169,7 @@ class GOceanKernelMetadata():
                         f"ScalarArg objects, but found "
                         f"{type(entry).__name__}.")
             self._meta_args = meta_args
-        self._code = procedure
+        self._code = procedure_name
         self._name = name
 
     def lower_to_psyir(self):
@@ -264,7 +264,7 @@ class GOceanKernelMetadata():
         kernel_metadata.index_offset = value
 
         # the name of the procedure that this metadata refers to.
-        kernel_metadata.procedure = GOceanKernelMetadata._get_property(
+        kernel_metadata.procedure_name = GOceanKernelMetadata._get_property(
             spec_part, "code").string
 
         # meta_args contains arguments which have
@@ -401,7 +401,7 @@ class GOceanKernelMetadata():
             f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
             f"  INTEGER :: index_offset = {self.index_offset}\n"
             f"  CONTAINS\n"
-            f"  PROCEDURE, NOPASS :: code => {self.procedure}\n"
+            f"  PROCEDURE, NOPASS :: code => {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
         return result
 
@@ -499,15 +499,15 @@ class GOceanKernelMetadata():
         return self._meta_args
 
     @property
-    def procedure(self):
+    def procedure_name(self):
         '''
         :returns: the kernel procedure name specified by the metadata.
         :rtype: str
         '''
         return self._code
 
-    @procedure.setter
-    def procedure(self, value):
+    @procedure_name.setter
+    def procedure_name(self, value):
         '''
         :param str value: set the procedure name specified in the \
             metadata to the specified value.
@@ -700,7 +700,7 @@ class GOceanKernelMetadata():
             if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a field argument should "
-                    f"be a recognised name (one of "
+                    f"be a recognised access descriptor (one of "
                     f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
@@ -735,7 +735,7 @@ class GOceanKernelMetadata():
             if value.lower() not in const.VALID_FIELD_GRID_TYPES:
                 raise ValueError(
                     f"The second metadata entry for a field argument should "
-                    f"be a recognised name (one of "
+                    f"be a recognised grid-point type descriptor (one of "
                     f"{const.VALID_FIELD_GRID_TYPES}), but found '{value}'.")
 
         @property
@@ -769,7 +769,7 @@ class GOceanKernelMetadata():
             if value.lower() not in const.VALID_STENCIL_NAMES + ["go_stencil"]:
                 raise ValueError(
                     f"The third metadata entry for a field should "
-                    f"be a recognised name (one of "
+                    f"be a recognised stencil descriptor (one of "
                     f"{const.VALID_STENCIL_NAMES} or 'go_stencil'), "
                     f"but found '{value}'.")
 
@@ -839,8 +839,8 @@ class GOceanKernelMetadata():
                         f"'{type(value).__name__}'.")
                 if not pattern.match(value):
                     raise ValueError(
-                        f"Stencil entries should follow the pattern "
-                        f"[01]{{3,3}}, but found '{value}'.")
+                        f"Stencil entries should follow the regular "
+                        f"expression [01]{{3,3}}, but found '{value}'.")
 
         @property
         def stencil(self):
@@ -938,7 +938,7 @@ stable/gocean1p0.html#argument-metadata-meta-args>` \
             if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a scalar argument should "
-                    f"be a recognised name (one of "
+                    f"be a recognised access descriptor (one of "
                     f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property

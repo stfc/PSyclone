@@ -41,12 +41,12 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 
 
-def test_gocean_const():
+def test_gocean_const(monkeypatch):
     '''Tests the GOcean constant object.
     '''
     # This guarantees that the first time we use the constant object,
     # we read it from the config file.
-    GOceanConstants.HAS_BEEN_INITIALISED = False
+    monkeypatch.setattr(GOceanConstants, "HAS_BEEN_INITIALISED", False)
     config = Config.get()
 
     gocean_const = config.api_conf("gocean1.0").get_constants()
@@ -61,6 +61,3 @@ def test_gocean_const():
     assert gocean_const.VALID_INTRINSIC_TYPES == "INVALID"
     assert gocean_const.VALID_ARG_TYPE_NAMES == []
     assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
-    # Make sure the 'INVALID' value is reset when the constant
-    # object is created again.
-    GOceanConstants.HAS_BEEN_INITIALISED = False

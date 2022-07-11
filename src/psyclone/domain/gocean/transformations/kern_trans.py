@@ -49,9 +49,35 @@ class KernTrans(Transformation):
     symbols. This is currently limited to the specialisation of kernel
     metadata.
 
+    >>> from psyclone.domain.gocean.transformations import kern_trans
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> CODE = (
+    ...     "MODULE example\n"
+    ...     "  TYPE, EXTENDS(kernel_type) :: compute_cu\n"
+    ...     "    TYPE(go_arg), DIMENSION(4) :: meta_args = (          &\n"
+    ...     "      go_arg(GO_WRITE, GO_CU, GO_POINTWISE),             &\n"
+    ...     "      go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), &\n"
+    ...     "      go_arg(GO_READ, GO_GRID_AREA_T),                   &\n"
+    ...     "      go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)\n"
+    ...     "    INTEGER :: ITERATES_OVER = GO_ALL_PTS\n"
+    ...     "    INTEGER :: index_offset = GO_OFFSET_SW\n"
+    ...     "    CONTAINS\n"
+    ...     "      PROCEDURE, NOPASS :: code => compute_cu_code\n"
+    ...     "  END TYPE compute_cu\n"
+    ...     "contains\n"
+    ...     "  subroutine compute_cu_code()\n"
+    ...     "  end subroutine\n"
+    ...     "end module\n")
+    >>> fortran_reader = FortranReader()
+    >>> kernel = fortran_reader.psyir_from_source(CODE)
+    >>> trans = kern_trans()
+    >>> trans.metadata_name = "compute_cu"
+    >>> trans.apply(kernel)
+
     '''
     def __init__(self):
         super().__init__()
+        # The name of the PSyIR symbol containing the metadata
         self._metadata_name = None
 
     def validate(self, node, options=None):
@@ -81,7 +107,7 @@ class KernTrans(Transformation):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
                 f"should be the root of a PSyIR tree but this node has a "
-                f"parent.")
+                f"parent ({type(node.parent).__name__}).")
 
         if not self._metadata_name:
             raise TransformationError(
@@ -123,8 +149,8 @@ class KernTrans(Transformation):
     @property
     def metadata_name(self):
         '''
-        :returns: the name of the metadata that determines what will be \
-            specialised to kernel-specific PSyIR.
+        :returns: the name of the symbol containing the required \
+            kernel metadata in language-level PSyIR.
         :rtype: str
 
         '''
@@ -133,8 +159,8 @@ class KernTrans(Transformation):
     @metadata_name.setter
     def metadata_name(self, value):
         '''
-        :param str value: sets the name of the metadata that \
-            determines what will be specialised to kernel-specific PSyIR.
+        :param str value: sets the name of the symbol containing \
+            the required kernel metadata in language-level PSyIR.
         '''
         if not isinstance(value, str):
             raise TypeError(
@@ -145,7 +171,12 @@ class KernTrans(Transformation):
         self._metadata_name = value
 
     def apply(self, node, options=None):
-        ''' Apply transformation to the supplied PSyIR.
+        '''Raise the supplied language-level GOcean kernel PSyIR to
+        GOcean-specific kernel PSyIR. Specialises the kernel container
+        to a GOcean-specific subclass, populates this subclass with
+        the kernel metadata extracted from the metadata symbol as
+        specified in metadata_name and removes the symbol from the
+        symbol table.
 
         :param node: a kernel represented in generic PSyIR.
         :type node: Union[:py:class:`psyclone.psyir.node.Routine`, \
@@ -154,7 +185,6 @@ class KernTrans(Transformation):
         :type options: Optional[Dict[str: str]]
 
         '''
-
         self.validate(node, options=options)
 
         # Find the metadata symbol based on the supplied name.

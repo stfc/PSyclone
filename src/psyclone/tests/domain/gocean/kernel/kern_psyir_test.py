@@ -177,11 +177,11 @@ def test_goceankernelmetadata_init2():
 
     metadata = GOceanKernelMetadata(
         iterates_over="go_all_pts", index_offset="go_offset_ne", meta_args=[],
-        procedure="example_code", name="example_type")
+        procedure_name="example_code", name="example_type")
     assert metadata.iterates_over == "go_all_pts"
     assert metadata.index_offset == "go_offset_ne"
     assert metadata.meta_args == []
-    assert metadata.procedure == "example_code"
+    assert metadata.procedure_name == "example_code"
     assert metadata.name == "example_type"
 
     # Ensure subsequent tests read GOcean constant information from
@@ -315,7 +315,7 @@ def test_create_procedure():
         "  PROCEDURE, NOPASS :: code\n")
     metadata = GOceanKernelMetadata.create_from_fortran_string(
         modified_metadata)
-    assert metadata.procedure == "code"
+    assert metadata.procedure_name == "code"
 
 
 # metaargs does not exist, len different to nargs, wrong num args,
@@ -458,9 +458,9 @@ def test_args():
 def test_procedure():
     '''Test that get and set work for procedure metadata.'''
     kernel_metadata = GOceanKernelMetadata.create_from_fortran_string(METADATA)
-    assert kernel_metadata.procedure == "compute_cu_code"
-    kernel_metadata.procedure = "new_code"
-    assert kernel_metadata.procedure == "new_code"
+    assert kernel_metadata.procedure_name == "compute_cu_code"
+    kernel_metadata.procedure_name = "new_code"
+    assert kernel_metadata.procedure_name == "new_code"
 
 
 # internal GridArg class
@@ -595,8 +595,8 @@ def test_fieldarg_access():
     constants = config.api_conf("gocean1.0").get_constants()
     access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a field argument should be a "
-            f"recognised name (one of {access_types}), but found 'hello'."
-            in str(info.value))
+            f"recognised access descriptor (one of {access_types}), but "
+            f"found 'hello'." in str(info.value))
     field_arg.access = "GO_READ"
     assert field_arg.access == "GO_READ"
 
@@ -613,8 +613,8 @@ def test_fieldarg_grid_point_type():
     constants = config.api_conf("gocean1.0").get_constants()
     field_grid_types = constants.VALID_FIELD_GRID_TYPES
     assert (f"The second metadata entry for a field argument should be a "
-            f"recognised name (one of {field_grid_types}), but found "
-            f"'hello'." in str(info.value))
+            f"recognised grid-point type descriptor (one of "
+            f"{field_grid_types}), but found 'hello'." in str(info.value))
     field_arg.grid_point_type = "GO_CF"
     assert field_arg.grid_point_type == "GO_CF"
 
@@ -627,8 +627,8 @@ def test_fieldarg_form():
     with pytest.raises(ValueError) as info:
         field_arg.form = "hello"
     assert ("The third metadata entry for a field should be a recognised "
-            "name (one of ['go_pointwise'] or 'go_stencil'), but "
-            "found 'hello'." in str(info.value))
+            "stencil descriptor (one of ['go_pointwise'] or 'go_stencil'), "
+            "but found 'hello'." in str(info.value))
     field_arg.form = "go_pointwise"
     assert field_arg.form == "go_pointwise"
 
@@ -660,8 +660,8 @@ def test_fieldarg_stencil():
             in str(info.value))
     with pytest.raises(ValueError) as info:
         field_arg.stencil = ["000", "011", "00"]
-    assert ("Stencil entries should follow the pattern [01]{3,3}, but "
-            "found '00'." in str(info.value))
+    assert ("Stencil entries should follow the regular expression "
+            "[01]{3,3}, but found '00'." in str(info.value))
 
     field_arg = kernel_metadata.meta_args[0]
     assert field_arg.form == "GO_POINTWISE"
@@ -723,8 +723,8 @@ def test_scalararg_access():
     constants = config.api_conf("gocean1.0").get_constants()
     access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a scalar argument should be a "
-            f"recognised name (one of {access_types}), but found 'hello'."
-            in str(info.value))
+            f"recognised access descriptor (one of {access_types}), but "
+            f"found 'hello'." in str(info.value))
     scalar_arg.access = "GO_WRITE"
     assert scalar_arg.access == "GO_WRITE"
 
