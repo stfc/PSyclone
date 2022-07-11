@@ -46,6 +46,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
+from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
     GOceanContainer
 from psyclone.domain.gocean.transformations import KernTrans
@@ -146,6 +147,13 @@ def test_goceankernelmetadata_init2():
     and set as expected.
 
     '''
+    # Ensure the default config values are loaded for GOcean
+    # constants. This should not be required as each test should run
+    # in isolation but in some cases there appears to be pollution
+    # from other tests when run in parallel.
+    Config._instance = None
+    GOceanConstants.HAS_BEEN_INITIALISED = False
+
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(iterates_over="hello")
     assert ("Expected one of ['go_all_pts', 'go_internal_pts', "
@@ -176,8 +184,12 @@ def test_goceankernelmetadata_init2():
     assert metadata.procedure == "example_code"
     assert metadata.name == "example_type"
 
+    # Ensure subsequent tests read GOcean constant information from
+    # the config file. This should not be required there appears to be
+    # pollution between tests when run in parallel.
+    Config._instance = None
+    GOceanConstants.HAS_BEEN_INITIALISED = False
 
-# TBD lower_to_psyir
 
 # create_from_psyir
 def test_goceankernelmetadata_create1(fortran_reader):
