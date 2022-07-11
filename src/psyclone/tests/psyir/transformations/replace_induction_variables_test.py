@@ -38,8 +38,8 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import Call, Literal
+from psyclone.psyir.symbols import INTEGER_TYPE, RoutineSymbol
 from psyclone.psyir.transformations import (ReplaceInductionVariables,
                                             TransformationError)
 
@@ -225,3 +225,42 @@ def test_riv_no_arrays(array_expr, fortran_reader, fortran_writer):
     riv.apply(loop)
     out_after = fortran_writer(loop)
     assert out_before == out_after
+
+
+# ----------------------------------------------------------------------------
+def test_riv_function_calls(fortran_reader, fortran_writer):
+    '''Tests that induction variables that use a function call are
+    not replaced (since the function might return a different value
+    on each call).
+    This tests needs to modify the PSyIR since it appears function calls
+    are not properly parsed atm.
+    '''
+    source = '''program test
+                integer i, ic1, ic2
+                real, dimension(10) :: a
+                do i = 1, 10, 5
+                    ic1 = i+1
+                    a(ic1) = 1+(ic1+1)*ic1
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+
+    # Create a function call, and use it to change the first
+    # assignment to ic1 = f() + 1. A 'call' inside an expression
+    # is a function call:
+    call = Call(RoutineSymbol("f", INTEGER_TYPE))
+    rhs = loop.loop_body.children[0].rhs
+    rhs.children[0].replace_with(call)
+    # Make sure that we indeed have a call in the rhs now:
+    assert isinstance(rhs.children[0], Call)
+
+    riv = ReplaceInductionVariables()
+    riv.apply(loop)
+
+    # Only convert the loop - the moved assignment to ic1 will
+    # be after the loop, i.e. not part of this string:
+    out = fortran_writer(loop)
+    assert "ic1 = f() + 1" in out
+    assert "a(ic1) = 1 + (ic1 + 1) * ic1" in out

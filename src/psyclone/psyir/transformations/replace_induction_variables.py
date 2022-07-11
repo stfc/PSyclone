@@ -39,7 +39,7 @@ a loop. '''
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
-                                  CodeBlock, Loop, Reference)
+                                  Call, CodeBlock, Loop, Reference)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -91,6 +91,8 @@ class ReplaceInductionVariables(Transformation):
     * none of variables on the right-hand side can be written in the loop body
       (the loop variable is written in the Loop statement, not in
       the body, so it can be used).
+    * Only intrisic function calls are allowed on the RHS (since they
+      are known to be elemental)
     * the assigned variable must not be read before the assignment.
     * the assigned variable cannot occur on the right-hand side
       (e.g. `k = k + 3`).
@@ -144,11 +146,11 @@ class ReplaceInductionVariables(Transformation):
         :rtype: bool
 
         '''
-        # Check if there is a function call or unknown construct on the
-        # RHS (note that a function call appears as a code block atm).
-        # If so, this variable cannot be replaced (since the function value
-        # might depend on the number of times it is called).
-        if any(assignment.rhs.walk(CodeBlock)):
+        # Check if there is an unknown construct or a function call on the
+        # RHS (note that a function call appears as a code block atm when
+        # parsed). If so, this variable cannot be replaced (since the function
+        # value might depend on the number of times it is called).
+        if any(assignment.rhs.walk((CodeBlock, Call))):
             return False
 
         # Collect all variables used on the rhs of assignment:
