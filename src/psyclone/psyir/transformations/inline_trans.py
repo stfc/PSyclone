@@ -42,6 +42,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Call, Routine, Reference, CodeBlock, Return, Literal)
+from psyclone.psyir.symbols import ContainerSymbol, DataSymbol
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -70,44 +71,85 @@ class InlineTrans(Transformation):
         # Find the routine to be inlined.
         orig_routine = self._find_routine(node)
 
-        if not orig_routine.children:
+        if not orig_routine.children or isinstance(orig_routine.children[0],
+                                                   Return):
             # Called routine is empty so just remove the call.
-            node.detach()
-            return
-
-        if isinstance(orig_routine.children[0], Return):
-            # The first statement in the routine is a Return so we can
-            # just remove the call.
             node.detach()
             return
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
         routine = orig_routine.copy()
-        dummy_args = routine.symbol_table.argument_list
-
-        # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site.
-        for sym in routine.symbol_table.symbols:
-            if sym in dummy_args:
-                continue
-            try:
-                table.add(sym)
-            except KeyError:
-                # A Symbol with the same name already exists so we rename the
-                # one that we are adding.
-                new_name = table.next_available_name(
-                    sym.name, other_table=routine.symbol_table)
-                routine.symbol_table.rename_symbol(sym, new_name)
-                table.add(sym)
+        routine_table = routine.symbol_table
+        dummy_args = routine_table.argument_list
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
         new_stmts = []
         refs = []
+        precision_map = {}
         for child in routine.children:
             new_stmts.append(child.copy())
             refs.extend(new_stmts[-1].walk(Reference))
+            for lit in new_stmts[-1].walk(Literal):
+                if isinstance(lit.datatype.precision, DataSymbol):
+                    name = lit.datatype.precision.name
+                    if name not in precision_map:
+                        precision_map[name] = []
+                    precision_map[name].append(lit)
+
+        # Deal with any Container symbols first.
+        for csym in routine_table.containersymbols:
+            if csym.name in table:
+                other_csym = table.lookup(csym.name)
+                if not isinstance(other_csym, ContainerSymbol):
+                    raise NotImplementedError(
+                        f"Routine '{routine.name}' has an import from "
+                        f"Container '{csym.name}' but the call site has a "
+                        f"different symbol with the same name: {other_csym}")
+                # If there is a wildcard import from this container in the
+                # routine then we'll need that at the call site.
+                if csym.wildcard_import:
+                    other_csym.wildcard_import = True
+            else:
+                table.add(csym)
+            # We must update all references to this ContainerSymbol
+            # so that they point to the one in the call site instead.
+            imported_syms = routine_table.symbols_imported_from(csym)
+            for isym in imported_syms:
+                # TODO currently interface is immutable?
+                #table.add(isym)
+                isym.interface._container_symbol = table.lookup(csym.name)
+
+        # Copy each Symbol from the Routine into the symbol table associated
+        # with the call site.
+        for old_sym in routine.symbol_table.symbols:
+            if old_sym in dummy_args or isinstance(old_sym, ContainerSymbol):
+                continue
+
+            old_name = old_sym.name
+            try:
+                table.add(old_sym)
+            except KeyError:
+
+                if not old_sym.is_local:
+                    callsite_csym = table.lookup(
+                        old_sym.interface.container_symbol.name)
+                    if old_sym.interface.container_symbol is not callsite_csym:
+                        raise InternalError("huh")
+                else:
+                    # A Symbol with the same name already exists so we rename
+                    # the one that we are adding.
+                    new_name = table.next_available_name(
+                        old_sym.name, other_table=routine.symbol_table)
+                    routine.symbol_table.rename_symbol(old_sym, new_name)
+                    table.add(old_sym)
+
+            if old_name in precision_map:
+                for lit in precision_map[old_name]:
+                    # TODO should we make the precision of a
+                    # DataType mutable?
+                    lit.datatype._precision = old_sym
 
         if isinstance(new_stmts[-1], Return):
             # If the final statement of the routine is a return then
