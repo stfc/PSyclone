@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 
 ''' Module containing tests for nemo specific config files.'''
-
-from __future__ import absolute_import
 
 import pytest
 
@@ -87,7 +86,7 @@ def test_invalid_nemo_config_files(tmpdir):
             config = Config()
             with pytest.raises(ConfigurationError) as err:
                 config.load(str(config_file))
-            assert "does not contain key '{0}".format(key) in str(err.value)
+            assert f"does not contain key '{key}" in str(err.value)
 
     # Add an invalid index-order
     content = _CONFIG_CONTENT + \
@@ -102,8 +101,8 @@ def test_invalid_nemo_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid loop type \"invalid\" found " in str(err.value)
-        assert "Must be one of [\\'lon\\', \\'lat\\']"
+        assert "Invalid loop type 'invalid' found " in str(err.value)
+        assert "Must be one of ['lon', 'lat']" in str(err.value)
 
     # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
@@ -115,9 +114,8 @@ def test_invalid_nemo_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid key \"invalid-key\" found in the \"nemo\" section " \
-               "of the configuration file \"{0}\".". format(str(config_file)) \
-               in str(err.value)
+        assert (f"Invalid key 'invalid-key' found in the 'nemo' section of "
+                f"the configuration file '{config_file}'." in str(err.value))
 
     # Use a variable name more than once:
     content = _CONFIG_CONTENT + \
@@ -132,8 +130,7 @@ def test_invalid_nemo_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "mapping-lat defines variable \"i\" again in the \"nemo\" "\
-               "section of the file \"{0}\".".format(str(config_file)) \
-               in str(err.value)
+        assert (f"mapping-lat defines variable 'i' again in the 'nemo' "
+                f"section of the file '{config_file}'." in str(err.value))
 
 # =============================================================================
