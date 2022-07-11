@@ -39,6 +39,7 @@
     command-line options. Also creates certain test fixtures. '''
 
 import os
+import copy
 import pytest
 
 from fparser.two.parser import ParserFactory
@@ -56,18 +57,6 @@ from psyclone.tests.utilities import Compile
 def annexed(request):
     ''' Return the content of params in turn '''
     return request.param
-
-
-@pytest.fixture(scope="function", params=[False, True])
-def dist_mem(request, monkeypatch):
-    ''' Fixture for testing with and without distributed memory. Monkeypatches
-    the Config object with the appropriate setting for distributed memory,
-    returns that setting and then finally undoes the monkeypatching.
-
-    '''
-    monkeypatch.setattr(Config.get(), "_distributed_mem", request.param)
-    yield request.param
-    monkeypatch.undo()
 
 
 def pytest_addoption(parser):
@@ -116,6 +105,32 @@ def setup_psyclone_config():
     # if the repository config file is actually found:
     if os.path.isfile(config_file):
         os.environ["PSYCLONE_CONFIG"] = config_file
+
+
+@pytest.fixture(name="config_instance", scope="function", autouse=True)
+def config_fixture(monkeypatch):
+    ''' A fixture that ensures every test gets its own copy of the Config
+    'singleton'. Otherwise, settings can leak between tests.
+
+    '''
+    orig_config = Config.get()
+    new_config = copy.copy(orig_config)
+    monkeypatch.setattr(Config, "_instance", new_config)
+    yield new_config
+    monkeypatch.undo()
+
+
+@pytest.fixture(scope="function", params=[False, True])
+def dist_mem(request, monkeypatch, config_instance):
+    ''' Fixture for testing with and without distributed memory. Monkeypatches
+    the test-local copy of the Config object (provided by the `config_instance`
+    fixture) with the appropriate setting for distributed memory, returns that
+    setting and then finally undoes the monkeypatching.
+
+    '''
+    monkeypatch.setattr(config_instance, "_distributed_mem", request.param)
+    yield request.param
+    monkeypatch.undo()
 
 
 @pytest.fixture(scope="session", autouse=True)
