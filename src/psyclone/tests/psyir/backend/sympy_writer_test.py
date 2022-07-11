@@ -36,10 +36,8 @@
 
 ''' Module containing py.test tests the SymPy writer.'''
 
-from __future__ import print_function, absolute_import
-
 import pytest
-from sympy import Function, Symbol, simplify
+from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
@@ -310,11 +308,6 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     exp2 = psyir.children[0].children[1].rhs
     sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
 
-    # Equals is failing here when checking that expr and sympy_list[0]
-    # are the same, even though the textual output to the screen is
-    # the same. Therefore we instead subtract the two expressions and
-    # see if they simplify to nothing (0) and are therefore
-    # equivalent.
     expr = parse_expr("a%a_b_1 + a%a_c(1) + i")
     assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")

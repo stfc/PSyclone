@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
 
 
 '''PSyIR backend to create expressions that are handled by sympy.
@@ -183,6 +182,7 @@ class SymPyWriter(FortranWriter):
             # TODO #1587 - disable deep copy of tree
             # pylint: disable=protected-access
             expression_str_list.append(writer._visit(expr))
+
         try:
             return ([parse_expr(expr, type_map)
                      for expr in expression_str_list],
