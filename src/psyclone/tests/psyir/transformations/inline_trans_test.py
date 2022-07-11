@@ -317,6 +317,104 @@ def test_apply_duplicate_imports(fortran_reader, fortran_writer):
     # Cannot test for compilation because of 'kinds_mod'.
 
 
+def test_apply_wildcard_import(fortran_reader, fortran_writer):
+    '''Check that apply works correctly when a wildcard import is present
+    in the routine to be inlined.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  use kinds_mod, only: i_def\n"
+        "  integer :: i\n"
+        "  i = 10_i_def\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use kinds_mod\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    use kinds_mod\n"
+            "    integer :: i\n\n" in output)
+    # Cannot test for compilation because of 'kinds_mod'.
+
+
+def test_apply_import_union(fortran_reader, fortran_writer):
+    '''Test that the apply method works correctly when the set of symbols
+    imported from a given container is not the same as that imported into
+    the scope of the call site.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  use kinds_mod, only: r_def\n"
+        "  integer :: i\n"
+        "  i = 10.0_r_def\n"
+        "  call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use kinds_mod, only: i_def\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    use kinds_mod, only : i_def, r_def\n"
+            "    integer :: i\n\n" in output)
+    assert ("    i = 10.0_r_def\n"
+            "    i = i + 5_i_def\n" in output)
+    # Cannot test for compilation because of 'kinds_mod'.
+
+
+def test_apply_callsite_rename(fortran_reader, fortran_writer):
+    '''Check that a symbol import in the routine causes a
+    rename of a symbol that is local to the *calling* scope.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "  use kinds_mod, only: r_def\n"
+        "  integer :: i, a_clash\n"
+        "  a_clash = 2\n"
+        "  i = 10.0_r_def\n"
+        "  call sub(i)\n"
+        "  i = i * a_clash\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use a_mod, only: a_clash\n"
+        "    use kinds_mod, only: i_def\n"
+        "    integer, intent(inout) :: idx\n"
+        "    idx = idx + 5_i_def + a_clash\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ("  subroutine run_it()\n"
+            "    use kinds_mod, only : i_def, r_def\n"
+            "    use a_mod, only : a_clash\n"
+            "    integer :: i\n"
+            "    integer :: a_clash_1\n\n"
+            "    a_clash_1 = 2\n"
+            "    i = 10.0_r_def\n"
+            "    i = i + 5_i_def + a_clash\n"
+            "    i = i * a_clash_1\n" in output)
+
+
 def test_apply_validate():
     '''Test the apply method calls the validate method.'''
     hoist_trans = InlineTrans()
@@ -412,6 +510,35 @@ def test_validate_codeblock(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
             "cannot be inlined" in str(err.value))
+
+
+def test_validate_import_clash(fortran_reader):
+    '''Test that validate() raises the expected error when two symbols of the
+    same name are imported from different containers at the call site and
+    within the routine.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use some_mod, only: trouble\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use other_mod, only: trouble\n"
+        "    integer :: idx\n"
+        "    idx = idx + trouble\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'sub' imports 'trouble' from Container 'other_mod' but "
+            "the call site has an import of a symbol with the same name from "
+            "Container 'some_mod'" in str(err.value))
 
 
 # _find_routine

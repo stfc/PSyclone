@@ -81,7 +81,6 @@ class InlineTrans(Transformation):
         # copy of it.
         routine = orig_routine.copy()
         routine_table = routine.symbol_table
-        dummy_args = routine_table.argument_list
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
@@ -117,12 +116,34 @@ class InlineTrans(Transformation):
             # so that they point to the one in the call site instead.
             imported_syms = routine_table.symbols_imported_from(csym)
             for isym in imported_syms:
+                if isym.name in table:
+                    # We have a potential clash with a symbol imported
+                    # into the routine.
+                    callsite_sym = table.lookup(isym.name)
+                    if callsite_sym.is_import:
+                        if (callsite_sym.interface.container_symbol.name !=
+                                csym.name):
+                            raise NotImplementedError(
+                                f"Routine '{routine.name}' imports '{isym.name}' "
+                                f"from '{csym.name}' but another symbol of that "
+                                f"name is imported from "
+                                f"'{callsite_sym.interface.container_symbol.name}' in"
+                                f" the calling scope.")
+                    else:
+                        # We don't support renaming an imported symbol but the
+                        # symbol at the call site can be renamed so we do that.
+                        table.rename_symbol(
+                            callsite_sym,
+                            table.next_available_name(
+                                callsite_sym.name, other_table=routine_table))
                 # TODO currently interface is immutable?
-                #table.add(isym)
                 isym.interface._container_symbol = table.lookup(csym.name)
 
         # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site.
+        # with the call site, excluding those that represent dummy arguments
+        # or containers.
+        dummy_args = routine_table.argument_list
+
         for old_sym in routine.symbol_table.symbols:
             if old_sym in dummy_args or isinstance(old_sym, ContainerSymbol):
                 continue
@@ -131,8 +152,12 @@ class InlineTrans(Transformation):
             try:
                 table.add(old_sym)
             except KeyError:
+                # We have a clash with a symbol at the call site.
 
-                if not old_sym.is_local:
+                if old_sym.is_import:
+                    # This symbol is imported from a Container so should
+                    # already have been updated so as to be imported from the
+                    # corresponding container in scope at the call site.
                     callsite_csym = table.lookup(
                         old_sym.interface.container_symbol.name)
                     if old_sym.interface.container_symbol is not callsite_csym:
@@ -182,7 +207,7 @@ class InlineTrans(Transformation):
         :type options: dict of str:values or None
 
         :raises TransformationError: if the supplied node is not a Call.
-        :raises TransformationError: if the routine body contains a return \
+        :raises TransformationError: if the routine body contains a Return \
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock.
 
@@ -200,21 +225,9 @@ class InlineTrans(Transformation):
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 
-        if not routine.children:
+        if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
             return
-
-        if routine.children and isinstance(routine.children[0], Return):
-            # The first statement in the routine is a Return so we don't
-            # care what else it may contain.
-            return
-
-        #if not all(isinstance(child, (Reference, Literal)) for child in
-        #           node.children):
-        #    raise TransformationError(
-        #        f"One or more of the arguments in the call to '{name}' is "
-        #        f"not a simple Reference or Literal. Cannot inline such "
-        #        f"a call.")
 
         return_stmts = routine.walk(Return)
         if return_stmts:
@@ -230,6 +243,28 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"Routine '{name}' contains one or more "
                 f"CodeBlocks and therefore cannot be inlined.")
+
+        # Check for symbol-naming clashes that we can't handle.
+        table = node.scope.symbol_table
+        routine_table = routine.symbol_table
+
+        # We can't handle a clash between (apparently) different symbols that
+        # share a name but are imported from different containers.
+        callsite_imports = table.imported_symbols
+        routine_imports = routine_table.imported_symbols
+        routine_import_names = [sym.name for sym in routine_imports]
+        for sym in callsite_imports:
+            if sym.name in routine_import_names:
+                routine_sym = routine_table.lookup(sym.name)
+                if (routine_sym.interface.container_symbol.name !=
+                        sym.interface.container_symbol.name):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' imports '{sym.name}' from "
+                        f"Container "
+                        f"'{routine_sym.interface.container_symbol.name}' but "
+                        f"the call site has an import of a symbol with the "
+                        f"same name from Container "
+                        f"'{sym.interface.container_symbol.name}'.")
 
     def _find_routine(self, call_node):
         '''
