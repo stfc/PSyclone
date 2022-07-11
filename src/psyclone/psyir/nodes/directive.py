@@ -43,11 +43,11 @@
 
 import abc
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.errors import InternalError
 
 
 class Directive(Statement, metaclass=abc.ABCMeta):
@@ -93,8 +93,7 @@ class RegionDirective(Directive):
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = Schedule(children=children, parent=self)
-        super(RegionDirective, self).__init__(ast, children=[sched],
-                                              parent=parent)
+        super().__init__(ast, children=[sched], parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -152,9 +151,12 @@ class RegionDirective(Directive):
         '''
         if not Config.get().distributed_memory or self.ancestor(Loop):
             return
+        # Have to import PSyLoop here to avoid a circular dependence.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
 
         commented = False
-        for loop in self.walk(Loop):
+        for loop in self.walk(PSyLoop):
             if not isinstance(loop.parent, Loop):
                 if not commented and loop.unique_modified_args("gh_field"):
                     commented = True
