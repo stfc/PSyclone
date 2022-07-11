@@ -147,13 +147,6 @@ def test_goceankernelmetadata_init2():
     and set as expected.
 
     '''
-    # Ensure the default config values are loaded for GOcean
-    # constants. This should not be required as each test should run
-    # in isolation but in some cases there appears to be pollution
-    # from other tests when run in parallel.
-    Config._instance = None
-    GOceanConstants.HAS_BEEN_INITIALISED = False
-
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(iterates_over="hello")
     assert ("Expected one of ['go_all_pts', 'go_internal_pts', "
@@ -183,12 +176,6 @@ def test_goceankernelmetadata_init2():
     assert metadata.meta_args == []
     assert metadata.procedure_name == "example_code"
     assert metadata.name == "example_type"
-
-    # Ensure subsequent tests read GOcean constant information from
-    # the config file. This should not be required there appears to be
-    # pollution between tests when run in parallel.
-    Config._instance = None
-    GOceanConstants.HAS_BEEN_INITIALISED = False
 
 
 # create_from_psyir
