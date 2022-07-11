@@ -72,6 +72,9 @@ def test_riv_errors():
 def test_riv_working(fortran_reader, fortran_writer):
     '''Tests if loop-invariant assignments are replaced as expected.'''
     source = '''program test
+                use mymod
+                type(my_type):: t1, t2, t3, t4
+
                 integer i, invariant, ic1, ic2, ic3, ic4, ic5, ic6
                 real, dimension(10) :: a
                 invariant = 1
@@ -82,12 +85,14 @@ def test_riv_working(fortran_reader, fortran_writer):
                     ic4 = i + 1 + invariant ! Loop variable plus invariant
                     ic5 = i*i+3*sin(i)      ! Complicated expression
                     ic6 = ic4 + ic5         ! Multi-step replacement
+                    t1%a = 13
                     a(ic1) = 1+(ic1+1)*ic1
                     a(ic2) = 2+(ic2+1)*ic2
                     a(ic3) = 3+(ic3+1)*ic3
                     a(ic4) = 4+(ic4+1)*ic4
                     a(ic5) = 5+(ic5+1)*ic5
                     a(ic6) = 6+(ic6+1)*ic6
+                    a(t1%a) = 7+(t1%a+1)*t1%a
                 end do
                 end program test'''
     psyir = fortran_reader.psyir_from_source(source)
@@ -124,6 +129,10 @@ def test_riv_working(fortran_reader, fortran_writer):
             "(i + 1 + invariant + (i * i + 3 * SIN(i)))" in out_loop)
     assert ("ic6 = i - 1 + 1 + invariant + ((i - 1) * (i - 1) + "
             "3 * SIN(i - 1))" in out_all)
+    assert "a(13) = 7 + (13 + 1) * 13" in out_loop
+    # Make sure the assignment to t1%a has been added outside of the loop:
+    assert "t1%a = 13" in out_all
+    assert "t1%a = 13" not in out_loop
 
 
 # ----------------------------------------------------------------------------
@@ -187,3 +196,32 @@ def test_riv_other_step_size(fortran_reader, fortran_writer):
     assert "a(i + 1) = 1 + (i + 1 + 1) * (i + 1)" in out
     assert "ic1 = i - 5 + 1" in out
     assert "ic2 = 3" in out
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize("array_expr", ["ic(i)", "ic(2)", "t(i)%b", "t(1)%b"])
+def test_riv_no_arrays(array_expr, fortran_reader, fortran_writer):
+    '''Tests that no loops are accepted as induction varibles.'''
+    source = f'''program test
+                use mymod
+                integer i, invariant
+                integer, dimension(10) :: ic
+                type(my_type), dimension(10) :: t
+                real, dimension(10) :: a
+                invariant = 1
+                do i = 1, 10
+                    {array_expr} = 12
+                    a({array_expr}) = 1
+                end do
+                end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    # The first child is the assignment to 'invariant'
+    loop = psyir.children[0].children[1]
+
+    # None of the statements can be moved, so the output
+    # before and after the transformation should be identical:
+    out_before = fortran_writer(loop)
+    riv = ReplaceInductionVariables()
+    riv.apply(loop)
+    out_after = fortran_writer(loop)
+    assert out_before == out_after

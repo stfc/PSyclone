@@ -86,7 +86,8 @@ class ReplaceInductionVariables(Transformation):
     The following restrictions apply for the assignment to an induction
     variable:
 
-    * the variable must be a non-structure scalar.
+    * the variable must be a scalar (i.e. no array access at all,
+      not even a constant like a(3) or a%b(3)%c)
     * none of variables on the right-hand side can be written in the loop body
       (the loop variable is written in the Loop statement, not in
       the body, so it can be used).
@@ -164,9 +165,19 @@ class ReplaceInductionVariables(Transformation):
 
         # Test that this assignment is the first access to this variable
         # in the body. Get the signature from the node (ignore indices)
-        sig = assignment.lhs.get_signature_and_indices()[0]
+        sig, subscripts = assignment.lhs.get_signature_and_indices()
         var_accesses = accesses_in_loop_body[sig]
         if var_accesses[0].node is not assignment.lhs:
+            return False
+
+        # Now make sure it is not an array access. Some array accesses would
+        # be correct and could be made to work: a(3) = ... or a%b(k)%c =...
+        # - assuming that k is constant, but it requires a lot of additional
+        # effort (e.g. to make sure all indices are the same and not dependent
+        # on i), for a use case that seems very unlikely to happen in real
+        # code. So just don't handle the case that there is any subscript
+        # used that is not empty:
+        if any(x for x in subscripts):
             return False
 
         # Check if there is another write to this variable
