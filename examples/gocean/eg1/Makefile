@@ -44,12 +44,12 @@
 
 include ../../common.mk
 
-GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl ompt_alg.f90 ompt_psy.f90
+GENERATED_FILES += *.o *.mod invoke_0_dag invoke_0_dag.png *.cl ompt_alg.f90 ompt_psy.f90
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
 KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o \
 		compute_unew_mod.o compute_vnew_mod.o compute_pnew_mod.o time_smooth_mod.o \
-		infrastructure_mod.o
+		infrastructure_mod.o init_field_mod.o
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -76,18 +76,17 @@ ompt_psy.f90 ompt_alg.f90: shallow_alg.f90
 openmp_taskloop: ompt_psy.f90 ompt_alg.f90
 
 # TODO: Cannot compile this example until #1474 is resolved.
-#compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} fd_lib
-#	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
+compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} fd_lib
+	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
 	${INF_LIB} -o shallow_ompt.exe
 
-compile: transform
-	@echo "No compile targets for example gocean/eg1, see #1474"
+compile: compile-openmptaskloop
 
 %.o: %.f90
 	${F90} ${F90FLAGS} -I${INF_INC} -c $<
 
 run: compile
-	@echo "No run targets for example gocean/eg1"
+	./shallow_ompt.exe
 
 basic:
 	$(ENV) ${PYTHON} ./runme.py

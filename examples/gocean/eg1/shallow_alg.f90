@@ -37,23 +37,22 @@ program shallow
 !     Andrew Porter, April 2014
 
   use kind_params_mod
-  use shallow_io_mod
-  use timing_mod
-  use gocean_mod, only: model_write_log
-  use model_mod
+  use gocean_mod,        only: model_write_log, gocean_finalise
   use grid_mod
-  use field_mod
-  use initial_conditions_mod
-  use time_smooth_mod,  only: time_smooth
-  use apply_bcs_mod,    only: invoke_apply_bcs
-  use compute_cu_mod,   only: compute_cu
-  use compute_cv_mod,   only: compute_cv
-  use compute_z_mod,    only: compute_z
-  use compute_h_mod,    only: compute_h
-  use compute_unew_mod, only: compute_unew
-  use compute_vnew_mod, only: compute_vnew
-  use compute_pnew_mod, only: compute_pnew
+  use field_mod,         only: copy_field, r2d_field, field_type, field_checksum, &
+                               GO_T_POINTS, GO_U_POINTS, GO_V_POINTS, GO_F_POINTS
+  use time_smooth_mod,   only: time_smooth
+  use init_field_mod,    only : init_field
+  use compute_cu_mod,    only: compute_cu
+  use compute_cv_mod,    only: compute_cv
+  use compute_z_mod,     only: compute_z
+  use compute_h_mod,     only: compute_h
+  use compute_unew_mod,  only: compute_unew
+  use compute_vnew_mod,  only: compute_vnew
+  use compute_pnew_mod,  only: compute_pnew
   use infrastructure_mod,only: copy
+  use parallel_mod,      only: parallel_init
+
   implicit none
 
   type(grid_type), target :: model_grid
@@ -75,20 +74,21 @@ program shallow
   !> Loop counter for time-stepping loop
   INTEGER :: ncycle, itmax
    
-  !> Integer tags for timers
-  INTEGER :: idxt0, idxt1
   REAL(KIND=go_wp) dt, tdt
 
   !> \todo The call to grid_type here should *not* specify the grid
   !! offset choice as that is an implementation detail. PSyclone
   !! should re-write this call to pass the offset information after it
   !! has examined the kernels to see what they are expecting.
+  call parallel_init()
+
   model_grid = grid_type(GO_ARAKAWA_C,                           &
                          (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
                          GO_OFFSET_SW)
+  call model_grid%decompose(3, 3, 1, 1, 1, halo_width=1)
 
   !  ** Initialisations of model parameters (dt etc) **
-  CALL model_init(model_grid)
+  CALL grid_init(model_grid, 1.0_go_wp, 1.0_go_wp)
 
   ! Create fields on this grid
   p_fld    = r2d_field(model_grid, GO_T_POINTS)
@@ -115,22 +115,27 @@ program shallow
 
   ! NOTE BELOW THAT TWO DELTA T (TDT) IS SET TO DT ON THE FIRST
   ! CYCLE AFTER WHICH IT IS RESET TO DT+DT.
+  dt = 0.01
   tdt = dt
+  itmax = 10
 
   !     INITIAL VALUES OF THE STREAM FUNCTION AND P
+  !call invoke(init_field(u_fld, 99.0))
+  call invoke(init_field(p_fld, 99.0))
+  !call invoke(init_field(pold_fld, 99.0))
 
-  call init_initial_condition_params(p_fld)
-  call invoke_init_stream_fn_kernel(psi_fld)
-  call init_pressure(p_fld)
+  !call init_initial_condition_params(p_fld)
+  !call invoke_init_stream_fn_kernel(psi_fld)
+  !call init_pressure(p_fld)
 
   !     INITIALIZE VELOCITIES
  
-  call init_velocity_u(u_fld, psi_fld)
-  call init_velocity_v(v_fld, psi_fld)
+  !call init_velocity_u(u_fld, psi_fld)
+  !call init_velocity_v(v_fld, psi_fld)
 
   !     PERIODIC CONTINUATION
-  call invoke_apply_bcs(u_fld)
-  call invoke_apply_bcs(v_fld)
+  !call invoke_apply_bcs(u_fld)
+  !call invoke_apply_bcs(v_fld)
 
   ! Generate and output checksums of initial fields
   CALL model_write_log("('psi initial CHECKSUM = ',E24.16)", &
@@ -148,69 +153,52 @@ program shallow
   CALL copy_field(p_fld, pold_fld)
      
   ! Write intial values of p, u, and v into a netCDF file   
-  call ascii_write(0, 'psifld.dat', psi_fld%data,            &
-                   psi_fld%internal%nx, psi_fld%internal%ny, &
-                   psi_fld%internal%xstart, psi_fld%internal%ystart)
-  CALL model_write(0, p_fld, u_fld, v_fld)
+  !call ascii_write(0, 'psifld.dat', psi_fld%data,            &
+  !                 psi_fld%internal%nx, psi_fld%internal%ny, &
+  !                 psi_fld%internal%xstart, psi_fld%internal%ystart)
+  !CALL model_write(0, p_fld, u_fld, v_fld)
 
-  !     Start timer
-  CALL timer_start('Time-stepping',idxt0)
+
 
   !  ** Start of time loop ** 
   DO ncycle=1,itmax
-    
     ! COMPUTE CAPITAL U, CAPITAL V, Z AND H
-
-    CALL timer_start('Compute c{u,v},z,h', idxt1)
 
     call invoke( compute_cu(CU_fld, p_fld, u_fld),      &
                  compute_cv(CV_fld, p_fld, v_fld),      &
                  compute_z(z_fld, p_fld, u_fld, v_fld), &
                  compute_h(h_fld, p_fld, u_fld, v_fld) )
 
-    call timer_stop(idxt1)
-
     ! PERIODIC CONTINUATION
 
-    call timer_start('PBCs-1',idxt1)
     ! This call could be generated automatically by PSyclone
-    call invoke_apply_bcs(CU_fld)
-    call invoke_apply_bcs(CV_fld)
-    call invoke_apply_bcs(H_fld)
-    call invoke_apply_bcs(Z_fld)
-    call timer_stop(idxt1)
+    !call invoke_apply_bcs(CU_fld)
+    !call invoke_apply_bcs(CV_fld)
+    !call invoke_apply_bcs(H_fld)
+    !call invoke_apply_bcs(Z_fld)
 
     ! COMPUTE NEW VALUES U,V AND P
-
-    call timer_start('Compute new fields', idxt1)
     call invoke( compute_unew(unew_fld, uold_fld, z_fld, cv_fld, h_fld, tdt), &
                  compute_vnew(vnew_fld, vold_fld, z_fld, cu_fld, h_fld, tdt), &
                  compute_pnew(pnew_fld, pold_fld, cu_fld, cv_fld, tdt) )
-    call timer_stop(idxt1)
 
     ! PERIODIC CONTINUATION
-    call timer_start('PBCs-2',idxt1)
     ! This call could be generated by PSyclone
-    call invoke_apply_bcs(UNEW_fld)
-    call invoke_apply_bcs(VNEW_fld)
-    call invoke_apply_bcs(PNEW_fld)
-    call timer_stop(idxt1)
+    !call invoke_apply_bcs(UNEW_fld)
+    !call invoke_apply_bcs(VNEW_fld)
+    !call invoke_apply_bcs(PNEW_fld)
 
     ! Time is in seconds but we never actually need it
     !time = time + dt
 
-    call model_write(ncycle, p_fld, u_fld, v_fld)
+    !call model_write(ncycle, p_fld, u_fld, v_fld)
 
     ! TIME SMOOTHING AND UPDATE FOR NEXT CYCLE
     if(NCYCLE .GT. 1) then
 
-      call timer_start('Time smoothing',idxt1)
-
       call invoke( time_smooth(u_fld, UNEW_fld, UOLD_fld), &
                    time_smooth(v_fld, VNEW_fld, VOLD_fld), &
                    time_smooth(p_fld, PNEW_fld, POLD_fld) )
-
-      call timer_stop(idxt1)
 
     else ! ncycle == 1
 
@@ -218,8 +206,6 @@ program shallow
        tdt = tdt + dt
 
     endif ! ncycle > 1
-
-    call timer_start('Field copy',idxt1)
 
     call invoke(                       &
                 copy(u_fld, unew_fld), &
@@ -230,13 +216,9 @@ program shallow
 !    call copy_field(VNEW_fld, V_fld)
 !    call copy_field(PNEW_fld, p_fld)
 
-    call timer_stop(idxt1)
-
   end do
 
   !  ** End of time loop ** 
-
-  call timer_stop(idxt0)
 
   ! Output field checksums at end of run for correctness check
   call model_write_log("('P CHECKSUM after ',I6,' steps = ',E24.16)", &
@@ -246,6 +228,6 @@ program shallow
   call model_write_log("('V CHECKSUM after ',I6,' steps = ',E24.16)", &
                        itmax, field_checksum(vnew_fld))
 
-  call model_finalise()
+  call gocean_finalise()
 
 end program shallow
