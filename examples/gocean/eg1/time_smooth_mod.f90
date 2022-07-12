@@ -8,7 +8,7 @@ module time_smooth_mod
 
   PRIVATE
 
-  PUBLIC time_smooth_init, invoke_time_smooth
+  PUBLIC time_smooth_init
   PUBLIC time_smooth, time_smooth_code
 
   !> Parameter for time smoothing
@@ -21,8 +21,8 @@ module time_smooth_mod
   !! should be COLUMNS?
   TYPE, EXTENDS(kernel_type) :: time_smooth
      TYPE(go_arg), DIMENSION(3) :: meta_args = &
-          (/ go_arg(GO_READ, GO_EVERY, GO_POINTWISE),     &
-             go_arg(GO_READ, GO_EVERY, GO_POINTWISE),     &
+          (/ go_arg(GO_READ,       GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READ,       GO_EVERY, GO_POINTWISE),     &
              go_arg(GO_READWRITE , GO_EVERY, GO_POINTWISE)      &
            /)
 
@@ -55,35 +55,7 @@ CONTAINS
     alpha = alpha_tmp
 
   END SUBROUTINE time_smooth_init
-
-  !===================================================
-
-  !> Manual implementation of code to invoke the time-smoothing
-  !! kernel
-  subroutine invoke_time_smooth(field, field_new, field_old)
-    implicit none
-    type(r2d_field), intent(in)    :: field
-    type(r2d_field), intent(in)    :: field_new
-    type(r2d_field), intent(inout) :: field_old
-    ! Locals
-    integer :: i, j
-    integer :: idim1, idim2
-    
-    ! Here we will query what should be field objects to get at
-    ! raw data.
-    idim1 = SIZE(field%data, 1)
-    idim2 = SIZE(field%data, 2)
-
-    ! Loop over 'columns'
-    DO J=1,idim2
-      DO I=1,idim1
-         CALL time_smooth_code(i, j, &
-                               field%data, field_new%data, field_old%data)
-      END DO
-    END DO
-
-  end subroutine invoke_time_smooth
-
+ 
   !===================================================
 
   !> Kernel to smooth supplied field in time

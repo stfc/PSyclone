@@ -11,7 +11,6 @@ module compute_z_mod
 
   private
 
-  public invoke_compute_z
   public compute_z, compute_z_code
 
   type, extends(kernel_type) :: compute_z
@@ -45,36 +44,6 @@ module compute_z_mod
   end type compute_z
 
 contains
-
-  !===================================================
-
-  !> Manual implementation of the code needed to invoke
-  !! compute_z_code().
-  subroutine invoke_compute_z(zfld, pfld, ufld, vfld)
-    implicit none
-    type(r2d_field), intent(inout) :: zfld
-    type(r2d_field), intent(in)    :: pfld, ufld, vfld
-    ! Locals
-    integer :: I, J
-    real(go_wp) :: dx, dy
-
-    dx = zfld%grid%dx
-    dy = zfld%grid%dy
-
-    do J=zfld%internal%ystart, zfld%internal%ystop, 1
-       do I=zfld%internal%xstart, zfld%internal%xstop, 1
-
-          call compute_z_code(i, j,      &
-                              zfld%data, &
-                              pfld%data, &
-                              ufld%data, &
-                              vfld%data, &
-                              dx, dy)
-
-       end do
-    end do
-
-  end subroutine invoke_compute_z
 
   !===================================================
 

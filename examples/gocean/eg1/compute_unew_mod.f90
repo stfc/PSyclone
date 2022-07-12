@@ -8,7 +8,6 @@ module compute_unew_mod
 
   private
 
-  public invoke_compute_unew
   public compute_unew, compute_unew_code
 
   type, extends(kernel_type) :: compute_unew
@@ -43,62 +42,6 @@ module compute_unew_mod
   end type compute_unew
 
 contains
-
-  !===================================================
-
-  subroutine invoke_compute_unew(unew, uold, z, cv, h, tdt)
-    implicit none
-    type(r2d_field), intent(inout) :: unew
-    type(r2d_field), intent(in)    :: uold, z, cv, h
-    real(go_wp), intent(in) :: tdt
-    ! Locals
-    integer  :: I, J
-    real(go_wp) :: dx
-
-    ! Note that we do not loop over the full extent of the field.
-    ! Fields are allocated with extents (M+1,N+1).
-    ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on CU.
-    ! This loop writes to unew(2:M+1,1:N) so this looks like
-    ! (using x to indicate a location that is written):
-    !
-    ! i=1   i=M
-    !  o  o  o  o 
-    !  o  x  x  x   j=N
-    !  o  x  x  x
-    !  o  x  x  x   j=1
-
-    ! unew(i,j) depends upon:
-    !   uold(i,j)
-    !   z(i,j+1),  z(i,j)
-    !  cv(i,j),   cv(i,j+1), cv(i-1,j+1), cv(i-1,j)
-    !   h(i,j),    h(i-1,j)
-
-    ! Swap indices, e.g. XX(i+1,j) => YY(i,j+1)
-    ! Any field on U replaced with field on V
-    ! => produces same code for the update of corresponding field on V.
-
-    ! Original code looked like:
-    !
-    ! DO J=1,N
-    !   DO I=1,M
-    !     UNEW(I+1,J) = UOLD(I+1,J)+                                     &
-    !         TDTS8*(Z(I+1,J+1)+Z(I+1,J))*(CV(I+1,J+1)+CV(I,J+1)+CV(I,J) &
-    !        +CV(I+1,J))-TDTSDX*(H(I+1,J)-H(I,J))                       
-    !   END DO
-    ! END DO
-    dx = unew%grid%dx
-
-    DO J=unew%internal%ystart, unew%internal%ystop, 1
-       DO I=unew%internal%xstart, unew%internal%xstop, 1
-
-          CALL compute_unew_code(i, j,                 &
-                                 unew%data, uold%data, &
-                                 z%data, cv%data, h%data, tdt, dx)
-       END DO
-    END DO
-
-  END SUBROUTINE invoke_compute_unew
 
   !===================================================
 

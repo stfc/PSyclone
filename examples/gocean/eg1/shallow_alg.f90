@@ -39,10 +39,10 @@ program shallow
   use kind_params_mod
   use gocean_mod,        only: model_write_log, gocean_finalise
   use grid_mod
-  use field_mod,         only: copy_field, r2d_field, field_type, field_checksum, &
+  use field_mod,         only: r2d_field, field_type, field_checksum, &
                                GO_T_POINTS, GO_U_POINTS, GO_V_POINTS, GO_F_POINTS
-  use time_smooth_mod,   only: time_smooth
-  use init_field_mod,    only : init_field
+  use time_smooth_mod,   only: time_smooth, time_smooth_init
+  use init_field_mod,    only: init_field
   use compute_cu_mod,    only: compute_cu
   use compute_cv_mod,    only: compute_cv
   use compute_z_mod,     only: compute_z
@@ -118,11 +118,11 @@ program shallow
   dt = 0.01
   tdt = dt
   itmax = 10
+  call time_smooth_init(0.0_go_wp)
 
   !     INITIAL VALUES OF THE STREAM FUNCTION AND P
-  !call invoke(init_field(u_fld, 99.0))
+  ! P must not be =0, otherwise we get NANs
   call invoke(init_field(p_fld, 99.0))
-  !call invoke(init_field(pold_fld, 99.0))
 
   !call init_initial_condition_params(p_fld)
   !call invoke_init_stream_fn_kernel(psi_fld)
@@ -148,17 +148,15 @@ program shallow
                        field_checksum(v_fld))
 
   ! Initialise fields that will hold data at previous time step
-  CALL copy_field(u_fld, uold_fld)
-  CALL copy_field(v_fld, vold_fld)
-  CALL copy_field(p_fld, pold_fld)
-     
+  call invoke( copy(uold_fld, u_fld),  &
+               copy(vold_fld, v_fld),  &
+               copy(pold_fld, p_fld) )
+
   ! Write intial values of p, u, and v into a netCDF file   
   !call ascii_write(0, 'psifld.dat', psi_fld%data,            &
   !                 psi_fld%internal%nx, psi_fld%internal%ny, &
   !                 psi_fld%internal%xstart, psi_fld%internal%ystart)
   !CALL model_write(0, p_fld, u_fld, v_fld)
-
-
 
   !  ** Start of time loop ** 
   DO ncycle=1,itmax
@@ -212,9 +210,6 @@ program shallow
                 copy(v_fld, vnew_fld), &
                 copy(p_fld, pnew_fld)  &
                )
-!    call copy_field(UNEW_fld, U_fld)
-!    call copy_field(VNEW_fld, V_fld)
-!    call copy_field(PNEW_fld, p_fld)
 
   end do
 
