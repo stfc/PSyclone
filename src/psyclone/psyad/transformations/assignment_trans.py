@@ -71,16 +71,13 @@ class AssignmentTrans(AdjointTransformation):
         '''
         self.validate(node)
 
-        # Split the RHS of the assignment into <term> +- <term> +- ...
+        # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(
             node.rhs, [BinaryOperation.Operator.ADD,
                        BinaryOperation.Operator.SUB])
 
         deferred_inc = []
         sym_maths = SymbolicMaths.get()
-        # For each term
-        print (rhs_terms)
-        exit(1)
         for rhs_term in rhs_terms:
 
             # Find the active var in rhs_term if one exists (we may
@@ -284,7 +281,6 @@ class AssignmentTrans(AdjointTransformation):
         # Check each expression term. It must be in the form
         # A */ <expr> where A is an active variable.
         for rhs_term in rhs_terms:
-            print (rhs_term.view())
 
             # When searching for references to an active variable we must
             # take care to exclude those cases where they are present as
@@ -320,6 +316,15 @@ class AssignmentTrans(AdjointTransformation):
                 # This term consists of a single active variable (with
                 # a multiplier of unity) and is therefore valid.
                 continue
+
+            # Ignore unary minus if it is the parent. This does not
+            # cause a problem when applying the transformation but
+            # does cause a problem when trying to split the term into
+            # expressions below.
+            if (isinstance(rhs_term, UnaryOperation) and
+                    rhs_term.operator ==
+                    UnaryOperation.Operator.MINUS):
+                rhs_term = rhs_term.children[0]
 
             # Split the term into <expr> */ <expr> */ <expr>
             expr_terms = self._split_nodes(
