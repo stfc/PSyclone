@@ -1174,9 +1174,10 @@ def test_validate_rhs_active_multi_divisor():
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     trans.validate(assignment)
 
+
 def test_validate_rhs_active_unary_minus():
-    '''Test the validate method accepts a RHS term with a unary minus as
-    the parent node.
+    '''Test that the validation works when there is a unary minus on
+    the lhs of an expression.
 
     active vars ["a", "b"]
     a = -x*b

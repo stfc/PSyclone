@@ -317,10 +317,10 @@ class AssignmentTrans(AdjointTransformation):
                 # a multiplier of unity) and is therefore valid.
                 continue
 
-            # Ignore unary minus if it is the parent. This does not
-            # cause a problem when applying the transformation but
-            # does cause a problem when trying to split the term into
-            # expressions below.
+            # Ignore unary minus if it is the parent. unary minus does
+            # not cause a problem when applying the transformation but
+            # does cause a problem here in the validation when
+            # splitting the term into expressions.
             if (isinstance(rhs_term, UnaryOperation) and
                     rhs_term.operator ==
                     UnaryOperation.Operator.MINUS):
