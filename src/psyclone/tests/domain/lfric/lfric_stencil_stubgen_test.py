@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,8 @@
 
 import os
 
-import pytest
 from fparser import api as fpapi
 
-from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 
 # Constants

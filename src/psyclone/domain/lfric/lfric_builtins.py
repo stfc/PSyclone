@@ -48,8 +48,8 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
                                     RoutineSymbol)
-from psyclone.psyir.nodes import (Assignment, Reference, StructureReference,
-                                  BinaryOperation, Call)
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
+                                  StructureReference)
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen, PSyIRGen
@@ -108,7 +108,7 @@ class LFRicBuiltInCallFactory(object):
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
-        :raises InternalError: if the built-in does not iterate over dofs.
+        :raises InternalError: if the built-in does not iterate over DoFs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -130,7 +130,7 @@ class LFRicBuiltInCallFactory(object):
             loop_type = "dof"
         else:
             raise InternalError(
-                f"An LFRic built-in must iterate over dofs but kernel "
+                f"An LFRic built-in must iterate over DoFs but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
         dofloop = DynLoop(parent=parent, loop_type=loop_type)

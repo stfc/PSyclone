@@ -37,7 +37,11 @@
 
 ''' This module tests the support for integer built-in operations in the
     LFRic API using pytest. Currently all built-in operations are 'pointwise'
-    in that they iterate over DOFs. However this may change in the future. '''
+    in that they iterate over DOFs. However this may change in the future.
+
+    TODO #1796 - break the tests for each built-in into separate files under
+                 the 'builtins' directory.
+'''
 
 import os
 import pytest

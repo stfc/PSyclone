@@ -41,9 +41,7 @@ generation functionality with the LFRic (Dynamo0.3) API.
 '''
 
 import os
-import pytest
 from fparser import api as fpapi
-from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 
 

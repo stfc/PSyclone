@@ -37,9 +37,9 @@
 
 import os
 from psyclone.domain.lfric.lfric_builtins import LFRicSetvalRandomKern
-from psyclone.psyir.nodes import Call
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Call
 from psyclone.tests.lfric_build import LFRicBuild
 
 
@@ -82,7 +82,10 @@ def test_setval_random(tmpdir):
 
 
 def test_setval_random_lowering():
-    '''Test that the lower_to_language_level() method works as expected.'''
+    '''
+    Test that the lower_to_language_level() method works as expected.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.4_setval_random_builtin.f90"),
                            api=API)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,15 +43,14 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicMeshProperties, \
-    MeshProperty
+from psyclone.dynamo0p3 import (DynKernMetadata, LFRicMeshProperties,
+                                MeshProperty)
+from psyclone.errors import InternalError
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen
 
 
 # Constants
@@ -102,8 +101,8 @@ def test_mdata_invalid_property(property_name):
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("in metadata: '{0}'. Supported values are: "
-            "['ADJACENT_FACE'".format(property_name) in str(err.value))
+    assert (f"in metadata: '{property_name}'. Supported values are: "
+            f"['ADJACENT_FACE'" in str(err.value))
 
 
 def test_mdata_wrong_arg_count():

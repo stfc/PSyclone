@@ -38,7 +38,11 @@
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
-    they iterate over DOFs. However this may change in the future. '''
+    they iterate over DOFs. However this may change in the future.
+
+    TODO #1796 - break the tests for each built-in into separate files under
+                 the 'builtins' directory.
+ '''
 
 import os
 import pytest
@@ -151,7 +155,7 @@ def test_lfricbuiltin_not_over_dofs():
     with pytest.raises(InternalError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("An LFRic built-in must iterate over dofs but kernel 'setval_c' "
+    assert ("An LFRic built-in must iterate over DoFs but kernel 'setval_c' "
             "iterates over 'cell_column'" in str(excinfo.value))
 
 

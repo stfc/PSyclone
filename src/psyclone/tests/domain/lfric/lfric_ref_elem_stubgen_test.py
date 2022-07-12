@@ -32,17 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''
 Module containing pytest tests for the reference-element stub generation
-functionality of the Dynamo0.3 API.
+functionality of the LFRic (Dynamo0.3) API.
 '''
 
 import os
-import pytest
 from fparser import api as fpapi
-from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 
 
