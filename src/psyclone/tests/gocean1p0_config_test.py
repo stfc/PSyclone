@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for gocean1.0 specific config files.'''
-
-from __future__ import absolute_import
 
 import os
 import pytest
 
-from psyclone.tests.utilities import get_invoke
 from psyclone.configuration import Config, ConfigurationError, GOceanConfig
+from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
+from psyclone.errors import InternalError
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
-from psyclone.errors import InternalError
-from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
+from psyclone.tests.utilities import get_invoke
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -183,8 +181,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid key \"invalid-key\" found in \"{0}\".".\
-            format(str(config_file)) in str(err.value)
+        assert (f"Invalid key 'invalid-key' found in '{config_file}'."
+                in str(err.value))
 
         for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
                   "REPRODUCIBLE_REDUCTIONS"]:
@@ -217,8 +215,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid property \"a\" found with value \"{0}%b:c:d:e\"" \
-               in str(err.value)
+        assert ("Invalid property 'a' found with value '{0}%b:c:d:e'"
+                in str(err.value))
 
     # Test invalid field properties - not enough fields
     content = _CONFIG_CONTENT + "grid-properties = a:b"
@@ -230,8 +228,7 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid property \"a\" found with value \"b\"" \
-               in str(err.value)
+        assert "Invalid property 'a' found with value 'b'" in str(err.value)
 
     # Test missing required values
     content = _CONFIG_CONTENT + "grid-properties = a:b:array:real"
@@ -244,8 +241,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         # The config file {0} does not contain values for "..."
-        assert "does not contain values for the following, mandatory grid " \
-            "property: \"go_grid_xstop\"" in str(err.value)
+        assert ("does not contain values for the following, mandatory grid "
+                "property: 'go_grid_xstop'" in str(err.value))
 
 
 def test_debug_mode(tmpdir):
