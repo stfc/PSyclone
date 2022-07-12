@@ -30,7 +30,12 @@
 	11) PR #1784 towards #1779. Removes the use of config-provided bounds
 	from the NemoRange2Loop Transformation.
 
-release 2.3.1 17th of June 2022	
+	12) PR #1765 for #1724. Remove kernel use statements from
+	processed algorithm layer code.
+
+	13) PR #1785 for #1771. Refactor algorithm-creation functionality.
+
+release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
 

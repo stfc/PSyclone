@@ -56,14 +56,17 @@ Algorithm layer code, replacing ``invoke`` calls with calls to the
 generated PSy layer so that the algorithm code is compilable and
 linkable to the PSy layer and adding in the appropriate ``use``
 statement. For example, the above ``integrate_one_kernel`` invoke is
-translated into something like the following:
-::
+translated into something like the following::
 
   ...
   use psy, only : invoke_0_integrate_one_kernel
   ...
   call invoke_0_integrate_one_kernel(arg1,arg2)
   ...
+
+In addition, any ``use`` statements importing Kernels
+(``integrate_one_kernel`` in this example) are removed because they
+are no longer required in the transformed algorithm code.
 
 You may have noticed from other examples in this guide that an
 algorithm specification in an invoke call references the metadata
