@@ -282,8 +282,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
-                kern_trans = KernTrans()
-                kern_trans.metadata_name = kern.symbol.name
+                kern_trans = KernTrans(kern.symbol.name)
                 kern_trans.apply(kernel_psyir)
 
                 kernels[id(invoke)][id(kern)] = kernel_psyir
