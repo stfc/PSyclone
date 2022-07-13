@@ -69,6 +69,7 @@ class GOceanContainer(Container):
     '''
     def __init__(self, name, metadata, **kwargs):
         super().__init__(name, **kwargs)
+        # The metadata object capturing GOcean kernel metadata.
         self._metadata = metadata
 
     @classmethod
@@ -171,8 +172,12 @@ class GOceanKernelMetadata():
                         f"ScalarArg objects, but found "
                         f"{type(entry).__name__}.")
             self._meta_args = meta_args
-        self._procedure_name = procedure_name
-        self._name = name
+        self._procedure_name = None
+        if procedure_name is not None:
+            self.procedure_name = procedure_name
+        self._name = None
+        if name is not None:
+            self.name = name
 
     def lower_to_psyir(self):
         ''' Lower the metadata to language-level PSyIR.
@@ -250,7 +255,7 @@ class GOceanKernelMetadata():
                 f"Expected kernel metadata to be a Fortran derived type, but "
                 f"found '{fortran_string}'.")
 
-        kernel_metadata.name = spec_part.children[0].children[1]
+        kernel_metadata.name = spec_part.children[0].children[1].tostr()
 
         const = GOceanConstants()
         # Extract and store the required 'iterates_over',
@@ -440,6 +445,10 @@ class GOceanKernelMetadata():
             the metadata when lowering.
 
         '''
+        pattern = re.compile(r'[a-zA-Z_][\w]*')
+        if not value or not pattern.match(value):
+            raise ValueError(
+                f"Expected name to be a valid value but found '{value}'.")
         self._name = value
 
     @property
@@ -518,6 +527,11 @@ class GOceanKernelMetadata():
         :param str value: set the procedure name specified in the \
             metadata to the specified value.
         '''
+        pattern = re.compile(r'[a-zA-Z_][\w]*')
+        if not value or not pattern.match(value):
+            raise ValueError(
+                f"Expected procedure_name to be a valid value but found "
+                f"'{value}'.")
         self._procedure_name = value
 
     class GridArg():

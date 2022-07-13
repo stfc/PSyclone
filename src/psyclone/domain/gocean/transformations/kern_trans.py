@@ -37,6 +37,8 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
+import re
+
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
@@ -70,15 +72,30 @@ class KernTrans(Transformation):
     ...     "end module\n")
     >>> fortran_reader = FortranReader()
     >>> kernel_container = fortran_reader.psyir_from_source(CODE)
-    >>> trans = kern_trans()
-    >>> trans.metadata_name = "compute_cu"
+    >>> trans = kern_trans("compute_cu")
     >>> trans.apply(kernel_container)
 
+    :param str metadata_name: the name of the symbol containing the \
+        required kernel metadata in language-level PSyIR.
+
+    :raises TransformationError: if the supplied metadata_name is \
+        invalid.
+
     '''
-    def __init__(self):
+    def __init__(self, metadata_name):
         super().__init__()
+
+        pattern = re.compile(r'[a-zA-Z_][\w]*')
+        if not metadata_name or not pattern.match(metadata_name):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The kern_trans "
+                f"transformation requires the name of the variable "
+                f"containing the metadata to be set to a valid value "
+                f"before applying the transformation, but found "
+                f"'{metadata_name}'.")
+
         # The name of the PSyIR symbol containing the metadata
-        self._metadata_name = None
+        self._metadata_name = metadata_name
 
     def validate(self, node, options=None):
         '''Validate the supplied PSyIR tree.
@@ -108,13 +125,6 @@ class KernTrans(Transformation):
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent ({type(node.parent).__name__}).")
 
-        if not self._metadata_name:
-            raise TransformationError(
-                f"Error in {self.name} transformation. The kern_trans "
-                f"transformation requires the name of the variable "
-                f"containing the metadata to be set before applying the "
-                f"transformation.")
-
         metadata_symbol = None
         scoping_node = None
         for test_node in node.walk(ScopingNode):
@@ -141,30 +151,6 @@ class KernTrans(Transformation):
 
         # Check that the metadata can be generated without any errors.
         _ = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
-
-    @property
-    def metadata_name(self):
-        '''
-        :returns: the name of the symbol containing the required \
-            kernel metadata in language-level PSyIR.
-        :rtype: str
-
-        '''
-        return self._metadata_name
-
-    @metadata_name.setter
-    def metadata_name(self, value):
-        '''
-        :param str value: sets the name of the symbol containing \
-            the required kernel metadata in language-level PSyIR.
-        '''
-        if not isinstance(value, str):
-            raise TypeError(
-                f"Error in {self.name} transformation. The kern_trans "
-                f"transformation requires the metadata name to be a string, "
-                f"but found '{type(value).__name__}'.")
-
-        self._metadata_name = value
 
     def apply(self, node, options=None):
         '''Raise the supplied language-level GOcean kernel PSyIR to
@@ -200,6 +186,10 @@ class KernTrans(Transformation):
         metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
 
         # Remove metadata symbol.
+        # TODO: support needs to be added for removing a DataSymbol
+        # from the symbol table. At the moment we need to use internal
+        # methods.
+        # pylint: disable=protected-access
         symbol_table = scoping_node.symbol_table
         norm_name = symbol_table._normalize(metadata_symbol.name)
         symbol_table._symbols.pop(norm_name)

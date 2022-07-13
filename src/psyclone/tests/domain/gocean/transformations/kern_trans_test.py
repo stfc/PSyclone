@@ -70,31 +70,25 @@ PROGRAM = (
 
 
 def test_kerntrans_init():
-    ''' Test that an instance of KernTrans can be succesfully created.'''
-    kern_trans = KernTrans()
-    assert isinstance(kern_trans, KernTrans)
-    assert kern_trans._metadata_name is None
-
-
-def test_validate_noname(fortran_reader):
-    '''Test that the validate method raises an exception if the
-    metadata_name property has not been set (or has been set to
-    something that is 'empty')
+    '''Test that an instance of KernTrans can be succesfully created and
+    raises the expected exception if the supplied argument is
+    invalid.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = KernTrans()
+    kern_trans = KernTrans("dummy")
+    assert isinstance(kern_trans, KernTrans)
+    assert kern_trans._metadata_name == "dummy"
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(kernel_psyir)
+        _ = KernTrans("")
     assert ("The kern_trans transformation requires the name of the variable "
-            "containing the metadata to be set before applying the "
-            "transformation." in str(info.value))
-    kern_trans.metadata_name = ""
+            "containing the metadata to be set to a valid value before "
+            "applying the transformation, but found ''." in str(info.value))
     with pytest.raises(TransformationError) as info:
-        kern_trans.validate(kernel_psyir)
+        _ = KernTrans("1dummy")
     assert ("The kern_trans transformation requires the name of the variable "
-            "containing the metadata to be set before applying the "
-            "transformation." in str(info.value))
+            "containing the metadata to be set to a valid value before "
+            "applying the transformation, but found '1dummy'."
+            in str(info.value))
 
 
 def test_validate_nosymbol(fortran_reader):
@@ -104,8 +98,7 @@ def test_validate_nosymbol(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "does_not_exist"
+    kern_trans = KernTrans("does_not_exist")
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("The metadata name (does_not_exist) provided to the "
@@ -124,8 +117,7 @@ def test_validate_container1(fortran_reader):
         f"{METADATA}\n"
         f"end subroutine test\n")
     kernel_psyir = fortran_reader.psyir_from_source(code)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("The Container in which the metadata symbol resides is a "
@@ -148,8 +140,7 @@ def test_validate_keyerror(fortran_reader):
                   f"  end subroutine\n"
                   f"end module\n")
     kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     kern_trans.validate(kernel_psyir)
 
 
@@ -161,8 +152,7 @@ def test_validate_iterates_over(fortran_reader):
     modified_program = PROGRAM.replace(
         "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n", "")
     kernel_psyir = fortran_reader.psyir_from_source(modified_program)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     with pytest.raises(ParseError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
@@ -175,8 +165,7 @@ def test_validate_container2(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     routine = kernel_psyir.children[0].children[0]
     routine.detach()
     with pytest.raises(TransformationError) as info:
@@ -193,8 +182,7 @@ def test_validate_parent(fortran_reader):
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     _ = FileContainer.create("test", SymbolTable(), [kernel_psyir])
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
     assert ("Error in KernTrans transformation. The supplied node should be "
@@ -205,24 +193,8 @@ def test_validate_parent(fortran_reader):
 def test_validate_ok(fortran_reader):
     '''Test that the validate method accepts valid psyir.'''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     kern_trans.validate(kernel_psyir)
-
-
-def test_metadataname():
-    '''Test that the metadata_name getter and setter methods work as
-    expected.
-
-    '''
-    kern_trans = KernTrans()
-    assert kern_trans.metadata_name is None
-    with pytest.raises(TypeError) as info:
-        kern_trans.metadata_name = 0
-    assert ("The kern_trans transformation requires the metadata name to be "
-            "a string, but found 'int'." in str(info.value))
-    kern_trans.metadata_name = "hello"
-    assert kern_trans.metadata_name == "hello"
 
 
 def test_apply_validate(fortran_reader, monkeypatch):
@@ -231,7 +203,7 @@ def test_apply_validate(fortran_reader, monkeypatch):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = KernTrans()
+    kern_trans = KernTrans("compute_cu")
 
     def dummy(_, options=None):
         '''Dummy method used to check that the validate method is called from
@@ -241,7 +213,6 @@ def test_apply_validate(fortran_reader, monkeypatch):
         raise RuntimeError("dummy called")
 
     monkeypatch.setattr(kern_trans, "validate", dummy)
-    kern_trans.metadata_name = "compute_cu"
     with pytest.raises(RuntimeError) as info:
         kern_trans.apply(kernel_psyir)
     assert "dummy called" in str(info.value)
@@ -263,8 +234,7 @@ def test_apply_keyerror(fortran_reader):
                   f"  end subroutine\n"
                   f"end module\n")
     kernel_psyir = fortran_reader.psyir_from_source(my_program)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     kern_trans.apply(kernel_psyir)
 
 
@@ -275,8 +245,7 @@ def test_apply_ok(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     container = kernel_psyir.children[0]
     assert isinstance(container, Container)
     assert not isinstance(container, GOceanContainer)

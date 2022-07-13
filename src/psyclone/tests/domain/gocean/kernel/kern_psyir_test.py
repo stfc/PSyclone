@@ -113,8 +113,7 @@ def test_goceancontainer_lower(fortran_reader):
     assert kernel_psyir.children[0].symbol_table.lookup("compute_cu")
 
     # Now raise to GOcean PSyIR and perform checks
-    kern_trans = KernTrans()
-    kern_trans.metadata_name = "compute_cu"
+    kern_trans = KernTrans("compute_cu")
     kern_trans.apply(kernel_psyir)
     assert isinstance(kernel_psyir.children[0], GOceanContainer)
     with pytest.raises(KeyError):
@@ -166,6 +165,16 @@ def test_goceankernelmetadata_init2():
         _ = GOceanKernelMetadata(meta_args=["hello"])
     assert ("meta_args should be a list of FieldArg, GridArg or ScalarArg "
             "objects, but found str." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        _ = GOceanKernelMetadata(procedure_name="1error")
+    assert ("Expected procedure_name to be a valid value but found "
+            "'1error'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        _ = GOceanKernelMetadata(name="1error")
+    assert ("Expected name to be a valid value but found '1error'."
+            in str(info.value))
 
     metadata = GOceanKernelMetadata(
         iterates_over="go_all_pts", index_offset="go_offset_ne", meta_args=[],
@@ -447,6 +456,22 @@ def test_procedure_name():
     assert kernel_metadata.procedure_name == "compute_cu_code"
     kernel_metadata.procedure_name = "new_code"
     assert kernel_metadata.procedure_name == "new_code"
+    with pytest.raises(ValueError) as info:
+        kernel_metadata.procedure_name = "1invalid"
+    assert("Expected procedure_name to be a valid value but found "
+           "'1invalid'." in str(info.value))
+
+
+def test_metadata_name():
+    '''Test that get and set work for name metadata.'''
+    kernel_metadata = GOceanKernelMetadata.create_from_fortran_string(METADATA)
+    assert kernel_metadata.name == "compute_cu"
+    kernel_metadata.name = "new_name"
+    assert kernel_metadata.name == "new_name"
+    with pytest.raises(ValueError) as info:
+        kernel_metadata.name = "1invalid"
+    assert("Expected name to be a valid value but found "
+           "'1invalid'." in str(info.value))
 
 
 # internal GridArg class
