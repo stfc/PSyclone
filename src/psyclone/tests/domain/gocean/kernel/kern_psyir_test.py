@@ -34,9 +34,9 @@
 # Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
-kernel-layer-specific symbol. The tests include
-translation of PSyIR to PSyclone Kernel PSyIR and PSyclone
-Kernel PSyIR to processed PSyIR.
+kernel-layer-specific symbol. The tests include translation of
+language-level PSyIR to PSyclone GOcean Kernel PSyIR and PSyclone
+GOcean Kernel PSyIR to language-level PSyIR.
 
 '''
 import pytest
@@ -46,7 +46,6 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
-from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
     GOceanContainer
 from psyclone.domain.gocean.transformations import KernTrans
@@ -56,15 +55,15 @@ from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
-            "TYPE(go_arg), DIMENSION(4) :: meta_args = ("
-            "/go_arg(GO_WRITE, GO_CU, GO_POINTWISE), "
-            "go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), "
-            "go_arg(GO_READ, GO_GRID_AREA_T), "
+            "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
+            "go_arg(GO_WRITE, GO_CU, GO_POINTWISE), &\n"
+            "go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), &\n"
+            "go_arg(GO_READ, GO_GRID_AREA_T), &\n"
             "go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)\n"
             "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n"
-            "  INTEGER :: index_offset = GO_OFFSET_SW\n"
+            "  INTEGER :: INDEX_OFFSET = GO_OFFSET_SW\n"
             "  CONTAINS\n"
-            "  PROCEDURE, NOPASS :: code => compute_cu_code\n"
+            "    PROCEDURE, NOPASS :: code => compute_cu_code\n"
             "END TYPE compute_cu\n")
 
 PROGRAM = (
@@ -138,7 +137,7 @@ def test_goceankernelmetadata_init():
     assert metadata._iterates_over is None
     assert metadata._index_offset is None
     assert metadata._meta_args == []
-    assert metadata._code is None
+    assert metadata._procedure_name is None
     assert metadata._name is None
 
 
@@ -188,7 +187,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     with pytest.raises(TypeError) as info:
         _ = GOceanKernelMetadata.create_from_psyir("symbol")
-    assert "Expected a datasymbol but found a str." in str(info.value)
+    assert "Expected a DataTypeSymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
     assert METADATA in metadata.fortran_string()
     symbol._datatype = REAL_TYPE
@@ -236,7 +235,7 @@ def test_create_indexoffset():
 
     '''
     # Does not exist
-    modified_metadata = METADATA.replace("index_offset", "ignored")
+    modified_metadata = METADATA.replace("INDEX_OFFSET", "ignored")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
     assert ("'index_offset' was not found in TYPE, EXTENDS(kernel_type) "
@@ -262,18 +261,18 @@ def test_create_procedure():
     '''
     # no contains
     modified_metadata = METADATA.replace(
-        "  CONTAINS\n  PROCEDURE, NOPASS :: code => compute_cu_code\n", "")
+        "  CONTAINS\n    PROCEDURE, NOPASS :: code => compute_cu_code\n", "")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
-    assert ("No type-bound procedure 'contains' section was found in 'TYPE, "
-            "EXTENDS(kernel_type) :: compute_cu" in str(info.value))
+    assert ("No type-bound procedure found within a 'contains' section in "
+            "'TYPE, EXTENDS(kernel_type) :: compute_cu" in str(info.value))
 
     # no type-bound procedure
     modified_metadata = METADATA.replace(
         "  PROCEDURE, NOPASS :: code => compute_cu_code\n", "")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
-    assert ("Expecting a single type-bound procedure, but found 'TYPE, "
+    assert ("Expecting a type-bound procedure, but found 'TYPE, "
             "EXTENDS(kernel_type) :: compute_cu" in str(info.value))
 
     # not specific binding
@@ -364,7 +363,7 @@ def test_getproperty_error():
         "  end type compute_cu\n")
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(metadata)
-    assert ("No type-bound procedure component-part section was found in "
+    assert ("No declarations were found in the kernel metadata: "
             "'TYPE, EXTENDS(kernel_type) :: compute_cu\n  CONTAINS\n  "
             "PROCEDURE, NOPASS :: code => compute_cu_code\nEND TYPE "
             "compute_cu'." in str(info.value))
@@ -428,7 +427,7 @@ def test_indexoffset():
     assert kernel_metadata.index_offset == "GO_OFFSET_NE"
 
 
-def test_args():
+def test_meta_args():
     '''Test that get works for args metadata.'''
     kernel_metadata = GOceanKernelMetadata.create_from_fortran_string(METADATA)
     assert len(kernel_metadata.meta_args) == 4
@@ -442,7 +441,7 @@ def test_args():
         kernel_metadata.meta_args[3], GOceanKernelMetadata.ScalarArg)
 
 
-def test_procedure():
+def test_procedure_name():
     '''Test that get and set work for procedure metadata.'''
     kernel_metadata = GOceanKernelMetadata.create_from_fortran_string(METADATA)
     assert kernel_metadata.procedure_name == "compute_cu_code"
@@ -467,7 +466,7 @@ def test_gridarg_init():
 
 def test_gridarg_error():
     '''Test that the expected exception is raised if the number of
-    metadata arguments passed info the constructor is incorrect.
+    metadata arguments passed into the constructor is incorrect.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -542,7 +541,7 @@ def test_fieldarg_init():
 
 def test_fieldarg_error():
     '''Test that the expected exception is raised if the number of
-    metadata arguments passed info the constructor is incorrect.
+    metadata arguments passed into the constructor is incorrect.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -675,7 +674,7 @@ def test_scalararg_init():
 
 def test_scalararg_error():
     '''Test that the expected exception is raised if the number of
-    metadata arguments passed info the constructor is incorrect.
+    metadata arguments passed into the constructor is incorrect.
 
     '''
     reader = FortranStringReader(METADATA)

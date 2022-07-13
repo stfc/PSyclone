@@ -44,8 +44,6 @@
     from within another Python program.
 '''
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import os
 import sys
@@ -265,7 +263,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
 
-                # Find the container that includes this kernel symbol
+                # Find the container that includes this kernel
+                # symbol. Note that the gocean1.0 API does not make
+                # use of builtins and therefore all kernels are
+                # imported from an existing container.
                 container_symbol = kern.symbol.interface.container_symbol
 
                 # Find the kernel file containing the container

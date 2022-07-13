@@ -69,10 +69,10 @@ class KernTrans(Transformation):
     ...     "  end subroutine\n"
     ...     "end module\n")
     >>> fortran_reader = FortranReader()
-    >>> kernel = fortran_reader.psyir_from_source(CODE)
+    >>> kernel_container = fortran_reader.psyir_from_source(CODE)
     >>> trans = kern_trans()
     >>> trans.metadata_name = "compute_cu"
-    >>> trans.apply(kernel)
+    >>> trans.apply(kernel_container)
 
     '''
     def __init__(self):
@@ -91,17 +91,16 @@ class KernTrans(Transformation):
 
         :raises TransformationError: if the metadata name has not been \
             set or does not exist in the code.
-        :raises TransformationError: if the supplied node argument is \
-            not a Routine or a Container.
+        :raises TransformationError: if the supplied node is not a \
+            Routine or a Container.
         :raises TransformationError: if the supplied node argument has \
             a parent.
 
         '''
         if not isinstance(node, Container):
             raise TransformationError(
-                f"Error in {self.name} transformation. The supplied call "
-                f"argument should be a Container node but found "
-                f"'{type(node).__name__}'.")
+                f"Error in {self.name} transformation. The supplied node "
+                f"should be a Container but found '{type(node).__name__}'.")
 
         if node.parent:
             raise TransformationError(
@@ -112,19 +111,18 @@ class KernTrans(Transformation):
         if not self._metadata_name:
             raise TransformationError(
                 f"Error in {self.name} transformation. The kern_trans "
-                f"transformation requires the metadata name to "
-                f"be set before applying the transformation.")
+                f"transformation requires the name of the variable "
+                f"containing the metadata to be set before applying the "
+                f"transformation.")
 
         metadata_symbol = None
         scoping_node = None
         for test_node in node.walk(ScopingNode):
-            try:
+            if self._metadata_name in test_node.symbol_table:
                 metadata_symbol = test_node.symbol_table.lookup(
                     self._metadata_name)
                 scoping_node = test_node
                 break
-            except KeyError:
-                pass
         else:
             raise TransformationError(
                 f"Error in {self.name} transformation. The metadata name "
@@ -134,9 +132,7 @@ class KernTrans(Transformation):
         # Find the nearest ancestor container including self.  There
         # will always be at least one ancestor container as otherwise
         # an earlier test will fail.
-        container = scoping_node
-        if not isinstance(container, Container):
-            container = scoping_node.ancestor(Container)
+        container = scoping_node.ancestor(Container, include_self=True)
         if isinstance(container, FileContainer):
             raise TransformationError(
                 f"Error in {self.name} transformation. The Container in "
@@ -191,18 +187,14 @@ class KernTrans(Transformation):
         metadata_symbol = None
         scoping_node = None
         for test_node in node.walk(ScopingNode):
-            try:
+            if self._metadata_name in test_node.symbol_table:
                 metadata_symbol = test_node.symbol_table.lookup(
                     self._metadata_name)
                 scoping_node = test_node
                 break
-            except KeyError:
-                pass
 
         # Find the container in which this metadata resides.
-        container = scoping_node
-        if not isinstance(container, Container):
-            container = scoping_node.ancestor(Container)
+        container = scoping_node.ancestor(Container, include_self=True)
 
         # Create metadata
         metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)

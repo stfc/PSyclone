@@ -35,9 +35,9 @@
 
 PROGRAM kernel_invalid_declaration_prog
 
-  ! Fake Fortran program for testing aspects of
-  ! the PSyclone code generation system.
-
+  ! Calls kernel_invalid_declaration which is an invalid kernel as it
+  ! does not declare one of the variables that are passed into the
+  ! kernel subroutine.
   use kind_params_mod
   use grid_mod
   use field_mod

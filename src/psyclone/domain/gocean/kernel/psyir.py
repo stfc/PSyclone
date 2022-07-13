@@ -63,8 +63,8 @@ class GOceanContainer(Container):
     :param parent: optional parent node of this Container in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param symbol_table: initialise the node with a given symbol table.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
-            NoneType
+    :type symbol_table: \
+        Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
     def __init__(self, name, metadata, **kwargs):
@@ -74,7 +74,9 @@ class GOceanContainer(Container):
     @classmethod
     def create(cls, name, metadata, symbol_table, children):
         '''Create a GOceanContainer instance given a name, metadata, a symbol
-        table and a list of child nodes.
+        table and a list of child nodes. A GOcean-specific kernel is
+        created with the metadata describing the kernel interface for
+        a single kernel routine within the container.
 
         :param str name: the name of the Container.
         :param symbol_table: the symbol table associated with this \
@@ -85,22 +87,22 @@ class GOceanContainer(Container):
             GOceanKernelMetadata`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or Routines.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
-            or :py:class:`psyclone.psyir.nodes.Routine`
+        :type children: List[:py:class:`psyclone.psyir.nodes.Container` \
+            | :py:class:`psyclone.psyir.nodes.Routine`]
 
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
             thereof
 
         '''
-        return GOceanContainer(name, metadata, children=children,
-                               symbol_table=symbol_table.detach())
+        return cls(name, metadata, children=children,
+                   symbol_table=symbol_table.detach())
 
     @property
     def metadata(self):
         '''
-        :returns the GOcean metadata object.  :rtype:
-        :py:class:`psyclone.domain.gocean.kernel.psyir.\
+        :returns the GOcean metadata object.
+        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
             GOceanKernelMetadata`
         '''
         return self._metadata
@@ -125,23 +127,23 @@ class GOceanKernelMetadata():
     metadata creation, modification, loading from a fortran string,
     writing to a fortran string, raising from existing language-level
     PSyIR and lowering to language-level psyir.
+
     :param iterates_over: the name of the quantity that this kernel is \
         intended to iterate over.
-    :type iterates_over: str | NoneType
+    :type iterates_over: Optional[str]
     :param index_offset: the name of the quantity that specifies the \
         index offset (how different field indices relate to each \
         other).
-    :type index_offset: str | NoneType
-
+    :type index_offset: Optional[str]
     :param meta_args: a list of 'meta_arg' objects which capture the \
         metadata values of the kernel arguments.
-    :type meta_args: List[:py:class:`GridArg` | :py:class:`FieldArg` \
-        | :py:class:`ScalarArg`] | NoneType
+    :type meta_args: Optional[List[:py:class:`GridArg` | :py:class:`FieldArg` \
+        | :py:class:`ScalarArg`]]
     :param procedure_name: the name of the kernel procedure to call.
-    :type procedure_name: str | NoneType
+    :type procedure_name: Optional[str]
     :param name: the name of the symbol to use for the metadata in \
         language-level PSyIR.
-    :type name: str | NoneType
+    :type name: Optional[str]
 
     '''
     def __init__(self, iterates_over=None, index_offset=None, meta_args=None,
@@ -169,7 +171,7 @@ class GOceanKernelMetadata():
                         f"ScalarArg objects, but found "
                         f"{type(entry).__name__}.")
             self._meta_args = meta_args
-        self._code = procedure_name
+        self._procedure_name = procedure_name
         self._name = name
 
     def lower_to_psyir(self):
@@ -203,7 +205,8 @@ class GOceanKernelMetadata():
         '''
         if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(
-                f"Expected a datasymbol but found a {type(symbol).__name__}.")
+                f"Expected a DataTypeSymbol but found a "
+                f"{type(symbol).__name__}.")
 
         datatype = symbol.datatype
 
@@ -223,7 +226,7 @@ class GOceanKernelMetadata():
         '''Create a new instance of GOceanKernelMetadata populated with
         metadata stored in a fortran string.
 
-        :param str fortran_string: the metadata stored as a fortran string.
+        :param str fortran_string: the metadata stored as Fortran.
 
         :returns: an instance of GOceanKernelMetadata.
         :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
@@ -336,11 +339,11 @@ class GOceanKernelMetadata():
                 spec_part, Fortran2003.Type_Bound_Procedure_Part)
             if not type_bound_procedure:
                 raise ParseError(
-                    f"No type-bound procedure 'contains' section was found in "
-                    f"'{spec_part}'.")
+                    f"No type-bound procedure found within a 'contains' "
+                    f"section in '{spec_part}'.")
             if len(type_bound_procedure.children) != 2:
                 raise ParseError(
-                    f"Expecting a single type-bound procedure, but found "
+                    f"Expecting a type-bound procedure, but found "
                     f"'{spec_part}'.")
             specific_binding = type_bound_procedure.children[1]
             if not isinstance(specific_binding, Fortran2003.Specific_Binding):
@@ -365,7 +368,7 @@ class GOceanKernelMetadata():
         component_part = get_child(spec_part, Fortran2003.Component_Part)
         if not component_part:
             raise ParseError(
-                f"No type-bound procedure component-part section was found in "
+                f"No declarations were found in the kernel metadata: "
                 f"'{spec_part}'.")
         # Each name/value pair will be contained within a Component_Decl
         for component_decl in walk(component_part, Fortran2003.Component_Decl):
@@ -386,22 +389,21 @@ class GOceanKernelMetadata():
 
     def fortran_string(self):
         '''
-        :returns: the metadata represented by this instance as a Fortran \
-            string.
+        :returns: the metadata represented by this instance as Fortran.
         :rtype: str
         '''
         go_args = []
         for go_arg in self.meta_args:
             go_args.append(go_arg.fortran_string())
-        go_args_str = ", ".join(go_args)
+        go_args_str = ", &\n".join(go_args)
         result = (
             f"TYPE, EXTENDS(kernel_type) :: {self.name}\n"
-            f"TYPE(go_arg), DIMENSION({len(self.meta_args)}) :: "
-            f"meta_args = (/{go_args_str}/)\n"
+            f"  TYPE(go_arg), DIMENSION({len(self.meta_args)}) :: "
+            f"meta_args = (/ &\n{go_args_str}/)\n"
             f"  INTEGER :: ITERATES_OVER = {self.iterates_over}\n"
-            f"  INTEGER :: index_offset = {self.index_offset}\n"
+            f"  INTEGER :: INDEX_OFFSET = {self.index_offset}\n"
             f"  CONTAINS\n"
-            f"  PROCEDURE, NOPASS :: code => {self.procedure_name}\n"
+            f"    PROCEDURE, NOPASS :: code => {self.procedure_name}\n"
             f"END TYPE {self.name}\n")
         return result
 
@@ -424,15 +426,19 @@ class GOceanKernelMetadata():
     @property
     def name(self):
         '''
-        :returns: the name of the symbol to use when lowering.
+        :returns: the name of the symbol that will contain the \
+            metadata when lowering.
         :rtype: str
+
         '''
         return self._name
 
     @name.setter
     def name(self, value):
         '''
-        :param str value: set the name of the symbol to use when lowering.
+        :param str value: set the name of the symbol that will contain \
+            the metadata when lowering.
+
         '''
         self._name = value
 
@@ -504,7 +510,7 @@ class GOceanKernelMetadata():
         :returns: the kernel procedure name specified by the metadata.
         :rtype: str
         '''
-        return self._code
+        return self._procedure_name
 
     @procedure_name.setter
     def procedure_name(self, value):
@@ -512,7 +518,7 @@ class GOceanKernelMetadata():
         :param str value: set the procedure name specified in the \
             metadata to the specified value.
         '''
-        self._code = value
+        self._procedure_name = value
 
     class GridArg():
         '''Internal class to capture Kernel metadata argument information for

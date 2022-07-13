@@ -48,37 +48,24 @@ from psyclone.psyir.nodes import FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import TransformationError
 
-
-METADATA = (
-    "  type, extends(kernel_type) :: compute_cu\n"
-    "     type(go_arg), dimension(3) :: meta_args =                 &\n"
-    "          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            &\n"
-    "             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)), &\n"
-    "             go_arg(GO_READ,  GO_GRID_AREA_T),                 &\n"
-    "             go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE)       &\n"
-    "           /)\n"
-    "     integer :: ITERATES_OVER = GO_ALL_PTS\n"
-    "     integer :: index_offset = GO_OFFSET_SW\n"
-    "  contains\n"
-    "    procedure, nopass :: code => compute_cu_code\n"
-    "  end type compute_cu\n")
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
-            "TYPE(go_arg), DIMENSION(4) :: meta_args = (/go_arg(GO_WRITE, "
-            "GO_CU, GO_POINTWISE), go_arg(GO_READ, GO_CT, "
-            "GO_STENCIL(000, 011, 000)), go_arg(GO_READ, GO_GRID_AREA_T), "
+            "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
+            "go_arg(GO_WRITE, GO_CU, GO_POINTWISE), &\n"
+            "go_arg(GO_READ, GO_CT, GO_STENCIL(000, 011, 000)), &\n"
+            "go_arg(GO_READ, GO_GRID_AREA_T), &\n"
             "go_arg(GO_READ, GO_R_SCALAR, GO_POINTWISE)/)\n"
             "  INTEGER :: ITERATES_OVER = GO_ALL_PTS\n"
-            "  INTEGER :: index_offset = GO_OFFSET_SW\n"
+            "  INTEGER :: INDEX_OFFSET = GO_OFFSET_SW\n"
             "  CONTAINS\n"
-            "  PROCEDURE, NOPASS :: code => compute_cu_code\n"
+            "    PROCEDURE, NOPASS :: code => compute_cu_code\n"
             "END TYPE compute_cu\n")
 
 PROGRAM = (
     f"module dummy\n"
     f"{METADATA}"
     f"contains\n"
-    f"  subroutine kern()\n"
-    f"  end subroutine kern\n"
+    f"  subroutine compute_cu_code()\n"
+    f"  end subroutine compute_cu_code\n"
     f"end module dummy\n")
 
 
@@ -99,13 +86,15 @@ def test_validate_noname(fortran_reader):
     kern_trans = KernTrans()
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
-    assert ("The kern_trans transformation requires the metadata name to be "
-            "set before applying the transformation." in str(info.value))
+    assert ("The kern_trans transformation requires the name of the variable "
+            "containing the metadata to be set before applying the "
+            "transformation." in str(info.value))
     kern_trans.metadata_name = ""
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir)
-    assert ("The kern_trans transformation requires the metadata name to be "
-            "set before applying the transformation." in str(info.value))
+    assert ("The kern_trans transformation requires the name of the variable "
+            "containing the metadata to be set before applying the "
+            "transformation." in str(info.value))
 
 
 def test_validate_nosymbol(fortran_reader):
@@ -147,8 +136,7 @@ def test_validate_container1(fortran_reader):
 def test_validate_keyerror(fortran_reader):
     '''Test that the PSyIR tree walk to find the metadata symbol works if
     multiple symbol tables need to be searched before finding the
-    correct one. A KeyError is raised if the symbol is not found in the
-    symbol table lookup method.
+    correct one.
 
     '''
     my_program = (f"module dummy\n"
@@ -165,11 +153,9 @@ def test_validate_keyerror(fortran_reader):
     kern_trans.validate(kernel_psyir)
 
 
-def test_validate_metadata(fortran_reader):
-    '''Test that the symbol setup method is called as this checks the
-    metadata is valid. To trigger this we make the metadata invalid
-    and check to see whethere an exception defined in the symbol setup
-    method is raised.
+def test_validate_iterates_over(fortran_reader):
+    '''Test that validate raises the expected exception if iterates_over
+    is missing from the metadata.
 
     '''
     modified_program = PROGRAM.replace(
@@ -195,8 +181,8 @@ def test_validate_container2(fortran_reader):
     routine.detach()
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(routine)
-    assert ("Error in KernTrans transformation. The supplied call argument "
-            "should be a Container node but found 'Routine'."
+    assert ("Error in KernTrans transformation. The supplied node "
+            "should be a Container but found 'Routine'."
             in str(info.value))
 
 
@@ -240,10 +226,8 @@ def test_metadataname():
 
 
 def test_apply_validate(fortran_reader, monkeypatch):
-    '''Test that the validate method is called from the apply method. We
-    can't make make the metadata invalid as this would be picked up
-    when we specialise the symbol, even if validate were not
-    called. Therefore we monkeypatch the validate method.
+    '''Test that the validate method is called from the apply method. This
+    is done by monkeypatching the validate method.
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
