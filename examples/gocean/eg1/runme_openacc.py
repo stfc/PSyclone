@@ -84,7 +84,7 @@ if __name__ == "__main__":
     print(fwriter(PSY.container))
 
     print(PSY.invokes.names)
-    SCHEDULE = PSY.invokes.get('invoke_0').schedule
+    SCHEDULE = PSY.invokes.get('invoke_2').schedule
     print(SCHEDULE.view())
 
     TRANS_INFO = TransInfo()

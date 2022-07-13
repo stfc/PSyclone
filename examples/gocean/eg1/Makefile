@@ -44,7 +44,8 @@
 
 include ../../common.mk
 
-GENERATED_FILES += *.o *.mod invoke_0_dag invoke_0_dag.png *.cl ompt_alg.f90 ompt_psy.f90
+GENERATED_FILES += *.o *.mod invoke_0_dag invoke_0_dag.png *.cl \
+	ompt_alg.f90 ompt_psy.f90 openacc_alg.f90 openacc_psy.f90
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
 KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o \
@@ -62,6 +63,10 @@ INF_LIB = ${INF_DIR}/src/lib_fd.a
 
 transform: basic openmp mpi loop_fuse dag openacc opencl openmp_taskloop
 
+compile: compile-openmptaskloop
+run: compile
+	./shallow_ompt.exe
+
 # The dl_esm_inf library
 fd_lib:
 	${MAKE} -C ${INF_DIR} F90=${F90} fd_lib
@@ -69,24 +74,34 @@ fd_lib:
 dm_fd_lib:
 	${MAKE} -C ${INF_DIR} F90=${F90} dm_fd_lib
 
-ompt_psy.f90 ompt_alg.f90: shallow_alg.f90
-	${PSYCLONE} -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 \
-		-opsy ompt_psy.f90 -oalg ompt_alg.f90 shallow_alg.f90
-
-openmp_taskloop: ompt_psy.f90 ompt_alg.f90
-
-# TODO: Cannot compile this example until #1474 is resolved.
-compile-openmptaskloop: ompt_psy.f90 ompt_alg.f90 ${KERNELS} fd_lib
+# Rules for OpenMP taskloop:
+# --------------------------
+compile-openmptaskloop: ompt_psy.o ompt_alg.o ${KERNELS} fd_lib
 	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} ompt_psy.f90 ompt_alg.f90 ${KERNELS} \
 	${INF_LIB} -o shallow_ompt.exe
 
-compile: compile-openmptaskloop
+ompt_psy.f90 ompt_alg.f90: shallow_alg.f90 openmp_taskloop_trans.py
+	${PSYCLONE} -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 \
+		-opsy ompt_psy.f90 -oalg ompt_alg.f90 shallow_alg.f90
+
+ompt_psy.o ompt_alg.o: ${KERNELS}
+openmp_taskloop: ompt_psy.f90 ompt_alg.f90
+
+# Rules for OpenACC compilation:
+# ------------------------------
+compile-openacc: openacc_psy.o openacc_alg.o ${KERNELS} fd_lib
+	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} openacc_psy.f90 openacc_alg.f90 \
+	${KERNELS} ${INF_LIB} -o shallow_openacc.exe
+
+openacc_psy.f90 openacc_alg.f90: shallow_alg.f90 openacc.py
+	${PSYCLONE} -nodm -s ./openacc.py -api gocean1.0 \
+		-opsy openacc_psy.f90 -oalg openacc_alg.f90 shallow_alg.f90
+
+openacc_psy.o openacc_alg.o: ${KERNELS}
+
 
 %.o: %.f90
 	${F90} ${F90FLAGS} -I${INF_INC} -c $<
-
-run: compile
-	./shallow_ompt.exe
 
 basic:
 	$(ENV) ${PYTHON} ./runme.py

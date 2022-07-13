@@ -8,5 +8,7 @@ compute_z_compute_z_0.cl
 infrastructure_field_copy_0.cl
 ompt_alg.f90
 ompt_psy.f90
+openacc_alg.f90
+openacc_psy.f90
 opencl_kernels_?.cl
 
