@@ -42,8 +42,8 @@ than the intrinsic.
 
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference,
-    Literal, Loop, ArrayReference)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, ScalarType
+    Literal, Loop, ArrayReference, IfBlock)
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, ScalarType, ArrayType
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
     Operator2CodeTrans)
 
@@ -114,6 +114,18 @@ class Sum2CodeTrans(Operator2CodeTrans):
         dimension_ref = args[1]
         mask_ref = args[2]
 
+        # Determine the literal value of the dimension argument
+        dimension_literal = None
+        if not dimension_ref:
+            pass
+        elif isinstance(dimension_ref, Literal):
+            dimension_literal = dimension_ref
+        elif (isinstance(dimension_ref, Reference) and
+              dimension_ref.symbol.is_constant):
+            dimension_literal = dimension_ref.symbol.constant_value
+        else:
+            raise Exception("Can't find the literal value of the dimension argument.")
+
         # Determine the dimension of the array
         ndims = None
         if len(array_ref.children) == 0:
@@ -144,9 +156,16 @@ class Sum2CodeTrans(Operator2CodeTrans):
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
+        datatype = scalar_type
+        array_reduction = False
+        if dimension_ref and ndims>1:
+            array_reduction = True
+            # We are reducing from one array to another
+            shape = [Literal("1", INTEGER_TYPE) for dim in range(ndims-1)]
+            datatype = ArrayType(scalar_type, shape)
         # Create temporary sum variable (sum_var)
         symbol_sum_var = symbol_table.new_symbol(
-            "sum_var", symbol_type=DataSymbol, datatype=scalar_type)
+            "sum_var", symbol_type=DataSymbol, datatype=datatype)
 
         # Replace operation with a temporary variable (sum_var).
         node.replace_with(Reference(symbol_sum_var))
@@ -158,19 +177,36 @@ class Sum2CodeTrans(Operator2CodeTrans):
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
-        # sum_var = sum_var + array(i,...)
-        lhs = Reference(symbol_sum_var)
-        rhs_child1 = Reference(symbol_sum_var)
+        # Create the loop iterators
+        loop_iterators = []
+        array_iterators = []
+        for idx in range(ndims):
+            loop_iterator = symbol_table.new_symbol(
+                f"i_{idx}", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            loop_iterators.append(loop_iterator)
+            if array_reduction and idx != int(dimension_literal.value)-1:
+                array_iterators.append(loop_iterator)
+
+        if array_reduction:
+            # sum_var(i,...) = sum_var(i,...) + array(i,...)
+            array_indices = [Reference(iterator) for iterator in array_iterators]
+            lhs = ArrayReference.create(symbol_sum_var, array_indices)
+            array_indices = [Reference(iterator) for iterator in array_iterators]                
+            rhs_child1 = ArrayReference.create(symbol_sum_var, array_indices)
+        else:
+            # sum_var = sum_var + array(i,...)
+            lhs = Reference(symbol_sum_var)
+            rhs_child1 = Reference(symbol_sum_var)
+
         rhs_child2 = node.children[0].detach()
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
                                      rhs_child2)
-
         statement = Assignment.create(lhs, rhs)
+        if mask_ref:
+            statement = IfBlock.create(mask_ref.detach(), [statement])
         array_indices = []
         for idx in range(ndims):
-            symbol_iterator = symbol_table.new_symbol(
-            f"i_{idx}", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            statement = Loop.create(symbol_iterator, Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), [statement])
-            array_indices.append(Reference(symbol_iterator))
+            statement = Loop.create(loop_iterators[idx], Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), [statement])
+            array_indices.append(Reference(loop_iterators[idx]))
         assignment.parent.children.insert(assignment.position, statement)
         rhs_child2.replace_with(ArrayReference.create(rhs_child2.symbol, array_indices))

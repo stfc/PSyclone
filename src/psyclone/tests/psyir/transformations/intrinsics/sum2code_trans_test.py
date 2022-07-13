@@ -101,7 +101,7 @@ def test_args():
         "  real :: array(10,10)\n"
         "  real :: result\n"
         "  integer, parameter :: dimension=2\n"
-        "  result = sum(array,dimension)\n"
+        "  result = sum(array, dimension, mask=MOD(array, 2)==1)\n"
         "end program\n")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)
