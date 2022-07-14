@@ -84,7 +84,7 @@ end SUBROUTINE tra_ldf_iso
     acc_kernels = ACCKernelsTrans()
     acc_update = ACCUpdateTrans()
     # We do not permit arbitrary code blocks to be included in data
-    # regions so just put two of the loops into regions.
+    # regions so just put three of the (implicit) loops into kernels.
     acc_kernels.apply(schedule[0])
     acc_kernels.apply(schedule[3:5])
     acc_trans.apply(schedule)
@@ -92,20 +92,19 @@ end SUBROUTINE tra_ldf_iso
     gen_code = str(psy.gen).lower()
     assert ("  real, dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
+            "  !$acc update if_present host(l_ptr)\n"
             "  !$acc enter data copyin(jpi,tmask,zftu,zftv)\n"
             "  !$acc kernels\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc end kernels\n"
-            "  !$acc update if_present host(l_ptr)\n"
             "  if (l_ptr) then\n" in gen_code)
-    assert ("    zftv(:,:,:) = 1.0d0\n"
+    assert ("    !$acc update if_present host(jn,zftv)\n"
+            "    call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
+            "    !$acc update if_present host(zftv)\n"
+            "    zftv(:,:,:) = 1.0d0\n"
             "    !$acc update if_present device(zftv)\n" in gen_code)
-    assert ("  !$acc kernels\n"
-            "  zftu(:,:,1) = 1.0d0\n"
-            "  tmask(:,:) = jpi\n"
-            "  !$acc end kernels\n"
-            "\n"
-            "end subroutine tra_ldf_iso" in gen_code)
+    assert ("  !$acc update if_present host(jn,zftv)\n"
+            "  call" in gen_code)
 
 
 def test_nested_acc_in_if(parser):
@@ -143,21 +142,30 @@ end SUBROUTINE tra_ldf_iso
     acc_trans.apply(schedule)
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    assert ("  !$acc end kernels\n"
-            "  !$acc update if_present host(l_ptr)\n"
-            "  if (l_ptr) then\n"
+    assert ("  !$acc update if_present host(l_ptr)\n"
+            "  !$acc enter data"
             ) in gen_code
-    assert ("    zftv(:,:,:) = 1.0d0\n"
-            "    !$acc update if_present device(zftv)\n"
+    assert ("    !$acc update if_present host(jn,zftv)\n"
+            "    call"
             ) in gen_code
-    assert ("  tmask(:,:) = jpi\n"
+    assert ("    !$acc update if_present host(zftv)\n"
+            "    zftv(:,:,:) = 1.0d0\n"
+            ) in gen_code
+    assert ("    !$acc update if_present device(zftv)\n"
+            "  end if\n"
+            ) in gen_code
+    assert ("  !$acc update if_present host(jn,zftv)\n"
+            "  call"
+            ) in gen_code
+    assert ("  !$acc update if_present host(jpi,tmask)\n"
+            "  tmask(:,:) = jpi\n"
             "  !$acc update if_present device(tmask)\n"
             ) in gen_code
 
 
 def test_call_accesses(parser):
-    ''' Check that a call results in extra update directives and that 
-    consecutive update directives are not redundant. '''
+    ''' Check that a call results in extra update directives, bar relocation,
+    and that there are no redundant consecutive update directives. '''
     code = '''
 SUBROUTINE tra_ldf_iso()
   USE some_mod, only: dia_ptr_hst
@@ -178,12 +186,13 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    assert ("  zftv(:,:,:) = 0.0d0\n"
+    assert ("  !$acc update if_present host(jn,zftv)\n"
+            "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
-            "  !$acc update if_present host(jn)\n"
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
-            "  !$acc update if_present host(zftv)\n"
-            "  checksum = sum(zftv)\n" in gen_code)
+            "  !$acc update if_present host(checksum,zftv)\n"
+            "  checksum = sum(zftv)\n"
+            "  !$acc update if_present device(checksum)\n" in gen_code)
 
 
 def test_call_within_if(parser):
@@ -212,10 +221,15 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    assert ("  zftv(:,:,:) = 0.0d0\n"
+    assert ("  !$acc update if_present host(jn,zftv)\n"
+            "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n" in gen_code)
+    assert ("    !$acc update if_present host(jn,zftv)\n"
+            "    call" in gen_code)
     assert ("  end if\n"
-            "  !$acc update if_present host(zftv)\n" in gen_code)
+            "  !$acc update if_present host(checksum,zftv)\n"
+            "  checksum = sum(zftv)\n"
+            "  !$acc update if_present device(checksum)\n" in gen_code)
 
 
 def test_loop_on_cpu(parser):
@@ -246,18 +260,26 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
+    print(gen_code)
     # Loop variable should not be copied to device
     assert "device(ji)" not in gen_code
     # Currently jpi is copied to and from. We need a list of variables that
     # are written just once and are read-only thereafter. Such variables will
     # be written on the CPU (e.g. after reading from namelist).
-    assert ("  zftv(:,:,:) = 0.0d0\n"
+    assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
+            "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
-            "  !$acc update if_present host(jpi,start,step)\n"
-            "  do ji = start, jpi, step\n" in gen_code)
+            "  do ji = start, jpi, step\n") in gen_code
+    assert ("    !$acc update if_present host(zftv)\n"
+            "    call") in gen_code
+    assert ("    !$acc update if_present host(zftv,zftw)\n"
+            "    zftv(ji,:,:) = 1.0d0\n"
+            "    zftw(ji,:,:) = -1.0d0\n"
+            "    !$acc update if_present device(zftv,zftw)\n") in gen_code
     # TODO All of these variables are actually local to the subroutine so
     # should not be copied back.
-    assert ("  zftu(:,:,1) = 1.0d0\n"
+    assert ("  !$acc update if_present host(jpi,tmask,zftu)\n"
+            "  zftu(:,:,1) = 1.0d0\n"
             "  tmask(:,:) = jpi\n"
             "  !$acc update if_present device(tmask,zftu)\n"
             in gen_code)

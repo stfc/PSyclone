@@ -129,7 +129,7 @@ class ACCUpdateTrans(Transformation):
         '''
         # We must walk through the Schedule and find those nodes representing
         # contiguous regions of code that are not executed on the GPU. Any
-        # Call and CodeBlock nodes are taken as boundaries of such regions
+        # Call nodes are taken as boundaries of such regions
         # because it may be that their bodies are executed on the GPU.
         node_list = []
         for child in sched.children[:]:
@@ -141,6 +141,8 @@ class ACCUpdateTrans(Transformation):
                 self._add_update_directives(sched, node_list)
                 node_list.clear()
                 if isinstance(child, self._brk_nodes):
+                    # Conservatively add an update host statement just before
+                    # the Call node for fear of temporary operands.
                     self._add_update_directives(sched, [child])
                 elif isinstance(child, IfBlock):
                     # Add any update statements that are required due to
