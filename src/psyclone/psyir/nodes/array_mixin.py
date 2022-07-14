@@ -38,8 +38,6 @@
 
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
-from __future__ import absolute_import
-
 import abc
 import six
 
@@ -293,46 +291,21 @@ class ArrayMixin(object):
                     return True
         return False
 
-    def rank_of_subsection(self, lang_writer=None):
+    def rank_of_subsection(self):
         '''If this array reference uses supported array-notation syntax then
         return the rank of the sub-section of the array. e.g. for a reference
         "a(:, 2, :)" the rank of the sub-section is 2.
 
-        :param lang_writer: optional PSyIR backend to use when creating error \
-                            message. Defaults to Fortran.
-        :type lang_writer: \
-            Optional[:py:class:`psyclone.psyir.backend.PSyIRVisitor`]
-
         :returns: rank of the sub-section of the array.
         :rtype: int
 
-        :raises NotImplementedError: if any ranges are encountered that are \
-                                     not for the full extent of the dimension.
         '''
         # Only array refs using basic colon syntax are currently
         # supported e.g. (a(:,:)).  Each colon is represented in the
-        # PSyIR as a Range node with first argument being an lbound
-        # binary operator, the second argument being a ubound operator
-        # and the third argument being an integer Literal node with
-        # value 1 i.e. a(:,:) is represented as
-        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
-        # the PSyIR.
+        # PSyIR as a Range node.
         num_colons = 0
-        for pos, idx_node in enumerate(self.indices):
+        for idx_node in self.indices:
             if isinstance(idx_node, Range):
-                # Found an array range. Check that it is for the full extent
-                # of the dimension.
-                if not self.is_full_range(pos):
-                    if lang_writer is None:
-                        # pylint: disable=import-outside-toplevel
-                        from psyclone.psyir.backend.fortran import (
-                            FortranWriter)
-                        lang_writer = FortranWriter()
-                    raise NotImplementedError(
-                        f"Only subsections that involve the full extent of a "
-                        f"given array dimension are supported but index {pos} "
-                        f"of '{self.name}' contains a Range that is not for "
-                        f"the full extent: {lang_writer(self)}")
                 num_colons += 1
         return num_colons
 

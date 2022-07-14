@@ -101,10 +101,22 @@ def test_member_equality():
 
 
 def test_rank_of_subsection():
-    ''' The rank of a Member should be zero as it is not an array. '''
-    stype = StructureType()
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
-    stype.add("data", ArrayType(INTEGER_TYPE, [3, 4]))
+    ''' The rank of a Member is currently assumed to be zero. This will not be
+    correct if it represents an array (TODO #1799). '''
     sym = DataSymbol("grid_type", DeferredType())
     sref = nodes.StructureReference.create(sym, ["m1"])
     assert sref.member.rank_of_subsection() == 0
+
+
+@pytest.mark.xfail(reason="#1799 need to be able to query datatype of "
+                   "accessor")
+def test_rank_of_subsection_whole_array():
+    '''The rank of a Member representing an array should be the rank of
+    that array.'''
+    stype = StructureType()
+    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
+    stype.add("data", ArrayType(INTEGER_TYPE, [3, 4]),
+              Symbol.Visibility.PUBLIC)
+    sym2 = DataSymbol("grid_type", stype)
+    sref2 = nodes.StructureReference.create(sym2, ["data"])
+    assert sref2.member.rank_of_subsection() == 2

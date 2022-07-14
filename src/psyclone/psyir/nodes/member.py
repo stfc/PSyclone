@@ -81,7 +81,7 @@ class Member(Node):
                 f"(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)"
                 f"Member but found '{type(parent).__name__}'.")
 
-        super(Member, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         # Store the name of the component that this member represents
         self._component_name = member_name
 
@@ -144,6 +144,8 @@ class Member(Node):
         Since a Member is not an array access it cannot have a subsection so
         this method returns zero.
 
+        TODO #1799: support the case where Member is actually an array.
+
         (We could have chosen not to implement this method but that then
         required more complex type checking in the corresponding methods of
         other Node types.)
@@ -152,19 +154,9 @@ class Member(Node):
         :rtype: int
 
         '''
-        ref = self.ancestor(Reference)
-        if not ref:
-            raise GenerationError(
-                f"Structure reference incomplete: Member '{self.name}' is not "
-                f"a part of a Reference.")
-        dtype = ref.symbol.datatype
-        if isinstance(dtype, DeferredType):
-            # TODO. This Member could in fact be an array but we have no way
-            # of knowing without finding the definition of the derived type.
-            return 0
-        if isinstance(dtype, ScalarType):
-            return 0
-        return len(dtype.shape)
+        # TODO #1799. This Member could in fact be an array but we have no way
+        # of knowing without being able to query its type.
+        return 0
 
 
 # For Sphinx AutoAPI documentation generation
