@@ -190,11 +190,12 @@ class ACCUpdateTrans(Transformation):
         inputs, outputs = self._dep_tools.get_in_out_parameters(node_list)
         inputs, outputs = set(inputs), set(outputs)
 
-        # Workaround for lack of precise access data
+        # Workaround for lack of precise access descriptions, e.g. in the
+        # presence of array slices we currently overapproximate dependencies.
         inputs.update(outputs)
 
         # Workaround for CodeBlocks
-        # TODO We are probably relying on undefined behaviour here
+        # TODO We are probably relying on undefined behaviour here.
         for node in node_list:
             if isinstance(node, CodeBlock):
                 for symbol_name in node.get_symbol_names():
@@ -246,9 +247,11 @@ class ACCUpdateTrans(Transformation):
                     (loop_dep_stmts, loop_sig, loop_sync)]:
                     for stmt in dep_stmts:
                         for acc in stmt.walk(self._acc_regions):
-                            if idx == IN:
+                            # Workaround for lack of precise access
+                            # descriptions, used trivial condition as reminder.
+                            if idx == IN or idx == OUT:
                                 sig.update(acc.out_kernel_references)
-                            elif idx == OUT:
+                            if idx == OUT:
                                 sig.update( acc.in_kernel_references)
                     # If there are data dependencies or there is a statement
                     # (e.g a call) that requires synchronisation.
