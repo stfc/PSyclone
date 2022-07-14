@@ -38,8 +38,6 @@
 
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
-from __future__ import absolute_import
-
 import abc
 import six
 
@@ -50,7 +48,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.psyir.symbols.datatypes import ScalarType, INTEGER_TYPE
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -319,6 +317,30 @@ class ArrayMixin(object):
                     f"DataNode or Range representing an array-index "
                     f"expression but found '{type(child).__name__}'")
         return self.children
+
+    @property
+    def shape(self):
+        '''
+        :returns: the shape of the array access represented by this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+
+        '''
+        shape = []
+        for idx_expr in self.indices:
+            if isinstance(idx_expr, Range):
+                # Create PSyIR for the number of elements in this range. It
+                # is given by (stop - start)/step + 1.
+                minus = BinaryOperation.create(
+                    BinaryOperation.Operator.SUB,
+                    idx_expr.stop.copy(), idx_expr.start.copy())
+                div = BinaryOperation.create(
+                    BinaryOperation.Operator.DIV,
+                    minus, idx_expr.step.copy())
+                plus = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    div, Literal("1", INTEGER_TYPE))
+                shape.append(plus)
+        return shape
 
     def get_outer_range_index(self):
         ''' Return the index of the child that represents the outermost

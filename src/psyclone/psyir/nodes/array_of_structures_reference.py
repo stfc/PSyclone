@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,12 @@
 ''' This module contains the implementation of the ArrayOfStructuresReference
 node. '''
 
-from __future__ import absolute_import
-
 # Circular import if only '...nodes' is used:
-from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir import symbols
-from psyclone.psyir.nodes.array_of_structures_mixin import \
-    ArrayOfStructuresMixin
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_of_structures_mixin import (
+    ArrayOfStructuresMixin)
+from psyclone.psyir.nodes.structure_reference import StructureReference
 
 
 class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
@@ -127,6 +126,38 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         for child in indices:
             ref.addchild(child)
         return ref
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of this reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+
+        if isinstance(self.symbol.datatype, symbols.DeferredType):
+            return symbols.DeferredType()
+        if not isinstance(self.symbol.datatype.intrinsic,
+                          symbols.DataTypeSymbol):
+            return symbols.DeferredType()
+        dtype = self.symbol.datatype.intrinsic.datatype
+        if isinstance(dtype, symbols.DeferredType):
+            return symbols.DeferredType()
+
+        cursor = self
+        cursor_type = dtype
+        shape = cursor.shape
+        try:
+            while cursor.member:
+                cursor = cursor.member
+                cursor_type = cursor_type.components[cursor.name]
+                if isinstance(cursor, ArrayMixin):
+                    shape.extend(cursor.shape)
+        except AttributeError:
+            pass
+
+        if shape:
+            return symbols.ArrayType(cursor_type.datatype, shape)
+        return cursor_type.datatype
 
 
 # For AutoAPI documentation generation

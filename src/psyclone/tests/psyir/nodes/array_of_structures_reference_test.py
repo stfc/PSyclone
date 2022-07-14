@@ -38,7 +38,6 @@
 ''' This module contains pytest tests for the ArrayOfStructuresReference
     class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
@@ -167,3 +166,36 @@ def test_ast_is_array():
     asref = nodes.ArrayOfStructuresReference.create(
         ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
     assert asref.is_array
+
+
+def test_asr_datatype():
+    '''Test the datatype property of the ArrayOfStructuresReference.'''
+    ndofs = symbols.DataSymbol("ndofs", symbols.INTEGER_TYPE)
+    atype = symbols.ArrayType(symbols.REAL_TYPE,
+                              [nodes.Reference(ndofs), nodes.Reference(ndofs)])
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("data", atype, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
+    ssym = symbols.DataSymbol("grid", grid_array_type)
+    # Reference to a single member of the array of structures and to the "nx"
+    # member of it.
+    asref = nodes.ArrayOfStructuresReference.create(
+        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
+    assert isinstance(asref.datatype, symbols.ScalarType)
+    assert asref.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    # Reference to a range of members of the array of structures and to the
+    # "nx" member of each.
+    my_range = nodes.Range.create(nodes.Literal("2", symbols.INTEGER_TYPE),
+                                  nodes.Literal("3", symbols.INTEGER_TYPE))
+    asref2 = nodes.ArrayOfStructuresReference.create(
+        ssym, [my_range], ["nx"])
+    assert isinstance(asref2.datatype, symbols.ArrayType)
+    assert len(asref2.datatype.shape) == 1
+    # Reference to a single member of the array of structures and to the "data"
+    # member of it which is itself an array.
+    asref3 = nodes.ArrayOfStructuresReference.create(
+        ssym, [nodes.Literal("1", symbols.INTEGER_TYPE)], ["data"])
+    assert isinstance(asref3.datatype, symbols.ArrayType)
+    assert len(asref3.datatype.shape) == 2

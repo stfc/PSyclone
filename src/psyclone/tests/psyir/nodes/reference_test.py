@@ -39,15 +39,16 @@
 
 ''' Performs py.test tests on the Reference PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
-    Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
-from psyclone.psyGen import GenerationError
 from psyclone.core.access_info import VariablesAccessInfo
+from psyclone.psyGen import GenerationError
+from psyclone.psyir.nodes import (
+    Reference, ArrayReference, Assignment,
+    Literal, BinaryOperation, Range, KernelSchedule)
 from psyclone.psyir.nodes.node import colored
+from psyclone.psyir.symbols import (
+    DataSymbol, ArrayType, ScalarType,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
 
 
 def test_reference_bad_init():
@@ -133,6 +134,15 @@ def test_reference_is_array():
     '''
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert reference.is_array is False
+
+
+def test_reference_datatype():
+    '''Test the datatype property.
+
+    '''
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    assert isinstance(reference.datatype, ScalarType)
+    assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_reference_accesses():

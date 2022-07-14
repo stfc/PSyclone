@@ -38,10 +38,10 @@
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol, DeferredType, UnknownType
+from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
+                                    ScalarType, ArrayType)
 from psyclone.errors import GenerationError
 
 
@@ -104,6 +104,18 @@ class ArrayReference(ArrayMixin, Reference):
         for entity in self._children:
             result += str(entity) + "\n"
         return result
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of this array reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        shape = self.shape
+        if shape:
+            return ArrayType(self.symbol.datatype, shape)
+        return ScalarType(self.symbol.datatype.intrinsic,
+                          self.symbol.datatype.precision)
 
 
 # For AutoAPI documentation generation

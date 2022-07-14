@@ -174,6 +174,14 @@ class Reference(DataNode):
                 index.reference_accesses(var_accesses)
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
 
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of this reference.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        return self.symbol.datatype
+
 
 # For AutoAPI documentation generation
 __all__ = ['Reference']
