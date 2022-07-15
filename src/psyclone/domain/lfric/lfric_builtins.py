@@ -44,15 +44,15 @@
 
 import abc
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
+from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
-                                    RoutineSymbol)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
                                   StructureReference)
-from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
+                                    RoutineSymbol)
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
