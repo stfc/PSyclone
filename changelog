@@ -35,6 +35,9 @@
 
 	13) PR #1785 for #1771. Refactor algorithm-creation functionality.
 
+	14) PR #1769 for #1721. Fixes bugs in use of sympy simplify() and
+	expand().
+
 release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
