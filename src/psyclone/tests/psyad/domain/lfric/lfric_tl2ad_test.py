@@ -37,10 +37,11 @@
 
 import pytest
 from psyclone.psyad.domain.lfric.tl2ad import (_compute_lfric_inner_products,
+                                               _init_fields_random,
                                                generate_lfric_adjoint_test)
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (SymbolTable, DataSymbol, REAL_TYPE,
-                                    ArrayType)
+                                    ArrayType, DataTypeSymbol, DeferredType)
 
 
 # _compute_lfric_inner_products
@@ -87,10 +88,24 @@ def test_compute_inner_products_fields(fortran_writer):
             "  my_sum = my_sum + ip3(2)\n"
             "  my_sum = my_sum + ip3(3)\n" in gen)
 
+
+# _init_fields_random
+
+def test_init_fields_random(fortran_writer):
+    '''Check that the _init_fields_random() routine works as expected.'''
+    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    fld1 = DataSymbol("field1", datatype=fld_type)
+    fields = [(fld1, "w1")]
+    fld1_input = DataSymbol("field1_input", datatype=fld_type)
+    input_syms = {"field1": fld1_input}
+    kernels = _init_fields_random(fields, input_syms)
+    assert not kernels
+
+
 # generate_lfric_adjoint_test
 
 
-def test_generate_lfric_adjoint_invalid_code():
+def test_generate_lfric_adjoint_test_invalid_code():
     '''Test that the generate_lfric_adjoint_test() function raises the
     expected errors if passed invalid/unsupported source code.'''
     with pytest.raises(ValueError) as err:
@@ -102,8 +117,9 @@ def test_generate_lfric_adjoint_invalid_code():
             "'program oops" in str(err.value))
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_test("module oops\nend module oops\n")
-    assert ("Failed to parse kernel metadata in supplied tangent-linear code:"
+    assert ("Failed to parse kernel metadata in supplied code:"
             in str(err.value))
+
 
 TL_CODE = (
     "module testkern_mod\n"
@@ -111,20 +127,23 @@ TL_CODE = (
     "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
     "gh_write, w3, cell_column\n"
     "  type, extends(kernel_type) :: testkern_type\n"
-    "     type(arg_type), dimension(1) :: meta_args =          & \n"
-    "          (/ arg_type(gh_field,  gh_real, gh_write,  w3)  & \n"
+    "     type(arg_type), dimension(2) :: meta_args =          & \n"
+    "          (/ arg_type(gh_scalar, gh_real, gh_read),       & \n"
+    "             arg_type(gh_field,  gh_real, gh_write,  w3)  & \n"
     "           /)\n"
     "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "     procedure, nopass :: code => testkern_code\n"
     "  end type testkern_type\n"
     "contains\n"
-    "  subroutine testkern_code(nlayers, field, ndf_w3, undf_w3, map_w3)\n"
+    "  subroutine testkern_code(nlayers, ascalar, field, ndf_w3, undf_w3, "
+    "map_w3)\n"
     "    integer(kind=i_def), intent(in) :: nlayers\n"
     "    integer(kind=i_def), intent(in) :: ndf_w3, undf_w3\n"
     "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+    "    real(kind=r_def), intent(in) :: ascalar\n"
     "    real(kind=r_def), intent(inout), dimension(undf_w3) :: field\n"
-    "    field = 0.0\n"
+    "    field = ascalar\n"
     "  end subroutine testkern_code\n"
     "end module testkern_mod\n"
 )
@@ -135,32 +154,42 @@ def test_generate_lfric_adjoint_test(fortran_writer):
     expected test-harness code.'''
     psyir = generate_lfric_adjoint_test(TL_CODE)
     gen = fortran_writer(psyir)
-    print(gen)
     assert "module adjoint_test_mod" in gen
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
     # for that field.
-    assert ("    type(field_type) :: field_1\n"
-            "    type(field_type) :: field_1_input\n"
-            "    real(kind=r_def) :: field_1_inner_prod\n" in gen)
+    assert ("    real(kind=r_def) :: rscalar_1\n"
+            "    type(field_type) :: field_2\n"
+            "    real(kind=r_def) :: rscalar_1_input\n"
+            "    type(field_type) :: field_2_input\n"
+            "    real(kind=r_def) :: field_2_inner_prod\n" in gen)
     # The field and its copy must be initialised.
-    assert ("call field_1 % initialise(vector_space=vector_space_w3_ptr, "
-            "name='field_1')" in gen)
-    assert ("call field_1_input % initialise(vector_space=vector_space_w3_ptr,"
-            " name='field_1_input')" in gen)
+    assert ("call field_2 % initialise(vector_space=vector_space_w3_ptr, "
+            "name='field_2')" in gen)
+    assert ("call field_2_input % initialise(vector_space=vector_space_w3_ptr,"
+            " name='field_2_input')" in gen)
+    # So too must the scalar argument.
+    assert ("    call random_number(rscalar_1)\n"
+            "    rscalar_1_input = rscalar_1\n" in gen)
+
     # The field must be given random values and those copied into the copy.
     # The TL kernel must then be called and the inner-product of the result
     # computed.
-    assert "field_1_inner_prod = 0.0_r_def" in gen
+    assert "field_2_inner_prod = 0.0_r_def" in gen
     assert ("    ! Initialise arguments and call the tangent-linear kernel.\n"
-            "    call invoke(setval_random(field_1), setval_x(field_1_input, "
-            "field_1), testkern_type(field_1), x_innerproduct_x("
-            "field_1_inner_prod, field_1))\n" in gen)
+            "    call invoke(setval_random(field_2), setval_x(field_2_input, "
+            "field_2), testkern_type(rscalar_1, field_2), x_innerproduct_x("
+            "field_2_inner_prod, field_2))\n" in gen)
     # Compute and store the sum of all inner products.
-    assert ("    inner1 = inner1 + field_1_inner_prod\n"
-            "    field_1_inner_prod = 0.0_r_def\n" in gen)
+    assert ("    inner1 = 0.0_r_def\n"
+            "    inner1 = inner1 + rscalar_1 * rscalar_1\n"
+            "    inner1 = inner1 + field_2_inner_prod\n"
+            "    field_2_inner_prod = 0.0_r_def\n" in gen)
     # Run the adjoint of the kernel and compute the inner products of its
     # outputs with the inputs to the TL kernel.
-    assert ("call invoke(adj_testkern_type(field_1), "
-            "x_innerproduct_y(field_1_inner_prod, field_1, field_1_input))"
+    assert ("call invoke(adj_testkern_type(rscalar_1, field_2), "
+            "x_innerproduct_y(field_2_inner_prod, field_2, field_2_input))"
             in gen)
+    assert ("    inner2 = 0.0_r_def\n"
+            "    inner2 = inner2 + rscalar_1 * rscalar_1_input\n"
+            "    inner2 = inner2 + field_2_inner_prod\n" in gen)

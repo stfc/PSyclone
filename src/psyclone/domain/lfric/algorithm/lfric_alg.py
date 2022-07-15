@@ -44,6 +44,7 @@ from psyclone.domain.lfric.algorithm.psyir import (
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
                                   Container)
@@ -117,12 +118,7 @@ class LFRicAlg:
             datatype=DeferredType(),
             interface=ImportInterface(kernel_mod))
 
-        ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                          name=kernel_name)
-        # Construct a DynKern using the metadata. This is used when
-        # constructing the kernel argument list.
-        kern = DynKern()
-        kern.load_meta(ktype)
+        kern = self._create_kernel(parse_tree, kernel_name)
 
         # Declare and initialise the data structures required by the kernel
         # arguments. Appropriate symbols are added to the symbol table
@@ -375,6 +371,23 @@ class LFRicAlg:
         else:
             raise NotImplementedError(f"Initialisation for quadrature of type "
                                       f"'{shape}' is not yet implemented.")
+
+    @staticmethod
+    def _create_kernel(parse_tree, kernel_name):
+        '''
+        '''
+        try:
+            ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
+                                                              name=kernel_name)
+        except ParseError as err:
+            raise ValueError(
+                f"Failed to parse kernel metadata in supplied "
+                f"code: '{parse_tree}'. Is it a valid LFRic kernel?") from err
+        # Construct a DynKern using the metadata. This is used when
+        # constructing the kernel argument list.
+        kern = DynKern()
+        kern.load_meta(ktype)
+        return kern
 
     def construct_kernel_args(self, prog, kern):
         '''

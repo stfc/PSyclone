@@ -74,8 +74,9 @@ class KernCallInvokeArgList(ArgOrdering):
     @property
     def fields(self):
         '''
-        :returns: the field (and field-vector) arguments to the kernel.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :returns: the field (and field-vector) arguments plus their \
+                  corresponding function spaces.
+        :rtype: List[Tuple(:py:class:`psyclone.psyir.symbols.DataSymbol`, str)]
         '''
         return self._fields
 

@@ -40,10 +40,7 @@ from psyclone.domain.lfric import psyir
 from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
-from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import KernelTypeFactory
-from psyclone.parse.utils import ParseError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison)
 from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
@@ -103,6 +100,42 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                 prog.addchild(Assignment.create(Reference(sum_sym), add_op))
 
 
+def _init_fields_random(fields, input_symbols):
+    # We use the setval_random builtin to initialise all fields.
+    # Create symbols for the various Builtins that we will use.
+    # TODO #1645 these symbols are not added to the SymbolTable because they
+    # only exist as part of the DSL.
+    setval_x = DataTypeSymbol("setval_x", DeferredType())
+    setval_rand = DataTypeSymbol("setval_random", DeferredType())
+    kernel_list = []
+    for sym, space in fields:
+        input_sym = input_symbols[sym.name]
+        if isinstance(sym.datatype, DataTypeSymbol):
+            kernel_list.append(LFRicBuiltinFunctor.create(setval_rand,
+                                                          [Reference(sym)]))
+            kernel_list.append(LFRicBuiltinFunctor.create(
+                setval_x, [Reference(input_sym), Reference(sym)]))
+        elif isinstance(sym.datatype, ArrayType):
+            for dim in range(int(sym.datatype.shape[0].lower.value),
+                             int(sym.datatype.shape[0].upper.value)+1):
+                lit = Literal(str(dim), INTEGER_TYPE)
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(setval_rand,
+                                               [ArrayReference.create(sym,
+                                                                      [lit])]))
+                kernel_list.append(
+                    LFRicBuiltinFunctor.create(
+                        setval_x, [ArrayReference.create(input_sym,
+                                                         [lit.copy()]),
+                                   ArrayReference.create(sym, [lit.copy()])]))
+        else:
+            raise InternalError(
+                f"Expected a field symbol to either be of ArrayType or have "
+                f"a type specified by a DataTypeSymbol but found "
+                f"{sym.datatype} for field '{sym.name}'")
+    return kernel_list
+
+
 def generate_lfric_adjoint_test(tl_source):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
@@ -154,19 +187,9 @@ def generate_lfric_adjoint_test(tl_source):
                                    datatype=DeferredType(),
                                    interface=ImportInterface(adj_mod))
 
-    # Construct a DynKern using the metadata. This is used when constructing
+    # Construct a DynKern using the metadata and then use it to construct
     # the kernel argument list.
-    try:
-        ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                          name=kernel_name)
-    except ParseError as err:
-        raise ValueError(
-            f"Failed to parse kernel metadata in supplied tangent-linear "
-            f"code: '{tl_source}'. Is it a valid LFRic kernel?") from err
-
-    kern = DynKern()
-    kern.load_meta(ktype)
-
+    kern = lfalg._create_kernel(parse_tree, kernel_name)
     kern_args = lfalg.construct_kernel_args(routine, kern)
 
     # Create symbols that will store copies of the inputs to the TL kernel.
@@ -178,11 +201,13 @@ def generate_lfric_adjoint_test(tl_source):
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
 
+    # Initialise all input field objects.
+    for sym, space in kern_args.fields:
+        lfalg.initialise_field(routine, input_symbols[sym.name], space)
+
     # Create symbols for the various Builtins that we will use.
-    # TODO these symbols are not added to the SymbolTable because they only
-    # exist as part of the DSL.
-    setval_x = DataTypeSymbol("setval_x", DeferredType())
-    setval_rand = DataTypeSymbol("setval_random", DeferredType())
+    # TODO #1645 these symbols are not added to the SymbolTable because they
+    # only exist as part of the DSL.
     x_innerprod_x = DataTypeSymbol("x_innerproduct_x", DeferredType())
     x_innerprod_y = DataTypeSymbol("x_innerproduct_y", DeferredType())
 
@@ -196,35 +221,7 @@ def generate_lfric_adjoint_test(tl_source):
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(sym)))
 
-    # We use the setval_random builtin to initialise all fields.
-    kernel_list = []
-    for sym, space in kern_args.fields:
-        input_sym = input_symbols[sym.name]
-        if isinstance(sym.datatype, DataTypeSymbol):
-            lfalg.initialise_field(routine, input_sym, space)
-            kernel_list.append(LFRicBuiltinFunctor.create(setval_rand,
-                                                          [Reference(sym)]))
-            kernel_list.append(LFRicBuiltinFunctor.create(
-                setval_x, [Reference(input_sym), Reference(sym)]))
-        elif isinstance(sym.datatype, ArrayType):
-            lfalg.initialise_field(routine, input_sym, space)
-            for dim in range(int(sym.datatype.shape[0].lower.value),
-                             int(sym.datatype.shape[0].upper.value)+1):
-                lit = Literal(str(dim), INTEGER_TYPE)
-                kernel_list.append(
-                    LFRicBuiltinFunctor.create(setval_rand,
-                                               [ArrayReference.create(sym,
-                                                                      [lit])]))
-                kernel_list.append(
-                    LFRicBuiltinFunctor.create(
-                        setval_x, [ArrayReference.create(input_sym,
-                                                         [lit.copy()]),
-                                   ArrayReference.create(sym, [lit.copy()])]))
-        else:
-            raise InternalError(
-                f"Expected a field symbol to either be of ArrayType or have "
-                f"a type specified by a DataTypeSymbol but found "
-                f"{sym.datatype} for field '{sym.name}'")
+    kernel_list = _init_fields_random(kern_args.fields, input_symbols)
 
     # Initialise all operator arguments.
     if kern_args.operators:
