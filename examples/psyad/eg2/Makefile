@@ -62,8 +62,10 @@ ADJ_KERNEL_TYPE = $(subst tl_,adj_,${TL_KERNEL_TYPE})
 
 transform: psy.f90
 
+# Process the generated test-harness algorithm with PSyclone.
+# Note that we could add NaN checking at this point.
 psy.f90 alg.f90: main_alg.x90 ${ADJ_KERNEL_F90_FILE}
-	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 -s ./test_nan_transform.py main_alg.x90
+	${PSYCLONE} -api dynamo0.3 -nodm -opsy psy.f90 -oalg alg.f90 main_alg.x90
 
 # Create the adjoint kernel and the corresponding test
 # harness in separate files. Note, one of the variables provided in the
@@ -84,32 +86,10 @@ ${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
 -e 's/module procedure ${TL_PROC_NAME}.*\w/&_adj/' \
 -e 's/public :: ${TL_PROC_NAME}$$/public :: ${ADJ_PROC_NAME}/' $< > $@
 
-compile: ${ADJ_KERNEL_F90_FILE} alg.f90 psy.f90 ${LFRIC_LIB} test_harness.exe
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
-
-# The nan-test library
-$(NAN_TEST_DIR)/$(LIB_NAME):
-	@echo "Making LFRic nan-test wrapper library"
-	@echo "=========================================="
-	$(MAKE) -C $(NAN_TEST_DIR) F90=$(F90)
-	@echo "Finished making LFRic nan-test wrapper library"
-	@echo "==================================================="
-	@echo
-
-test_harness.exe: $(subst .F90,.o,${TL_KERNEL_FILE}) $(subst .f90,.o,${ADJ_KERNEL_F90_FILE}) psy.o alg.o $(NAN_TEST_DIR)/$(LIB_NAME) ${LFRIC_LIB}
-	$(F90) $(F90FLAGS) -o test_harness.exe $^
-
-psy.o: ${LFRIC_LIB} $(NAN_TEST_DIR)/$(LIB_NAME)
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+compile:
+	@echo No compilation supported: the generated Algorithm must be called from within an LFRic mini-app.
 
 run: compile
-	./test_harness.exe
 
 allclean: clean
 	${MAKE} -C ${LFRIC_DIR} allclean
