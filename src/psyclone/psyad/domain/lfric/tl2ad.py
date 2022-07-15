@@ -39,9 +39,7 @@ from fparser import api as fpapi
 from psyclone.domain.lfric import psyir
 from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor, LFRicKernelFunctor)
-from psyclone.domain.lfric.algorithm.alg_gen import (
-    _create_alg_mod, construct_kernel_args,
-    initialise_field, initialise_operator)
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import KernelTypeFactory
@@ -121,7 +119,8 @@ def generate_lfric_adjoint_test(tl_source):
                         or does not contain a module.
 
     '''
-    container = _create_alg_mod("adjoint_test")
+    lfalg = LFRicAlg()
+    container = lfalg._create_alg_mod("adjoint_test")
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
@@ -168,7 +167,7 @@ def generate_lfric_adjoint_test(tl_source):
     kern = DynKern()
     kern.load_meta(ktype)
 
-    kern_args = construct_kernel_args(routine, kern)
+    kern_args = lfalg.construct_kernel_args(routine, kern)
 
     # Create symbols that will store copies of the inputs to the TL kernel.
     input_symbols = {}
@@ -202,13 +201,13 @@ def generate_lfric_adjoint_test(tl_source):
     for sym, space in kern_args.fields:
         input_sym = input_symbols[sym.name]
         if isinstance(sym.datatype, DataTypeSymbol):
-            initialise_field(routine, input_sym, space)
+            lfalg.initialise_field(routine, input_sym, space)
             kernel_list.append(LFRicBuiltinFunctor.create(setval_rand,
                                                           [Reference(sym)]))
             kernel_list.append(LFRicBuiltinFunctor.create(
                 setval_x, [Reference(input_sym), Reference(sym)]))
         elif isinstance(sym.datatype, ArrayType):
-            initialise_field(routine, input_sym, space)
+            lfalg.initialise_field(routine, input_sym, space)
             for dim in range(int(sym.datatype.shape[0].lower.value),
                              int(sym.datatype.shape[0].upper.value)+1):
                 lit = Literal(str(dim), INTEGER_TYPE)
@@ -232,15 +231,6 @@ def generate_lfric_adjoint_test(tl_source):
         raise NotImplementedError(
             f"Kernel {kernel_name} has one or more operator arguments. Test "
             f"harness creation for such a kernel is not yet supported.")
-    #for sym, to_space, from_space in kern_args.operators:
-    #    input_sym = input_symbols[sym.name]
-    #    # Initialise the operator that will keep a copy of the input values.
-    #    initialise_operator(routine, input_sym, to_space, from_space)
-    #    # TODO change these two to use user-supplied kernels.
-    #    kernel_list.append(LFRicBuiltinFunctor.create(setop_rand,
-    #                                                  [Reference(sym)]))
-    #    kernel_list.append(LFRicBuiltinFunctor.create(
-    #        setop_x, [Reference(input_sym), Reference(sym)]))
 
     # Finally, add the kernel itself to the list for the invoke().
     arg_nodes = []

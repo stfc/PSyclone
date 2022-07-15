@@ -541,24 +541,24 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
     harness = fortran_writer(test_psyir)
     assert ("  real, dimension(npts) :: field\n"
             "  real, dimension(npts) :: field_input" in harness)
-    assert ("  CALL random_number(field)\n"
+    assert ("  call random_number(field)\n"
             "  field_input = field\n"
-            "  ! Call the tangent-linear kernel\n"
+            "  ! call the tangent-linear kernel\n"
             "  call kern(field, npts)\n"
-            "  ! Compute the inner product of the results of the tangent-"
+            "  ! compute the inner product of the results of the tangent-"
             "linear kernel\n"
             "  inner1 = 0.0\n"
-            "  inner1 = inner1 + DOT_PRODUCT(field, field)\n"
-            "  ! Call the adjoint of the kernel\n"
+            "  inner1 = inner1 + dot_product(field, field)\n"
+            "  ! call the adjoint of the kernel\n"
             "  call adj_kern(field, npts)\n"
-            "  ! Compute inner product of results of adjoint kernel with "
+            "  ! compute inner product of results of adjoint kernel with "
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
-            "  inner2 = inner2 + DOT_PRODUCT(field, field_input)\n"
-            "  ! Test the inner-product values for equality, allowing for "
+            "  inner2 = inner2 + dot_product(field, field_input)\n"
+            "  ! test the inner-product values for equality, allowing for "
             "the precision of the active variables\n"
-            "  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))\n"
-            in harness)
+            "  machinetol = spacing(max(abs(inner1), abs(inner2)))\n"
+            in harness.lower())
     # Ideally we would test that the generated harness code compiles
     # but, since it depends on the TL and adjoint kernels, we can't
     # currently do that (see #284).

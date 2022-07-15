@@ -75,7 +75,7 @@ class KernCallInvokeArgList(ArgOrdering):
     def fields(self):
         '''
         :returns: the field (and field-vector) arguments to the kernel.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return self._fields
 
@@ -83,7 +83,7 @@ class KernCallInvokeArgList(ArgOrdering):
     def scalars(self):
         '''
         :returns: the scalar arguments to the kernel.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return self._scalars
 
@@ -92,14 +92,16 @@ class KernCallInvokeArgList(ArgOrdering):
         '''
         :returns: the symbols representing the quadrature objects required by \
                   the kernel along with the shape of each.
-        :rtype: list of (:py:class:`psyclone.psyir.symbols.DataSymbol`, str)
+        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`, str]]
         '''
         return self._qr_objects
 
     @property
     def operators(self):
         '''
-        TODO
+        :returns: the symbols representing the operators required by the \
+                  kernel.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return self._operators
 
