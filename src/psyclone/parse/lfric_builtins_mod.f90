@@ -1111,8 +1111,8 @@ contains
   subroutine inc_X_powint_n_code()
   end subroutine inc_X_powint_n_code
 
-  ! Setting real field elements to a real scalar
-  ! or other real field's values
+  ! Setting real field elements to real values (from a scalar, another
+  ! field or pseudo-random sequence).
   subroutine setval_c_code()
   end subroutine setval_c_code
 

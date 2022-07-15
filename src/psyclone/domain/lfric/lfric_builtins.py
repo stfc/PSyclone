@@ -42,17 +42,17 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
-from __future__ import absolute_import
 import abc
 from psyclone.core.access_type import AccessType
-from psyclone.errors import InternalError
-from psyclone.psyGen import BuiltIn
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
-    BinaryOperation
-from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.f2pygen import AssignGen, PSyIRGen, CallGen
+from psyclone.errors import InternalError
+from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import BuiltIn
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
+                                  StructureReference)
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
+                                    RoutineSymbol)
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -108,7 +108,7 @@ class LFRicBuiltInCallFactory(object):
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
-        :raises InternalError: if the built-in does not iterate over dofs.
+        :raises InternalError: if the built-in does not iterate over DoFs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
@@ -130,7 +130,7 @@ class LFRicBuiltInCallFactory(object):
             loop_type = "dof"
         else:
             raise InternalError(
-                f"An LFRic built-in must iterate over dofs but kernel "
+                f"An LFRic built-in must iterate over DoFs but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
         dofloop = DynLoop(parent=parent, loop_type=loop_type)
@@ -1511,17 +1511,26 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
     def __str__(self):
         return "Built-in: Fill a real-valued field with pseudo-random numbers"
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        setval_random Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        Lowers this LFRic built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by a Call node.
 
         '''
-        field_name = self.array_ref(self._arguments.args[0].proxy_name)
-        parent.add(CallGen(parent, name="random_number", args=[field_name]))
+        # Get indexed refs for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      call random_number(proxy0%data(df))
+
+        # TODO #1366 - currently we have to create a Symbol for the intrinsic
+        # but *not* add it to the symbol table (since there's no import for
+        # it). This can be removed once we have proper support for intrinsics
+        # that are not operators.
+        routine = RoutineSymbol("random_number")
+        call = Call.create(routine, arg_refs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(call)
 
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
