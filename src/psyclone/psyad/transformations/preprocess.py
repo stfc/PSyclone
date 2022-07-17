@@ -145,7 +145,7 @@ def associativity(assignment, active_variable_names):
                     oper.replace_with(binary_op.detach())
                     break
 
-                elif oper.operator in [
+                if oper.operator in [
                         BinaryOperation.Operator.MUL,
                         BinaryOperation.Operator.DIV] and \
                         node_is_passive(
