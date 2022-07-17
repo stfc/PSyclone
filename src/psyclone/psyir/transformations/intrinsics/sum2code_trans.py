@@ -43,7 +43,8 @@ than the intrinsic.
 from psyclone.psyir.nodes import (
     UnaryOperation, BinaryOperation, NaryOperation, Assignment, Reference,
     Literal, Loop, ArrayReference, IfBlock)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, ScalarType, ArrayType
+from psyclone.psyir.symbols import (
+    DataSymbol, REAL_TYPE, INTEGER_TYPE, ScalarType, ArrayType)
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import (
     Operator2CodeTrans)
 
@@ -117,6 +118,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
         # Determine the literal value of the dimension argument
         dimension_literal = None
         if not dimension_ref:
+            # there is no dimension argument
             pass
         elif isinstance(dimension_ref, Literal):
             dimension_literal = dimension_ref
@@ -126,15 +128,37 @@ class Sum2CodeTrans(Operator2CodeTrans):
         else:
             raise Exception("Can't find the literal value of the dimension argument.")
 
-        # Determine the dimension of the array
+        # Determine the dimension and extent of the array
         ndims = None
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
                 raise Exception("Expected an array")
             ndims = len(array_ref.symbol.shape)
+
+            loop_bounds = []
+            for idx, shape in enumerate(array_ref.symbol.shape):
+                if shape in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
+                    # runtime extent using LBOUND and UBOUND required
+                    lbound = BinaryOperation.create(
+                        BinaryOperation.Operator.LBOUND,
+                        Reference(array_ref.symbol),
+                        Literal(str(idx+1), INTEGER_TYPE))
+                    ubound = BinaryOperation.create(
+                        BinaryOperation.Operator.UBOUND,
+                        Reference(array_ref.symbol),
+                        Literal(str(idx+1), INTEGER_TYPE))
+                    loop_bounds.append((lbound, ubound))
+                elif isinstance(shape, ArrayType.ArrayBounds):
+                    # array extent is defined in the array declaration
+                    loop_bounds.append(shape)
+                else:
+                    raise Exception("ERROR")
         else:
             # This is an array reference
             ndims = len(array_ref.children)
+            for shape in array_ref.children:
+                print(type(shape))
+                exit(1)
 
         # Determine the datatype of the array's values and create a
         # scalar of that type
@@ -142,16 +166,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
         array_precision =  array_ref.symbol.datatype.precision
         scalar_type = ScalarType(array_intrinsic, array_precision)
 
-        # Try to determine the bounds of the array dimensions
-
-        # sum each dimension into lhs scalar with optional mask.
-        # zero scalar sum (real or integer)
-        # Create loop for each dimension as a nest
-        # if mask, add condition
-        # if dimension:
-        #   a(i) += b(i,j)
-        # else
-        #   a += b(i,j)
+        # TODO Try to determine the bounds of the array dimensions
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -163,6 +178,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
             # We are reducing from one array to another
             shape = [Literal("1", INTEGER_TYPE) for dim in range(ndims-1)]
             datatype = ArrayType(scalar_type, shape)
+
         # Create temporary sum variable (sum_var)
         symbol_sum_var = symbol_table.new_symbol(
             "sum_var", symbol_type=DataSymbol, datatype=datatype)
@@ -172,8 +188,13 @@ class Sum2CodeTrans(Operator2CodeTrans):
 
         # sum_var=0.0 or 0
         lhs = Reference(symbol_sum_var)
-        # TODO "0" if integer
-        rhs = Literal("0.0", scalar_type)
+        if scalar_type.intrinsic == scalar_type.Intrinsic.REAL:
+            rhs = Literal("0.0", scalar_type)
+        elif scalar_type.intrinsic == scalar_type.Intrinsic.INTEGER:
+            rhs = Literal("0", scalar_type)
+        else:
+            raise Exception("Only real and integer types supported")
+
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
@@ -203,10 +224,13 @@ class Sum2CodeTrans(Operator2CodeTrans):
                                      rhs_child2)
         statement = Assignment.create(lhs, rhs)
         if mask_ref:
+            # A mask argument has been provided
             statement = IfBlock.create(mask_ref.detach(), [statement])
+
         array_indices = []
         for idx in range(ndims):
-            statement = Loop.create(loop_iterators[idx], Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE), [statement])
+            statement = Loop.create(loop_iterators[idx], loop_bounds[idx][0], loop_bounds[idx][1], Literal("1", INTEGER_TYPE), [statement])
             array_indices.append(Reference(loop_iterators[idx]))
+
         assignment.parent.children.insert(assignment.position, statement)
         rhs_child2.replace_with(ArrayReference.create(rhs_child2.symbol, array_indices))
