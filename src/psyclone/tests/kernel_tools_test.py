@@ -36,12 +36,13 @@
 
 ''' Tests for the psyclone-kern driver. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone import gen_kernel_stub, kernel_tools
 from psyclone.domain.lfric import algorithm
+from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
 from psyclone.version import __VERSION__
 
 
@@ -152,18 +153,31 @@ def test_invalid_gen_arg(capsys, monkeypatch):
 
 @pytest.mark.parametrize("limit", [True, False])
 @pytest.mark.parametrize("mode", ["alg", "stub"])
-def test_run_line_length(monkeypatch, capsys, limit, mode):
+def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
     ''' Check that line-length limiting is applied to generated algorithm
     and kernel-stub code when requested. '''
 
-    def long_gen(kernel_filename, api=None):
+    def long_psyir_gen(_1, _2, _3):
+        ''' Function that returns PSyIR containing a line longer
+        than 132 chars. '''
+        routine = Routine.create("my_sub", SymbolTable(), [])
+        routine.symbol_table.new_symbol("long_str", symbol_type=DataSymbol,
+                                        datatype=CHARACTER_TYPE)
+        stmt = fortran_reader.psyir_from_statement(f"long_str = '{140*' '}'",
+                                                   routine.symbol_table)
+        routine.addchild(stmt)
+        container = Container.create("my_mod", SymbolTable(), [routine])
+        return container
+
+    def long_gen(_1, api=None):
         ''' generate() function that returns a string longer than
         132 chars. '''
         # pylint: disable=unused-argument
         return f"long_str = '{140*' '}'"
 
-    # Monkeypatch both the algorithm and stub 'generate' functions.
-    monkeypatch.setattr(algorithm.alg_gen, "generate", long_gen)
+    # Monkeypatch both the algorithm and stub creation functions.
+    monkeypatch.setattr(algorithm.lfric_alg.LFRicAlg,
+                        "create_from_kernel", long_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", long_gen)
     args = ["-gen", mode, str("/does_not_exist")]
     if limit:
@@ -172,23 +186,38 @@ def test_run_line_length(monkeypatch, capsys, limit, mode):
     out, _ = capsys.readouterr()
     if limit:
         assert "long_str = '" in out
-        assert "   &\n&                     '" in out
+        assert "   &\n& " in out
     else:
         assert f"long_str = '{140*' '}'" in out
 
 
 @pytest.mark.parametrize("mode", ["alg", "stub"])
-def test_file_output(monkeypatch, mode, tmpdir):
+def test_file_output(fortran_reader, monkeypatch, mode, tmpdir):
     ''' Check that the output of the generate() function is written to file
     if requested. We test for both the kernel-stub & algorithm generation. '''
 
-    def fake_gen(kernel_filename, api=None):
+    def fake_psyir_gen(_1, _2, _3):
+        '''Returns PSyIR for a module containing a particular string for
+        testing purposes.'''
+        return fortran_reader.psyir_from_source(
+            '''
+ module my_mod
+ contains
+  subroutine my_sub
+    integer :: the_answer
+    the_answer = 42
+  end subroutine
+ end module
+''')
+
+    def fake_gen(_1, api=None):
         ''' generate() function that simply returns a string. '''
         # pylint: disable=unused-argument
         return "the_answer = 42"
 
-    # Monkeypatch both the algorithm and stub 'generate' functions.
-    monkeypatch.setattr(algorithm.alg_gen, "generate", fake_gen)
+    # Monkeypatch both the algorithm and stub creation functions.
+    monkeypatch.setattr(algorithm.lfric_alg.LFRicAlg, "create_from_kernel",
+                        fake_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
     tmpdir.chdir()
     kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
