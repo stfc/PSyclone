@@ -68,7 +68,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
         calls = []
         table = call.scope.symbol_table
 
-        functor_kern = LFRicBuiltinFunctorFactory()
+        factory = LFRicBuiltinFunctorFactory()
 
         for idx, call_arg in enumerate(call.children):
 
@@ -78,9 +78,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
                 try:
-                    calls.append(
-                        functor_kern.get_builtin_class(call_arg.name).create(
-                            table, args))
+                    calls.append(factory.create(call_arg.name, table, args))
                 except KeyError:
                     # No match for a builtin so create a user-defined kernel.
                     self._specialise_symbol(call_arg.symbol)
@@ -94,9 +92,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                                                              fp2_node)
                     name = fp2_node.children[0].string
                     try:
-                        calls.append(
-                            functor_kern.get_builtin_class(name).create(
-                                table, args))
+                        calls.append(factory.create(name, table, args))
                     except KeyError:
                         # No match for a builtin so create a user-defined
                         # kernel.

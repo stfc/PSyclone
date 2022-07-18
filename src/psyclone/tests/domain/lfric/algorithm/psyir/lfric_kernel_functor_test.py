@@ -34,11 +34,8 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
-'''Module containing tests for the LFRicAlgorithmInvokeCall,
-LFRicBuiltinFunctor and LFRicKernelFunctor LFRic
-algorithm-layer-specific nodes. The tests include translation of PSyIR
-to LFRic Algorithm PSyIR and from LFRic Algorithm PSyIR to processed
-PSyIR.
+'''Module containing tests for the LFRicBuiltinFunctor and LFRicKernelFunctor
+ LFRic algorithm-layer-specific nodes.
 
 '''
 import pytest
@@ -47,107 +44,10 @@ from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor,
     LFRicBuiltinFunctor, LFRicBuiltinFunctorFactory)
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
-from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (RoutineSymbol, DataTypeSymbol,
                                     StructureType, REAL_TYPE)
-
-
-def create_alg_psyir(code):
-    '''Utility to create an LFRic Algorithm PSyIR tree from Fortran
-    code.
-
-    :param str code: Fortran algorithm code encoded as a string.
-
-    :returns: LFRic Algorithm PSyIR tree representing the Fortran \
-        code.
-    :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    fortran_reader = FortranReader()
-    psyir = fortran_reader.psyir_from_source(code)
-    alg_trans = LFRicAlgTrans()
-    alg_trans.apply(psyir)
-
-    return psyir
-
-
-def test_lfricalgorithminvokecall():
-    '''Check that an instance of LFRicAlgorithmInvokeCall can be
-    created.
-
-    '''
-    routine = RoutineSymbol("hello")
-    index = 2
-    call = LFRicAlgorithmInvokeCall(routine, index)
-    assert call.routine is routine
-    assert call._index == index
-    assert call._children_valid_format == "[LFRicFunctor]*"
-    assert call._text_name == "LFRicAlgorithmInvokeCall"
-
-
-def test_validate_child():
-    '''Check that the _validate_child method behaves as expected.'''
-
-    lfric_kernel_functor = LFRicKernelFunctor(
-        DataTypeSymbol("dummy1", REAL_TYPE))
-    lfric_builtin_functor = LFRicBuiltinFunctor(
-        DataTypeSymbol("dummy2", REAL_TYPE))
-    assert LFRicAlgorithmInvokeCall._validate_child(0, lfric_kernel_functor)
-    assert LFRicAlgorithmInvokeCall._validate_child(1, lfric_builtin_functor)
-    assert not LFRicAlgorithmInvokeCall._validate_child(0, "Invalid")
-
-
-class DummySubClass(LFRicAlgorithmInvokeCall):
-    '''A dummy subclass of LFRicAlgorithmInvokeCall used for testing the
-    behaviour of the create method in LFRicAlgorithmInvokeCall.
-
-    '''
-
-
-@pytest.mark.parametrize("cls", [LFRicAlgorithmInvokeCall, DummySubClass])
-def test_lfricalgorithminvokecall_create(cls):
-    '''Check that the LFRicAlgorithmInvokeCall create method creates the
-    expected object.
-
-    '''
-    routine = RoutineSymbol("hello")
-    klc = LFRicKernelFunctor.create(DataTypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], 0, name="describing an invoke")
-    assert call._name == "describing an invoke"
-    assert call.routine is routine
-    # pylint: disable=unidiomatic-typecheck
-    assert type(call) is cls
-    assert len(call.children) == 1
-    assert call.children[0] == klc
-
-
-def test_lfricalgorithminvokecall_create_noname():
-    '''Check that the LFRicAlgorithmInvokeCall create method sets
-    name to None if it is not provided.
-
-    '''
-    routine = RoutineSymbol("hello")
-    call = LFRicAlgorithmInvokeCall.create(routine, [], 0)
-    assert call._name is None
-
-
-def test_aic_defcontainerrootname():
-    '''Check that _def_container_root_name returns the expected value'''
-    code = (
-        "subroutine alg1()\n"
-        "  use kern_mod, only : kern\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field1\n"
-        "  call invoke(kern(field1))\n"
-        "end subroutine alg1\n")
-    psyir = create_alg_psyir(code)
-    invoke = psyir.children[0][0]
-    assert isinstance(invoke, LFRicAlgorithmInvokeCall)
-    routine_node = psyir.children[0]
-    name = invoke._def_container_root_name(routine_node)
-    assert name == "alg1_psy"
 
 
 def test_lfricbuiltinfunctor():
@@ -178,9 +78,8 @@ def test_lfric_auto_gen_builtin_functor(name):
     lfric_functor = LFRicBuiltinFunctorFactory()
     sched = Routine("my_prog", is_program=True)
     table = sched.symbol_table
-    lbc = lfric_functor.get_builtin_class(name)
-    funky = lbc.create(table, [])
-    funky2 = lbc.create(table, [])
+    funky = lfric_functor.create(name, table, [])
+    funky2 = lfric_functor.create(name, table, [])
     assert isinstance(funky, LFRicBuiltinFunctor)
     sym = table.lookup(name)
     assert isinstance(sym, DataTypeSymbol)

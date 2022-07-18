@@ -150,9 +150,10 @@ class LFRicAlg:
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
-                factory.get_builtin_class("setval_c").create(
-                    table, [Reference(sym),
-                            Literal("1.0", psyir.LfricRealScalarDataType())]))
+                factory.create(
+                    "setval_c", table,
+                    [Reference(sym),
+                     Literal("1.0", psyir.LfricRealScalarDataType())]))
 
         # Finally, add the kernel itself to the list for the invoke().
         arg_nodes = []

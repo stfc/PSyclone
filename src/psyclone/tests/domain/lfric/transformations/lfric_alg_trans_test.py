@@ -88,5 +88,5 @@ def test_apply(fortran_reader):
 
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 3
-    assert len(psyir.walk(LFRicKernelFunctor)) == 3
+    assert len(psyir.walk(LFRicKernelFunctor)) == 2
     assert len(psyir.walk(LFRicBuiltinFunctor)) == 1
