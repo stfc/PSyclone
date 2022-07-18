@@ -31,8 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module to capture LFRic-specific classes for the Algorithm layer.
 
 '''
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
+
+
+# For AutoAPI documentation generation.
+__all__ = [
+    'LFRicAlg',
+    'LFRicAlgorithmInvokeCall',
+    'LFRicKernelFunctor',
+    'LFRicBuiltinFunctor']

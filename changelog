@@ -24,7 +24,23 @@
 	9) PR #1763 for #1717. Fixes invalid adjoint names for subroutine
 	and module.
 
-release 2.3.1 17th of June 2022	
+	10) PR #1776 for #1775. Fixes post_region_code_gen and improves
+	test fixtures.
+
+	11) PR #1784 towards #1779. Removes the use of config-provided bounds
+	from the NemoRange2Loop Transformation.
+
+	12) PR #1765 for #1724. Remove kernel use statements from
+	processed algorithm layer code.
+
+	13) PR #1785 for #1771. Refactor algorithm-creation functionality.
+
+	14) PR #1769 for #1721. Fixes bugs in use of sympy simplify() and
+	expand().
+
+	15) PR #1791 for #1780. Add setval_random built-in in LFRic API.
+
+release 2.3.1 17th of June 2022
 
         1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
 
