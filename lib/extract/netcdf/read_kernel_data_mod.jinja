@@ -28,6 +28,7 @@
 {% if ALL_TYPES is not defined -%}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
                         ("Real",   "real(kind=real32)",   32),
+                        ("Logical","integer(kind=real32)",32),
                         ("Int",    "integer(kind=int32)", 32) ] %}
 {% endif -%}
 
@@ -174,6 +175,7 @@ contains
 {# This defines a mapping of the 'userfriendly' names to the NetCDF data types. #}
 {% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
                              "Real":   "NF90_REAL",
+                             "Logical":"NF90_INT",
                              "Int":    "NF90_INT"} -%}
 
 {% for name, type, bits in ALL_TYPES %}
@@ -199,9 +201,17 @@ contains
         {{type}}, intent(out)                            :: value
 
         integer                                          :: retval, varid
+        {% if name == "Logical" %}
+        integer                                          :: tmp
+        {% endif %}
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        {% if name == "Logical" %}
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        value = tmp .eq. 1
+        {% else %}
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        {% endif %}
 
     end subroutine ReadScalar{{name}}
 
@@ -214,6 +224,10 @@ contains
 
     {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
     {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
+    {# Create a string "size(value,1), size(value,2)...", which  #}
+    {# will be used to declare a temporary array when converting #}
+    {# logical to integer values before writing them out.        #}
+    {% set SIZES = "size(value,"~range(1,dim+1)|join("), size(value,")~")" %}
 
     ! -------------------------------------------------------------------------
     !> This subroutine reads the values of a {{dim}}d-array of {{type}}
@@ -240,6 +254,9 @@ contains
         {% set dim_sizes = "dim_size"~range(1,dim+1)|join(",dim_size") %}
         integer        :: {{dim_sizes}}
         integer        :: ierr
+        {% if name == "Logical" %}
+        integer, dimension({{DIMENSION}}), allocatable :: tmp
+        {% endif %}
 
         ! First query the dimensions of the original array from the
         ! NetCDF file
@@ -259,13 +276,30 @@ contains
             stop
         endif
 
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        {% if name == "Logical" %}
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp({{dim_sizes}}), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", {{dim_sizes}}, &
+                            " in ReadArray{{dim}}d{{name}}."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+        {% else %}
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         ! The compiler will convert the double precision value to the right
         ! type (e.g. int or single precision).
         value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        {% endif %}
 
     end subroutine ReadArray{{dim}}d{{name}}
 
