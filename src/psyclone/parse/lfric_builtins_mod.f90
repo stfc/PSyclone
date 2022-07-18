@@ -539,6 +539,17 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: setval_X_code
   end type setval_X
 
+  !> field = random()
+  type, public, extends(kernel_type) :: setval_random
+     private
+     type(arg_type) :: meta_args(1) = (/                              &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1)          &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: setval_random_code
+  end type setval_random
+
 ! ------------------------------------------------------------------- !
 ! ============== Inner product of real fields ======================= !
 ! ------------------------------------------------------------------- !
@@ -1100,13 +1111,16 @@ contains
   subroutine inc_X_powint_n_code()
   end subroutine inc_X_powint_n_code
 
-  ! Setting real field elements to a real scalar
-  ! or other real field's values
+  ! Setting real field elements to real values (from a scalar, another
+  ! field or pseudo-random sequence).
   subroutine setval_c_code()
   end subroutine setval_c_code
 
   subroutine setval_X_code()
   end subroutine setval_X_code
+
+  subroutine setval_random_code()
+  end subroutine setval_random_code
 
   ! Inner product of real fields
   subroutine X_innerproduct_Y_code()
