@@ -265,12 +265,20 @@ class ACCUpdateTrans(Transformation):
 
                 update_pos = tentative_update_pos
 
-                # Under routine/if statement, cannot push update directive out.
-                if isinstance(sched, InvokeSchedule) or \
-                   isinstance(sched.parent, IfBlock):
+                # This schedule is the body of a routine and, at least until we
+                # can do interprocedural analysis, this is the end of the road.
+                if isinstance(sched, InvokeSchedule):
+                    break
+                # TODO If within if statement, cannot push update directives
+                # out at the risk of writing outdated data to the device and
+                # reading useless data from the device unless we implement
+                # conditional update directives. But, what if we instead
+                # unconditionally update both the host and the device???
+                elif isinstance(sched.parent, IfBlock):
                     break
                 # TODO If within loop statement, can push update directive out
-                # *if* its body is executed at least once.
+                # *if* its body is executed at least once which are currently
+                # not checking.
                 elif isinstance(sched.parent, Loop) and loop_sync:
                     break
 

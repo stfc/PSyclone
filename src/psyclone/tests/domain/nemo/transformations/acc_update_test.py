@@ -260,12 +260,11 @@ end SUBROUTINE tra_ldf_iso
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     # Loop variable should not be copied to device
     assert "device(ji)" not in gen_code
-    # Currently jpi is copied to and from. We need a list of variables that
-    # are written just once and are read-only thereafter. Such variables will
-    # be written on the CPU (e.g. after reading from namelist).
+    # TODO Currently jpi is copied to and from. We need a list of variables
+    # that are written just once and are read-only thereafter. Such variables
+    # will be written on the CPU (e.g. after reading from namelist).
     assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
@@ -333,3 +332,80 @@ end subroutine lbc_update
     assert len(schedule.children) == 1
     assert isinstance(schedule[0], CodeBlock)
     assert isinstance(schedule[0].get_ast_nodes[0], Fortran2003.Open_Stmt)
+
+def test_loop_host_overwriting(parser):
+    ''' Test the application of ACCUpdateTrans to host code containing a
+    loop which contains a kernel such that, until we move variables instead of
+    whole directives, will force an update host directive for zftv to be
+    erroneously placed textually after a host statement modifying zftv, but
+    before the update device directive which would guarantee correctness. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
+  INTEGER :: ji
+  REAL, DIMENSION(jpi,jpj,jpk) :: zftv, zftw
+  zftv(:,:,:) = 0.0d0
+  DO ji = start, jpi, step
+    zftv(ji,:,:) = zftw(ji,:,:)
+    zftw(ji,:,:) = -1.0d0
+  END DO
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_enter = ACCEnterDataTrans()
+    acc_update = ACCUpdateTrans()
+    acc_kernels = ACCKernelsTrans()
+    acc_kernels.apply(schedule[1].loop_body[1])
+    acc_enter.apply(schedule)
+    acc_update.apply(schedule)
+    gen_code = str(psy.gen).lower()
+    # Loop variable should not be copied to device
+    assert "device(ji)" not in gen_code
+    assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
+            "  zftv(:,:,:) = 0.0d0\n"
+            "  do ji = start, jpi, step\n"
+            "    !$acc update if_present host(zftw)\n"
+            "    zftv(ji,:,:) = zftw(ji,:,:)\n"
+            "    !$acc kernels\n"
+            "    zftw(ji,:,:) = -1.0d0\n"
+            "    !$acc end kernels\n"
+            "  end do\n"
+            "  !$acc update if_present device(zftv)\n" in gen_code)
+
+def test_if_host_overwriting(parser):
+    ''' Test the placement of update host directives when an IfBlock contains
+     a host statement writing the same variable as a previous host statement
+     outside the IfBlock with no depedent device kernel in between them. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  LOGICAL :: l_ptr
+  REAL, DIMENSION(jpi,jpj,jpk) :: zftv, zftw
+  zftv(:,:,:) = 0.0d0
+  IF( l_ptr )THEN
+    zftw(:,:,:) = -1.0d0
+    zftv(1,:,:) = 1.0d0
+  END IF
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_update = ACCUpdateTrans()
+    acc_kernels = ACCKernelsTrans()
+    acc_kernels.apply(schedule[1].if_body[0])
+    acc_update.apply(schedule)
+    gen_code = str(psy.gen).lower()
+    assert ("  !$acc update if_present host(l_ptr,zftv)\n"
+            "  zftv(:,:,:) = 0.0d0\n"
+            "  if (l_ptr) then\n"
+            "    !$acc kernels\n"
+            "    zftw(:,:,:) = -1.0d0\n"
+            "    !$acc end kernels\n"
+            "    zftv(1,:,:) = 1.0d0\n"
+            "  end if\n"
+            "  !$acc update if_present device(zftv)") in gen_code
