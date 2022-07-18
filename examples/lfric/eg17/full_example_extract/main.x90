@@ -44,6 +44,7 @@ program main
     use constants_mod,          only: r_def, i_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
 
+
     implicit none
 
     type(global_mesh_base_type), target        :: global_mesh
@@ -59,6 +60,7 @@ program main
     integer(kind=i_def)                        :: lfric_fs = W0   ! W0
     integer(kind=i_def)                        :: element_order = 1
     integer(kind=i_def)                        :: ndata_sz
+    real(kind=r_def)                           :: one
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_base_type()
@@ -88,9 +90,10 @@ program main
     vector_space_ptr => vector_space
     call field1%initialise( vector_space = vector_space_ptr, name="field1" )
     call field2%initialise( vector_space = vector_space_ptr, name="field2" )
+    one = 1.0_r_def
     call invoke( name = 'Initialise fields',        &
                  setval_c( field1,     0.0_r_def ), &
-                 setval_c( field2,     1.0_r_def )  &
+                 setval_c( field2,     one       )  &
                  )
     call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
 
