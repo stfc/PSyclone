@@ -91,7 +91,7 @@ class ReplaceInductionVariables(Transformation):
     * none of variables on the right-hand side can be written in the loop body
       (the loop variable is written in the Loop statement, not in
       the body, so it can be used).
-    * Only intrisic function calls are allowed on the RHS (since they
+    * Only intrinsic function calls are allowed on the RHS (since they
       are known to be elemental)
     * the assigned variable must not be read before the assignment.
     * the assigned variable cannot occur on the right-hand side
@@ -129,9 +129,10 @@ class ReplaceInductionVariables(Transformation):
         replaced. An induction statements requires:
         - None of the variables on the rhs can be written in the loop body
           (the loop variable is written in the Loop statement, not in
-          the body)
-        - the assigned variable cannot be read before the assignment
-        - there must only be one assignment to the variable
+          the body).
+        - No function call or codeblock can occur on the right-hand-side.
+        - The assigned variable cannot be read before the assignment.
+        - There must only be one assignment to the variable in the loop.
 
         :param assignment: the assignment statement to be tested, which \
             must not be an array variable.
