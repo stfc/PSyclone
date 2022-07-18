@@ -43,7 +43,7 @@
     a given built-in call. '''
 
 import abc
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
@@ -165,6 +165,33 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __str__(self):
         ''' Must be overridden by sub class. '''
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node. The assigned-to
+        variable will be set to 'WRITE'.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # Collect all write access in a separate object, so they can be added
+        # after all read access (which must happen before something is written)
+        written = VariablesAccessInfo()
+        for arg in self.args:
+            if arg.form == "variable":
+                if arg.access == AccessType.WRITE:
+                    written.add_access(Signature(arg.declaration_name),
+                                       arg.access, self)
+                else:
+                    var_accesses.add_access(Signature(arg.declaration_name),
+                                            arg.access, self)
+        # Now merge the write access to the end of all other accesses:
+        var_accesses.merge(written)
+        # Forwart location pointer to next index, since this builtin kernel
+        # finishes a statement
+        var_accesses.next_location()
 
     def load(self, call, parent=None):
         '''
