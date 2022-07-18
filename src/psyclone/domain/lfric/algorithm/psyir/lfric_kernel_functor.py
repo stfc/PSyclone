@@ -43,21 +43,26 @@ from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType, Symbol
 
 
-class LFRicKernelFunctor(KernelFunctor):
+class LFRicFunctor(KernelFunctor):
     '''Object containing an LFRic kernel call, a description of its
     required interface and the arguments to be passed to it.
+
+    '''
+    _text_name = "LFRicFunctor"
+
+
+class LFRicKernelFunctor(LFRicFunctor):
+    '''Object containing a call to a user-provided LFRic kernel, a description
+    of its required interface and the arguments to be passed to it.
 
     '''
     _text_name = "LFRicKernelFunctor"
 
 
-class LFRicBuiltinFunctor(LFRicKernelFunctor):
+class LFRicBuiltinFunctor(LFRicFunctor):
     ''' Base class which all LFRic builtins subclass. Contains a builtin call,
     a description of its required interface and the arguments to be passed
     to it.
-
-    This class generates a Functor class for each built-in supported by
-    LFRic. These are accessed using the `get_builtin_class()` method.
 
     '''
     _text_name = "LFRicBuiltinFunctor"
@@ -88,9 +93,14 @@ class LFRicBuiltinFunctor(LFRicKernelFunctor):
             sym = table.lookup(cls._builtin_name)
             # pylint: disable=unidiomatic-typecheck
             if type(sym) is Symbol:
+                import pdb; pdb.set_trace()
                 sym.specialise(DataTypeSymbol)
                 sym.datatype = StructureType()
-            # ARPDBG verify symbol is correct??
+            elif not isinstance(sym, DataTypeSymbol):
+                raise InternalError(
+                    "An entry with the same name as builtin "
+                    "'{cls._builtin_name}' exists but it is a "
+                    "'{type(sym).__name__}' and not a DataTypeSymbol.")
         except KeyError:
             sym = table.new_symbol(cls._builtin_name,
                                    symbol_type=DataTypeSymbol,
@@ -113,18 +123,23 @@ class LFRicBuiltinFunctor(LFRicKernelFunctor):
             pass
 
 
-class LFRicBuiltinFunctors():
+class LFRicBuiltinFunctorFactory():
+    '''
+    This class generates a Functor class for each built-in supported by
+    LFRic. These are accessed using the `get_builtin_class()` method.
 
+    '''
     _builtin_functor_map = {}
 
     @staticmethod
     def _create_classes():
         # Generate classes representing LFRic BuiltIn Functors by using
         # the type() function.
-        LFRicBuiltinFunctors._builtin_functor_map = {}
+        LFRicBuiltinFunctorFactory._builtin_functor_map = {}
 
         for name in BUILTIN_MAP_CAPITALISED:
-            LFRicBuiltinFunctors._builtin_functor_map[name.lower()] = type(
+            lname = name.lower()
+            LFRicBuiltinFunctorFactory._builtin_functor_map[lname] = type(
                 f"LFRic_{name}_Functor",
                 (LFRicBuiltinFunctor,),
                 {"_builtin_name": name.lower()})
@@ -137,11 +152,12 @@ class LFRicBuiltinFunctors():
         :returns: the class representing the functor for the named built-in.
         :rtype: type
         '''
-        if not LFRicBuiltinFunctors._builtin_functor_map:
-            LFRicBuiltinFunctors._create_classes()
-        return LFRicBuiltinFunctors._builtin_functor_map[name]
+        if not LFRicBuiltinFunctorFactory._builtin_functor_map:
+            LFRicBuiltinFunctorFactory._create_classes()
+        return LFRicBuiltinFunctorFactory._builtin_functor_map[name]
 
 
 # For AutoAPI documentation generation.
 __all__ = ['LFRicBuiltinFunctor',
-           'LFRicKernelFunctor']
+           'LFRicKernelFunctor',
+           'LFRicBuiltinFunctorFactory']

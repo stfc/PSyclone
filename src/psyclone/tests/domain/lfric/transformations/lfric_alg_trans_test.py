@@ -38,13 +38,11 @@
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
-
 from psyclone.psyir.nodes import Call
-from psyclone.domain.lfric.algorithm import \
-    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor
-from psyclone.domain.lfric.transformations import LFRicAlgTrans, \
-    LFRicRaiseCall2InvokeTrans
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor)
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, LFRicRaiseCall2InvokeTrans)
 
 
 def test_init():
@@ -90,5 +88,5 @@ def test_apply(fortran_reader):
 
     assert len(psyir.walk(Call)) == 4
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 3
-    assert len(psyir.walk(LFRicKernelFunctor)) == 2
+    assert len(psyir.walk(LFRicKernelFunctor)) == 3
     assert len(psyir.walk(LFRicBuiltinFunctor)) == 1

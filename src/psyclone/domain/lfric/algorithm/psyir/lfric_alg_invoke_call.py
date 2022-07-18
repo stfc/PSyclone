@@ -38,13 +38,13 @@
 '''
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
-    LFRicKernelFunctor)
+    LFRicFunctor)
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''An invoke call from the LFRic Algorithm layer.'''
 
-    _children_valid_format = "[LFRicKernelFunctor|LFRicBuiltinFunctor]*"
+    _children_valid_format = "[LFRicFunctor]*"
     _text_name = "LFRicAlgorithmInvokeCall"
 
     @staticmethod
@@ -58,7 +58,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :rtype: bool
 
         '''
-        return isinstance(child, LFRicKernelFunctor)
+        return isinstance(child, LFRicFunctor)
 
     @staticmethod
     def _def_container_root_name(node):

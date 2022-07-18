@@ -38,11 +38,10 @@ algorithm layer to an LFRic algorithm-layer-specific invoke call which
 uses specialised classes.
 
 '''
-from psyclone.psyir.nodes import ArrayReference
-
 from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
 from psyclone.domain.lfric.algorithm.psyir import (
-    LFRicBuiltinFunctors, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
+    LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
+from psyclone.psyir.nodes import ArrayReference
 
 
 class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
@@ -69,7 +68,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
         calls = []
         table = call.scope.symbol_table
 
-        functor_kern = LFRicBuiltinFunctors()
+        functor_kern = LFRicBuiltinFunctorFactory()
 
         for idx, call_arg in enumerate(call.children):
 
@@ -83,6 +82,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                         functor_kern.get_builtin_class(call_arg.name).create(
                             table, args))
                 except KeyError:
+                    # No match for a builtin so create a user-defined kernel.
                     self._specialise_symbol(call_arg.symbol)
                     calls.append(LFRicKernelFunctor.create(call_arg.symbol,
                                                            args))
@@ -98,6 +98,8 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                             functor_kern.get_builtin_class(name).create(
                                 table, args))
                     except KeyError:
+                        # No match for a builtin so create a user-defined
+                        # kernel.
                         type_symbol = RaiseCall2InvokeTrans._get_symbol(
                             call, fp2_node)
                         self._specialise_symbol(type_symbol)
