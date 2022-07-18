@@ -199,14 +199,17 @@ def test_riv_other_step_size(fortran_reader, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.parametrize("array_expr", ["ic(i)", "ic(2)", "t(i)%b", "t(1)%b"])
+@pytest.mark.parametrize("array_expr", ["ic(i)", "ic(2)", "t(i)%b", "t(1)%b",
+                                        "myt%a(i)%b", "myt%a%b(i)%c",
+                                        "myt%a(i)", "myt%a%b(i)"])
 def test_riv_no_arrays(array_expr, fortran_reader, fortran_writer):
-    '''Tests that no loops are accepted as induction varibles.'''
+    '''Tests that no arrays are accepted as induction varibles.'''
     source = f'''program test
                 use mymod
                 integer i, invariant
                 integer, dimension(10) :: ic
                 type(my_type), dimension(10) :: t
+                type(my_type):: myt
                 real, dimension(10) :: a
                 invariant = 1
                 do i = 1, 10
