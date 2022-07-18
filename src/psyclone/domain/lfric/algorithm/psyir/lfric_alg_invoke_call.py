@@ -31,10 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
-'''Module to capture LFRic-specific PSyIR for the Algorithm layer, the
-transformation from PSyIR to LFRic-specific PSyIR and transformations
-on LFRic-specific PSyIR.
+'''This module contains the LFRic Algorithm Invoke-call class.
 
 '''
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall
+from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
+    LFRicKernelFunctor)
+
+
+class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
+    '''An invoke call from the LFRic Algorithm layer.'''
+
+    _children_valid_format = "[LFRicKernelFunctor|LFRicBuiltinFunctor]*"
+    _text_name = "LFRicAlgorithmInvokeCall"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, LFRicKernelFunctor)
+
+    @staticmethod
+    def _def_container_root_name(node):
+        '''
+        :returns: the root name to use for the container.
+        :rtype: str
+        '''
+        return f"{node.name}_psy"
+
+
+# For AutoAPI documentation generation.
+__all__ = ['LFRicAlgorithmInvokeCall']

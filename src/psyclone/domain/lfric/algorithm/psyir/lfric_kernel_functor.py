@@ -33,47 +33,31 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
 
-'''This module contains LFRic Algorithm-layer-specific PSyIR classes.
+''' Module containing the implementation of the LFRic-specific kernel-functor
+    classes.
 
 '''
-from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
-                                              KernelFunctor)
+
+from psyclone.domain.common.algorithm import KernelFunctor
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType, Symbol
 
 
-class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
-    '''An invoke call from the LFRic Algorithm layer.'''
+class LFRicKernelFunctor(KernelFunctor):
+    '''Object containing an LFRic kernel call, a description of its
+    required interface and the arguments to be passed to it.
 
-    _children_valid_format = "[LFRicKernelFunctor|LFRicBuiltinFunctor]*"
-    _text_name = "LFRicAlgorithmInvokeCall"
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return isinstance(child, (LFRicKernelFunctor, LFRicBuiltinFunctor))
-
-    @staticmethod
-    def _def_container_root_name(node):
-        '''
-        :returns: the root name to use for the container.
-        :rtype: str
-        '''
-        return f"{node.name}_psy"
+    '''
+    _text_name = "LFRicKernelFunctor"
 
 
-class LFRicBuiltinFunctor(KernelFunctor):
+class LFRicBuiltinFunctor(LFRicKernelFunctor):
     ''' Base class which all LFRic builtins subclass. Contains a builtin call,
     a description of its required interface and the arguments to be passed
     to it.
+
+    This class generates a Functor class for each built-in supported by
+    LFRic. These are accessed using the `get_builtin_class()` method.
 
     '''
     _text_name = "LFRicBuiltinFunctor"
@@ -106,6 +90,7 @@ class LFRicBuiltinFunctor(KernelFunctor):
             if type(sym) is Symbol:
                 sym.specialise(DataTypeSymbol)
                 sym.datatype = StructureType()
+            # ARPDBG verify symbol is correct??
         except KeyError:
             sym = table.new_symbol(cls._builtin_name,
                                    symbol_type=DataTypeSymbol,
@@ -128,27 +113,35 @@ class LFRicBuiltinFunctor(KernelFunctor):
             pass
 
 
-class LFRicKernelFunctor(KernelFunctor):
-    '''Object containing an LFRic kernel call, a description of its
-    required interface and the arguments to be passed to it.
+class LFRicBuiltinFunctors():
 
-    '''
-    _text_name = "LFRicKernelFunctor"
+    _builtin_functor_map = {}
 
+    @staticmethod
+    def _create_classes():
+        # Generate classes representing LFRic BuiltIn Functors by using
+        # the type() function.
+        LFRicBuiltinFunctors._builtin_functor_map = {}
 
-# Generate classes representing LFRic BuiltIn Functors by using the type()
-# function.
+        for name in BUILTIN_MAP_CAPITALISED:
+            LFRicBuiltinFunctors._builtin_functor_map[name.lower()] = type(
+                f"LFRic_{name}_Functor",
+                (LFRicBuiltinFunctor,),
+                {"_builtin_name": name.lower()})
+        
+    @staticmethod
+    def get_builtin_class(name):
+        '''
+        :param str name: name of an LFRic built-in kernel.
 
-#: Dictionary of BuiltIn Functors, indexed by lower-case name.
-BUILTIN_FUNCTOR_MAP = {}
-
-for name in BUILTIN_MAP_CAPITALISED:
-    BUILTIN_FUNCTOR_MAP[name.lower()] = type(f"LFRic_{name}_Functor",
-                                             (LFRicBuiltinFunctor,),
-                                             {"_builtin_name": name.lower()})
+        :returns: the class representing the functor for the named built-in.
+        :rtype: type
+        '''
+        if not LFRicBuiltinFunctors._builtin_functor_map:
+            LFRicBuiltinFunctors._create_classes()
+        return LFRicBuiltinFunctors._builtin_functor_map[name]
 
 
 # For AutoAPI documentation generation.
-__all__ = ['LFRicAlgorithmInvokeCall', 'LFRicBuiltinFunctor',
-           'LFRicKernelFunctor', 'BUILTIN_FUNCTOR_MAP'] + \
-           list(BUILTIN_FUNCTOR_MAP.keys())
+__all__ = ['LFRicBuiltinFunctor',
+           'LFRicKernelFunctor']

@@ -42,8 +42,8 @@
 '''
 
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
-from psyclone.domain.lfric.algorithm import (
-    BUILTIN_FUNCTOR_MAP, LFRicAlgorithmInvokeCall, LFRicKernelFunctor)
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicBuiltinFunctors, LFRicAlgorithmInvokeCall, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
@@ -384,7 +384,7 @@ def generate(kernel_path):
     kernel_list = []
     for sym, _ in kern_args.fields:
         kernel_list.append(
-            BUILTIN_FUNCTOR_MAP["setval_c"].create(
+            LFRicBuiltinFunctors.get_builtin_class("setval_c").create(
                 table,
                 [Reference(sym),
                  Literal("1.0", psyir.LfricRealScalarDataType())]))

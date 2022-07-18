@@ -41,8 +41,8 @@ uses specialised classes.
 from psyclone.psyir.nodes import ArrayReference
 
 from psyclone.domain.common.transformations import RaiseCall2InvokeTrans
-from psyclone.domain.lfric.algorithm import (
-    LFRicKernelFunctor, LFRicAlgorithmInvokeCall, BUILTIN_FUNCTOR_MAP)
+from psyclone.domain.lfric.algorithm.psyir import (
+    LFRicBuiltinFunctors, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
 
 
 class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
@@ -69,6 +69,8 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
         calls = []
         table = call.scope.symbol_table
 
+        functor_kern = LFRicBuiltinFunctors()
+
         for idx, call_arg in enumerate(call.children):
 
             if call.argument_names[idx]:
@@ -76,10 +78,11 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
             elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
-                if call_arg.name in BUILTIN_FUNCTOR_MAP:
-                    calls.append(BUILTIN_FUNCTOR_MAP[call_arg.name].create(
-                        table, args))
-                else:
+                try:
+                    calls.append(
+                        functor_kern.get_builtin_class(call_arg.name).create(
+                            table, args))
+                except KeyError:
                     self._specialise_symbol(call_arg.symbol)
                     calls.append(LFRicKernelFunctor.create(call_arg.symbol,
                                                            args))
@@ -90,10 +93,11 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
                     args = RaiseCall2InvokeTrans._parse_args(call_arg,
                                                              fp2_node)
                     name = fp2_node.children[0].string
-                    if name in BUILTIN_FUNCTOR_MAP:
-                        calls.append(BUILTIN_FUNCTOR_MAP[name].create(
-                            table, args))
-                    else:
+                    try:
+                        calls.append(
+                            functor_kern.get_builtin_class(name).create(
+                                table, args))
+                    except KeyError:
                         type_symbol = RaiseCall2InvokeTrans._get_symbol(
                             call, fp2_node)
                         self._specialise_symbol(type_symbol)
