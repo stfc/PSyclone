@@ -40,6 +40,7 @@
 
 from psyclone.domain.common.algorithm import KernelFunctor
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType, Symbol
 
 
@@ -96,14 +97,14 @@ class LFRicBuiltinFunctor(LFRicFunctor):
             if type(sym) is Symbol:
                 if not sym.is_unresolved:
                     raise InternalError(
-                        f"An entry with the same name as builtin '{sym.name}' "
+                        f"A symbol with the same name as builtin '{sym.name}' "
                         f"exists but has an interface of '{sym.interface}' "
                         f"instead of being unresolved.")
                 sym.specialise(DataTypeSymbol)
                 sym.datatype = StructureType()
             elif not isinstance(sym, DataTypeSymbol):
                 raise InternalError(
-                    f"An entry with the same name as builtin '{sym.name}' "
+                    f"A symbol with the same name as builtin '{sym.name}' "
                     f"exists but it is a '{type(sym).__name__}' and not a "
                     f"DataTypeSymbol.")
         except KeyError:
@@ -130,50 +131,78 @@ class LFRicBuiltinFunctor(LFRicFunctor):
 
 class LFRicBuiltinFunctorFactory():
     '''
-    This class generates a Functor class for each built-in supported by
-    LFRic. These are accessed using the `get_builtin_class()` method.
+    This class is a singleton which generates and stores a Functor class for
+    each built-in supported by LFRic. An instance of one of these classes may
+    be obtained by using the `create()` method.
 
+    :raises ValueError: if an attempt is made to construct a second instance \
+                        of this class.
     '''
-    #: Classes representing LFRic built-in functors, indexed by name.
-    _builtin_functor_map = {}
+    #: The singleton instance of this class.
+    _instance = None
 
     @staticmethod
-    def _create_classes():
+    def get():
+        '''
+        :returns: the singleton instance of this class.
+        :rtype: :py:class:\
+            `psyclone.domain.lfric.algorithm.psyir.LFRicBuiltinFunctorFactory`
+        '''
+        if not LFRicBuiltinFunctorFactory._instance:
+            LFRicBuiltinFunctorFactory._instance = LFRicBuiltinFunctorFactory()
+        return LFRicBuiltinFunctorFactory._instance
+
+    def __init__(self):
+        if LFRicBuiltinFunctorFactory._instance:
+            raise ValueError(
+                "Only one instance of LFRicBuiltinFunctorFactory "
+                "is permitted. Use the get() method to access it.")
+        # Classes representing LFRic built-in functors, indexed by name.
+        self._builtin_functor_map = {}
+
+    def _create_classes(self):
         '''
         Generate classes representing LFRic BuiltIn Functors by using
         the type() function. The classes are stored in a class variable
         so that this construction is only ever performed once.
 
         '''
-        if LFRicBuiltinFunctorFactory._builtin_functor_map:
+        if self._builtin_functor_map:
             return
 
         for name in BUILTIN_MAP_CAPITALISED:
             lname = name.lower()
-            LFRicBuiltinFunctorFactory._builtin_functor_map[lname] = type(
+            self._builtin_functor_map[lname] = type(
                 f"LFRic_{name}_Functor",
                 (LFRicBuiltinFunctor,),
                 {"_builtin_name": name.lower()})
-        
-    @staticmethod
-    def _get_builtin_class(name):
+
+    def _get_builtin_class(self, name):
         '''
         Look-up the class associated with the named built-in.
 
-        :param str name: name of an LFRic built-in kernel.
+        :param str name: name of an LFRic built-in kernel (not case sensitive).
 
         :returns: the class representing the functor for the named built-in.
         :rtype: type
-        '''
-        if not LFRicBuiltinFunctorFactory._builtin_functor_map:
-            LFRicBuiltinFunctorFactory._create_classes()
-        return LFRicBuiltinFunctorFactory._builtin_functor_map[name]
 
-    @staticmethod
-    def create(name, table, arguments):
         '''
+        if not self._builtin_functor_map:
+            self._create_classes()
+        return self._builtin_functor_map[name.lower()]
+
+    def create(self, name, table, arguments):
         '''
-        cls = LFRicBuiltinFunctorFactory._get_builtin_class(name)
+        Create a BuiltinFunctor for the named LFRic builtin.
+
+        :param str name: the built-in for which a functor is required.
+        :param table: the symbol table to which to add a corresponding symbol.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param arguments: the arguments to give to the functor.
+        :type arguments: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+
+        '''
+        cls = self._get_builtin_class(name)
         return cls.create(table, arguments)
 
 
