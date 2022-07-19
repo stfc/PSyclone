@@ -63,7 +63,8 @@ currently the original approach is used.
 The GOcean API also uses PSyIR to capture kernel code and its
 associated metadata. As with algorithm code this is achieved by first
 reading the kernel file into generic PSyIR, then specialising the
-PSyIR (raising) to have GOcean-specific classes. At the moment these
+PSyIR (raising) to have GOcean-specific classes using the
+RaisePSyIR2GOceanKernelTrans transformation. At the moment these
 classes are limited to the kernel metadata and this implementation is
 not used by PSyclone, the original approach described below continues
 to be used. The specialised kernel metadata classes validate the
