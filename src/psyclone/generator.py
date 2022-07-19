@@ -56,7 +56,7 @@ from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.domain.common.transformations import (
     AlgTrans, AlgInvoke2PSyCallTrans)
-from psyclone.domain.gocean.transformations import KernTrans
+from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
@@ -282,7 +282,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
-                kern_trans = KernTrans(kern.symbol.name)
+                kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
                 kern_trans.apply(kernel_psyir)
 
                 kernels[id(invoke)][id(kern)] = kernel_psyir
