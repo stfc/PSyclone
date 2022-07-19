@@ -145,7 +145,7 @@ class LFRicAlg:
         # field itself is of a precision other than r_def (or is perhaps
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
-        factory = LFRicBuiltinFunctorFactory()
+        factory = LFRicBuiltinFunctorFactory.get()
         psyir.add_lfric_precision_symbol(table, "r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:

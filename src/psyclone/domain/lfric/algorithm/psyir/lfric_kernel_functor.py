@@ -86,11 +86,13 @@ class LFRicBuiltinFunctor(LFRicFunctor):
         :returns: a functor object describing an LFRic builtin.
         :rtype: :py:class:`psyclone.domain.lfric.algorithm.LFRicBuiltinFunctor`
 
-        :raises InternalError: if a symbol is found that has the same as a \
-            built-in but does not have the correct properties.
+        :raises InternalError: if a symbol is found that has the same name as \
+            a built-in but does not have the correct properties.
         '''
         # We can't use find_or_create() here as that raises an Exception if
-        # the symbol that is found is not of the correct type.
+        # the symbol that is found is not of the correct type and we want to
+        # allow for the case where an unresolved Symbol of the right name
+        # has already been added to the table.
         try:
             sym = table.lookup(cls._builtin_name)
             # pylint: disable=unidiomatic-typecheck
@@ -126,6 +128,8 @@ class LFRicBuiltinFunctor(LFRicFunctor):
             # pylint: disable=protected-access
             del table._symbols[self._builtin_name]
         except KeyError:
+            # The symbol has already been removed by a previous lowering
+            # of the same builtin.
             pass
 
 

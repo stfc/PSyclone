@@ -124,7 +124,9 @@ def test_lfric_functor_factory(name):
     sched.addchild(call)
     funky.lower_to_language_level()
     assert name not in table._symbols
-    # Lowering the second built-in should not cause problems.
+    # Lowering the second built-in should not cause problems, even though the
+    # associated symbol will have been removed when the first builtin was
+    # lowered.
     funky2.lower_to_language_level()
 
 
