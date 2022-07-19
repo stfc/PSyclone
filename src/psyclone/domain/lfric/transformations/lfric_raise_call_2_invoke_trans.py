@@ -68,7 +68,7 @@ class LFRicRaiseCall2InvokeTrans(RaiseCall2InvokeTrans):
         calls = []
         table = call.scope.symbol_table
 
-        factory = LFRicBuiltinFunctorFactory()
+        factory = LFRicBuiltinFunctorFactory.get()
 
         for idx, call_arg in enumerate(call.children):
 
