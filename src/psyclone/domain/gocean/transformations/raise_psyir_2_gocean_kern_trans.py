@@ -45,7 +45,32 @@ from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
 
 
-class KernTrans(Transformation):
+def find_symbol(node, name):
+    '''Utility method to find the symbol associated with the supplied
+    name. The supplied node and all of its siblings are searched and the
+    symbol and its scoping node are returned if the symbol is found.
+
+    :param node: the starting node for the search.
+    :type: :py:class:`psyclone.psyir.nodes.node`
+    :param str name: the name of the symbol being searched.
+
+    :returns: a tuple containing the symbol with the same name as the \
+        supplied name and the scoping node for that symbol.
+    :rtype: Optional[(:py:class:`psyclone.psyir.symbols.datasymbol, \
+        :py:class:`psyclone.psyir.nodes.node`)]
+
+    '''
+    symbol = None
+    scoping_node = None
+    for test_node in node.walk(ScopingNode):
+        if name in test_node.symbol_table:
+            symbol = test_node.symbol_table.lookup(name)
+            scoping_node = test_node
+            break
+    return (symbol, scoping_node)
+
+
+class RaisePSyIR2GOceanKernTrans(Transformation):
     '''Raise a generic PSyIR representation of a kernel-layer routine
     to a PSyclone version with specialised domain-specific nodes and
     symbols. This is currently limited to the specialisation of kernel
@@ -82,17 +107,18 @@ class KernTrans(Transformation):
         invalid.
 
     '''
+    VALID_NAME = re.compile(r'[a-zA-Z_][\w]*')
+
     def __init__(self, metadata_name):
         super().__init__()
 
-        pattern = re.compile(r'[a-zA-Z_][\w]*')
-        if not metadata_name or not pattern.match(metadata_name):
+        if not metadata_name or not \
+           RaisePSyIR2GOceanKernTrans.VALID_NAME.match(metadata_name):
             raise TransformationError(
-                f"Error in {self.name} transformation. The kern_trans "
-                f"transformation requires the name of the variable "
-                f"containing the metadata to be set to a valid value "
-                f"before applying the transformation, but found "
-                f"'{metadata_name}'.")
+                f"Error in {self.name} transformation. The "
+                f"raise_psyir_2_gocean_kern_trans transformation requires the "
+                f"name of the variable containing the metadata to be set to a "
+                f"valid value, but found '{metadata_name}'.")
 
         # The name of the PSyIR symbol containing the metadata
         self._metadata_name = metadata_name
@@ -125,15 +151,8 @@ class KernTrans(Transformation):
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent ({type(node.parent).__name__}).")
 
-        metadata_symbol = None
-        scoping_node = None
-        for test_node in node.walk(ScopingNode):
-            if self._metadata_name in test_node.symbol_table:
-                metadata_symbol = test_node.symbol_table.lookup(
-                    self._metadata_name)
-                scoping_node = test_node
-                break
-        else:
+        metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)
+        if not metadata_symbol:
             raise TransformationError(
                 f"Error in {self.name} transformation. The metadata name "
                 f"({self._metadata_name}) provided to the transformation "
@@ -170,14 +189,7 @@ class KernTrans(Transformation):
         self.validate(node, options=options)
 
         # Find the metadata symbol based on the supplied name.
-        metadata_symbol = None
-        scoping_node = None
-        for test_node in node.walk(ScopingNode):
-            if self._metadata_name in test_node.symbol_table:
-                metadata_symbol = test_node.symbol_table.lookup(
-                    self._metadata_name)
-                scoping_node = test_node
-                break
+        metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)
 
         # Find the container in which this metadata resides.
         container = scoping_node.ancestor(Container, include_self=True)
@@ -186,9 +198,9 @@ class KernTrans(Transformation):
         metadata = GOceanKernelMetadata.create_from_psyir(metadata_symbol)
 
         # Remove metadata symbol.
-        # TODO: support needs to be added for removing a DataSymbol
-        # from the symbol table. At the moment we need to use internal
-        # methods.
+        # TODO issue #898: support needs to be added for removing a
+        # DataSymbol from the symbol table. At the moment we need to
+        # use internal methods.
         # pylint: disable=protected-access
         symbol_table = scoping_node.symbol_table
         norm_name = symbol_table._normalize(metadata_symbol.name)
@@ -202,4 +214,4 @@ class KernTrans(Transformation):
         container.replace_with(gocean_container)
 
 
-__all__ = ['KernTrans']
+__all__ = ['RaisePSyIR2GOceanKernTrans', 'find_symbol']

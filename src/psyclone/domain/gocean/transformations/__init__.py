@@ -49,4 +49,5 @@ from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
     import GOceanLoopFuseTrans
 from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
     import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.kern_trans import KernTrans
+from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
+    import RaisePSyIR2GOceanKernTrans

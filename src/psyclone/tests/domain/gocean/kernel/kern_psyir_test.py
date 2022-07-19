@@ -48,7 +48,7 @@ from fparser.two.utils import walk
 from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
     GOceanContainer
-from psyclone.domain.gocean.transformations import KernTrans
+from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
@@ -113,7 +113,7 @@ def test_goceancontainer_lower(fortran_reader):
     assert kernel_psyir.children[0].symbol_table.lookup("compute_cu")
 
     # Now raise to GOcean PSyIR and perform checks
-    kern_trans = KernTrans("compute_cu")
+    kern_trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     kern_trans.apply(kernel_psyir)
     assert isinstance(kernel_psyir.children[0], GOceanContainer)
     with pytest.raises(KeyError):
