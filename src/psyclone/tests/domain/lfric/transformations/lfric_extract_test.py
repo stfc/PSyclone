@@ -492,7 +492,6 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
-    print("CODE", code)
     assert output in code
 
 
