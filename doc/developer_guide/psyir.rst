@@ -881,11 +881,14 @@ provided statically, one to capture an invoke call, ``LFRicAlgorithmInvokeCall``
 and two to capture Builtin and (coded) Kernel calls within an invoke
 call, ``LFRicBuiltinFunctor`` and ``LFRicKernelFunctor`` respectively.
 
-At the end of the module, code generation is performed to create a
+The ``LFRicBuiltinFunctorFactory`` class dynamically creates a
 subclass of ``LFRicBuiltInFunctor`` for every LFRic
 :ref:`Builtin <user_guide:lfric-built-ins>`. These are named following the
 scheme ``LFRic_<BUILTIN_NAME>_Functor`` so that, for example, the ``Setval_X``
-builtin is represented by the ``LFRic_Setval_X_Functor`` class.
+builtin is represented by the ``LFRic_Setval_X_Functor`` class. An instance
+of the appropriate class may be obtained using the factory's create method:
+
+.. automethod:: psyclone.domain.lfric.algorithm.psyir.LFRicBuiltinFunctorFactory.create
 
 Kernel-layer Classes
 --------------------
