@@ -145,16 +145,22 @@ def test_goceankernelmetadata_init2():
     and set as expected.
 
     '''
+    # split the assert into two as we can get pollution from other
+    # tests which increase the expected argument list.
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(iterates_over="hello")
     assert ("Expected one of ['go_all_pts', 'go_internal_pts', "
-            "'go_external_pts'] for 'iterates_over' metadata, but found "
+            "'go_external_pts'" in str(info.value))
+    assert ("for 'iterates_over' metadata, but found "
             "'hello'." in str(info.value))
 
+    # split the assert into two as we can get pollution from other
+    # tests which increase the expected argument list.
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(index_offset="hello")
     assert ("Expected one of ['go_offset_ne', 'go_offset_sw', "
-            "'go_offset_any'] for 'index_offset' metadata, but found "
+            "'go_offset_any'" in str(info.value))
+    assert ("for 'index_offset' metadata, but found "
             "'hello'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
