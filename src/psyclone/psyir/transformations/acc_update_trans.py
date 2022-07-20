@@ -178,12 +178,6 @@ class ACCUpdateTrans(Transformation):
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.nemo import NemoInvokeSchedule
-        if sched.ancestor(NemoInvokeSchedule, include_self=True):
-            from psyclone.nemo import NemoACCUpdateDirective as \
-                ACCUpdateDirective
-
         if not node_list:
             return
 
@@ -219,12 +213,13 @@ class ACCUpdateTrans(Transformation):
 
             # Since the supplied nodes may be the children of an IfBlock or
             # Loop, we have to search up to find the ancestor that *is* a
-            # child of the Schedule we are working on.
+            # child of a Schedule.
             child = node_list[node_index]
-            while child not in sched.children:
-                child = child.parent
+            sched = child.parent
+            while not isinstance(sched, Schedule):
+                child, sched = child.parent, sched.parent
 
-            while True:
+            while cpu_sig:
                 update_pos = sched.children.index(child) + node_offset
 
                 if idx == IN:
@@ -236,11 +231,11 @@ class ACCUpdateTrans(Transformation):
 
                 text_dep_stmts = sched.children[beg:end]
                 text_sig = set()
-                text_sync = []
+                text_sync = set()
 
                 loop_dep_stmts = sched.children[end:beg]
                 loop_sig = set()
-                loop_sync = []
+                loop_sync = set()
 
                 for dep_stmts, sig, sync in [
                     (text_dep_stmts, text_sig, text_sync), 
@@ -255,31 +250,36 @@ class ACCUpdateTrans(Transformation):
                                 sig.update( acc.in_kernel_references)
                     # If there are data dependencies or there is a statement
                     # (e.g a call) that requires synchronisation.
-                    if any(cpu_sig.intersection(sig)) or \
-                        any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
-                        sync.append(True)
+                    sync.update(cpu_sig.intersection(sig))
+                    if any(stmt.walk(self._brk_nodes) for stmt in dep_stmts):
+                        sync.update(cpu_sig)
 
-                # If synchronisation required, directive can't be moved at all.
-                if text_sync:
-                    break
+                loop_sync.difference_update(text_sync)
+
+                # If textual synchronisation is required, those variables need
+                # to be updated straight away.
+                self._place_update(sched, update_pos, text_sync, direction)
+                cpu_sig.difference_update(text_sync)
 
                 update_pos = tentative_update_pos
+
+                # If within loop body, we must cover loop-carried dependencies.
+                # If within if stmt, update device directives can only be moved
+                # out if an update host directive for the same variable - which
+                # always exists as all outputs are inputs - has already been
+                # moved out as well. This happens iff there's no textually
+                # preceding kernel within the if stmt which writes that
+                # variable which would appear in loop_sync as part of the
+                # inputs of all textually preceding kernels.
+                if isinstance(sched.parent, Loop) or \
+                    isinstance(sched.parent, IfBlock) and idx == OUT:
+                    self._place_update(sched, update_pos, loop_sync, direction)
+                    cpu_sig.difference_update(loop_sync)
 
                 # This schedule is the body of a routine and, at least until we
                 # can do interprocedural analysis, this is the end of the road.
                 if isinstance(sched, InvokeSchedule):
-                    break
-                # TODO If within if statement, cannot push update directives
-                # out at the risk of writing outdated data to the device and
-                # reading useless data from the device unless we implement
-                # conditional update directives. But, what if we instead
-                # unconditionally update both the host and the device???
-                elif isinstance(sched.parent, IfBlock):
-                    break
-                # TODO If within loop statement, can push update directive out
-                # *if* its body is executed at least once which are currently
-                # not checking.
-                elif isinstance(sched.parent, Loop) and loop_sync:
+                    self._place_update(sched, update_pos, cpu_sig, direction)
                     break
 
                 while True:
@@ -287,20 +287,43 @@ class ACCUpdateTrans(Transformation):
                     if isinstance(sched, Schedule):
                         break
 
-            # Merge consecutive update directives with the same direction.
-            # Avoid repeated variables in consecutive update directives.
-            for update_offset in (-1, 0):
-                try:
-                    neighbour_node = sched.children[update_pos + update_offset]
-                    if isinstance(neighbour_node, ACCUpdateDirective):
-                        if neighbour_node.direction == direction:
-                            neighbour_node.sig_set.update(cpu_sig)
-                            cpu_sig = set()
-                        else:
-                            cpu_sig.difference_update(neighbour_node.sig_set)
-                except IndexError:
-                    pass
+    def _place_update(self, sched, update_pos, cpu_sig, direction):
+        '''
+        Places, avoiding redundancy where possible, an update directive in the
+        provided schedule, at the requested position, for the requested
+        variables and direction.
 
-            if cpu_sig:
-                update_dir = ACCUpdateDirective(cpu_sig, direction)
-                sched.addchild(update_dir, update_pos)
+        :param sched: the schedule in which to add the directive.
+        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param int update_pos: where to place the directive in the schedule.
+        :param cpu_sig: the access signature(s) that need to be synchronised \
+                        with the accelerator.
+        :type cpu_sig: Set[:py:class:`psyclone.core.Signature`]
+        :param str direction: the direction of the synchronisation.
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.nemo import NemoInvokeSchedule
+        if sched.ancestor(NemoInvokeSchedule, include_self=True):
+            from psyclone.nemo import NemoACCUpdateDirective as \
+                ACCUpdateDirective
+
+        cpu_sig = cpu_sig.copy()
+
+        for update_offset in (-1, 0):
+            try:
+                neighbour_node = sched.children[update_pos + update_offset]
+                if isinstance(neighbour_node, ACCUpdateDirective):
+                    # Merge neighbour update directives in the same direction.
+                    if neighbour_node.direction == direction:
+                        neighbour_node.sig_set.update(cpu_sig)
+                        cpu_sig.clear()
+                    # Avoid updating the host just after updating the device.
+                    else:
+                        cpu_sig.difference_update(neighbour_node.sig_set)
+            except IndexError:
+                pass
+
+        if cpu_sig:
+            update_dir = ACCUpdateDirective(cpu_sig, direction)
+            sched.addchild(update_dir, update_pos)
