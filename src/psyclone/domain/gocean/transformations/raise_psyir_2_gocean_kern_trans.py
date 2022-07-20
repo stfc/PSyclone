@@ -116,7 +116,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
            RaisePSyIR2GOceanKernTrans.VALID_NAME.match(metadata_name):
             raise TransformationError(
                 f"Error in {self.name} transformation. The "
-                f"raise_psyir_2_gocean_kern_trans transformation requires the "
+                f"RaisePSyIR2GOceanKernTrans transformation requires the "
                 f"name of the variable containing the metadata to be set to a "
                 f"valid value, but found '{metadata_name}'.")
 

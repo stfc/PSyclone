@@ -109,12 +109,12 @@ def test_kerntrans_init():
     assert kern_trans._metadata_name == "dummy"
     with pytest.raises(TransformationError) as info:
         _ = RaisePSyIR2GOceanKernTrans("")
-    assert ("The raise_psyir_2_gocean_kern_trans transformation requires the "
+    assert ("The RaisePSyIR2GOceanKernTrans transformation requires the "
             "name of the variable containing the metadata to be set to a "
             "valid value, but found ''." in str(info.value))
     with pytest.raises(TransformationError) as info:
         _ = RaisePSyIR2GOceanKernTrans("1dummy")
-    assert ("The raise_psyir_2_gocean_kern_trans transformation requires the "
+    assert ("The RaisePSyIR2GOceanKernTrans transformation requires the "
             "name of the variable containing the metadata to be set to a "
             "valid value, but found '1dummy'." in str(info.value))
 
