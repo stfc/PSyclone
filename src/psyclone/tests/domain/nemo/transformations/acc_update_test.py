@@ -92,14 +92,14 @@ end SUBROUTINE tra_ldf_iso
     gen_code = str(psy.gen).lower()
     assert ("  real, dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
-            "  !$acc update if_present host(l_ptr)\n"
+            "  !$acc update if_present host(jn,l_ptr)\n"
             "  !$acc enter data copyin(jpi,tmask,zftu,zftv)\n"
             "  !$acc kernels\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc end kernels\n"
+            "  !$acc update if_present host(zftv)\n"
             "  if (l_ptr) then\n" in gen_code)
-    assert ("    !$acc update if_present host(jn,zftv)\n"
-            "    call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
+    assert ("    call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
             "    !$acc update if_present device(zftv)\n" in gen_code)
@@ -142,11 +142,11 @@ end SUBROUTINE tra_ldf_iso
     acc_trans.apply(schedule)
     acc_update.apply(schedule)
     gen_code = str(psy.gen).lower()
-    assert ("  !$acc update if_present host(l_ptr)\n"
+    assert ("  !$acc update if_present host(jn,l_ptr)\n"
             "  !$acc enter data"
             ) in gen_code
-    assert ("    !$acc update if_present host(jn,zftv)\n"
-            "    call"
+    assert ("  !$acc update if_present host(zftv)\n"
+            "  if"
             ) in gen_code
     assert ("    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
@@ -224,8 +224,6 @@ end SUBROUTINE tra_ldf_iso
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n" in gen_code)
-    assert ("    !$acc update if_present host(jn,zftv)\n"
-            "    call" in gen_code)
     assert ("  end if\n"
             "  !$acc update if_present host(checksum,zftv)\n"
             "  checksum = sum(zftv)\n"
@@ -366,13 +364,14 @@ end SUBROUTINE tra_ldf_iso
     assert "device(ji)" not in gen_code
     assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
+            "  !$acc enter data copyin(zftw)\n"
             "  do ji = start, jpi, step\n"
             "    !$acc update if_present host(zftw)\n"
             "    zftv(ji,:,:) = zftw(ji,:,:)\n"
             "    !$acc kernels\n"
             "    zftw(ji,:,:) = -1.0d0\n"
             "    !$acc end kernels\n"
-            "  end do\n"
+            "  enddo\n"
             "  !$acc update if_present device(zftv)\n" in gen_code)
 
 def test_if_host_overwriting(parser):
@@ -409,3 +408,36 @@ end SUBROUTINE tra_ldf_iso
             "    zftv(1,:,:) = 1.0d0\n"
             "  end if\n"
             "  !$acc update if_present device(zftv)") in gen_code
+
+def test_if_update_device(parser):
+    ''' Test the placement of update device directives when an IfBlock contains
+     a host statement writing the same variable as a subsequent kernel. '''
+    code = '''
+SUBROUTINE tra_ldf_iso()
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  LOGICAL :: l_ptr
+  REAL, DIMENSION(jpi,jpj,jpk) :: zftv
+  IF( l_ptr )THEN
+    zftv(:,:,:) = 0.0d0
+    zftv(1,:,:) = 1.0d0
+  END IF
+end SUBROUTINE tra_ldf_iso
+'''
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ast)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_update = ACCUpdateTrans()
+    acc_kernels = ACCKernelsTrans()
+    acc_kernels.apply(schedule[0].if_body[0])
+    acc_update.apply(schedule)
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
+    assert ("  if (l_ptr) then\n"
+            "    !$acc kernels\n"
+            "    zftv(:,:,:) = 0.0d0\n"
+            "    !$acc end kernels\n"
+            "    !$acc update if_present host(zftv)\n"
+            "    zftv(1,:,:) = 1.0d0\n"
+            "    !$acc update if_present device(zftv)\n"
+            "  end if\n") in gen_code
