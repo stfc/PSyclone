@@ -138,16 +138,16 @@ class ACCUpdateTrans(Transformation):
             elif not child.walk(self._acc_regions + self._brk_nodes):
                 node_list.append(child)
             else:
-                self._add_update_directives(sched, node_list)
+                self._add_update_directives(node_list)
                 node_list.clear()
                 if isinstance(child, self._brk_nodes):
                     # Conservatively add an update host statement just before
                     # the Call node for fear of temporary operands.
-                    self._add_update_directives(sched, [child])
+                    self._add_update_directives([child])
                 elif isinstance(child, IfBlock):
                     # Add any update statements that are required due to
                     # (read) accesses within the condition of the If.
-                    self._add_update_directives(sched, [child.condition])
+                    self._add_update_directives([child.condition])
                     # Recurse down into the if body
                     self._add_updates_to_schedule(child.if_body)
                     if child.else_body:
@@ -156,17 +156,17 @@ class ACCUpdateTrans(Transformation):
                     # A loop on the CPU with code that may be on the GPU.
                     # The loop start, stop and step values could all
                     # potentially have been previously written to on the GPU.
-                    self._add_update_directives(sched, [child.start_expr,
-                                                        child.stop_expr,
-                                                        child.step_expr])
+                    self._add_update_directives([child.start_expr,
+                                                 child.stop_expr,
+                                                 child.step_expr])
                     # Recurse down into the loop body
                     self._add_updates_to_schedule(child.loop_body)
 
         # We've reached the end of the list of children - are there any
         # last nodes that represent computation on the CPU?
-        self._add_update_directives(sched, node_list)
+        self._add_update_directives(node_list)
 
-    def _add_update_directives(self, sched, node_list):
+    def _add_update_directives(self, node_list):
         '''
         Adds the required update directives before and after the nodes in
         the supplied list.
