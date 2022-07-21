@@ -44,7 +44,7 @@ from psyclone import psyGen
 from psyclone.errors import InternalError
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
