@@ -529,7 +529,7 @@ def test_multi_increment(tmpdir, index_str):
 
 def test_unary_minus(tmpdir):
     '''Test that the transformation works when there is a unary minus on
-    the lhs of an expression.
+    the lhs of a rhs expression.
 
     '''
     tl_fortran = (
@@ -1180,7 +1180,7 @@ def test_validate_rhs_active_multi_divisor():
 
 def test_validate_rhs_active_unary_minus():
     '''Test that the validation works when there is a unary minus on
-    the lhs of an expression.
+    the lhs of a rhs expression.
 
     active vars ["a", "b"]
     a = -x*b
