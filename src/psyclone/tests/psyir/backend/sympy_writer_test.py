@@ -32,10 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing py.test tests the SymPy writer.'''
-
-from __future__ import print_function, absolute_import
 
 import pytest
 from sympy import Function, Symbol
@@ -309,7 +308,8 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     exp2 = psyir.children[0].children[1].rhs
     sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
 
-    assert sympy_list[0] == parse_expr("a%a_b_1 + a%a_c(1) + i")
+    expr = parse_expr("a%a_b_1 + a%a_c(1) + i")
+    assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
 
 

@@ -393,7 +393,7 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     ("1.0", "1.0"),
     ("a", "a"),
     ("a*b+c", "a * b + c"),
-    ("c+a*b", "c + a * b"),
+    ("c+a*b", "a * b + c"),
     ("(a*b)+c", "a * b + c"),
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),

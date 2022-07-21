@@ -38,10 +38,12 @@
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
-    they iterate over DOFs. However this may change in the future. '''
+    they iterate over DOFs. However this may change in the future.
 
-# imports
-from __future__ import absolute_import, print_function
+    TODO #1796 - break the tests for each built-in into separate files under
+                 the 'builtins' directory.
+ '''
+
 import os
 import pytest
 
@@ -66,14 +68,6 @@ BASE_PATH = os.path.join(
 
 # The PSyclone API under test
 API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
 
 
 def dummy_func(self, _1, _2=True):
@@ -158,11 +152,11 @@ def test_lfricbuiltin_not_over_dofs():
     # Restore the original file name before doing the assert in case
     # it fails
     lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("built-in calls must operate on DoFs but found 'cell_column' "
-            "for Built-in: Set a real-valued field " in str(excinfo.value))
+    assert ("An LFRic built-in must iterate over DoFs but kernel 'setval_c' "
+            "iterates over 'cell_column'" in str(excinfo.value))
 
 
 def test_builtin_multiple_writes():
