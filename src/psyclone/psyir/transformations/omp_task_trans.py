@@ -35,7 +35,7 @@
 ''' This module provides the OMPTaskTrans transformation.'''
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError, GenerationError
-from psyclone.psyir.transformations import ParallelLoopTrans
+from psyclone.psyir.transformations.parallel_loop_trans import ParallelLoopTrans
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.backend.fortran import FortranWriter
